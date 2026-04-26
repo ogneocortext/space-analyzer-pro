@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Analyzer Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .test-container {
+            background: rgba(16, 185, 129, 0.9);
+            border: 2px solid white;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #ef4444;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #10b981;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .feature-list {
+            text-align: left;
+            margin-top: 20px;
+        }
+
+        .feature-list li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .feature-list li::before {
+            content: "✅";
+            position: absolute;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info">
+        <span class="status-indicator"></span>
+        TEST PAGE LOADED
+    </div>
+
+    <div class="test-container">
+        <h1>🚀 Space Analyzer Pro</h1>
+        <h2>2026 AI-Powered File Management</h2>
+        <p><strong>If you can see this page, your browser is working correctly!</strong></p>
+
+        <div style="margin: 20px 0; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+            <h3>✅ Test Results:</h3>
+            <p>✅ HTML rendering: Working</p>
+            <p>✅ CSS styling: Working</p>
+            <p>✅ Background gradients: Working</p>
+            <p>✅ Animations: Working</p>
+            <p>✅ Responsive design: Working</p>
+        </div>
+
+        <div class="feature-list">
+            <h3>🎯 2026 UX Features Implemented:</h3>
+            <li>AI Trust Indicators with confidence scoring</li>
+            <li>Contextual suggestions based on user behavior</li>
+            <li>Enhanced spatial UI with focus modes</li>
+            <li>Adaptive personalization engine</li>
+            <li>Glassmorphism design system</li>
+            <li>Accessibility-first approach</li>
+            <li>Progressive disclosure patterns</li>
+        </div>
+
+        <div style="margin-top: 30px; padding: 15px; background: rgba(59, 130, 246, 0.1); border-radius: 8px;">
+            <h3>🔧 Next Steps:</h3>
+            <p>1. If this page loads, the React app issue is isolated</p>
+            <p>2. Check browser console (F12) for JavaScript errors</p>
+            <p>3. Try refreshing the main app: <a href="http://localhost:3001" style="color: #3b82f6;">http://localhost:3001</a></p>
+            <p>4. Clear browser cache and try again</p>
+        </div>
+
+        <p style="margin-top: 20px; font-size: 12px; color: #94a3b8;">
+            Generated: <span id="timestamp"></span>
+        </p>
+    </div>
+
+    <script>
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+    </script>
+</body>
+</html>

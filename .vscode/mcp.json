@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "puppeteer-automation": {
+      "command": "node",
+      "args": ["docs/tools/puppeteer/src/server.js"],
+      "cwd": "e:/Self Built Web and Mobile Apps/Space Analyzer",
+      "env": {
+        "PUPPETEER_EXECUTABLE_PATH": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+        "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD": "true",
+        "NODE_OPTIONS": "--max-old-space-size=4096"
+      },
+      "disabled": false,
+      "timeout": 600,
+      "alwaysAllow": ["create_session", "navigate", "click_element", "fill_input", "take_screenshot", "get_console_logs", "get_session_status", "close_session", "execute_js"]
+    }
+  }
+}

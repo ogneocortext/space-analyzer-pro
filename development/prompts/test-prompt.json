@@ -1,0 +1,1 @@
+{"model": "mistral:7b-instruct-q4_0", "prompt": "Give 3 quick UX improvements for a dark-themed file analyzer app with AI features.", "stream": false, "options": {"temperature": 0.1, "num_predict": 150}}

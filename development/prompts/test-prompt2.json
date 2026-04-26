@@ -1,0 +1,1 @@
+{"model": "deepseek-coder:6.7b", "prompt": "Give 3 specific UX improvements for a file analyzer app with dark theme, AI features, and multiple visualizations. Focus on user flow and interaction design.", "stream": false, "options": {"temperature": 0.2, "num_predict": 200}}

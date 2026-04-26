@@ -1,0 +1,1 @@
+{"model": "codegemma:7b", "prompt": "Analyze UX of a space analyzer app with dark theme, categorized navigation, AI features, and visualizations. Give 3 actionable improvements for better user experience.", "stream": false, "options": {"temperature": 0.3, "num_predict": 180}}
