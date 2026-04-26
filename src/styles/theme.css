@@ -1,0 +1,94 @@
+/* Space Analyzer Additional Theme Styles */
+/* Complementary styles that don't conflict with index.css */
+
+/* Base layout fixes */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #020617;
+  color: #f8fafc;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Ensure proper flex layout */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Surface and status colors */
+  --surface-secondary: #334155;
+
+  /* Status colors */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+
+  /* Legacy compatibility */
+  --legend-color: #94a3b8;
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --background-primary: #000000;
+    --background-secondary: #000000;
+    --card-bg: #000000;
+    --bg-color: #000000;
+
+    --text-primary: #ffffff;
+    --text-secondary: #ffffff;
+    --text-tertiary: #cccccc;
+
+    --border-color: #ffffff;
+    --border: #ffffff;
+  }
+}
+
+/* Dark mode preference support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-primary: #0b1220;
+    --background-secondary: #1e293b;
+    --card-bg: #1e293b;
+    --bg-color: #0b1220;
+
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-tertiary: #64748b;
+
+    --border-color: #334155;
+    --border: #334155;
+  }
+}
+
+/* Light mode preference support (fallback) */
+@media (prefers-color-scheme: light) {
+  :root {
+    --background-primary: #ffffff;
+    --background-secondary: #f8fafc;
+    --card-bg: #f8fafc;
+    --bg-color: #ffffff;
+
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --text-tertiary: #94a3b8;
+
+    --border-color: #e2e8f0;
+    --border: #e2e8f0;
+
+    --accent-blue: #2563eb;
+    --accent-purple: #7c3aed;
+    --accent-green: #059669;
+    --accent-yellow: #d97706;
+    --accent-orange: #ea580c;
+    --accent-red: #dc2626;
+    --accent-pink: #db2777;
+  }
+}

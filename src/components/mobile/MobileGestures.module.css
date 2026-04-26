@@ -1,0 +1,95 @@
+/* Mobile Gestures Component Styles */
+
+.gestureContainer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  touch-action: pan-x pan-y pinch-zoom;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.gestureIndicator {
+  position: fixed;
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+  z-index: 1000;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.gestureIndicator.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.gestureIndicator.swipe-left {
+  left: 20px;
+  top: 50%;
+}
+
+.gestureIndicator.swipe-right {
+  right: 20px;
+  top: 50%;
+}
+
+.gestureIndicator.swipe-up {
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+}
+
+.gestureIndicator.swipe-up.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+.gestureIndicator.swipe-down {
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+}
+
+.gestureIndicator.swipe-down.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Touch Feedback */
+.gestureContainer:active {
+  touch-action: none;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .gestureIndicator {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .gestureIndicator.swipe-up {
+    transform: translateX(-50%);
+  }
+
+  .gestureIndicator.swipe-down {
+    transform: translateX(-50%);
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .gestureIndicator {
+    background: #000000;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+  }
+}

@@ -1,0 +1,131 @@
+.analysisChartContainer {
+  width: 100%;
+  height: 400px;
+  position: relative;
+  background: var(--glass-background);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.chartHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.chartTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chartControls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chartControlButton {
+  padding: 0.375rem 0.75rem;
+  background: var(--glass-background);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chartControlButton:hover {
+  background: var(--glass-hover);
+  border-color: var(--primary-color);
+}
+
+.chartControlButton.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.chartWrapper {
+  width: 100%;
+  height: calc(100% - 3rem);
+  position: relative;
+}
+
+.chartLoading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: var(--text-secondary);
+}
+
+.chartError {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: var(--error-color);
+  text-align: center;
+}
+
+.chartErrorIcon {
+  margin-bottom: 0.5rem;
+}
+
+.chartErrorMessage {
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.chartRetryButton {
+  padding: 0.5rem 1rem;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.chartTooltip {
+  background: var(--glass-background);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.chartTooltipTitle {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.chartTooltipValue {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .analysisChartContainer {
+    height: 300px;
+    padding: 0.75rem;
+  }
+  
+  .chartHeader {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  
+  .chartControls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

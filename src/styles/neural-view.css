@@ -1,0 +1,655 @@
+/* Neural View Styles - Cyberpunk Theme Integration */
+
+:root {
+  /* Neural View Color Variables */
+  --neon-blue: hsl(210, 100%, 60%);
+  --neon-purple: hsl(270, 100%, 70%);
+  --neon-green: hsl(150, 100%, 60%);
+  --neon-orange: hsl(35, 100%, 60%);
+  --neon-red: hsl(0, 100%, 65%);
+
+  /* Background Layers */
+  --bg-panel: rgba(10, 15, 30, 0.85);
+  --bg-panel-secondary: rgba(20, 25, 45, 0.75);
+  --bg-glow: rgba(0, 243, 255, 0.05);
+
+  /* Glow Effects */
+  --glow-primary: 0 0 20px rgba(0, 243, 255, 0.3);
+  --glow-secondary: 0 0 15px rgba(188, 19, 254, 0.25);
+  --glow-success: 0 0 15px rgba(16, 185, 129, 0.3);
+  --glow-warning: 0 0 15px rgba(245, 158, 11, 0.3);
+  --glow-error: 0 0 15px rgba(239, 68, 68, 0.3);
+
+  /* Border and Glass Effects */
+  --border-glow: 1px solid rgba(255, 255, 255, 0.08);
+  --glass-blur: blur(10px);
+  --shadow-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Main Neural View Container */
+.neural-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-panel-secondary) 100%);
+  border-radius: 12px;
+  overflow: hidden;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--border-glow);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Neural Header */
+.neural-header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.neural-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+}
+
+/* Neural Controls Container */
+.neural-controls-container {
+  display: flex;
+  gap: 2rem;
+  padding: 1.5rem 2rem;
+  background: var(--bg-panel);
+  border: var(--border-glow);
+  backdrop-filter: var(--glass-blur);
+  border-radius: 12px;
+  margin: 0 1.5rem 1rem 1.5rem;
+  align-items: center;
+  box-shadow: var(--shadow-glow);
+  transition: all 0.3s ease;
+}
+
+.neural-controls-container:hover {
+  border-color: rgba(0, 243, 255, 0.3);
+  box-shadow: 0 0 30px rgba(0, 243, 255, 0.1);
+}
+
+/* Control Groups */
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.group-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* Button Groups */
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Cyber Button Styles */
+.cyber-btn {
+  background: transparent;
+  border: 1px solid var(--neon-blue);
+  color: var(--neon-blue);
+  padding: 0.5rem 1rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cyber-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.cyber-btn:hover {
+  background: rgba(0, 243, 255, 0.1);
+  box-shadow: var(--glow-primary);
+  text-shadow: 0 0 5px var(--neon-blue);
+  transform: translateY(-1px);
+}
+
+.cyber-btn:hover::before {
+  left: 100%;
+}
+
+.cyber-btn.active {
+  background: var(--neon-blue);
+  color: #000000;
+  box-shadow: 0 0 20px var(--neon-blue);
+  text-shadow: none;
+}
+
+.cyber-btn.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 2s infinite;
+}
+
+/* Icon Button Styles */
+.cyber-icon-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  position: relative;
+}
+
+.cyber-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--neon-blue);
+  box-shadow: var(--glow-primary);
+  color: var(--neon-blue);
+  transform: scale(1.05);
+}
+
+.cyber-icon-btn:active {
+  transform: scale(0.95);
+}
+
+/* Icon Group */
+.icon-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Toggle Row */
+.toggle-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* Cyber Toggle Styles */
+.cyber-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cyber-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.cyber-toggle input[type="checkbox"] + .toggle-text::before {
+  content: '';
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 3px;
+  margin-right: 6px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.cyber-toggle input[type="checkbox"]:checked + .toggle-text::before {
+  background: var(--neon-blue);
+  border-color: var(--neon-blue);
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+}
+
+.cyber-toggle input[type="checkbox"]:checked + .toggle-text::before::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #000000;
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.cyber-toggle:hover .toggle-text {
+  color: var(--neon-blue);
+  text-shadow: 0 0 5px rgba(0, 243, 255, 0.3);
+}
+
+/* Search Container */
+.search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 200px;
+}
+
+.neural-search-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 0.375rem 2rem 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  width: 100%;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.neural-search-input:focus {
+  background: rgba(0, 0, 0, 0.5);
+  border-color: var(--neon-blue);
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+  color: #ffffff;
+}
+
+.neural-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.search-container svg {
+  position: absolute;
+  right: 8px;
+  color: rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+}
+
+/* Neural Canvas Container */
+.neural-canvas {
+  flex: 1;
+  position: relative;
+  background: var(--bg-glow);
+  border-radius: 8px;
+  margin: 0 1.5rem 1rem 1.5rem;
+  overflow: hidden;
+  border: var(--border-glow);
+  backdrop-filter: var(--glass-blur);
+  transition: all 0.3s ease;
+}
+
+.neural-canvas:hover {
+  border-color: rgba(0, 243, 255, 0.2);
+}
+
+/* Loading State */
+.neural-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: var(--neon-blue);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+  z-index: 10;
+}
+
+.neural-loading svg {
+  animation: spin 1s linear infinite;
+}
+
+/* Error State */
+.neural-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--neon-red);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875rem;
+  text-align: center;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  box-shadow: var(--glow-error);
+  z-index: 10;
+}
+
+/* Empty State */
+.neural-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center;
+  z-index: 10;
+}
+
+.neural-empty-icon {
+  opacity: 0.5;
+  filter: drop-shadow(0 0 10px rgba(0, 243, 255, 0.3));
+}
+
+/* Neural Metrics Container */
+.neural-metrics-container {
+  padding: 1rem 2rem;
+  background: var(--bg-panel);
+  border-top: var(--border-glow);
+  backdrop-filter: var(--glass-blur);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Metrics Gauges Row */
+.metrics-gauges {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1rem;
+  align-items: center;
+}
+
+.metric-gauge {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.circular-gauge {
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Metrics Sparklines Row */
+.metrics-sparklines {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.metric-sparkline {
+  flex: 1;
+  max-width: 300px;
+}
+
+.sparkline-chart {
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.metric-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 120px;
+}
+
+.stat-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--neon-blue);
+  text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+}
+
+.stat-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 0.25rem;
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes node-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .neural-controls-container {
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    padding: 1rem 1.5rem;
+  }
+
+  .control-group {
+    min-width: 200px;
+  }
+
+  .search-container {
+    min-width: 150px;
+  }
+
+  .metrics-gauges {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .metrics-sparklines {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .metric-sparkline {
+    max-width: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .neural-header {
+    padding: 1rem 1.5rem;
+  }
+
+  .neural-title {
+    font-size: 1.125rem;
+  }
+
+  .neural-controls-container {
+    margin: 0 1rem 1rem 1rem;
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .control-group {
+    min-width: 150px;
+  }
+
+  .group-label {
+    font-size: 0.6875rem;
+  }
+
+  .button-group {
+    gap: 0.375rem;
+  }
+
+  .cyber-btn {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.6875rem;
+  }
+
+  .icon-group {
+    gap: 0.375rem;
+  }
+
+  .cyber-icon-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .toggle-row {
+    gap: 0.75rem;
+  }
+
+  .neural-canvas {
+    margin: 0 1rem 1rem 1rem;
+  }
+
+  .neural-metrics-container {
+    padding: 1rem 1.5rem;
+  }
+
+  .metrics-gauges {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .metric-stat-card {
+    padding: 0.5rem 1rem;
+    min-width: 100px;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .stat-label {
+    font-size: 0.5625rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .neural-controls-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .control-group {
+    min-width: auto;
+  }
+
+  .button-group {
+    justify-content: center;
+  }
+
+  .icon-group {
+    justify-content: center;
+  }
+
+  .toggle-row {
+    justify-content: center;
+  }
+
+  .metrics-gauges {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics-sparklines {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .metric-sparkline {
+    width: 100%;
+    max-width: 250px;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .cyber-btn::before,
+  .cyber-btn.active::after {
+    display: none;
+  }
+
+  .cyber-btn,
+  .cyber-icon-btn,
+  .neural-controls-container {
+    transition: none;
+  }
+
+  .neural-loading svg {
+    animation: none;
+  }
+}
+
+/* Focus States */
+.cyber-btn:focus,
+.cyber-icon-btn:focus,
+.cyber-toggle:focus {
+  outline: 2px solid var(--neon-blue);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px rgba(0, 243, 255, 0.2);
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .cyber-btn {
+    border-width: 2px;
+  }
+
+  .neural-controls-container,
+  .neural-canvas,
+  .neural-metrics-container {
+    border-width: 2px;
+  }
+
+  .circular-gauge,
+  .sparkline-chart {
+    border-width: 2px;
+  }
+}

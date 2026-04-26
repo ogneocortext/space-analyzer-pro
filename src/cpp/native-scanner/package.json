@@ -1,0 +1,30 @@
+{
+  "name": "native-scanner",
+  "version": "1.0.0",
+  "description": "High-performance C++ native file scanner with NAPI bindings",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node-gyp rebuild",
+    "build:release": "node-gyp rebuild --release",
+    "build:vs2026": "node-gyp rebuild --release --msvs_version=2026",
+    "clean": "node-gyp clean",
+    "configure": "node-gyp configure",
+    "configure:vs2026": "node-gyp configure --msvs_version=2026",
+    "install": "node-gyp rebuild"
+  },
+  "keywords": ["native", "scanner", "napi", "cpp", "performance"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "gypfile": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "node-addon-api": "^8.5.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^10.0.0"
+  }
+}

@@ -1,0 +1,566 @@
+/* Accessibility and Colorblind Safe Styles */
+
+/* High Contrast Mode */
+:root.high-contrast {
+  --bg-primary: #000000;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #333333;
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --text-muted: #999999;
+  --border-primary: #ffffff;
+  --border-secondary: #cccccc;
+  --accent-primary: #ffff00;
+  --accent-secondary: #00ffff;
+  --accent-success: #00ff00;
+  --accent-warning: #ff9900;
+  --accent-error: #ff0000;
+}
+
+:root.high-contrast * {
+  border-width: 2px !important;
+  outline: 2px solid transparent !important;
+}
+
+:root.high-contrast button:focus,
+:root.high-contrast input:focus,
+:root.high-contrast select:focus,
+:root.high-contrast textarea:focus {
+  outline: 3px solid var(--accent-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* Reduced Motion */
+:root.reduced-motion *,
+:root.reduced-motion *::before,
+:root.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+:root.reduced-motion [data-motion] {
+  transform: none !important;
+}
+
+/* Screen Reader Mode */
+:root.screen-reader-mode .sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+:root.screen-reader-mode [role="button"],
+:root.screen-reader-mode [role="link"],
+:root.screen-reader-mode button,
+:root.screen-reader-mode a {
+  position: relative;
+}
+
+:root.screen-reader-mode [role="button"]:focus::before,
+:root.screen-reader-mode [role="link"]:focus::before,
+:root.screen-reader-mode button:focus::before,
+:root.screen-reader-mode a:focus::before {
+  content: attr(aria-label) attr(title);
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1000;
+}
+
+/* Colorblind Safe Modes */
+
+/* Protanopia (Red-blind) */
+:root.colorblind-protanopia {
+  --red: #005a9c;
+  --red-light: #0077be;
+  --red-dark: #003d6b;
+  --orange: #008080;
+  --orange-light: #00a0a0;
+  --orange-dark: #006666;
+  --pink: #006699;
+  --pink-light: #0088bb;
+  --pink-dark: #004477;
+}
+
+:root.colorblind-protanopia .bg-red-500 {
+  background-color: var(--red) !important;
+}
+
+:root.colorblind-protanopia .bg-red-600 {
+  background-color: var(--red-dark) !important;
+}
+
+:root.colorblind-protanopia .text-red-400 {
+  color: var(--red-light) !important;
+}
+
+:root.colorblind-protanopia .text-red-500 {
+  color: var(--red) !important;
+}
+
+:root.colorblind-protanopia .border-red-500 {
+  border-color: var(--red) !important;
+}
+
+:root.colorblind-protanopia .bg-orange-500 {
+  background-color: var(--orange) !important;
+}
+
+:root.colorblind-protanopia .text-orange-400 {
+  color: var(--orange-light) !important;
+}
+
+:root.colorblind-protanopia .border-orange-500 {
+  border-color: var(--orange) !important;
+}
+
+/* Deuteranopia (Green-blind) */
+:root.colorblind-deuteranopia {
+  --green: #0066cc;
+  --green-light: #0080ff;
+  --green-dark: #004d99;
+  --yellow: #cc6600;
+  --yellow-light: #ff8800;
+  --yellow-dark: #994400;
+  --lime: #0066aa;
+  --lime-light: #0088dd;
+  --lime-dark: #004477;
+}
+
+:root.colorblind-deuteranopia .bg-green-500 {
+  background-color: var(--green) !important;
+}
+
+:root.colorblind-deuteranopia .bg-green-600 {
+  background-color: var(--green-dark) !important;
+}
+
+:root.colorblind-deuteranopia .text-green-400 {
+  color: var(--green-light) !important;
+}
+
+:root.colorblind-deuteranopia .text-green-500 {
+  color: var(--green) !important;
+}
+
+:root.colorblind-deuteranopia .border-green-500 {
+  border-color: var(--green) !important;
+}
+
+:root.colorblind-deuteranopia .bg-yellow-500 {
+  background-color: var(--yellow) !important;
+}
+
+:root.colorblind-deuteranopia .text-yellow-400 {
+  color: var(--yellow-light) !important;
+}
+
+:root.colorblind-deuteranopia .border-yellow-500 {
+  border-color: var(--yellow) !important;
+}
+
+:root.colorblind-deuteranopia .bg-lime-500 {
+  background-color: var(--lime) !important;
+}
+
+:root.colorblind-deuteranopia .text-lime-400 {
+  color: var(--lime-light) !important;
+}
+
+/* Tritanopia (Blue-blind) */
+:root.colorblind-tritanopia {
+  --blue: #cc0066;
+  --blue-light: #ff0080;
+  --blue-dark: #99004d;
+  --cyan: #cc6600;
+  --cyan-light: #ff8800;
+  --cyan-dark: #994400;
+  --indigo: #993366;
+  --indigo-light: #cc4488;
+  --indigo-dark: #662244;
+  --purple: #cc3366;
+  --purple-light: #ff4488;
+  --purple-dark: #992244;
+}
+
+:root.colorblind-tritanopia .bg-blue-500 {
+  background-color: var(--blue) !important;
+}
+
+:root.colorblind-tritanopia .bg-blue-600 {
+  background-color: var(--blue-dark) !important;
+}
+
+:root.colorblind-tritanopia .text-blue-400 {
+  color: var(--blue-light) !important;
+}
+
+:root.colorblind-tritanopia .text-blue-500 {
+  color: var(--blue) !important;
+}
+
+:root.colorblind-tritanopia .border-blue-500 {
+  border-color: var(--blue) !important;
+}
+
+:root.colorblind-tritanopia .bg-cyan-500 {
+  background-color: var(--cyan) !important;
+}
+
+:root.colorblind-tritanopia .text-cyan-400 {
+  color: var(--cyan-light) !important;
+}
+
+:root.colorblind-tritanopia .border-cyan-500 {
+  border-color: var(--cyan) !important;
+}
+
+:root.colorblind-tritanopia .bg-indigo-500 {
+  background-color: var(--indigo) !important;
+}
+
+:root.colorblind-tritanopia .text-indigo-400 {
+  color: var(--indigo-light) !important;
+}
+
+:root.colorblind-tritanopia .bg-purple-500 {
+  background-color: var(--purple) !important;
+}
+
+:root.colorblind-tritanopia .text-purple-400 {
+  color: var(--purple-light) !important;
+}
+
+/* Keyboard Navigation */
+:root.keyboard-nav *:focus {
+  outline: 2px solid #0066cc !important;
+  outline-offset: 2px !important;
+}
+
+:root.keyboard-nav button:focus,
+:root.keyboard-nav input:focus,
+:root.keyboard-nav select:focus,
+:root.keyboard-nav textarea:focus {
+  outline: 3px solid #0066cc !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.2) !important;
+}
+
+/* Skip Links */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #000;
+  color: #fff;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 1000;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Enhanced Focus Indicators */
+.focus-visible {
+  outline: 3px solid #0066cc !important;
+  outline-offset: 2px !important;
+}
+
+.focus-visible:focus {
+  outline: 3px solid #0066cc !important;
+  outline-offset: 2px !important;
+}
+
+/* High Contrast Focus */
+:root.high-contrast .focus-visible {
+  outline: 4px solid #ffff00 !important;
+  outline-offset: 2px !important;
+}
+
+:root.high-contrast .focus-visible:focus {
+  outline: 4px solid #ffff00 !important;
+  outline-offset: 2px !important;
+}
+
+/* ARIA Live Regions */
+.aria-live {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* Enhanced Button Styles */
+.btn-accessible {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 16px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: #1a1a1a;
+  color: #ffffff;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-accessible:hover,
+.btn-accessible:focus {
+  background: #333333;
+  border-color: #0066cc;
+}
+
+.btn-accessible:active {
+  background: #000000;
+  border-color: #0066cc;
+}
+
+.btn-accessible:disabled {
+  background: #666666;
+  color: #999999;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Enhanced Form Controls */
+.form-control-accessible {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 2px solid #666666;
+  border-radius: 4px;
+  background: #1a1a1a;
+  color: #ffffff;
+  font-size: 16px;
+}
+
+.form-control-accessible:focus {
+  border-color: #0066cc;
+  outline: 3px solid #0066cc;
+  outline-offset: 2px;
+}
+
+.form-control-accessible:invalid {
+  border-color: #cc0000;
+}
+
+.form-control-accessible:invalid:focus {
+  border-color: #cc0000;
+  outline: 3px solid #cc0000;
+  outline-offset: 2px;
+}
+
+/* Table Accessibility */
+.table-accessible {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.table-accessible th,
+.table-accessible td {
+  padding: 12px;
+  text-align: left;
+  border: 1px solid #666666;
+}
+
+.table-accessible th {
+  background: #333333;
+  font-weight: bold;
+}
+
+.table-accessible tr:hover {
+  background: #2a2a2a;
+}
+
+.table-accessible caption {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+/* Link Accessibility */
+.link-accessible {
+  color: #0066cc;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.link-accessible:hover,
+.link-accessible:focus {
+  color: #0080ff;
+  text-decoration: none;
+  background: rgba(0, 102, 204, 0.1);
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.link-accessible:visited {
+  color: #6600cc;
+}
+
+/* Image Accessibility */
+.img-accessible {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid transparent;
+}
+
+.img-accessible:focus {
+  border-color: #0066cc;
+  outline: 3px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* Progress Bar Accessibility */
+.progress-accessible {
+  width: 100%;
+  height: 20px;
+  background: #333333;
+  border: 2px solid #666666;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-accessible-bar {
+  height: 100%;
+  background: #0066cc;
+  transition: width 0.3s ease;
+}
+
+.progress-accessible[role="progressbar"]::before {
+  content: attr(aria-valuenow) "%";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+/* Tooltip Accessibility */
+.tooltip-accessible {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-accessible[role="tooltip"] {
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  white-space: nowrap;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.tooltip-accessible:focus [role="tooltip"],
+.tooltip-accessible:hover [role="tooltip"] {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Modal Accessibility */
+.modal-accessible {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-accessible-content {
+  background: #1a1a1a;
+  border: 2px solid #666666;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 90%;
+  max-height: 90%;
+  overflow: auto;
+  position: relative;
+}
+
+.modal-accessible-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.modal-accessible-close:focus {
+  outline: 3px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    font-size: 12pt;
+    line-height: 1.4;
+    color: #000;
+    background: #fff;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    color: #000;
+    page-break-after: avoid;
+  }
+  
+  p, li {
+    orphans: 3;
+    widows: 3;
+  }
+  
+  a {
+    color: #000;
+    text-decoration: underline;
+  }
+  
+  a[href^="http"]:after {
+    content: " (" attr(href) ")";
+    font-size: 90%;
+  }
+}
