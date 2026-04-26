@@ -1,16 +1,13 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 
-// Enable React Compiler for automatic performance optimization
+// Vue 3 configuration for performance optimization
 export default defineConfig({
   plugins: [
     tailwindcss(),
-    react({
-      // Enable React Compiler (React 19+) - babel config for plugin-react v6
-      include: '**/*.{jsx,tsx}',
-    })
+    vue()
   ],
   root: '.',
   base: '/',
@@ -29,7 +26,7 @@ export default defineConfig({
       '@lib': resolve(__dirname, './src/lib'),
     },
     // Dedupe common packages to reduce resolution time
-    dedupe: ['react', 'react-dom', '@tanstack/react-query']
+    dedupe: ['vue', 'vue-router', 'pinia']
   },
   build: {
     outDir: 'dist',
@@ -44,11 +41,8 @@ export default defineConfig({
         // manualChunks as function for Rolldown compatibility
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'react-vendor';
-            }
-            if (id.includes('@tanstack/react-query') || id.includes('zustand')) {
-              return 'data-vendor';
+            if (id.includes('vue') || id.includes('vue-router') || id.includes('pinia')) {
+              return 'vue-vendor';
             }
             if (id.includes('lucide-react') || id.includes('framer-motion') || id.includes('cmdk')) {
               return 'ui-vendor';
@@ -116,20 +110,16 @@ export default defineConfig({
   // Optimize dependencies - Vite 8 uses Rolldown for pre-bundling
   optimizeDeps: {
     include: [
-      'react',
-      'react-dom',
-      '@tanstack/react-query',
-      'zustand',
+      'vue',
+      'vue-router',
+      'pinia',
       'lucide-react',
       'framer-motion',
-      '@tanstack/react-query-devtools',
       'date-fns',
       'zod',
       'sonner',
       'recharts',
-      'cmdk',
-      '@radix-ui/react-dialog',
-      '@radix-ui/react-dismissable-layer'
+      'cmdk'
     ],
     exclude: [],
     // Pre-bundle for faster dev server and builds
@@ -161,7 +151,7 @@ export default defineConfig({
   // Worker configuration
   worker: {
     format: 'es',
-    plugins: () => [react()]
+    plugins: () => [vue()]
   },
   // Preview server configuration
   preview: {

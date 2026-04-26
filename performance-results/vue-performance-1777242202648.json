@@ -1,0 +1,21 @@
+{
+  "framework": "vue",
+  "pageLoad": 904,
+  "firstContentfulPaint": 35,
+  "domContentLoaded": 895,
+  "loadComplete": 950,
+  "networkRequests": [],
+  "memoryUsage": [
+    {
+      "used": 11607779,
+      "total": 14761991,
+      "limit": 4294967296
+    }
+  ],
+  "fps": {
+    "avg": 60.28096558008353,
+    "min": 3.776435045359723,
+    "max": 322.58064423093685
+  },
+  "timestamp": "2026-04-26T22:22:42.625Z"
+}

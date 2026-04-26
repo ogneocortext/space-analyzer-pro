@@ -1,0 +1,11 @@
+{
+  "framework": "vue",
+  "pageLoad": 82,
+  "firstContentfulPaint": 4,
+  "domContentLoaded": 76,
+  "loadComplete": 77,
+  "networkRequests": [],
+  "memoryUsage": [],
+  "fps": [],
+  "timestamp": "2026-04-26T22:21:21.954Z"
+}
