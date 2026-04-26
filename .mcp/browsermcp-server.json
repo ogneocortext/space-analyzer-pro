@@ -1,0 +1,33 @@
+{
+  "name": "browsermcp",
+  "description": "Browser MCP Server for web automation",
+  "version": "1.0.0",
+  "command": "npx",
+  "args": ["@browsermcp/mcp@latest"],
+  "port": 9010,
+  "tools": [
+    {
+      "name": "browser_action",
+      "description": "Perform browser actions",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["navigate", "click", "type", "screenshot", "scroll"],
+            "description": "The action to perform"
+          },
+          "target": {
+            "type": "string",
+            "description": "The target element or URL"
+          },
+          "value": {
+            "type": "string",
+            "description": "Value for typing actions"
+          }
+        },
+        "required": ["action"]
+      }
+    }
+  ]
+}

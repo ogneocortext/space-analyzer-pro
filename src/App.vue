@@ -1,39 +1,20 @@
 <template>
   <div id="app" class="flex h-screen bg-slate-900">
-    <LandingPage
-      :path="analysisStore.path"
-      :onPathChange="handlePathChange"
-      :onAnalyze="analysisStore.handleAnalysis"
-      :isBackendOnline="appStore.isBackendOnline"
-      :isAnalysisRunning="analysisStore.isAnalysisRunning"
-      :progress="analysisStore.progress"
-      :status="analysisStore.status"
-      :error="analysisStore.error"
-      :useAI="analysisStore.useAI"
-      :onToggleAI="toggleAI"
-      :recentPaths="appStore.recentPaths"
-      :showPathPicker="appStore.showPathPicker"
-      :onTogglePathPicker="appStore.togglePathPicker"
-      :onSelectRecentPath="handleSelectRecentPath"
-      :analysisData="analysisStore.data"
-      :scannedFiles="analysisStore.scannedFiles"
-      :progressData="analysisStore.progressData"
-      :onNavigateToDashboard="navigateToDashboard"
-      :onNavigateToBrowser="navigateToBrowser"
-      :onExportReport="exportReport"
-      :onCleanupSuggestions="cleanupSuggestions"
-      :getCategoryColor="getCategoryColor"
-    />
+    <router-view />
   </div>
 </template>
 
 <script setup lang="ts">
+import { provide } from 'vue'
 import { useAnalysisStore } from './store/analysis'
 import { useAppStore } from './store/app'
-import LandingPage from './components/layout/LandingPage.vue'
 
 const analysisStore = useAnalysisStore()
 const appStore = useAppStore()
+
+// Provide stores to child components
+provide('analysisStore', analysisStore)
+provide('appStore', appStore)
 
 const handlePathChange = (newPath: string) => {
   analysisStore.path = newPath
@@ -76,6 +57,16 @@ const getCategoryColor = (category: string) => {
   }
   return colors[category] || '#6B7280'
 }
+
+// Provide helper functions
+provide('handlePathChange', handlePathChange)
+provide('toggleAI', toggleAI)
+provide('handleSelectRecentPath', handleSelectRecentPath)
+provide('navigateToDashboard', navigateToDashboard)
+provide('navigateToBrowser', navigateToBrowser)
+provide('exportReport', exportReport)
+provide('cleanupSuggestions', cleanupSuggestions)
+provide('getCategoryColor', getCategoryColor)
 </script>
 
 <style>

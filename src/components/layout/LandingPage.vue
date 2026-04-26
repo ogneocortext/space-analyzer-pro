@@ -60,8 +60,8 @@
                   id="directory-path"
                   name="directory-path"
                   type="text"
-                  v-model="localPath"
-                  @input="onPathChange(localPath)"
+                  v-model="analysisStore.path"
+                  @input="handlePathChange(analysisStore.path)"
                   class="w-full pl-12 pr-20 font-mono text-sm bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-[#00B4D8] focus:ring-1 focus:ring-[#00B4D8]"
                   placeholder="Enter directory path..."
                   @keydown.enter="handleEnterKey"
@@ -76,8 +76,8 @@
                     <Copy v-else :size="16" class="text-slate-300" />
                   </button>
                   <button
-                    v-if="recentPaths.length > 0"
-                    @click="onTogglePathPicker"
+                    v-if="appStore.recentPaths.length > 0"
+                    @click="appStore.togglePathPicker"
                     class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors"
                     title="Recent paths"
                   >
@@ -87,9 +87,9 @@
               </div>
               <!-- Recent paths dropdown -->
               <Transition name="dropdown">
-                <div v-if="showPathPicker && recentPaths.length > 0" class="mt-2 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+                <div v-if="appStore.showPathPicker && appStore.recentPaths.length > 0" class="mt-2 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
                   <button
-                    v-for="(path, index) in recentPaths"
+                    v-for="(path, index) in appStore.recentPaths"
                     :key="index"
                     @click="selectRecentPath(path)"
                     class="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors first:border-b border-slate-700"
@@ -103,63 +103,63 @@
             <!-- Backend status indicator -->
             <div class="flex items-center justify-between text-xs">
               <div class="flex items-center gap-2">
-                <div :class="['w-2 h-2 rounded-full', isBackendOnline ? 'bg-[#00B4D8] animate-pulse' : 'bg-red-400']" />
-                <span :class="isBackendOnline ? 'text-[#00B4D8]' : 'text-red-400'">
-                  {{ isBackendOnline ? 'Backend Online' : 'Backend Offline' }}
+                <div :class="['w-2 h-2 rounded-full', appStore.isBackendOnline ? 'bg-[#00B4D8] animate-pulse' : 'bg-red-400']" />
+                <span :class="appStore.isBackendOnline ? 'text-[#00B4D8]' : 'text-red-400'">
+                  {{ appStore.isBackendOnline ? 'Backend Online' : 'Backend Offline' }}
                 </span>
               </div>
-              <span v-if="!isBackendOnline" class="text-slate-500">Start the backend server to enable analysis</span>
+              <span v-if="!appStore.isBackendOnline" class="text-slate-500">Start the backend server to enable analysis</span>
             </div>
 
             <!-- AI toggle -->
             <div class="flex items-center justify-between">
               <label class="text-sm text-slate-300">Enable AI Analysis</label>
               <button
-                @click="onToggleAI"
-                :class="['relative w-12 h-6 rounded-full transition-colors', useAI ? 'bg-[#00B4D8]' : 'bg-slate-600']"
+                @click="toggleAI"
+                :class="['relative w-12 h-6 rounded-full transition-colors', analysisStore.useAI ? 'bg-[#00B4D8]' : 'bg-slate-600']"
               >
-                <div :class="['absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform', useAI ? 'translate-x-6' : 'translate-x-0']" />
+                <div :class="['absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform', analysisStore.useAI ? 'translate-x-6' : 'translate-x-0']" />
               </button>
             </div>
 
             <Transition name="error">
-              <div v-if="error" class="bg-orange-500/10 border border-orange-500 text-orange-400 px-4 py-3 rounded-xl flex items-center gap-2">
+              <div v-if="analysisStore.error" class="bg-orange-500/10 border border-orange-500 text-orange-400 px-4 py-3 rounded-xl flex items-center gap-2">
                 <AlertTriangle :size="18" />
-                {{ error }}
+                {{ analysisStore.error }}
               </div>
             </Transition>
 
-            <div v-if="isAnalysisRunning" class="space-y-3">
+            <div v-if="analysisStore.isAnalysisRunning" class="space-y-3">
               <div class="flex justify-between text-sm text-slate-300">
-                <span>{{ status }}</span>
-                <span>{{ Math.round(progress) }}%</span>
+                <span>{{ analysisStore.status }}</span>
+                <span>{{ Math.round(analysisStore.progress) }}%</span>
               </div>
               <div class="w-full bg-slate-700 rounded-full h-2">
                 <div
                   class="bg-[#00B4D8] h-2 rounded-full transition-all duration-300"
-                  :style="{ width: `${progress}%` }"
-                  :title="`Analysis progress: ${Math.round(progress)}%`"
+                  :style="{ width: `${analysisStore.progress}%` }"
+                  :title="`Analysis progress: ${Math.round(analysisStore.progress)}%`"
                 />
               </div>
               <!-- Real-time file scanner -->
               <RealTimeFileScanner
-                :scannedFiles="scannedFiles"
-                :progress="progressData"
+                :scannedFiles="analysisStore.scannedFiles"
+                :progress="analysisStore.progressData"
               />
             </div>
 
             <button
               v-else
-              @click="onAnalyze(useAI)"
-              :disabled="!isBackendOnline || isAnalysisRunning"
+              @click="analysisStore.handleAnalysis(analysisStore.useAI)"
+              :disabled="!appStore.isBackendOnline || analysisStore.isAnalysisRunning"
               class="bg-[#00B4D8] hover:bg-[#0095b8] text-white font-medium py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full"
             >
               <Play :size="20" />
-              {{ isAnalysisRunning ? 'Analyzing...' : (useAI ? 'Start AI Analysis' : 'Start Standard Analysis') }}
+              {{ analysisStore.isAnalysisRunning ? 'Analyzing...' : (analysisStore.useAI ? 'Start AI Analysis' : 'Start Standard Analysis') }}
             </button>
 
             <Transition name="results">
-              <div v-if="analysisData" class="pt-4 border-t border-slate-700 space-y-4 animate-in fade-in slide-in-from-bottom-5 duration-500">
+              <div v-if="analysisStore.data" class="pt-4 border-t border-slate-700 space-y-4 animate-in fade-in slide-in-from-bottom-5 duration-500">
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-sm text-slate-300">Analysis Complete</span>
                   <span class="text-xs text-emerald-400">✓</span>
@@ -167,21 +167,21 @@
                 
                 <!-- Storage Gauge -->
                 <StorageGauge
-                  :used="analysisData.totalSize || 0"
-                  :total="(analysisData.totalSize || 0) * 1.5 || 1"
+                  :used="analysisStore.data.totalSize || 0"
+                  :total="(analysisStore.data.totalSize || 0) * 1.5 || 1"
                   :categories="categoryData"
                 />
                 
                 <div class="grid grid-cols-2 gap-3">
                   <div class="bg-slate-800/50 rounded-lg p-3 text-center">
                     <div class="text-2xl font-bold text-white mb-1">
-                      {{ analysisData.files?.length || 0 }}
+                      {{ analysisStore.data.files?.length || 0 }}
                     </div>
                     <div class="text-xs text-slate-300">Files</div>
                   </div>
                   <div class="bg-slate-800/50 rounded-lg p-3 text-center">
                     <div class="text-2xl font-bold text-white mb-1">
-                      {{ analysisData.totalSize ? `${(analysisData.totalSize / 1024 / 1024).toFixed(1)}` : '0' }}
+                      {{ analysisStore.data.totalSize ? `${(analysisStore.data.totalSize / 1024 / 1024).toFixed(1)}` : '0' }}
                     </div>
                     <div class="text-xs text-slate-300">MB</div>
                   </div>
@@ -192,37 +192,37 @@
                   <h4 class="text-sm font-medium text-white mb-2">Quick Actions</h4>
                   <div class="grid grid-cols-2 gap-2">
                     <button
-                      @click="onNavigateToBrowser"
-                      :disabled="!analysisData"
+                      @click="navigateToBrowser"
+                      :disabled="!analysisStore.data"
                       class="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-1"
-                      :title="analysisData ? 'Browse Files' : 'Run analysis first'"
+                      :title="analysisStore.data ? 'Browse Files' : 'Run analysis first'"
                     >
                       <FolderOpen :size="16" class="mr-1" />
                       Browse Files
                     </button>
                     <button
-                      @click="onNavigateToDashboard"
-                      :disabled="!analysisData"
+                      @click="navigateToDashboard"
+                      :disabled="!analysisStore.data"
                       class="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-1"
-                      :title="analysisData ? 'View Dashboard' : 'Run analysis first'"
+                      :title="analysisStore.data ? 'View Dashboard' : 'Run analysis first'"
                     >
                       <BarChart3 :size="16" class="mr-1" />
                       View Dashboard
                     </button>
                     <button
-                      @click="onExportReport"
-                      :disabled="!analysisData"
+                      @click="exportReport"
+                      :disabled="!analysisStore.data"
                       class="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-1"
-                      :title="analysisData ? 'Export Report' : 'Run analysis first'"
+                      :title="analysisStore.data ? 'Export Report' : 'Run analysis first'"
                     >
                       <Download :size="16" class="mr-1" />
                       Export Report
                     </button>
                     <button
-                      @click="onCleanupSuggestions"
-                      :disabled="!analysisData"
+                      @click="cleanupSuggestions"
+                      :disabled="!analysisStore.data"
                       class="bg-[#00B4D8] hover:bg-[#0095b8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-1"
-                      :title="analysisData ? 'Cleanup' : 'Run analysis first'"
+                      :title="analysisStore.data ? 'Cleanup' : 'Run analysis first'"
                     >
                       <Trash2 :size="16" class="mr-1" />
                       Cleanup
@@ -239,53 +239,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, inject } from 'vue'
 import { BrainCircuit, Folder, Play, AlertTriangle, FolderOpen, BarChart3, Download, Trash2, Copy, Check } from 'lucide-react'
 import { RealTimeFileScanner } from '../RealTimeFileScanner'
 import { StorageGauge } from '../StorageGauge'
 
-interface Props {
-  path: string
-  onPathChange: (path: string) => void
-  onAnalyze: (useAI: boolean) => void
-  isBackendOnline: boolean
-  isAnalysisRunning: boolean
-  progress: number
-  status: string
-  error?: string
-  useAI: boolean
-  onToggleAI: () => void
-  recentPaths: string[]
-  showPathPicker: boolean
-  onTogglePathPicker: () => void
-  onSelectRecentPath: (path: string) => void
-  analysisData?: any
-  scannedFiles: any[]
-  progressData: {
-    files: number
-    percentage: number
-    currentFile: string
-    completed: boolean
-  }
-  onNavigateToDashboard: () => void
-  onNavigateToBrowser: () => void
-  onExportReport: () => void
-  onCleanupSuggestions: () => void
-  getCategoryColor: (category: string) => string
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  error: undefined,
-  analysisData: undefined
-})
-
-const emit = defineEmits<{
-  pathChange: [path: string]
-}>()
+// Inject stores and functions from App.vue
+const analysisStore = inject('analysisStore') as any
+const appStore = inject('appStore') as any
+const handlePathChange = inject('handlePathChange') as (path: string) => void
+const toggleAI = inject('toggleAI') as () => void
+const handleSelectRecentPath = inject('handleSelectRecentPath') as (path: string) => void
+const navigateToDashboard = inject('navigateToDashboard') as () => void
+const navigateToBrowser = inject('navigateToBrowser') as () => void
+const exportReport = inject('exportReport') as () => void
+const cleanupSuggestions = inject('cleanupSuggestions') as () => void
+const getCategoryColor = inject('getCategoryColor') as (category: string) => string
 
 const copied = ref(false)
 const isDragOver = ref(false)
-const localPath = ref(props.path)
 
 const features = [
   { icon: '🧠', text: 'Neural Analysis', desc: 'AI-powered file relationships' },
@@ -295,11 +267,11 @@ const features = [
 ]
 
 const categoryData = computed(() => {
-  if (!props.analysisData?.categories) return []
-  return Object.entries(props.analysisData.categories).map(([name, data]: [string, any]) => ({
+  if (!analysisStore.data?.categories) return []
+  return Object.entries(analysisStore.data.categories).map(([name, data]: [string, any]) => ({
     name,
     size: data.size || 0,
-    color: props.getCategoryColor(name)
+    color: getCategoryColor(name)
   }))
 })
 
@@ -312,7 +284,7 @@ const truncatePath = (path: string, maxLength: number = 40) => {
 
 const handleCopyPath = async () => {
   try {
-    await navigator.clipboard.writeText(props.path)
+    await navigator.clipboard.writeText(analysisStore.path)
     copied.value = true
     setTimeout(() => copied.value = false, 2000)
   } catch (err) {
@@ -326,19 +298,19 @@ const handleDrop = (e: DragEvent) => {
   const droppedFile = e.dataTransfer?.files[0]
   if (droppedFile) {
     const droppedPath = (droppedFile as any).path || droppedFile.name
-    props.onPathChange(droppedPath)
+    handlePathChange(droppedPath)
   }
 }
 
 const handleEnterKey = () => {
-  if (props.isBackendOnline && !props.isAnalysisRunning) {
-    props.onAnalyze(props.useAI)
+  if (appStore.isBackendOnline && !analysisStore.isAnalysisRunning) {
+    analysisStore.handleAnalysis(analysisStore.useAI)
   }
 }
 
 const selectRecentPath = (path: string) => {
-  props.onSelectRecentPath(path)
-  props.onTogglePathPicker()
+  handleSelectRecentPath(path)
+  appStore.togglePathPicker()
 }
 </script>
 
