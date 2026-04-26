@@ -1,0 +1,974 @@
+/* Enhanced TreeMap View Styles - AI Optimized */
+
+.enhancedTreeMapView {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-glass-bg);
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  backdrop-filter: var(--blur-backdrop);
+  -webkit-backdrop-filter: var(--blur-backdrop);
+  container-type: inline-size;
+  contain: layout style paint;
+}
+
+/* Control Panel - Enhanced with Design Tokens */
+.controlPanel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-xl);
+  background: var(--color-glass-bg-light);
+  border-bottom: 1px solid var(--color-glass-border);
+  gap: var(--spacing-xl);
+  flex-wrap: wrap;
+}
+
+.controlSection {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.searchContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: var(--spacing-md);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  height: 40px;
+  background: var(--color-glass-bg-light);
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-primary);
+  padding: 0 var(--spacing-md) 0 var(--spacing-xl);
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-normal);
+  font-family: var(--font-family-sans);
+}
+
+.searchInput:focus {
+  outline: none;
+  background: var(--color-glass-bg-hover);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* View Mode Selector - Enhanced with Design Tokens */
+.viewModeSelector {
+  display: flex;
+  gap: var(--spacing-xs);
+  background: var(--color-glass-bg-light);
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xs);
+}
+
+.viewModeButton {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-normal);
+}
+
+.viewModeButton:hover {
+  background: var(--color-glass-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.viewModeButton.active {
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.viewModeButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+}
+
+/* Zoom Controls - Enhanced with Design Tokens */
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.controlButton {
+  width: 40px;
+  height: 40px;
+  background: var(--color-glass-bg-light);
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-normal);
+}
+
+.controlButton:hover {
+  background: var(--color-glass-bg-hover);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
+}
+
+.controlButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+}
+
+.controlButton.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.zoomIndicator {
+  min-width: 50px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.displayControls {
+  display: flex;
+  gap: 8px;
+}
+
+.colorPaletteSelector {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.paletteButton {
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.paletteButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.paletteButton.active {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.actionControls {
+  display: flex;
+  gap: 8px;
+}
+
+/* Breadcrumb Navigation */
+.breadcrumbNavigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+}
+
+.breadcrumbItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.breadcrumbItem:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.breadcrumbItem.active {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+.breadcrumbSeparator {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+/* TreeMap Container */
+.treemapContainer {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.05), transparent);
+  cursor: grab;
+  touch-action: none;
+}
+
+.treemapContainer:active {
+  cursor: grabbing;
+}
+
+/* Grid Background */
+.gridBackground {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+/* TreeMap Nodes */
+.treemapNode {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.treemapNode:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.treemapNode.selected {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+  z-index: 20;
+}
+
+.nodeContent {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  min-height: 100%;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.nodeContent.large {
+  padding: 12px;
+}
+
+.nodeContent.medium {
+  padding: 8px;
+}
+
+.nodeContent.small {
+  padding: 4px;
+}
+
+.nodeName {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+  word-break: break-all;
+  line-height: 1.2;
+}
+
+.nodeContent.large .nodeName {
+  font-size: 16px;
+}
+
+.nodeContent.medium .nodeName {
+  font-size: 12px;
+}
+
+.nodeContent.small .nodeName {
+  font-size: 10px;
+}
+
+.nodeSize {
+  font-size: 12px;
+  opacity: 0.9;
+  margin-bottom: 2px;
+}
+
+.nodeContent.large .nodeSize {
+  font-size: 14px;
+}
+
+.nodeContent.medium .nodeSize {
+  font-size: 11px;
+}
+
+.nodeContent.small .nodeSize {
+  font-size: 9px;
+}
+
+.nodeFiles {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.nodeContent.large .nodeFiles {
+  font-size: 12px;
+}
+
+.nodeContent.medium .nodeFiles {
+  font-size: 10px;
+}
+
+.nodeContent.small .nodeFiles {
+  font-size: 8px;
+}
+
+/* Tooltip */
+.tooltip {
+  position: absolute;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  pointer-events: none;
+  min-width: 200px;
+}
+
+.tooltipHeader {
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tooltipHeader strong {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tooltipContent {
+  padding: 12px;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tooltipContent div {
+  margin-bottom: 4px;
+}
+
+.tooltipHint {
+  color: #3b82f6;
+  font-style: italic;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Information Panel */
+.infoPanel {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 12px;
+}
+
+.infoHeader h3 {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.infoStats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statLabel {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.statValue {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+/* Help Overlay */
+.helpOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.helpContent {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.helpHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.helpHeader h3 {
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.helpClose {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.helpClose:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.helpSections {
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.helpSection h4 {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.helpSection ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  color: #94a3b8;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.helpSection li {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.helpSection kbd {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #ffffff;
+}
+
+.helpSection strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.paletteDefault {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+  border-radius: 2px;
+  margin-right: 8px;
+}
+
+.paletteColorblind {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(45deg, #1f77b4, #ff7f0e);
+  border-radius: 2px;
+  margin-right: 8px;
+}
+
+.paletteHighContrast {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(45deg, #ffffff, #000000);
+  border-radius: 2px;
+  margin-right: 8px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .controlPanel {
+    padding: 12px 16px;
+    gap: 16px;
+  }
+
+  .controlSection {
+    gap: 8px;
+  }
+
+  .searchContainer {
+    min-width: 150px;
+    max-width: 200px;
+  }
+
+  .viewModeSelector {
+    gap: 2px;
+    padding: 2px;
+  }
+
+  .viewModeButton,
+  .controlButton,
+  .paletteButton {
+    width: 32px;
+    height: 32px;
+  }
+
+  .zoomIndicator {
+    min-width: 40px;
+    font-size: 11px;
+  }
+
+  .breadcrumbNavigation {
+    padding: 8px 16px;
+  }
+
+  .breadcrumbItem {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .infoPanel {
+    padding: 12px 16px;
+  }
+
+  .infoStats {
+    gap: 16px;
+  }
+
+  .statValue {
+    font-size: 16px;
+  }
+
+  .helpContent {
+    max-width: calc(100vw - 40px);
+  }
+
+  .helpSections {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .controlButton,
+  .viewModeButton,
+  .paletteButton,
+  .helpClose {
+    transition: none;
+  }
+
+  .controlButton:hover,
+  .viewModeButton:hover,
+  .paletteButton:hover {
+    transform: none;
+  }
+
+  .treemapNode {
+    transition: none;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .enhancedTreeMapView {
+    background: #000000;
+    border-color: #ffffff;
+  }
+
+  .controlPanel {
+    background: #000000;
+    border-color: #ffffff;
+  }
+
+  .controlButton,
+  .viewModeButton,
+  .paletteButton {
+    background: #000000;
+    border-color: #ffffff;
+    color: #ffffff;
+  }
+
+  .controlButton:hover,
+  .viewModeButton:hover,
+  .paletteButton:hover {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .controlButton.active,
+  .viewModeButton.active,
+  .paletteButton.active {
+    background: #ffffff;
+    color: #000000;
+  }
+
+  .searchInput {
+    background: #000000;
+    border-color: #ffffff;
+    color: #ffffff;
+  }
+
+  .zoomIndicator {
+    background: #000000;
+    border-color: #ffffff;
+    color: #ffffff;
+  }
+
+  .treemapNode {
+    border-color: #ffffff;
+  }
+
+  .treemapNode:hover {
+    border-color: #ffffff;
+  }
+
+  .helpContent {
+    background: #000000;
+    border-color: #ffffff;
+  }
+
+  .tooltip {
+    background: #000000;
+    border-color: #ffffff;
+  }
+}
+
+/* Mobile Optimizations - AI Recommended */
+@media (max-width: 768px) {
+  .enhancedTreeMapView {
+    border-radius: var(--radius-xl);
+  }
+
+  .controlPanel {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+  }
+
+  .controlSection {
+    justify-content: space-between;
+  }
+
+  .searchContainer {
+    min-width: auto;
+    max-width: none;
+  }
+
+  .zoomControls {
+    justify-content: center;
+  }
+
+  .treemapContainer {
+    min-height: 300px;
+  }
+
+  .treemapNode {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Touch Optimizations */
+@media (pointer: coarse) {
+  .viewModeButton,
+  .controlButton,
+  .paletteButton {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .searchInput {
+    min-height: 44px;
+    padding: var(--spacing-md);
+  }
+
+  .treemapNode {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Enhanced Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .treemapNode,
+  .viewModeButton,
+  .controlButton,
+  .paletteButton,
+  .tooltip {
+    transition: none;
+  }
+
+  .treemapNode:hover {
+    transform: none;
+  }
+
+  .controlButton:hover,
+  .viewModeButton:hover {
+    transform: none;
+  }
+}
+
+/* High Contrast Mode - Enhanced with Design Tokens */
+@media (prefers-contrast: high) {
+  .enhancedTreeMapView {
+    background: var(--color-background-primary);
+    border-color: var(--color-text-primary);
+    border-width: 2px;
+  }
+
+  .controlPanel {
+    background: var(--color-background-primary);
+    border-color: var(--color-text-primary);
+  }
+
+  .controlButton,
+  .viewModeButton,
+  .paletteButton {
+    background: var(--color-background-primary);
+    border-color: var(--color-text-primary);
+    color: var(--color-text-primary);
+    border-width: 2px;
+  }
+
+  .controlButton:hover,
+  .viewModeButton:hover,
+  .paletteButton:hover {
+    background: var(--color-text-primary);
+    color: var(--color-background-primary);
+  }
+
+  .controlButton.active,
+  .viewModeButton.active,
+  .paletteButton.active {
+    background: var(--color-primary);
+    color: var(--color-text-primary);
+    border-color: var(--color-text-primary);
+  }
+
+  .searchInput {
+    background: var(--color-background-primary);
+    border-color: var(--color-text-primary);
+    color: var(--color-text-primary);
+    border-width: 2px;
+  }
+
+  .zoomIndicator {
+    background: var(--color-background-primary);
+    border-color: var(--color-text-primary);
+    color: var(--color-text-primary);
+  }
+
+  .treemapNode {
+    border-color: var(--color-text-primary);
+    border-width: 2px;
+  }
+
+  .treemapNode:hover {
+    border-color: var(--color-primary);
+  }
+
+  .helpContent {
+    background: var(--color-background-primary);
+    border-color: var(--color-text-primary);
+  }
+
+  .tooltip {
+    background: var(--color-background-primary);
+    border-color: var(--color-text-primary);
+  }
+}
+
+/* Enhanced Focus Management */
+.searchInput:focus-visible,
+.viewModeButton:focus-visible,
+.controlButton:focus-visible,
+.paletteButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+}
+
+/* Performance Optimizations */
+.treemapContainer {
+  contain: layout style paint;
+}
+
+.treemapNode {
+  contain: layout style;
+}
+
+.gpu-accelerated {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Screen Reader Optimizations */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Print Styles */
+@media print {
+  .enhancedTreeMapView {
+    background: white !important;
+    color: black !important;
+    border: 1px solid black !important;
+  }
+
+  .treemapNode {
+    background: white !important;
+    border: 1px solid black !important;
+    color: black !important;
+  }
+
+  .controlPanel,
+  .zoomControls {
+    display: none !important;
+  }
+}
+
+/* Touch Optimizations */
+@media (pointer: coarse) {
+  .controlButton,
+  .viewModeButton,
+  .paletteButton {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .zoomIndicator {
+    min-width: 60px;
+    min-height: 32px;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .breadcrumbItem {
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+}

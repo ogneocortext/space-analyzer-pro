@@ -1,0 +1,312 @@
+/* Mobile Navigation and Gesture Enhancements */
+
+/* Mobile-Optimized Sidebar */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    max-width: 320px;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebarNav {
+    padding: 8px 0;
+  }
+
+  .navItem {
+    padding: 16px 24px;
+    font-size: 16px;
+    min-height: 56px; /* Touch-friendly size */
+  }
+
+  .categoryHeader {
+    padding: 24px 24px 16px;
+    min-height: 64px;
+  }
+
+  .categoryIcon {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+
+  .featureButton {
+    padding: 16px 24px;
+    min-height: 56px;
+  }
+
+  .featureIcon {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+}
+
+/* Touch-Friendly Gesture Support */
+.gesture-container {
+  touch-action: pan-x pan-y;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.swipe-hint {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  background: rgba(59, 130, 246, 0.8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 16px;
+  opacity: 0;
+  animation: swipeHintPulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes swipeHintPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateY(-50%) scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-50%) scale(1.1);
+  }
+}
+
+/* Mobile Command Palette */
+@media (max-width: 768px) {
+  .commandPalette {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.98);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    z-index: 10000;
+  }
+
+  .commandInput {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 16px 20px;
+    height: 56px;
+  }
+
+  .commandResults {
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+
+  .commandItem {
+    padding: 16px 20px;
+    min-height: 56px;
+    font-size: 16px;
+  }
+}
+
+/* Mobile Header Optimization */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 16px;
+    height: 56px;
+  }
+
+  .appTitle {
+    font-size: 20px;
+  }
+
+  .searchBox {
+    display: none; /* Hide search on mobile, use command palette instead */
+  }
+
+  .headerRight {
+    gap: 8px;
+  }
+
+  .quickAccessButton,
+  .menuButton {
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+}
+
+/* Mobile Content Area */
+@media (max-width: 768px) {
+  .main {
+    margin-top: 56px;
+    padding: 0;
+  }
+
+  .content {
+    padding: 16px;
+  }
+
+  .featureHub {
+    padding: 16px;
+  }
+
+  .featureHubHeader {
+    padding: 0 16px;
+    margin-bottom: 32px;
+  }
+
+  .featureHubHeader h1 {
+    font-size: 28px;
+  }
+
+  .featureHubHeader p {
+    font-size: 16px;
+  }
+
+  .categoriesGrid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .categoryHeader {
+    padding: 24px 20px 16px;
+  }
+
+  .featureButton {
+    padding: 16px 20px;
+  }
+}
+
+/* Touch-Friendly Visualizations */
+.visualization-container {
+  touch-action: pan-x pan-y pinch-zoom;
+  -webkit-touch-callout: none;
+}
+
+.visualization-node {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.visualization-node:hover,
+.visualization-node:active {
+  transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+  .visualization-node {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Mobile Loading States */
+@media (max-width: 768px) {
+  .loadingContainer {
+    padding: 32px 16px;
+  }
+
+  .loadingCard {
+    padding: 32px 24px;
+    margin: 16px;
+  }
+
+  .progressBar {
+    height: 8px;
+  }
+
+  .progressText {
+    font-size: 16px;
+  }
+
+  .currentFile {
+    font-size: 14px;
+    word-break: break-all;
+  }
+}
+
+/* Mobile Error States */
+@media (max-width: 768px) {
+  .errorContainer {
+    padding: 32px 16px;
+  }
+
+  .errorCard {
+    padding: 32px 24px;
+    margin: 16px;
+  }
+
+  .errorMessage {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+}
+
+/* Gesture Indicators */
+.gesture-indicator {
+  position: fixed;
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+.gesture-indicator.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.gesture-indicator.swipe-left {
+  left: 20px;
+  top: 50%;
+}
+
+.gesture-indicator.swipe-right {
+  right: 20px;
+  top: 50%;
+}
+
+.gesture-indicator.swipe-up {
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+}
+
+.gesture-indicator.swipe-up.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .swipe-hint {
+    animation: none;
+    opacity: 0.5;
+  }
+
+  .gesture-indicator {
+    transition: none;
+  }
+
+  .visualization-node {
+    transition: none;
+  }
+
+  .sidebar {
+    transition: none;
+  }
+}

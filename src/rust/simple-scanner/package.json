@@ -1,0 +1,27 @@
+{
+  "name": "simple-scanner",
+  "version": "0.1.0",
+  "description": "High-performance Rust native file scanner with NAPI bindings",
+  "main": "index.js",
+  "napi": {
+    "binaryName": "scanner",
+    "targets": ["x86_64-pc-windows-msvc"]
+  },
+  "scripts": {
+    "build": "napi build --release",
+    "build:native": "cargo build --release",
+    "build:full": "cargo build --release && napi build --release",
+    "clean": "cargo clean && npx rimraf scanner.node",
+    "test": "cargo test"
+  },
+  "keywords": ["native", "scanner", "napi", "rust", "performance"],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.0",
+    "rimraf": "^5.0.0"
+  }
+}

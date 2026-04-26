@@ -1,0 +1,277 @@
+/* Virtual File List Styles */
+.virtual-scroll-container {
+  height: 500px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.5rem;
+}
+
+.virtual-row {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  min-height: 32px;
+}
+
+.virtual-checkbox {
+  margin-right: 1rem;
+}
+
+.virtual-file-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.virtual-file-path {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.virtual-file-size {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.virtual-file-extension {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.virtual-file-category {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 0.125rem 0.375rem;
+  background: rgba(59, 130, 246, 0.2);
+  border-radius: 4px;
+  font-size: 0.625rem;
+  color: var(--accent-blue);
+}
+
+.virtual-file-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.virtual-file-icon {
+  margin-right: 1rem;
+  color: var(--accent-blue);
+}
+
+.virtual-file-details {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.virtual-file-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.virtual-file-path {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text- overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.virtual-file-size {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.virtual-file-extension {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.virtual-file-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.virtual-file-icon {
+  margin-right: 1rem;
+  color: var(--accent-blue);
+}
+
+.virtual-icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.virtual-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.virtual-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.virtual-group-toggle {
+  color: var(--text-secondary);
+}
+
+.virtual-group-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.virtual-group-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.virtual-group-stats {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.virtual-group-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.virtual-search-container {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.virtual-search-input {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.virtual-filter-select {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(---border-color);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.virtual-filter-label {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.virtual-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.virtual-filter-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.virtual-filter-count {
+  margin-left: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.virtual-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.virtual-toolbar-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.virtual-toolbar-stats {
+  display: flex;
+  gap: 1rem;
+  color: var(--text-secondary);
+}
+
+.virtual-selection-info {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.virtual-selection-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.virtual-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.virtual-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.virtual-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
