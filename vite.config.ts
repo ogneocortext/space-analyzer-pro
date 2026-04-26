@@ -37,6 +37,9 @@ export default defineConfig({
     copyPublicDir: true, // Copy public assets to dist
     // Advanced chunking for optimal performance - Vite 8 uses Rolldown
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html')
+      },
       output: {
         // manualChunks as function for Rolldown compatibility
         manualChunks: (id) => {
