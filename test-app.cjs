@@ -40,9 +40,10 @@ const path = require('path');
       requestAnimationFrame(measureFPS);
     });
     
-    console.log('Navigating to http://localhost:3001');
+    const port = 3002; // Vue dev server port
+    console.log(`Navigating to http://localhost:${port}`);
     const navStart = Date.now();
-    await page.goto('http://localhost:3001', { waitUntil: 'domcontentloaded' });
+    await page.goto(`http://localhost:${port}`, { waitUntil: 'domcontentloaded' });
     performanceMetrics.pageLoad = Date.now() - navStart;
     console.log(`⏱️ Page load time: ${performanceMetrics.pageLoad}ms`);
     
@@ -166,7 +167,11 @@ const path = require('path');
     console.log(`DOM Content Loaded: ${performanceMetrics.domContentLoaded}ms`);
     console.log(`Load Complete: ${performanceMetrics.loadComplete}ms`);
     console.log(`Network requests: ${performanceMetrics.networkRequests.length}`);
-    console.log(`FPS - Avg: ${performanceMetrics.fps.avg.toFixed(1)}, Min: ${performanceMetrics.fps.min.toFixed(1)}, Max: ${performanceMetrics.fps.max.toFixed(1)}`);
+    if (performanceMetrics.fps.avg) {
+      console.log(`FPS - Avg: ${performanceMetrics.fps.avg.toFixed(1)}, Min: ${performanceMetrics.fps.min.toFixed(1)}, Max: ${performanceMetrics.fps.max.toFixed(1)}`);
+    } else {
+      console.log('FPS: No data collected (page may not have rendered properly)');
+    }
     
     // Save results to file
     const resultsDir = path.join(__dirname, 'performance-results');
@@ -184,7 +189,9 @@ const path = require('path');
       const prevData = JSON.parse(fs.readFileSync(path.join(resultsDir, prevFile), 'utf8'));
       console.log('\n📈 Comparison with previous run:');
       console.log(`Page load: ${performanceMetrics.pageLoad}ms vs ${prevData.pageLoad}ms (${((performanceMetrics.pageLoad - prevData.pageLoad) / prevData.pageLoad * 100).toFixed(1)}%)`);
-      console.log(`FPS Avg: ${performanceMetrics.fps.avg.toFixed(1)} vs ${prevData.fps.avg.toFixed(1)} (${((performanceMetrics.fps.avg - prevData.fps.avg) / prevData.fps.avg * 100).toFixed(1)}%)`);
+      if (performanceMetrics.fps.avg && prevData.fps.avg) {
+        console.log(`FPS Avg: ${performanceMetrics.fps.avg.toFixed(1)} vs ${prevData.fps.avg.toFixed(1)} (${((performanceMetrics.fps.avg - prevData.fps.avg) / prevData.fps.avg * 100).toFixed(1)}%)`);
+      }
     }
     
   } catch (error) {
