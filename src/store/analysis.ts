@@ -15,7 +15,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
     files: 0,
     percentage: 0,
     currentFile: '',
-    completed: false
+    completed: false as boolean | undefined
   })
 
   const analysisBridge = new AnalysisBridge()
@@ -30,16 +30,16 @@ export const useAnalysisStore = defineStore('analysis', () => {
       scannedFiles.value = []
       useAI.value = enableAI
 
-      const result = await analysisBridge.startAnalysis(path.value, enableAI, {
-        onProgress: (progressInfo) => {
-          progress.value = progressInfo.percentage
-          progressData.value = progressInfo
-          status.value = 'analyzing'
-        },
-        onFileScanned: (file) => {
-          scannedFiles.value.push(file)
+      const { result } = await analysisBridge.analyzeDirectoryWithProgress(path.value, (progressInfo) => {
+        progress.value = progressInfo.percentage
+        progressData.value = {
+          files: progressInfo.files,
+          percentage: progressInfo.percentage,
+          currentFile: progressInfo.currentFile,
+          completed: progressInfo.completed || false
         }
-      })
+        status.value = 'analyzing'
+      }, { useOllama: enableAI })
 
       data.value = result
       status.value = 'complete'
