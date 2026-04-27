@@ -27,7 +27,8 @@
     "type-check": "tsc -p tsconfig.node.json --noEmit",
     "type-check:full": "tsc --noEmit",
     "update-deps": "npm update && npm audit fix",
-    "prepare": "husky"
+    "prepare": "husky",
+    "github:nav": "node github-nav.js"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
