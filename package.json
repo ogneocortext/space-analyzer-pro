@@ -1,6 +1,6 @@
 {
   "name": "space-analyzer-pro",
-  "version": "2.1.6",
+  "version": "2.1.7",
   "description": "AI-Powered Space Analyzer with Vision Analysis and Feature Hub",
   "type": "module",
   "scripts": {
