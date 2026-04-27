@@ -23,6 +23,7 @@ development/test-results/
 test-results/
 webapp-analysis-results/
 results/
+performance-results/
 backups/
 archive/
 server/*.backup
