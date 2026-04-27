@@ -3,12 +3,12 @@
  * Centralized configuration management for the Space Analyzer backend
  */
 
-const fs = require('fs');
-const path = require('path');
-const Joi = require('joi');
+import fs from 'fs';
+import path from 'path';
+import Joi from 'joi';
 
 // Import centralized port configuration
-const ports = require('../../ports.config.js');
+import ports from '../../../ports.config.js';
 
 class ConfigService {
     constructor() {

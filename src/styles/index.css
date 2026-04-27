@@ -12,7 +12,25 @@
 
 /* Google Fonts are loaded in index.html via <link> tags */
 
-/* Remove @theme rule to avoid PostCSS warnings - using Tailwind v4 defaults */
+/* Gradient fallback for Tailwind v4 compatibility */
+.bg-linear-to-r {
+  background: linear-gradient(to right, var(--tw-gradient-from), var(--tw-gradient-to));
+}
+
+.bg-linear-to-r-from-\[\#00B4D8\]-to-purple-500 {
+  --tw-gradient-from: #00B4D8;
+  --tw-gradient-to: #9333ea;
+  background: linear-gradient(to right, #00B4D8, #9333ea);
+}
+
+.text-transparent {
+  color: transparent;
+}
+
+.bg-clip-text {
+  -webkit-background-clip: text;
+  background-clip: text;
+}
 
 /* Dynamic Progress Bar Styles */
 .progress-bar {

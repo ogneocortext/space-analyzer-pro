@@ -13,7 +13,7 @@
  * - 6379: Redis (default)
  */
 
-module.exports = {
+const ports = {
   // Frontend Development
   VITE_DEV_PORT: 3001,           // Vite development server
   VITE_PREVIEW_PORT: 3002,       // Vite preview server (production build)
@@ -43,9 +43,9 @@ module.exports = {
   
   // Validate no port conflicts
   validate() {
-    const ports = Object.values(this).filter(v => typeof v === 'number');
-    const uniquePorts = new Set(ports);
-    if (ports.length !== uniquePorts.size) {
+    const portNumbers = Object.values(this).filter(v => typeof v === 'number');
+    const uniquePorts = new Set(portNumbers);
+    if (portNumbers.length !== uniquePorts.size) {
       throw new Error('Port conflict detected: Duplicate port numbers in configuration');
     }
     return true;
@@ -54,7 +54,9 @@ module.exports = {
 
 // Validate on load
 try {
-  module.exports.validate();
+  ports.validate();
 } catch (error) {
   console.error('Port configuration error:', error.message);
 }
+
+export default ports;

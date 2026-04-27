@@ -12,7 +12,7 @@ try {
 }
 
 // Centralized port configuration
-const ports = require('./ports.config.js');
+import ports from './ports.config.js';
 
 // Vue framework
 const plugins = [tailwindcss(), vue()];

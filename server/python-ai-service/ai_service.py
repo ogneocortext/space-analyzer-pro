@@ -8,12 +8,8 @@ import os
 import sys
 
 # Import centralized port configuration
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-try:
-    from ports.config import ports
-    PYTHON_AI_PORT = ports.PYTHON_AI_PORT
-except ImportError:
-    PYTHON_AI_PORT = 8084  # Fallback
+# Note: Python cannot import ES modules directly, using hardcoded value
+PYTHON_AI_PORT = 8084  # Matches ports.config.js PYTHON_AI_PORT
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

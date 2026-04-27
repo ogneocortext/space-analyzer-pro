@@ -1,24 +1,23 @@
 /**
- * Enhanced Ollama Service for Space Analyzer - Production Ready
- * Provides advanced integration with local Ollama server with enterprise features
+ * Enhanced Ollama Service for Space Analyzer - Hardware Optimized
+ * Provides advanced integration with local Ollama server with dynamic configuration
  */
 
 const http = require('http');
 const { URL } = require('url');
+const dynamicConfig = require('./config/dynamic-config');
 
 class EnhancedOllamaService {
   constructor(baseUrl = 'http://localhost:11434') {
     this.baseUrl = baseUrl;
     this.models = [];
-    // Use fastest model by default - phi4-mini for speed or qwen3.5:4b for balance
-    // For maximum speed with GPU: phi4-mini (small, fast)
-    // For quality with GPU: qwen3.5:4b (4B params, good balance)
-    this.currentModel = 'phi4-mini:latest';  // Fastest option for GPU acceleration
+    // Use hardware-optimized model from dynamic config
+    this.currentModel = dynamicConfig.aiModel;
     
-    // Production Features
+    // Hardware-optimized concurrency settings
     this.requestQueue = [];
     this.isProcessing = false;
-    this.maxConcurrentRequests = 3;
+    this.maxConcurrentRequests = dynamicConfig.maxConcurrentAIRequests;
     this.activeRequests = 0;
     
     // GPU/CUDA Configuration - Optimized for Ollama 0.21.2
@@ -30,9 +29,9 @@ class EnhancedOllamaService {
       use_mmap: true,        // Memory map for faster loading
       use_mlock: false,      // Don't lock memory (allows swap if needed)
       numa: false,           // NUMA optimization off unless specifically needed
-      batch_size: 1024,      // Increased from 512 to 1024 (60% throughput improvement)
-      ctx_size: 4096,        // Reduced from 8192 to 4096 (saves VRAM via KV cache)
-      ctx_size_analysis: 8192, // Larger context for complex analysis tasks
+      batch_size: dynamicConfig.ollamaBatchSize,  // Hardware-optimized batch size
+      ctx_size: dynamicConfig.ollamaContextSize,  // Hardware-optimized context
+      ctx_size_analysis: dynamicConfig.ollamaContextSize * 2, // Larger for analysis
       f16_kv: true,        // FP16 for key/value cache (saves VRAM, faster)
       offload_kqv: true,     // Offload attention layers to GPU
       num_keep: 128,         // Preserve system prompt from truncation (Ollama 0.21.2)
@@ -61,14 +60,14 @@ class EnhancedOllamaService {
       lastReset: Date.now()
     };
     
-    // Caching with TTL
+    // Hardware-optimized caching
     this.responseCache = new Map();
-    this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
-    this.maxCacheSize = 100;
+    this.cacheExpiry = dynamicConfig.cacheExpiry;
+    this.maxCacheSize = dynamicConfig.cacheSize;
     
-    // Rate Limiting
-    this.rateLimitWindow = 60000; // 1 minute
-    this.maxRequestsPerWindow = 100;
+    // Rate Limiting DISABLED for local development
+    this.rateLimitWindow = 0; // Disabled
+    this.maxRequestsPerWindow = Infinity; // No limit
     this.requestTimestamps = [];
     
     // Initialize health monitoring
@@ -87,10 +86,8 @@ class EnhancedOllamaService {
       this.performHealthCheck();
     }, 300000);
     
-    // Clean up old request timestamps for rate limiting
-    setInterval(() => {
-      this.cleanupRequestTimestamps();
-    }, 60000);
+    // Rate limiting cleanup disabled (no rate limiting in local dev)
+    // setInterval(() => { this.cleanupRequestTimestamps(); }, 60000);
     
     // Clean up expired cache entries
     setInterval(() => {

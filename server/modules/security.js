@@ -1,8 +1,8 @@
 const helmet = require('helmet');
 const cors = require('cors');
-const compression = require('compression');
 const express = require('express');
 const path = require('path');
+const dynamicConfig = require('../config/dynamic-config');
 
 /**
  * Setup security middleware for the API server
@@ -24,9 +24,16 @@ function setupSecurity(app) {
  * @param {express.Application} app - Express application instance
  */
 function setupMiddleware(app) {
-    app.use(compression());
-    app.use(express.json({ limit: '50mb' }));
-    app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+    // Compression status from dynamic config
+    if (dynamicConfig.enableCompression) {
+      const compression = require('compression');
+      app.use(compression());
+    }
+    
+    // Hardware-optimized body parser limits
+    const bodyLimit = dynamicConfig.bodyParserLimit;
+    app.use(express.json({ limit: bodyLimit }));
+    app.use(express.urlencoded({ extended: true, limit: bodyLimit }));
     app.use((req, res, next) => {
         console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
         next();

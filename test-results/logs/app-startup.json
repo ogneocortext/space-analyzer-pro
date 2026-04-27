@@ -1,0 +1,10 @@
+[
+  {
+    "timestamp": "2026-04-27T19:22:42.793Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\app-startup.json",
+    "action": "TEST_START",
+    "details": {
+      "testName": "App Startup"
+    }
+  }
+]

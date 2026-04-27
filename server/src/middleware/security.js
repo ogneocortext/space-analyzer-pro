@@ -4,9 +4,10 @@
  */
 
 const jwt = require('jsonwebtoken');
-const rateLimit = require('express-rate-limit');
-const RedisStore = require('rate-limit-redis');
-const redis = require('redis');
+// Rate limiting disabled for local development performance
+// const rateLimit = require('express-rate-limit');
+// const RedisStore = require('rate-limit-redis');
+// const redis = require('redis');
 const config = require('../config');
 const { UnauthorizedError, ForbiddenError } = require('./errorHandler');
 
@@ -17,9 +18,13 @@ class SecurityMiddleware {
     }
 
     /**
-     * Initialize Redis client for rate limiting
+     * Initialize Redis client for rate limiting (DISABLED for local performance)
      */
     async initializeRedis() {
+        // Rate limiting disabled for local development performance
+        this.redisClient = null;
+        return;
+        /*
         try {
             const redisOptions = config.getRedisOptions();
             this.redisClient = redis.createClient({
@@ -40,6 +45,7 @@ class SecurityMiddleware {
             console.warn('⚠️ Redis not available for rate limiting:', error.message);
             this.redisClient = null;
         }
+        */
     }
 
     /**
@@ -213,9 +219,12 @@ class SecurityMiddleware {
     }
 
     /**
-     * Rate limiting middleware
+     * Rate limiting middleware (DISABLED for local development performance)
      */
     createRateLimit(options = {}) {
+        // Return no-op middleware when rate limiting is disabled
+        return (req, res, next) => next();
+        /*
         const securityConfig = config.getSecurityConfig();
         const rateLimitConfig = securityConfig.rateLimit;
 
@@ -247,6 +256,7 @@ class SecurityMiddleware {
             ...baseConfig,
             ...options
         });
+        */
     }
 
     /**

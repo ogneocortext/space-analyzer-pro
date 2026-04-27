@@ -5,16 +5,33 @@
 </template>
 
 <script setup lang="ts">
-import { provide } from 'vue'
+import { ref, provide, type InjectionKey } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAnalysisStore } from './store/analysis'
 import { useAppStore } from './store/app'
+import LandingPage from './components/vue/layout/LandingPage.vue'
+import DashboardView from './components/vue/dashboard/DashboardView.vue'
+import {
+  analysisStoreKey,
+  appStoreKey,
+  handlePathChangeKey,
+  toggleAIKey,
+  handleSelectRecentPathKey,
+  navigateToDashboardKey,
+  navigateToBrowserKey,
+  navigateToVisualizationKey,
+  exportReportKey,
+  cleanupSuggestionsKey,
+  getCategoryColorKey
+} from './types/injection'
 
+const router = useRouter()
 const analysisStore = useAnalysisStore()
 const appStore = useAppStore()
 
 // Provide stores to child components
-provide('analysisStore', analysisStore)
-provide('appStore', appStore)
+provide(analysisStoreKey, analysisStore)
+provide(appStoreKey, appStore)
 
 const handlePathChange = (newPath: string) => {
   analysisStore.path = newPath
@@ -30,19 +47,42 @@ const handleSelectRecentPath = (selectedPath: string) => {
 }
 
 const navigateToDashboard = () => {
-  appStore.setView('dashboard')
+  router.push('/dashboard')
 }
 
 const navigateToBrowser = () => {
-  appStore.setView('browser')
+  router.push('/browser')
+}
+
+const navigateToVisualization = () => {
+  router.push('/visualization')
 }
 
 const exportReport = () => {
-  console.log('Export report')
+  if (!analysisStore.data) {
+    console.warn('No analysis data to export')
+    return
+  }
+  // Simple export to JSON
+  const dataStr = JSON.stringify(analysisStore.data, null, 2)
+  const dataBlob = new Blob([dataStr], { type: 'application/json' })
+  const url = URL.createObjectURL(dataBlob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `space-analyzer-report-${Date.now()}.json`
+  link.click()
+  URL.revokeObjectURL(url)
+  console.log('Report exported successfully')
 }
 
 const cleanupSuggestions = () => {
-  console.log('Cleanup suggestions')
+  if (!analysisStore.data) {
+    console.warn('No analysis data for cleanup suggestions')
+    return
+  }
+  // Navigate to dashboard for cleanup suggestions
+  router.push('/dashboard')
+  console.log('Navigating to dashboard for cleanup suggestions')
 }
 
 const getCategoryColor = (category: string) => {
@@ -59,14 +99,15 @@ const getCategoryColor = (category: string) => {
 }
 
 // Provide helper functions
-provide('handlePathChange', handlePathChange)
-provide('toggleAI', toggleAI)
-provide('handleSelectRecentPath', handleSelectRecentPath)
-provide('navigateToDashboard', navigateToDashboard)
-provide('navigateToBrowser', navigateToBrowser)
-provide('exportReport', exportReport)
-provide('cleanupSuggestions', cleanupSuggestions)
-provide('getCategoryColor', getCategoryColor)
+provide(handlePathChangeKey, handlePathChange)
+provide(toggleAIKey, toggleAI)
+provide(handleSelectRecentPathKey, handleSelectRecentPath)
+provide(navigateToDashboardKey, navigateToDashboard)
+provide(navigateToBrowserKey, navigateToBrowser)
+provide(navigateToVisualizationKey, navigateToVisualization)
+provide(exportReportKey, exportReport)
+provide(cleanupSuggestionsKey, cleanupSuggestions)
+provide(getCategoryColorKey, getCategoryColor)
 </script>
 
 <style>

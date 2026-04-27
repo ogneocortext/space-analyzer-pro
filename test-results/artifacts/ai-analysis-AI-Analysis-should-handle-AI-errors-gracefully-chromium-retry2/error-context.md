@@ -1,0 +1,174 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: ai-analysis.spec.ts >> AI Analysis >> should handle AI errors gracefully
+- Location: tests\e2e\ai-analysis.spec.ts:162:3
+
+# Error details
+
+```
+Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/
+Call log:
+  - navigating to "http://localhost:3001/", waiting until "networkidle"
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e6]:
+    - heading "This site can’t be reached" [level=1] [ref=e7]
+    - paragraph [ref=e8]:
+      - strong [ref=e9]: localhost
+      - text: refused to connect.
+    - generic [ref=e10]:
+      - paragraph [ref=e11]: "Try:"
+      - list [ref=e12]:
+        - listitem [ref=e13]: Checking the connection
+        - listitem [ref=e14]:
+          - link "Checking the proxy and the firewall" [ref=e15] [cursor=pointer]:
+            - /url: "#buttons"
+    - generic [ref=e16]: ERR_CONNECTION_REFUSED
+  - generic [ref=e17]:
+    - button "Reload" [ref=e19] [cursor=pointer]
+    - button "Details" [ref=e20] [cursor=pointer]
+```
+
+# Test source
+
+```ts
+  72  |     ];
+  73  | 
+  74  |     const foundStatus: string[] = [];
+  75  |     for (const selector of statusSelectors) {
+  76  |       const element = page.locator(selector).first();
+  77  |       if (await element.isVisible({ timeout: 3000 }).catch(() => false)) {
+  78  |         const text = await element.textContent();
+  79  |         foundStatus.push(`${selector}: ${text}`);
+  80  |         logger.log('AI_STATUS_FOUND', { selector, text });
+  81  |       }
+  82  |     }
+  83  | 
+  84  |     if (foundStatus.length === 0) {
+  85  |       logger.log('AI_STATUS_NOT_FOUND', { selectors: statusSelectors });
+  86  |     }
+  87  | 
+  88  |     logger.log('TEST_COMPLETE', { foundStatus: foundStatus.length });
+  89  |   });
+  90  | 
+  91  |   test('should allow AI model selection', async ({ page }) => {
+  92  |     await page.goto('http://localhost:3001', { waitUntil: 'networkidle' });
+  93  |     
+  94  |     // Enable AI toggle to show AI panel
+  95  |     const aiToggle = page.locator('[data-testid="ai-toggle-button"]').first();
+  96  |     if (await aiToggle.isVisible().catch(() => false)) {
+  97  |       await aiToggle.click();
+  98  |       await page.waitForTimeout(500);
+  99  |     }
+  100 |     
+  101 |     // Look for model selector
+  102 |     const modelSelectors = [
+  103 |       'select[data-testid="ai-model-select"]',
+  104 |       '.model-selector',
+  105 |       'select:has-text("Model")',
+  106 |       '[data-testid="model-select"]',
+  107 |       '.ai-model-select'
+  108 |     ];
+  109 | 
+  110 |     let modelSelector = null;
+  111 |     for (const selector of modelSelectors) {
+  112 |       const element = page.locator(selector).first();
+  113 |       if (await element.isVisible({ timeout: 3000 }).catch(() => false)) {
+  114 |         modelSelector = element;
+  115 |         logger.log('MODEL_SELECTOR_FOUND', { selector });
+  116 |         break;
+  117 |       }
+  118 |     }
+  119 | 
+  120 |     if (modelSelector) {
+  121 |       // Try to get available options
+  122 |       const options = await modelSelector.locator('option').all();
+  123 |       const modelNames = await Promise.all(options.map(opt => opt.textContent()));
+  124 |       logger.log('MODELS_AVAILABLE', { count: modelNames.length, models: modelNames });
+  125 |     } else {
+  126 |       logger.log('MODEL_SELECTOR_NOT_FOUND', { selectors: modelSelectors });
+  127 |     }
+  128 | 
+  129 |     logger.log('TEST_COMPLETE', { modelSelectorFound: !!modelSelector });
+  130 |   });
+  131 | 
+  132 |   test('should display AI insights after scan', async ({ page }) => {
+  133 |     await page.goto('http://localhost:3001', { waitUntil: 'networkidle' });
+  134 |     
+  135 |     // Look for insights/results display
+  136 |     const insightsSelectors = [
+  137 |       '[data-testid="insights"]',
+  138 |       '.insights',
+  139 |       '.ai-insights',
+  140 |       '.analysis-results',
+  141 |       '[data-testid="analysis-results"]'
+  142 |     ];
+  143 | 
+  144 |     let insightsFound = false;
+  145 |     for (const selector of insightsSelectors) {
+  146 |       const element = page.locator(selector).first();
+  147 |       if (await element.isVisible({ timeout: 3000 }).catch(() => false)) {
+  148 |         insightsFound = true;
+  149 |         const text = await element.textContent();
+  150 |         logger.log('INSIGHTS_FOUND', { selector, hasContent: !!text });
+  151 |         break;
+  152 |       }
+  153 |     }
+  154 | 
+  155 |     if (!insightsFound) {
+  156 |       logger.log('INSIGHTS_NOT_FOUND', { selectors: insightsSelectors });
+  157 |     }
+  158 | 
+  159 |     logger.log('TEST_COMPLETE', { insightsFound });
+  160 |   });
+  161 | 
+  162 |   test('should handle AI errors gracefully', async ({ page }) => {
+  163 |     const consoleErrors: string[] = [];
+  164 |     
+  165 |     page.on('console', msg => {
+  166 |       if (msg.type() === 'error') {
+  167 |         consoleErrors.push(msg.text());
+  168 |         logger.log('CONSOLE_ERROR', { message: msg.text() });
+  169 |       }
+  170 |     });
+  171 | 
+> 172 |     await page.goto('http://localhost:3001', { waitUntil: 'networkidle' });
+      |                ^ Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/
+  173 | 
+  174 |     // Look for error messages related to AI
+  175 |     const aiErrorSelectors = [
+  176 |       '[data-testid="ai-error"]',
+  177 |       '.ai-error',
+  178 |       '.ollama-error',
+  179 |       '[data-testid="ai-unavailable"]'
+  180 |     ];
+  181 | 
+  182 |     const aiErrorsFound: string[] = [];
+  183 |     for (const selector of aiErrorSelectors) {
+  184 |       const element = page.locator(selector).first();
+  185 |       if (await element.isVisible({ timeout: 2000 }).catch(() => false)) {
+  186 |         const text = await element.textContent();
+  187 |         aiErrorsFound.push(`${selector}: ${text}`);
+  188 |         logger.log('AI_ERROR_FOUND', { selector, text });
+  189 |       }
+  190 |     }
+  191 | 
+  192 |     logger.log('TEST_COMPLETE', { 
+  193 |       consoleErrors: consoleErrors.length,
+  194 |       aiErrorsFound: aiErrorsFound.length
+  195 |     });
+  196 |   });
+  197 | });
+  198 | 
+```
