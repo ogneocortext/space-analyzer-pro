@@ -117,12 +117,12 @@ The C++ implementation is optimized for maximum performance:
 
 Typical performance on a directory with 100,000 files:
 
-| Feature | Performance |
-|---------|-------------|
+| Feature       | Performance     |
+| ------------- | --------------- |
 | File Scanning | ~9000 files/sec |
-| Memory Usage | ~50MB |
-| CPU Usage | 85% (8 cores) |
-| Analysis Time | ~11 seconds |
+| Memory Usage  | ~50MB           |
+| CPU Usage     | 85% (8 cores)   |
+| Analysis Time | ~11 seconds     |
 
 ## Architecture
 
@@ -162,13 +162,13 @@ Typical performance on a directory with 100,000 files:
 The C++ CLI can be integrated with the Node.js backend:
 
 ```javascript
-const { spawn } = require('child_process');
+const { spawn } = require("child_process");
 
 function analyzeWithCpp(directory) {
-    return new Promise((resolve, reject) => {
-        const process = spawn('./bin/space-analyzer-cli', [directory, '--json']);
-        // ... handle output
-    });
+  return new Promise((resolve, reject) => {
+    const process = spawn("./bin/space-analyzer-cli", [directory, "--json"]);
+    // ... handle output
+  });
 }
 ```
 

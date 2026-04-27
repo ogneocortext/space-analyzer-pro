@@ -1,6 +1,6 @@
 // Custom hook for backend health checking
-import { useState, useCallback, useEffect } from 'react';
-import { ConfigService } from '../services/ConfigService';
+import { useState, useCallback, useEffect } from "react";
+import { ConfigService } from "../services/ConfigService";
 
 export const useBackendHealth = () => {
   const [isBackendOnline, setIsBackendOnline] = useState(false);

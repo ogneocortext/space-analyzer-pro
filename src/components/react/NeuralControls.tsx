@@ -1,16 +1,26 @@
-import React, { FC, useEffect, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Layers, Grid, Activity, Search, Download, Settings2 } from 'lucide-react';
+import React, { FC, useEffect, useCallback } from "react";
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  Layers,
+  Grid,
+  Activity,
+  Search,
+  Download,
+  Settings2,
+} from "lucide-react";
 
 interface NeuralControlsProps {
-  onToggleMode: (mode: 'network' | 'heatmap' | 'graph') => void;
-  onSimulationControl: (action: 'toggle' | 'reset') => void;
+  onToggleMode: (mode: "network" | "heatmap" | "graph") => void;
+  onSimulationControl: (action: "toggle" | "reset") => void;
   onToggleConnections: (enabled: boolean) => void;
   onToggleLabels: (enabled: boolean) => void;
   onSearch?: (query: string) => void;
-  onExport?: (format: 'png' | 'svg' | 'json') => void;
+  onExport?: (format: "png" | "svg" | "json") => void;
   onSettings?: () => void;
-  activeMode: 'network' | 'heatmap' | 'graph';
-  simulationState: 'running' | 'paused';
+  activeMode: "network" | "heatmap" | "graph";
+  simulationState: "running" | "paused";
   connectionsEnabled: boolean;
   labelsEnabled: boolean;
   searchQuery?: string;
@@ -28,7 +38,7 @@ const NeuralControls: FC<NeuralControlsProps> = ({
   simulationState,
   connectionsEnabled,
   labelsEnabled,
-  searchQuery = ''
+  searchQuery = "",
 }) => {
   // Keyboard shortcuts
   useEffect(() => {
@@ -37,60 +47,71 @@ const NeuralControls: FC<NeuralControlsProps> = ({
       if (event.target instanceof HTMLInputElement) return;
 
       switch (event.key.toLowerCase()) {
-        case ' ':
+        case " ":
           event.preventDefault();
-          onSimulationControl('toggle');
+          onSimulationControl("toggle");
           break;
-        case 'r':
+        case "r":
           if (event.ctrlKey || event.metaKey) {
             event.preventDefault();
-            onSimulationControl('reset');
+            onSimulationControl("reset");
           }
           break;
-        case '1':
+        case "1":
           event.preventDefault();
-          onToggleMode('network');
+          onToggleMode("network");
           break;
-        case '2':
+        case "2":
           event.preventDefault();
-          onToggleMode('heatmap');
+          onToggleMode("heatmap");
           break;
-        case '3':
+        case "3":
           event.preventDefault();
-          onToggleMode('graph');
+          onToggleMode("graph");
           break;
-        case 'c':
+        case "c":
           event.preventDefault();
           onToggleConnections(!connectionsEnabled);
           break;
-        case 'l':
+        case "l":
           event.preventDefault();
           onToggleLabels(!labelsEnabled);
           break;
-        case 'f':
+        case "f":
           if (event.ctrlKey || event.metaKey) {
             event.preventDefault();
             // Focus search input if available
-            const searchInput = document.querySelector('.neural-search-input') as HTMLInputElement;
+            const searchInput = document.querySelector(".neural-search-input") as HTMLInputElement;
             searchInput?.focus();
           }
           break;
-        case 's':
+        case "s":
           if (event.ctrlKey || event.metaKey) {
             event.preventDefault();
-            onExport?.('png');
+            onExport?.("png");
           }
           break;
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onToggleMode, onSimulationControl, onToggleConnections, onToggleLabels, onExport, connectionsEnabled, labelsEnabled]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    onToggleMode,
+    onSimulationControl,
+    onToggleConnections,
+    onToggleLabels,
+    onExport,
+    connectionsEnabled,
+    labelsEnabled,
+  ]);
 
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onSearch?.(e.target.value);
-  }, [onSearch]);
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      onSearch?.(e.target.value);
+    },
+    [onSearch]
+  );
   return (
     <div className="neural-controls-container">
       {/* Group 1: Visualization Modes */}
@@ -98,24 +119,24 @@ const NeuralControls: FC<NeuralControlsProps> = ({
         <span className="group-label">VISUALIZATION MODE</span>
         <div className="button-group">
           <button
-            className={`cyber-btn ${activeMode === 'network' ? 'active' : ''}`}
-            onClick={() => onToggleMode('network')}
+            className={`cyber-btn ${activeMode === "network" ? "active" : ""}`}
+            onClick={() => onToggleMode("network")}
             aria-label="Network view (1)"
             title="Network view (1)"
           >
             <Activity size={16} /> NETWORK
           </button>
           <button
-            className={`cyber-btn ${activeMode === 'heatmap' ? 'active' : ''}`}
-            onClick={() => onToggleMode('heatmap')}
+            className={`cyber-btn ${activeMode === "heatmap" ? "active" : ""}`}
+            onClick={() => onToggleMode("heatmap")}
             aria-label="Heatmap view (2)"
             title="Heatmap view (2)"
           >
             <Layers size={16} /> HEATMAP
           </button>
           <button
-            className={`cyber-btn ${activeMode === 'graph' ? 'active' : ''}`}
-            onClick={() => onToggleMode('graph')}
+            className={`cyber-btn ${activeMode === "graph" ? "active" : ""}`}
+            onClick={() => onToggleMode("graph")}
             aria-label="Graph view (3)"
             title="Graph view (3)"
           >
@@ -130,15 +151,19 @@ const NeuralControls: FC<NeuralControlsProps> = ({
         <div className="icon-group">
           <button
             className="cyber-icon-btn"
-            onClick={() => onSimulationControl('toggle')}
-            aria-label={simulationState === 'running' ? 'Pause simulation (Space)' : 'Play simulation (Space)'}
-            title={simulationState === 'running' ? 'Pause simulation (Space)' : 'Play simulation (Space)'}
+            onClick={() => onSimulationControl("toggle")}
+            aria-label={
+              simulationState === "running" ? "Pause simulation (Space)" : "Play simulation (Space)"
+            }
+            title={
+              simulationState === "running" ? "Pause simulation (Space)" : "Play simulation (Space)"
+            }
           >
-            {simulationState === 'running' ? <Pause /> : <Play />}
+            {simulationState === "running" ? <Pause /> : <Play />}
           </button>
           <button
             className="cyber-icon-btn"
-            onClick={() => onSimulationControl('reset')}
+            onClick={() => onSimulationControl("reset")}
             aria-label="Reset simulation (Ctrl+R)"
             title="Reset simulation (Ctrl+R)"
           >
@@ -151,22 +176,26 @@ const NeuralControls: FC<NeuralControlsProps> = ({
       <div className="control-group">
         <span className="group-label">OVERLAYS</span>
         <div className="toggle-row">
-            <label className="cyber-toggle">
-                <input
-                  type="checkbox"
-                  checked={connectionsEnabled}
-                  onChange={(e) => onToggleConnections(e.target.checked)}
-                />
-                <span className="toggle-text" title="Toggle connections (C)">CONNECTIONS</span>
-            </label>
-            <label className="cyber-toggle">
-                <input
-                  type="checkbox"
-                  checked={labelsEnabled}
-                  onChange={(e) => onToggleLabels(e.target.checked)}
-                />
-                <span className="toggle-text" title="Toggle labels (L)">LABELS</span>
-            </label>
+          <label className="cyber-toggle">
+            <input
+              type="checkbox"
+              checked={connectionsEnabled}
+              onChange={(e) => onToggleConnections(e.target.checked)}
+            />
+            <span className="toggle-text" title="Toggle connections (C)">
+              CONNECTIONS
+            </span>
+          </label>
+          <label className="cyber-toggle">
+            <input
+              type="checkbox"
+              checked={labelsEnabled}
+              onChange={(e) => onToggleLabels(e.target.checked)}
+            />
+            <span className="toggle-text" title="Toggle labels (L)">
+              LABELS
+            </span>
+          </label>
         </div>
       </div>
 
@@ -191,7 +220,7 @@ const NeuralControls: FC<NeuralControlsProps> = ({
           {onExport && (
             <button
               className="cyber-icon-btn"
-              onClick={() => onExport('png')}
+              onClick={() => onExport("png")}
               aria-label="Export visualization (Ctrl+S)"
               title="Export visualization (Ctrl+S)"
             >

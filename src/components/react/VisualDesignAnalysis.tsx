@@ -1,32 +1,75 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
-  Eye, Palette, Layout, Type, Space,
-  AlertTriangle, CheckCircle, Lightbulb, Download,
-  Code, Brush, Zap, TrendingUp, Star
-} from 'lucide-react';
-import { visualAnalysisService, DesignAnalysis, VisualInsight } from '../services/VisualAnalysisService';
+  Eye,
+  Palette,
+  Layout,
+  Type,
+  Space,
+  AlertTriangle,
+  CheckCircle,
+  Lightbulb,
+  Download,
+  Code,
+  Brush,
+  Zap,
+  TrendingUp,
+  Star,
+} from "lucide-react";
+import {
+  visualAnalysisService,
+  DesignAnalysis,
+  VisualInsight,
+} from "../services/VisualAnalysisService";
 
 interface VisualDesignAnalysisProps {
   screenshotPath?: string;
   onImprovementsApply?: (improvements: any) => void;
 }
 
-export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: VisualDesignAnalysisProps) {
+export function VisualDesignAnalysis({
+  screenshotPath,
+  onImprovementsApply,
+}: VisualDesignAnalysisProps) {
   const [analysis, setAnalysis] = useState<DesignAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showCode, setShowCode] = useState(false);
-  const [notificationMessage, setNotificationMessage] = useState('');
-  const [notificationType, setNotificationType] = useState<'success' | 'error' | 'info'>('info');
+  const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationType, setNotificationType] = useState<"success" | "error" | "info">("info");
   const [showNotification, setShowNotification] = useState(false);
 
   const categories = [
-    { id: 'all', label: 'All Issues', icon: Eye, count: analysis?.improvements.length || 0 },
-    { id: 'layout', label: 'Layout', icon: Layout, count: analysis?.improvements.filter(i => i.category === 'layout').length || 0 },
-    { id: 'color', label: 'Color', icon: Palette, count: analysis?.improvements.filter(i => i.category === 'color').length || 0 },
-    { id: 'typography', label: 'Typography', icon: Type, count: analysis?.improvements.filter(i => i.category === 'typography').length || 0 },
-    { id: 'spacing', label: 'Spacing', icon: Space, count: analysis?.improvements.filter(i => i.category === 'spacing').length || 0 },
-    { id: 'accessibility', label: 'Accessibility', icon: AlertTriangle, count: analysis?.improvements.filter(i => i.category === 'accessibility').length || 0 },
+    { id: "all", label: "All Issues", icon: Eye, count: analysis?.improvements.length || 0 },
+    {
+      id: "layout",
+      label: "Layout",
+      icon: Layout,
+      count: analysis?.improvements.filter((i) => i.category === "layout").length || 0,
+    },
+    {
+      id: "color",
+      label: "Color",
+      icon: Palette,
+      count: analysis?.improvements.filter((i) => i.category === "color").length || 0,
+    },
+    {
+      id: "typography",
+      label: "Typography",
+      icon: Type,
+      count: analysis?.improvements.filter((i) => i.category === "typography").length || 0,
+    },
+    {
+      id: "spacing",
+      label: "Spacing",
+      icon: Space,
+      count: analysis?.improvements.filter((i) => i.category === "spacing").length || 0,
+    },
+    {
+      id: "accessibility",
+      label: "Accessibility",
+      icon: AlertTriangle,
+      count: analysis?.improvements.filter((i) => i.category === "accessibility").length || 0,
+    },
   ];
 
   useEffect(() => {
@@ -38,10 +81,10 @@ export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: Vi
   const performAnalysis = async () => {
     setIsAnalyzing(true);
     try {
-      const result = await visualAnalysisService.analyzeDesign(screenshotPath || '');
+      const result = await visualAnalysisService.analyzeDesign(screenshotPath || "");
       setAnalysis(result);
     } catch (error) {
-      console.error('Visual analysis failed:', error);
+      console.error("Visual analysis failed:", error);
     } finally {
       setIsAnalyzing(false);
     }
@@ -49,17 +92,21 @@ export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: Vi
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'text-red-400 bg-red-900/20 border-red-800';
-      case 'medium': return 'text-yellow-400 bg-yellow-900/20 border-yellow-800';
-      case 'low': return 'text-green-400 bg-green-900/20 border-green-800';
-      default: return 'text-gray-400 bg-gray-900/20 border-gray-800';
+      case "high":
+        return "text-red-400 bg-red-900/20 border-red-800";
+      case "medium":
+        return "text-yellow-400 bg-yellow-900/20 border-yellow-800";
+      case "low":
+        return "text-green-400 bg-green-900/20 border-green-800";
+      default:
+        return "text-gray-400 bg-gray-900/20 border-gray-800";
     }
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 8) return 'text-green-400';
-    if (score >= 6) return 'text-yellow-400';
-    return 'text-red-400';
+    if (score >= 8) return "text-green-400";
+    if (score >= 6) return "text-yellow-400";
+    return "text-red-400";
   };
 
   const getScoreIcon = (score: number) => {
@@ -68,42 +115,43 @@ export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: Vi
     return AlertTriangle;
   };
 
-  const filteredImprovements = selectedCategory === 'all' 
-    ? analysis?.improvements || []
-    : analysis?.improvements.filter(imp => imp.category === selectedCategory) || [];
+  const filteredImprovements =
+    selectedCategory === "all"
+      ? analysis?.improvements || []
+      : analysis?.improvements.filter((imp) => imp.category === selectedCategory) || [];
 
   const generateCodeImprovements = () => {
-    if (!analysis) return '';
-    
+    if (!analysis) return "";
+
     const cssImprovements = visualAnalysisService.generateCSSImprovements(analysis);
     const componentImprovements = visualAnalysisService.generateComponentImprovements(analysis);
-    
+
     return {
-      css: cssImprovements.join('\n\n'),
-      components: componentImprovements
+      css: cssImprovements.join("\n\n"),
+      components: componentImprovements,
     };
   };
 
   const exportAnalysis = () => {
     if (!analysis) return;
-    
+
     const report = {
       timestamp: new Date().toISOString(),
       analysis,
       codeImprovements: generateCodeImprovements(),
       summary: {
         totalIssues: analysis.improvements.length,
-        highPriorityIssues: analysis.improvements.filter(i => i.priority === 'high').length,
+        highPriorityIssues: analysis.improvements.filter((i) => i.priority === "high").length,
         accessibilityIssues: analysis.accessibility_issues.length,
-        quickWins: analysis.quick_wins.length
-      }
+        quickWins: analysis.quick_wins.length,
+      },
     };
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `design-analysis-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `design-analysis-${new Date().toISOString().split("T")[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -157,9 +205,9 @@ export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: Vi
             className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             <Code className="w-4 h-4" />
-            <span>{showCode ? 'Hide Code' : 'Show Code'}</span>
+            <span>{showCode ? "Hide Code" : "Show Code"}</span>
           </button>
-          
+
           <button
             onClick={exportAnalysis}
             className="flex items-center space-x-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
@@ -180,13 +228,13 @@ export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: Vi
                 <span className={`text-3xl font-bold ${getScoreColor(analysis.overall_score)}`}>
                   {analysis.overall_score}/100
                 </span>
-                {React.createElement(getScoreIcon(analysis.overall_score), { 
-                  className: `w-6 h-6 ${getScoreColor(analysis.overall_score)}` 
+                {React.createElement(getScoreIcon(analysis.overall_score), {
+                  className: `w-6 h-6 ${getScoreColor(analysis.overall_score)}`,
                 })}
               </div>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <div className={`text-2xl font-bold ${getScoreColor(analysis.color_harmony * 10)}`}>
@@ -195,7 +243,9 @@ export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: Vi
               <div className="text-sm text-gray-400">Color Harmony</div>
             </div>
             <div>
-              <div className={`text-2xl font-bold ${getScoreColor(analysis.visual_hierarchy * 10)}`}>
+              <div
+                className={`text-2xl font-bold ${getScoreColor(analysis.visual_hierarchy * 10)}`}
+              >
                 {analysis.visual_hierarchy}/10
               </div>
               <div className="text-sm text-gray-400">Visual Hierarchy</div>
@@ -227,7 +277,7 @@ export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: Vi
             <div>
               <p className="text-sm text-gray-400">High Priority</p>
               <p className="text-2xl font-bold text-red-400">
-                {analysis.improvements.filter(i => i.priority === 'high').length}
+                {analysis.improvements.filter((i) => i.priority === "high").length}
               </p>
             </div>
             <Zap className="w-8 h-8 text-red-400" />
@@ -267,15 +317,13 @@ export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: Vi
               onClick={() => setSelectedCategory(category.id)}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
                 selectedCategory === category.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
               }`}
             >
               <Icon className="w-4 h-4" />
               <span className="text-sm">{category.label}</span>
-              <span className="text-xs bg-gray-700 px-2 py-1 rounded-full">
-                {category.count}
-              </span>
+              <span className="text-xs bg-gray-700 px-2 py-1 rounded-full">{category.count}</span>
             </button>
           );
         })}
@@ -292,11 +340,15 @@ export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: Vi
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">
                   <span className="text-sm font-medium capitalize">{improvement.category}</span>
-                  <span className={`text-xs px-2 py-1 rounded ${
-                    improvement.priority === 'high' ? 'bg-red-800 text-red-200' :
-                    improvement.priority === 'medium' ? 'bg-yellow-800 text-yellow-200' :
-                    'bg-green-800 text-green-200'
-                  }`}>
+                  <span
+                    className={`text-xs px-2 py-1 rounded ${
+                      improvement.priority === "high"
+                        ? "bg-red-800 text-red-200"
+                        : improvement.priority === "medium"
+                          ? "bg-yellow-800 text-yellow-200"
+                          : "bg-green-800 text-green-200"
+                    }`}
+                  >
                     {improvement.priority} priority
                   </span>
                 </div>
@@ -362,9 +414,9 @@ export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: Vi
             <Code className="w-5 h-5 text-purple-400" />
             <span>Generated Code Improvements</span>
           </h3>
-          
+
           {/* CSS Improvements */}
-          {typeof codeImprovements === 'object' && codeImprovements.css && (
+          {typeof codeImprovements === "object" && codeImprovements.css && (
             <div className="mb-6">
               <h4 className="text-md font-medium mb-2 text-purple-300">CSS Improvements</h4>
               <pre className="bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm text-gray-300">
@@ -374,25 +426,27 @@ export function VisualDesignAnalysis({ screenshotPath, onImprovementsApply }: Vi
           )}
 
           {/* Component Improvements */}
-          {typeof codeImprovements === 'object' && codeImprovements.components && Object.keys(codeImprovements.components).length > 0 && (
-            <div>
-              <h4 className="text-md font-medium mb-2 text-purple-300">React Components</h4>
-              {Object.entries(codeImprovements.components).map(([name, code]) => (
-                <div key={name} className="mb-4">
-                  <h5 className="text-sm font-medium mb-2 text-gray-400">{name}.tsx</h5>
-                  <pre className="bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm text-gray-300">
-                    <code>{String(code)}</code>
-                  </pre>
-                </div>
-              ))}
-            </div>
-          )}
+          {typeof codeImprovements === "object" &&
+            codeImprovements.components &&
+            Object.keys(codeImprovements.components).length > 0 && (
+              <div>
+                <h4 className="text-md font-medium mb-2 text-purple-300">React Components</h4>
+                {Object.entries(codeImprovements.components).map(([name, code]) => (
+                  <div key={name} className="mb-4">
+                    <h5 className="text-sm font-medium mb-2 text-gray-400">{name}.tsx</h5>
+                    <pre className="bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm text-gray-300">
+                      <code>{String(code)}</code>
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            )}
 
           <button
             onClick={() => {
               onImprovementsApply?.(codeImprovements);
-              setNotificationMessage('Code improvements applied successfully');
-              setNotificationType('success');
+              setNotificationMessage("Code improvements applied successfully");
+              setNotificationType("success");
               setShowNotification(true);
             }}
             className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"

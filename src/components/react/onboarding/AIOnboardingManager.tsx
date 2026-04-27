@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import AIOnboardingTour from './AIOnboardingTour';
-import styles from './AIOnboardingManager.module.css';
+import React, { useState, useEffect } from "react";
+import AIOnboardingTour from "./AIOnboardingTour";
+import styles from "./AIOnboardingManager.module.css";
 
 interface AIOnboardingManagerProps {
   children: React.ReactNode;
@@ -13,7 +13,7 @@ const AIOnboardingManager: React.FC<AIOnboardingManagerProps> = ({ children }) =
 
   useEffect(() => {
     // Check if user has completed the tour
-    const completed = localStorage.getItem('ai-onboarding-completed') === 'true';
+    const completed = localStorage.getItem("ai-onboarding-completed") === "true";
     setHasCompletedTour(completed);
 
     // Show tour for first-time users after a short delay
@@ -30,24 +30,24 @@ const AIOnboardingManager: React.FC<AIOnboardingManagerProps> = ({ children }) =
   const handleTourComplete = () => {
     setShowTour(false);
     setHasCompletedTour(true);
-    localStorage.setItem('ai-onboarding-completed', 'true');
+    localStorage.setItem("ai-onboarding-completed", "true");
   };
 
   const handleTourSkip = () => {
     setShowTour(false);
-    localStorage.setItem('ai-onboarding-completed', 'true');
+    localStorage.setItem("ai-onboarding-completed", "true");
   };
 
   const restartTour = () => {
     setTourStep(0);
     setShowTour(true);
-    localStorage.removeItem('ai-onboarding-completed');
+    localStorage.removeItem("ai-onboarding-completed");
   };
 
   return (
     <div className={styles.onboardingContainer}>
       {children}
-      
+
       {/* Tour Trigger Button (for users who want to restart) */}
       {hasCompletedTour && (
         <button
@@ -58,7 +58,7 @@ const AIOnboardingManager: React.FC<AIOnboardingManagerProps> = ({ children }) =
           <span className={styles.tourTriggerIcon}>🎯</span>
         </button>
       )}
-      
+
       {/* AI Onboarding Tour */}
       <AIOnboardingTour
         isVisible={showTour}

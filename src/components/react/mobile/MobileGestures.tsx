@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState } from 'react';
-import styles from './MobileGestures.module.css';
+import React, { useRef, useEffect, useState } from "react";
+import styles from "./MobileGestures.module.css";
 
 interface MobileGesturesProps {
   children: React.ReactNode;
@@ -20,13 +20,13 @@ const MobileGestures: React.FC<MobileGesturesProps> = ({
   onSwipeDown,
   onPinch,
   threshold = 50,
-  preventDefault = true
+  preventDefault = true,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number; time: number } | null>(null);
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
   const [pinchDistance, setPinchDistance] = useState<number | null>(null);
-  const [showGestureHint, setShowGestureHint] = useState('');
+  const [showGestureHint, setShowGestureHint] = useState("");
 
   useEffect(() => {
     const container = containerRef.current;
@@ -38,7 +38,7 @@ const MobileGestures: React.FC<MobileGesturesProps> = ({
         setTouchStart({
           x: touch.clientX,
           y: touch.clientY,
-          time: Date.now()
+          time: Date.now(),
         });
         setTouchEnd({ x: touch.clientX, y: touch.clientY });
         setPinchDistance(null);
@@ -85,27 +85,28 @@ const MobileGestures: React.FC<MobileGesturesProps> = ({
       const deltaTime = Date.now() - touchStart.time;
 
       // Check if it's a swipe (fast movement)
-      const isSwipe = deltaTime < 500 && (Math.abs(deltaX) > threshold || Math.abs(deltaY) > threshold);
+      const isSwipe =
+        deltaTime < 500 && (Math.abs(deltaX) > threshold || Math.abs(deltaY) > threshold);
 
       if (isSwipe) {
         // Horizontal swipe
         if (Math.abs(deltaX) > Math.abs(deltaY)) {
           if (deltaX > 0 && onSwipeRight) {
             onSwipeRight();
-            showGestureIndicator('swipe-right');
+            showGestureIndicator("swipe-right");
           } else if (deltaX < 0 && onSwipeLeft) {
             onSwipeLeft();
-            showGestureIndicator('swipe-left');
+            showGestureIndicator("swipe-left");
           }
         }
         // Vertical swipe
         else {
           if (deltaY > 0 && onSwipeDown) {
             onSwipeDown();
-            showGestureIndicator('swipe-down');
+            showGestureIndicator("swipe-down");
           } else if (deltaY < 0 && onSwipeUp) {
             onSwipeUp();
-            showGestureIndicator('swipe-up');
+            showGestureIndicator("swipe-up");
           }
         }
       }
@@ -118,31 +119,42 @@ const MobileGestures: React.FC<MobileGesturesProps> = ({
 
     const showGestureIndicator = (gesture: string) => {
       setShowGestureHint(gesture);
-      setTimeout(() => setShowGestureHint(''), 1000);
+      setTimeout(() => setShowGestureHint(""), 1000);
     };
 
-    container.addEventListener('touchstart', handleTouchStart, { passive: !preventDefault });
-    container.addEventListener('touchmove', handleTouchMove, { passive: !preventDefault });
-    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    container.addEventListener("touchstart", handleTouchStart, { passive: !preventDefault });
+    container.addEventListener("touchmove", handleTouchMove, { passive: !preventDefault });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
 
     return () => {
-      container.removeEventListener('touchstart', handleTouchStart);
-      container.removeEventListener('touchmove', handleTouchMove);
-      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [touchStart, touchEnd, pinchDistance, onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, onPinch, threshold, preventDefault]);
+  }, [
+    touchStart,
+    touchEnd,
+    pinchDistance,
+    onSwipeLeft,
+    onSwipeRight,
+    onSwipeUp,
+    onSwipeDown,
+    onPinch,
+    threshold,
+    preventDefault,
+  ]);
 
   return (
     <div ref={containerRef} className={styles.gestureContainer}>
       {children}
-      
+
       {/* Gesture Indicators */}
       {showGestureHint && (
         <div className={`${styles.gestureIndicator} ${styles[showGestureHint]}`}>
-          {showGestureHint === 'swipe-left' && '← Swipe Left'}
-          {showGestureHint === 'swipe-right' && 'Swipe Right →'}
-          {showGestureHint === 'swipe-up' && '↑ Swipe Up'}
-          {showGestureHint === 'swipe-down' && '↓ Swipe Down'}
+          {showGestureHint === "swipe-left" && "← Swipe Left"}
+          {showGestureHint === "swipe-right" && "Swipe Right →"}
+          {showGestureHint === "swipe-up" && "↑ Swipe Up"}
+          {showGestureHint === "swipe-down" && "↓ Swipe Down"}
         </div>
       )}
     </div>

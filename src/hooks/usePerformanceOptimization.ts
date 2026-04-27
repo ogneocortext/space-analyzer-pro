@@ -1,8 +1,8 @@
 /* Performance Optimization Hook for Space Analyzer */
 /* Enhanced with AI-recommended optimizations */
 
-import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react';
-import { AnalysisResult, NeuralData, PerformanceMetrics } from '../types/frontend';
+import React, { useCallback, useRef, useEffect, useState, useMemo } from "react";
+import { AnalysisResult, NeuralData, PerformanceMetrics } from "../types/frontend";
 
 export interface PerformanceConfig {
   maxNodes: number;
@@ -45,7 +45,7 @@ export const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
   enableThrottling: true,
   throttleDelay: 16, // ~60fps
   enableLazyLoading: true,
-  enableCodeSplitting: true
+  enableCodeSplitting: true,
 };
 
 // Performance monitoring utilities
@@ -57,34 +57,36 @@ export const usePerformanceMonitor = () => {
   const trackRender = useCallback(() => {
     const now = Date.now();
     const renderTime = now - lastRenderTimeRef.current;
-    
+
     renderCountRef.current++;
     renderTimesRef.current.push(renderTime);
-    
+
     // Keep only last 100 render times for average calculation
     if (renderTimesRef.current.length > 100) {
       renderTimesRef.current = renderTimesRef.current.slice(-100);
     }
-    
+
     lastRenderTimeRef.current = now;
-    
+
     return {
       renderCount: renderCountRef.current,
       renderTime,
-      averageRenderTime: renderTimesRef.current.reduce((a, b) => a + b, 0) / renderTimesRef.current.length
+      averageRenderTime:
+        renderTimesRef.current.reduce((a, b) => a + b, 0) / renderTimesRef.current.length,
     };
   }, []);
 
   const getMetrics = useCallback(() => {
-    const averageRenderTime = renderTimesRef.current.length > 0 
-      ? renderTimesRef.current.reduce((a, b) => a + b, 0) / renderTimesRef.current.length 
-      : 0;
-    
+    const averageRenderTime =
+      renderTimesRef.current.length > 0
+        ? renderTimesRef.current.reduce((a, b) => a + b, 0) / renderTimesRef.current.length
+        : 0;
+
     return {
       renderCount: renderCountRef.current,
       averageRenderTime,
       lastRenderTime: lastRenderTimeRef.current,
-      fps: averageRenderTime > 0 ? 1000 / averageRenderTime : 0
+      fps: averageRenderTime > 0 ? 1000 / averageRenderTime : 0,
     };
   }, []);
 
@@ -103,7 +105,7 @@ export const useDebouncedCallback = <T extends (...args: any[]) => any>(
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-    
+
     timeoutRef.current = setTimeout(() => {
       callback(...args);
     }, delay);
@@ -147,36 +149,34 @@ export const useVirtualScrolling = (
   overscan: number = 5
 ) => {
   const [scrollTop, setScrollTop] = useState(0);
-  
+
   const visibleRange = useMemo(() => {
     const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
     const endIndex = Math.min(
       items.length - 1,
       Math.ceil((scrollTop + containerHeight) / itemHeight) + overscan
     );
-    
+
     return { startIndex, endIndex };
   }, [scrollTop, itemHeight, containerHeight, overscan, items.length]);
-  
+
   const visibleItems = useMemo(() => {
     return items.slice(visibleRange.startIndex, visibleRange.endIndex + 1);
   }, [items, visibleRange]);
-  
+
   const totalHeight = items.length * itemHeight;
-  
+
   return {
     visibleItems,
     totalHeight,
     startIndex: visibleRange.startIndex,
     endIndex: visibleRange.endIndex,
-    setScrollTop
+    setScrollTop,
   };
 };
 
 // Intersection Observer hook for lazy loading
-export const useIntersectionObserver = (
-  options: IntersectionObserverInit = {}
-) => {
+export const useIntersectionObserver = (options: IntersectionObserverInit = {}) => {
   const [entries, setEntries] = useState<IntersectionObserverEntry[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -215,10 +215,10 @@ export const useMemoryMonitor = (threshold: number = 100 * 1024 * 1024) => {
 
   useEffect(() => {
     const checkMemory = () => {
-      if ('memory' in performance) {
+      if ("memory" in performance) {
         const memory = (performance as any).memory;
         const usedJSHeapSize = memory.usedJSHeapSize;
-        
+
         setMemoryUsage(usedJSHeapSize);
         setIsNearThreshold(usedJSHeapSize > threshold * 0.8);
         setIsOverThreshold(usedJSHeapSize > threshold);
@@ -239,21 +239,27 @@ export const useRequestAnimationFrame = () => {
   const rafRef = useRef<number | undefined>(undefined);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  const animate = useCallback((callback: () => void) => {
-    const animationLoop = () => {
-      callback();
-      if (isAnimating) {
-        rafRef.current = requestAnimationFrame(animationLoop);
-      }
-    };
+  const animate = useCallback(
+    (callback: () => void) => {
+      const animationLoop = () => {
+        callback();
+        if (isAnimating) {
+          rafRef.current = requestAnimationFrame(animationLoop);
+        }
+      };
 
-    rafRef.current = requestAnimationFrame(animationLoop);
-  }, [isAnimating]);
+      rafRef.current = requestAnimationFrame(animationLoop);
+    },
+    [isAnimating]
+  );
 
-  const startAnimation = useCallback((callback: () => void) => {
-    setIsAnimating(true);
-    animate(callback);
-  }, [animate, isAnimating]);
+  const startAnimation = useCallback(
+    (callback: () => void) => {
+      setIsAnimating(true);
+      animate(callback);
+    },
+    [animate, isAnimating]
+  );
 
   const stopAnimation = useCallback(() => {
     setIsAnimating(false);
@@ -274,7 +280,7 @@ export const usePerformanceOptimization = (config: Partial<PerformanceConfig> = 
       connections: 0,
       processingTime: 0,
       memoryUsage: 0,
-      renderTime: 0
+      renderTime: 0,
     },
     isOptimized: false,
     memoryUsage: 0,
@@ -283,18 +289,20 @@ export const usePerformanceOptimization = (config: Partial<PerformanceConfig> = 
     connectionCount: 0,
     renderCount: 0,
     lastRenderTime: Date.now(),
-    averageRenderTime: 0
+    averageRenderTime: 0,
   });
 
   const { trackRender, getMetrics } = usePerformanceMonitor();
-  const { memoryUsage, isNearThreshold, isOverThreshold } = useMemoryMonitor(finalConfig.memoryThreshold);
+  const { memoryUsage, isNearThreshold, isOverThreshold } = useMemoryMonitor(
+    finalConfig.memoryThreshold
+  );
   const { startAnimation, stopAnimation, isAnimating } = useRequestAnimationFrame();
 
   // Enhanced performance optimization methods
   const optimizeRender = useCallback(() => {
     const metrics = getMetrics();
-    
-    setState(prev => ({
+
+    setState((prev) => ({
       ...prev,
       renderCount: metrics.renderCount,
       averageRenderTime: metrics.averageRenderTime,
@@ -302,24 +310,24 @@ export const usePerformanceOptimization = (config: Partial<PerformanceConfig> = 
       metrics: {
         ...prev.metrics,
         fps: metrics.fps,
-        averageRenderTime: metrics.averageRenderTime
-      }
+        averageRenderTime: metrics.averageRenderTime,
+      },
     }));
 
     // Apply optimizations based on performance metrics
     if (metrics.fps < 30) {
       // Low FPS - reduce visual effects
-      document.body.style.setProperty('--animation-duration', '0s', 'important');
+      document.body.style.setProperty("--animation-duration", "0s", "important");
     } else if (metrics.fps > 50) {
       // Good FPS - enable animations
-      document.body.style.removeProperty('--animation-duration');
+      document.body.style.removeProperty("--animation-duration");
     }
 
     if (isOverThreshold) {
       // Memory pressure - trigger cleanup
-      setState(prev => ({ ...prev, isOptimized: false }));
+      setState((prev) => ({ ...prev, isOptimized: false }));
     } else if (!isNearThreshold) {
-      setState(prev => ({ ...prev, isOptimized: true }));
+      setState((prev) => ({ ...prev, isOptimized: true }));
     }
   }, [getMetrics, isNearThreshold, isOverThreshold]);
 
@@ -357,6 +365,6 @@ export const usePerformanceOptimization = (config: Partial<PerformanceConfig> = 
     isAnimating,
     memoryUsage,
     isNearThreshold,
-    isOverThreshold
+    isOverThreshold,
   };
 };

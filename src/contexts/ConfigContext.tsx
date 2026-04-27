@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from "react";
 
 interface Config {
-  theme: 'light' | 'dark';
+  theme: "light" | "dark";
   language: string;
   apiEndpoint: string;
   enableAnalytics: boolean;
@@ -15,11 +15,11 @@ interface ConfigContextType {
 }
 
 const defaultConfig: Config = {
-  theme: 'light',
-  language: 'en',
-  apiEndpoint: 'http://localhost:8082/api',
+  theme: "light",
+  language: "en",
+  apiEndpoint: "http://localhost:8082/api",
   enableAnalytics: true,
-  enablePerformanceMonitoring: true
+  enablePerformanceMonitoring: true,
 };
 
 const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
@@ -32,7 +32,7 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
   const [config, setConfig] = useState<Config>(defaultConfig);
 
   const updateConfig = (updates: Partial<Config>) => {
-    setConfig(prev => ({ ...prev, ...updates }));
+    setConfig((prev) => ({ ...prev, ...updates }));
   };
 
   const resetConfig = () => {
@@ -42,20 +42,16 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
   const value = {
     config,
     updateConfig,
-    resetConfig
+    resetConfig,
   };
 
-  return (
-    <ConfigContext.Provider value={value}>
-      {children}
-    </ConfigContext.Provider>
-  );
+  return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
 };
 
 export const useConfig = (): ConfigContextType => {
   const context = useContext(ConfigContext);
   if (context === undefined) {
-    throw new Error('useConfig must be used within a ConfigProvider');
+    throw new Error("useConfig must be used within a ConfigProvider");
   }
   return context;
 };

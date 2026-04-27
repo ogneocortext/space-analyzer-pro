@@ -1,27 +1,27 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React from "react";
+import { motion } from "framer-motion";
 
 interface SkeletonProps {
   className?: string;
   width?: string | number;
   height?: string | number;
-  variant?: 'rectangular' | 'circular' | 'text';
-  animation?: 'pulse' | 'wave' | 'none';
+  variant?: "rectangular" | "circular" | "text";
+  animation?: "pulse" | "wave" | "none";
 }
 
 const Skeleton: React.FC<SkeletonProps> = ({
-  className = '',
+  className = "",
   width,
   height,
-  variant = 'rectangular',
-  animation = 'pulse'
+  variant = "rectangular",
+  animation = "pulse",
 }) => {
-  const baseClasses = 'bg-gray-200';
-  
+  const baseClasses = "bg-gray-200";
+
   const variantClasses = {
-    rectangular: 'rounded-md',
-    circular: 'rounded-full',
-    text: 'rounded-sm h-4'
+    rectangular: "rounded-md",
+    circular: "rounded-full",
+    text: "rounded-sm h-4",
   };
 
   const animationVariants = {
@@ -33,31 +33,31 @@ const Skeleton: React.FC<SkeletonProps> = ({
       transition: {
         duration: 1.5,
         repeat: Infinity,
-        ease: 'easeInOut'
-      }
+        ease: "easeInOut",
+      },
     },
     wave: {
       animate: {
-        x: ['-100%', '100%'],
+        x: ["-100%", "100%"],
       },
       // @ts-ignore - ease type
       transition: {
         duration: 1.2,
         repeat: Infinity,
-        ease: 'easeInOut'
-      }
+        ease: "easeInOut",
+      },
     },
-    none: {}
+    none: {},
   };
 
   const style = {
-    width: width || '100%',
-    height: height || (variant === 'text' ? '1rem' : '2rem')
+    width: width || "100%",
+    height: height || (variant === "text" ? "1rem" : "2rem"),
   };
 
-  if (animation === 'wave') {
+  if (animation === "wave") {
     return (
-      <div 
+      <div
         className={`${baseClasses} ${variantClasses[variant]} ${className} relative overflow-hidden`}
         style={style}
       >
@@ -141,13 +141,21 @@ export const FileBrowserSkeleton: React.FC = () => (
     <div className="bg-white rounded-lg shadow-sm">
       <div className="border-b border-gray-200 p-4">
         <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-6"><Skeleton height={16} /></div>
-          <div className="col-span-2"><Skeleton height={16} /></div>
-          <div className="col-span-2"><Skeleton height={16} /></div>
-          <div className="col-span-2"><Skeleton height={16} /></div>
+          <div className="col-span-6">
+            <Skeleton height={16} />
+          </div>
+          <div className="col-span-2">
+            <Skeleton height={16} />
+          </div>
+          <div className="col-span-2">
+            <Skeleton height={16} />
+          </div>
+          <div className="col-span-2">
+            <Skeleton height={16} />
+          </div>
         </div>
       </div>
-      
+
       {[...Array(10)].map((_, i) => (
         <div key={i} className="border-b border-gray-100 p-4 last:border-b-0">
           <div className="grid grid-cols-12 gap-4 items-center">

@@ -1,9 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { useGPUMemoryVisualization } from '../hooks/useGPUMemoryVisualization';
-import { Cpu, HardDrive, TrendingUp, TrendingDown, Zap, AlertTriangle, Clock, BarChart3, Activity } from 'lucide-react';
-import './GPUMemoryVisualization.css';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+} from "recharts";
+import { useGPUMemoryVisualization } from "../hooks/useGPUMemoryVisualization";
+import {
+  Cpu,
+  HardDrive,
+  TrendingUp,
+  TrendingDown,
+  Zap,
+  AlertTriangle,
+  Clock,
+  BarChart3,
+  Activity,
+} from "lucide-react";
+import "./GPUMemoryVisualization.css";
 
 interface ModelData {
   name: string;
@@ -24,16 +50,16 @@ interface GPUMemoryVisualizationProps {
 }
 
 const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models }) => {
-  const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d'>('24h');
+  const [timeRange, setTimeRange] = useState<"1h" | "24h" | "7d">("24h");
   const [selectedModel, setSelectedModel] = useState<ModelData | null>(null);
-  
+
   const {
     gpuMemoryStats,
     memoryEfficiencyScore,
     optimizationSuggestions,
     getMemoryUsageForModel,
     getMemoryTrends,
-    getModelPerformanceComparison
+    getModelPerformanceComparison,
   } = useGPUMemoryVisualization(models);
 
   const [memoryTrends, setMemoryTrends] = useState<any[]>([]);
@@ -42,20 +68,36 @@ const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models 
   useEffect(() => {
     const trends = getMemoryTrends(timeRange);
     const comparison = getModelPerformanceComparison();
-    
+
     setMemoryTrends(trends);
     setPerformanceComparison(comparison);
   }, [timeRange, getMemoryTrends, getModelPerformanceComparison]);
 
   const memoryDistribution = [
-    { name: 'PyTorch', value: models.filter(m => m.type === 'pytorch').reduce((sum, m) => sum + m.gpuMemory, 0), color: '#ff6b6b' },
-    { name: 'TensorFlow', value: models.filter(m => m.type === 'tensorflow').reduce((sum, m) => sum + m.gpuMemory, 0), color: '#4ecdc4' },
-    { name: 'ONNX', value: models.filter(m => m.type === 'onnx').reduce((sum, m) => sum + m.gpuMemory, 0), color: '#45b7d1' },
-    { name: 'Custom', value: models.filter(m => m.type === 'custom').reduce((sum, m) => sum + m.gpuMemory, 0), color: '#96ceb4' }
+    {
+      name: "PyTorch",
+      value: models.filter((m) => m.type === "pytorch").reduce((sum, m) => sum + m.gpuMemory, 0),
+      color: "#ff6b6b",
+    },
+    {
+      name: "TensorFlow",
+      value: models.filter((m) => m.type === "tensorflow").reduce((sum, m) => sum + m.gpuMemory, 0),
+      color: "#4ecdc4",
+    },
+    {
+      name: "ONNX",
+      value: models.filter((m) => m.type === "onnx").reduce((sum, m) => sum + m.gpuMemory, 0),
+      color: "#45b7d1",
+    },
+    {
+      name: "Custom",
+      value: models.filter((m) => m.type === "custom").reduce((sum, m) => sum + m.gpuMemory, 0),
+      color: "#96ceb4",
+    },
   ];
 
   const formatBytes = (bytes: number) => {
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const units = ["B", "KB", "MB", "GB", "TB"];
     let size = bytes;
     let unitIndex = 0;
     while (size >= 1024 && unitIndex < units.length - 1) {
@@ -108,7 +150,7 @@ const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models 
             <Zap size={20} />
             <h3>Active Models</h3>
           </div>
-          <div className="card-value">{models.filter(m => m.status === 'loaded').length}</div>
+          <div className="card-value">{models.filter((m) => m.status === "loaded").length}</div>
           <div className="card-change neutral">
             <span>{models.length} total models</span>
           </div>
@@ -120,12 +162,14 @@ const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models 
   const renderMemoryTrends = () => (
     <div className="memory-trends">
       <div className="section-header">
-        <h3><Clock size={20} /> Memory Usage Trends</h3>
+        <h3>
+          <Clock size={20} /> Memory Usage Trends
+        </h3>
         <div className="time-range-selector">
-          {(['1h', '24h', '7d'] as const).map(range => (
+          {(["1h", "24h", "7d"] as const).map((range) => (
             <button
               key={range}
-              className={`range-button ${timeRange === range ? 'active' : ''}`}
+              className={`range-button ${timeRange === range ? "active" : ""}`}
               onClick={() => setTimeRange(range)}
             >
               {range}
@@ -142,9 +186,30 @@ const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models 
             <YAxis />
             <Tooltip />
             <Legend />
-            <Area type="monotone" dataKey="used" stackId="1" stroke="#8884d8" fill="#8884d8" name="Used Memory" />
-            <Area type="monotone" dataKey="cached" stackId="1" stroke="#82ca9d" fill="#82ca9d" name="Cached Memory" />
-            <Area type="monotone" dataKey="free" stackId="1" stroke="#ffc658" fill="#ffc658" name="Free Memory" />
+            <Area
+              type="monotone"
+              dataKey="used"
+              stackId="1"
+              stroke="#8884d8"
+              fill="#8884d8"
+              name="Used Memory"
+            />
+            <Area
+              type="monotone"
+              dataKey="cached"
+              stackId="1"
+              stroke="#82ca9d"
+              fill="#82ca9d"
+              name="Cached Memory"
+            />
+            <Area
+              type="monotone"
+              dataKey="free"
+              stackId="1"
+              stroke="#ffc658"
+              fill="#ffc658"
+              name="Free Memory"
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -154,7 +219,9 @@ const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models 
   const renderModelPerformance = () => (
     <div className="model-performance">
       <div className="section-header">
-        <h3><BarChart3 size={20} /> Model Performance vs Memory</h3>
+        <h3>
+          <BarChart3 size={20} /> Model Performance vs Memory
+        </h3>
       </div>
 
       <div className="chart-container">
@@ -167,7 +234,12 @@ const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models 
             <Tooltip />
             <Legend />
             <Bar yAxisId="left" dataKey="gpuMemory" fill="#8884d8" name="GPU Memory (MB)" />
-            <Bar yAxisId="right" dataKey="inferenceTime" fill="#82ca9d" name="Inference Time (ms)" />
+            <Bar
+              yAxisId="right"
+              dataKey="inferenceTime"
+              fill="#82ca9d"
+              name="Inference Time (ms)"
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -177,7 +249,9 @@ const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models 
   const renderMemoryDistribution = () => (
     <div className="memory-distribution">
       <div className="section-header">
-        <h3><PieChart /> Memory Distribution by Model Type</h3>
+        <h3>
+          <PieChart /> Memory Distribution by Model Type
+        </h3>
       </div>
 
       <div className="distribution-grid">
@@ -189,7 +263,9 @@ const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models 
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, value, percent }) => `${name}: ${formatBytes(value)} (${(percent * 100).toFixed(0)}%)`}
+                label={({ name, value, percent }) =>
+                  `${name}: ${formatBytes(value)} (${(percent * 100).toFixed(0)}%)`
+                }
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -213,7 +289,8 @@ const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models 
               <div className="type-stats">
                 <span className="memory-usage">{formatBytes(type.value)}</span>
                 <span className="model-count">
-                  {models.filter(m => m.type.toLowerCase() === type.name.toLowerCase()).length} models
+                  {models.filter((m) => m.type.toLowerCase() === type.name.toLowerCase()).length}{" "}
+                  models
                 </span>
               </div>
             </div>
@@ -226,7 +303,9 @@ const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models 
   const renderOptimizationSuggestions = () => (
     <div className="optimization-suggestions">
       <div className="section-header">
-        <h3><AlertTriangle size={20} /> Optimization Suggestions</h3>
+        <h3>
+          <AlertTriangle size={20} /> Optimization Suggestions
+        </h3>
       </div>
 
       <div className="suggestions-grid">
@@ -240,9 +319,9 @@ const GPUMemoryVisualization: React.FC<GPUMemoryVisualizationProps> = ({ models 
           >
             <div className="suggestion-header">
               <div className="suggestion-icon">
-                {suggestion.type === 'memory' && <HardDrive size={16} />}
-                {suggestion.type === 'performance' && <Zap size={16} />}
-                {suggestion.type === 'efficiency' && <TrendingUp size={16} />}
+                {suggestion.type === "memory" && <HardDrive size={16} />}
+                {suggestion.type === "performance" && <Zap size={16} />}
+                {suggestion.type === "efficiency" && <TrendingUp size={16} />}
               </div>
               <span className="suggestion-title">{suggestion.title}</span>
             </div>

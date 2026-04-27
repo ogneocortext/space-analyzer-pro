@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from "react";
 import {
   Copy,
   Search,
@@ -12,9 +12,9 @@ import {
   HardDrive,
   FileText,
   Folder,
-  X
-} from 'lucide-react';
-import { AnalysisResult } from '../services/AnalysisBridge';
+  X,
+} from "lucide-react";
+import { AnalysisResult } from "../services/AnalysisBridge";
 
 interface DuplicateGroup {
   id: string;
@@ -29,7 +29,9 @@ interface DuplicateGroup {
   totalWasted: number;
 }
 
-export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: number; path: string; category: string }> }> = ({ files }) => {
+export const RealDuplicates: React.FC<{
+  files: Array<{ name: string; size: number; path: string; category: string }>;
+}> = ({ files }) => {
   if (!files || files.length === 0) {
     return (
       <div className="flex items-center justify-center h-screen text-white">
@@ -41,7 +43,7 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
       </div>
     );
   }
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [minSize, setMinSize] = useState(0);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(true);
@@ -56,7 +58,7 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
     const nameMap: Map<string, Array<{ path: string; name: string; size: number }>> = new Map();
 
     // Group files by name (potential duplicates)
-    files.forEach(file => {
+    files.forEach((file) => {
       const fileName = file.name.toLowerCase();
       if (!nameMap.has(fileName)) {
         nameMap.set(fileName, []);
@@ -64,7 +66,7 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
       nameMap.get(fileName)!.push({
         path: file.path,
         name: file.name,
-        size: file.size
+        size: file.size,
       });
     });
 
@@ -74,7 +76,7 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
       if (fileList.length > 1) {
         // Group by size
         const sizeMap: Map<number, typeof fileList> = new Map();
-        fileList.forEach(file => {
+        fileList.forEach((file) => {
           if (!sizeMap.has(file.size)) {
             sizeMap.set(file.size, []);
           }
@@ -85,18 +87,18 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
           if (sameSizeFiles.length > 1 && size >= minSize) {
             const totalSize = size * sameSizeFiles.length;
             const totalWasted = size * (sameSizeFiles.length - 1);
-            
+
             groups.set(`group-${groupId}`, {
               id: `group-${groupId}`,
               hash: `${fileName}-${size}`,
-              files: sameSizeFiles.map(f => ({
+              files: sameSizeFiles.map((f) => ({
                 path: f.path,
                 name: f.name,
                 size: f.size,
-                modified: new Date()
+                modified: new Date(),
               })),
               totalSize,
-              totalWasted
+              totalWasted,
             });
             groupId++;
           }
@@ -110,10 +112,11 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
   // Filter duplicates by search query
   const filteredGroups = useMemo(() => {
     if (!searchQuery) return duplicateGroups;
-    return duplicateGroups.filter(group =>
-      group.files.some(file =>
-        file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        file.path.toLowerCase().includes(searchQuery.toLowerCase())
+    return duplicateGroups.filter((group) =>
+      group.files.some(
+        (file) =>
+          file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          file.path.toLowerCase().includes(searchQuery.toLowerCase())
       )
     );
   }, [duplicateGroups, searchQuery]);
@@ -129,9 +132,9 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
   }, [filteredGroups]);
 
   const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
@@ -195,7 +198,9 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
             <HardDrive className="w-6 h-6 text-orange-400" />
             <h3 className="text-lg font-semibold">Space Wasted</h3>
           </div>
-          <div className="text-3xl font-bold text-orange-400 mb-2">{formatBytes(stats.totalWasted)}</div>
+          <div className="text-3xl font-bold text-orange-400 mb-2">
+            {formatBytes(stats.totalWasted)}
+          </div>
           <div className="text-slate-400 text-sm">Recoverable space</div>
         </div>
 
@@ -213,7 +218,10 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
       <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6 mb-6">
         <div className="flex items-center gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"
+              size={16}
+            />
             <input
               type="text"
               placeholder="Search duplicate files..."
@@ -237,7 +245,7 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
             className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg transition-colors"
           >
             {showDetails ? <EyeOff size={16} /> : <Eye size={16} />}
-            {showDetails ? 'Hide Details' : 'Show Details'}
+            {showDetails ? "Hide Details" : "Show Details"}
           </button>
         </div>
       </div>
@@ -249,11 +257,11 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
             <CheckCircle size={48} className="mx-auto mb-4 text-green-400" />
             <h3 className="text-xl font-semibold text-white mb-2">No Duplicates Found</h3>
             <p className="text-slate-400">
-              {searchQuery || minSize > 0 ? 'Try adjusting your filters' : 'Your files are clean!'}
+              {searchQuery || minSize > 0 ? "Try adjusting your filters" : "Your files are clean!"}
             </p>
           </div>
         ) : (
-          filteredGroups.map(group => (
+          filteredGroups.map((group) => (
             <div
               key={group.id}
               className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden"
@@ -268,7 +276,8 @@ export const RealDuplicates: React.FC<{ files: Array<{ name: string; size: numbe
                     <div>
                       <div className="text-white font-medium">{group.files[0].name}</div>
                       <div className="text-slate-400 text-sm">
-                        {group.files.length} copies • {formatBytes(group.totalSize)} total • {formatBytes(group.totalWasted)} wasted
+                        {group.files.length} copies • {formatBytes(group.totalSize)} total •{" "}
+                        {formatBytes(group.totalWasted)} wasted
                       </div>
                     </div>
                   </div>

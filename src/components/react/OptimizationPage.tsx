@@ -1,6 +1,6 @@
-import React from 'react';
-import { AnalysisResult } from '../services/AnalysisBridge';
-import styles from '../styles/components/App.module.css';
+import React from "react";
+import { AnalysisResult } from "../services/AnalysisBridge";
+import styles from "../styles/components/App.module.css";
 
 interface OptimizationPageProps {
   analysisData: AnalysisResult;
@@ -21,77 +21,77 @@ const OptimizationPage: React.FC<OptimizationPageProps> = ({ analysisData, isLoa
   const generateOptimizations = () => {
     const optimizations = [];
     const categories = analysisData.categories || {};
-    
+
     // Large files optimization
-    const largestCategory = Object.entries(categories).reduce((prev, curr) => 
+    const largestCategory = Object.entries(categories).reduce((prev, curr) =>
       curr[1].size > prev[1].size ? curr : prev
     );
-    
+
     optimizations.push({
-      type: 'category',
+      type: "category",
       title: `Optimize ${largestCategory[0]} Files`,
       description: `Your ${largestCategory[0]} category uses ${Math.round(largestCategory[1].size / (1024 * 1024 * 1024))} GB (${Math.round((largestCategory[1].size / analysisData.totalSize) * 100)}% of total storage).`,
-      potentialSavings: Math.round(largestCategory[1].size * 0.3 / (1024 * 1024 * 1024)),
-      priority: 'high',
+      potentialSavings: Math.round((largestCategory[1].size * 0.3) / (1024 * 1024 * 1024)),
+      priority: "high",
       actions: [
-        'Compress large files using appropriate tools',
-        'Archive old files to external storage',
-        'Remove unnecessary duplicates',
-        'Consider cloud storage for infrequently accessed files'
-      ]
+        "Compress large files using appropriate tools",
+        "Archive old files to external storage",
+        "Remove unnecessary duplicates",
+        "Consider cloud storage for infrequently accessed files",
+      ],
     });
 
     // Duplicate file optimization
     const potentialDuplicates = analysisData.ai_insights?.potential_duplicates || 0;
-    if (typeof potentialDuplicates === 'number' && potentialDuplicates > 0) {
+    if (typeof potentialDuplicates === "number" && potentialDuplicates > 0) {
       optimizations.push({
-        type: 'duplicates',
-        title: 'Remove Duplicate Files',
+        type: "duplicates",
+        title: "Remove Duplicate Files",
         description: `${potentialDuplicates} potential duplicate files detected.`,
-        potentialSavings: Math.round(analysisData.totalSize * 0.05 / (1024 * 1024 * 1024)),
-        priority: 'medium',
+        potentialSavings: Math.round((analysisData.totalSize * 0.05) / (1024 * 1024 * 1024)),
+        priority: "medium",
         actions: [
-          'Run duplicate file detection scan',
-          'Review and remove duplicate files',
-          'Set up automated duplicate monitoring',
-          'Implement file naming conventions to prevent duplicates'
-        ]
+          "Run duplicate file detection scan",
+          "Review and remove duplicate files",
+          "Set up automated duplicate monitoring",
+          "Implement file naming conventions to prevent duplicates",
+        ],
       });
     }
 
     // Extension-based optimization
     const extensionStats = analysisData.extensionStats || {};
-    const largestExtension = Object.entries(extensionStats).reduce((prev, curr) => 
+    const largestExtension = Object.entries(extensionStats).reduce((prev, curr) =>
       curr[1].size > prev[1].size ? curr : prev
     );
-    
+
     optimizations.push({
-      type: 'extension',
+      type: "extension",
       title: `Optimize ${largestExtension[0]} Files`,
       description: `${largestExtension[0]} files account for ${Math.round(largestExtension[1].size / (1024 * 1024 * 1024))} GB.`,
-      potentialSavings: Math.round(largestExtension[1].size * 0.2 / (1024 * 1024 * 1024)),
-      priority: 'medium',
+      potentialSavings: Math.round((largestExtension[1].size * 0.2) / (1024 * 1024 * 1024)),
+      priority: "medium",
       actions: [
-        'Compress files of this type',
-        'Archive old files',
-        'Review file retention policies',
-        'Consider alternative formats'
-      ]
+        "Compress files of this type",
+        "Archive old files",
+        "Review file retention policies",
+        "Consider alternative formats",
+      ],
     });
 
     // General optimization
     optimizations.push({
-      type: 'general',
-      title: 'General Storage Optimization',
-      description: 'Improve overall storage efficiency and performance.',
-      potentialSavings: Math.round(analysisData.totalSize * 0.1 / (1024 * 1024 * 1024)),
-      priority: 'low',
+      type: "general",
+      title: "General Storage Optimization",
+      description: "Improve overall storage efficiency and performance.",
+      potentialSavings: Math.round((analysisData.totalSize * 0.1) / (1024 * 1024 * 1024)),
+      priority: "low",
       actions: [
-        'Defragment storage drives',
-        'Clean up temporary files',
-        'Remove unused applications',
-        'Optimize system settings'
-      ]
+        "Defragment storage drives",
+        "Clean up temporary files",
+        "Remove unused applications",
+        "Optimize system settings",
+      ],
     });
 
     return optimizations;
@@ -104,7 +104,7 @@ const OptimizationPage: React.FC<OptimizationPageProps> = ({ analysisData, isLoa
     <div className={styles.contentSection}>
       <h2>Storage Optimization</h2>
       <p>AI-powered optimization suggestions based on your file analysis</p>
-      
+
       <div className={styles.optimizationSection}>
         <div className={styles.optimizationSummary}>
           <h3>Optimization Summary</h3>
@@ -113,25 +113,28 @@ const OptimizationPage: React.FC<OptimizationPageProps> = ({ analysisData, isLoa
               <h4>Total Potential Savings</h4>
               <div className={styles.summaryValue}>{totalPotentialSavings} GB</div>
               <div className={styles.summaryPercentage}>
-                {Math.round((totalPotentialSavings * 1024 * 1024 * 1024 / analysisData.totalSize) * 100)}% of total storage
+                {Math.round(
+                  ((totalPotentialSavings * 1024 * 1024 * 1024) / analysisData.totalSize) * 100
+                )}
+                % of total storage
               </div>
             </div>
             <div className={styles.summaryCard}>
               <h4>High Priority Actions</h4>
               <div className={styles.summaryValue}>
-                {optimizations.filter(opt => opt.priority === 'high').length}
+                {optimizations.filter((opt) => opt.priority === "high").length}
               </div>
             </div>
             <div className={styles.summaryCard}>
               <h4>Medium Priority Actions</h4>
               <div className={styles.summaryValue}>
-                {optimizations.filter(opt => opt.priority === 'medium').length}
+                {optimizations.filter((opt) => opt.priority === "medium").length}
               </div>
             </div>
             <div className={styles.summaryCard}>
               <h4>Low Priority Actions</h4>
               <div className={styles.summaryValue}>
-                {optimizations.filter(opt => opt.priority === 'low').length}
+                {optimizations.filter((opt) => opt.priority === "low").length}
               </div>
             </div>
           </div>
@@ -140,7 +143,10 @@ const OptimizationPage: React.FC<OptimizationPageProps> = ({ analysisData, isLoa
         <div className={styles.optimizationList}>
           <h3>Optimization Suggestions</h3>
           {optimizations.map((optimization, index) => (
-            <div key={index} className={`${styles.optimizationCard} ${styles[`priority-${optimization.priority}`]}`}>
+            <div
+              key={index}
+              className={`${styles.optimizationCard} ${styles[`priority-${optimization.priority}`]}`}
+            >
               <div className={styles.optimizationHeader}>
                 <h4>{optimization.title}</h4>
                 <span className={styles.priorityBadge}>{optimization.priority}</span>

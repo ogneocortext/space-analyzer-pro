@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, Download, RefreshCw, X, ChevronDown } from 'lucide-react';
-import styles from './EnhancedDataGrid.module.css';
+import React, { useState, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, Filter, Download, RefreshCw, X, ChevronDown } from "lucide-react";
+import styles from "./EnhancedDataGrid.module.css";
 
 interface Column {
   key: string;
@@ -40,10 +40,12 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
   onRowClick,
   onExport,
   onRefresh,
-  emptyState
+  emptyState,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(
+    null
+  );
   const [expandedRows, setExpandedRows] = useState<Set<string | number>>(new Set());
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
   const [showFilters, setShowFilters] = useState(false);
@@ -54,8 +56,8 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
 
     // Apply search
     if (searchQuery) {
-      filtered = filtered.filter(row =>
-        columns.some(col => {
+      filtered = filtered.filter((row) =>
+        columns.some((col) => {
           const value = row[col.key];
           return value && String(value).toLowerCase().includes(searchQuery.toLowerCase());
         })
@@ -65,7 +67,7 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
     // Apply filters
     Object.entries(selectedFilters).forEach(([key, values]) => {
       if (values.length > 0) {
-        filtered = filtered.filter(row => values.includes(String(row[key])));
+        filtered = filtered.filter((row) => values.includes(String(row[key])));
       }
     });
 
@@ -74,9 +76,9 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
       filtered.sort((a, b) => {
         const aValue = a[sortConfig.key];
         const bValue = b[sortConfig.key];
-        
-        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+
+        if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
         return 0;
       });
     }
@@ -84,62 +86,71 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
     return filtered;
   }, [data, searchQuery, selectedFilters, sortConfig, columns]);
 
-  const handleSort = useCallback((key: string) => {
-    if (!sortable) return;
-    
-    setSortConfig(prev => {
-      if (!prev || prev.key !== key) {
-        return { key, direction: 'asc' };
-      }
-      if (prev.direction === 'asc') {
-        return { key, direction: 'desc' };
-      }
-      return null;
-    });
-  }, [sortable]);
+  const handleSort = useCallback(
+    (key: string) => {
+      if (!sortable) return;
 
-  const handleRowExpand = useCallback((rowId: string | number) => {
-    if (!expandable) return;
-    
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(rowId)) {
-        newSet.delete(rowId);
-      } else {
-        newSet.add(rowId);
-      }
-      return newSet;
-    });
-  }, [expandable]);
+      setSortConfig((prev) => {
+        if (!prev || prev.key !== key) {
+          return { key, direction: "asc" };
+        }
+        if (prev.direction === "asc") {
+          return { key, direction: "desc" };
+        }
+        return null;
+      });
+    },
+    [sortable]
+  );
+
+  const handleRowExpand = useCallback(
+    (rowId: string | number) => {
+      if (!expandable) return;
+
+      setExpandedRows((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(rowId)) {
+          newSet.delete(rowId);
+        } else {
+          newSet.add(rowId);
+        }
+        return newSet;
+      });
+    },
+    [expandable]
+  );
 
   const handleFilterChange = useCallback((columnKey: string, value: string) => {
-    setSelectedFilters(prev => {
+    setSelectedFilters((prev) => {
       const currentFilters = prev[columnKey] || [];
       const newFilters = currentFilters.includes(value)
-        ? currentFilters.filter(v => v !== value)
+        ? currentFilters.filter((v) => v !== value)
         : [...currentFilters, value];
-      
+
       return {
         ...prev,
-        [columnKey]: newFilters
+        [columnKey]: newFilters,
       };
     });
   }, []);
 
-  const getUniqueValues = useCallback((columnKey: string) => {
-    const values = data.map(row => String(row[columnKey])).filter(Boolean);
-    return Array.from(new Set(values)).sort();
-  }, [data]);
+  const getUniqueValues = useCallback(
+    (columnKey: string) => {
+      const values = data.map((row) => String(row[columnKey])).filter(Boolean);
+      return Array.from(new Set(values)).sort();
+    },
+    [data]
+  );
 
   const formatValue = useCallback((value: any, column: Column, row: any) => {
     if (column.render) {
       return column.render(value, row);
     }
-    
-    if (typeof value === 'number') {
+
+    if (typeof value === "number") {
       return value.toLocaleString();
     }
-    
+
     return String(value);
   }, []);
 
@@ -167,7 +178,7 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
               </div>
             )}
           </div>
-          
+
           <div className={styles.headerRight}>
             {searchable && (
               <div className={styles.searchContainer}>
@@ -180,46 +191,40 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
                   className={styles.searchInput}
                 />
                 {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className={styles.clearButton}
-                  >
+                  <button onClick={() => setSearchQuery("")} className={styles.clearButton}>
                     <X className={styles.clearIcon} />
                   </button>
                 )}
               </div>
             )}
-            
+
             {filterable && (
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`${styles.filterButton} ${showFilters ? styles.active : ''}`}
+                className={`${styles.filterButton} ${showFilters ? styles.active : ""}`}
               >
                 <Filter className={styles.filterIcon} />
                 Filters
-                {Object.values(selectedFilters).some(filters => filters.length > 0) && (
+                {Object.values(selectedFilters).some((filters) => filters.length > 0) && (
                   <span className={styles.filterBadge}>
-                    {Object.values(selectedFilters).reduce((sum, filters) => sum + filters.length, 0)}
+                    {Object.values(selectedFilters).reduce(
+                      (sum, filters) => sum + filters.length,
+                      0
+                    )}
                   </span>
                 )}
               </button>
             )}
-            
+
             {onExport && (
-              <button
-                onClick={() => onExport(processedData)}
-                className={styles.exportButton}
-              >
+              <button onClick={() => onExport(processedData)} className={styles.exportButton}>
                 <Download className={styles.exportIcon} />
                 Export
               </button>
             )}
-            
+
             {onRefresh && (
-              <button
-                onClick={onRefresh}
-                className={styles.refreshButton}
-              >
+              <button onClick={onRefresh} className={styles.refreshButton}>
                 <RefreshCw className={styles.refreshIcon} />
               </button>
             )}
@@ -233,19 +238,19 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
           <motion.div
             className={styles.filtersPanel}
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
+            animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
           >
             <div className={styles.filtersContent}>
-              {columns.map(column => {
+              {columns.map((column) => {
                 const uniqueValues = getUniqueValues(column.key);
                 if (uniqueValues.length === 0) return null;
-                
+
                 return (
                   <div key={column.key} className={styles.filterColumn}>
                     <h4 className={styles.filterColumnTitle}>{column.title}</h4>
                     <div className={styles.filterOptions}>
-                      {uniqueValues.map(value => (
+                      {uniqueValues.map((value) => (
                         <label key={value} className={styles.filterOption}>
                           <input
                             type="checkbox"
@@ -283,23 +288,25 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
           <table className={styles.dataTable}>
             <thead>
               <tr>
-                {columns.map(column => (
+                {columns.map((column) => (
                   <th
                     key={column.key}
                     style={{ width: column.width }}
-                    className={`${styles.tableHeader} ${sortable && column.sortable ? styles.sortable : ''}`}
+                    className={`${styles.tableHeader} ${sortable && column.sortable ? styles.sortable : ""}`}
                     onClick={() => sortable && column.sortable && handleSort(column.key)}
                   >
                     <div className={styles.headerContent}>
                       <span>{column.title}</span>
                       {sortable && column.sortable && (
                         <div className={styles.sortIndicator}>
-                          <ChevronDown 
+                          <ChevronDown
                             className={`${styles.sortIcon} ${
-                              sortConfig?.key === column.key 
-                                ? sortConfig.direction === 'desc' ? styles.desc : styles.asc
-                                : ''
-                            }`} 
+                              sortConfig?.key === column.key
+                                ? sortConfig.direction === "desc"
+                                  ? styles.desc
+                                  : styles.asc
+                                : ""
+                            }`}
                           />
                         </div>
                       )}
@@ -314,18 +321,18 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
                 {processedData.map((row, index) => {
                   const rowId = row.id || index;
                   const isExpanded = expandedRows.has(rowId);
-                  
+
                   return (
                     <React.Fragment key={rowId}>
                       <motion.tr
-                        className={`${styles.tableRow} ${onRowClick ? styles.clickable : ''}`}
+                        className={`${styles.tableRow} ${onRowClick ? styles.clickable : ""}`}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ delay: index * 0.05 }}
                         onClick={() => onRowClick?.(row)}
                       >
-                        {columns.map(column => (
+                        {columns.map((column) => (
                           <td key={column.key} className={styles.tableCell}>
                             {formatValue(row[column.key], column, row)}
                           </td>
@@ -341,24 +348,26 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
                               aria-expanded={isExpanded}
                               aria-label={`Expand row ${index + 1}`}
                             >
-                              <ChevronDown className={`${styles.expandIcon} ${isExpanded ? styles.expanded : ''}`} />
+                              <ChevronDown
+                                className={`${styles.expandIcon} ${isExpanded ? styles.expanded : ""}`}
+                              />
                             </button>
                           </td>
                         )}
                       </motion.tr>
-                      
+
                       {expandable && isExpanded && (
                         <motion.tr
                           className={styles.expandedRow}
                           initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
+                          animate={{ height: "auto", opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                         >
                           <td colSpan={columns.length + 1} className={styles.expandedCell}>
                             <div className={styles.expandedContent}>
                               <h4 className={styles.expandedTitle}>Detailed Information</h4>
                               <div className={styles.expandedDetails}>
-                                {columns.map(column => (
+                                {columns.map((column) => (
                                   <div key={column.key} className={styles.detailRow}>
                                     <span className={styles.detailLabel}>{column.title}:</span>
                                     <span className={styles.detailValue}>
@@ -388,11 +397,8 @@ const EnhancedDataGrid: React.FC<EnhancedDataGridProps> = ({
           </span>
         </div>
         <div className={styles.footerRight}>
-          {Object.values(selectedFilters).some(filters => filters.length > 0) && (
-            <button
-              onClick={() => setSelectedFilters({})}
-              className={styles.clearFiltersButton}
-            >
+          {Object.values(selectedFilters).some((filters) => filters.length > 0) && (
+            <button onClick={() => setSelectedFilters({})} className={styles.clearFiltersButton}>
               Clear All Filters
             </button>
           )}

@@ -1119,14 +1119,10 @@
     display: none !important;
   }
 }
-    background: #000000;
-    border-color: #ffffff;
-  }
 
-  .tooltip {
-    background: #000000;
-    border-color: #ffffff;
-  }
+.tooltip {
+  background: #000000;
+  border-color: #ffffff;
 }
 
 /* Touch Optimizations */

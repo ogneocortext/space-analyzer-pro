@@ -144,7 +144,7 @@
 }
 
 .app-content li::before {
-  content: '✓';
+  content: "✓";
   color: var(--primary-color);
   font-weight: bold;
   margin-right: 1rem;
@@ -181,8 +181,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Error States */
@@ -284,23 +288,23 @@
   .app-header {
     padding: 1rem;
   }
-  
+
   .app-header h1 {
     font-size: 1.5rem;
   }
-  
+
   .app-main {
     padding: 1rem;
   }
-  
+
   .app-content {
     padding: 1.5rem;
   }
-  
+
   .app-content h2 {
     font-size: 1.25rem;
   }
-  
+
   .app-content p {
     font-size: 1rem;
   }
@@ -333,7 +337,7 @@
     --text-color: #000000;
     --muted-text: #000000;
   }
-  
+
   [data-theme="dark"] {
     --border-color: #ffffff;
     --text-color: #ffffff;
@@ -348,12 +352,12 @@
   .app-error button {
     display: none;
   }
-  
+
   .app {
     background: white !important;
     color: black !important;
   }
-  
+
   .app-content {
     box-shadow: none;
     border: 1px solid #000;

@@ -1,5 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react';
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle, RefreshCw, Home, Bug } from "lucide-react";
 
 interface Props {
   children: ReactNode;
@@ -24,7 +24,7 @@ class EnhancedErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: this.generateErrorId()
+      errorId: this.generateErrorId(),
     };
   }
 
@@ -32,31 +32,31 @@ class EnhancedErrorBoundary extends Component<Props, State> {
     return {
       hasError: true,
       error,
-      errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({
       errorInfo,
-      errorId: this.generateErrorId()
+      errorId: this.generateErrorId(),
     });
 
     // Log error details
-    console.error('Error Boundary caught an error:', {
+    console.error("Error Boundary caught an error:", {
       error,
       errorInfo,
       errorId: this.state.errorId,
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
-      url: window.location.href
+      url: window.location.href,
     });
 
     // Call custom error handler if provided
     this.props.onError?.(error, errorInfo);
 
     // Send error to monitoring service (in production)
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       this.sendErrorToMonitoring(error, errorInfo);
     }
   }
@@ -80,7 +80,7 @@ class EnhancedErrorBoundary extends Component<Props, State> {
       //   })
       // });
     } catch (monitoringError) {
-      console.warn('Failed to send error to monitoring service:', monitoringError);
+      console.warn("Failed to send error to monitoring service:", monitoringError);
     }
   };
 
@@ -90,13 +90,13 @@ class EnhancedErrorBoundary extends Component<Props, State> {
       this.setState({
         hasError: false,
         error: null,
-        errorInfo: null
+        errorInfo: null,
       });
     }
   };
 
   private handleGoHome = () => {
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   private handleReload = () => {
@@ -111,16 +111,17 @@ class EnhancedErrorBoundary extends Component<Props, State> {
       componentStack: this.state.errorInfo?.componentStack,
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
-      url: window.location.href
+      url: window.location.href,
     };
 
-    navigator.clipboard.writeText(JSON.stringify(errorDetails, null, 2))
+    navigator.clipboard
+      .writeText(JSON.stringify(errorDetails, null, 2))
       .then(() => {
         // Show success message (you could use a toast notification here)
-        alert('Error details copied to clipboard');
+        alert("Error details copied to clipboard");
       })
       .catch(() => {
-        console.warn('Failed to copy error details');
+        console.warn("Failed to copy error details");
       });
   };
 
@@ -141,21 +142,18 @@ class EnhancedErrorBoundary extends Component<Props, State> {
             </div>
 
             {/* Error Title */}
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Something went wrong
-            </h1>
-            
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h1>
+
             {/* Error Message */}
             <p className="text-gray-600 mb-6">
-              {this.state.error?.message || 'An unexpected error occurred while rendering this component.'}
+              {this.state.error?.message ||
+                "An unexpected error occurred while rendering this component."}
             </p>
 
             {/* Error ID */}
             <div className="bg-gray-100 rounded-lg p-3 mb-6">
               <p className="text-xs text-gray-500 mb-1">Error ID</p>
-              <code className="text-sm font-mono text-gray-700">
-                {this.state.errorId}
-              </code>
+              <code className="text-sm font-mono text-gray-700">{this.state.errorId}</code>
             </div>
 
             {/* Action Buttons */}
@@ -190,7 +188,7 @@ class EnhancedErrorBoundary extends Component<Props, State> {
               </button>
 
               {/* Copy Error Details (Development only) */}
-              {process.env.NODE_ENV === 'development' && (
+              {process.env.NODE_ENV === "development" && (
                 <button
                   onClick={this.copyErrorDetails}
                   className="w-full flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
@@ -202,7 +200,7 @@ class EnhancedErrorBoundary extends Component<Props, State> {
             </div>
 
             {/* Development Details */}
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {process.env.NODE_ENV === "development" && this.state.error && (
               <details className="mt-6 text-left">
                 <summary className="cursor-pointer text-sm font-medium text-gray-700 mb-2">
                   Error Details (Development)
@@ -243,8 +241,6 @@ class EnhancedErrorBoundary extends Component<Props, State> {
 }
 
 // Functional wrapper for easier usage
-export const ErrorBoundary: React.FC<Props> = (props) => (
-  <EnhancedErrorBoundary {...props} />
-);
+export const ErrorBoundary: React.FC<Props> = (props) => <EnhancedErrorBoundary {...props} />;
 
 export default EnhancedErrorBoundary;

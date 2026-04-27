@@ -127,13 +127,14 @@
   }
 
   /* Hide intermediate breadcrumbs on small screens if too many items */
-  .breadcrumbList:has(.breadcrumbItem:nth-child(n+6)) .breadcrumbItem:not(:first-child):not(:last-child):not(.breadcrumbSeparator) {
+  .breadcrumbList:has(.breadcrumbItem:nth-child(n + 6))
+    .breadcrumbItem:not(:first-child):not(:last-child):not(.breadcrumbSeparator) {
     display: none;
   }
 
   /* Show ellipsis when items are hidden */
-  .breadcrumbList:has(.breadcrumbItem:nth-child(n+6))::before {
-    content: '...';
+  .breadcrumbList:has(.breadcrumbItem:nth-child(n + 6))::before {
+    content: "...";
     color: #64748b;
     font-size: 0.875rem;
     margin-right: 0.25rem;
@@ -151,12 +152,12 @@
   }
 
   /* On very small screens, only show home and current page */
-  .breadcrumbList .breadcrumbItem:nth-child(n+3):not(:last-child) {
+  .breadcrumbList .breadcrumbItem:nth-child(n + 3):not(:last-child) {
     display: none;
   }
 
-  .breadcrumbList:has(.breadcrumbItem:nth-child(n+3))::after {
-    content: '...';
+  .breadcrumbList:has(.breadcrumbItem:nth-child(n + 3))::after {
+    content: "...";
     color: #64748b;
     font-size: 0.875rem;
     margin-left: 0.25rem;

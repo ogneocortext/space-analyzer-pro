@@ -1,4 +1,4 @@
-import React, { useState, useRef, type FC } from 'react';
+import React, { useState, useRef, type FC } from "react";
 import {
   FolderOpen,
   Upload,
@@ -10,9 +10,9 @@ import {
   ChevronRight,
   HardDrive,
   Clock,
-  BarChart3
-} from 'lucide-react';
-import { bridge } from '../services/AnalysisBridge';
+  BarChart3,
+} from "lucide-react";
+import { bridge } from "../services/AnalysisBridge";
 
 interface FileUploadPanelProps {
   onDirectorySelected: (path: string) => void;
@@ -27,9 +27,9 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
   onAnalysisStart,
   isAnalyzing = false,
   analysisProgress = 0,
-  currentFile = ''
+  currentFile = "",
 }) => {
-  const [selectedPath, setSelectedPath] = useState<string>('');
+  const [selectedPath, setSelectedPath] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
@@ -44,8 +44,8 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
 
     // Get the directory path from the first file
     const firstFile = files[0];
-    const path = firstFile.webkitRelativePath?.split('/')[0] || firstFile.name;
-    
+    const path = firstFile.webkitRelativePath?.split("/")[0] || firstFile.name;
+
     setSelectedPath(path);
     setError(null);
     setIsValidating(true);
@@ -53,19 +53,19 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
     try {
       // Validate directory exists and is accessible
       const healthCheck = await bridge.healthCheck();
-      if (healthCheck.status === 'healthy') {
+      if (healthCheck.status === "healthy") {
         setDirectoryInfo({
           name: path,
           fileCount: files.length,
           estimatedSize: Array.from(files).reduce((sum, file) => sum + file.size, 0),
-          isValid: true
+          isValid: true,
         });
         onDirectorySelected(path);
       } else {
-        setError('Backend is not responding correctly');
+        setError("Backend is not responding correctly");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to validate directory');
+      setError(err instanceof Error ? err.message : "Failed to validate directory");
     } finally {
       setIsValidating(false);
     }
@@ -74,7 +74,7 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
   // Handle manual path input
   const handlePathInput = async () => {
     if (!selectedPath.trim()) {
-      setError('Please enter a directory path');
+      setError("Please enter a directory path");
       return;
     }
 
@@ -84,26 +84,26 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
     try {
       // Validate path format
       const path = selectedPath.trim();
-      
+
       // Basic path validation
-      if (!path.match(/^[a-zA-Z]:[\/\\]/) && !path.startsWith('/')) {
-        setError('Please enter a valid absolute path');
+      if (!path.match(/^[a-zA-Z]:[\/\\]/) && !path.startsWith("/")) {
+        setError("Please enter a valid absolute path");
         return;
       }
 
       // Check backend health
       const healthCheck = await bridge.healthCheck();
-      if (healthCheck.status === 'healthy') {
+      if (healthCheck.status === "healthy") {
         setDirectoryInfo({
           name: path,
-          isValid: true
+          isValid: true,
         });
         onDirectorySelected(path);
       } else {
-        setError('Backend is not responding correctly');
+        setError("Backend is not responding correctly");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to validate directory');
+      setError(err instanceof Error ? err.message : "Failed to validate directory");
     } finally {
       setIsValidating(false);
     }
@@ -130,10 +130,10 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
     // Look for directory items
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (item.kind === 'file') {
+      if (item.kind === "file") {
         const entry = item.webkitGetAsEntry?.();
         if (entry?.isDirectory) {
-          const path = entry.fullPath.replace(/^\//, '');
+          const path = entry.fullPath.replace(/^\//, "");
           setSelectedPath(path);
           onDirectorySelected(path);
           break;
@@ -177,10 +177,10 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
       <div
         className={`border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-colors ${
           isDragging
-            ? 'border-blue-400 bg-blue-400/10'
+            ? "border-blue-400 bg-blue-400/10"
             : isAnalyzing
-            ? 'border-slate-600 bg-slate-700/50'
-            : 'border-slate-600 hover:border-slate-500 hover:bg-slate-700/30'
+              ? "border-slate-600 bg-slate-700/50"
+              : "border-slate-600 hover:border-slate-500 hover:bg-slate-700/30"
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -205,7 +205,7 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
             </div>
             <div className="space-y-2">
               <h4 className="text-white font-medium">
-                {isDragging ? 'Drop directory here' : 'Select Directory to Analyze'}
+                {isDragging ? "Drop directory here" : "Select Directory to Analyze"}
               </h4>
               <p className="text-slate-400 text-sm">
                 Drag and drop a directory, or use the buttons below
@@ -289,7 +289,7 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
             </h4>
             <button
               onClick={() => {
-                setSelectedPath('');
+                setSelectedPath("");
                 setDirectoryInfo(null);
                 setError(null);
               }}
@@ -301,18 +301,24 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-slate-400 text-sm">Path:</span>
-              <span className="text-white text-sm font-mono truncate ml-2">{directoryInfo.name}</span>
+              <span className="text-white text-sm font-mono truncate ml-2">
+                {directoryInfo.name}
+              </span>
             </div>
             {directoryInfo.fileCount && (
               <div className="flex items-center justify-between">
                 <span className="text-slate-400 text-sm">Files:</span>
-                <span className="text-white text-sm">{directoryInfo.fileCount.toLocaleString()}</span>
+                <span className="text-white text-sm">
+                  {directoryInfo.fileCount.toLocaleString()}
+                </span>
               </div>
             )}
             {directoryInfo.estimatedSize && (
               <div className="flex items-center justify-between">
                 <span className="text-slate-400 text-sm">Estimated Size:</span>
-                <span className="text-white text-sm">{formatFileSize(directoryInfo.estimatedSize)}</span>
+                <span className="text-white text-sm">
+                  {formatFileSize(directoryInfo.estimatedSize)}
+                </span>
               </div>
             )}
           </div>
@@ -347,10 +353,12 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
           <div className="space-y-2">
             <button
               onClick={() => {
-                setSelectedPath('D:\\Backup of Important Data for Windows 11 Upgrade\\Native Media AI Studio');
+                setSelectedPath(
+                  "D:\\Backup of Important Data for Windows 11 Upgrade\\Native Media AI Studio"
+                );
                 setDirectoryInfo({
-                  name: 'D:\\Backup of Important Data for Windows 11 Upgrade\\Native Media AI Studio',
-                  isValid: true
+                  name: "D:\\Backup of Important Data for Windows 11 Upgrade\\Native Media AI Studio",
+                  isValid: true,
                 });
               }}
               className="w-full text-left bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors text-sm"
@@ -359,10 +367,15 @@ const FileUploadPanel: FC<FileUploadPanelProps> = ({
             </button>
             <button
               onClick={() => {
-                setSelectedPath('C:\\Users\\' + (typeof window !== 'undefined' && window.navigator.userAgent.includes('Windows') ? 'Public' : 'home'));
+                setSelectedPath(
+                  "C:\\Users\\" +
+                    (typeof window !== "undefined" && window.navigator.userAgent.includes("Windows")
+                      ? "Public"
+                      : "home")
+                );
                 setDirectoryInfo({
-                  name: 'C:\\Users\\Public',
-                  isValid: true
+                  name: "C:\\Users\\Public",
+                  isValid: true,
                 });
               }}
               className="w-full text-left bg-slate-700/50 border border-slate-600 rounded-lg px-3 py-2 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors text-sm"

@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
 // Mock global objects
 global.matchMedia = vi.fn().mockImplementation((query) => ({

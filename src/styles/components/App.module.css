@@ -43,11 +43,11 @@
     align-items: center;
     text-align: left;
   }
-  
+
   .titleSection {
     flex: 1;
   }
-  
+
   .searchSection {
     flex: 0 0 auto;
     max-width: 300px;
@@ -101,35 +101,93 @@
 }
 
 /* Dynamic progress fill classes */
-.progressFill0 { width: 0%; }
-.progressFill1 { width: 1%; }
-.progressFill2 { width: 2%; }
-.progressFill3 { width: 3%; }
-.progressFill4 { width: 4%; }
-.progressFill5 { width: 5%; }
-.progressFill6 { width: 6%; }
-.progressFill7 { width: 7%; }
-.progressFill8 { width: 8%; }
-.progressFill9 { width: 9%; }
-.progressFill10 { width: 10%; }
-.progressFill15 { width: 15%; }
-.progressFill20 { width: 20%; }
-.progressFill25 { width: 25%; }
-.progressFill30 { width: 30%; }
-.progressFill35 { width: 35%; }
-.progressFill40 { width: 40%; }
-.progressFill45 { width: 45%; }
-.progressFill50 { width: 50%; }
-.progressFill55 { width: 55%; }
-.progressFill60 { width: 60%; }
-.progressFill65 { width: 65%; }
-.progressFill70 { width: 70%; }
-.progressFill75 { width: 75%; }
-.progressFill80 { width: 80%; }
-.progressFill85 { width: 85%; }
-.progressFill90 { width: 90%; }
-.progressFill95 { width: 95%; }
-.progressFill100 { width: 100%; }
+.progressFill0 {
+  width: 0%;
+}
+.progressFill1 {
+  width: 1%;
+}
+.progressFill2 {
+  width: 2%;
+}
+.progressFill3 {
+  width: 3%;
+}
+.progressFill4 {
+  width: 4%;
+}
+.progressFill5 {
+  width: 5%;
+}
+.progressFill6 {
+  width: 6%;
+}
+.progressFill7 {
+  width: 7%;
+}
+.progressFill8 {
+  width: 8%;
+}
+.progressFill9 {
+  width: 9%;
+}
+.progressFill10 {
+  width: 10%;
+}
+.progressFill15 {
+  width: 15%;
+}
+.progressFill20 {
+  width: 20%;
+}
+.progressFill25 {
+  width: 25%;
+}
+.progressFill30 {
+  width: 30%;
+}
+.progressFill35 {
+  width: 35%;
+}
+.progressFill40 {
+  width: 40%;
+}
+.progressFill45 {
+  width: 45%;
+}
+.progressFill50 {
+  width: 50%;
+}
+.progressFill55 {
+  width: 55%;
+}
+.progressFill60 {
+  width: 60%;
+}
+.progressFill65 {
+  width: 65%;
+}
+.progressFill70 {
+  width: 70%;
+}
+.progressFill75 {
+  width: 75%;
+}
+.progressFill80 {
+  width: 80%;
+}
+.progressFill85 {
+  width: 85%;
+}
+.progressFill90 {
+  width: 90%;
+}
+.progressFill95 {
+  width: 95%;
+}
+.progressFill100 {
+  width: 100%;
+}
 
 .dashboardTitle {
   font-size: var(--font-size-4xl);
@@ -657,33 +715,33 @@
   .dashboardSection {
     padding: var(--spacing-lg);
   }
-  
+
   .dashboardTitle {
     font-size: var(--font-size-3xl);
   }
-  
+
   .directorySelectionHeader {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .directoryActions {
     justify-content: stretch;
   }
-  
+
   .directoryActions button {
     flex: 1;
   }
-  
+
   .visualizationGrid {
     grid-template-columns: 1fr;
     gap: var(--spacing-md);
   }
-  
+
   .contentSection {
     padding: var(--spacing-lg);
   }
-  
+
   .errorNotification {
     top: var(--spacing-sm);
     right: var(--spacing-sm);
@@ -696,16 +754,16 @@
   .dashboardSection {
     padding: var(--spacing-md);
   }
-  
+
   .directorySelectionCard,
   .analysisStatusCard {
     padding: var(--spacing-md);
   }
-  
+
   .dashboardTitle {
     font-size: var(--font-size-2xl);
   }
-  
+
   .dashboardSubtitle {
     font-size: var(--font-size-md);
   }

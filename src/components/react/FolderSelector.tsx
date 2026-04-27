@@ -1,5 +1,15 @@
-import React, { useState, FC, useEffect } from 'react';
-import { FolderOpen, X, Check, AlertCircle, HardDrive, Folder, Search, Sparkles, Clock } from 'lucide-react';
+import React, { useState, FC, useEffect } from "react";
+import {
+  FolderOpen,
+  X,
+  Check,
+  AlertCircle,
+  HardDrive,
+  Folder,
+  Search,
+  Sparkles,
+  Clock,
+} from "lucide-react";
 
 interface FolderSelectorProps {
   isOpen: boolean;
@@ -13,44 +23,44 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
   isOpen,
   onClose,
   onSelect,
-  initialPath = 'C:\\',
-  onQuickAnalysis
+  initialPath = "C:\\",
+  onQuickAnalysis,
 }) => {
   const [currentPath, setCurrentPath] = useState(initialPath);
-  const [customPath, setCustomPath] = useState('');
-  const [error, setError] = useState('');
+  const [customPath, setCustomPath] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [quickAnalysisResults, setQuickAnalysisResults] = useState<any>(null);
-  const [analyzingPath, setAnalyzingPath] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [analyzingPath, setAnalyzingPath] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
 
   const commonPaths = [
-    { name: 'Documents', path: 'C:\\Users\\Public\\Documents', icon: <Folder size={16} /> },
-    { name: 'Desktop', path: 'C:\\Users\\Public\\Desktop', icon: <Folder size={16} /> },
-    { name: 'Downloads', path: 'C:\\Users\\Public\\Downloads', icon: <Folder size={16} /> },
-    { name: 'Projects (D:)', path: 'D:\\Projects', icon: <HardDrive size={16} /> },
-    { name: 'Projects (E:)', path: 'E:\\Projects', icon: <HardDrive size={16} /> },
-    { name: 'Source Code', path: '.\\src', icon: <FolderOpen size={16} /> },
-    { name: 'Parent Directory', path: '..\\', icon: <FolderOpen size={16} /> },
-    { name: 'Root Parent', path: '..\\..\\', icon: <FolderOpen size={16} /> },
-    { name: 'CLI Directory', path: '..\\..\\cli', icon: <FolderOpen size={16} /> },
-    { name: 'Web Source', path: '..\\..\\src\\web', icon: <FolderOpen size={16} /> },
+    { name: "Documents", path: "C:\\Users\\Public\\Documents", icon: <Folder size={16} /> },
+    { name: "Desktop", path: "C:\\Users\\Public\\Desktop", icon: <Folder size={16} /> },
+    { name: "Downloads", path: "C:\\Users\\Public\\Downloads", icon: <Folder size={16} /> },
+    { name: "Projects (D:)", path: "D:\\Projects", icon: <HardDrive size={16} /> },
+    { name: "Projects (E:)", path: "E:\\Projects", icon: <HardDrive size={16} /> },
+    { name: "Source Code", path: ".\\src", icon: <FolderOpen size={16} /> },
+    { name: "Parent Directory", path: "..\\", icon: <FolderOpen size={16} /> },
+    { name: "Root Parent", path: "..\\..\\", icon: <FolderOpen size={16} /> },
+    { name: "CLI Directory", path: "..\\..\\cli", icon: <FolderOpen size={16} /> },
+    { name: "Web Source", path: "..\\..\\src\\web", icon: <FolderOpen size={16} /> },
   ];
 
   const handleCustomPathChange = (value: string) => {
     setCustomPath(value);
-    setError('');
+    setError("");
   };
 
   const validatePath = (path: string): boolean => {
-    if (!path || path.trim() === '') {
-      setError('Please enter a valid path');
+    if (!path || path.trim() === "") {
+      setError("Please enter a valid path");
       return false;
     }
 
     // Remove quotes if present
-    const cleanPath = path.replace(/^["']|["']$/g, '');
+    const cleanPath = path.replace(/^["']|["']$/g, "");
 
     // Basic Windows path validation - updated to handle spaces
     const validPatterns = [
@@ -58,12 +68,12 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
       /^\.\\.*$/, // .\... (with spaces allowed)
       /^\.\\\..*$/, // ..\... (with spaces allowed)
       /^\.\\\..\\\..*$/, // ..\..\... (with spaces allowed)
-      /^[A-Za-z]:\\.*\\.*$/ // C:\...\... (with spaces allowed)
+      /^[A-Za-z]:\\.*\\.*$/, // C:\...\... (with spaces allowed)
     ];
 
-    const isValid = validPatterns.some(pattern => pattern.test(cleanPath));
+    const isValid = validPatterns.some((pattern) => pattern.test(cleanPath));
     if (!isValid) {
-      setError('Invalid path format. Use formats like: C:\\Folder or .\\src or ..\\parent');
+      setError("Invalid path format. Use formats like: C:\\Folder or .\\src or ..\\parent");
       return false;
     }
 
@@ -72,25 +82,25 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
 
   const handleSelect = async () => {
     const pathToUse = customPath || currentPath;
-    
+
     if (!validatePath(pathToUse)) {
       return;
     }
 
     // Clean the path by removing quotes before using it
-    const cleanPath = pathToUse.replace(/^["']|["']$/g, '');
+    const cleanPath = pathToUse.replace(/^["']|["']$/g, "");
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       // Simulate path validation (in real app, this would call backend to verify)
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       onSelect(cleanPath);
       onClose();
     } catch (err) {
-      setError('Failed to access directory. Please check the path and try again.');
+      setError("Failed to access directory. Please check the path and try again.");
     } finally {
       setLoading(false);
     }
@@ -99,21 +109,21 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
   const handleQuickPath = (path: string) => {
     setCustomPath(path);
     setCurrentPath(path);
-    setError('');
-    
+    setError("");
+
     // Add to recent paths
     if (!recentPaths.includes(path)) {
-      setRecentPaths(prev => [path, ...prev.slice(0, 4)]);
+      setRecentPaths((prev) => [path, ...prev.slice(0, 4)]);
     }
   };
 
   // Enhanced quick analysis function
   const handleQuickAnalysis = async (path: string) => {
     if (!onQuickAnalysis) return;
-    
+
     setAnalyzingPath(path);
     setQuickAnalysisResults(null);
-    
+
     try {
       await onQuickAnalysis(path);
       // Mock quick analysis results for now
@@ -121,22 +131,22 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
         path,
         estimatedFiles: Math.floor(Math.random() * 10000) + 1000,
         estimatedSize: Math.floor(Math.random() * 1000000000) + 100000000,
-        complexity: ['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)],
+        complexity: ["Low", "Medium", "High"][Math.floor(Math.random() * 3)],
         recommendations: [
-          'This directory contains mixed file types',
-          'Consider organizing by file category',
-          'Large files detected that may need compression'
-        ]
+          "This directory contains mixed file types",
+          "Consider organizing by file category",
+          "Large files detected that may need compression",
+        ],
       });
     } catch (error) {
-      console.error('Quick analysis failed:', error);
+      console.error("Quick analysis failed:", error);
     } finally {
-      setAnalyzingPath('');
+      setAnalyzingPath("");
     }
   };
 
   // Filter paths based on search
-  const filteredPaths = recentPaths.filter(path => 
+  const filteredPaths = recentPaths.filter((path) =>
     path.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -155,7 +165,9 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
         <header className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center gap-3">
             <FolderOpen className="text-blue-500" size={24} aria-hidden="true" />
-            <h2 id="folder-selector-title" className="text-xl font-semibold text-gray-800">Select Directory to Analyze</h2>
+            <h2 id="folder-selector-title" className="text-xl font-semibold text-gray-800">
+              Select Directory to Analyze
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -170,11 +182,16 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
         <div className="p-6 space-y-6" id="folder-selector-desc">
           {/* Search and Recent Paths */}
           <section aria-labelledby="search-heading">
-            <h3 id="search-heading" className="text-sm font-medium text-gray-700 mb-3">Search & Recent</h3>
-            
+            <h3 id="search-heading" className="text-sm font-medium text-gray-700 mb-3">
+              Search & Recent
+            </h3>
+
             {/* Search Bar */}
             <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                size={16}
+              />
               <input
                 type="text"
                 value={searchQuery}
@@ -183,7 +200,7 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
-            
+
             {/* Recent Paths */}
             {filteredPaths.length > 0 && (
               <div className="space-y-2">
@@ -192,7 +209,10 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
                   <span>Recently Used</span>
                 </div>
                 {filteredPaths.map((path, index) => (
-                  <div key={path} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg group">
+                  <div
+                    key={path}
+                    className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg group"
+                  >
                     <Folder size={14} className="text-gray-400" />
                     <div className="flex-1">
                       <div className="text-sm text-gray-800 truncate">{path}</div>
@@ -228,7 +248,9 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
 
           {/* Quick Access */}
           <section aria-labelledby="quick-access-heading">
-            <h3 id="quick-access-heading" className="text-sm font-medium text-gray-700 mb-3">Quick Access</h3>
+            <h3 id="quick-access-heading" className="text-sm font-medium text-gray-700 mb-3">
+              Quick Access
+            </h3>
             <div className="grid grid-cols-2 gap-2" role="listbox" aria-label="Common directories">
               {commonPaths.map((item) => (
                 <button
@@ -236,9 +258,7 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
                   onClick={() => handleQuickPath(item.path)}
                   className="flex items-center gap-2 p-3 text-left bg-gray-50 hover:bg-blue-50 rounded-lg transition-colors group"
                 >
-                  <span className="text-gray-500 group-hover:text-blue-500">
-                    {item.icon}
-                  </span>
+                  <span className="text-gray-500 group-hover:text-blue-500">{item.icon}</span>
                   <div className="flex-1">
                     <div className="font-medium text-sm text-gray-800 group-hover:text-blue-700">
                       {item.name}
@@ -272,7 +292,10 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
           {/* Quick Analysis Results */}
           {quickAnalysisResults && (
             <section aria-labelledby="analysis-results-heading" className="border-t pt-4">
-              <h3 id="analysis-results-heading" className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+              <h3
+                id="analysis-results-heading"
+                className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2"
+              >
                 <Sparkles className="text-purple-500" size={16} />
                 Quick Analysis
               </h3>
@@ -306,9 +329,11 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
                 <div className="mt-2">
                   <div className="text-xs text-gray-600 mb-1">Key Insights:</div>
                   <ul className="text-xs text-purple-700 space-y-1">
-                    {quickAnalysisResults.recommendations.slice(0, 2).map((rec: string, index: number) => (
-                      <li key={index}>• {rec}</li>
-                    ))}
+                    {quickAnalysisResults.recommendations
+                      .slice(0, 2)
+                      .map((rec: string, index: number) => (
+                        <li key={index}>• {rec}</li>
+                      ))}
                   </ul>
                 </div>
               </div>
@@ -317,7 +342,9 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
 
           {/* Custom Path Input */}
           <section aria-labelledby="custom-path-heading">
-            <h3 id="custom-path-heading" className="text-sm font-medium text-gray-700 mb-3">Custom Path</h3>
+            <h3 id="custom-path-heading" className="text-sm font-medium text-gray-700 mb-3">
+              Custom Path
+            </h3>
             <div className="space-y-3">
               <input
                 type="text"
@@ -327,7 +354,7 @@ export const FolderSelector: FC<FolderSelectorProps> = ({
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 aria-describedby="path-examples"
               />
-              
+
               {/* Path Examples */}
               <div className="bg-blue-50 p-3 rounded-lg">
                 <div className="text-sm text-blue-800 font-medium mb-2">Path Examples:</div>

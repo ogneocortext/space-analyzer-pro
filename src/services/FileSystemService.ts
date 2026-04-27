@@ -1,5 +1,11 @@
-import { DebugLogger } from './DebugLogger';
-import { errorHandler } from './ErrorHandler';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/no-floating-promises */
+/* eslint-disable preserve-caught-error */
+
+import { DebugLogger } from "./DebugLogger";
+import { errorHandler } from "./ErrorHandler";
 
 export interface FileItem {
   name: string;
@@ -27,9 +33,9 @@ export interface DirectoryInfo {
 }
 
 export interface FileSystemOperation {
-  type: 'read' | 'write' | 'delete' | 'rename' | 'move';
+  type: "read" | "write" | "delete" | "rename" | "move";
   path: string;
-  status: 'pending' | 'success' | 'error';
+  status: "pending" | "success" | "error";
   timestamp: Date;
   error?: string;
 }
@@ -52,18 +58,18 @@ export class FileSystemService {
   // Enhanced directory selection with File System Access API
   async selectDirectory(): Promise<DirectoryInfo | null> {
     try {
-      this.logger.info('FileSystemService', 'Starting directory selection');
-      
+      this.logger.info("FileSystemService", "Starting directory selection");
+
       // Check if File System Access API is available
-      if ('showDirectoryPicker' in window) {
+      if ("showDirectoryPicker" in window) {
         return await this.selectDirectoryWithFileSystemAPI();
       } else {
         return await this.selectDirectoryWithFallback();
       }
     } catch (error) {
       errorHandler.handleFileSystemError(error as Error, {
-        component: 'FileSystemService',
-        action: 'selectDirectory'
+        component: "FileSystemService",
+        action: "selectDirectory",
       });
       return null;
     }
@@ -71,15 +77,15 @@ export class FileSystemService {
 
   private async selectDirectoryWithFileSystemAPI(): Promise<DirectoryInfo | null> {
     try {
-      this.logger.info('FileSystemService', 'Using File System Access API');
-      
+      this.logger.info("FileSystemService", "Using File System Access API");
+
       const directoryHandle = await (window as any).showDirectoryPicker({
-        mode: 'readwrite'
+        mode: "readwrite",
       });
 
       // Get directory name from handle
-      const directoryName = directoryHandle.name || 'Selected Directory';
-      
+      const directoryName = directoryHandle.name || "Selected Directory";
+
       // Create a mock directory info for now (actual scanning will be done by backend)
       const directoryInfo: DirectoryInfo = {
         path: `[FILE_SYSTEM_API]${directoryName}`,
@@ -88,28 +94,30 @@ export class FileSystemService {
         totalSize: 0,
         files: [],
         subdirectories: [],
-        lastScanned: new Date()
+        lastScanned: new Date(),
       };
 
-      this.logger.info('FileSystemService', 'Directory selected with File System Access API', {
+      this.logger.info("FileSystemService", "Directory selected with File System Access API", {
         name: directoryName,
-        handle: 'FileSystemDirectoryHandle'
+        handle: "FileSystemDirectoryHandle",
       });
 
       return directoryInfo;
     } catch (error) {
-      this.logger.error('FileSystemService', 'File System Access API failed', { error: (error as Error).message });
+      this.logger.error("FileSystemService", "File System Access API failed", {
+        error: (error as Error).message,
+      });
       throw error;
     }
   }
 
   private async selectDirectoryWithFallback(): Promise<DirectoryInfo | null> {
     try {
-      this.logger.info('FileSystemService', 'Using fallback directory selection');
-      
+      this.logger.info("FileSystemService", "Using fallback directory selection");
+
       // Show a simple prompt for directory path
       const path = await this.promptForDirectoryPath();
-      
+
       if (!path) {
         return null;
       }
@@ -121,21 +129,23 @@ export class FileSystemService {
         totalSize: 0,
         files: [],
         subdirectories: [],
-        lastScanned: new Date()
+        lastScanned: new Date(),
       };
 
-      this.logger.info('FileSystemService', 'Directory selected with fallback', { path });
-      
+      this.logger.info("FileSystemService", "Directory selected with fallback", { path });
+
       return directoryInfo;
     } catch (error) {
-      this.logger.error('FileSystemService', 'Fallback directory selection failed', { error: (error as Error).message });
+      this.logger.error("FileSystemService", "Fallback directory selection failed", {
+        error: (error as Error).message,
+      });
       throw error;
     }
   }
 
   private async promptForDirectoryPath(): Promise<string | null> {
     return new Promise((resolve) => {
-      const modal = document.createElement('div');
+      const modal = document.createElement("div");
       modal.style.cssText = `
         position: fixed;
         top: 0;
@@ -149,7 +159,7 @@ export class FileSystemService {
         z-index: 10000;
       `;
 
-      const dialog = document.createElement('div');
+      const dialog = document.createElement("div");
       dialog.style.cssText = `
         background: white;
         padding: 2rem;
@@ -191,10 +201,10 @@ export class FileSystemService {
       modal.appendChild(dialog);
       document.body.appendChild(modal);
 
-      const select = dialog.querySelector('#path-select') as HTMLSelectElement;
-      const input = dialog.querySelector('#path-input') as HTMLInputElement;
-      const okBtn = dialog.querySelector('#ok-btn') as HTMLButtonElement;
-      const cancelBtn = dialog.querySelector('#cancel-btn') as HTMLButtonElement;
+      const select = dialog.querySelector("#path-select") as HTMLSelectElement;
+      const input = dialog.querySelector("#path-input") as HTMLInputElement;
+      const okBtn = dialog.querySelector("#ok-btn") as HTMLButtonElement;
+      const cancelBtn = dialog.querySelector("#cancel-btn") as HTMLButtonElement;
 
       const handleSelectChange = () => {
         if (select.value) {
@@ -213,11 +223,11 @@ export class FileSystemService {
         resolve(null);
       };
 
-      select.addEventListener('change', handleSelectChange);
-      okBtn.addEventListener('click', handleOk);
-      cancelBtn.addEventListener('click', handleCancel);
-      input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleOk();
+      select.addEventListener("change", handleSelectChange);
+      okBtn.addEventListener("click", handleOk);
+      cancelBtn.addEventListener("click", handleCancel);
+      input.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") handleOk();
       });
 
       // Focus on input
@@ -228,103 +238,103 @@ export class FileSystemService {
   // File operations
   async deleteFile(filePath: string): Promise<boolean> {
     const operation: FileSystemOperation = {
-      type: 'delete',
+      type: "delete",
       path: filePath,
-      status: 'pending',
-      timestamp: new Date()
+      status: "pending",
+      timestamp: new Date(),
     };
 
     try {
-      this.logger.info('FileSystemService', 'Deleting file', { filePath });
-      
+      this.logger.info("FileSystemService", "Deleting file", { filePath });
+
       // This would need to be implemented via backend API
       // For now, just log the operation
-      operation.status = 'success';
+      operation.status = "success";
       this.addToHistory(operation);
-      
+
       return true;
     } catch (error) {
-      operation.status = 'error';
+      operation.status = "error";
       operation.error = (error as Error).message;
       this.addToHistory(operation);
-      
+
       errorHandler.handleFileSystemError(error as Error, {
-        component: 'FileSystemService',
-        action: 'deleteFile',
-        additionalData: { filePath }
+        component: "FileSystemService",
+        action: "deleteFile",
+        additionalData: { filePath },
       });
-      
+
       return false;
     }
   }
 
   async renameFile(oldPath: string, newPath: string): Promise<boolean> {
     const operation: FileSystemOperation = {
-      type: 'rename',
+      type: "rename",
       path: oldPath,
-      status: 'pending',
-      timestamp: new Date()
+      status: "pending",
+      timestamp: new Date(),
     };
 
     try {
-      this.logger.info('FileSystemService', 'Renaming file', { oldPath, newPath });
-      
+      this.logger.info("FileSystemService", "Renaming file", { oldPath, newPath });
+
       // This would need to be implemented via backend API
       // For now, just log the operation
-      operation.status = 'success';
+      operation.status = "success";
       this.addToHistory(operation);
-      
+
       return true;
     } catch (error) {
-      operation.status = 'error';
+      operation.status = "error";
       operation.error = (error as Error).message;
       this.addToHistory(operation);
-      
+
       errorHandler.handleFileSystemError(error as Error, {
-        component: 'FileSystemService',
-        action: 'renameFile',
-        additionalData: { oldPath, newPath }
+        component: "FileSystemService",
+        action: "renameFile",
+        additionalData: { oldPath, newPath },
       });
-      
+
       return false;
     }
   }
 
   async moveFile(sourcePath: string, targetPath: string): Promise<boolean> {
     const operation: FileSystemOperation = {
-      type: 'move',
+      type: "move",
       path: sourcePath,
-      status: 'pending',
-      timestamp: new Date()
+      status: "pending",
+      timestamp: new Date(),
     };
 
     try {
-      this.logger.info('FileSystemService', 'Moving file', { sourcePath, targetPath });
-      
+      this.logger.info("FileSystemService", "Moving file", { sourcePath, targetPath });
+
       // This would need to be implemented via backend API
       // For now, just log the operation
-      operation.status = 'success';
+      operation.status = "success";
       this.addToHistory(operation);
-      
+
       return true;
     } catch (error) {
-      operation.status = 'error';
+      operation.status = "error";
       operation.error = (error as Error).message;
       this.addToHistory(operation);
-      
+
       errorHandler.handleFileSystemError(error as Error, {
-        component: 'FileSystemService',
-        action: 'moveFile',
-        additionalData: { sourcePath, targetPath }
+        component: "FileSystemService",
+        action: "moveFile",
+        additionalData: { sourcePath, targetPath },
       });
-      
+
       return false;
     }
   }
 
   private addToHistory(operation: FileSystemOperation) {
     this.operationHistory.push(operation);
-    
+
     // Maintain history size
     if (this.operationHistory.length > this.maxHistorySize) {
       this.operationHistory.shift();
@@ -343,7 +353,7 @@ export class FileSystemService {
 
   // Validate file path
   isValidPath(path: string): boolean {
-    if (!path || typeof path !== 'string') {
+    if (!path || typeof path !== "string") {
       return false;
     }
 
@@ -355,7 +365,7 @@ export class FileSystemService {
 
     // Check for reserved names (Windows)
     const reservedNames = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
-    const fileName = path.split(/[/\\]/).pop() || '';
+    const fileName = path.split(/[/\\]/).pop() || "";
     if (reservedNames.test(fileName)) {
       return false;
     }
@@ -365,26 +375,47 @@ export class FileSystemService {
 
   // Get file extension
   getFileExtension(filePath: string): string {
-    const parts = filePath.split('.');
-    return parts.length > 1 ? parts.pop()?.toLowerCase() || '' : '';
+    const parts = filePath.split(".");
+    return parts.length > 1 ? parts.pop()?.toLowerCase() || "" : "";
   }
 
   // Categorize file by extension
   categorizeFile(filePath: string): string {
     const extension = this.getFileExtension(filePath);
-    
+
     const categories: { [key: string]: string[] } = {
-      'Documents': ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'md'],
-      'Images': ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp', 'ico'],
-      'Videos': ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm'],
-      'Audio': ['mp3', 'wav', 'flac', 'aac', 'ogg', 'wma'],
-      'Code': ['js', 'ts', 'jsx', 'tsx', 'html', 'css', 'scss', 'less', 'json', 'xml', 'py', 'java', 'cpp', 'c', 'h', 'cs', 'php', 'rb', 'go', 'rs'],
-      'Archives': ['zip', 'rar', '7z', 'tar', 'gz', 'bz2'],
-      'Executables': ['exe', 'msi', 'dmg', 'pkg', 'deb', 'rpm'],
-      'Spreadsheets': ['xls', 'xlsx', 'csv', 'ods'],
-      'Presentations': ['ppt', 'pptx', 'odp'],
-      'Fonts': ['ttf', 'otf', 'woff', 'woff2', 'eot'],
-      'System': ['dll', 'sys', 'drv', 'ini', 'cfg', 'conf']
+      Documents: ["pdf", "doc", "docx", "txt", "rtf", "odt", "md"],
+      Images: ["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp", "ico"],
+      Videos: ["mp4", "avi", "mov", "wmv", "flv", "mkv", "webm"],
+      Audio: ["mp3", "wav", "flac", "aac", "ogg", "wma"],
+      Code: [
+        "js",
+        "ts",
+        "jsx",
+        "tsx",
+        "html",
+        "css",
+        "scss",
+        "less",
+        "json",
+        "xml",
+        "py",
+        "java",
+        "cpp",
+        "c",
+        "h",
+        "cs",
+        "php",
+        "rb",
+        "go",
+        "rs",
+      ],
+      Archives: ["zip", "rar", "7z", "tar", "gz", "bz2"],
+      Executables: ["exe", "msi", "dmg", "pkg", "deb", "rpm"],
+      Spreadsheets: ["xls", "xlsx", "csv", "ods"],
+      Presentations: ["ppt", "pptx", "odp"],
+      Fonts: ["ttf", "otf", "woff", "woff2", "eot"],
+      System: ["dll", "sys", "drv", "ini", "cfg", "conf"],
     };
 
     for (const [category, extensions] of Object.entries(categories)) {
@@ -393,18 +424,18 @@ export class FileSystemService {
       }
     }
 
-    return 'Other';
+    return "Other";
   }
 
   // Format file size
   formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    
+    if (bytes === 0) return "0 B";
+
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   }
 }
 

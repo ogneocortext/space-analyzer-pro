@@ -6,18 +6,18 @@
   --color-background-tertiary: #1e293b;
   --color-surface-primary: #334155;
   --color-surface-secondary: #475569;
-  
+
   /* Text Colors - Enhanced Contrast for WCAG AA Compliance */
   --color-text-primary: #ffffff;
   --color-text-secondary: #f1f5f9;
   --color-text-tertiary: #e2e8f0;
   --color-text-muted: #cbd5e1;
-  
+
   /* Enhanced Contrast Variants */
   --color-text-high-contrast: #ffffff;
   --color-text-medium-contrast: #f8fafc;
   --color-text-low-contrast: #e2e8f0;
-  
+
   /* AI-Recommended Color System */
   --color-primary: #10b981;
   --color-primary-hover: #059669;
@@ -29,7 +29,7 @@
   --color-warning: #f59e0b;
   --color-error: #ef4444;
   --color-danger: #dc2626;
-  
+
   /* Glassmorphism Effects - AI Optimized */
   --color-glass-bg: rgba(15, 23, 42, 0.9);
   --color-glass-bg-light: rgba(255, 255, 255, 0.05);
@@ -38,12 +38,12 @@
   --color-glass-border-hover: rgba(255, 255, 255, 0.2);
   --color-glass-border-accent: rgba(16, 185, 129, 0.3);
   --color-glass-border-error: rgba(239, 68, 68, 0.3);
-  
+
   /* Backdrop Filters - Performance Optimized */
   --blur-backdrop: blur(20px);
   --blur-backdrop-sm: blur(8px);
   --blur-backdrop-lg: blur(24px);
-  
+
   /* Spacing System - AI Recommended */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -52,11 +52,12 @@
   --spacing-xl: 32px;
   --spacing-2xl: 48px;
   --spacing-3xl: 64px;
-  
+
   /* Typography System - Enhanced */
-  --font-family-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-family-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  
+  --font-family-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family-mono:
+    "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+
   --font-size-xs: 12px;
   --font-size-sm: 14px;
   --font-size-base: 16px;
@@ -65,22 +66,22 @@
   --font-size-2xl: 24px;
   --font-size-3xl: 30px;
   --font-size-4xl: 36px;
-  
+
   --font-weight-normal: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-  
+
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.75;
-  
+
   /* Transitions - AI Optimized */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.3s ease;
   --transition-slow: 0.5s ease;
   --transition-spring: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  
+
   /* Border Radius - Consistent System */
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -89,7 +90,7 @@
   --radius-2xl: 16px;
   --radius-3xl: 24px;
   --radius-full: 9999px;
-  
+
   /* Shadows - Enhanced Glassmorphism */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -97,7 +98,7 @@
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   --shadow-glow: 0 0 20px rgba(16, 185, 129, 0.3);
   --shadow-glow-lg: 0 0 40px rgba(16, 185, 129, 0.4);
-  
+
   /* Z-Index Scale - Organized */
   --z-dropdown: 1000;
   --z-sticky: 1020;
@@ -145,58 +146,76 @@
 
 /* Animation Keyframes - Performance Optimized */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideInUp {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(20px);
   }
-  to { 
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
 @keyframes slideInDown {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(-20px);
   }
-  to { 
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
 @keyframes scaleIn {
-  from { 
+  from {
     opacity: 0;
     transform: scale(0.9);
   }
-  to { 
+  to {
     opacity: 1;
     transform: scale(1);
   }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes bounce {
-  0%, 20%, 53%, 80%, 100% {
+  0%,
+  20%,
+  53%,
+  80%,
+  100% {
     transform: translateY(0);
   }
-  40%, 43% {
+  40%,
+  43% {
     transform: translateY(-10px);
   }
   70% {
@@ -255,11 +274,11 @@
     --transition-slow: 0s;
     --transition-spring: 0s;
   }
-  
+
   .glass-effect-hover:hover {
     transform: none;
   }
-  
+
   .spin-animation,
   .bounce-animation,
   .pulse-animation {
@@ -296,13 +315,13 @@
     --color-glass-bg: #ffffff;
     --color-glass-border: #000000;
   }
-  
+
   .glass-effect {
     background: #ffffff !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
-  
+
   .text-gradient {
     background: #000000 !important;
     -webkit-text-fill-color: #000000 !important;
@@ -327,7 +346,7 @@
     --radius-lg: 12px;
     --radius-xl: 16px;
   }
-  
+
   .touch-target {
     min-height: 44px;
     min-width: 44px;

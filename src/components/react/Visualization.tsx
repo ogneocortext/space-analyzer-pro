@@ -1,5 +1,5 @@
-import React from 'react';
-import { BarChart3, PieChart, LineChart, TrendingUp } from 'lucide-react';
+import React from "react";
+import { BarChart3, PieChart, LineChart, TrendingUp } from "lucide-react";
 
 interface VisualizationProps {
   analysisData?: any;
@@ -45,7 +45,9 @@ export const Visualization: React.FC<VisualizationProps> = ({ analysisData }) =>
       </div>
 
       <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Interactive Visualization Features</h2>
+        <h2 className="text-xl font-semibold text-white mb-4">
+          Interactive Visualization Features
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h3 className="text-lg font-medium text-white mb-3">Chart Types</h3>

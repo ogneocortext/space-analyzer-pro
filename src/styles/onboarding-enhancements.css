@@ -2,10 +2,10 @@
 
 /* Enhanced Typography Hierarchy */
 .onboarding-wizard {
-  --onboarding-bg: #1E1E1E; /* Z.AI: Instead of pure black */
-  --onboarding-text-primary: #FFFFFF;
-  --onboarding-text-secondary: #E0E0E0;
-  --onboarding-text-tertiary: #CCCCCC;
+  --onboarding-bg: #1e1e1e; /* Z.AI: Instead of pure black */
+  --onboarding-text-primary: #ffffff;
+  --onboarding-text-secondary: #e0e0e0;
+  --onboarding-text-tertiary: #cccccc;
   --spacing-unit: 8px; /* Z.AI: 8px grid system */
 }
 
@@ -36,8 +36,8 @@
 .progress-enhanced {
   height: 4px !important;
   background: linear-gradient(
-    to right, 
-    var(--color-primary) var(--progress, 0%), 
+    to right,
+    var(--color-primary) var(--progress, 0%),
     transparent var(--progress, 0%)
   ) !important;
   border-radius: 2px !important;
@@ -133,12 +133,12 @@
   .onboarding-title {
     font-size: 1.25rem !important;
   }
-  
+
   .feature-grid {
     grid-template-columns: 1fr !important;
     gap: calc(var(--spacing-unit) * 1.5) !important; /* 12px */
   }
-  
+
   .onboarding-content {
     padding: calc(var(--spacing-unit) * 2) !important; /* 16px */
   }
@@ -178,7 +178,7 @@
   .onboarding-modal {
     border: 2px solid var(--color-primary) !important;
   }
-  
+
   .btn-primary-enhanced {
     border: 2px solid white !important;
   }
@@ -189,7 +189,7 @@
   .animate-slide-up {
     animation: none !important;
   }
-  
+
   .btn-primary-enhanced,
   .btn-secondary-enhanced {
     transition: none !important;

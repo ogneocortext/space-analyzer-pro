@@ -135,7 +135,7 @@
 }
 
 .nav-item-active::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
@@ -152,13 +152,13 @@
 }
 
 .btn-enhanced::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   transition: left var(--transition-slow);
 }
 
@@ -188,19 +188,23 @@
 }
 
 .btn-ai-insights::after {
-  content: '';
+  content: "";
   position: absolute;
   top: -50%;
   left: -50%;
   width: 200%;
   height: 200%;
-  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   animation: shimmer 3s infinite;
 }
 
 @keyframes shimmer {
-  0% { transform: translate(-50%, -50%) rotate(0deg); }
-  100% { transform: translate(-50%, -50%) rotate(360deg); }
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 /* 5. Content Display Improvements */
@@ -319,11 +323,11 @@
     max-height: none;
     overflow: visible;
   }
-  
+
   .dashboard-right {
     max-height: 60vh;
   }
-  
+
   .data-grid {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
@@ -333,15 +337,15 @@
   .dashboard-layout {
     gap: var(--spacing-md);
   }
-  
+
   .content-section {
     padding: var(--spacing-md);
   }
-  
+
   .data-grid {
     grid-template-columns: 1fr 1fr;
   }
-  
+
   .btn-ai-insights {
     padding: var(--spacing-sm) var(--spacing-md);
     font-size: var(--font-size-sm);
@@ -352,12 +356,12 @@
   .data-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .chart-legend {
     flex-direction: column;
     gap: var(--spacing-sm);
   }
-  
+
   .navigation-breadcrumb {
     flex-wrap: wrap;
   }
@@ -373,7 +377,7 @@
 }
 
 .polished-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -395,15 +399,24 @@
 
 /* Loading States */
 .loading-skeleton {
-  background: linear-gradient(90deg, var(--color-surface-secondary) 25%, var(--color-surface-tertiary) 50%, var(--color-surface-secondary) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-secondary) 25%,
+    var(--color-surface-tertiary) 50%,
+    var(--color-surface-secondary) 75%
+  );
   background-size: 200% 100%;
   animation: loading 1.5s infinite;
   border-radius: var(--radius-md);
 }
 
 @keyframes loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* Focus Management */
@@ -420,7 +433,7 @@
   .loading-skeleton {
     animation: none;
   }
-  
+
   .chart-container,
   .data-card,
   .polished-card {
@@ -434,7 +447,7 @@
   .polished-card {
     border-width: 2px;
   }
-  
+
   .btn-enhanced:focus-visible {
     outline-width: 3px;
   }

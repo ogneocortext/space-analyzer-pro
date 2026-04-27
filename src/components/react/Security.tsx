@@ -1,5 +1,5 @@
-import React from 'react';
-import { Shield, AlertTriangle, Lock, FileX, Eye, CheckCircle } from 'lucide-react';
+import React from "react";
+import { Shield, AlertTriangle, Lock, FileX, Eye, CheckCircle } from "lucide-react";
 
 interface SecurityProps {
   analysisData?: any;
@@ -113,7 +113,7 @@ export const Security: React.FC<SecurityProps> = ({ analysisData }) => {
                 <span className="text-green-400 font-medium">87%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-3">
-                <div className="bg-green-400 h-3 rounded-full" style={{ width: '87%' }}></div>
+                <div className="bg-green-400 h-3 rounded-full" style={{ width: "87%" }}></div>
               </div>
             </div>
 

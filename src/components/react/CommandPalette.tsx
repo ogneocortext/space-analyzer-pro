@@ -1,6 +1,17 @@
-import React, { FC, useState, useEffect, useRef } from 'react';
-import { Search, Command, ArrowUp, ArrowDown, CornerDownLeft, X, BrainCircuit, FolderSearch, BarChart3, Zap } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { FC, useState, useEffect, useRef } from "react";
+import {
+  Search,
+  Command,
+  ArrowUp,
+  ArrowDown,
+  CornerDownLeft,
+  X,
+  BrainCircuit,
+  FolderSearch,
+  BarChart3,
+  Zap,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface CommandItem {
   id: string;
@@ -23,30 +34,34 @@ export const CommandPalette: FC<CommandPaletteProps> = ({
   isOpen,
   onClose,
   commands,
-  placeholder = "Search commands..."
+  placeholder = "Search commands...",
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
 
   // Filter commands based on query
-  const filteredCommands = commands.filter(command =>
-    command.title.toLowerCase().includes(query.toLowerCase()) ||
-    command.description.toLowerCase().includes(query.toLowerCase()) ||
-    command.keywords?.some(keyword => keyword.toLowerCase().includes(query.toLowerCase())) ||
-    command.category.toLowerCase().includes(query.toLowerCase())
+  const filteredCommands = commands.filter(
+    (command) =>
+      command.title.toLowerCase().includes(query.toLowerCase()) ||
+      command.description.toLowerCase().includes(query.toLowerCase()) ||
+      command.keywords?.some((keyword) => keyword.toLowerCase().includes(query.toLowerCase())) ||
+      command.category.toLowerCase().includes(query.toLowerCase())
   );
 
   // Group commands by category
-  const groupedCommands = filteredCommands.reduce((groups, command) => {
-    const category = command.category;
-    if (!groups[category]) {
-      groups[category] = [];
-    }
-    groups[category].push(command);
-    return groups;
-  }, {} as Record<string, CommandItem[]>);
+  const groupedCommands = filteredCommands.reduce(
+    (groups, command) => {
+      const category = command.category;
+      if (!groups[category]) {
+        groups[category] = [];
+      }
+      groups[category].push(command);
+      return groups;
+    },
+    {} as Record<string, CommandItem[]>
+  );
 
   // Reset selected index when query changes
   useEffect(() => {
@@ -66,32 +81,30 @@ export const CommandPalette: FC<CommandPaletteProps> = ({
       if (!isOpen) return;
 
       switch (e.key) {
-        case 'ArrowDown':
+        case "ArrowDown":
           e.preventDefault();
-          setSelectedIndex(prev =>
-            prev < filteredCommands.length - 1 ? prev + 1 : prev
-          );
+          setSelectedIndex((prev) => (prev < filteredCommands.length - 1 ? prev + 1 : prev));
           break;
-        case 'ArrowUp':
+        case "ArrowUp":
           e.preventDefault();
-          setSelectedIndex(prev => prev > 0 ? prev - 1 : prev);
+          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
           break;
-        case 'Enter':
+        case "Enter":
           e.preventDefault();
           if (filteredCommands[selectedIndex]) {
             filteredCommands[selectedIndex].action();
             onClose();
           }
           break;
-        case 'Escape':
+        case "Escape":
           e.preventDefault();
           onClose();
           break;
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, selectedIndex, filteredCommands, onClose]);
 
   // Handle click outside
@@ -103,28 +116,38 @@ export const CommandPalette: FC<CommandPaletteProps> = ({
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen, onClose]);
 
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
-      case 'analysis': return FolderSearch;
-      case 'visualization': return BarChart3;
-      case 'automation': return Zap;
-      case 'ai': return BrainCircuit;
-      default: return Command;
+      case "analysis":
+        return FolderSearch;
+      case "visualization":
+        return BarChart3;
+      case "automation":
+        return Zap;
+      case "ai":
+        return BrainCircuit;
+      default:
+        return Command;
     }
   };
 
   const getCategoryColor = (category: string) => {
     switch (category.toLowerCase()) {
-      case 'analysis': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
-      case 'visualization': return 'text-green-400 bg-green-500/10 border-green-500/20';
-      case 'automation': return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
-      case 'ai': return 'text-purple-400 bg-purple-500/10 border-purple-500/20';
-      default: return 'text-gray-400 bg-gray-500/10 border-gray-500/20';
+      case "analysis":
+        return "text-blue-400 bg-blue-500/10 border-blue-500/20";
+      case "visualization":
+        return "text-green-400 bg-green-500/10 border-green-500/20";
+      case "automation":
+        return "text-orange-400 bg-orange-500/10 border-orange-500/20";
+      case "ai":
+        return "text-purple-400 bg-purple-500/10 border-purple-500/20";
+      default:
+        return "text-gray-400 bg-gray-500/10 border-gray-500/20";
     }
   };
 
@@ -173,7 +196,9 @@ export const CommandPalette: FC<CommandPaletteProps> = ({
                 {/* Category Header */}
                 <div className="px-4 py-2 bg-white/5 border-b border-white/10">
                   <div className="flex items-center space-x-2">
-                    <div className={`px-2 py-1 rounded text-xs font-medium border ${getCategoryColor(category)}`}>
+                    <div
+                      className={`px-2 py-1 rounded text-xs font-medium border ${getCategoryColor(category)}`}
+                    >
                       {React.createElement(getCategoryIcon(category), { size: 12 })}
                       <span className="ml-1">{category}</span>
                     </div>
@@ -182,7 +207,7 @@ export const CommandPalette: FC<CommandPaletteProps> = ({
 
                 {/* Commands */}
                 {categoryCommands.map((command, index) => {
-                  const globalIndex = filteredCommands.findIndex(cmd => cmd.id === command.id);
+                  const globalIndex = filteredCommands.findIndex((cmd) => cmd.id === command.id);
                   const isSelected = globalIndex === selectedIndex;
 
                   return (
@@ -193,21 +218,26 @@ export const CommandPalette: FC<CommandPaletteProps> = ({
                         onClose();
                       }}
                       className={`w-full px-4 py-3 flex items-center space-x-3 hover:bg-white/5 transition-colors text-left ${
-                        isSelected ? 'bg-white/10' : ''
+                        isSelected ? "bg-white/10" : ""
                       }`}
                       whileHover={{ x: 2 }}
                     >
-                      <div className={`p-2 rounded-lg ${isSelected ? 'bg-blue-500/20' : 'bg-white/5'}`}>
-                        <command.icon size={16} className={isSelected ? 'text-blue-300' : 'text-gray-400'} />
+                      <div
+                        className={`p-2 rounded-lg ${isSelected ? "bg-blue-500/20" : "bg-white/5"}`}
+                      >
+                        <command.icon
+                          size={16}
+                          className={isSelected ? "text-blue-300" : "text-gray-400"}
+                        />
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <div className={`font-medium truncate ${isSelected ? 'text-blue-300' : 'text-white'}`}>
+                        <div
+                          className={`font-medium truncate ${isSelected ? "text-blue-300" : "text-white"}`}
+                        >
                           {command.title}
                         </div>
-                        <div className="text-sm text-gray-400 truncate">
-                          {command.description}
-                        </div>
+                        <div className="text-sm text-gray-400 truncate">{command.description}</div>
                       </div>
 
                       {isSelected && (
@@ -250,7 +280,7 @@ export const CommandPalette: FC<CommandPaletteProps> = ({
                 </div>
               </div>
               <div className="text-gray-500">
-                {filteredCommands.length} command{filteredCommands.length !== 1 ? 's' : ''}
+                {filteredCommands.length} command{filteredCommands.length !== 1 ? "s" : ""}
               </div>
             </div>
           </div>
@@ -266,24 +296,24 @@ export const useCommandPalette = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setIsOpen(true);
       }
 
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   return {
     isOpen,
     open: () => setIsOpen(true),
     close: () => setIsOpen(false),
-    toggle: () => setIsOpen(!isOpen)
+    toggle: () => setIsOpen(!isOpen),
   };
 };

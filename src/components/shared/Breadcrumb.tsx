@@ -1,6 +1,6 @@
-import React from 'react';
-import { ChevronRight, Home } from 'lucide-react';
-import styles from '../../styles/components/Breadcrumb.module.css';
+import React from "react";
+import { ChevronRight, Home } from "lucide-react";
+import styles from "../../styles/components/Breadcrumb.module.css";
 
 interface BreadcrumbItem {
   label: string;
@@ -18,11 +18,7 @@ interface BreadcrumbProps {
  * Breadcrumb Navigation Component
  * Shows hierarchical navigation path with clickable items
  */
-const Breadcrumb: React.FC<BreadcrumbProps> = ({
-  items,
-  onNavigate,
-  className = ''
-}) => {
+const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, onNavigate, className = "" }) => {
   const handleItemClick = (item: BreadcrumbItem) => {
     if (item.path && onNavigate && !item.current) {
       onNavigate(item.path);
@@ -35,7 +31,7 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({
         {/* Home item */}
         <li className={styles.breadcrumbItem}>
           <button
-            onClick={() => onNavigate?.('dashboard')}
+            onClick={() => onNavigate?.("dashboard")}
             className={`${styles.breadcrumbLink} ${styles.homeLink}`}
             aria-label="Go to Dashboard"
           >
@@ -89,79 +85,58 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({
  */
 export const generateBreadcrumbs = (currentPage: string): BreadcrumbItem[] => {
   const pageMap: Record<string, BreadcrumbItem[]> = {
-    dashboard: [
-      { label: 'Dashboard', current: true }
-    ],
-    'file-browser': [
-      { label: 'File Browser', current: true }
-    ],
-    analysis: [
-      { label: 'Analysis', current: true }
-    ],
-    'ai-features': [
-      { label: 'AI Features', current: true }
-    ],
-    'smart-analysis': [
-      { label: 'AI Features', path: 'ai-features' },
-      { label: 'Smart Analysis', current: true }
+    dashboard: [{ label: "Dashboard", current: true }],
+    "file-browser": [{ label: "File Browser", current: true }],
+    analysis: [{ label: "Analysis", current: true }],
+    "ai-features": [{ label: "AI Features", current: true }],
+    "smart-analysis": [
+      { label: "AI Features", path: "ai-features" },
+      { label: "Smart Analysis", current: true },
     ],
     neural: [
-      { label: 'AI Features', path: 'ai-features' },
-      { label: 'Neural View', current: true }
+      { label: "AI Features", path: "ai-features" },
+      { label: "Neural View", current: true },
     ],
     chat: [
-      { label: 'AI Features', path: 'ai-features' },
-      { label: 'AI Chat', current: true }
+      { label: "AI Features", path: "ai-features" },
+      { label: "AI Chat", current: true },
     ],
     predictive: [
-      { label: 'AI Features', path: 'ai-features' },
-      { label: 'Predictive Analytics', current: true }
+      { label: "AI Features", path: "ai-features" },
+      { label: "Predictive Analytics", current: true },
     ],
     timetravel: [
-      { label: 'AI Features', path: 'ai-features' },
-      { label: 'Time Travel', current: true }
+      { label: "AI Features", path: "ai-features" },
+      { label: "Time Travel", current: true },
     ],
     temperature: [
-      { label: 'AI Features', path: 'ai-features' },
-      { label: 'File Temperature', current: true }
+      { label: "AI Features", path: "ai-features" },
+      { label: "File Temperature", current: true },
     ],
-    visualization: [
-      { label: 'Visualization', current: true }
-    ],
+    visualization: [{ label: "Visualization", current: true }],
     treemap: [
-      { label: 'Visualization', path: 'visualization' },
-      { label: 'Treemap View', current: true }
+      { label: "Visualization", path: "visualization" },
+      { label: "Treemap View", current: true },
     ],
-    duplicates: [
-      { label: 'Duplicates', current: true }
-    ],
-    optimization: [
-      { label: 'Optimization', current: true }
-    ],
-    automation: [
-      { label: 'Automation', current: true }
-    ],
-    monitoring: [
-      { label: 'Monitoring', current: true }
-    ],
-    security: [
-      { label: 'Security', current: true }
-    ],
-    export: [
-      { label: 'Export', current: true }
-    ],
-    development: [
-      { label: 'Development', current: true }
-    ],
-    integrations: [
-      { label: 'Integrations', current: true }
-    ],
-    settings: [
-      { label: 'Settings', current: true }
-    ]
+    duplicates: [{ label: "Duplicates", current: true }],
+    optimization: [{ label: "Optimization", current: true }],
+    automation: [{ label: "Automation", current: true }],
+    monitoring: [{ label: "Monitoring", current: true }],
+    security: [{ label: "Security", current: true }],
+    export: [{ label: "Export", current: true }],
+    development: [{ label: "Development", current: true }],
+    integrations: [{ label: "Integrations", current: true }],
+    settings: [{ label: "Settings", current: true }],
   };
 
-  return pageMap[currentPage] || [{ label: currentPage.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()), current: true }];
+  return (
+    pageMap[currentPage] || [
+      {
+        label: currentPage.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+        current: true,
+      },
+    ]
+  );
 };
 
 export default Breadcrumb;

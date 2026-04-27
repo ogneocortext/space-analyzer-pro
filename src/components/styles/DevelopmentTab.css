@@ -5,7 +5,7 @@
   height: 100%;
   background: var(--bg-color);
   color: var(--text-primary);
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
 }
 
 .development-overview {
@@ -50,7 +50,7 @@
 
 .project-path {
   color: var(--text-secondary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.85rem;
   margin: 0;
   opacity: 0.8;
@@ -151,7 +151,7 @@
 }
 
 .section-title::before {
-  content: '';
+  content: "";
   width: 4px;
   height: 18px;
   background: var(--accent-blue);
@@ -629,7 +629,7 @@
 
 .dependency-version {
   color: var(--text-secondary);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.8rem;
 }
 
@@ -669,7 +669,7 @@
 }
 
 .score-circle::before {
-  content: '';
+  content: "";
   width: 80px;
   height: 80px;
   border-radius: 50%;

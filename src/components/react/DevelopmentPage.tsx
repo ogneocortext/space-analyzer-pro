@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { AnalysisResult } from '../services/AnalysisBridge';
-import styles from '../styles/components/App.module.css';
+import React, { useState, useEffect } from "react";
+import { AnalysisResult } from "../services/AnalysisBridge";
+import styles from "../styles/components/App.module.css";
 
 interface DevelopmentPageProps {
   analysisData: AnalysisResult;
@@ -11,57 +11,57 @@ interface DevTool {
   id: string;
   name: string;
   description: string;
-  category: 'api' | 'cli' | 'integration' | 'monitoring';
-  status: 'available' | 'beta' | 'planned';
+  category: "api" | "cli" | "integration" | "monitoring";
+  status: "available" | "beta" | "planned";
   lastUpdated: Date;
 }
 
 const DevelopmentPage: React.FC<DevelopmentPageProps> = ({ analysisData, isLoading }) => {
   const [tools, setTools] = useState<DevTool[]>([
     {
-      id: '1',
-      name: 'REST API',
-      description: 'Full REST API for programmatic access to Space Analyzer features',
-      category: 'api',
-      status: 'available',
-      lastUpdated: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      id: "1",
+      name: "REST API",
+      description: "Full REST API for programmatic access to Space Analyzer features",
+      category: "api",
+      status: "available",
+      lastUpdated: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     },
     {
-      id: '2',
-      name: 'CLI Tool',
-      description: 'Command-line interface for automated file analysis and reporting',
-      category: 'cli',
-      status: 'beta',
-      lastUpdated: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+      id: "2",
+      name: "CLI Tool",
+      description: "Command-line interface for automated file analysis and reporting",
+      category: "cli",
+      status: "beta",
+      lastUpdated: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
     },
     {
-      id: '3',
-      name: 'Webhooks',
-      description: 'Real-time notifications for file system events and analysis results',
-      category: 'integration',
-      status: 'planned',
-      lastUpdated: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+      id: "3",
+      name: "Webhooks",
+      description: "Real-time notifications for file system events and analysis results",
+      category: "integration",
+      status: "planned",
+      lastUpdated: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
     },
     {
-      id: '4',
-      name: 'SDK',
-      description: 'Software Development Kit for building custom integrations',
-      category: 'integration',
-      status: 'planned',
-      lastUpdated: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
+      id: "4",
+      name: "SDK",
+      description: "Software Development Kit for building custom integrations",
+      category: "integration",
+      status: "planned",
+      lastUpdated: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
     },
     {
-      id: '5',
-      name: 'Metrics API',
-      description: 'Access to system metrics and performance data',
-      category: 'monitoring',
-      status: 'available',
-      lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-    }
+      id: "5",
+      name: "Metrics API",
+      description: "Access to system metrics and performance data",
+      category: "monitoring",
+      status: "available",
+      lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    },
   ]);
 
   const [selectedTool, setSelectedTool] = useState<DevTool | null>(null);
-  const [apiDocs, setApiDocs] = useState<string>('');
+  const [apiDocs, setApiDocs] = useState<string>("");
 
   useEffect(() => {
     if (analysisData) {
@@ -142,20 +142,29 @@ GET /search?q=filename
 
   const getToolIcon = (category: string) => {
     switch (category) {
-      case 'api': return '🔌';
-      case 'cli': return '💻';
-      case 'integration': return '🔗';
-      case 'monitoring': return '📊';
-      default: return '🛠️';
+      case "api":
+        return "🔌";
+      case "cli":
+        return "💻";
+      case "integration":
+        return "🔗";
+      case "monitoring":
+        return "📊";
+      default:
+        return "🛠️";
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'available': return '#10b981';
-      case 'beta': return '#f59e0b';
-      case 'planned': return '#6b7280';
-      default: return '#6b7280';
+      case "available":
+        return "#10b981";
+      case "beta":
+        return "#f59e0b";
+      case "planned":
+        return "#6b7280";
+      default:
+        return "#6b7280";
     }
   };
 
@@ -163,21 +172,21 @@ GET /search?q=filename
     <div className={styles.contentSection}>
       <h2>Development</h2>
       <p>Developer tools and APIs for extending Space Analyzer</p>
-      
+
       <div className={styles.developmentSection}>
         <div className={styles.toolsOverview}>
           <h3>Available Tools</h3>
           <div className={styles.toolsGrid}>
             {tools.map((tool) => (
-              <div 
-                key={tool.id} 
-                className={`${styles.toolCard} ${selectedTool?.id === tool.id ? styles.selected : ''}`}
+              <div
+                key={tool.id}
+                className={`${styles.toolCard} ${selectedTool?.id === tool.id ? styles.selected : ""}`}
                 onClick={() => setSelectedTool(tool)}
               >
                 <div className={styles.toolHeader}>
                   <span className={styles.toolIcon}>{getToolIcon(tool.category)}</span>
                   <h4>{tool.name}</h4>
-                  <span 
+                  <span
                     className={styles.toolStatus}
                     style={{ backgroundColor: getStatusColor(tool.status) }}
                   >
@@ -201,7 +210,7 @@ GET /search?q=filename
             <div className={styles.toolDetails}>
               <h3>{selectedTool.name}</h3>
               <p className={styles.toolDescription}>{selectedTool.description}</p>
-              
+
               <div className={styles.toolActions}>
                 <button className={styles.toolButton}>Documentation</button>
                 <button className={styles.toolButton}>Download</button>
@@ -215,7 +224,7 @@ GET /search?q=filename
                 </div>
                 <div className={styles.infoItem}>
                   <span className={styles.infoLabel}>Status:</span>
-                  <span 
+                  <span
                     className={styles.infoValue}
                     style={{ color: getStatusColor(selectedTool.status) }}
                   >
@@ -224,11 +233,13 @@ GET /search?q=filename
                 </div>
                 <div className={styles.infoItem}>
                   <span className={styles.infoLabel}>Last Updated:</span>
-                  <span className={styles.infoValue}>{selectedTool.lastUpdated.toLocaleString()}</span>
+                  <span className={styles.infoValue}>
+                    {selectedTool.lastUpdated.toLocaleString()}
+                  </span>
                 </div>
               </div>
 
-              {selectedTool.category === 'api' && (
+              {selectedTool.category === "api" && (
                 <div className={styles.apiDocumentation}>
                   <h4>API Documentation</h4>
                   <div className={styles.codeBlock}>

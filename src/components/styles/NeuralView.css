@@ -762,19 +762,19 @@
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .view-controls {
     flex-direction: column;
   }
-  
+
   .search-container {
     min-width: auto;
   }
-  
+
   .metrics-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .complexity-grid {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   }

@@ -2,7 +2,7 @@
  * Utility to convert backend dependency graph to NeuralView format
  */
 
-import type { NeuralData } from '../types/frontend';
+import type { NeuralData } from "../types/frontend";
 
 export interface DependencyGraph {
   nodes: Array<{
@@ -35,8 +35,8 @@ export function convertDependencyGraphToNeuralData(dependencyGraph: DependencyGr
         patternRecognition: 0,
         anomalyScore: 0,
         circularDependencies: 0,
-        missingDependencies: 0
-      }
+        missingDependencies: 0,
+      },
     };
   }
 
@@ -63,17 +63,17 @@ export function convertDependencyGraphToNeuralData(dependencyGraph: DependencyGr
       x: x + (Math.random() - 0.5) * 50, // Add slight randomness
       y: y + (Math.random() - 0.5) * 50,
       size: Math.max(5, Math.min(20, Math.log10(node.size + 1) * 3)),
-      type: (node.type === 'directory' ? 'directory' : 'file') as 'pattern' | 'directory' | 'file',
+      type: (node.type === "directory" ? "directory" : "file") as "pattern" | "directory" | "file",
       connections: [],
       fileType,
       fileSize: node.size,
-      category: node.type
+      category: node.type,
     };
   });
 
   // Build connection map for each node
   const connectionMap = new Map<string, string[]>();
-  edges.forEach(edge => {
+  edges.forEach((edge) => {
     if (!connectionMap.has(edge.from)) {
       connectionMap.set(edge.from, []);
     }
@@ -81,16 +81,17 @@ export function convertDependencyGraphToNeuralData(dependencyGraph: DependencyGr
   });
 
   // Update nodes with their connections
-  convertedNodes.forEach(node => {
+  convertedNodes.forEach((node) => {
     node.connections = connectionMap.get(node.id) || [];
   });
 
   // Convert edges to NeuralView connections format
-  const convertedConnections = edges.map(edge => ({
+  const convertedConnections = edges.map((edge) => ({
     from: edge.from,
     to: edge.to,
     strength: edge.weight || 1,
-    type: edge.type === 'import' ? 'dependency' : edge.type as 'similarity' | 'dependency' | 'access'
+    type:
+      edge.type === "import" ? "dependency" : (edge.type as "similarity" | "dependency" | "access"),
   }));
 
   // Calculate metrics
@@ -99,25 +100,28 @@ export function convertDependencyGraphToNeuralData(dependencyGraph: DependencyGr
   return {
     nodes: convertedNodes,
     connections: convertedConnections,
-    metrics
+    metrics,
   };
 }
 
 /**
  * Determine file type based on extension and node type
  */
-function getFileType(extension?: string, nodeType?: string): 'video' | 'document' | 'system' | 'other' {
-  if (nodeType === 'directory') return 'system';
-  
-  const videoExtensions = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv'];
-  const documentExtensions = ['pdf', 'doc', 'docx', 'txt', 'md', 'rtf', 'odt'];
-  const systemExtensions = ['exe', 'dll', 'sys', 'bat', 'sh', 'cmd'];
+function getFileType(
+  extension?: string,
+  nodeType?: string
+): "video" | "document" | "system" | "other" {
+  if (nodeType === "directory") return "system";
 
-  if (extension && videoExtensions.includes(extension.toLowerCase())) return 'video';
-  if (extension && documentExtensions.includes(extension.toLowerCase())) return 'document';
-  if (extension && systemExtensions.includes(extension.toLowerCase())) return 'system';
-  
-  return 'other';
+  const videoExtensions = ["mp4", "avi", "mov", "mkv", "webm", "flv"];
+  const documentExtensions = ["pdf", "doc", "docx", "txt", "md", "rtf", "odt"];
+  const systemExtensions = ["exe", "dll", "sys", "bat", "sh", "cmd"];
+
+  if (extension && videoExtensions.includes(extension.toLowerCase())) return "video";
+  if (extension && documentExtensions.includes(extension.toLowerCase())) return "document";
+  if (extension && systemExtensions.includes(extension.toLowerCase())) return "system";
+
+  return "other";
 }
 
 /**
@@ -128,7 +132,7 @@ function calculateMetrics(nodes: any[], edges: any[]) {
   const edgeCount = edges.length;
 
   // Neural density: ratio of actual edges to possible edges
-  const maxPossibleEdges = nodeCount * (nodeCount - 1) / 2;
+  const maxPossibleEdges = (nodeCount * (nodeCount - 1)) / 2;
   const neuralDensity = maxPossibleEdges > 0 ? edgeCount / maxPossibleEdges : 0;
 
   // Connection strength: average weight of edges
@@ -136,19 +140,21 @@ function calculateMetrics(nodes: any[], edges: any[]) {
   const connectionStrength = edgeCount > 0 ? totalWeight / edgeCount : 0;
 
   // Pattern recognition: based on node type diversity
-  const typeSet = new Set(nodes.map(n => n.type));
+  const typeSet = new Set(nodes.map((n) => n.type));
   const patternRecognition = typeSet.size / Math.max(nodeCount, 1);
 
   // Anomaly score: based on nodes with unusual connection counts
   const connectionCounts = new Map<string, number>();
-  edges.forEach(edge => {
+  edges.forEach((edge) => {
     connectionCounts.set(edge.from, (connectionCounts.get(edge.from) || 0) + 1);
     connectionCounts.set(edge.to, (connectionCounts.get(edge.to) || 0) + 1);
   });
 
-  const avgConnections = Array.from(connectionCounts.values()).reduce((a, b) => a + b, 0) / Math.max(connectionCounts.size, 1);
-  const anomalyCount = Array.from(connectionCounts.values()).filter(count => 
-    Math.abs(count - avgConnections) > avgConnections * 2
+  const avgConnections =
+    Array.from(connectionCounts.values()).reduce((a, b) => a + b, 0) /
+    Math.max(connectionCounts.size, 1);
+  const anomalyCount = Array.from(connectionCounts.values()).filter(
+    (count) => Math.abs(count - avgConnections) > avgConnections * 2
   ).length;
   const anomalyScore = connectionCounts.size > 0 ? anomalyCount / connectionCounts.size : 0;
 
@@ -158,6 +164,6 @@ function calculateMetrics(nodes: any[], edges: any[]) {
     patternRecognition: Math.min(patternRecognition, 1),
     anomalyScore: Math.min(anomalyScore, 1),
     circularDependencies: 0,
-    missingDependencies: 0
+    missingDependencies: 0,
   };
 }

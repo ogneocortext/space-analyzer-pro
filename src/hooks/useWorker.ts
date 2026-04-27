@@ -1,6 +1,13 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import * as Comlink from 'comlink';
-import type { WorkerAPI, FileNode, AnalysisOptions, AnalysisResult, NeuralNode, FileInsights } from '../workers/analysisWorker';
+import { useState, useCallback, useRef, useEffect } from "react";
+import * as Comlink from "comlink";
+import type {
+  WorkerAPI,
+  FileNode,
+  AnalysisOptions,
+  AnalysisResult,
+  NeuralNode,
+  FileInsights,
+} from "../workers/analysisWorker";
 
 interface UseWorkerState {
   isProcessing: boolean;
@@ -22,7 +29,7 @@ export const useWorker = (): UseWorkerReturn => {
   const [state, setState] = useState<UseWorkerState>({
     isProcessing: false,
     error: null,
-    progress: 0
+    progress: 0,
   });
 
   const workerRef = useRef<Comlink.Remote<WorkerAPI> | null>(null);
@@ -33,42 +40,40 @@ export const useWorker = (): UseWorkerReturn => {
     const initWorker = async () => {
       try {
         // Create worker instance
-        const worker = new Worker(
-          new URL('../workers/analysisWorker.ts', import.meta.url),
-          { type: 'module' }
-        );
+        const worker = new Worker(new URL("../workers/analysisWorker.ts", import.meta.url), {
+          type: "module",
+        });
 
         workerInstanceRef.current = worker;
-        
+
         // Wrap with Comlink
         const workerAPI = Comlink.wrap<WorkerAPI>(worker);
         workerRef.current = workerAPI;
 
         // Handle worker errors
-        worker.addEventListener('error', (event) => {
-          console.error('Worker error:', event);
-          setState(prev => ({
+        worker.addEventListener("error", (event) => {
+          console.error("Worker error:", event);
+          setState((prev) => ({
             ...prev,
-            error: 'Worker encountered an error',
-            isProcessing: false
+            error: "Worker encountered an error",
+            isProcessing: false,
           }));
         });
 
-        worker.addEventListener('messageerror', (event) => {
-          console.error('Worker message error:', event);
-          setState(prev => ({
+        worker.addEventListener("messageerror", (event) => {
+          console.error("Worker message error:", event);
+          setState((prev) => ({
             ...prev,
-            error: 'Worker message error',
-            isProcessing: false
+            error: "Worker message error",
+            isProcessing: false,
           }));
         });
-
       } catch (error) {
-        console.error('Failed to initialize worker:', error);
-        setState(prev => ({
+        console.error("Failed to initialize worker:", error);
+        setState((prev) => ({
           ...prev,
-          error: 'Failed to initialize worker',
-          isProcessing: false
+          error: "Failed to initialize worker",
+          isProcessing: false,
         }));
       }
     };
@@ -87,105 +92,108 @@ export const useWorker = (): UseWorkerReturn => {
   }, []);
 
   const clearError = useCallback(() => {
-    setState(prev => ({ ...prev, error: null }));
+    setState((prev) => ({ ...prev, error: null }));
   }, []);
 
-  const executeWithProgress = useCallback(async <T,>(
-    operation: () => Promise<T>,
-    operationName: string
-  ): Promise<T | null> => {
-    if (!workerRef.current) {
-      setState(prev => ({
+  const executeWithProgress = useCallback(
+    async <T>(operation: () => Promise<T>, operationName: string): Promise<T | null> => {
+      if (!workerRef.current) {
+        setState((prev) => ({
+          ...prev,
+          error: "Worker not initialized",
+          isProcessing: false,
+        }));
+        return null;
+      }
+
+      setState((prev) => ({
         ...prev,
-        error: 'Worker not initialized',
-        isProcessing: false
+        isProcessing: true,
+        error: null,
+        progress: 0,
       }));
-      return null;
-    }
 
-    setState(prev => ({
-      ...prev,
-      isProcessing: true,
-      error: null,
-      progress: 0
-    }));
+      try {
+        const result = await operation();
+        setState((prev) => ({
+          ...prev,
+          isProcessing: false,
+          progress: 100,
+        }));
+        return result;
+      } catch (error) {
+        console.error(`Error in ${operationName}:`, error);
+        setState((prev) => ({
+          ...prev,
+          error: `Failed to ${operationName}: ${error instanceof Error ? error.message : "Unknown error"}`,
+          isProcessing: false,
+          progress: 0,
+        }));
+        return null;
+      }
+    },
+    []
+  );
 
-    try {
-      const result = await operation();
-      setState(prev => ({
-        ...prev,
-        isProcessing: false,
-        progress: 100
-      }));
-      return result;
-    } catch (error) {
-      console.error(`Error in ${operationName}:`, error);
-      setState(prev => ({
-        ...prev,
-        error: `Failed to ${operationName}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        isProcessing: false,
-        progress: 0
-      }));
-      return null;
-    }
-  }, []);
+  const analyzeFileTree = useCallback(
+    async (files: FileNode[], options?: AnalysisOptions): Promise<AnalysisResult | null> => {
+      return executeWithProgress(
+        () => workerRef.current!.analyzeFileTree(files, options),
+        "analyze file tree"
+      );
+    },
+    [executeWithProgress]
+  );
 
-  const analyzeFileTree = useCallback(async (
-    files: FileNode[],
-    options?: AnalysisOptions
-  ): Promise<AnalysisResult | null> => {
-    return executeWithProgress(
-      () => workerRef.current!.analyzeFileTree(files, options),
-      'analyze file tree'
-    );
-  }, [executeWithProgress]);
+  const calculateNeuralPhysics = useCallback(
+    async (nodes: NeuralNode[], deltaTime: number): Promise<NeuralNode[] | null> => {
+      return executeWithProgress(
+        () => workerRef.current!.calculateNeuralPhysics(nodes, deltaTime),
+        "calculate neural physics"
+      );
+    },
+    [executeWithProgress]
+  );
 
-  const calculateNeuralPhysics = useCallback(async (
-    nodes: NeuralNode[],
-    deltaTime: number
-  ): Promise<NeuralNode[] | null> => {
-    return executeWithProgress(
-      () => workerRef.current!.calculateNeuralPhysics(nodes, deltaTime),
-      'calculate neural physics'
-    );
-  }, [executeWithProgress]);
+  const processLargeDataset = useCallback(
+    async (data: any[], operation: string): Promise<any> => {
+      return executeWithProgress(
+        () => workerRef.current!.processLargeDataset(data, operation),
+        "process large dataset"
+      );
+    },
+    [executeWithProgress]
+  );
 
-  const processLargeDataset = useCallback(async (
-    data: any[],
-    operation: string
-  ): Promise<any> => {
-    return executeWithProgress(
-      () => workerRef.current!.processLargeDataset(data, operation),
-      'process large dataset'
-    );
-  }, [executeWithProgress]);
+  const generateFileInsights = useCallback(
+    async (files: FileNode[]): Promise<FileInsights | null> => {
+      return executeWithProgress(
+        () => workerRef.current!.generateFileInsights(files),
+        "generate file insights"
+      );
+    },
+    [executeWithProgress]
+  );
 
-  const generateFileInsights = useCallback(async (
-    files: FileNode[]
-  ): Promise<FileInsights | null> => {
-    return executeWithProgress(
-      () => workerRef.current!.generateFileInsights(files),
-      'generate file insights'
-    );
-  }, [executeWithProgress]);
+  const calculateDuplicates = useCallback(
+    async (files: FileNode[]): Promise<any[] | null> => {
+      return executeWithProgress(
+        () => workerRef.current!.calculateDuplicates(files),
+        "calculate duplicates"
+      );
+    },
+    [executeWithProgress]
+  );
 
-  const calculateDuplicates = useCallback(async (
-    files: FileNode[]
-  ): Promise<any[] | null> => {
-    return executeWithProgress(
-      () => workerRef.current!.calculateDuplicates(files),
-      'calculate duplicates'
-    );
-  }, [executeWithProgress]);
-
-  const compressAnalysis = useCallback(async (
-    data: any
-  ): Promise<any> => {
-    return executeWithProgress(
-      () => workerRef.current!.compressAnalysis(data),
-      'compress analysis'
-    );
-  }, [executeWithProgress]);
+  const compressAnalysis = useCallback(
+    async (data: any): Promise<any> => {
+      return executeWithProgress(
+        () => workerRef.current!.compressAnalysis(data),
+        "compress analysis"
+      );
+    },
+    [executeWithProgress]
+  );
 
   return {
     ...state,
@@ -195,7 +203,7 @@ export const useWorker = (): UseWorkerReturn => {
     generateFileInsights,
     calculateDuplicates,
     compressAnalysis,
-    clearError
+    clearError,
   };
 };
 
@@ -255,7 +263,7 @@ export const useNeuralPhysics = () => {
     startPhysics,
     stopPhysics,
     isProcessing: worker.isProcessing,
-    error: worker.error
+    error: worker.error,
   };
 };
 

@@ -3,7 +3,7 @@
  * Detects available ports and manages service startup
  */
 
-import { ConfigService } from '../services/ConfigService';
+import { ConfigService } from "../services/ConfigService";
 
 export interface PortInfo {
   port: number;
@@ -17,7 +17,7 @@ export class PortDetector {
     frontend: 5173,
     backend: 8090,
     ollama: 11434,
-    fallback: 3000
+    fallback: 3000,
   };
 
   /**
@@ -27,12 +27,12 @@ export class PortDetector {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 1000);
-      
+
       const response = await fetch(`http://localhost:${port}`, {
-        method: 'HEAD',
-        signal: controller.signal
+        method: "HEAD",
+        signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
       return false; // Port is in use
     } catch (error) {
@@ -58,18 +58,30 @@ export class PortDetector {
    */
   static async getServicePorts(): Promise<PortInfo[]> {
     const ports = [
-      { port: ConfigService.PORTS.WEB, serviceName: 'Frontend', url: `http://localhost:${ConfigService.PORTS.WEB}` },
-      { port: ConfigService.PORTS.BACKEND, serviceName: 'Backend', url: `http://localhost:${ConfigService.PORTS.BACKEND}` },
-      { port: ConfigService.PORTS.OLLAMA, serviceName: 'Ollama', url: `http://localhost:${ConfigService.PORTS.OLLAMA}` }
+      {
+        port: ConfigService.PORTS.WEB,
+        serviceName: "Frontend",
+        url: `http://localhost:${ConfigService.PORTS.WEB}`,
+      },
+      {
+        port: ConfigService.PORTS.BACKEND,
+        serviceName: "Backend",
+        url: `http://localhost:${ConfigService.PORTS.BACKEND}`,
+      },
+      {
+        port: ConfigService.PORTS.OLLAMA,
+        serviceName: "Ollama",
+        url: `http://localhost:${ConfigService.PORTS.OLLAMA}`,
+      },
     ];
 
     const results: PortInfo[] = [];
-    
+
     for (const portInfo of ports) {
       const isAvailable = await this.checkPort(portInfo.port);
       results.push({
         ...portInfo,
-        isAvailable
+        isAvailable,
       });
     }
 
@@ -85,20 +97,20 @@ export class PortDetector {
     ollama: { port: number; url: string };
   }> {
     const ports = await this.getServicePorts();
-    
+
     return {
       frontend: {
-        port: ports.find(p => p.serviceName === 'Frontend')?.port || ConfigService.PORTS.WEB,
-        url: `http://localhost:${ports.find(p => p.serviceName === 'Frontend')?.port || ConfigService.PORTS.WEB}`
+        port: ports.find((p) => p.serviceName === "Frontend")?.port || ConfigService.PORTS.WEB,
+        url: `http://localhost:${ports.find((p) => p.serviceName === "Frontend")?.port || ConfigService.PORTS.WEB}`,
       },
       backend: {
-        port: ports.find(p => p.serviceName === 'Backend')?.port || ConfigService.PORTS.BACKEND,
-        url: `http://localhost:${ports.find(p => p.serviceName === 'Backend')?.port || ConfigService.PORTS.BACKEND}`
+        port: ports.find((p) => p.serviceName === "Backend")?.port || ConfigService.PORTS.BACKEND,
+        url: `http://localhost:${ports.find((p) => p.serviceName === "Backend")?.port || ConfigService.PORTS.BACKEND}`,
       },
       ollama: {
-        port: ports.find(p => p.serviceName === 'Ollama')?.port || ConfigService.PORTS.OLLAMA,
-        url: `http://localhost:${ports.find(p => p.serviceName === 'Ollama')?.port || ConfigService.PORTS.OLLAMA}`
-      }
+        port: ports.find((p) => p.serviceName === "Ollama")?.port || ConfigService.PORTS.OLLAMA,
+        url: `http://localhost:${ports.find((p) => p.serviceName === "Ollama")?.port || ConfigService.PORTS.OLLAMA}`,
+      },
     };
   }
 
@@ -112,16 +124,16 @@ export class PortDetector {
     allRunning: boolean;
   }> {
     const ports = await this.getServicePorts();
-    
+
     const status = {
-      frontend: !ports.find(p => p.serviceName === 'Frontend')?.isAvailable,
-      backend: !ports.find(p => p.serviceName === 'Backend')?.isAvailable,
-      ollama: !ports.find(p => p.serviceName === 'Ollama')?.isAvailable
+      frontend: !ports.find((p) => p.serviceName === "Frontend")?.isAvailable,
+      backend: !ports.find((p) => p.serviceName === "Backend")?.isAvailable,
+      ollama: !ports.find((p) => p.serviceName === "Ollama")?.isAvailable,
     };
 
     return {
       ...status,
-      allRunning: status.frontend && status.backend && status.ollama
+      allRunning: status.frontend && status.backend && status.ollama,
     };
   }
 }

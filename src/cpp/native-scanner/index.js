@@ -1,9 +1,9 @@
-const { existsSync, readFileSync } = require('fs');
-const { join } = require('path');
+const { existsSync, readFileSync } = require("fs");
+const { join } = require("path");
 
 // Try to load the native module
-const bindingPath = join(__dirname, 'build', 'Release', 'native_scanner.node');
-const bindingDebugPath = join(__dirname, 'build', 'Debug', 'native_scanner.node');
+const bindingPath = join(__dirname, "build", "Release", "native_scanner.node");
+const bindingDebugPath = join(__dirname, "build", "Debug", "native_scanner.node");
 
 let nativeModule;
 
@@ -14,10 +14,10 @@ if (existsSync(bindingPath)) {
 } else {
   throw new Error(
     `Native scanner module not found. Please build with:\n` +
-    `  npx node-gyp rebuild --release\n` +
-    `Searched paths:\n` +
-    `  ${bindingPath}\n` +
-    `  ${bindingDebugPath}`
+      `  npx node-gyp rebuild --release\n` +
+      `Searched paths:\n` +
+      `  ${bindingPath}\n` +
+      `  ${bindingDebugPath}`
   );
 }
 
@@ -34,5 +34,5 @@ module.exports = {
         reject(error);
       }
     });
-  }
+  },
 };

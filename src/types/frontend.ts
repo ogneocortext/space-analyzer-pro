@@ -6,7 +6,7 @@ export interface FileData {
   name: string;
   path: string;
   size: number;
-  type: 'file' | 'directory' | 'pattern';
+  type: "file" | "directory" | "pattern";
   category: string;
   modified?: string;
   created?: string;
@@ -15,7 +15,7 @@ export interface FileData {
   isHidden?: boolean;
   extension?: string;
   isCorrupted?: boolean;
-  fileType?: 'video' | 'document' | 'system' | 'other';
+  fileType?: "video" | "document" | "system" | "other";
   accessFrequency?: number;
   complexity?: number;
   language?: string;
@@ -25,7 +25,7 @@ export interface ConnectionData {
   from: string;
   to: string;
   strength: number;
-  type: 'similarity' | 'dependency' | 'access' | 'contains';
+  type: "similarity" | "dependency" | "access" | "contains";
   accessFrequency?: number;
 }
 
@@ -65,8 +65,8 @@ export interface InsightData {
   id: string;
   title: string;
   description: string;
-  type: 'optimization' | 'anomaly' | 'pattern' | 'recommendation';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type: "optimization" | "anomaly" | "pattern" | "recommendation";
+  severity: "low" | "medium" | "high" | "critical";
   confidence: number;
   action?: string;
 }
@@ -77,9 +77,9 @@ export interface NeuralNode {
   x: number;
   y: number;
   size: number;
-  type: 'file' | 'directory' | 'pattern';
+  type: "file" | "directory" | "pattern";
   connections: string[];
-  fileType?: 'video' | 'document' | 'system' | 'other';
+  fileType?: "video" | "document" | "system" | "other";
   fileSize?: number;
   accessFrequency?: number;
   language?: string;
@@ -91,7 +91,7 @@ export interface NeuralConnection {
   from: string;
   to: string;
   strength: number;
-  type: 'similarity' | 'dependency' | 'access';
+  type: "similarity" | "dependency" | "access";
   accessFrequency?: number;
 }
 
@@ -116,7 +116,7 @@ export interface NeuralSimulationState {
     pinned?: boolean;
   }>;
   isPlaying: boolean;
-  neuralType: 'network' | 'heatmap' | 'graph';
+  neuralType: "network" | "heatmap" | "graph";
   connectionLines: boolean;
   showLabels: boolean;
   hoveredNode: string | null;
@@ -139,7 +139,7 @@ export interface QuickAction {
 }
 
 export interface SystemStatus {
-  status: 'healthy' | 'warning' | 'error';
+  status: "healthy" | "warning" | "error";
   message: string;
   lastCheck: Date;
 }
@@ -173,8 +173,8 @@ export interface NavigationItem {
 // Form and Input Types
 export interface SearchParams {
   query: string;
-  sortBy: 'name' | 'size' | 'date' | 'type';
-  sortOrder: 'asc' | 'desc';
+  sortBy: "name" | "size" | "date" | "type";
+  sortOrder: "asc" | "desc";
   filterType: string;
   pageSize: number;
   currentPage: number;
@@ -190,7 +190,7 @@ export interface ValidationResult {
 export interface AppError {
   id: string;
   message: string;
-  type: 'network' | 'validation' | 'processing' | 'ui' | 'unknown';
+  type: "network" | "validation" | "processing" | "ui" | "unknown";
   timestamp: Date;
   component?: string;
   details?: Record<string, any>;
@@ -214,12 +214,12 @@ export interface PerformanceMetrics {
 
 // Accessibility Types
 export interface AriaProps {
-  'aria-label'?: string;
-  'aria-labelledby'?: string;
-  'aria-describedby'?: string;
-  'aria-expanded'?: boolean;
-  'aria-hidden'?: boolean;
-  'aria-live'?: 'polite' | 'assertive' | 'off';
+  "aria-label"?: string;
+  "aria-labelledby"?: string;
+  "aria-describedby"?: string;
+  "aria-expanded"?: boolean;
+  "aria-hidden"?: boolean;
+  "aria-live"?: "polite" | "assertive" | "off";
   role?: string;
 }
 
@@ -252,9 +252,9 @@ export interface FontSize {
   base: string;
   lg: string;
   xl: string;
-  '2xl': string;
-  '3xl': string;
-  '4xl': string;
+  "2xl": string;
+  "3xl": string;
+  "4xl": string;
 }
 
 export interface Spacing {
@@ -263,8 +263,8 @@ export interface Spacing {
   md: string;
   lg: string;
   xl: string;
-  '2xl': string;
-  '3xl': string;
+  "2xl": string;
+  "3xl": string;
 }
 
 // Animation Types
@@ -273,7 +273,7 @@ export interface AnimationConfig {
   easing: string;
   delay?: number;
   iterations?: number;
-  fill?: 'forwards' | 'backwards' | 'both' | 'none';
+  fill?: "forwards" | "backwards" | "both" | "none";
 }
 
 export interface TransitionConfig {
@@ -285,7 +285,7 @@ export interface TransitionConfig {
 
 // Export Types
 export interface ExportOptions {
-  format: 'png' | 'svg' | 'json' | 'pdf' | 'csv';
+  format: "png" | "svg" | "json" | "pdf" | "csv";
   includeMetadata: boolean;
   includeConnections: boolean;
   includeMetrics: boolean;
@@ -303,8 +303,8 @@ export interface ExportResult {
 
 // Configuration Types
 export interface AppConfig {
-  theme: 'light' | 'dark' | 'system';
-  fontSize: 'small' | 'medium' | 'large';
+  theme: "light" | "dark" | "system";
+  fontSize: "small" | "medium" | "large";
   animations: boolean;
   accessibility: {
     highContrast: boolean;
@@ -321,7 +321,7 @@ export interface AppConfig {
 
 // WebSocket and Real-time Types
 export interface WebSocketMessage {
-  type: 'progress' | 'error' | 'complete' | 'update';
+  type: "progress" | "error" | "complete" | "update";
   data: any;
   timestamp: Date;
 }
@@ -342,7 +342,7 @@ export interface TestConfig {
     width: number;
     height: number;
   };
-  theme: 'light' | 'dark';
+  theme: "light" | "dark";
 }
 
 export interface TestResult {
@@ -367,14 +367,14 @@ export type ComponentProps<T> = T extends React.ComponentType<infer P> ? P : nev
 
 // Event Types
 export interface CustomEventMap {
-  'analysis:start': { path: string };
-  'analysis:progress': ProgressUpdate;
-  'analysis:complete': { result: AnalysisResult };
-  'analysis:error': { error: string };
-  'neural:node:select': { nodeId: string };
-  'neural:node:hover': { nodeId: string | null };
-  'export:start': { format: string };
-  'export:complete': ExportResult;
+  "analysis:start": { path: string };
+  "analysis:progress": ProgressUpdate;
+  "analysis:complete": { result: AnalysisResult };
+  "analysis:error": { error: string };
+  "neural:node:select": { nodeId: string };
+  "neural:node:hover": { nodeId: string | null };
+  "export:start": { format: string };
+  "export:complete": ExportResult;
 }
 
 declare global {

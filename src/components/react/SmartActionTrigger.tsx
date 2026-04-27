@@ -1,4 +1,4 @@
-import { Sparkles } from 'lucide-react';
+import { Sparkles } from "lucide-react";
 
 export const SmartActionTrigger = ({ context }: { context: string }) => {
   const handleAskAI = (e: React.MouseEvent) => {

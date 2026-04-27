@@ -56,7 +56,7 @@
   .tourTrigger {
     transition: none;
   }
-  
+
   .tourTrigger:hover {
     transform: none;
   }

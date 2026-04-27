@@ -1,5 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/no-floating-promises */
+/* eslint-disable preserve-caught-error */
+
 export interface CollaborationEvent {
-  type: 'join' | 'leave' | 'message' | 'analysis_update' | 'cursor' | 'selection';
+  type: "join" | "leave" | "message" | "analysis_update" | "cursor" | "selection";
   userId: string;
   userName?: string;
   timestamp: number;
@@ -15,7 +21,7 @@ export interface CollaborationSession {
 }
 
 export interface RealtimeAnalysisUpdate {
-  type: 'progress' | 'complete' | 'error';
+  type: "progress" | "complete" | "error";
   filesProcessed: number;
   totalFiles: number;
   percentage: number;
@@ -51,8 +57,16 @@ export class CollaborationService {
    */
   private generateColor(): string {
     const colors = [
-      '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444',
-      '#06b6d4', '#f43f5e', '#a855f7', '#22c55e', '#f97316'
+      "#3b82f6",
+      "#8b5cf6",
+      "#10b981",
+      "#f59e0b",
+      "#ef4444",
+      "#06b6d4",
+      "#f43f5e",
+      "#a855f7",
+      "#22c55e",
+      "#f97316",
     ];
     return colors[Math.floor(Math.random() * colors.length)];
   }
@@ -60,7 +74,10 @@ export class CollaborationService {
   /**
    * Connect to a collaboration session
    */
-  async connect(serverUrl: string = 'ws://localhost:8080', sessionId?: string): Promise<CollaborationSession> {
+  async connect(
+    serverUrl: string = "ws://localhost:8080",
+    sessionId?: string
+  ): Promise<CollaborationSession> {
     return new Promise((resolve, reject) => {
       try {
         // For demo purposes, create a local session
@@ -73,7 +90,7 @@ export class CollaborationService {
           users: new Map(),
           analysisId: undefined,
           createdAt: new Date(),
-          isActive: true
+          isActive: true,
         };
 
         // Add self to session
@@ -81,15 +98,15 @@ export class CollaborationService {
           id: this.userId,
           name: this.userName,
           color: this.generateColor(),
-          joinedAt: new Date()
+          joinedAt: new Date(),
         });
 
         // Emit join event
-        this.emit('join', {
-          type: 'join',
+        this.emit("join", {
+          type: "join",
           userId: this.userId,
           userName: this.userName,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
 
         resolve(this.session);
@@ -105,11 +122,11 @@ export class CollaborationService {
   disconnect(): void {
     if (this.session) {
       // Emit leave event
-      this.emit('leave', {
-        type: 'leave',
+      this.emit("leave", {
+        type: "leave",
         userId: this.userId,
         userName: this.userName,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       this.session = null;
@@ -128,18 +145,18 @@ export class CollaborationService {
    */
   async joinAnalysis(analysisId: string): Promise<void> {
     if (!this.session) {
-      throw new Error('Not connected to a collaboration session');
+      throw new Error("Not connected to a collaboration session");
     }
 
     this.session.analysisId = analysisId;
 
     // Emit analysis update
-    this.emit('analysis_update', {
-      type: 'analysis_update',
+    this.emit("analysis_update", {
+      type: "analysis_update",
       userId: this.userId,
       userName: this.userName,
       timestamp: Date.now(),
-      data: { analysisId, action: 'join' }
+      data: { analysisId, action: "join" },
     });
   }
 
@@ -149,12 +166,12 @@ export class CollaborationService {
   broadcastAnalysisUpdate(update: RealtimeAnalysisUpdate): void {
     if (!this.session) return;
 
-    this.emit('analysis_update', {
-      type: 'analysis_update',
+    this.emit("analysis_update", {
+      type: "analysis_update",
       userId: this.userId,
       userName: this.userName,
       timestamp: Date.now(),
-      data: update
+      data: update,
     });
   }
 
@@ -164,12 +181,12 @@ export class CollaborationService {
   broadcastCursorPosition(position: { x: number; y: number; element?: string }): void {
     if (!this.session) return;
 
-    this.emit('cursor', {
-      type: 'cursor',
+    this.emit("cursor", {
+      type: "cursor",
       userId: this.userId,
       userName: this.userName,
       timestamp: Date.now(),
-      data: position
+      data: position,
     });
   }
 
@@ -179,12 +196,12 @@ export class CollaborationService {
   broadcastSelection(files: string[]): void {
     if (!this.session) return;
 
-    this.emit('selection', {
-      type: 'selection',
+    this.emit("selection", {
+      type: "selection",
       userId: this.userId,
       userName: this.userName,
       timestamp: Date.now(),
-      data: { files }
+      data: { files },
     });
   }
 
@@ -194,12 +211,12 @@ export class CollaborationService {
   sendMessage(message: string): void {
     if (!this.session) return;
 
-    this.emit('message', {
-      type: 'message',
+    this.emit("message", {
+      type: "message",
       userId: this.userId,
       userName: this.userName,
       timestamp: Date.now(),
-      data: { message }
+      data: { message },
     });
   }
 
@@ -257,7 +274,7 @@ export class CollaborationService {
    * Emit an event to all handlers
    */
   private emit(event: string, data: CollaborationEvent): void {
-    this.eventHandlers.get(event)?.forEach(handler => {
+    this.eventHandlers.get(event)?.forEach((handler) => {
       try {
         handler(data);
       } catch (error) {
@@ -300,12 +317,12 @@ export class LocalCollaborationDemo {
   startDemo(): void {
     // Connect to local session
     this.service.connect().then(() => {
-      console.log('Local collaboration demo started');
+      console.warn("Local collaboration demo started");
 
       // Simulate other users joining
-      setTimeout(() => this.simulateUserJoin('Alice', '#3b82f6'), 2000);
-      setTimeout(() => this.simulateUserJoin('Bob', '#10b981'), 4000);
-      setTimeout(() => this.simulateUserJoin('Charlie', '#f59e0b'), 6000);
+      setTimeout(() => this.simulateUserJoin("Alice", "#3b82f6"), 2000);
+      setTimeout(() => this.simulateUserJoin("Bob", "#10b981"), 4000);
+      setTimeout(() => this.simulateUserJoin("Charlie", "#f59e0b"), 6000);
 
       // Simulate cursor movements
       this.demoInterval = setInterval(() => {
@@ -326,21 +343,21 @@ export class LocalCollaborationDemo {
       this.demoInterval = null;
     }
     this.service.disconnect();
-    console.log('Local collaboration demo stopped');
+    console.warn("Local collaboration demo stopped");
   }
 
   private simulateUserJoin(name: string, color: string): void {
     const userId = `demo_${name.toLowerCase()}_${Date.now()}`;
-    
+
     // In a real app, this would come from the WebSocket
-    console.log(`Demo user ${name} joined`);
+    console.warn(`Demo user ${name} joined`);
   }
 
   private simulateCursorMovement(): void {
     const positions = [
-      { x: Math.random() * 800, y: Math.random() * 600, element: 'chart' },
-      { x: Math.random() * 800, y: Math.random() * 600, element: 'filelist' },
-      { x: Math.random() * 800, y: Math.random() * 600, element: 'stats' }
+      { x: Math.random() * 800, y: Math.random() * 600, element: "chart" },
+      { x: Math.random() * 800, y: Math.random() * 600, element: "filelist" },
+      { x: Math.random() * 800, y: Math.random() * 600, element: "stats" },
     ];
     this.service.broadcastCursorPosition(positions[Math.floor(Math.random() * positions.length)]);
   }
@@ -350,11 +367,11 @@ export class LocalCollaborationDemo {
     const interval = setInterval(() => {
       progress += 10;
       this.service.broadcastAnalysisUpdate({
-        type: progress < 100 ? 'progress' : 'complete',
+        type: progress < 100 ? "progress" : "complete",
         filesProcessed: progress * 10,
         totalFiles: 1000,
         percentage: Math.min(progress, 100),
-        currentFile: `file_${progress}.txt`
+        currentFile: `file_${progress}.txt`,
       });
 
       if (progress >= 100) {

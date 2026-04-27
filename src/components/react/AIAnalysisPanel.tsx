@@ -1,10 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  BrainCircuit, TrendingUp, FileText, AlertTriangle, 
-  CheckCircle, Clock, Zap, Target, BarChart3,
-  Loader2, RefreshCw, Download, Share
-} from 'lucide-react';
-import { ollamaService } from '../services/OllamaService';
+import React, { useState, useEffect } from "react";
+import {
+  BrainCircuit,
+  TrendingUp,
+  FileText,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Zap,
+  Target,
+  BarChart3,
+  Loader2,
+  RefreshCw,
+  Download,
+  Share,
+} from "lucide-react";
+import { ollamaService } from "../services/OllamaService";
 
 interface AIAnalysisPanelProps {
   analysisData: any;
@@ -12,10 +22,10 @@ interface AIAnalysisPanelProps {
 }
 
 interface AIInsight {
-  type: 'finding' | 'recommendation' | 'warning' | 'optimization';
+  type: "finding" | "recommendation" | "warning" | "optimization";
   title: string;
   description: string;
-  impact: 'high' | 'medium' | 'low';
+  impact: "high" | "medium" | "low";
   category: string;
 }
 
@@ -25,20 +35,20 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [lastAnalysis, setLastAnalysis] = useState<Date | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const categories = [
-    { id: 'all', label: 'All Insights', icon: BarChart3 },
-    { id: 'storage', label: 'Storage', icon: FileText },
-    { id: 'performance', label: 'Performance', icon: Zap },
-    { id: 'organization', label: 'Organization', icon: Target },
-    { id: 'cleanup', label: 'Cleanup', icon: AlertTriangle }
+    { id: "all", label: "All Insights", icon: BarChart3 },
+    { id: "storage", label: "Storage", icon: FileText },
+    { id: "performance", label: "Performance", icon: Zap },
+    { id: "organization", label: "Organization", icon: Target },
+    { id: "cleanup", label: "Cleanup", icon: AlertTriangle },
   ];
 
   const impactColors = {
-    high: 'text-red-400 bg-red-900/20 border-red-800',
-    medium: 'text-yellow-400 bg-yellow-900/20 border-yellow-800',
-    low: 'text-green-400 bg-green-900/20 border-green-800'
+    high: "text-red-400 bg-red-900/20 border-red-800",
+    medium: "text-yellow-400 bg-yellow-900/20 border-yellow-800",
+    low: "text-green-400 bg-green-900/20 border-green-800",
   };
 
   const categoryIcons = {
@@ -49,7 +59,7 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
     finding: CheckCircle,
     recommendation: TrendingUp,
     warning: AlertTriangle,
-    optimization: BrainCircuit
+    optimization: BrainCircuit,
   };
 
   useEffect(() => {
@@ -65,7 +75,7 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
     try {
       // Simulate progress updates
       const progressInterval = setInterval(() => {
-        setAnalysisProgress(prev => Math.min(prev + 10, 90));
+        setAnalysisProgress((prev) => Math.min(prev + 10, 90));
       }, 200);
 
       // Get AI insights
@@ -87,9 +97,8 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
         setIsAnalyzing(false);
         setAnalysisProgress(0);
       }, 1000);
-
     } catch (error) {
-      console.error('AI Analysis failed:', error);
+      console.error("AI Analysis failed:", error);
       setIsAnalyzing(false);
       setAnalysisProgress(0);
     }
@@ -97,32 +106,41 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
 
   const parseInsights = (insightsText: string): AIInsight[] => {
     const insights: AIInsight[] = [];
-    
+
     // Parse the AI response into structured insights
-    const lines = insightsText.split('\n').filter(line => line.trim());
-    
+    const lines = insightsText.split("\n").filter((line) => line.trim());
+
     lines.forEach((line, index) => {
-      let type: AIInsight['type'] = 'finding';
-      let impact: AIInsight['impact'] = 'medium';
-      let category = 'storage';
+      let type: AIInsight["type"] = "finding";
+      let impact: AIInsight["impact"] = "medium";
+      let category = "storage";
 
       // Determine type and impact based on keywords
-      if (line.toLowerCase().includes('warning') || line.toLowerCase().includes('critical')) {
-        type = 'warning';
-        impact = 'high';
-      } else if (line.toLowerCase().includes('recommend') || line.toLowerCase().includes('suggest')) {
-        type = 'recommendation';
-      } else if (line.toLowerCase().includes('optimize') || line.toLowerCase().includes('improve')) {
-        type = 'optimization';
+      if (line.toLowerCase().includes("warning") || line.toLowerCase().includes("critical")) {
+        type = "warning";
+        impact = "high";
+      } else if (
+        line.toLowerCase().includes("recommend") ||
+        line.toLowerCase().includes("suggest")
+      ) {
+        type = "recommendation";
+      } else if (
+        line.toLowerCase().includes("optimize") ||
+        line.toLowerCase().includes("improve")
+      ) {
+        type = "optimization";
       }
 
       // Determine category
-      if (line.toLowerCase().includes('performance') || line.toLowerCase().includes('speed')) {
-        category = 'performance';
-      } else if (line.toLowerCase().includes('organize') || line.toLowerCase().includes('structure')) {
-        category = 'organization';
-      } else if (line.toLowerCase().includes('cleanup') || line.toLowerCase().includes('delete')) {
-        category = 'cleanup';
+      if (line.toLowerCase().includes("performance") || line.toLowerCase().includes("speed")) {
+        category = "performance";
+      } else if (
+        line.toLowerCase().includes("organize") ||
+        line.toLowerCase().includes("structure")
+      ) {
+        category = "organization";
+      } else if (line.toLowerCase().includes("cleanup") || line.toLowerCase().includes("delete")) {
+        category = "cleanup";
       }
 
       insights.push({
@@ -130,22 +148,23 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
         title: `Insight ${index + 1}`,
         description: line.trim(),
         impact,
-        category
+        category,
       });
     });
 
     return insights;
   };
 
-  const filteredInsights = selectedCategory === 'all' 
-    ? insights 
-    : insights.filter(insight => insight.category === selectedCategory);
+  const filteredInsights =
+    selectedCategory === "all"
+      ? insights
+      : insights.filter((insight) => insight.category === selectedCategory);
 
   const getImpactStats = () => {
     const stats = {
-      high: insights.filter(i => i.impact === 'high').length,
-      medium: insights.filter(i => i.impact === 'medium').length,
-      low: insights.filter(i => i.impact === 'low').length
+      high: insights.filter((i) => i.impact === "high").length,
+      medium: insights.filter((i) => i.impact === "medium").length,
+      low: insights.filter((i) => i.impact === "low").length,
     };
     return stats;
   };
@@ -159,25 +178,25 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
       summary: {
         totalInsights: insights.length,
         impactStats: getImpactStats(),
-        categories: [...new Set(insights.map(i => i.category))]
-      }
+        categories: [...new Set(insights.map((i) => i.category))],
+      },
     };
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `ai-analysis-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `ai-analysis-${new Date().toISOString().split("T")[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   return (
@@ -191,8 +210,7 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
             <p className="text-xs sm:text-sm text-gray-400 truncate">
               {lastAnalysis
                 ? `Last analyzed: ${lastAnalysis.toLocaleString()}`
-                : 'Ready to analyze your file system'
-              }
+                : "Ready to analyze your file system"}
             </p>
           </div>
         </div>
@@ -208,7 +226,7 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
             ) : (
               <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
             )}
-            <span className="hidden sm:inline">{isAnalyzing ? 'Analyzing...' : 'Re-analyze'}</span>
+            <span className="hidden sm:inline">{isAnalyzing ? "Analyzing..." : "Re-analyze"}</span>
           </button>
 
           <button
@@ -255,7 +273,9 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
                 <p className="text-xs sm:text-sm text-gray-400 truncate">High Impact</p>
-                <p className="text-xl sm:text-2xl font-bold text-red-400 truncate">{getImpactStats().high}</p>
+                <p className="text-xl sm:text-2xl font-bold text-red-400 truncate">
+                  {getImpactStats().high}
+                </p>
               </div>
               <AlertTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-red-400 flex-shrink-0 ml-2" />
             </div>
@@ -265,7 +285,9 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
                 <p className="text-xs sm:text-sm text-gray-400 truncate">Recommendations</p>
-                <p className="text-xl sm:text-2xl font-bold text-yellow-400 truncate">{recommendations.length}</p>
+                <p className="text-xl sm:text-2xl font-bold text-yellow-400 truncate">
+                  {recommendations.length}
+                </p>
               </div>
               <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400 flex-shrink-0 ml-2" />
             </div>
@@ -296,8 +318,8 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
                 onClick={() => setSelectedCategory(category.id)}
                 className={`flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 rounded-lg whitespace-nowrap transition-colors flex-shrink-0 ${
                   selectedCategory === category.id
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                    ? "bg-purple-600 text-white"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
                 }`}
               >
                 <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -326,16 +348,22 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
                       <span className="text-xs px-2 py-1 bg-gray-800 rounded truncate">
                         {insight.category}
                       </span>
-                      <span className={`text-xs px-2 py-1 rounded truncate ${
-                        insight.impact === 'high' ? 'bg-red-800 text-red-200' :
-                        insight.impact === 'medium' ? 'bg-yellow-800 text-yellow-200' :
-                        'bg-green-800 text-green-200'
-                      }`}>
+                      <span
+                        className={`text-xs px-2 py-1 rounded truncate ${
+                          insight.impact === "high"
+                            ? "bg-red-800 text-red-200"
+                            : insight.impact === "medium"
+                              ? "bg-yellow-800 text-yellow-200"
+                              : "bg-green-800 text-green-200"
+                        }`}
+                      >
                         {insight.impact}
                       </span>
                     </div>
                   </div>
-                  <p className="text-xs sm:text-sm text-gray-300 break-words">{insight.description}</p>
+                  <p className="text-xs sm:text-sm text-gray-300 break-words">
+                    {insight.description}
+                  </p>
                 </div>
               </div>
             </div>
@@ -348,9 +376,8 @@ export function AIAnalysisPanel({ analysisData, onRecommendationsUpdate }: AIAna
             <h3 className="text-base sm:text-lg font-medium mb-2">No Insights Yet</h3>
             <p className="text-xs sm:text-sm px-4">
               {insights.length === 0
-                ? 'Run an analysis to get AI-powered insights about your file system'
-                : 'No insights found for the selected category'
-              }
+                ? "Run an analysis to get AI-powered insights about your file system"
+                : "No insights found for the selected category"}
             </p>
           </div>
         )}

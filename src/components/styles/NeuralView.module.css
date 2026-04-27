@@ -183,7 +183,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
 }
 
 .neuralTooltip {
@@ -269,7 +269,7 @@
 .neuralControlValue {
   font-size: 0.7rem;
   color: var(--text-primary);
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   text-align: center;
 }
 
@@ -279,31 +279,31 @@
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .neuralViewControls {
     justify-content: center;
   }
-  
+
   .neuralInfo {
     bottom: 0.5rem;
     left: 0.5rem;
     right: 0.5rem;
     max-width: none;
   }
-  
+
   .neuralStats {
     top: 0.5rem;
     right: 0.5rem;
     min-width: 120px;
   }
-  
+
   .neuralControlsPanel {
     top: auto;
     bottom: 0.5rem;
     left: 0.5rem;
     right: 0.5rem;
   }
-  
+
   .neuralControlSlider {
     width: 100%;
   }

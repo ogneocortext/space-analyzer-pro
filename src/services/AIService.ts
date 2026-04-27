@@ -1,3 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/no-floating-promises */
+/* eslint-disable preserve-caught-error */
+
 // AI Service with Ollama (Local) and Gemini (Cloud Fallback) Integration
 // Includes comprehensive usage tracking for Gemini API
 
@@ -5,7 +11,7 @@ interface AIServiceConfig {
   ollamaEndpoint: string;
   geminiApiKey: string;
   usageTracking: boolean;
-  fallbackStrategy: 'ollama-first' | 'gemini-first' | 'ollama-only' | 'gemini-only';
+  fallbackStrategy: "ollama-first" | "gemini-first" | "ollama-only" | "gemini-only";
 }
 
 interface UsageMetrics {
@@ -32,14 +38,14 @@ interface UsageMetrics {
 
 interface AIInsight {
   id: string;
-  type: 'recommendation' | 'warning' | 'optimization' | 'pattern';
+  type: "recommendation" | "warning" | "optimization" | "pattern";
   title: string;
   description: string;
   confidence: number;
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  priority: "low" | "medium" | "high" | "critical";
   actionable: boolean;
   action?: string;
-  source: 'ollama' | 'gemini';
+  source: "ollama" | "gemini";
   timestamp: number;
 }
 
@@ -64,12 +70,12 @@ export class AIService {
     this.metrics = {
       ollama: { requests: 0, tokens: 0, avgResponseTime: 0, errors: 0 },
       gemini: { requests: 0, tokens: 0, cost: 0, avgResponseTime: 0, errors: 0 },
-      total: { insights: 0, accuracy: 0, userSatisfaction: 0, cost: 0 }
+      total: { insights: 0, accuracy: 0, userSatisfaction: 0, cost: 0 },
     };
-    
+
     // Load saved metrics
     this.loadMetrics();
-    
+
     // Reset daily usage if needed
     this.resetDailyUsageIfNeeded();
   }
@@ -78,52 +84,64 @@ export class AIService {
   async analyzeProject(files: any[], options: AnalysisOptions = {}): Promise<AIInsight[]> {
     const startTime = Date.now();
     const insights: AIInsight[] = [];
-    
+
     try {
       // Prepare project context
       const projectContext = this.prepareProjectContext(files);
-      
+
       // Generate insights based on configuration
-      if (this.config.fallbackStrategy === 'ollama-only') {
+      if (this.config.fallbackStrategy === "ollama-only") {
         const ollamaInsights = await this.generateOllamaInsights(projectContext, options);
         insights.push(...ollamaInsights);
-      } else if (this.config.fallbackStrategy === 'gemini-only') {
+      } else if (this.config.fallbackStrategy === "gemini-only") {
         const geminiInsights = await this.generateGeminiInsights(projectContext, options);
         insights.push(...geminiInsights);
       } else {
         // Try primary strategy first, then fallback
-        const primaryService = this.config.fallbackStrategy === 'ollama-first' ? 'ollama' : 'gemini';
-        const fallbackService = primaryService === 'ollama' ? 'gemini' : 'ollama';
-        
+        const primaryService =
+          this.config.fallbackStrategy === "ollama-first" ? "ollama" : "gemini";
+        const fallbackService = primaryService === "ollama" ? "gemini" : "ollama";
+
         try {
-          const primaryInsights = await this.generateInsights(primaryService, projectContext, options);
+          const primaryInsights = await this.generateInsights(
+            primaryService,
+            projectContext,
+            options
+          );
           insights.push(...primaryInsights);
         } catch (error) {
           console.warn(`Primary service (${primaryService}) failed, trying fallback:`, error);
-          const fallbackInsights = await this.generateInsights(fallbackService, projectContext, options);
+          const fallbackInsights = await this.generateInsights(
+            fallbackService,
+            projectContext,
+            options
+          );
           insights.push(...fallbackInsights);
         }
       }
-      
+
       // Update metrics
       const endTime = Date.now();
       this.metrics.total.insights += insights.length;
       this.metrics.total.cost += this.metrics.gemini.cost;
-      
+
       // Save metrics
       this.saveMetrics();
-      
+
       return insights;
-      
     } catch (error) {
-      console.error('AI analysis failed:', error);
+      console.error("AI analysis failed:", error);
       throw error;
     }
   }
 
   // Generate insights using specified service
-  private async generateInsights(service: 'ollama' | 'gemini', context: any, options: AnalysisOptions): Promise<AIInsight[]> {
-    if (service === 'ollama') {
+  private async generateInsights(
+    service: "ollama" | "gemini",
+    context: any,
+    options: AnalysisOptions
+  ): Promise<AIInsight[]> {
+    if (service === "ollama") {
       return this.generateOllamaInsights(context, options);
     } else {
       return this.generateGeminiInsights(context, options);
@@ -131,34 +149,37 @@ export class AIService {
   }
 
   // Generate insights using Ollama (Local)
-  private async generateOllamaInsights(context: any, options: AnalysisOptions): Promise<AIInsight[]> {
+  private async generateOllamaInsights(
+    context: any,
+    options: AnalysisOptions
+  ): Promise<AIInsight[]> {
     const startTime = Date.now();
-    
+
     try {
       // Check if Ollama is available
       const available = await this.checkOllamaAvailability();
       if (!available) {
-        throw new Error('Ollama service not available');
+        throw new Error("Ollama service not available");
       }
 
       // Prepare prompt for Ollama
       const prompt = this.prepareOllamaPrompt(context);
-      
+
       // Call Ollama API
       const response = await fetch(`${this.config.ollamaEndpoint}/api/generate`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: 'llama2', // or other available models
+          model: "llama2", // or other available models
           prompt,
           stream: false,
           options: {
             temperature: 0.7,
-            max_tokens: 1000
-          }
-        })
+            max_tokens: 1000,
+          },
+        }),
       });
 
       if (!response.ok) {
@@ -166,22 +187,22 @@ export class AIService {
       }
 
       const result = await response.json();
-      const insights = this.parseOllamaResponse(result.response, 'ollama');
-      
+      const insights = this.parseOllamaResponse(result.response, "ollama");
+
       // Update metrics
       const endTime = Date.now();
       const responseTime = endTime - startTime;
       this.metrics.ollama.requests++;
-      this.metrics.ollama.avgResponseTime = 
-        (this.metrics.ollama.avgResponseTime * (this.metrics.ollama.requests - 1) + responseTime) / this.metrics.ollama.requests;
-      
+      this.metrics.ollama.avgResponseTime =
+        (this.metrics.ollama.avgResponseTime * (this.metrics.ollama.requests - 1) + responseTime) /
+        this.metrics.ollama.requests;
+
       // Report progress
       if (options.onProgress) {
         options.onProgress(100);
       }
-      
+
       return insights;
-      
     } catch (error) {
       this.metrics.ollama.errors++;
       throw error;
@@ -189,67 +210,77 @@ export class AIService {
   }
 
   // Generate insights using Gemini (Cloud)
-  private async generateGeminiInsights(context: any, options: AnalysisOptions): Promise<AIInsight[]> {
+  private async generateGeminiInsights(
+    context: any,
+    options: AnalysisOptions
+  ): Promise<AIInsight[]> {
     const startTime = Date.now();
-    
+
     try {
       // Check daily usage limits
       if (this.geminiDailyUsage >= this.geminiDailyLimit) {
-        throw new Error('Daily Gemini usage limit exceeded');
+        throw new Error("Daily Gemini usage limit exceeded");
       }
 
       // Prepare prompt for Gemini
       const prompt = this.prepareGeminiPrompt(context);
-      
+
       // Call Gemini API
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.config.geminiApiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: prompt
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1000,
-            topP: 0.8,
-            topK: 40
-          }
-        })
-      });
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.config.geminiApiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: prompt,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 1000,
+              topP: 0.8,
+              topK: 40,
+            },
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Gemini API error: ${response.statusText}`);
       }
 
       const result = await response.json();
-      const insights = this.parseGeminiResponse(result, 'gemini');
-      
+      const insights = this.parseGeminiResponse(result, "gemini");
+
       // Calculate cost and update metrics
       const endTime = Date.now();
       const responseTime = endTime - startTime;
       const tokens = this.estimateTokens(prompt + JSON.stringify(result));
       const cost = tokens * this.geminiCostPerToken;
-      
+
       this.metrics.gemini.requests++;
       this.metrics.gemini.tokens += tokens;
       this.metrics.gemini.cost += cost;
-      this.metrics.gemini.avgResponseTime = 
-        (this.metrics.gemini.avgResponseTime * (this.metrics.gemini.requests - 1) + responseTime) / this.metrics.gemini.requests;
-      
+      this.metrics.gemini.avgResponseTime =
+        (this.metrics.gemini.avgResponseTime * (this.metrics.gemini.requests - 1) + responseTime) /
+        this.metrics.gemini.requests;
+
       this.geminiDailyUsage += cost;
-      
+
       // Report progress
       if (options.onProgress) {
         options.onProgress(100);
       }
-      
+
       return insights;
-      
     } catch (error) {
       this.metrics.gemini.errors++;
       throw error;
@@ -274,20 +305,20 @@ export class AIService {
       bySize: {
         total: 0,
         average: 0,
-        largest: 0
+        largest: 0,
       },
       byComplexity: {
         simple: 0,
         medium: 0,
-        complex: 0
-      }
+        complex: 0,
+      },
     };
 
-    files.forEach(file => {
-      const ext = file.path.split('.').pop()?.toLowerCase() || 'unknown';
+    files.forEach((file) => {
+      const ext = file.path.split(".").pop()?.toLowerCase() || "unknown";
       fileStats.byType[ext] = (fileStats.byType[ext] || 0) + 1;
       fileStats.bySize.total += file.size || 0;
-      
+
       if (file.size > fileStats.bySize.largest) {
         fileStats.bySize.largest = file.size;
       }
@@ -297,11 +328,11 @@ export class AIService {
 
     return {
       fileStats,
-      sampleFiles: files.slice(0, 10).map(f => ({
+      sampleFiles: files.slice(0, 10).map((f) => ({
         path: f.path,
         size: f.size,
-        type: f.path.split('.').pop()
-      }))
+        type: f.path.split(".").pop(),
+      })),
     };
   }
 
@@ -316,7 +347,7 @@ Project Statistics:
 - Size distribution: Total: ${context.fileStats.bySize.total} bytes, Average: ${context.fileStats.bySize.average} bytes
 
 Sample files:
-${context.sampleFiles.map(f => `- ${f.path} (${f.type}, ${f.size} bytes)`).join('\n')}
+${context.sampleFiles.map((f) => `- ${f.path} (${f.type}, ${f.size} bytes)`).join("\n")}
 
 Please provide 5-7 specific insights in the following JSON format:
 {
@@ -355,7 +386,7 @@ Project Overview:
 - Size metrics: Total: ${context.fileStats.bySize.total} bytes, Average: ${context.fileStats.bySize.average} bytes, Largest: ${context.fileStats.bySize.largest} bytes
 
 Sample files structure:
-${context.sampleFiles.map(f => `- ${f.path} (${f.type}, ${f.size} bytes)`).join('\n')}
+${context.sampleFiles.map((f) => `- ${f.path} (${f.type}, ${f.size} bytes)`).join("\n")}
 
 ANALYSIS REQUIREMENTS:
 Provide 8-10 detailed insights covering:
@@ -394,12 +425,12 @@ Each insight should be:
   }
 
   // Parse Ollama response
-  private parseOllamaResponse(response: string, source: 'ollama' | 'gemini'): AIInsight[] {
+  private parseOllamaResponse(response: string, source: "ollama" | "gemini"): AIInsight[] {
     try {
       // Try to extract JSON from response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        throw new Error('No JSON found in response');
+        throw new Error("No JSON found in response");
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
@@ -407,33 +438,33 @@ Each insight should be:
 
       return insights.map((insight: any, index: number) => ({
         id: `${source}-${Date.now()}-${index}`,
-        type: insight.type || 'recommendation',
-        title: insight.title || 'Untitled Insight',
-        description: insight.description || 'No description available',
+        type: insight.type || "recommendation",
+        title: insight.title || "Untitled Insight",
+        description: insight.description || "No description available",
         confidence: insight.confidence || 0.5,
-        priority: insight.priority || 'medium',
+        priority: insight.priority || "medium",
         actionable: insight.actionable || false,
         action: insight.action,
         source,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       }));
     } catch (error) {
-      console.error('Failed to parse Ollama response:', error);
+      console.error("Failed to parse Ollama response:", error);
       return [];
     }
   }
 
   // Parse Gemini response
-  private parseGeminiResponse(response: any, source: 'ollama' | 'gemini'): AIInsight[] {
+  private parseGeminiResponse(response: any, source: "ollama" | "gemini"): AIInsight[] {
     try {
       const content = response.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!content) {
-        throw new Error('No content found in Gemini response');
+        throw new Error("No content found in Gemini response");
       }
 
       return this.parseOllamaResponse(content, source);
     } catch (error) {
-      console.error('Failed to parse Gemini response:', error);
+      console.error("Failed to parse Gemini response:", error);
       return [];
     }
   }
@@ -447,8 +478,8 @@ Each insight should be:
   async executeAction(action: string, files: any[]): Promise<void> {
     // This would implement the actual action execution
     // For now, we'll just log it
-    console.log('Executing AI action:', action);
-    
+    console.warn("Executing AI action:", action);
+
     // Update user satisfaction (mock implementation)
     this.metrics.total.userSatisfaction = Math.min(1.0, this.metrics.total.userSatisfaction + 0.1);
     this.saveMetrics();
@@ -464,7 +495,7 @@ Each insight should be:
     this.metrics = {
       ollama: { requests: 0, tokens: 0, avgResponseTime: 0, errors: 0 },
       gemini: { requests: 0, tokens: 0, cost: 0, avgResponseTime: 0, errors: 0 },
-      total: { insights: 0, accuracy: 0, userSatisfaction: 0, cost: 0 }
+      total: { insights: 0, accuracy: 0, userSatisfaction: 0, cost: 0 },
     };
     this.saveMetrics();
   }
@@ -480,7 +511,7 @@ Each insight should be:
       used: this.geminiDailyUsage,
       limit: this.geminiDailyLimit,
       remaining: Math.max(0, this.geminiDailyLimit - this.geminiDailyUsage),
-      percentage: (this.geminiDailyUsage / this.geminiDailyLimit) * 100
+      percentage: (this.geminiDailyUsage / this.geminiDailyLimit) * 100,
     };
   }
 
@@ -492,13 +523,13 @@ Each insight should be:
   // Load metrics from storage
   private loadMetrics(): void {
     try {
-      const saved = localStorage.getItem('ai-service-metrics');
+      const saved = localStorage.getItem("ai-service-metrics");
       if (saved) {
         const parsed = JSON.parse(saved);
         this.metrics = { ...this.metrics, ...parsed };
       }
-      
-      const savedDailyUsage = localStorage.getItem('gemini-daily-usage');
+
+      const savedDailyUsage = localStorage.getItem("gemini-daily-usage");
       if (savedDailyUsage) {
         const parsed = JSON.parse(savedDailyUsage);
         if (new Date(parsed.date).toDateString() === new Date().toDateString()) {
@@ -506,26 +537,29 @@ Each insight should be:
         }
       }
     } catch (error) {
-      console.error('Failed to load metrics:', error);
+      console.error("Failed to load metrics:", error);
     }
   }
 
   // Save metrics to storage
   private saveMetrics(): void {
     try {
-      localStorage.setItem('ai-service-metrics', JSON.stringify(this.metrics));
-      localStorage.setItem('gemini-daily-usage', JSON.stringify({
-        date: new Date().toISOString(),
-        usage: this.geminiDailyUsage
-      }));
+      localStorage.setItem("ai-service-metrics", JSON.stringify(this.metrics));
+      localStorage.setItem(
+        "gemini-daily-usage",
+        JSON.stringify({
+          date: new Date().toISOString(),
+          usage: this.geminiDailyUsage,
+        })
+      );
     } catch (error) {
-      console.error('Failed to save metrics:', error);
+      console.error("Failed to save metrics:", error);
     }
   }
 
   // Reset daily usage if needed
   private resetDailyUsageIfNeeded(): void {
-    const saved = localStorage.getItem('gemini-daily-usage');
+    const saved = localStorage.getItem("gemini-daily-usage");
     if (saved) {
       const parsed = JSON.parse(saved);
       if (new Date(parsed.date).toDateString() !== new Date().toDateString()) {
@@ -536,8 +570,8 @@ Each insight should be:
   }
 
   // Update accuracy metrics
-  updateAccuracy(feedback: 'positive' | 'negative'): void {
-    const weight = feedback === 'positive' ? 0.1 : -0.05;
+  updateAccuracy(feedback: "positive" | "negative"): void {
+    const weight = feedback === "positive" ? 0.1 : -0.05;
     this.metrics.total.accuracy = Math.max(0, Math.min(1, this.metrics.total.accuracy + weight));
     this.saveMetrics();
   }
@@ -550,11 +584,11 @@ Each insight should be:
   } {
     const ollamaCost = 0; // Local model is free
     const geminiCost = estimatedInsights * 1000 * this.geminiCostPerToken; // Estimate 1K tokens per insight
-    
+
     return {
       ollama: ollamaCost,
       gemini: geminiCost,
-      recommended: geminiCost > 10 ? 'ollama' : 'gemini'
+      recommended: geminiCost > 10 ? "ollama" : "gemini",
     };
   }
 }

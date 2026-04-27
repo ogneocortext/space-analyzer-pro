@@ -9,7 +9,7 @@ export interface EnhancedFileAnalysis {
   name: string;
   path: string;
   size: number;
-  type: 'file' | 'directory';
+  type: "file" | "directory";
   extension?: string;
   mimeType?: string;
   lastModified: Date;
@@ -49,7 +49,7 @@ export interface FileCategory {
 }
 
 export interface SecurityAnalysis {
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  riskLevel: "low" | "medium" | "high" | "critical";
   vulnerabilities: SecurityVulnerability[];
   recommendations: string[];
   score: number; // 0-100
@@ -57,8 +57,8 @@ export interface SecurityAnalysis {
 
 export interface SecurityVulnerability {
   id: string;
-  type: 'injection' | 'xss' | 'path-traversal' | 'code-execution' | 'other';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type: "injection" | "xss" | "path-traversal" | "code-execution" | "other";
+  severity: "low" | "medium" | "high" | "critical";
   description: string;
   location?: {
     file: string;
@@ -77,8 +77,8 @@ export interface OptimizationSuggestions {
 
 export interface PerformanceOptimization {
   id: string;
-  type: 'caching' | 'lazy-loading' | 'code-splitting' | 'compression' | 'other';
-  impact: 'low' | 'medium' | 'high';
+  type: "caching" | "lazy-loading" | "code-splitting" | "compression" | "other";
+  impact: "low" | "medium" | "high";
   description: string;
   estimatedGain?: string;
   implementation?: string;
@@ -86,16 +86,16 @@ export interface PerformanceOptimization {
 
 export interface SecurityOptimization {
   id: string;
-  type: 'input-validation' | 'authentication' | 'authorization' | 'encryption' | 'other';
-  impact: 'low' | 'medium' | 'high';
+  type: "input-validation" | "authentication" | "authorization" | "encryption" | "other";
+  impact: "low" | "medium" | "high";
   description: string;
   implementation?: string;
 }
 
 export interface StorageOptimization {
   id: string;
-  type: 'compression' | 'deduplication' | 'archival' | 'cleanup' | 'other';
-  impact: 'low' | 'medium' | 'high';
+  type: "compression" | "deduplication" | "archival" | "cleanup" | "other";
+  impact: "low" | "medium" | "high";
   description: string;
   estimatedSpaceSaved?: string;
 }
@@ -112,7 +112,7 @@ export interface DuplicateInfo {
 export interface EnhancedAnalysisResult {
   id: string;
   timestamp: Date;
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
   progress: {
     percentage: number;
     currentFile?: string;
@@ -132,7 +132,7 @@ export interface AnalysisStage {
   name: string;
   description: string;
   progress: number;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: "pending" | "running" | "completed" | "failed";
 }
 
 export interface AnalysisSummary {
@@ -174,7 +174,7 @@ export interface DependencyNode {
   id: string;
   name: string;
   path: string;
-  type: 'file' | 'package' | 'module';
+  type: "file" | "package" | "module";
   language: string;
   size: number;
   complexity?: number;
@@ -184,14 +184,14 @@ export interface DependencyNode {
 export interface DependencyEdge {
   from: string;
   to: string;
-  type: 'import' | 'require' | 'dynamic-import' | 'other';
+  type: "import" | "require" | "dynamic-import" | "other";
   strength: number; // 0-1
   line?: number;
 }
 
 export interface CircularDependency {
   cycle: string[];
-  severity: 'low' | 'medium' | 'high';
+  severity: "low" | "medium" | "high";
   description: string;
   impact: string;
 }
@@ -199,7 +199,7 @@ export interface CircularDependency {
 export interface MissingDependency {
   dependency: string;
   requiredBy: string[];
-  type: 'npm' | 'python' | 'system' | 'other';
+  type: "npm" | "python" | "system" | "other";
   version?: string;
 }
 
@@ -224,7 +224,7 @@ export interface CodeQualityMetrics {
 export interface CodePattern {
   id: string;
   name: string;
-  type: 'design-pattern' | 'anti-pattern' | 'idiom' | 'best-practice';
+  type: "design-pattern" | "anti-pattern" | "idiom" | "best-practice";
   description: string;
   locations: Array<{
     file: string;
@@ -236,9 +236,9 @@ export interface CodePattern {
 
 export interface CodeAnomaly {
   id: string;
-  type: 'dead-code' | 'unused-variable' | 'inconsistent-style' | 'potential-bug' | 'other';
+  type: "dead-code" | "unused-variable" | "inconsistent-style" | "potential-bug" | "other";
   description: string;
-  severity: 'low' | 'medium' | 'high';
+  severity: "low" | "medium" | "high";
   locations: Array<{
     file: string;
     line?: number;
@@ -251,10 +251,10 @@ export interface Recommendation {
   id: string;
   title: string;
   description: string;
-  category: 'performance' | 'security' | 'storage' | 'maintainability' | 'other';
-  impact: 'low' | 'medium' | 'high';
+  category: "performance" | "security" | "storage" | "maintainability" | "other";
+  impact: "low" | "medium" | "high";
   priority: number; // 1-10
-  effort: 'low' | 'medium' | 'high';
+  effort: "low" | "medium" | "high";
   implementation?: string;
   estimatedBenefit?: string;
   dependencies?: string[];
@@ -283,21 +283,21 @@ export interface EnhancedComponentProps {
   children?: React.ReactNode;
   style?: React.CSSProperties;
   testId?: string;
-  'aria-label'?: string;
-  'aria-describedby'?: string;
-  'aria-labelledby'?: string;
+  "aria-label"?: string;
+  "aria-describedby"?: string;
+  "aria-labelledby"?: string;
 }
 
 // Enhanced Event Types
 export interface EnhancedFileEvent {
-  type: 'select' | 'upload' | 'delete' | 'move' | 'rename' | 'analyze';
+  type: "select" | "upload" | "delete" | "move" | "rename" | "analyze";
   file: EnhancedFileAnalysis;
   timestamp: Date;
   metadata?: Record<string, any>;
 }
 
 export interface EnhancedAnalysisEvent {
-  type: 'start' | 'progress' | 'complete' | 'error' | 'cancel';
+  type: "start" | "progress" | "complete" | "error" | "cancel";
   analysisId: string;
   progress?: number;
   stage?: string;
@@ -316,7 +316,7 @@ export type OptimizedCallback<T extends any[] = []> = (...args: T) => void;
 // Enhanced Error Types
 export interface EnhancedError extends Error {
   code: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  severity: "low" | "medium" | "high" | "critical";
   context?: Record<string, any>;
   timestamp: Date;
   recoverable: boolean;
@@ -346,6 +346,6 @@ export interface EnhancedConfig {
   security: {
     enableScanning: boolean;
     strictMode: boolean;
-    reportLevel: 'all' | 'warnings' | 'errors';
+    reportLevel: "all" | "warnings" | "errors";
   };
 }

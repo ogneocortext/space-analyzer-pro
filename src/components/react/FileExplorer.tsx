@@ -1,30 +1,30 @@
-import React, { useState, useMemo, FC, useCallback, memo } from 'react';
-import { FileExplorerControls } from './FileExplorerControls';
-import { FileExplorerList } from './FileExplorerList';
-import { FileExplorerPagination } from './FileExplorerPagination';
-import { buildFileTree, filterAndSortFiles, useDebouncedValue } from '../utils/fileUtils';
-import { AnalysisBridge } from '../services/AnalysisBridge';
+import React, { useState, useMemo, FC, useCallback, memo } from "react";
+import { FileExplorerControls } from "./FileExplorerControls";
+import { FileExplorerList } from "./FileExplorerList";
+import { FileExplorerPagination } from "./FileExplorerPagination";
+import { buildFileTree, filterAndSortFiles, useDebouncedValue } from "../utils/fileUtils";
+import { AnalysisBridge } from "../services/AnalysisBridge";
 
 // Sort type constants
 export const SORT_TYPES = {
-  NAME: 'name',
-  SIZE: 'size',
-  CATEGORY: 'category'
+  NAME: "name",
+  SIZE: "size",
+  CATEGORY: "category",
 } as const;
 
-export type SortTypeType = typeof SORT_TYPES[keyof typeof SORT_TYPES];
+export type SortTypeType = (typeof SORT_TYPES)[keyof typeof SORT_TYPES];
 
 // File category constants
 export const FILE_CATEGORIES = {
-  ALL: 'All',
-  DOCUMENTS: 'Documents',
-  IMAGES: 'Images',
-  VIDEOS: 'Videos',
-  AUDIO: 'Audio',
-  CODE: 'Code'
+  ALL: "All",
+  DOCUMENTS: "Documents",
+  IMAGES: "Images",
+  VIDEOS: "Videos",
+  AUDIO: "Audio",
+  CODE: "Code",
 } as const;
 
-export type FileCategoryType = typeof FILE_CATEGORIES[keyof typeof FILE_CATEGORIES];
+export type FileCategoryType = (typeof FILE_CATEGORIES)[keyof typeof FILE_CATEGORIES];
 
 interface FileExplorerProps {
   result: any;
@@ -32,7 +32,7 @@ interface FileExplorerProps {
 }
 
 const FileExplorer: FC<FileExplorerProps> = memo(({ result, onFolderSelect }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<FileCategoryType>(FILE_CATEGORIES.ALL);
   const [sortBy, setSortBy] = useState<SortTypeType>(SORT_TYPES.NAME);
   const [currentPage, setCurrentPage] = useState(1);
@@ -51,7 +51,12 @@ const FileExplorer: FC<FileExplorerProps> = memo(({ result, onFolderSelect }) =>
   const { filteredFiles, totalFilteredCount } = useMemo(() => {
     if (!result?.files) return { filteredFiles: [], totalFilteredCount: 0 };
 
-    const filtered = filterAndSortFiles(result.files, debouncedSearchTerm, selectedCategory, sortBy);
+    const filtered = filterAndSortFiles(
+      result.files,
+      debouncedSearchTerm,
+      selectedCategory,
+      sortBy
+    );
     const totalFilteredCount = filtered.length;
     const startIndex = (currentPage - 1) * itemsPerPage;
     const paginatedFiles = filtered.slice(startIndex, startIndex + itemsPerPage);
@@ -63,8 +68,8 @@ const FileExplorer: FC<FileExplorerProps> = memo(({ result, onFolderSelect }) =>
 
   // Memoized categories list
   const categories = useMemo(() => {
-    if (!result?.categories) return ['All'];
-    return ['All', ...Object.keys(result.categories)];
+    if (!result?.categories) return ["All"];
+    return ["All", ...Object.keys(result.categories)];
   }, [result]);
 
   // Event handlers
@@ -89,27 +94,30 @@ const FileExplorer: FC<FileExplorerProps> = memo(({ result, onFolderSelect }) =>
 
   const handleFileClick = useCallback((file: any) => {
     // Handle file click - could open file details or preview
-    console.log('File clicked:', file);
+    console.log("File clicked:", file);
   }, []);
 
-  const handleFolderSelect = useCallback(async (path: string) => {
-    if (!path) return;
+  const handleFolderSelect = useCallback(
+    async (path: string) => {
+      if (!path) return;
 
-    setIsSelectingFolder(true);
-    
-    try {
-      console.log('Selected folder path:', path);
-      
-      // Call the parent callback if provided
-      if (onFolderSelect) {
-        onFolderSelect(path);
+      setIsSelectingFolder(true);
+
+      try {
+        console.log("Selected folder path:", path);
+
+        // Call the parent callback if provided
+        if (onFolderSelect) {
+          onFolderSelect(path);
+        }
+      } catch (error) {
+        console.error("Error handling folder selection:", error);
+      } finally {
+        setIsSelectingFolder(false);
       }
-    } catch (error) {
-      console.error('Error handling folder selection:', error);
-    } finally {
-      setIsSelectingFolder(false);
-    }
-  }, [onFolderSelect]);
+    },
+    [onFolderSelect]
+  );
 
   return (
     <div className="space-y-6">

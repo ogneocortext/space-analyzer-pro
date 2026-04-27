@@ -18,7 +18,7 @@ export interface FileData {
   modified?: string;
   created?: string;
   accessed?: string;
-  type?: 'file' | 'directory';
+  type?: "file" | "directory";
 }
 
 export interface CategoryData {

@@ -82,7 +82,7 @@
   .searchContainer {
     max-width: 100%;
   }
-  
+
   .searchInput {
     font-size: var(--font-size-sm);
   }
@@ -92,7 +92,7 @@
   .searchContainer {
     margin-bottom: var(--spacing-md);
   }
-  
+
   .searchInput::placeholder {
     font-size: var(--font-size-sm);
   }

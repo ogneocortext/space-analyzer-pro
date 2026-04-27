@@ -1,6 +1,6 @@
 // Additional type definitions for Space Analyzer
 export interface PredictiveInsight {
-  type: 'growth' | 'cleanup' | 'organization' | 'security';
+  type: "growth" | "cleanup" | "organization" | "security";
   prediction: string;
   confidence: number;
   timeframe: string;
@@ -12,10 +12,10 @@ export interface PredictiveInsight {
     dataPoints: {
       label: string;
       value: string;
-      impact: 'high' | 'medium' | 'low';
+      impact: "high" | "medium" | "low";
     }[];
     trendAnalysis: {
-      direction: 'increasing' | 'decreasing' | 'stable';
+      direction: "increasing" | "decreasing" | "stable";
       rate: string;
       duration: string;
     };
@@ -33,14 +33,14 @@ export interface AnalysisHistory {
 
 export interface FileChange {
   path: string;
-  type: 'added' | 'deleted' | 'modified';
+  type: "added" | "deleted" | "modified";
   timestamp: number;
   size?: number;
   category?: string;
 }
 
 export interface FilePattern {
-  type: 'growth' | 'seasonal' | 'weekly' | 'daily';
+  type: "growth" | "seasonal" | "weekly" | "daily";
   description: string;
   confidence: number;
   data: any;

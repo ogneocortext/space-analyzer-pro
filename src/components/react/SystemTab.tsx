@@ -1,22 +1,22 @@
-import React, { useState, useEffect, useMemo, FC } from 'react';
-import { 
-  Monitor, 
-  Cpu, 
-  HardDrive, 
+import React, { useState, useEffect, useMemo, FC } from "react";
+import {
+  Monitor,
+  Cpu,
+  HardDrive,
   Database, // Changed from Memory to Database
-  Wifi, 
-  Activity, 
-  Zap, 
-  AlertTriangle, 
-  CheckCircle, 
-  TrendingUp, 
-  TrendingDown, 
-  Server, 
+  Wifi,
+  Activity,
+  Zap,
+  AlertTriangle,
+  CheckCircle,
+  TrendingUp,
+  TrendingDown,
+  Server,
   Thermometer,
   Battery,
   Settings,
-  RefreshCw
-} from 'lucide-react';
+  RefreshCw,
+} from "lucide-react";
 
 interface SystemMetrics {
   cpu: {
@@ -37,7 +37,7 @@ interface SystemMetrics {
     percentage: number;
   };
   network: {
-    status: 'connected' | 'disconnected' | 'poor';
+    status: "connected" | "disconnected" | "poor";
     speed: number;
     latency: number;
   };
@@ -54,7 +54,9 @@ interface SystemTabProps {
 
 export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedMetric, setSelectedMetric] = useState<'overview' | 'cpu' | 'memory' | 'storage' | 'network' | 'performance'>('overview');
+  const [selectedMetric, setSelectedMetric] = useState<
+    "overview" | "cpu" | "memory" | "storage" | "network" | "performance"
+  >("overview");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(5000);
 
@@ -63,30 +65,30 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
     cpu: {
       usage: 45,
       cores: 8,
-      temperature: 65
+      temperature: 65,
     },
     memory: {
       total: 16384,
       used: 8192,
       available: 8192,
-      percentage: 50
+      percentage: 50,
     },
     storage: {
       total: 1024 * 1024, // 1TB
       used: 512 * 1024, // 512GB
       available: 512 * 1024, // 512GB
-      percentage: 50
+      percentage: 50,
     },
     network: {
-      status: 'connected',
+      status: "connected",
       speed: 1000, // Mbps
-      latency: 12 // ms
+      latency: 12, // ms
     },
     performance: {
       score: 85,
       uptime: 72, // hours
-      processes: 127
-    }
+      processes: 127,
+    },
   });
 
   // Auto-refresh effect
@@ -95,20 +97,23 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
 
     const interval = setInterval(() => {
       // Simulate system metrics updates
-      setSystemMetrics(prev => ({
+      setSystemMetrics((prev) => ({
         ...prev,
         cpu: {
           ...prev.cpu,
-          usage: Math.max(0, Math.min(100, prev.cpu.usage + (Math.random() - 0.5) * 10))
+          usage: Math.max(0, Math.min(100, prev.cpu.usage + (Math.random() - 0.5) * 10)),
         },
         memory: {
           ...prev.memory,
-          used: Math.max(0, Math.min(prev.memory.total, prev.memory.used + (Math.random() - 0.5) * 100))
+          used: Math.max(
+            0,
+            Math.min(prev.memory.total, prev.memory.used + (Math.random() - 0.5) * 100)
+          ),
         },
         performance: {
           ...prev.performance,
-          score: Math.max(0, Math.min(100, prev.performance.score + (Math.random() - 0.5) * 5))
-        }
+          score: Math.max(0, Math.min(100, prev.performance.score + (Math.random() - 0.5) * 5)),
+        },
       }));
     }, refreshInterval);
 
@@ -120,23 +125,23 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
     setIsRefreshing(true);
     try {
       // Simulate API call to get fresh system metrics
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setSystemMetrics(prev => ({
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      setSystemMetrics((prev) => ({
         ...prev,
         cpu: {
           ...prev.cpu,
           usage: Math.random() * 100,
-          temperature: 60 + Math.random() * 20
+          temperature: 60 + Math.random() * 20,
         },
         memory: {
           ...prev.memory,
           used: Math.random() * prev.memory.total,
-          percentage: Math.random() * 100
-        }
+          percentage: Math.random() * 100,
+        },
       }));
     } catch (error) {
-      console.error('Failed to refresh system metrics:', error);
+      console.error("Failed to refresh system metrics:", error);
     } finally {
       setIsRefreshing(false);
     }
@@ -144,63 +149,79 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
 
   // Format bytes to readable size
   const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
     const m = k * 1024;
     const g = m * 1024;
     if (bytes >= g) {
-      return (bytes / g).toFixed(2) + ' GB';
+      return (bytes / g).toFixed(2) + " GB";
     } else if (bytes >= m) {
-      return (bytes / m).toFixed(2) + ' MB';
+      return (bytes / m).toFixed(2) + " MB";
     } else {
-      return (bytes / k).toFixed(2) + ' KB';
+      return (bytes / k).toFixed(2) + " KB";
     }
   };
 
   // Get status class based on value
-  const getStatusClass = (value: number, thresholds: { good: number; warning: number; critical: number }) => {
-    if (value <= thresholds.good) return 'good';
-    if (value <= thresholds.warning) return 'warning';
-    return 'critical';
+  const getStatusClass = (
+    value: number,
+    thresholds: { good: number; warning: number; critical: number }
+  ) => {
+    if (value <= thresholds.good) return "good";
+    if (value <= thresholds.warning) return "warning";
+    return "critical";
   };
 
   // Get status color based on value (for backward compatibility)
-  const getStatusColor = (value: number, thresholds: { good: number; warning: number; critical: number }) => {
-    if (value <= thresholds.good) return '#22c55e';
-    if (value <= thresholds.warning) return '#f59e0b';
-    return '#ef4444';
+  const getStatusColor = (
+    value: number,
+    thresholds: { good: number; warning: number; critical: number }
+  ) => {
+    if (value <= thresholds.good) return "#22c55e";
+    if (value <= thresholds.warning) return "#f59e0b";
+    return "#ef4444";
   };
 
   // CPU status
   const getCpuStatus = (usage: number) => {
-    if (usage < 50) return { status: 'Good', color: '#22c55e', class: 'good', icon: CheckCircle };
-    if (usage < 80) return { status: 'Moderate', color: '#f59e0b', class: 'warning', icon: Activity };
-    return { status: 'High', color: '#ef4444', class: 'critical', icon: AlertTriangle };
+    if (usage < 50) return { status: "Good", color: "#22c55e", class: "good", icon: CheckCircle };
+    if (usage < 80)
+      return { status: "Moderate", color: "#f59e0b", class: "warning", icon: Activity };
+    return { status: "High", color: "#ef4444", class: "critical", icon: AlertTriangle };
   };
 
   // Memory status
   const getMemoryStatus = (percentage: number) => {
-    if (percentage < 70) return { status: 'Good', color: '#22c55e', class: 'good', icon: CheckCircle };
-    if (percentage < 85) return { status: 'Moderate', color: '#f59e0b', class: 'warning', icon: Activity };
-    return { status: 'High', color: '#ef4444', class: 'critical', icon: AlertTriangle };
+    if (percentage < 70)
+      return { status: "Good", color: "#22c55e", class: "good", icon: CheckCircle };
+    if (percentage < 85)
+      return { status: "Moderate", color: "#f59e0b", class: "warning", icon: Activity };
+    return { status: "High", color: "#ef4444", class: "critical", icon: AlertTriangle };
   };
 
   // Storage status
   const getStorageStatus = (percentage: number) => {
-    if (percentage < 70) return { status: 'Good', color: '#22c55e', class: 'good', icon: CheckCircle };
-    if (percentage < 85) return { status: 'Moderate', color: '#f59e0b', class: 'warning', icon: Activity };
-    return { status: 'High', color: '#ef4444', class: 'critical', icon: AlertTriangle };
+    if (percentage < 70)
+      return { status: "Good", color: "#22c55e", class: "good", icon: CheckCircle };
+    if (percentage < 85)
+      return { status: "Moderate", color: "#f59e0b", class: "warning", icon: Activity };
+    return { status: "High", color: "#ef4444", class: "critical", icon: AlertTriangle };
   };
 
   // Network status
   const getNetworkStatus = (status: string, speed: number) => {
     switch (status) {
-      case 'connected':
-        return { status: 'Connected', color: '#22c55e', class: 'good', icon: CheckCircle };
-      case 'poor':
-        return { status: 'Poor Connection', color: '#ef4444', class: 'critical', icon: AlertTriangle };
+      case "connected":
+        return { status: "Connected", color: "#22c55e", class: "good", icon: CheckCircle };
+      case "poor":
+        return {
+          status: "Poor Connection",
+          color: "#ef4444",
+          class: "critical",
+          icon: AlertTriangle,
+        };
       default:
-        return { status: 'Disconnected', color: '#6b7280', class: 'warning', icon: Wifi };
+        return { status: "Disconnected", color: "#6b7280", class: "warning", icon: Wifi };
     }
   };
 
@@ -216,9 +237,7 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
             <div className={`value-display cpu-${getCpuStatus(systemMetrics.cpu.usage).class}`}>
               {systemMetrics.cpu.usage.toFixed(1)}%
             </div>
-            <div className="value-label">
-              {getCpuStatus(systemMetrics.cpu.usage).status}
-            </div>
+            <div className="value-label">{getCpuStatus(systemMetrics.cpu.usage).status}</div>
           </div>
           <div className="metric-details">
             <div className="detail-item">
@@ -238,7 +257,9 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
             <span className="metric-title">Memory</span>
           </div>
           <div className="metric-value">
-            <div className={`value-display memory-${getMemoryStatus(systemMetrics.memory.percentage).class}`}>
+            <div
+              className={`value-display memory-${getMemoryStatus(systemMetrics.memory.percentage).class}`}
+            >
               {systemMetrics.memory.percentage.toFixed(1)}%
             </div>
             <div className="value-label">
@@ -263,7 +284,9 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
             <span className="metric-title">Storage</span>
           </div>
           <div className="metric-value">
-            <div className={`value-display storage-${getStorageStatus(systemMetrics.storage.percentage).class}`}>
+            <div
+              className={`value-display storage-${getStorageStatus(systemMetrics.storage.percentage).class}`}
+            >
               {systemMetrics.storage.percentage.toFixed(1)}%
             </div>
             <div className="value-label">
@@ -288,12 +311,12 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
             <span className="metric-title">Network</span>
           </div>
           <div className="metric-value">
-            <div className={`value-display network-${getNetworkStatus(systemMetrics.network.status, systemMetrics.network.speed).class}`}>
+            <div
+              className={`value-display network-${getNetworkStatus(systemMetrics.network.status, systemMetrics.network.speed).class}`}
+            >
               {systemMetrics.network.status}
             </div>
-            <div className="value-label">
-              {systemMetrics.network.speed} Mbps
-            </div>
+            <div className="value-label">{systemMetrics.network.speed} Mbps</div>
           </div>
           <div className="metric-details">
             <div className="detail-item">
@@ -309,7 +332,9 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
             <span className="metric-title">Performance</span>
           </div>
           <div className="metric-value">
-            <div className={`value-display performance-${getStatusClass(systemMetrics.performance.score, { good: 80, warning: 60, critical: 40 })}`}>
+            <div
+              className={`value-display performance-${getStatusClass(systemMetrics.performance.score, { good: 80, warning: 60, critical: 40 })}`}
+            >
               {systemMetrics.performance.score.toFixed(0)}
             </div>
             <div className="value-label">Score</div>
@@ -331,7 +356,7 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
 
   const renderDetailed = () => {
     switch (selectedMetric) {
-      case 'cpu':
+      case "cpu":
         return (
           <div className="detailed-metric">
             <div className="detailed-header">
@@ -340,13 +365,17 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
             </div>
             <div className="cpu-chart">
               <div className="cpu-visualization">
-                <div 
-                  className={`cpu-bar usage`} 
-                  style={{ '--cpu-usage': `${systemMetrics.cpu.usage}%` } as React.CSSProperties}
+                <div
+                  className={`cpu-bar usage`}
+                  style={{ "--cpu-usage": `${systemMetrics.cpu.usage}%` } as React.CSSProperties}
                 ></div>
-                <div 
-                  className={`cpu-temperature ${systemMetrics.cpu.temperature > 70 ? 'high' : 'normal'}`} 
-                  style={{ '--cpu-temp-position': `${Math.min(systemMetrics.cpu.temperature, 100)}%` } as React.CSSProperties}
+                <div
+                  className={`cpu-temperature ${systemMetrics.cpu.temperature > 70 ? "high" : "normal"}`}
+                  style={
+                    {
+                      "--cpu-temp-position": `${Math.min(systemMetrics.cpu.temperature, 100)}%`,
+                    } as React.CSSProperties
+                  }
                 ></div>
               </div>
               <div className="cpu-legend">
@@ -377,7 +406,7 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
           </div>
         );
 
-      case 'memory':
+      case "memory":
         return (
           <div className="detailed-metric">
             <div className="detailed-header">
@@ -386,13 +415,21 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
             </div>
             <div className="memory-chart">
               <div className="memory-visualization">
-                <div 
-                  className="memory-bar used" 
-                  style={{ '--memory-used': `${systemMetrics.memory.percentage}%` } as React.CSSProperties}
+                <div
+                  className="memory-bar used"
+                  style={
+                    {
+                      "--memory-used": `${systemMetrics.memory.percentage}%`,
+                    } as React.CSSProperties
+                  }
                 ></div>
-                <div 
-                  className="memory-bar available" 
-                  style={{ '--memory-available': `${100 - systemMetrics.memory.percentage}%` } as React.CSSProperties}
+                <div
+                  className="memory-bar available"
+                  style={
+                    {
+                      "--memory-available": `${100 - systemMetrics.memory.percentage}%`,
+                    } as React.CSSProperties
+                  }
                 ></div>
               </div>
               <div className="memory-legend">
@@ -427,7 +464,7 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
           </div>
         );
 
-      case 'storage':
+      case "storage":
         return (
           <div className="detailed-metric">
             <div className="detailed-header">
@@ -436,13 +473,21 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
             </div>
             <div className="storage-chart">
               <div className="storage-visualization">
-                <div 
-                  className="storage-bar used" 
-                  style={{ '--storage-used': `${systemMetrics.storage.percentage}%` } as React.CSSProperties}
+                <div
+                  className="storage-bar used"
+                  style={
+                    {
+                      "--storage-used": `${systemMetrics.storage.percentage}%`,
+                    } as React.CSSProperties
+                  }
                 ></div>
-                <div 
-                  className="storage-bar available" 
-                  style={{ '--storage-available': `${100 - systemMetrics.storage.percentage}%` } as React.CSSProperties}
+                <div
+                  className="storage-bar available"
+                  style={
+                    {
+                      "--storage-available": `${100 - systemMetrics.storage.percentage}%`,
+                    } as React.CSSProperties
+                  }
                 ></div>
               </div>
               <div className="storage-legend">
@@ -477,7 +522,7 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
           </div>
         );
 
-      case 'network':
+      case "network":
         return (
           <div className="detailed-metric">
             <div className="detailed-header">
@@ -493,7 +538,9 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
             <div className="detailed-stats">
               <div className="stat-row">
                 <span className="stat-label">Connection Status:</span>
-                <span className={`stat-value network-${getNetworkStatus(systemMetrics.network.status, systemMetrics.network.speed).class}`}>
+                <span
+                  className={`stat-value network-${getNetworkStatus(systemMetrics.network.status, systemMetrics.network.speed).class}`}
+                >
                   {systemMetrics.network.status}
                 </span>
               </div>
@@ -509,7 +556,7 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
           </div>
         );
 
-      case 'performance':
+      case "performance":
         return (
           <div className="detailed-metric">
             <div className="detailed-header">
@@ -518,7 +565,9 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
             </div>
             <div className="performance-chart">
               <div className="performance-score">
-                <div className={`score-circle performance-${getStatusClass(systemMetrics.performance.score, { good: 80, warning: 60, critical: 40 })}`}>
+                <div
+                  className={`score-circle performance-${getStatusClass(systemMetrics.performance.score, { good: 80, warning: 60, critical: 40 })}`}
+                >
                   <div className="score-value">{systemMetrics.performance.score.toFixed(0)}</div>
                 </div>
                 <div className="score-label">Performance Score</div>
@@ -535,8 +584,14 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
               </div>
               <div className="stat-row">
                 <span className="stat-label">Performance Status:</span>
-                <span className={`stat-value performance-${getStatusClass(systemMetrics.performance.score, { good: 80, warning: 60, critical: 40 })}`}>
-                  {systemMetrics.performance.score >= 80 ? 'Excellent' : systemMetrics.performance.score >= 60 ? 'Good' : 'Needs Attention'}
+                <span
+                  className={`stat-value performance-${getStatusClass(systemMetrics.performance.score, { good: 80, warning: 60, critical: 40 })}`}
+                >
+                  {systemMetrics.performance.score >= 80
+                    ? "Excellent"
+                    : systemMetrics.performance.score >= 60
+                      ? "Good"
+                      : "Needs Attention"}
                 </span>
               </div>
             </div>
@@ -559,17 +614,13 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
           </h2>
           <p>Real-time system performance and resource monitoring</p>
         </div>
-        
+
         <div className="header-controls">
-          <button
-            onClick={refreshMetrics}
-            disabled={isRefreshing}
-            className="refresh-btn"
-          >
-            <RefreshCw className={`icon ${isRefreshing ? 'spinning' : ''}`} />
-            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          <button onClick={refreshMetrics} disabled={isRefreshing} className="refresh-btn">
+            <RefreshCw className={`icon ${isRefreshing ? "spinning" : ""}`} />
+            {isRefreshing ? "Refreshing..." : "Refresh"}
           </button>
-          
+
           <div className="auto-refresh-control">
             <label className="checkbox-label">
               <input
@@ -580,7 +631,7 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
               />
               Auto Refresh
             </label>
-            
+
             {autoRefresh && (
               <select
                 value={refreshInterval}
@@ -601,19 +652,19 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
       {/* Metric Navigation */}
       <div className="metric-navigation">
         {[
-          { id: 'overview', label: 'Overview', icon: Monitor },
-          { id: 'cpu', label: 'CPU', icon: Cpu },
-          { id: 'memory', label: 'Memory', icon: Database },
-          { id: 'storage', label: 'Storage', icon: HardDrive },
-          { id: 'network', label: 'Network', icon: Wifi },
-          { id: 'performance', label: 'Performance', icon: Activity }
+          { id: "overview", label: "Overview", icon: Monitor },
+          { id: "cpu", label: "CPU", icon: Cpu },
+          { id: "memory", label: "Memory", icon: Database },
+          { id: "storage", label: "Storage", icon: HardDrive },
+          { id: "network", label: "Network", icon: Wifi },
+          { id: "performance", label: "Performance", icon: Activity },
         ].map((metric) => {
           const Icon = metric.icon;
           return (
             <button
               key={metric.id}
               onClick={() => setSelectedMetric(metric.id as any)}
-              className={`metric-btn ${selectedMetric === metric.id ? 'active' : ''}`}
+              className={`metric-btn ${selectedMetric === metric.id ? "active" : ""}`}
             >
               <Icon size={20} />
               <span>{metric.label}</span>
@@ -624,8 +675,8 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
 
       {/* Content */}
       <div className="system-content">
-        {selectedMetric === 'overview' && renderOverview()}
-        {selectedMetric !== 'overview' && renderDetailed()}
+        {selectedMetric === "overview" && renderOverview()}
+        {selectedMetric !== "overview" && renderDetailed()}
       </div>
 
       {/* Footer */}
@@ -637,22 +688,18 @@ export const SystemTab: FC<SystemTabProps> = ({ onSystemAction }) => {
           </div>
           <div className="info-item">
             <span className="info-label">Refresh Rate:</span>
-            <span className="info-value">{autoRefresh ? `${refreshInterval/1000}s` : 'Manual'}</span>
+            <span className="info-value">
+              {autoRefresh ? `${refreshInterval / 1000}s` : "Manual"}
+            </span>
           </div>
         </div>
-        
+
         <div className="footer-actions">
-          <button
-            onClick={() => onSystemAction?.('optimize')}
-            className="action-btn primary"
-          >
+          <button onClick={() => onSystemAction?.("optimize")} className="action-btn primary">
             <Zap className="btn-icon" />
             Optimize System
           </button>
-          <button
-            onClick={() => onSystemAction?.('settings')}
-            className="action-btn secondary"
-          >
+          <button onClick={() => onSystemAction?.("settings")} className="action-btn secondary">
             <Settings className="btn-icon" />
             System Settings
           </button>

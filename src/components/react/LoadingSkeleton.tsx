@@ -1,24 +1,24 @@
-import React from 'react';
+import React from "react";
 
 interface LoadingSkeletonProps {
   width?: string;
   height?: string;
   className?: string;
-  variant?: 'text' | 'rectangular' | 'circular';
+  variant?: "text" | "rectangular" | "circular";
 }
 
 export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
-  width = '100%',
-  height = '20px',
-  className = '',
-  variant = 'rectangular'
+  width = "100%",
+  height = "20px",
+  className = "",
+  variant = "rectangular",
 }) => {
-  const baseClasses = 'bg-slate-700 animate-pulse';
+  const baseClasses = "bg-slate-700 animate-pulse";
 
   const variantClasses = {
-    text: 'rounded',
-    rectangular: 'rounded-lg',
-    circular: 'rounded-full'
+    text: "rounded",
+    rectangular: "rounded-lg",
+    circular: "rounded-full",
   };
 
   return (
@@ -27,7 +27,7 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({
       style={{
         width,
         height,
-        minWidth: variant === 'circular' ? height : width
+        minWidth: variant === "circular" ? height : width,
       }}
     />
   );
@@ -42,7 +42,7 @@ interface SkeletonCardProps {
 export const SkeletonCard: React.FC<SkeletonCardProps> = ({
   lines = 3,
   showAvatar = false,
-  className = ''
+  className = "",
 }) => {
   return (
     <div className={`bg-slate-800 rounded-xl p-6 space-y-4 ${className}`}>
@@ -70,7 +70,7 @@ interface DashboardSkeletonProps {
   className?: string;
 }
 
-export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({ className = '' }) => {
+export const DashboardSkeleton: React.FC<DashboardSkeletonProps> = ({ className = "" }) => {
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header */}

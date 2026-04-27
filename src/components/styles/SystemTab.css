@@ -548,50 +548,114 @@
 
 /* Animations */
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Dynamic Color Classes */
-.value-display.cpu-good { color: #22c55e; }
-.value-display.cpu-warning { color: #f59e0b; }
-.value-display.cpu-critical { color: #ef4444; }
+.value-display.cpu-good {
+  color: #22c55e;
+}
+.value-display.cpu-warning {
+  color: #f59e0b;
+}
+.value-display.cpu-critical {
+  color: #ef4444;
+}
 
-.value-display.memory-good { color: #22c55e; }
-.value-display.memory-warning { color: #f59e0b; }
-.value-display.memory-critical { color: #ef4444; }
+.value-display.memory-good {
+  color: #22c55e;
+}
+.value-display.memory-warning {
+  color: #f59e0b;
+}
+.value-display.memory-critical {
+  color: #ef4444;
+}
 
-.value-display.storage-good { color: #22c55e; }
-.value-display.storage-warning { color: #f59e0b; }
-.value-display.storage-critical { color: #ef4444; }
+.value-display.storage-good {
+  color: #22c55e;
+}
+.value-display.storage-warning {
+  color: #f59e0b;
+}
+.value-display.storage-critical {
+  color: #ef4444;
+}
 
-.value-display.network-good { color: #22c55e; }
-.value-display.network-warning { color: #f59e0b; }
-.value-display.network-critical { color: #ef4444; }
+.value-display.network-good {
+  color: #22c55e;
+}
+.value-display.network-warning {
+  color: #f59e0b;
+}
+.value-display.network-critical {
+  color: #ef4444;
+}
 
-.value-display.performance-good { color: #22c55e; }
-.value-display.performance-warning { color: #f59e0b; }
-.value-display.performance-critical { color: #ef4444; }
+.value-display.performance-good {
+  color: #22c55e;
+}
+.value-display.performance-warning {
+  color: #f59e0b;
+}
+.value-display.performance-critical {
+  color: #ef4444;
+}
 
-.stat-value.cpu-good { color: #22c55e; }
-.stat-value.cpu-warning { color: #f59e0b; }
-.stat-value.cpu-critical { color: #ef4444; }
+.stat-value.cpu-good {
+  color: #22c55e;
+}
+.stat-value.cpu-warning {
+  color: #f59e0b;
+}
+.stat-value.cpu-critical {
+  color: #ef4444;
+}
 
-.stat-value.memory-good { color: #22c55e; }
-.stat-value.memory-warning { color: #f59e0b; }
-.stat-value.memory-critical { color: #ef4444; }
+.stat-value.memory-good {
+  color: #22c55e;
+}
+.stat-value.memory-warning {
+  color: #f59e0b;
+}
+.stat-value.memory-critical {
+  color: #ef4444;
+}
 
-.stat-value.storage-good { color: #22c55e; }
-.stat-value.storage-warning { color: #f59e0b; }
-.stat-value.storage-critical { color: #ef4444; }
+.stat-value.storage-good {
+  color: #22c55e;
+}
+.stat-value.storage-warning {
+  color: #f59e0b;
+}
+.stat-value.storage-critical {
+  color: #ef4444;
+}
 
-.stat-value.network-good { color: #22c55e; }
-.stat-value.network-warning { color: #f59e0b; }
-.stat-value.network-critical { color: #ef4444; }
+.stat-value.network-good {
+  color: #22c55e;
+}
+.stat-value.network-warning {
+  color: #f59e0b;
+}
+.stat-value.network-critical {
+  color: #ef4444;
+}
 
-.stat-value.performance-good { color: #22c55e; }
-.stat-value.performance-warning { color: #f59e0b; }
-.stat-value.performance-critical { color: #ef4444; }
+.stat-value.performance-good {
+  color: #22c55e;
+}
+.stat-value.performance-warning {
+  color: #f59e0b;
+}
+.stat-value.performance-critical {
+  color: #ef4444;
+}
 
 .cpu-bar.usage {
   background: linear-gradient(90deg, #3b82f6, #2563eb);

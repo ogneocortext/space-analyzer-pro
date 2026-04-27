@@ -11,18 +11,18 @@
 const formatters = {
   fileSize: new Map<number, string>(),
   date: new Map<string, string>(),
-  number: new Map<number, string>()
+  number: new Map<number, string>(),
 };
 
 // File size units
-const FILE_SIZE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+const FILE_SIZE_UNITS = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
 /**
  * Format file size with caching for performance
  */
 export const formatFileSize = (bytes: number): string => {
   // Return early for zero or negative values
-  if (bytes <= 0) return '0 B';
+  if (bytes <= 0) return "0 B";
 
   // Check cache first
   if (formatters.fileSize.has(bytes)) {
@@ -53,7 +53,7 @@ export const formatFileSize = (bytes: number): string => {
  */
 export const formatDate = (date: Date | string | number): string => {
   const dateObj = new Date(date);
-  
+
   // Check cache first
   const cacheKey = dateObj.getTime().toString();
   if (formatters.date.has(cacheKey)) {
@@ -62,11 +62,11 @@ export const formatDate = (date: Date | string | number): string => {
 
   // Use Intl.DateTimeFormat for better performance and i18n
   const formatter = new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
   const result = formatter.format(dateObj);
@@ -90,22 +90,22 @@ export const formatRelativeTime = (date: Date | string | number): string => {
   const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
 
   if (diffInSeconds < 60) {
-    return 'just now';
+    return "just now";
   } else if (diffInSeconds < 3600) {
     const minutes = Math.floor(diffInSeconds / 60);
-    return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
   } else if (diffInSeconds < 86400) {
     const hours = Math.floor(diffInSeconds / 3600);
-    return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    return `${hours} hour${hours > 1 ? "s" : ""} ago`;
   } else if (diffInSeconds < 2592000) {
     const days = Math.floor(diffInSeconds / 86400);
-    return `${days} day${days > 1 ? 's' : ''} ago`;
+    return `${days} day${days > 1 ? "s" : ""} ago`;
   } else if (diffInSeconds < 31536000) {
     const months = Math.floor(diffInSeconds / 2592000);
-    return `${months} month${months > 1 ? 's' : ''} ago`;
+    return `${months} month${months > 1 ? "s" : ""} ago`;
   } else {
     const years = Math.floor(diffInSeconds / 31536000);
-    return `${years} year${years > 1 ? 's' : ''} ago`;
+    return `${years} year${years > 1 ? "s" : ""} ago`;
   }
 };
 
@@ -122,7 +122,7 @@ export const formatNumber = (num: number, options: Intl.NumberFormatOptions = {}
   // Use Intl.NumberFormat for better performance and i18n
   const formatter = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 2,
-    ...options
+    ...options,
   });
 
   const result = formatter.format(num);
@@ -149,13 +149,13 @@ export const formatPercentage = (value: number, decimals = 1): string => {
  * Format file extension with proper casing
  */
 export const formatFileExtension = (extension: string): string => {
-  if (!extension) return '';
-  
+  if (!extension) return "";
+
   // Remove dot if present
-  const ext = extension.startsWith('.') ? extension.slice(1) : extension;
-  
+  const ext = extension.startsWith(".") ? extension.slice(1) : extension;
+
   // Convert to lowercase and capitalize first letter
-  return ext.toLowerCase().replace(/^\w/, c => c.toUpperCase());
+  return ext.toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 };
 
 /**
@@ -163,17 +163,17 @@ export const formatFileExtension = (extension: string): string => {
  */
 export const formatFileName = (name: string, maxLength = 50): string => {
   if (name.length <= maxLength) return name;
-  
-  const extension = name.split('.').pop();
+
+  const extension = name.split(".").pop();
   const baseName = name.substring(0, name.length - (extension ? extension.length + 1 : 0));
-  
+
   const availableLength = maxLength - (extension ? extension.length + 4 : 3); // 3 for "..."
-  
+
   if (availableLength <= 0) {
-    return `...${extension ? '.' + extension : ''}`;
+    return `...${extension ? "." + extension : ""}`;
   }
-  
-  return `${baseName.substring(0, availableLength)}...${extension ? '.' + extension : ''}`;
+
+  return `${baseName.substring(0, availableLength)}...${extension ? "." + extension : ""}`;
 };
 
 /**
@@ -181,26 +181,26 @@ export const formatFileName = (name: string, maxLength = 50): string => {
  */
 export const formatPath = (path: string, maxLength = 60): string => {
   if (path.length <= maxLength) return path;
-  
+
   const parts = path.split(/[/\\]/);
-  const ellipsis = '...';
-  
+  const ellipsis = "...";
+
   if (parts.length <= 2) {
     // For short paths, just truncate from the end
     return `${path.substring(0, maxLength - 3)}...`;
   }
-  
+
   // For longer paths, show beginning and end
   const firstPart = parts[0];
   const lastPart = parts[parts.length - 1];
   const middleLength = maxLength - firstPart.length - lastPart.length - ellipsis.length - 2;
-  
+
   if (middleLength <= 0) {
     return `${firstPart}...${lastPart}`;
   }
-  
-  const middlePart = parts.slice(1, -1).join('/').substring(0, middleLength);
-  
+
+  const middlePart = parts.slice(1, -1).join("/").substring(0, middleLength);
+
   return `${firstPart}/${middlePart}.../${lastPart}`;
 };
 
@@ -230,11 +230,11 @@ export const formatDuration = (milliseconds: number): string => {
   } else if (milliseconds < 3600000) {
     const minutes = Math.floor(milliseconds / 60000);
     const seconds = Math.floor((milliseconds % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, '0')} min`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")} min`;
   } else {
     const hours = Math.floor(milliseconds / 3600000);
     const minutes = Math.floor((milliseconds % 3600000) / 60000);
-    return `${hours}:${minutes.toString().padStart(2, '0')} h`;
+    return `${hours}:${minutes.toString().padStart(2, "0")} h`;
   }
 };
 
@@ -266,23 +266,23 @@ export const formatCount = (count: number): string => {
  */
 export const formatFileType = (type: string, extension?: string): string => {
   const typeMap: Record<string, string> = {
-    'directory': 'Folder',
-    'file': 'File',
-    'image': 'Image',
-    'video': 'Video',
-    'audio': 'Audio',
-    'document': 'Document',
-    'archive': 'Archive',
-    'code': 'Code',
-    'system': 'System File'
+    directory: "Folder",
+    file: "File",
+    image: "Image",
+    video: "Video",
+    audio: "Audio",
+    document: "Document",
+    archive: "Archive",
+    code: "Code",
+    system: "System File",
   };
 
   const description = typeMap[type] || type;
-  
+
   if (extension) {
     return `${description} (${extension})`;
   }
-  
+
   return description;
 };
 
@@ -290,12 +290,12 @@ export const formatFileType = (type: string, extension?: string): string => {
  * Format checksum or hash with truncation
  */
 export const formatChecksum = (checksum: string, maxLength = 16): string => {
-  if (!checksum) return '';
-  
+  if (!checksum) return "";
+
   if (checksum.length <= maxLength) {
     return checksum;
   }
-  
+
   return `${checksum.substring(0, maxLength)}...`;
 };
 
@@ -303,12 +303,12 @@ export const formatChecksum = (checksum: string, maxLength = 16): string => {
  * Format error message with context
  */
 export const formatErrorMessage = (error: Error | string, context?: string): string => {
-  const message = typeof error === 'string' ? error : error.message;
-  
+  const message = typeof error === "string" ? error : error.message;
+
   if (context) {
     return `${context}: ${message}`;
   }
-  
+
   return message;
 };
 
@@ -328,7 +328,7 @@ export const getCacheStats = (): Record<string, number> => {
   return {
     fileSize: formatters.fileSize.size,
     date: formatters.date.size,
-    number: formatters.number.size
+    number: formatters.number.size,
   };
 };
 
@@ -349,5 +349,5 @@ export default {
   formatChecksum,
   formatErrorMessage,
   clearFormatterCaches,
-  getCacheStats
+  getCacheStats,
 };

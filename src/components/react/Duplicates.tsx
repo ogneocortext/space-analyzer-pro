@@ -1,5 +1,5 @@
-import React from 'react';
-import { Copy, Trash2, CheckCircle, AlertTriangle, HardDrive } from 'lucide-react';
+import React from "react";
+import { Copy, Trash2, CheckCircle, AlertTriangle, HardDrive } from "lucide-react";
 
 interface DuplicatesProps {
   analysisData?: any;
@@ -119,7 +119,9 @@ export const Duplicates: React.FC<DuplicatesProps> = ({ analysisData }) => {
               <span className="text-2xl">🔍</span>
             </div>
             <h3 className="text-white font-medium mb-2">Content Hash</h3>
-            <p className="text-slate-400 text-sm">MD5/SHA-256 hash comparison for identical files</p>
+            <p className="text-slate-400 text-sm">
+              MD5/SHA-256 hash comparison for identical files
+            </p>
           </div>
 
           <div className="text-center">

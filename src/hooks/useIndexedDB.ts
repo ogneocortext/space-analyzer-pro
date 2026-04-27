@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from "react";
 
 interface ScanSnapshot {
   id: string;
@@ -31,9 +31,9 @@ interface UseIndexedDBReturn {
   getLatestSnapshot: () => ScanSnapshot | null;
 }
 
-const DB_NAME = 'SpaceAnalyzerDB';
+const DB_NAME = "SpaceAnalyzerDB";
 const DB_VERSION = 1;
-const STORE_NAME = 'scanSnapshots';
+const STORE_NAME = "scanSnapshots";
 
 class IndexedDBManager {
   private db: IDBDatabase | null = null;
@@ -50,12 +50,12 @@ class IndexedDBManager {
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
-        
+
         if (!db.objectStoreNames.contains(STORE_NAME)) {
-          const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-          store.createIndex('timestamp', 'timestamp', { unique: false });
-          store.createIndex('path', 'path', { unique: false });
-          store.createIndex('name', 'name', { unique: false });
+          const store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
+          store.createIndex("timestamp", "timestamp", { unique: false });
+          store.createIndex("path", "path", { unique: false });
+          store.createIndex("name", "name", { unique: false });
         }
       };
     });
@@ -63,9 +63,9 @@ class IndexedDBManager {
 
   async save(snapshot: ScanSnapshot): Promise<string> {
     if (!this.db) await this.init();
-    
+
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
+      const transaction = this.db!.transaction([STORE_NAME], "readwrite");
       const store = transaction.objectStore(STORE_NAME);
       const request = store.put(snapshot);
 
@@ -76,9 +76,9 @@ class IndexedDBManager {
 
   async load(id: string): Promise<ScanSnapshot | null> {
     if (!this.db) await this.init();
-    
+
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
+      const transaction = this.db!.transaction([STORE_NAME], "readonly");
       const store = transaction.objectStore(STORE_NAME);
       const request = store.get(id);
 
@@ -89,9 +89,9 @@ class IndexedDBManager {
 
   async loadAll(): Promise<ScanSnapshot[]> {
     if (!this.db) await this.init();
-    
+
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
+      const transaction = this.db!.transaction([STORE_NAME], "readonly");
       const store = transaction.objectStore(STORE_NAME);
       const request = store.getAll();
 
@@ -102,9 +102,9 @@ class IndexedDBManager {
 
   async delete(id: string): Promise<boolean> {
     if (!this.db) await this.init();
-    
+
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
+      const transaction = this.db!.transaction([STORE_NAME], "readwrite");
       const store = transaction.objectStore(STORE_NAME);
       const request = store.delete(id);
 
@@ -115,9 +115,9 @@ class IndexedDBManager {
 
   async clear(): Promise<boolean> {
     if (!this.db) await this.init();
-    
+
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
+      const transaction = this.db!.transaction([STORE_NAME], "readwrite");
       const store = transaction.objectStore(STORE_NAME);
       const request = store.clear();
 
@@ -128,9 +128,9 @@ class IndexedDBManager {
 
   async getByIndex(indexName: string, value: any): Promise<ScanSnapshot[]> {
     if (!this.db) await this.init();
-    
+
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
+      const transaction = this.db!.transaction([STORE_NAME], "readonly");
       const store = transaction.objectStore(STORE_NAME);
       const index = store.index(indexName);
       const request = index.getAll(value);
@@ -153,14 +153,14 @@ export const useIndexedDB = (): UseIndexedDBReturn => {
     const loadSnapshots = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const allSnapshots = await dbManager.loadAll();
         // Sort by timestamp (newest first)
         allSnapshots.sort((a, b) => b.timestamp - a.timestamp);
         setSnapshots(allSnapshots);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load snapshots');
+        setError(err instanceof Error ? err.message : "Failed to load snapshots");
       } finally {
         setIsLoading(false);
       }
@@ -169,55 +169,54 @@ export const useIndexedDB = (): UseIndexedDBReturn => {
     loadSnapshots();
   }, []);
 
-  const saveSnapshot = useCallback(async (
-    name: string,
-    data: any,
-    metadata?: any
-  ): Promise<string | null> => {
-    setError(null);
-    
-    try {
-      const id = `snapshot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      const snapshot: ScanSnapshot = {
-        id,
-        name,
-        timestamp: Date.now(),
-        path: data.path || 'Unknown',
-        totalSize: data.totalSize || 0,
-        totalFiles: data.totalFiles || 0,
-        totalDirectories: data.totalDirectories || 0,
-        data,
-        metadata: {
-          scanDuration: metadata?.scanDuration || 0,
-          version: '2.0.1',
-          platform: navigator.platform,
-          excludedPaths: metadata?.excludedPaths || [],
-          options: metadata?.options || {}
-        }
-      };
+  const saveSnapshot = useCallback(
+    async (name: string, data: any, metadata?: any): Promise<string | null> => {
+      setError(null);
 
-      await dbManager.save(snapshot);
-      
-      // Update local state
-      setSnapshots(prev => [snapshot, ...prev]);
-      
-      return id;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save snapshot';
-      setError(errorMessage);
-      return null;
-    }
-  }, []);
+      try {
+        const id = `snapshot_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        const snapshot: ScanSnapshot = {
+          id,
+          name,
+          timestamp: Date.now(),
+          path: data.path || "Unknown",
+          totalSize: data.totalSize || 0,
+          totalFiles: data.totalFiles || 0,
+          totalDirectories: data.totalDirectories || 0,
+          data,
+          metadata: {
+            scanDuration: metadata?.scanDuration || 0,
+            version: "2.0.1",
+            platform: navigator.platform,
+            excludedPaths: metadata?.excludedPaths || [],
+            options: metadata?.options || {},
+          },
+        };
+
+        await dbManager.save(snapshot);
+
+        // Update local state
+        setSnapshots((prev) => [snapshot, ...prev]);
+
+        return id;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to save snapshot";
+        setError(errorMessage);
+        return null;
+      }
+    },
+    []
+  );
 
   const loadSnapshot = useCallback(async (id: string): Promise<ScanSnapshot | null> => {
     setError(null);
-    
+
     try {
       const snapshot = await dbManager.load(id);
       return snapshot;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load snapshot';
+      const errorMessage = err instanceof Error ? err.message : "Failed to load snapshot";
       setError(errorMessage);
       return null;
     }
@@ -225,16 +224,16 @@ export const useIndexedDB = (): UseIndexedDBReturn => {
 
   const deleteSnapshot = useCallback(async (id: string): Promise<boolean> => {
     setError(null);
-    
+
     try {
       await dbManager.delete(id);
-      
+
       // Update local state
-      setSnapshots(prev => prev.filter(s => s.id !== id));
-      
+      setSnapshots((prev) => prev.filter((s) => s.id !== id));
+
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete snapshot';
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete snapshot";
       setError(errorMessage);
       return false;
     }
@@ -242,15 +241,12 @@ export const useIndexedDB = (): UseIndexedDBReturn => {
 
   const compareSnapshots = useCallback(async (id1: string, id2: string): Promise<any> => {
     setError(null);
-    
+
     try {
-      const [snapshot1, snapshot2] = await Promise.all([
-        dbManager.load(id1),
-        dbManager.load(id2)
-      ]);
+      const [snapshot1, snapshot2] = await Promise.all([dbManager.load(id1), dbManager.load(id2)]);
 
       if (!snapshot1 || !snapshot2) {
-        throw new Error('One or both snapshots not found');
+        throw new Error("One or both snapshots not found");
       }
 
       // Calculate differences
@@ -271,17 +267,17 @@ export const useIndexedDB = (): UseIndexedDBReturn => {
           name: snapshot1.name,
           timestamp: snapshot1.timestamp,
           totalSize: snapshot1.totalSize,
-          totalFiles: snapshot1.totalFiles
+          totalFiles: snapshot1.totalFiles,
         },
         snapshot2: {
           name: snapshot2.name,
           timestamp: snapshot2.timestamp,
           totalSize: snapshot2.totalSize,
-          totalFiles: snapshot2.totalFiles
-        }
+          totalFiles: snapshot2.totalFiles,
+        },
       };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to compare snapshots';
+      const errorMessage = err instanceof Error ? err.message : "Failed to compare snapshots";
       setError(errorMessage);
       return null;
     }
@@ -289,21 +285,24 @@ export const useIndexedDB = (): UseIndexedDBReturn => {
 
   const clearAllSnapshots = useCallback(async (): Promise<boolean> => {
     setError(null);
-    
+
     try {
       await dbManager.clear();
       setSnapshots([]);
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to clear snapshots';
+      const errorMessage = err instanceof Error ? err.message : "Failed to clear snapshots";
       setError(errorMessage);
       return false;
     }
   }, []);
 
-  const getSnapshotById = useCallback((id: string): ScanSnapshot | null => {
-    return snapshots.find(s => s.id === id) || null;
-  }, [snapshots]);
+  const getSnapshotById = useCallback(
+    (id: string): ScanSnapshot | null => {
+      return snapshots.find((s) => s.id === id) || null;
+    },
+    [snapshots]
+  );
 
   const getLatestSnapshot = useCallback((): ScanSnapshot | null => {
     return snapshots.length > 0 ? snapshots[0] : null;
@@ -319,7 +318,7 @@ export const useIndexedDB = (): UseIndexedDBReturn => {
     compareSnapshots,
     clearAllSnapshots,
     getSnapshotById,
-    getLatestSnapshot
+    getLatestSnapshot,
   };
 };
 
@@ -329,42 +328,49 @@ export const useAutoSnapshot = () => {
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [lastAutoSave, setLastAutoSave] = useState<number | null>(null);
 
-  const autoSave = useCallback(async (data: any, name?: string) => {
-    if (!autoSaveEnabled) return null;
+  const autoSave = useCallback(
+    async (data: any, name?: string) => {
+      if (!autoSaveEnabled) return null;
 
-    const snapshotName = name || `Auto Save ${new Date().toLocaleString()}`;
-    const id = await indexedDB.saveSnapshot(snapshotName, data, {
-      autoSave: true,
-      timestamp: Date.now()
-    });
+      const snapshotName = name || `Auto Save ${new Date().toLocaleString()}`;
+      const id = await indexedDB.saveSnapshot(snapshotName, data, {
+        autoSave: true,
+        timestamp: Date.now(),
+      });
 
-    if (id) {
-      setLastAutoSave(Date.now());
-    }
-
-    return id;
-  }, [autoSaveEnabled, indexedDB]);
-
-  const cleanupOldSnapshots = useCallback(async (keepCount: number = 10) => {
-    const snapshots = indexedDB.snapshots.filter(s => 
-      // @ts-ignore - autoSave property
-      s.metadata.autoSave === true
-    );
-
-    if (snapshots.length > keepCount) {
-      const toDelete = snapshots.slice(keepCount);
-      for (const snapshot of toDelete) {
-        await indexedDB.deleteSnapshot(snapshot.id);
+      if (id) {
+        setLastAutoSave(Date.now());
       }
-    }
-  }, [indexedDB]);
+
+      return id;
+    },
+    [autoSaveEnabled, indexedDB]
+  );
+
+  const cleanupOldSnapshots = useCallback(
+    async (keepCount: number = 10) => {
+      const snapshots = indexedDB.snapshots.filter(
+        (s) =>
+          // @ts-ignore - autoSave property
+          s.metadata.autoSave === true
+      );
+
+      if (snapshots.length > keepCount) {
+        const toDelete = snapshots.slice(keepCount);
+        for (const snapshot of toDelete) {
+          await indexedDB.deleteSnapshot(snapshot.id);
+        }
+      }
+    },
+    [indexedDB]
+  );
 
   return {
     autoSaveEnabled,
     setAutoSaveEnabled,
     lastAutoSave,
     autoSave,
-    cleanupOldSnapshots
+    cleanupOldSnapshots,
   };
 };
 

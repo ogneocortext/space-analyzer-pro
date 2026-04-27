@@ -166,11 +166,11 @@
 }
 
 .fileBrowserItemSize {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
 }
 
 .fileBrowserItemModified {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
 }
 
 .fileBrowserItemActions {
@@ -266,25 +266,25 @@
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .fileBrowserBreadcrumb {
     overflow-x: auto;
   }
-  
+
   .fileBrowserActions {
     justify-content: center;
   }
-  
+
   .fileBrowserItem {
     padding: 0.5rem;
   }
-  
+
   .fileBrowserItemDetails {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.25rem;
   }
-  
+
   .fileBrowserItemActions {
     opacity: 1;
   }

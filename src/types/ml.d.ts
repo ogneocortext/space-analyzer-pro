@@ -1,5 +1,5 @@
 // Type declarations for ML libraries
-declare module '@tensorflow/tfjs' {
+declare module "@tensorflow/tfjs" {
   export interface LayersModel {
     fit: (xs: unknown[], ys: unknown[], config?: Record<string, unknown>) => Promise<unknown>;
     predict: (xs: unknown[]) => unknown[];
@@ -37,7 +37,7 @@ declare module '@tensorflow/tfjs' {
   };
 }
 
-declare module 'brain.js' {
+declare module "brain.js" {
   export interface NeuralNetwork {
     train: (data: unknown[], options?: Record<string, unknown>) => void;
     run: (input: number[]) => number[];
@@ -59,8 +59,8 @@ declare module 'brain.js' {
 // Additional types for the app
 declare global {
   interface Window {
-    tf: typeof import('@tensorflow/tfjs');
-    brain: typeof import('brain.js');
+    tf: typeof import("@tensorflow/tfjs");
+    brain: typeof import("brain.js");
   }
 }
 

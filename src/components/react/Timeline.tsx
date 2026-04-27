@@ -1,5 +1,5 @@
-import React from 'react';
-import { Clock, TrendingUp, Calendar, Activity } from 'lucide-react';
+import React from "react";
+import { Clock, TrendingUp, Calendar, Activity } from "lucide-react";
 
 interface TimelineProps {
   analysisData?: any;
@@ -100,7 +100,7 @@ export const Timeline: React.FC<TimelineProps> = ({ analysisData }) => {
                 <span className="text-green-400">78%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
-                <div className="bg-green-400 h-2 rounded-full" style={{ width: '78%' }}></div>
+                <div className="bg-green-400 h-2 rounded-full" style={{ width: "78%" }}></div>
               </div>
             </div>
             <div>
@@ -109,7 +109,7 @@ export const Timeline: React.FC<TimelineProps> = ({ analysisData }) => {
                 <span className="text-blue-400">22%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
-                <div className="bg-blue-400 h-2 rounded-full" style={{ width: '22%' }}></div>
+                <div className="bg-blue-400 h-2 rounded-full" style={{ width: "22%" }}></div>
               </div>
             </div>
             <div>
@@ -118,7 +118,7 @@ export const Timeline: React.FC<TimelineProps> = ({ analysisData }) => {
                 <span className="text-purple-400">65%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
-                <div className="bg-purple-400 h-2 rounded-full" style={{ width: '65%' }}></div>
+                <div className="bg-purple-400 h-2 rounded-full" style={{ width: "65%" }}></div>
               </div>
             </div>
             <div>
@@ -127,7 +127,7 @@ export const Timeline: React.FC<TimelineProps> = ({ analysisData }) => {
                 <span className="text-orange-400">35%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
-                <div className="bg-orange-400 h-2 rounded-full" style={{ width: '35%' }}></div>
+                <div className="bg-orange-400 h-2 rounded-full" style={{ width: "35%" }}></div>
               </div>
             </div>
           </div>

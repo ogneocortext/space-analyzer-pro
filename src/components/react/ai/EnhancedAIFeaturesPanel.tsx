@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   BrainCircuit,
   Zap,
@@ -33,11 +33,11 @@ import {
   ArrowUp,
   ArrowDown,
   Info,
-  Sparkles
-} from 'lucide-react';
+  Sparkles,
+} from "lucide-react";
 // @ts-ignore - AnalysisBridge module
-import { bridge } from '../services/AnalysisBridge';
-import styles from './EnhancedAIFeaturesPanel.module.css';
+import { bridge } from "../services/AnalysisBridge";
+import styles from "./EnhancedAIFeaturesPanel.module.css";
 
 interface EnhancedAIFeaturesPanelProps {
   directoryPath?: string;
@@ -48,17 +48,17 @@ interface EnhancedAIFeaturesPanelProps {
 interface AIRecommendation {
   id: string;
   type: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
   title: string;
   description: string;
   action: string;
   files?: any[];
   potentialSavings?: number;
   suggestions?: any[];
-  status?: 'pending' | 'in_progress' | 'completed';
+  status?: "pending" | "in_progress" | "completed";
   progress?: number;
-  category?: 'storage' | 'performance' | 'security' | 'organization';
-  impact?: 'high' | 'medium' | 'low';
+  category?: "storage" | "performance" | "security" | "organization";
+  impact?: "high" | "medium" | "low";
 }
 
 interface PerformanceMetrics {
@@ -78,13 +78,13 @@ interface RealTimeMetrics {
   activeRecommendations: number;
   completedRecommendations: number;
   processingSpeed: number;
-  systemHealth: 'excellent' | 'good' | 'fair' | 'poor';
+  systemHealth: "excellent" | "good" | "fair" | "poor";
 }
 
 const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
   directoryPath,
   onNavigate,
-  data
+  data,
 }) => {
   const [recommendations, setRecommendations] = useState<AIRecommendation[]>([]);
   const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics | null>(null);
@@ -92,17 +92,19 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<'recommendations' | 'performance' | 'realtime' | 'search'>('recommendations');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedPriority, setSelectedPriority] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [activeTab, setActiveTab] = useState<
+    "recommendations" | "performance" | "realtime" | "search"
+  >("recommendations");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedPriority, setSelectedPriority] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showDetails, setShowDetails] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [expandedRecommendations, setExpandedRecommendations] = useState<Set<string>>(new Set());
-  
+
   // @ts-ignore - useRef with no initial value
   const refreshIntervalRef = useRef<NodeJS.Timeout>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -110,28 +112,28 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
   // Enhanced recommendation loading with caching
   const loadRecommendations = useCallback(async () => {
     if (!directoryPath) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const result = await bridge.getAIRecommendations(directoryPath);
       if (result.success) {
         const enhancedRecommendations = result.recommendations.map((rec: any, index: number) => ({
           ...rec,
           id: rec.id || `rec-${index}`,
-          status: 'pending',
+          status: "pending",
           progress: 0,
-          category: rec.category || 'storage',
-          impact: rec.impact || 'medium'
+          category: rec.category || "storage",
+          impact: rec.impact || "medium",
         }));
         setRecommendations(enhancedRecommendations);
         setLastUpdate(new Date());
       } else {
-        setError('Failed to load recommendations');
+        setError("Failed to load recommendations");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsLoading(false);
     }
@@ -140,13 +142,13 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
   // Enhanced performance metrics loading
   const loadPerformanceMetrics = useCallback(async () => {
     if (!directoryPath) return;
-    
+
     try {
-      const result = await bridge.categorizeFilesOptimized(directoryPath, { 
-        batchSize: 100, 
-        useCache: true 
+      const result = await bridge.categorizeFilesOptimized(directoryPath, {
+        batchSize: 100,
+        useCache: true,
       });
-      
+
       if (result.success) {
         setPerformanceMetrics({
           filesPerSecond: result.results.performance.filesPerSecond,
@@ -157,31 +159,36 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
           memoryUsage: result.results.performance.memoryUsage || 0,
           cpuUsage: result.results.performance.cpuUsage || 0,
           accuracy: result.results.performance.accuracy || 0,
-          efficiency: result.results.performance.efficiency || 0
+          efficiency: result.results.performance.efficiency || 0,
         });
         setLastUpdate(new Date());
       }
     } catch (err) {
-      console.error('Failed to load performance metrics:', err);
+      console.error("Failed to load performance metrics:", err);
     }
   }, [directoryPath]);
 
   // Real-time metrics simulation
   const updateRealTimeMetrics = useCallback(() => {
     if (!performanceMetrics) return;
-    
-    const activeRecs = recommendations.filter(r => r.status === 'pending').length;
-    const completedRecs = recommendations.filter(r => r.status === 'completed').length;
-    const health = performanceMetrics.filesPerSecond > 10000 ? 'excellent' : 
-                  performanceMetrics.filesPerSecond > 5000 ? 'good' : 
-                  performanceMetrics.filesPerSecond > 1000 ? 'fair' : 'poor';
-    
+
+    const activeRecs = recommendations.filter((r) => r.status === "pending").length;
+    const completedRecs = recommendations.filter((r) => r.status === "completed").length;
+    const health =
+      performanceMetrics.filesPerSecond > 10000
+        ? "excellent"
+        : performanceMetrics.filesPerSecond > 5000
+          ? "good"
+          : performanceMetrics.filesPerSecond > 1000
+            ? "fair"
+            : "poor";
+
     setRealTimeMetrics({
       timestamp: new Date(),
       activeRecommendations: activeRecs,
       completedRecommendations: completedRecs,
       processingSpeed: performanceMetrics.filesPerSecond,
-      systemHealth: health
+      systemHealth: health,
     });
   }, [recommendations, performanceMetrics]);
 
@@ -198,7 +205,7 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
         clearInterval(refreshIntervalRef.current);
       }
     }
-    
+
     return () => {
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
@@ -216,33 +223,34 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
   // Filter and sort recommendations
   const filteredRecommendations = useMemo(() => {
     let filtered = recommendations;
-    
+
     // Apply search filter
     if (searchQuery) {
-      filtered = filtered.filter(rec => 
-        rec.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        rec.description.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(
+        (rec) =>
+          rec.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          rec.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    
+
     // Apply category filter
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(rec => rec.category === selectedCategory);
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter((rec) => rec.category === selectedCategory);
     }
-    
+
     // Apply priority filter
-    if (selectedPriority !== 'all') {
-      filtered = filtered.filter(rec => rec.priority === selectedPriority);
+    if (selectedPriority !== "all") {
+      filtered = filtered.filter((rec) => rec.priority === selectedPriority);
     }
-    
+
     // Sort by priority and impact
     return filtered.sort((a, b) => {
       const priorityOrder = { high: 3, medium: 2, low: 1 };
       const impactOrder = { high: 3, medium: 2, low: 1 };
-      
+
       const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
       if (priorityDiff !== 0) return priorityDiff;
-      
+
       return impactOrder[b.impact] - impactOrder[a.impact];
     });
   }, [recommendations, selectedCategory, selectedPriority, searchQuery]);
@@ -250,12 +258,12 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
   // Statistics calculations
   const statistics = useMemo(() => {
     const total = recommendations.length;
-    const completed = recommendations.filter(r => r.status === 'completed').length;
-    const inProgress = recommendations.filter(r => r.status === 'in_progress').length;
-    const pending = recommendations.filter(r => r.status === 'pending').length;
-    const highPriority = recommendations.filter(r => r.priority === 'high').length;
+    const completed = recommendations.filter((r) => r.status === "completed").length;
+    const inProgress = recommendations.filter((r) => r.status === "in_progress").length;
+    const pending = recommendations.filter((r) => r.status === "pending").length;
+    const highPriority = recommendations.filter((r) => r.priority === "high").length;
     const totalSavings = recommendations.reduce((sum, r) => sum + (r.potentialSavings || 0), 0);
-    
+
     return {
       total,
       completed,
@@ -263,15 +271,15 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
       pending,
       highPriority,
       totalSavings,
-      completionRate: total > 0 ? (completed / total) * 100 : 0
+      completionRate: total > 0 ? (completed / total) * 100 : 0,
     };
   }, [recommendations]);
 
   // Format utilities
   const formatSavings = useCallback((bytes: number) => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
   }, []);
@@ -285,65 +293,78 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
 
   const getPriorityIcon = useCallback((priority: string) => {
     switch (priority) {
-      case 'high': return AlertTriangle;
-      case 'medium': return Target;
-      case 'low': return CheckCircle;
-      default: return Info;
+      case "high":
+        return AlertTriangle;
+      case "medium":
+        return Target;
+      case "low":
+        return CheckCircle;
+      default:
+        return Info;
     }
   }, []);
 
   const getPriorityColor = useCallback((priority: string) => {
     switch (priority) {
-      case 'high': return 'text-red-400 bg-red-400/10 border-red-400/20';
-      case 'medium': return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20';
-      case 'low': return 'text-green-400 bg-green-400/10 border-green-400/20';
-      default: return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
+      case "high":
+        return "text-red-400 bg-red-400/10 border-red-400/20";
+      case "medium":
+        return "text-yellow-400 bg-yellow-400/10 border-yellow-400/20";
+      case "low":
+        return "text-green-400 bg-green-400/10 border-green-400/20";
+      default:
+        return "text-blue-400 bg-blue-400/10 border-blue-400/20";
     }
   }, []);
 
   const getCategoryIcon = useCallback((category: string) => {
     switch (category) {
-      case 'storage': return FileText;
-      case 'performance': return Zap;
-      case 'security': return Shield;
-      case 'organization': return Settings;
-      default: return Info;
+      case "storage":
+        return FileText;
+      case "performance":
+        return Zap;
+      case "security":
+        return Shield;
+      case "organization":
+        return Settings;
+      default:
+        return Info;
     }
   }, []);
 
   // Event handlers
   const handleRecommendationAction = useCallback((rec: AIRecommendation) => {
-    setRecommendations(prev => prev.map(r => 
-      r.id === rec.id ? { ...r, status: 'in_progress', progress: 0 } : r
-    ));
-    
+    setRecommendations((prev) =>
+      prev.map((r) => (r.id === rec.id ? { ...r, status: "in_progress", progress: 0 } : r))
+    );
+
     // Simulate action progress
     setTimeout(() => {
-      setRecommendations(prev => prev.map(r => 
-        r.id === rec.id ? { ...r, status: 'completed', progress: 100 } : r
-      ));
+      setRecommendations((prev) =>
+        prev.map((r) => (r.id === rec.id ? { ...r, status: "completed", progress: 100 } : r))
+      );
     }, 2000);
   }, []);
 
   const handleBatchAction = useCallback(() => {
-    const pendingRecs = recommendations.filter(r => r.status === 'pending');
+    const pendingRecs = recommendations.filter((r) => r.status === "pending");
     pendingRecs.forEach((rec, index) => {
       setTimeout(() => {
-        setRecommendations(prev => prev.map(r => 
-          r.id === rec.id ? { ...r, status: 'in_progress', progress: 0 } : r
-        ));
-        
+        setRecommendations((prev) =>
+          prev.map((r) => (r.id === rec.id ? { ...r, status: "in_progress", progress: 0 } : r))
+        );
+
         setTimeout(() => {
-          setRecommendations(prev => prev.map(r => 
-            r.id === rec.id ? { ...r, status: 'completed', progress: 100 } : r
-          ));
+          setRecommendations((prev) =>
+            prev.map((r) => (r.id === rec.id ? { ...r, status: "completed", progress: 100 } : r))
+          );
         }, 1000);
       }, index * 500);
     });
   }, [recommendations]);
 
   const toggleRecommendationExpansion = useCallback((id: string) => {
-    setExpandedRecommendations(prev => {
+    setExpandedRecommendations((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {
         newSet.delete(id);
@@ -364,37 +385,37 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       switch (event.key) {
-        case 'r':
+        case "r":
           if (event.ctrlKey || event.metaKey) {
             event.preventDefault();
             handleRefresh();
           }
           break;
-        case ' ':
+        case " ":
           event.preventDefault();
-          setIsPaused(prev => !prev);
+          setIsPaused((prev) => !prev);
           break;
-        case 'g':
-          setViewMode(prev => prev === 'grid' ? 'list' : 'grid');
+        case "g":
+          setViewMode((prev) => (prev === "grid" ? "list" : "grid"));
           break;
-        case 'd':
-          setShowDetails(prev => !prev);
+        case "d":
+          setShowDetails((prev) => !prev);
           break;
-        case 'a':
-          setAutoRefresh(prev => !prev);
+        case "a":
+          setAutoRefresh((prev) => !prev);
           break;
-        case '/':
+        case "/":
           event.preventDefault();
           // Focus search input
           break;
-        case 'Escape':
+        case "Escape":
           setShowHelp(false);
           break;
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleRefresh]);
 
   return (
@@ -408,7 +429,7 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
             <div className={styles.headerSubtitle}>Advanced AI-powered analysis tools</div>
           </div>
         </div>
-        
+
         <div className={styles.headerRight}>
           <div className={styles.headerControls}>
             <div className={styles.searchContainer}>
@@ -421,48 +442,48 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
                 className={styles.searchInput}
               />
             </div>
-            
+
             <button
-              onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+              onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
               className={styles.controlButton}
-              title={`Switch to ${viewMode === 'grid' ? 'list' : 'grid'} view`}
+              title={`Switch to ${viewMode === "grid" ? "list" : "grid"} view`}
             >
-              {viewMode === 'grid' ? <List size={16} /> : <Grid3x3 size={16} />}
+              {viewMode === "grid" ? <List size={16} /> : <Grid3x3 size={16} />}
             </button>
-            
+
             <button
               onClick={() => setShowDetails(!showDetails)}
-              className={`${styles.controlButton} ${showDetails ? styles.active : ''}`}
+              className={`${styles.controlButton} ${showDetails ? styles.active : ""}`}
               title="Toggle details"
             >
               {showDetails ? <Eye size={16} /> : <EyeOff size={16} />}
             </button>
-            
+
             <button
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`${styles.controlButton} ${autoRefresh ? styles.active : ''}`}
+              className={`${styles.controlButton} ${autoRefresh ? styles.active : ""}`}
               title="Toggle auto-refresh"
             >
-              <RefreshCw className={autoRefresh ? styles.spinning : ''} size={16} />
+              <RefreshCw className={autoRefresh ? styles.spinning : ""} size={16} />
             </button>
-            
+
             <button
               onClick={() => setIsPaused(!isPaused)}
-              className={`${styles.controlButton} ${isPaused ? styles.paused : ''}`}
-              title={isPaused ? 'Resume updates' : 'Pause updates'}
+              className={`${styles.controlButton} ${isPaused ? styles.paused : ""}`}
+              title={isPaused ? "Resume updates" : "Pause updates"}
             >
               {isPaused ? <Play size={16} /> : <Pause size={16} />}
             </button>
-            
+
             <button
               onClick={handleRefresh}
               disabled={isLoading}
               className={styles.controlButton}
               title="Refresh data"
             >
-              <RefreshCw className={isLoading ? styles.spinning : ''} size={16} />
+              <RefreshCw className={isLoading ? styles.spinning : ""} size={16} />
             </button>
-            
+
             <button
               onClick={() => setShowHelp(!showHelp)}
               className={styles.controlButton}
@@ -471,7 +492,7 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
               <HelpCircle size={16} />
             </button>
           </div>
-          
+
           {lastUpdate && (
             <div className={styles.lastUpdate}>
               <Clock size={12} />
@@ -516,32 +537,30 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
       {/* Tabs */}
       <div className={styles.tabs}>
         <button
-          onClick={() => setActiveTab('recommendations')}
-          className={`${styles.tab} ${activeTab === 'recommendations' ? styles.active : ''}`}
+          onClick={() => setActiveTab("recommendations")}
+          className={`${styles.tab} ${activeTab === "recommendations" ? styles.active : ""}`}
         >
           <Star size={16} />
           Recommendations
-          {statistics.total > 0 && (
-            <span className={styles.tabBadge}>{statistics.total}</span>
-          )}
+          {statistics.total > 0 && <span className={styles.tabBadge}>{statistics.total}</span>}
         </button>
         <button
-          onClick={() => setActiveTab('performance')}
-          className={`${styles.tab} ${activeTab === 'performance' ? styles.active : ''}`}
+          onClick={() => setActiveTab("performance")}
+          className={`${styles.tab} ${activeTab === "performance" ? styles.active : ""}`}
         >
           <Activity size={16} />
           Performance
         </button>
         <button
-          onClick={() => setActiveTab('realtime')}
-          className={`${styles.tab} ${activeTab === 'realtime' ? styles.active : ''}`}
+          onClick={() => setActiveTab("realtime")}
+          className={`${styles.tab} ${activeTab === "realtime" ? styles.active : ""}`}
         >
           <TrendingUp size={16} />
           Real-time
         </button>
         <button
-          onClick={() => onNavigate?.('chat')}
-          className={`${styles.tab} ${activeTab === 'search' ? styles.active : ''}`}
+          onClick={() => onNavigate?.("chat")}
+          className={`${styles.tab} ${activeTab === "search" ? styles.active : ""}`}
         >
           <Search size={16} />
           Advanced Search
@@ -564,7 +583,7 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
             <option value="organization">Organization</option>
           </select>
         </div>
-        
+
         <div className={styles.filterGroup}>
           <label className={styles.filterLabel}>Priority:</label>
           <select
@@ -582,7 +601,7 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
 
       {/* Tab Content */}
       <div className={styles.content}>
-        {activeTab === 'recommendations' && (
+        {activeTab === "recommendations" && (
           <div className={styles.recommendationsContent}>
             {isLoading ? (
               <div className={styles.loadingState}>
@@ -601,12 +620,12 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
                 <p>Your files are well organized!</p>
               </div>
             ) : (
-              <div className={viewMode === 'grid' ? styles.gridContainer : styles.listContainer}>
+              <div className={viewMode === "grid" ? styles.gridContainer : styles.listContainer}>
                 {filteredRecommendations.map((rec) => {
                   const IconComponent = getPriorityIcon(rec.priority);
-                  const CategoryIcon = getCategoryIcon(rec.category || 'storage');
+                  const CategoryIcon = getCategoryIcon(rec.category || "storage");
                   const isExpanded = expandedRecommendations.has(rec.id);
-                  
+
                   return (
                     <motion.div
                       key={rec.id}
@@ -626,86 +645,98 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
                               <span className={`${styles.priority} ${styles[rec.priority]}`}>
                                 {rec.priority}
                               </span>
-                              <span className={`${styles.category} ${styles[rec.category || 'storage']}`}>
+                              <span
+                                className={`${styles.category} ${styles[rec.category || "storage"]}`}
+                              >
                                 <CategoryIcon size={12} />
-                                {rec.category || 'storage'}
+                                {rec.category || "storage"}
                               </span>
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className={styles.cardRight}>
                           <div className={styles.cardActions}>
                             <button
                               onClick={() => toggleRecommendationExpansion(rec.id)}
                               className={styles.expandButton}
                             >
-                              <ChevronRight className={isExpanded ? styles.rotated : ''} size={16} />
+                              <ChevronRight
+                                className={isExpanded ? styles.rotated : ""}
+                                size={16}
+                              />
                             </button>
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className={styles.cardContent}>
                         <p className={styles.description}>{rec.description}</p>
-                        
+
                         {showDetails && (
                           <div className={styles.details}>
                             <div className={styles.detailRow}>
                               <span className={styles.detailLabel}>Impact:</span>
-                              <span className={`${styles.detailValue} ${styles[rec.impact || 'medium']}`}>
-                                {rec.impact || 'medium'}
+                              <span
+                                className={`${styles.detailValue} ${styles[rec.impact || "medium"]}`}
+                              >
+                                {rec.impact || "medium"}
                               </span>
                             </div>
-                            
+
                             {rec.files && (
                               <div className={styles.detailRow}>
                                 <span className={styles.detailLabel}>Files:</span>
                                 <span className={styles.detailValue}>{rec.files.length}</span>
                               </div>
                             )}
-                            
+
                             {rec.potentialSavings && (
                               <div className={styles.detailRow}>
                                 <span className={styles.detailLabel}>Savings:</span>
-                                <span className={styles.detailValue}>{formatSavings(rec.potentialSavings)}</span>
+                                <span className={styles.detailValue}>
+                                  {formatSavings(rec.potentialSavings)}
+                                </span>
                               </div>
                             )}
-                            
+
                             <div className={styles.detailRow}>
                               <span className={styles.detailLabel}>Status:</span>
                               <span className={`${styles.detailValue} ${styles[rec.status]}`}>
-                                {rec.status === 'completed' ? '✓ Completed' :
-                                 rec.status === 'in_progress' ? '⏳ In Progress' : '⏸ Pending'}
+                                {rec.status === "completed"
+                                  ? "✓ Completed"
+                                  : rec.status === "in_progress"
+                                    ? "⏳ In Progress"
+                                    : "⏸ Pending"}
                               </span>
                             </div>
                           </div>
                         )}
-                        
-                        {rec.status === 'in_progress' && (
+
+                        {rec.status === "in_progress" && (
                           <div className={styles.progressBar}>
-                            <div 
+                            <div
                               className={styles.progressFill}
                               style={{ width: `${rec.progress || 0}%` }}
                             />
                           </div>
                         )}
                       </div>
-                      
+
                       <div className={styles.cardFooter}>
                         <div className={styles.footerLeft}>
                           <button
                             onClick={() => handleRecommendationAction(rec)}
-                            disabled={rec.status === 'completed'}
+                            disabled={rec.status === "completed"}
                             className={styles.actionButton}
                           >
-                            {rec.status === 'completed' ? '✓ Applied' : 'Apply Recommendation'}
+                            {rec.status === "completed" ? "✓ Applied" : "Apply Recommendation"}
                           </button>
                         </div>
-                        
+
                         <div className={styles.footerRight}>
                           <button
-                            onClick={() => onNavigate?.('browser')}
+                            onClick={() => onNavigate?.("browser")}
                             className={styles.viewButton}
                           >
                             View Files
@@ -713,7 +744,7 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
                           </button>
                         </div>
                       </div>
-                      
+
                       {isExpanded && rec.suggestions && (
                         <div className={styles.expandedContent}>
                           <h4>Suggestions:</h4>
@@ -732,7 +763,7 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
           </div>
         )}
 
-        {activeTab === 'performance' && (
+        {activeTab === "performance" && (
           <div className={styles.performanceContent}>
             {performanceMetrics ? (
               <>
@@ -743,7 +774,9 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
                       <Zap size={24} />
                     </div>
                     <div className={styles.metricContent}>
-                      <div className={styles.metricValue}>{formatSpeed(performanceMetrics.filesPerSecond)}</div>
+                      <div className={styles.metricValue}>
+                        {formatSpeed(performanceMetrics.filesPerSecond)}
+                      </div>
                       <div className={styles.metricLabel}>Processing Speed</div>
                       <div className={styles.metricTrend}>
                         <TrendingUp size={16} />
@@ -751,13 +784,15 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className={styles.metricCard}>
                     <div className={styles.metricIcon}>
                       <Shield size={24} />
                     </div>
                     <div className={styles.metricContent}>
-                      <div className={styles.metricValue}>{(performanceMetrics.cacheHitRate * 100).toFixed(1)}%</div>
+                      <div className={styles.metricValue}>
+                        {(performanceMetrics.cacheHitRate * 100).toFixed(1)}%
+                      </div>
                       <div className={styles.metricLabel}>Cache Hit Rate</div>
                       <div className={styles.metricTrend}>
                         <TrendingUp size={16} />
@@ -765,13 +800,15 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className={styles.metricCard}>
                     <div className={styles.metricIcon}>
                       <BarChart3 size={24} />
                     </div>
                     <div className={styles.metricContent}>
-                      <div className={styles.metricValue}>{performanceMetrics.batchesProcessed}</div>
+                      <div className={styles.metricValue}>
+                        {performanceMetrics.batchesProcessed}
+                      </div>
                       <div className={styles.metricLabel}>Batches Processed</div>
                       <div className={styles.metricTrend}>
                         <ArrowUp size={16} />
@@ -779,13 +816,15 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className={styles.metricCard}>
                     <div className={styles.metricIcon}>
                       <Clock size={24} />
                     </div>
                     <div className={styles.metricContent}>
-                      <div className={styles.metricValue}>{performanceMetrics.categorizationTime}ms</div>
+                      <div className={styles.metricValue}>
+                        {performanceMetrics.categorizationTime}ms
+                      </div>
                       <div className={styles.metricLabel}>Total Time</div>
                       <div className={styles.metricTrend}>
                         <TrendingDown size={16} />
@@ -801,19 +840,27 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
                   <div className={styles.summaryGrid}>
                     <div className={styles.summaryItem}>
                       <span className={styles.summaryLabel}>Total Files Processed</span>
-                      <span className={styles.summaryValue}>{performanceMetrics.totalFiles.toLocaleString()}</span>
+                      <span className={styles.summaryValue}>
+                        {performanceMetrics.totalFiles.toLocaleString()}
+                      </span>
                     </div>
                     <div className={styles.summaryItem}>
                       <span className={styles.summaryLabel}>Average Time per File</span>
                       <span className={styles.summaryValue}>
-                        {(performanceMetrics.categorizationTime / performanceMetrics.totalFiles).toFixed(2)}ms
+                        {(
+                          performanceMetrics.categorizationTime / performanceMetrics.totalFiles
+                        ).toFixed(2)}
+                        ms
                       </span>
                     </div>
                     <div className={styles.summaryItem}>
                       <span className={styles.summaryLabel}>Processing Efficiency</span>
                       <span className={styles.summaryValue}>
-                        {performanceMetrics.filesPerSecond > 10000 ? 'Excellent' : 
-                         performanceMetrics.filesPerSecond > 5000 ? 'Good' : 'Fair'}
+                        {performanceMetrics.filesPerSecond > 10000
+                          ? "Excellent"
+                          : performanceMetrics.filesPerSecond > 5000
+                            ? "Good"
+                            : "Fair"}
                       </span>
                     </div>
                     {performanceMetrics.memoryUsage && (
@@ -836,7 +883,7 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
           </div>
         )}
 
-        {activeTab === 'realtime' && (
+        {activeTab === "realtime" && (
           <div className={styles.realtimeContent}>
             {realTimeMetrics ? (
               <>
@@ -846,30 +893,40 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
                     <h3>Real-time Monitoring</h3>
                   </div>
                   <div className={styles.realtimeStatus}>
-                    <div className={`${styles.statusIndicator} ${styles[realTimeMetrics.systemHealth]}`} />
+                    <div
+                      className={`${styles.statusIndicator} ${styles[realTimeMetrics.systemHealth]}`}
+                    />
                     <span>System Health: {realTimeMetrics.systemHealth}</span>
                   </div>
                 </div>
-                
+
                 <div className={styles.realtimeMetrics}>
                   <div className={styles.realtimeMetric}>
                     <div className={styles.realtimeLabel}>Active Recommendations</div>
-                    <div className={styles.realtimeValue}>{realTimeMetrics.activeRecommendations}</div>
+                    <div className={styles.realtimeValue}>
+                      {realTimeMetrics.activeRecommendations}
+                    </div>
                   </div>
                   <div className={styles.realtimeMetric}>
                     <div className={styles.realtimeLabel}>Completed Recommendations</div>
-                    <div className={styles.realtimeValue}>{realTimeMetrics.completedRecommendations}</div>
+                    <div className={styles.realtimeValue}>
+                      {realTimeMetrics.completedRecommendations}
+                    </div>
                   </div>
                   <div className={styles.realtimeMetric}>
                     <div className={styles.realtimeLabel}>Processing Speed</div>
-                    <div className={styles.realtimeValue}>{formatSpeed(realTimeMetrics.processingSpeed)}</div>
+                    <div className={styles.realtimeValue}>
+                      {formatSpeed(realTimeMetrics.processingSpeed)}
+                    </div>
                   </div>
                   <div className={styles.realtimeMetric}>
                     <div className={styles.realtimeLabel}>Last Update</div>
-                    <div className={styles.realtimeValue}>{realTimeMetrics.timestamp.toLocaleTimeString()}</div>
+                    <div className={styles.realtimeValue}>
+                      {realTimeMetrics.timestamp.toLocaleTimeString()}
+                    </div>
                   </div>
                 </div>
-                
+
                 <div className={styles.realtimeChart}>
                   <div className={styles.chartPlaceholder}>
                     <BarChart3 size={48} />
@@ -900,43 +957,69 @@ const EnhancedAIFeaturesPanel: React.FC<EnhancedAIFeaturesPanelProps> = ({
             <div className={styles.helpContent}>
               <div className={styles.helpHeader}>
                 <h3>AI Features Help</h3>
-                <button
-                  onClick={() => setShowHelp(false)}
-                  className={styles.helpClose}
-                >
+                <button onClick={() => setShowHelp(false)} className={styles.helpClose}>
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className={styles.helpSections}>
                 <div className={styles.helpSection}>
                   <h4>Keyboard Shortcuts</h4>
                   <ul>
-                    <li><kbd>Ctrl+R</kbd> - Refresh data</li>
-                    <li><kbd>Space</kbd> - Pause/Resume updates</li>
-                    <li><kbd>G</kbd> - Toggle grid/list view</li>
-                    <li><kbd>D</kbd> - Toggle details</li>
-                    <li><kbd>A</kbd> - Toggle auto-refresh</li>
-                    <li><kbd>/</kbd> - Focus search</li>
+                    <li>
+                      <kbd>Ctrl+R</kbd> - Refresh data
+                    </li>
+                    <li>
+                      <kbd>Space</kbd> - Pause/Resume updates
+                    </li>
+                    <li>
+                      <kbd>G</kbd> - Toggle grid/list view
+                    </li>
+                    <li>
+                      <kbd>D</kbd> - Toggle details
+                    </li>
+                    <li>
+                      <kbd>A</kbd> - Toggle auto-refresh
+                    </li>
+                    <li>
+                      <kbd>/</kbd> - Focus search
+                    </li>
                   </ul>
                 </div>
-                
+
                 <div className={styles.helpSection}>
                   <h4>Features</h4>
                   <ul>
-                    <li><strong>Smart Recommendations:</strong> AI-powered file optimization suggestions</li>
-                    <li><strong>Performance Monitoring:</strong> Real-time processing metrics</li>
-                    <li><strong>Batch Actions:</strong> Apply multiple recommendations at once</li>
-                    <li><strong>Auto-refresh:</strong> Automatic data updates every 30 seconds</li>
+                    <li>
+                      <strong>Smart Recommendations:</strong> AI-powered file optimization
+                      suggestions
+                    </li>
+                    <li>
+                      <strong>Performance Monitoring:</strong> Real-time processing metrics
+                    </li>
+                    <li>
+                      <strong>Batch Actions:</strong> Apply multiple recommendations at once
+                    </li>
+                    <li>
+                      <strong>Auto-refresh:</strong> Automatic data updates every 30 seconds
+                    </li>
                   </ul>
                 </div>
-                
+
                 <div className={styles.helpSection}>
                   <h4>Status Indicators</h4>
                   <ul>
-                    <li><span className={styles.statusHigh}>High Priority</span> - Critical recommendations</li>
-                    <li><span className={styles.statusMedium}>Medium Priority</span> - Important suggestions</li>
-                    <li><span className={styles.statusLow}>Low Priority</span> - Optional improvements</li>
+                    <li>
+                      <span className={styles.statusHigh}>High Priority</span> - Critical
+                      recommendations
+                    </li>
+                    <li>
+                      <span className={styles.statusMedium}>Medium Priority</span> - Important
+                      suggestions
+                    </li>
+                    <li>
+                      <span className={styles.statusLow}>Low Priority</span> - Optional improvements
+                    </li>
                   </ul>
                 </div>
               </div>

@@ -12,8 +12,12 @@
     <div class="flex-1 flex items-center justify-center p-6 md:p-12 relative z-10">
       <div class="max-w-7xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
         <!-- Left Side - Hero Content -->
-        <div class="space-y-8 lg:space-y-12 text-center lg:text-left animate-in fade-in slide-in-from-left-12 duration-600">
-          <div class="flex justify-center lg:justify-start animate-in zoom-in duration-500 delay-200">
+        <div
+          class="space-y-8 lg:space-y-12 text-center lg:text-left animate-in fade-in slide-in-from-left-12 duration-600"
+        >
+          <div
+            class="flex justify-center lg:justify-start animate-in zoom-in duration-500 delay-200"
+          >
             <div class="relative">
               <div
                 class="absolute inset-0 bg-linear-to-r from-[#00B4D8] to-purple-500 blur-2xl opacity-20 rounded-full"
@@ -39,12 +43,16 @@
             Space Analyzer Pro
           </h1>
 
-          <p class="text-sm lg:text-base text-slate-300 leading-relaxed font-normal animate-in fade-in slide-in-from-bottom-4 duration-500 delay-400">
+          <p
+            class="text-sm lg:text-base text-slate-300 leading-relaxed font-normal animate-in fade-in slide-in-from-bottom-4 duration-500 delay-400"
+          >
             AI-Powered Intelligence for Your Digital Universe
           </p>
 
           <!-- Feature Highlights -->
-          <div class="grid grid-cols-2 gap-3 lg:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-500">
+          <div
+            class="grid grid-cols-2 gap-3 lg:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-500"
+          >
             <div
               v-for="(feature, index) in features"
               :key="feature.text"
@@ -67,12 +75,16 @@
           @dragleave="isDragOver = false"
           @drop="handleDrop"
         >
-          <div :class="['bg-slate-800/50 p-4 lg:p-6 space-y-3 lg:space-y-4 backdrop-blur-lg border border-white/20 rounded-xl', isDragOver ? 'border-2 border-dashed border-[#00B4D8] bg-[#00B4D8]/10' : '']">
+          <div
+            :class="[
+              'bg-slate-800/50 p-4 lg:p-6 space-y-3 lg:space-y-4 backdrop-blur-lg border border-white/20 rounded-xl',
+              isDragOver ? 'border-2 border-dashed border-[#00B4D8] bg-[#00B4D8]/10' : '',
+            ]"
+          >
             <div data-testid="directory-input-section">
-              <label
-                for="directory-path"
-                class="block text-sm font-medium text-slate-300 mb-2"
-              >Target Directory</label>
+              <label for="directory-path" class="block text-sm font-medium text-slate-300 mb-2"
+                >Target Directory</label
+              >
               <div class="relative">
                 <Folder
                   class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"
@@ -90,26 +102,18 @@
                   @input="handlePathChange(analysisStore.path)"
                   @keydown.enter="handleEnterKey"
                   @keydown.esc="appStore.showPathPicker && appStore.togglePathPicker()"
+                />
+                <div
+                  class="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1"
                 >
-                <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
                   <button
                     class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors"
                     aria-label="Copy path"
                     title="Copy path"
                     @click="handleCopyPath"
                   >
-                    <Check
-                      v-if="copied"
-                      :size="16"
-                      class="text-[#00B4D8]"
-                      aria-hidden="true"
-                    />
-                    <Copy
-                      v-else
-                      :size="16"
-                      class="text-slate-300"
-                      aria-hidden="true"
-                    />
+                    <Check v-if="copied" :size="16" class="text-[#00B4D8]" aria-hidden="true" />
+                    <Copy v-else :size="16" class="text-slate-300" aria-hidden="true" />
                   </button>
                   <button
                     v-if="appStore.recentPaths.length > 0"
@@ -118,20 +122,15 @@
                     title="Recent paths"
                     @click="appStore.togglePathPicker"
                   >
-                    <FolderOpen
-                      :size="16"
-                      class="text-slate-300"
-                      aria-hidden="true"
-                    />
+                    <FolderOpen :size="16" class="text-slate-300" aria-hidden="true" />
                   </button>
                 </div>
               </div>
               <!-- Recent paths dropdown -->
               <Transition name="dropdown">
-                <div 
-                  v-if="appStore.showPathPicker && appStore.recentPaths.length > 0" 
+                <div
+                  v-if="appStore.showPathPicker && appStore.recentPaths.length > 0"
                   class="mt-2 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden"
-                  @click.outside="appStore.togglePathPicker()"
                 >
                   <button
                     v-for="path in appStore.recentPaths"
@@ -146,14 +145,16 @@
             </div>
 
             <!-- Backend status indicator -->
-            <div
-              data-testid="backend-status"
-              class="flex items-center justify-between text-xs"
-            >
+            <div data-testid="backend-status" class="flex items-center justify-between text-xs">
               <div class="flex items-center gap-2">
-                <div :class="['w-2 h-2 rounded-full', appStore.isBackendOnline ? 'bg-[#00B4D8] animate-pulse' : 'bg-red-400']" />
+                <div
+                  :class="[
+                    'w-2 h-2 rounded-full',
+                    appStore.isBackendOnline ? 'bg-[#00B4D8] animate-pulse' : 'bg-red-400',
+                  ]"
+                />
                 <span :class="appStore.isBackendOnline ? 'text-[#00B4D8]' : 'text-red-400'">
-                  {{ appStore.isBackendOnline ? 'Backend Online' : 'Backend Offline' }}
+                  {{ appStore.isBackendOnline ? "Backend Online" : "Backend Offline" }}
                 </span>
               </div>
               <button
@@ -167,55 +168,43 @@
             </div>
 
             <!-- AI toggle -->
-            <div
-              data-testid="ai-toggle"
-              class="flex items-center justify-between"
-            >
+            <div data-testid="ai-toggle" class="flex items-center justify-between">
               <label class="text-sm text-slate-300">Enable AI Analysis</label>
               <button
                 data-testid="ai-toggle-button"
-                :class="['relative w-12 h-6 rounded-full transition-colors', analysisStore.useAI ? 'bg-[#00B4D8]' : 'bg-slate-600']"
+                :class="[
+                  'relative w-12 h-6 rounded-full transition-colors',
+                  analysisStore.useAI ? 'bg-[#00B4D8]' : 'bg-slate-600',
+                ]"
                 :aria-pressed="analysisStore.useAI"
                 aria-label="Toggle AI analysis"
                 @click="toggleAI"
               >
-                <div :class="['absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform', analysisStore.useAI ? 'translate-x-6' : 'translate-x-0']" />
+                <div
+                  :class="[
+                    'absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform',
+                    analysisStore.useAI ? 'translate-x-6' : 'translate-x-0',
+                  ]"
+                />
               </button>
             </div>
 
             <!-- AI Model Selection -->
-            <div
-              v-if="analysisStore.useAI"
-              data-testid="ai-panel"
-              class="space-y-2"
-            >
+            <div v-if="analysisStore.useAI" data-testid="ai-panel" class="space-y-2">
               <label class="text-sm text-slate-300">AI Model</label>
               <select
                 data-testid="ai-model-select"
                 class="w-full bg-slate-700 border border-slate-600 rounded-lg text-white text-sm p-2 focus:outline-none focus:border-[#00B4D8]"
                 value="qwen2.5:7b"
               >
-                <option value="qwen2.5:7b">
-                  Qwen 2.5 (7B)
-                </option>
-                <option value="qwen2.5:14b">
-                  Qwen 2.5 (14B)
-                </option>
-                <option value="phi4-mini:latest">
-                  Phi 4 Mini
-                </option>
-                <option value="gemma3:4b">
-                  Gemma 3 (4B)
-                </option>
-                <option value="deepseek-coder:6.7b-instruct">
-                  DeepSeek Coder
-                </option>
+                <option value="qwen2.5:7b">Qwen 2.5 (7B)</option>
+                <option value="qwen2.5:14b">Qwen 2.5 (14B)</option>
+                <option value="phi4-mini:latest">Phi 4 Mini</option>
+                <option value="gemma3:4b">Gemma 3 (4B)</option>
+                <option value="deepseek-coder:6.7b-instruct">DeepSeek Coder</option>
               </select>
-              <div
-                data-testid="ai-status"
-                class="text-xs text-slate-400"
-              >
-                {{ appStore.isBackendOnline ? 'AI Service: Available' : 'AI Service: Offline' }}
+              <div data-testid="ai-status" class="text-xs text-slate-400">
+                {{ appStore.isBackendOnline ? "AI Service: Available" : "AI Service: Offline" }}
               </div>
             </div>
 
@@ -225,10 +214,7 @@
                 class="bg-orange-500/10 border border-orange-500 text-orange-400 px-4 py-3 rounded-xl flex items-center gap-2"
                 role="alert"
               >
-                <AlertTriangle
-                  :size="18"
-                  aria-hidden="true"
-                />
+                <AlertTriangle :size="18" aria-hidden="true" />
                 {{ analysisStore.error }}
               </div>
             </Transition>
@@ -263,14 +249,23 @@
               type="button"
               :disabled="!appStore.isBackendOnline || analysisStore.isAnalysisRunning"
               class="bg-[#00B4D8] hover:bg-[#0095b8] text-white font-medium py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full"
-              :aria-label="analysisStore.isAnalysisRunning ? 'Analysis in progress' : (analysisStore.useAI ? 'Start AI Analysis' : 'Start Standard Analysis')"
+              :aria-label="
+                analysisStore.isAnalysisRunning
+                  ? 'Analysis in progress'
+                  : analysisStore.useAI
+                    ? 'Start AI Analysis'
+                    : 'Start Standard Analysis'
+              "
               @click="handleStartAnalysis"
             >
-              <Play
-                :size="20"
-                aria-hidden="true"
-              />
-              {{ analysisStore.isAnalysisRunning ? 'Analyzing...' : (analysisStore.useAI ? 'Start AI Analysis' : 'Start Standard Analysis') }}
+              <Play :size="20" aria-hidden="true" />
+              {{
+                analysisStore.isAnalysisRunning
+                  ? "Analyzing..."
+                  : analysisStore.useAI
+                    ? "Start AI Analysis"
+                    : "Start Standard Analysis"
+              }}
             </button>
 
             <Transition name="results">
@@ -283,60 +278,50 @@
                   <span class="text-sm text-slate-300">Analysis Complete</span>
                   <span class="text-xs text-emerald-400">✓</span>
                 </div>
-                
+
                 <!-- Storage Gauge -->
                 <StorageGauge
                   :used="analysisStore.data.totalSize || 0"
                   :total="(analysisStore.data.totalSize || 0) * 1.5 || 1"
                   :categories="categoryData"
                 />
-                
-                <div
-                  data-testid="statistics"
-                  class="grid grid-cols-2 gap-3"
-                >
-                  <div
-                    data-testid="file-count"
-                    class="bg-slate-800/50 rounded-lg p-3 text-center"
-                  >
+
+                <div data-testid="statistics" class="grid grid-cols-2 gap-3">
+                  <div data-testid="file-count" class="bg-slate-800/50 rounded-lg p-3 text-center">
                     <div class="text-2xl font-bold text-white mb-1">
                       {{ analysisStore.data.files?.length || 0 }}
                     </div>
-                    <div class="text-xs text-slate-300">
-                      Files
-                    </div>
+                    <div class="text-xs text-slate-300">Files</div>
                   </div>
-                  <div
-                    data-testid="total-size"
-                    class="bg-slate-800/50 rounded-lg p-3 text-center"
-                  >
+                  <div data-testid="total-size" class="bg-slate-800/50 rounded-lg p-3 text-center">
                     <div class="text-2xl font-bold text-white mb-1">
-                      {{ analysisStore.data.totalSize ? `${(analysisStore.data.totalSize / 1024 / 1024).toFixed(1)}` : '0' }}
+                      {{
+                        analysisStore.data.totalSize
+                          ? `${(analysisStore.data.totalSize / 1024 / 1024).toFixed(1)}`
+                          : "0"
+                      }}
                     </div>
-                    <div class="text-xs text-slate-300">
-                      MB
-                    </div>
+                    <div class="text-xs text-slate-300">MB</div>
                   </div>
                 </div>
 
                 <!-- 3D Visualization Preview -->
-                <div
-                  data-testid="visualization"
-                  class="mt-4 bg-slate-800/50 rounded-lg p-4"
-                >
-                  <h4 class="text-sm font-medium text-white mb-2">
-                    3D Visualization
-                  </h4>
-                  <div class="h-32 bg-slate-900 rounded-lg flex items-center justify-center text-slate-400 text-xs">
-                    {{ analysisStore.data?.files?.length > 0 ? `Ready to visualize ${analysisStore.data.files.length} files` : 'Run analysis to enable 3D visualization' }}
+                <div data-testid="visualization" class="mt-4 bg-slate-800/50 rounded-lg p-4">
+                  <h4 class="text-sm font-medium text-white mb-2">3D Visualization</h4>
+                  <div
+                    class="h-32 bg-slate-900 rounded-lg flex items-center justify-center text-slate-400 text-xs"
+                  >
+                    {{
+                      analysisStore.data?.files?.length > 0
+                        ? `Ready to visualize ${analysisStore.data.files.length} files`
+                        : "Run analysis to enable 3D visualization"
+                    }}
                   </div>
                 </div>
 
                 <!-- Action Buttons -->
                 <div class="space-y-2 mt-4">
-                  <h4 class="text-sm font-medium text-white mb-2">
-                    Quick Actions
-                  </h4>
+                  <h4 class="text-sm font-medium text-white mb-2">Quick Actions</h4>
                   <div class="grid grid-cols-2 gap-2">
                     <button
                       :disabled="!analysisStore.data"
@@ -345,11 +330,7 @@
                       aria-label="Browse files"
                       @click="navigateToBrowser"
                     >
-                      <FolderOpen
-                        :size="16"
-                        class="mr-1"
-                        aria-hidden="true"
-                      />
+                      <FolderOpen :size="16" class="mr-1" aria-hidden="true" />
                       Browse Files
                     </button>
                     <button
@@ -359,11 +340,7 @@
                       aria-label="View dashboard"
                       @click="navigateToDashboard"
                     >
-                      <BarChart3
-                        :size="16"
-                        class="mr-1"
-                        aria-hidden="true"
-                      />
+                      <BarChart3 :size="16" class="mr-1" aria-hidden="true" />
                       View Dashboard
                     </button>
                     <button
@@ -373,11 +350,7 @@
                       aria-label="Export report"
                       @click="exportReport"
                     >
-                      <Download
-                        :size="16"
-                        class="mr-1"
-                        aria-hidden="true"
-                      />
+                      <Download :size="16" class="mr-1" aria-hidden="true" />
                       Export Report
                     </button>
                     <button
@@ -387,11 +360,7 @@
                       aria-label="View 3D visualization"
                       @click="navigateToVisualization"
                     >
-                      <Box
-                        :size="16"
-                        class="mr-1"
-                        aria-hidden="true"
-                      />
+                      <Box :size="16" class="mr-1" aria-hidden="true" />
                       3D Visualization
                     </button>
                   </div>
@@ -406,10 +375,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject, watch } from 'vue'
-import { BrainCircuit, Folder, Play, AlertTriangle, FolderOpen, BarChart3, Download, Trash2, Copy, Check, Box } from 'lucide-vue-next'
-import RealTimeFileScanner from '../RealTimeFileScanner.vue'
-import StorageGauge from '../StorageGauge.vue'
+import { ref, computed, inject, watch } from "vue";
+import {
+  BrainCircuit,
+  Folder,
+  Play,
+  AlertTriangle,
+  FolderOpen,
+  BarChart3,
+  Download,
+  Copy,
+  Check,
+  Box,
+} from "lucide-vue-next";
+import RealTimeFileScanner from "../RealTimeFileScanner.vue";
+import StorageGauge from "../StorageGauge.vue";
 import {
   analysisStoreKey,
   appStoreKey,
@@ -421,178 +401,213 @@ import {
   navigateToVisualizationKey,
   exportReportKey,
   cleanupSuggestionsKey,
-  getCategoryColorKey
-} from '../../../types/injection'
+  getCategoryColorKey,
+} from "../../../types/injection";
 
 // Color constants
-const COLORS = {
-  PRIMARY: '#00B4D8',
-  PRIMARY_HOVER: '#0095b8',
-  PURPLE: '#9333EA',
-  EMERALD: '#10B981',
-  AMBER: '#F59E0B',
-  ORANGE: '#F97316',
-  RED: '#EF4444',
-  BLUE: '#3B82F6',
-  SLATE_700: '#334155',
-  SLATE_800: '#1e293b',
-  SLATE_900: '#0f172a'
-} as const
+const _COLORS = {
+  PRIMARY: "#00B4D8",
+  PRIMARY_HOVER: "#0095b8",
+  PURPLE: "#9333EA",
+  EMERALD: "#10B981",
+  AMBER: "#F59E0B",
+  ORANGE: "#F97316",
+  RED: "#EF4444",
+  BLUE: "#3B82F6",
+  SLATE_700: "#334155",
+  SLATE_800: "#1e293b",
+  SLATE_900: "#0f172a",
+} as const;
 
 // Simple logger that saves to window object for inspection
 declare global {
   interface Window {
-    __debugLogs?: Array<{ timestamp: string; tag: string; data: unknown[] }>
+    __debugLogs?: Array<{ timestamp: string; tag: string; data: unknown[] }>;
   }
 }
 
 const log = (tag: string, ...args: unknown[]) => {
-  const timestamp = new Date().toISOString()
-  const entry = { timestamp, tag, data: args }
-  if (typeof window !== 'undefined') {
-    window.__debugLogs = window.__debugLogs || []
-    window.__debugLogs.push(entry)
+  const timestamp = new Date().toISOString();
+  const entry = { timestamp, tag, data: args };
+  if (typeof window !== "undefined") {
+    window.__debugLogs = window.__debugLogs || [];
+    window.__debugLogs.push(entry);
   }
-}
+};
 
 // Inject stores and functions from App.vue
-const analysisStore = inject(analysisStoreKey)!
-const appStore = inject(appStoreKey)!
-const handlePathChange = inject(handlePathChangeKey)!
-const toggleAI = inject(toggleAIKey)!
-const handleSelectRecentPath = inject(handleSelectRecentPathKey)!
-const navigateToDashboard = inject(navigateToDashboardKey)!
-const navigateToBrowser = inject(navigateToBrowserKey)!
-const navigateToVisualization = inject(navigateToVisualizationKey)!
-const exportReport = inject(exportReportKey)!
-const cleanupSuggestions = inject(cleanupSuggestionsKey)!
-const getCategoryColor = inject(getCategoryColorKey)!
+const analysisStore = inject(analysisStoreKey)!;
+const appStore = inject(appStoreKey)!;
+const handlePathChange = inject(handlePathChangeKey)!;
+const toggleAI = inject(toggleAIKey)!;
+const handleSelectRecentPath = inject(handleSelectRecentPathKey)!;
+const navigateToDashboard = inject(navigateToDashboardKey)!;
+const navigateToBrowser = inject(navigateToBrowserKey)!;
+const navigateToVisualization = inject(navigateToVisualizationKey)!;
+const exportReport = inject(exportReportKey)!;
+const _cleanupSuggestions = inject(cleanupSuggestionsKey)!;
+const getCategoryColor = inject(getCategoryColorKey)!;
 
-const copied = ref(false)
-const isDragOver = ref(false)
+const copied = ref(false);
+const isDragOver = ref(false);
 
 // Watch for store changes
-watch(() => analysisStore.data, (newData) => {
-  log('LANDING_DATA', newData)
-}, { deep: true })
+watch(
+  () => analysisStore.data,
+  (newData) => {
+    log("LANDING_DATA", newData);
+  },
+  { deep: true }
+);
 
-watch(() => analysisStore.status, (newStatus) => {
-  log('LANDING_STATUS', newStatus)
-})
+watch(
+  () => analysisStore.status,
+  (newStatus) => {
+    log("LANDING_STATUS", newStatus);
+  }
+);
 
-watch(() => analysisStore.isAnalysisRunning, (newVal) => {
-  log('LANDING_RUNNING', newVal)
-})
+watch(
+  () => analysisStore.isAnalysisRunning,
+  (newVal) => {
+    log("LANDING_RUNNING", newVal);
+  }
+);
 
-log('LANDING_MOUNT', 'LandingPage mounted', { analysisStore })
+log("LANDING_MOUNT", "LandingPage mounted", { analysisStore });
 
 const downloadDebugLogs = () => {
-  const logs = window.__debugLogs || []
-  const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `debug-logs-${Date.now()}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-}
+  const logs = window.__debugLogs || [];
+  const blob = new Blob([JSON.stringify(logs, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `debug-logs-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 const handleStartAnalysis = async () => {
-  log('BUTTON_CLICK', 'Start Analysis button clicked')
+  log("BUTTON_CLICK", "Start Analysis button clicked");
   try {
-    await analysisStore.handleAnalysis(analysisStore.useAI)
-    log('BUTTON_COMPLETE', 'Analysis completed')
+    await analysisStore.handleAnalysis(analysisStore.useAI);
+    log("BUTTON_COMPLETE", "Analysis completed");
   } catch (err) {
-    log('BUTTON_ERROR', err)
+    log("BUTTON_ERROR", err);
   }
-}
+};
 
 const features = [
-  { icon: '🧠', text: 'Neural Analysis', desc: 'AI-powered file relationships' },
-  { icon: '⚡', text: 'Lightning Fast', desc: 'Instant scanning results' },
-  { icon: '🤖', text: 'AI Insights', desc: 'Smart recommendations' },
-  { icon: '📊', text: 'Smart Reports', desc: 'Detailed analytics' }
-]
+  { icon: "🧠", text: "Neural Analysis", desc: "AI-powered file relationships" },
+  { icon: "⚡", text: "Lightning Fast", desc: "Instant scanning results" },
+  { icon: "🤖", text: "AI Insights", desc: "Smart recommendations" },
+  { icon: "📊", text: "Smart Reports", desc: "Detailed analytics" },
+];
 
 interface CategoryData {
-  size: number
-  [key: string]: unknown
+  size: number;
+  [key: string]: unknown;
 }
 
 const categoryData = computed(() => {
-  if (!analysisStore.data?.categories) return []
-  return Object.entries(analysisStore.data.categories).map(([name, data]: [string, CategoryData]) => ({
-    name,
-    size: data.size || 0,
-    color: getCategoryColor(name)
-  }))
-})
+  if (!analysisStore.data?.categories) return [];
+  return Object.entries(analysisStore.data.categories).map(
+    ([name, data]: [string, CategoryData]) => ({
+      name,
+      size: data.size || 0,
+      color: getCategoryColor(name),
+    })
+  );
+});
 
-const truncatePath = (path: string, maxLength: number = 40) => {
-  if (path.length <= maxLength) return path
-  const parts = path.split(/[\\/]/)
-  if (parts.length <= 2) return path
-  return `${parts[0]}\\...\\${parts[parts.length - 1]}`
-}
+const _truncatePath = (path: string, maxLength: number = 40) => {
+  if (path.length <= maxLength) return path;
+  const parts = path.split(/[\\/]/);
+  if (parts.length <= 2) return path;
+  return `${parts[0]}\\...\\${parts[parts.length - 1]}`;
+};
 
 const handleCopyPath = async () => {
   try {
-    await navigator.clipboard.writeText(analysisStore.path)
-    copied.value = true
-    setTimeout(() => copied.value = false, 2000)
+    await navigator.clipboard.writeText(analysisStore.path);
+    copied.value = true;
+    setTimeout(() => (copied.value = false), 2000);
   } catch (err) {
-    console.error('Failed to copy path:', err)
+    console.error("Failed to copy path:", err);
   }
-}
+};
 
 const handleDrop = (e: DragEvent) => {
-  e.preventDefault()
-  isDragOver.value = false
-  const droppedFile = e.dataTransfer?.files[0]
+  e.preventDefault();
+  isDragOver.value = false;
+  const droppedFile = e.dataTransfer?.files[0];
   if (droppedFile) {
     // Type-safe path extraction for Electron/NW.js environments
-    const droppedPath = 'path' in droppedFile ? (droppedFile as { path: string }).path : droppedFile.name
-    handlePathChange(droppedPath)
+    const droppedPath =
+      "path" in droppedFile ? (droppedFile as { path: string }).path : droppedFile.name;
+    handlePathChange(droppedPath);
   }
-}
+};
 
 const handleEnterKey = () => {
   if (appStore.isBackendOnline && !analysisStore.isAnalysisRunning) {
-    analysisStore.handleAnalysis(analysisStore.useAI)
+    analysisStore.handleAnalysis(analysisStore.useAI);
   }
-}
+};
 
 const selectRecentPath = (path: string) => {
-  handleSelectRecentPath(path)
-  appStore.togglePathPicker()
-}
+  handleSelectRecentPath(path);
+  appStore.togglePathPicker();
+};
 </script>
 
 <style scoped>
 /* CSS animations for Vue transitions */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideInFromLeft {
-  from { transform: translateX(-50px); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(-50px);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 @keyframes slideInFromRight {
-  from { transform: translateX(50px); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(50px);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 @keyframes slideInFromBottom {
-  from { transform: translateY(20px); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(20px);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 @keyframes zoomIn {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .animate-in {

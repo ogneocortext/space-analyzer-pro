@@ -3,7 +3,7 @@
  * Implements performance improvements recommended by the MoE analysis
  */
 
-import { useCallback, useRef, useEffect, useState } from 'react';
+import { useCallback, useRef, useEffect, useState } from "react";
 
 // Performance monitoring
 export class PerformanceMonitor {
@@ -20,33 +20,33 @@ export class PerformanceMonitor {
 
   startMonitoring() {
     // Monitor navigation timing
-    if ('performance' in window) {
+    if ("performance" in window) {
       const observer = new PerformanceObserver((list) => {
         list.getEntries().forEach((entry) => {
-          if (entry.entryType === 'navigation') {
+          if (entry.entryType === "navigation") {
             const navEntry = entry as PerformanceNavigationTiming;
-            this.metrics.set('pageLoad', navEntry.loadEventEnd - navEntry.loadEventStart);
-            this.metrics.set('domInteractive', navEntry.domInteractive);
+            this.metrics.set("pageLoad", navEntry.loadEventEnd - navEntry.loadEventStart);
+            this.metrics.set("domInteractive", navEntry.domInteractive);
           }
         });
       });
-      
-      observer.observe({ entryTypes: ['navigation'] });
+
+      observer.observe({ entryTypes: ["navigation"] });
       this.observers.push(observer);
     }
 
     // Monitor resource loading
-    if ('PerformanceObserver' in window) {
+    if ("PerformanceObserver" in window) {
       const resourceObserver = new PerformanceObserver((list) => {
         list.getEntries().forEach((entry) => {
-          if (entry.entryType === 'resource') {
+          if (entry.entryType === "resource") {
             const resourceEntry = entry as PerformanceResourceTiming;
             this.metrics.set(`resource_${resourceEntry.name}`, resourceEntry.duration);
           }
         });
       });
-      
-      resourceObserver.observe({ entryTypes: ['resource'] });
+
+      resourceObserver.observe({ entryTypes: ["resource"] });
       this.observers.push(resourceObserver);
     }
   }
@@ -56,7 +56,7 @@ export class PerformanceMonitor {
   }
 
   stopMonitoring() {
-    this.observers.forEach(observer => observer.disconnect());
+    this.observers.forEach((observer) => observer.disconnect());
     this.observers = [];
   }
 }
@@ -90,28 +90,31 @@ export const useLazyLoad = (threshold = 0.1) => {
 };
 
 // Image optimization
-export const optimizeImage = (src: string, options: {
-  width?: number;
-  height?: number;
-  quality?: number;
-  format?: 'webp' | 'avif' | 'jpeg' | 'png';
-} = {}): string => {
-  const { width, height, quality = 80, format = 'webp' } = options;
-  
+export const optimizeImage = (
+  src: string,
+  options: {
+    width?: number;
+    height?: number;
+    quality?: number;
+    format?: "webp" | "avif" | "jpeg" | "png";
+  } = {}
+): string => {
+  const { width, height, quality = 80, format = "webp" } = options;
+
   // Check browser support for modern formats
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
   if (!ctx) return src;
 
   // Create optimized image URL
   const params = new URLSearchParams();
-  if (width) params.set('w', width.toString());
-  if (height) params.set('h', height.toString());
-  if (quality !== 80) params.set('q', quality.toString());
-  if (format !== 'webp') params.set('f', format);
+  if (width) params.set("w", width.toString());
+  if (height) params.set("h", height.toString());
+  if (quality !== 80) params.set("q", quality.toString());
+  if (format !== "webp") params.set("f", format);
 
-  const baseUrl = src.split('?')[0];
+  const baseUrl = src.split("?")[0];
   return `${baseUrl}?${params.toString()}`;
 };
 
@@ -121,7 +124,7 @@ export const debounce = <T extends (...args: unknown[]) => unknown>(
   wait: number
 ): ((...args: Parameters<T>) => void) => {
   let timeout: NodeJS.Timeout;
-  
+
   return (...args: Parameters<T>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
@@ -134,12 +137,12 @@ export const throttle = <T extends (...args: unknown[]) => unknown>(
   limit: number
 ): ((...args: Parameters<T>) => void) => {
   let inThrottle: boolean;
-  
+
   return (...args: Parameters<T>) => {
     if (!inThrottle) {
       func(...args);
       inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
+      setTimeout(() => (inThrottle = false), limit);
     }
   };
 };
@@ -151,79 +154,72 @@ export const useMemoWithCache = <T>(
   cacheKey?: string
 ): T => {
   const cache = useRef<Map<string, T>>(new Map());
-  
+
   const key = cacheKey || JSON.stringify(deps);
-  
+
   if (cache.current.has(key)) {
     return cache.current.get(key)!;
   }
-  
+
   const value = factory();
   cache.current.set(key, value);
-  
+
   return value;
 };
 
 // Virtual scrolling for large lists
-export const useVirtualScroll = <T>(
-  items: T[],
-  itemHeight: number,
-  containerHeight: number
-) => {
+export const useVirtualScroll = <T>(items: T[], itemHeight: number, containerHeight: number) => {
   const [scrollTop, setScrollTop] = useState(0);
-  
+
   const visibleStart = Math.floor(scrollTop / itemHeight);
   const visibleEnd = Math.min(
     visibleStart + Math.ceil(containerHeight / itemHeight) + 1,
     items.length
   );
-  
+
   const visibleItems = items.slice(visibleStart, visibleEnd);
   const offsetY = visibleStart * itemHeight;
-  
+
   const handleScroll = useCallback(
     throttle((e: any) => {
       setScrollTop(e.currentTarget.scrollTop);
     }, 16) as any,
     []
   );
-  
+
   return {
     visibleItems,
     offsetY,
     totalHeight: items.length * itemHeight,
-    handleScroll
+    handleScroll,
   };
 };
 
 // Performance optimization for API calls
-export const optimizedFetch = async (
-  url: string,
-  options: RequestInit = {}
-): Promise<Response> => {
+export const optimizedFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
   // Add performance monitoring
   const startTime = performance.now();
-  
+
   try {
     const response = await fetch(url, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...options.headers,
       },
     });
-    
+
     const endTime = performance.now();
     const duration = endTime - startTime;
-    
+
     // Log performance metrics
-    console.log(`API call to ${url} took ${duration.toFixed(2)}ms`);
-    
+    console.warn(`API call to ${url} took ${duration.toFixed(2)}ms`);
+
     return response;
   } catch (error) {
     const endTime = performance.now();
     const duration = endTime - startTime;
-    
+
     console.error(`API call to ${url} failed after ${duration.toFixed(2)}ms:`, error);
     throw error;
   }
@@ -235,20 +231,20 @@ export const getBundleSize = async (): Promise<{
   css: number;
   total: number;
 }> => {
-  const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
-  
+  const resources = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+
   const jsSize = resources
-    .filter(r => r.name.endsWith('.js'))
+    .filter((r) => r.name.endsWith(".js"))
     .reduce((sum, r) => sum + (r.transferSize || 0), 0);
-    
+
   const cssSize = resources
-    .filter(r => r.name.endsWith('.css'))
+    .filter((r) => r.name.endsWith(".css"))
     .reduce((sum, r) => sum + (r.transferSize || 0), 0);
-    
+
   return {
     js: jsSize,
     css: cssSize,
-    total: jsSize + cssSize
+    total: jsSize + cssSize,
   };
 };
 
@@ -258,12 +254,14 @@ export const getMemoryUsage = (): {
   total: number;
   percentage: number;
 } | null => {
-  if ('memory' in performance) {
-    const memory = (performance as Performance & { memory: { usedJSHeapSize: number; totalJSHeapSize: number } }).memory;
+  if ("memory" in performance) {
+    const memory = (
+      performance as Performance & { memory: { usedJSHeapSize: number; totalJSHeapSize: number } }
+    ).memory;
     return {
       used: memory.usedJSHeapSize,
       total: memory.totalJSHeapSize,
-      percentage: (memory.usedJSHeapSize / memory.totalJSHeapSize) * 100
+      percentage: (memory.usedJSHeapSize / memory.totalJSHeapSize) * 100,
     };
   }
   return null;
@@ -273,23 +271,38 @@ export const getMemoryUsage = (): {
 export const extractCriticalCSS = (element: HTMLElement): string => {
   const styles = window.getComputedStyle(element);
   const criticalStyles: string[] = [];
-  
+
   // Extract only critical styles
   const criticalProperties = [
-    'display', 'position', 'top', 'left', 'right', 'bottom',
-    'width', 'height', 'margin', 'padding', 'border',
-    'background-color', 'color', 'font-size', 'font-weight',
-    'text-align', 'line-height', 'z-index', 'overflow'
+    "display",
+    "position",
+    "top",
+    "left",
+    "right",
+    "bottom",
+    "width",
+    "height",
+    "margin",
+    "padding",
+    "border",
+    "background-color",
+    "color",
+    "font-size",
+    "font-weight",
+    "text-align",
+    "line-height",
+    "z-index",
+    "overflow",
   ];
-  
-  criticalProperties.forEach(prop => {
+
+  criticalProperties.forEach((prop) => {
     const value = styles.getPropertyValue(prop);
-    if (value && value !== 'initial' && value !== 'auto') {
+    if (value && value !== "initial" && value !== "auto") {
       criticalStyles.push(`${prop}: ${value};`);
     }
   });
-  
-  return criticalStyles.join('\n');
+
+  return criticalStyles.join("\n");
 };
 
 // Performance optimization utilities
@@ -304,7 +317,7 @@ export const PerformanceUtils = {
   optimizedFetch,
   getBundleSize,
   getMemoryUsage,
-  extractCriticalCSS
+  extractCriticalCSS,
 };
 
 export default PerformanceUtils;

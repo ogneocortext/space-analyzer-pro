@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
-import { Search, X } from 'lucide-react';
-import styles from './SearchBar.module.css';
+import React, { useState, useCallback } from "react";
+import { Search, X } from "lucide-react";
+import styles from "./SearchBar.module.css";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -10,31 +10,37 @@ interface SearchBarProps {
 
 const SearchBar: React.FC<SearchBarProps> = ({
   onSearch,
-  placeholder = 'Search files and folders...',
-  className = ''
+  placeholder = "Search files and folders...",
+  className = "",
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newQuery = e.target.value;
-    setQuery(newQuery);
-    onSearch(newQuery);
-  }, [onSearch]);
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newQuery = e.target.value;
+      setQuery(newQuery);
+      onSearch(newQuery);
+    },
+    [onSearch]
+  );
 
   const handleClear = useCallback(() => {
-    setQuery('');
-    onSearch('');
+    setQuery("");
+    onSearch("");
   }, [onSearch]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      handleClear();
-    }
-  }, [handleClear]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleClear();
+      }
+    },
+    [handleClear]
+  );
 
   return (
-    <div className={`${styles.searchContainer} ${isFocused ? styles.focused : ''} ${className}`}>
+    <div className={`${styles.searchContainer} ${isFocused ? styles.focused : ""} ${className}`}>
       <div className={styles.searchIcon}>
         <Search size={18} />
       </div>
@@ -50,11 +56,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         aria-label="Search files and folders"
       />
       {query && (
-        <button
-          onClick={handleClear}
-          className={styles.clearButton}
-          aria-label="Clear search"
-        >
+        <button onClick={handleClear} className={styles.clearButton} aria-label="Clear search">
           <X size={16} />
         </button>
       )}

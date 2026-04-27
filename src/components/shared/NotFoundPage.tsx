@@ -1,5 +1,5 @@
-import React from 'react';
-import { Home, AlertTriangle } from 'lucide-react';
+import React from "react";
+import { Home, AlertTriangle } from "lucide-react";
 
 interface NotFoundPageProps {
   onNavigate?: (page: string) => void;
@@ -21,12 +21,13 @@ const NotFoundPage: React.FC<NotFoundPageProps> = ({ onNavigate }) => {
 
         <div className="space-y-4">
           <p className="text-sm text-slate-500">
-            This feature is currently being developed. Please check back later or explore other features.
+            This feature is currently being developed. Please check back later or explore other
+            features.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
-              onClick={() => onNavigate?.('dashboard')}
+              onClick={() => onNavigate?.("dashboard")}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
             >
               <Home className="w-4 h-4" />
@@ -41,9 +42,7 @@ const NotFoundPage: React.FC<NotFoundPageProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        <div className="mt-8 text-sm text-slate-600">
-          Error Code: 404
-        </div>
+        <div className="mt-8 text-sm text-slate-600">Error Code: 404</div>
       </div>
     </div>
   );

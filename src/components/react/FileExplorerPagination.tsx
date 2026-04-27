@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface FileExplorerPaginationProps {
   currentPage: number;
@@ -11,7 +11,7 @@ export const FileExplorerPagination: React.FC<FileExplorerPaginationProps> = ({
   currentPage,
   totalPages,
   totalFiles,
-  onPageChange
+  onPageChange,
 }) => {
   if (totalPages <= 1) return null;
 
@@ -53,14 +53,14 @@ export const FileExplorerPagination: React.FC<FileExplorerPaginationProps> = ({
           </button>
 
           {/* Page numbers */}
-          {pageNumbers.map(pageNum => (
+          {pageNumbers.map((pageNum) => (
             <button
               key={pageNum}
               onClick={() => onPageChange(pageNum)}
               className={`px-3 py-1 rounded text-sm transition-colors ${
                 pageNum === currentPage
-                  ? 'bg-cyan-500 text-white'
-                  : 'bg-white/10 hover:bg-white/20 text-gray-300'
+                  ? "bg-cyan-500 text-white"
+                  : "bg-white/10 hover:bg-white/20 text-gray-300"
               }`}
             >
               {pageNum}

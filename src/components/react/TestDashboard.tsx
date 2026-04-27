@@ -1,107 +1,107 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 // @ts-ignore
-import DevelopmentAnalytics from './DevelopmentAnalytics';
+import DevelopmentAnalytics from "./DevelopmentAnalytics";
 // @ts-ignore
-import GPUMemoryVisualization from './GPUMemoryVisualization';
+import GPUMemoryVisualization from "./GPUMemoryVisualization";
 // @ts-ignore
-import EnhancedModelBrowser from './EnhancedModelBrowser';
-import './TestDashboard.css';
+import EnhancedModelBrowser from "./EnhancedModelBrowser";
+import "./TestDashboard.css";
 
 const TestDashboard: React.FC = () => {
-  const [activeView, setActiveView] = useState<'analytics' | 'gpu' | 'models'>('analytics');
+  const [activeView, setActiveView] = useState<"analytics" | "gpu" | "models">("analytics");
 
   // Mock data for testing
   const mockModels = [
     {
-      name: 'GPT-4 Vision Model',
-      path: '/models/gpt4-vision',
+      name: "GPT-4 Vision Model",
+      path: "/models/gpt4-vision",
       size: 15000000000,
-      type: 'pytorch' as const,
-      framework: 'PyTorch',
+      type: "pytorch" as const,
+      framework: "PyTorch",
       accuracy: 94.5,
       parameters: 175000000000,
       lastUsed: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
       downloadDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      tags: ['vision', 'multimodal', 'large'],
+      tags: ["vision", "multimodal", "large"],
       gpuMemory: 8192,
       inferenceTime: 120,
-      status: 'loaded' as const,
-      description: 'Advanced vision model with multimodal capabilities',
-      version: '1.0.0',
-      license: 'MIT'
+      status: "loaded" as const,
+      description: "Advanced vision model with multimodal capabilities",
+      version: "1.0.0",
+      license: "MIT",
     },
     {
-      name: 'BERT Base Uncased',
-      path: '/models/bert-base',
+      name: "BERT Base Uncased",
+      path: "/models/bert-base",
       size: 420000000,
-      type: 'tensorflow' as const,
-      framework: 'TensorFlow',
+      type: "tensorflow" as const,
+      framework: "TensorFlow",
       accuracy: 88.2,
       parameters: 110000000,
       lastUsed: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
       downloadDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-      tags: ['nlp', 'text', 'medium'],
+      tags: ["nlp", "text", "medium"],
       gpuMemory: 1024,
       inferenceTime: 45,
-      status: 'loaded' as const,
-      description: 'Base BERT model for text classification',
-      version: '1.0.1',
-      license: 'Apache-2.0'
+      status: "loaded" as const,
+      description: "Base BERT model for text classification",
+      version: "1.0.1",
+      license: "Apache-2.0",
     },
     {
-      name: 'Stable Diffusion XL',
-      path: '/models/sdxl',
+      name: "Stable Diffusion XL",
+      path: "/models/sdxl",
       size: 6900000000,
-      type: 'pytorch' as const,
-      framework: 'PyTorch',
+      type: "pytorch" as const,
+      framework: "PyTorch",
       accuracy: 91.8,
       parameters: 2600000000,
       lastUsed: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
       downloadDate: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000),
-      tags: ['image', 'generation', 'large'],
+      tags: ["image", "generation", "large"],
       gpuMemory: 4096,
       inferenceTime: 280,
-      status: 'unloaded' as const,
-      description: 'High-quality image generation model',
-      version: '2.1.0',
-      license: 'CreativeML'
+      status: "unloaded" as const,
+      description: "High-quality image generation model",
+      version: "2.1.0",
+      license: "CreativeML",
     },
     {
-      name: 'Whisper Large V3',
-      path: '/models/whisper-large',
+      name: "Whisper Large V3",
+      path: "/models/whisper-large",
       size: 1550000000,
-      type: 'custom' as const,
-      framework: 'Custom',
+      type: "custom" as const,
+      framework: "Custom",
       accuracy: 92.3,
       parameters: 1550000000,
       lastUsed: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
       downloadDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
-      tags: ['audio', 'speech', 'medium'],
+      tags: ["audio", "speech", "medium"],
       gpuMemory: 2048,
       inferenceTime: 85,
-      status: 'loading' as const,
-      description: 'Advanced speech recognition model',
-      version: '3.0.0',
-      license: 'MIT'
+      status: "loading" as const,
+      description: "Advanced speech recognition model",
+      version: "3.0.0",
+      license: "MIT",
     },
     {
-      name: 'YOLOv8 Object Detection',
-      path: '/models/yolov8',
+      name: "YOLOv8 Object Detection",
+      path: "/models/yolov8",
       size: 62000000,
-      type: 'onnx' as const,
-      framework: 'ONNX',
+      type: "onnx" as const,
+      framework: "ONNX",
       accuracy: 89.7,
       parameters: 68000000,
       lastUsed: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
       downloadDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
-      tags: ['vision', 'detection', 'small'],
+      tags: ["vision", "detection", "small"],
       gpuMemory: 512,
       inferenceTime: 25,
-      status: 'loaded' as const,
-      description: 'Real-time object detection model',
-      version: '8.0.0',
-      license: 'GPL-3.0'
-    }
+      status: "loaded" as const,
+      description: "Real-time object detection model",
+      version: "8.0.0",
+      license: "GPL-3.0",
+    },
   ];
 
   const handleModelAction = (action: string, model: any) => {
@@ -118,39 +118,39 @@ const TestDashboard: React.FC = () => {
 
       <div className="view-selector">
         <button
-          onClick={() => setActiveView('analytics')}
-          className={`view-button ${activeView === 'analytics' ? 'active' : ''}`}
+          onClick={() => setActiveView("analytics")}
+          className={`view-button ${activeView === "analytics" ? "active" : ""}`}
         >
           📊 Development Analytics
         </button>
         <button
-          onClick={() => setActiveView('gpu')}
-          className={`view-button ${activeView === 'gpu' ? 'active' : ''}`}
+          onClick={() => setActiveView("gpu")}
+          className={`view-button ${activeView === "gpu" ? "active" : ""}`}
         >
           🧠 GPU Memory Visualization
         </button>
         <button
-          onClick={() => setActiveView('models')}
-          className={`view-button ${activeView === 'models' ? 'active' : ''}`}
+          onClick={() => setActiveView("models")}
+          className={`view-button ${activeView === "models" ? "active" : ""}`}
         >
           🤖 Enhanced Model Browser
         </button>
       </div>
 
       <div className="view-container">
-        {activeView === 'analytics' && (
+        {activeView === "analytics" && (
           <div className="view-panel">
             <DevelopmentAnalytics projectPath="D:\Backup of Important Data for Windows 11 Upgrade\Native Media AI Studio" />
           </div>
         )}
 
-        {activeView === 'gpu' && (
+        {activeView === "gpu" && (
           <div className="view-panel">
             <GPUMemoryVisualization models={mockModels} />
           </div>
         )}
 
-        {activeView === 'models' && (
+        {activeView === "models" && (
           <div className="view-panel">
             <EnhancedModelBrowser models={mockModels} onModelAction={handleModelAction} />
           </div>
@@ -189,7 +189,10 @@ const TestDashboard: React.FC = () => {
           </div>
         </div>
         <div className="mock-data-note">
-          <p><strong>Note:</strong> This is using mock data to demonstrate the enhanced features. The actual backend integration would provide real analytics from your directory.</p>
+          <p>
+            <strong>Note:</strong> This is using mock data to demonstrate the enhanced features. The
+            actual backend integration would provide real analytics from your directory.
+          </p>
         </div>
       </div>
     </div>

@@ -1,19 +1,19 @@
-import React from 'react';
+import React from "react";
 
 interface ButtonProps {
   children: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
-  type?: 'button' | 'submit';
+  type?: "button" | "submit";
 }
 
-export const Button: React.FC<ButtonProps> = ({ 
-  children, 
-  onClick, 
-  disabled = false, 
-  className = '',
-  type = 'button'
+export const Button: React.FC<ButtonProps> = ({
+  children,
+  onClick,
+  disabled = false,
+  className = "",
+  type = "button",
 }) => {
   return (
     <button

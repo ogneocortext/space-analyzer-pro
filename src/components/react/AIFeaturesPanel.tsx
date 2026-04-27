@@ -1,4 +1,4 @@
-import React, { useState, useEffect, type FC } from 'react';
+import React, { useState, useEffect, type FC } from "react";
 import {
   BrainCircuit,
   Zap,
@@ -17,9 +17,9 @@ import {
   ChevronRight,
   Star,
   Shield,
-  Activity
-} from 'lucide-react';
-import { bridge } from '../services/AnalysisBridge';
+  Activity,
+} from "lucide-react";
+import { bridge } from "../services/AnalysisBridge";
 
 interface AIFeaturesPanelProps {
   directoryPath?: string;
@@ -51,25 +51,27 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [activeTab, setActiveTab] = useState<'recommendations' | 'performance' | 'search'>('recommendations');
+  const [activeTab, setActiveTab] = useState<"recommendations" | "performance" | "search">(
+    "recommendations"
+  );
 
   // Load AI recommendations
   const loadRecommendations = async () => {
     if (!directoryPath) return;
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const result = await bridge.getAIRecommendations(directoryPath);
       if (result.success) {
         setRecommendations(result.recommendations);
         setLastUpdate(new Date());
       } else {
-        setError('Failed to load recommendations');
+        setError("Failed to load recommendations");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setIsLoading(false);
     }
@@ -78,25 +80,25 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
   // Load performance metrics
   const loadPerformanceMetrics = async () => {
     if (!directoryPath) return;
-    
+
     try {
-      const result = await bridge.categorizeFilesOptimized(directoryPath, { 
-        batchSize: 100, 
-        useCache: true 
+      const result = await bridge.categorizeFilesOptimized(directoryPath, {
+        batchSize: 100,
+        useCache: true,
       });
-      
+
       if (result.success) {
         setPerformanceMetrics({
           filesPerSecond: result.results.performance.filesPerSecond,
           cacheHitRate: result.results.performance.cacheHitRate,
           batchesProcessed: result.results.performance.batchesProcessed,
           categorizationTime: result.metadata.totalTime,
-          totalFiles: result.metadata.totalFiles
+          totalFiles: result.metadata.totalFiles,
         });
         setLastUpdate(new Date());
       }
     } catch (err) {
-      console.error('Failed to load performance metrics:', err);
+      console.error("Failed to load performance metrics:", err);
     }
   };
 
@@ -122,19 +124,27 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'text-red-400';
-      case 'medium': return 'text-yellow-400';
-      case 'low': return 'text-green-400';
-      default: return 'text-slate-400';
+      case "high":
+        return "text-red-400";
+      case "medium":
+        return "text-yellow-400";
+      case "low":
+        return "text-green-400";
+      default:
+        return "text-slate-400";
     }
   };
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
-      case 'high': return AlertTriangle;
-      case 'medium': return Target;
-      case 'low': return CheckCircle;
-      default: return FileText;
+      case "high":
+        return AlertTriangle;
+      case "medium":
+        return Target;
+      case "low":
+        return CheckCircle;
+      default:
+        return FileText;
     }
   };
 
@@ -173,7 +183,7 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
             className="text-slate-400 hover:text-white transition-colors disabled:opacity-50"
             aria-label="Refresh AI data"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
@@ -181,11 +191,11 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
       {/* Tabs */}
       <div className="flex gap-2 mb-4 sm:mb-6 border-b border-slate-700">
         <button
-          onClick={() => setActiveTab('recommendations')}
+          onClick={() => setActiveTab("recommendations")}
           className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === 'recommendations'
-              ? 'text-purple-400 border-purple-400'
-              : 'text-slate-400 border-transparent hover:text-white'
+            activeTab === "recommendations"
+              ? "text-purple-400 border-purple-400"
+              : "text-slate-400 border-transparent hover:text-white"
           }`}
         >
           <div className="flex items-center gap-2">
@@ -199,11 +209,11 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
           </div>
         </button>
         <button
-          onClick={() => setActiveTab('performance')}
+          onClick={() => setActiveTab("performance")}
           className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === 'performance'
-              ? 'text-emerald-400 border-emerald-400'
-              : 'text-slate-400 border-transparent hover:text-white'
+            activeTab === "performance"
+              ? "text-emerald-400 border-emerald-400"
+              : "text-slate-400 border-transparent hover:text-white"
           }`}
         >
           <div className="flex items-center gap-2">
@@ -212,11 +222,11 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
           </div>
         </button>
         <button
-          onClick={() => onNavigate?.('chat')}
+          onClick={() => onNavigate?.("chat")}
           className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === 'search'
-              ? 'text-blue-400 border-blue-400'
-              : 'text-slate-400 border-transparent hover:text-white'
+            activeTab === "search"
+              ? "text-blue-400 border-blue-400"
+              : "text-slate-400 border-transparent hover:text-white"
           }`}
         >
           <div className="flex items-center gap-2">
@@ -228,7 +238,7 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
 
       {/* Tab Content */}
       <div className="min-h-[200px]">
-        {activeTab === 'recommendations' && (
+        {activeTab === "recommendations" && (
           <div className="space-y-3 sm:space-y-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -243,7 +253,9 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
             ) : recommendations.length === 0 ? (
               <div className="flex items-center justify-center py-8">
                 <CheckCircle className="w-6 h-6 text-green-400" />
-                <span className="ml-2 text-slate-400">No recommendations - your files are well organized!</span>
+                <span className="ml-2 text-slate-400">
+                  No recommendations - your files are well organized!
+                </span>
               </div>
             ) : (
               recommendations.map((rec, index) => {
@@ -254,28 +266,30 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
                     className="bg-slate-700/50 border border-slate-600 rounded-lg p-3 sm:p-4 hover:bg-slate-700/70 transition-colors"
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`p-2 rounded-lg bg-slate-800 ${getPriorityColor(rec.priority)}`}>
+                      <div
+                        className={`p-2 rounded-lg bg-slate-800 ${getPriorityColor(rec.priority)}`}
+                      >
                         <IconComponent size={16} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="text-white font-medium truncate">{rec.title}</h4>
-                          <span className={`text-xs px-2 py-1 rounded-full ${getPriorityColor(rec.priority)}`}>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${getPriorityColor(rec.priority)}`}
+                          >
                             {rec.priority}
                           </span>
                         </div>
                         <p className="text-slate-300 text-sm mb-2">{rec.description}</p>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 text-xs text-slate-400">
-                            {rec.files && (
-                              <span>{rec.files.length} files</span>
-                            )}
+                            {rec.files && <span>{rec.files.length} files</span>}
                             {rec.potentialSavings && (
                               <span>Potential savings: {formatSavings(rec.potentialSavings)}</span>
                             )}
                           </div>
                           <button
-                            onClick={() => onNavigate?.('browser')}
+                            onClick={() => onNavigate?.("browser")}
                             className="text-purple-400 hover:text-purple-300 text-xs flex items-center gap-1 transition-colors"
                           >
                             View Files
@@ -291,7 +305,7 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
           </div>
         )}
 
-        {activeTab === 'performance' && (
+        {activeTab === "performance" && (
           <div className="space-y-4 sm:space-y-6">
             {performanceMetrics ? (
               <>
@@ -302,28 +316,36 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
                       <Zap className="w-4 h-4 text-emerald-400" />
                       <span className="text-slate-400 text-xs">Speed</span>
                     </div>
-                    <div className="text-white font-semibold">{formatSpeed(performanceMetrics.filesPerSecond)}</div>
+                    <div className="text-white font-semibold">
+                      {formatSpeed(performanceMetrics.filesPerSecond)}
+                    </div>
                   </div>
                   <div className="bg-slate-700/50 border border-slate-600 rounded-lg p-3 sm:p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Shield className="w-4 h-4 text-blue-400" />
                       <span className="text-slate-400 text-xs">Cache Hit</span>
                     </div>
-                    <div className="text-white font-semibold">{(performanceMetrics.cacheHitRate * 100).toFixed(1)}%</div>
+                    <div className="text-white font-semibold">
+                      {(performanceMetrics.cacheHitRate * 100).toFixed(1)}%
+                    </div>
                   </div>
                   <div className="bg-slate-700/50 border border-slate-600 rounded-lg p-3 sm:p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <BarChart3 className="w-4 h-4 text-purple-400" />
                       <span className="text-slate-400 text-xs">Batches</span>
                     </div>
-                    <div className="text-white font-semibold">{performanceMetrics.batchesProcessed}</div>
+                    <div className="text-white font-semibold">
+                      {performanceMetrics.batchesProcessed}
+                    </div>
                   </div>
                   <div className="bg-slate-700/50 border border-slate-600 rounded-lg p-3 sm:p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Clock className="w-4 h-4 text-yellow-400" />
                       <span className="text-slate-400 text-xs">Total Time</span>
                     </div>
-                    <div className="text-white font-semibold">{performanceMetrics.categorizationTime}ms</div>
+                    <div className="text-white font-semibold">
+                      {performanceMetrics.categorizationTime}ms
+                    </div>
                   </div>
                 </div>
 
@@ -333,19 +355,27 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 text-sm">Total Files Processed</span>
-                      <span className="text-white font-medium">{performanceMetrics.totalFiles.toLocaleString()}</span>
+                      <span className="text-white font-medium">
+                        {performanceMetrics.totalFiles.toLocaleString()}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 text-sm">Average Time per File</span>
                       <span className="text-white font-medium">
-                        {(performanceMetrics.categorizationTime / performanceMetrics.totalFiles).toFixed(2)}ms
+                        {(
+                          performanceMetrics.categorizationTime / performanceMetrics.totalFiles
+                        ).toFixed(2)}
+                        ms
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 text-sm">Processing Efficiency</span>
                       <span className="text-white font-medium">
-                        {performanceMetrics.filesPerSecond > 10000 ? 'Excellent' : 
-                         performanceMetrics.filesPerSecond > 5000 ? 'Good' : 'Fair'}
+                        {performanceMetrics.filesPerSecond > 10000
+                          ? "Excellent"
+                          : performanceMetrics.filesPerSecond > 5000
+                            ? "Good"
+                            : "Fair"}
                       </span>
                     </div>
                   </div>
@@ -360,7 +390,7 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
           </div>
         )}
 
-        {activeTab === 'search' && (
+        {activeTab === "search" && (
           <div className="flex items-center justify-center py-8">
             <div className="text-center">
               <Search className="w-12 h-12 text-blue-400 mx-auto mb-4" />
@@ -369,7 +399,7 @@ const AIFeaturesPanel: FC<AIFeaturesPanelProps> = ({ directoryPath, onNavigate }
                 Use AI-powered search to find files with intelligent matching and relevance scoring
               </p>
               <button
-                onClick={() => onNavigate?.('chat')}
+                onClick={() => onNavigate?.("chat")}
                 className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 mx-auto"
               >
                 <Search size={16} />

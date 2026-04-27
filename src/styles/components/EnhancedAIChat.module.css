@@ -213,15 +213,15 @@
   .messageBubble {
     max-width: 95%;
   }
-  
+
   .quickActions {
     justify-content: center;
   }
-  
+
   .inputContainer {
     flex-direction: column;
   }
-  
+
   .sendButton {
     width: 100%;
   }

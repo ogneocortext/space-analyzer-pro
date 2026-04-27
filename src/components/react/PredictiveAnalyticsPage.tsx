@@ -1,13 +1,16 @@
-import React from 'react';
-import { AnalysisResult } from '../services/AnalysisBridge';
-import styles from '../styles/components/App.module.css';
+import React from "react";
+import { AnalysisResult } from "../services/AnalysisBridge";
+import styles from "../styles/components/App.module.css";
 
 interface PredictiveAnalyticsPageProps {
   analysisData: AnalysisResult;
   isLoading: boolean;
 }
 
-const PredictiveAnalyticsPage: React.FC<PredictiveAnalyticsPageProps> = ({ analysisData, isLoading }) => {
+const PredictiveAnalyticsPage: React.FC<PredictiveAnalyticsPageProps> = ({
+  analysisData,
+  isLoading,
+}) => {
   if (isLoading || !analysisData) {
     return (
       <div className={styles.contentSection}>
@@ -20,42 +23,42 @@ const PredictiveAnalyticsPage: React.FC<PredictiveAnalyticsPageProps> = ({ analy
   // Generate predictive insights based on current data
   const generatePredictions = () => {
     const predictions = [];
-    
+
     // Storage growth prediction
     const avgFileSize = analysisData.totalSize / analysisData.totalFiles;
     const monthlyGrowthRate = 0.15; // 15% monthly growth assumption
-    
+
     const currentSizeGB = analysisData.totalSize / (1024 * 1024 * 1024);
     const predictedSize3Months = currentSizeGB * Math.pow(1 + monthlyGrowthRate, 3);
     const predictedSize6Months = currentSizeGB * Math.pow(1 + monthlyGrowthRate, 6);
-    
+
     predictions.push({
-      title: 'Storage Growth Prediction',
+      title: "Storage Growth Prediction",
       description: `Based on current trends, your storage usage is projected to grow by ${Math.round((predictedSize3Months / currentSizeGB - 1) * 100)}% in 3 months and ${Math.round((predictedSize6Months / currentSizeGB - 1) * 100)}% in 6 months.`,
-      impact: 'medium',
-      recommendation: 'Consider implementing automated cleanup rules and regular archiving.'
+      impact: "medium",
+      recommendation: "Consider implementing automated cleanup rules and regular archiving.",
     });
 
     // File type trends
     const categories = analysisData.categories || {};
-    const largestCategory = Object.entries(categories).reduce((prev, curr) => 
+    const largestCategory = Object.entries(categories).reduce((prev, curr) =>
       curr[1].size > prev[1].size ? curr : prev
     );
-    
+
     predictions.push({
-      title: 'File Type Trends',
+      title: "File Type Trends",
       description: `${largestCategory[0]} files represent ${Math.round((largestCategory[1].size / analysisData.totalSize) * 100)}% of your storage. This category is likely to continue growing.`,
-      impact: 'high',
-      recommendation: 'Set up automated compression and archiving for this file type.'
+      impact: "high",
+      recommendation: "Set up automated compression and archiving for this file type.",
     });
 
     // Duplicate detection prediction
     const potentialDuplicates = analysisData.ai_insights?.potential_duplicates || 0;
     predictions.push({
-      title: 'Duplicate File Analysis',
+      title: "Duplicate File Analysis",
       description: `Currently ${potentialDuplicates} potential duplicates detected. Without intervention, this could increase by 20% over the next quarter.`,
-      impact: 'medium',
-      recommendation: 'Implement regular duplicate scanning and removal.'
+      impact: "medium",
+      recommendation: "Implement regular duplicate scanning and removal.",
     });
 
     return predictions;
@@ -67,7 +70,7 @@ const PredictiveAnalyticsPage: React.FC<PredictiveAnalyticsPageProps> = ({ analy
     <div className={styles.contentSection}>
       <h2>Predictive Analytics</h2>
       <p>AI-powered storage forecasting and trend analysis</p>
-      
+
       <div className={styles.predictiveSection}>
         <div className={styles.storageForecast}>
           <h3>Storage Forecast</h3>
@@ -84,20 +87,16 @@ const PredictiveAnalyticsPage: React.FC<PredictiveAnalyticsPageProps> = ({ analy
             <div className={styles.forecastCard}>
               <h4>3 Months</h4>
               <div className={styles.forecastValue}>
-                {Math.round(analysisData.totalSize / (1024 * 1024 * 1024) * 1.52)} GB
+                {Math.round((analysisData.totalSize / (1024 * 1024 * 1024)) * 1.52)} GB
               </div>
-              <div className={styles.forecastGrowth}>
-                +52% growth
-              </div>
+              <div className={styles.forecastGrowth}>+52% growth</div>
             </div>
             <div className={styles.forecastCard}>
               <h4>6 Months</h4>
               <div className={styles.forecastValue}>
-                {Math.round(analysisData.totalSize / (1024 * 1024 * 1024) * 2.31)} GB
+                {Math.round((analysisData.totalSize / (1024 * 1024 * 1024)) * 2.31)} GB
               </div>
-              <div className={styles.forecastGrowth}>
-                +131% growth
-              </div>
+              <div className={styles.forecastGrowth}>+131% growth</div>
             </div>
           </div>
         </div>
@@ -105,7 +104,10 @@ const PredictiveAnalyticsPage: React.FC<PredictiveAnalyticsPageProps> = ({ analy
         <div className={styles.predictionsList}>
           <h3>AI Predictions</h3>
           {predictions.map((prediction, index) => (
-            <div key={index} className={`${styles.predictionCard} ${styles[`impact-${prediction.impact}`]}`}>
+            <div
+              key={index}
+              className={`${styles.predictionCard} ${styles[`impact-${prediction.impact}`]}`}
+            >
               <div className={styles.predictionHeader}>
                 <h4>{prediction.title}</h4>
                 <span className={styles.impactBadge}>{prediction.impact}</span>
