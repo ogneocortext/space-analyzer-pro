@@ -8,6 +8,7 @@
     "dev:no-browser": "cross-env BROWSER=none vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "vitest",
     "test:e2e": "playwright test",
     "lint": "eslint src/main.ts src/App.vue --report-unused-disable-directives",
     "server": "cd server && node backend-server.js",
@@ -25,7 +26,8 @@
     "port:clear": "node port-config.cjs clear",
     "type-check": "tsc -p tsconfig.node.json --noEmit",
     "type-check:full": "tsc --noEmit",
-    "update-deps": "npm update && npm audit fix"
+    "update-deps": "npm update && npm audit fix",
+    "prepare": "husky"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
@@ -40,7 +42,6 @@
     "helmet": "^8.1.0",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",
-    "playwright": "^1.59.1",
     "puppeteer": "^24.42.0",
     "sonner": "^2.0.7",
     "sqlite3": "^6.0.1",
@@ -59,16 +60,19 @@
     "@tailwindcss/vite": "^4.2.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@vue/eslint-config-typescript": "^14.7.0",
+    "@vue/test-utils": "^2.4.9",
     "autoprefixer": "^10.5.0",
     "cross-env": "^10.1.0",
     "eslint": "^10.2.1",
     "eslint-plugin-vue": "^10.9.0",
     "globals": "^17.5.0",
+    "husky": "^9.1.7",
     "postcss": "^8.5.10",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.0",
-    "vite": "^8.0.10"
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5"
   },
   "engines": {
     "node": ">=20.0.0",

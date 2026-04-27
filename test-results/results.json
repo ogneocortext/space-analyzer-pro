@@ -94,7 +94,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 3380,
+                      "duration": 2948,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:18:16",
@@ -117,12 +117,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:03.721Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:38:45.012Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-04-27T19:21:02.205Z",
+                      "startTime": "2026-04-27T19:38:44.648Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -156,7 +156,7 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2996,
+                      "duration": 2955,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:18:16",
@@ -179,12 +179,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:08.281Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:38:49.388Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 1,
-                      "startTime": "2026-04-27T19:21:07.865Z",
+                      "startTime": "2026-04-27T19:38:48.967Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -218,7 +218,7 @@
                       "workerIndex": 2,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2998,
+                      "duration": 2926,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:18:16",
@@ -241,12 +241,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:12.647Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:38:53.649Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 2,
-                      "startTime": "2026-04-27T19:21:12.230Z",
+                      "startTime": "2026-04-27T19:38:53.266Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -301,7 +301,7 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2971,
+                      "duration": 2865,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:56:16",
@@ -324,12 +324,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:17.262Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:38:57.837Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-04-27T19:21:16.835Z",
+                      "startTime": "2026-04-27T19:38:57.492Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -363,7 +363,7 @@
                       "workerIndex": 4,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 3035,
+                      "duration": 2915,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:56:16",
@@ -386,12 +386,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:21.720Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:01.976Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 1,
-                      "startTime": "2026-04-27T19:21:21.224Z",
+                      "startTime": "2026-04-27T19:39:01.612Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -448,12 +448,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:26.052Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:06.234Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 2,
-                      "startTime": "2026-04-27T19:21:25.646Z",
+                      "startTime": "2026-04-27T19:39:05.821Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -508,7 +508,7 @@
                       "workerIndex": 6,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2882,
+                      "duration": 2878,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:92:16",
@@ -531,12 +531,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:30.287Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:10.507Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-04-27T19:21:29.916Z",
+                      "startTime": "2026-04-27T19:39:10.143Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -570,7 +570,7 @@
                       "workerIndex": 7,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2992,
+                      "duration": 2967,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:92:16",
@@ -593,12 +593,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:34.575Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:14.684Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 1,
-                      "startTime": "2026-04-27T19:21:34.101Z",
+                      "startTime": "2026-04-27T19:39:14.301Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -632,7 +632,7 @@
                       "workerIndex": 8,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 3003,
+                      "duration": 2927,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:92:16",
@@ -655,12 +655,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:38.775Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:18.931Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 2,
-                      "startTime": "2026-04-27T19:21:38.412Z",
+                      "startTime": "2026-04-27T19:39:18.544Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -715,7 +715,7 @@
                       "workerIndex": 9,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2955,
+                      "duration": 3065,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:133:16",
@@ -738,12 +738,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:43.114Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:23.086Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-04-27T19:21:42.715Z",
+                      "startTime": "2026-04-27T19:39:22.742Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -777,7 +777,7 @@
                       "workerIndex": 10,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2942,
+                      "duration": 2874,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:133:16",
@@ -800,12 +800,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:47.441Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:27.438Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 1,
-                      "startTime": "2026-04-27T19:21:47.066Z",
+                      "startTime": "2026-04-27T19:39:27.072Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -839,7 +839,7 @@
                       "workerIndex": 11,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2960,
+                      "duration": 2977,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:133:16",
@@ -862,12 +862,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:51.694Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:31.648Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 2,
-                      "startTime": "2026-04-27T19:21:51.306Z",
+                      "startTime": "2026-04-27T19:39:31.263Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -922,7 +922,7 @@
                       "workerIndex": 12,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2949,
+                      "duration": 2998,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:172:16",
@@ -945,12 +945,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:21:55.956Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:36.022Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-04-27T19:21:55.577Z",
+                      "startTime": "2026-04-27T19:39:35.626Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -984,7 +984,7 @@
                       "workerIndex": 13,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2919,
+                      "duration": 2986,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:172:16",
@@ -1007,12 +1007,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:22:00.254Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:40.369Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 1,
-                      "startTime": "2026-04-27T19:21:59.882Z",
+                      "startTime": "2026-04-27T19:39:39.971Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1046,7 +1046,7 @@
                       "workerIndex": 14,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2974,
+                      "duration": 3001,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\ai-analysis.spec.ts:172:16",
@@ -1069,12 +1069,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:22:04.484Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:44.697Z] TEST_START { testName: \u001b[32m'AI Analysis'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 2,
-                      "startTime": "2026-04-27T19:22:04.101Z",
+                      "startTime": "2026-04-27T19:39:44.313Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1146,7 +1146,7 @@
                       "workerIndex": 15,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2944,
+                      "duration": 2939,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:21:18",
@@ -1169,10 +1169,10 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:22:08.746Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:49.049Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
                         },
                         {
-                          "text": "[2026-04-27T19:22:08.767Z] NAVIGATE { url: \u001b[32m'http://localhost:3001'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:49.073Z] NAVIGATE { url: \u001b[32m'http://localhost:3001'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [
@@ -1181,7 +1181,7 @@
                         }
                       ],
                       "retry": 0,
-                      "startTime": "2026-04-27T19:22:08.360Z",
+                      "startTime": "2026-04-27T19:39:48.666Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1238,10 +1238,10 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:22:12.991Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:53.352Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
                         },
                         {
-                          "text": "[2026-04-27T19:22:13.014Z] NAVIGATE { url: \u001b[32m'http://localhost:3001'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:53.375Z] NAVIGATE { url: \u001b[32m'http://localhost:3001'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [
@@ -1250,7 +1250,7 @@
                         }
                       ],
                       "retry": 1,
-                      "startTime": "2026-04-27T19:22:12.625Z",
+                      "startTime": "2026-04-27T19:39:52.986Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1284,7 +1284,7 @@
                       "workerIndex": 17,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 3002,
+                      "duration": 2952,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:21:18",
@@ -1307,10 +1307,10 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:22:17.363Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:57.665Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
                         },
                         {
-                          "text": "[2026-04-27T19:22:17.388Z] NAVIGATE { url: \u001b[32m'http://localhost:3001'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:39:57.686Z] NAVIGATE { url: \u001b[32m'http://localhost:3001'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [
@@ -1319,7 +1319,7 @@
                         }
                       ],
                       "retry": 2,
-                      "startTime": "2026-04-27T19:22:16.988Z",
+                      "startTime": "2026-04-27T19:39:57.261Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1374,7 +1374,7 @@
                       "workerIndex": 18,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2909,
+                      "duration": 2926,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:42:16",
@@ -1397,12 +1397,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:22:21.673Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:40:01.886Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-04-27T19:22:21.284Z",
+                      "startTime": "2026-04-27T19:40:01.519Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1436,7 +1436,7 @@
                       "workerIndex": 19,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2926,
+                      "duration": 2947,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
                         "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:42:16",
@@ -1459,12 +1459,12 @@
                       ],
                       "stdout": [
                         {
-                          "text": "[2026-04-27T19:22:25.948Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
+                          "text": "[2026-04-27T19:40:06.254Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
                         }
                       ],
                       "stderr": [],
                       "retry": 1,
-                      "startTime": "2026-04-27T19:22:25.555Z",
+                      "startTime": "2026-04-27T19:40:05.844Z",
                       "annotations": [],
                       "attachments": [
                         {
@@ -1497,64 +1497,29 @@
                     {
                       "workerIndex": 20,
                       "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 2944,
+                      "status": "interrupted",
+                      "duration": 239,
                       "error": {
-                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:42:16",
-                        "location": {
-                          "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                          "column": 16,
-                          "line": 42
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 40 |\u001b[39m\n \u001b[90m 41 |\u001b[39m   test(\u001b[32m'should display main navigation'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 42 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 43 |\u001b[39m     \n \u001b[90m 44 |\u001b[39m     \u001b[90m// Look for navigation elements\u001b[39m\n \u001b[90m 45 |\u001b[39m     \u001b[36mconst\u001b[39m navSelectors \u001b[33m=\u001b[39m [\u001b[0m"
+                        "message": "Error: browserContext.newPage: Test ended.",
+                        "stack": "Error: browserContext.newPage: Test ended."
                       },
                       "errors": [
                         {
-                          "location": {
-                            "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                            "column": 16,
-                            "line": 42
-                          },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 40 |\u001b[39m\n \u001b[90m 41 |\u001b[39m   test(\u001b[32m'should display main navigation'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 42 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 43 |\u001b[39m     \n \u001b[90m 44 |\u001b[39m     \u001b[90m// Look for navigation elements\u001b[39m\n \u001b[90m 45 |\u001b[39m     \u001b[36mconst\u001b[39m navSelectors \u001b[33m=\u001b[39m [\u001b[0m\n\u001b[2m    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:42:16\u001b[22m"
+                          "message": "Error: browserContext.newPage: Test ended."
                         }
                       ],
-                      "stdout": [
-                        {
-                          "text": "[2026-04-27T19:22:30.147Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
-                        }
-                      ],
+                      "stdout": [],
                       "stderr": [],
                       "retry": 2,
-                      "startTime": "2026-04-27T19:22:29.786Z",
+                      "startTime": "2026-04-27T19:40:10.114Z",
                       "annotations": [],
                       "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-display-main-navigation-chromium-retry2\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-display-main-navigation-chromium-retry2\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-display-main-navigation-chromium-retry2\\error-context.md"
-                        },
                         {
                           "name": "trace",
                           "contentType": "application/zip",
                           "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-display-main-navigation-chromium-retry2\\trace.zip"
                         }
-                      ],
-                      "errorLocation": {
-                        "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                        "column": 16,
-                        "line": 42
-                      }
+                      ]
                     }
                   ],
                   "status": "unexpected"
@@ -1567,7 +1532,7 @@
             },
             {
               "title": "should load without console errors",
-              "ok": false,
+              "ok": true,
               "tags": [],
               "tests": [
                 {
@@ -1576,195 +1541,8 @@
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 21,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 2911,
-                      "error": {
-                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:81:16",
-                        "location": {
-                          "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                          "column": 16,
-                          "line": 81
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 79 |\u001b[39m     })\u001b[33m;\u001b[39m\n \u001b[90m 80 |\u001b[39m     \n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 81 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 82 |\u001b[39m     \n \u001b[90m 83 |\u001b[39m     \u001b[36mif\u001b[39m (errors\u001b[33m.\u001b[39mlength \u001b[33m>\u001b[39m \u001b[35m0\u001b[39m) {\n \u001b[90m 84 |\u001b[39m       logger\u001b[33m.\u001b[39mlogError(\u001b[32m'CONSOLE_ERRORS_DETECTED'\u001b[39m\u001b[33m,\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'Console errors found'\u001b[39m)\u001b[33m,\u001b[39m { errors })\u001b[33m;\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                            "column": 16,
-                            "line": 81
-                          },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 79 |\u001b[39m     })\u001b[33m;\u001b[39m\n \u001b[90m 80 |\u001b[39m     \n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 81 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 82 |\u001b[39m     \n \u001b[90m 83 |\u001b[39m     \u001b[36mif\u001b[39m (errors\u001b[33m.\u001b[39mlength \u001b[33m>\u001b[39m \u001b[35m0\u001b[39m) {\n \u001b[90m 84 |\u001b[39m       logger\u001b[33m.\u001b[39mlogError(\u001b[32m'CONSOLE_ERRORS_DETECTED'\u001b[39m\u001b[33m,\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'Console errors found'\u001b[39m)\u001b[33m,\u001b[39m { errors })\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:81:16\u001b[22m"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "[2026-04-27T19:22:34.382Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-04-27T19:22:34.010Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium\\error-context.md"
-                        },
-                        {
-                          "name": "trace",
-                          "contentType": "application/zip",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium\\trace.zip"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                        "column": 16,
-                        "line": 81
-                      }
-                    },
-                    {
-                      "workerIndex": 22,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 2907,
-                      "error": {
-                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:81:16",
-                        "location": {
-                          "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                          "column": 16,
-                          "line": 81
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 79 |\u001b[39m     })\u001b[33m;\u001b[39m\n \u001b[90m 80 |\u001b[39m     \n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 81 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 82 |\u001b[39m     \n \u001b[90m 83 |\u001b[39m     \u001b[36mif\u001b[39m (errors\u001b[33m.\u001b[39mlength \u001b[33m>\u001b[39m \u001b[35m0\u001b[39m) {\n \u001b[90m 84 |\u001b[39m       logger\u001b[33m.\u001b[39mlogError(\u001b[32m'CONSOLE_ERRORS_DETECTED'\u001b[39m\u001b[33m,\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'Console errors found'\u001b[39m)\u001b[33m,\u001b[39m { errors })\u001b[33m;\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                            "column": 16,
-                            "line": 81
-                          },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 79 |\u001b[39m     })\u001b[33m;\u001b[39m\n \u001b[90m 80 |\u001b[39m     \n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 81 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 82 |\u001b[39m     \n \u001b[90m 83 |\u001b[39m     \u001b[36mif\u001b[39m (errors\u001b[33m.\u001b[39mlength \u001b[33m>\u001b[39m \u001b[35m0\u001b[39m) {\n \u001b[90m 84 |\u001b[39m       logger\u001b[33m.\u001b[39mlogError(\u001b[32m'CONSOLE_ERRORS_DETECTED'\u001b[39m\u001b[33m,\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'Console errors found'\u001b[39m)\u001b[33m,\u001b[39m { errors })\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:81:16\u001b[22m"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "[2026-04-27T19:22:38.620Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 1,
-                      "startTime": "2026-04-27T19:22:38.249Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium-retry1\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium-retry1\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium-retry1\\error-context.md"
-                        },
-                        {
-                          "name": "trace",
-                          "contentType": "application/zip",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium-retry1\\trace.zip"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                        "column": 16,
-                        "line": 81
-                      }
-                    },
-                    {
-                      "workerIndex": 23,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 3153,
-                      "error": {
-                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:81:16",
-                        "location": {
-                          "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                          "column": 16,
-                          "line": 81
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 79 |\u001b[39m     })\u001b[33m;\u001b[39m\n \u001b[90m 80 |\u001b[39m     \n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 81 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 82 |\u001b[39m     \n \u001b[90m 83 |\u001b[39m     \u001b[36mif\u001b[39m (errors\u001b[33m.\u001b[39mlength \u001b[33m>\u001b[39m \u001b[35m0\u001b[39m) {\n \u001b[90m 84 |\u001b[39m       logger\u001b[33m.\u001b[39mlogError(\u001b[32m'CONSOLE_ERRORS_DETECTED'\u001b[39m\u001b[33m,\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'Console errors found'\u001b[39m)\u001b[33m,\u001b[39m { errors })\u001b[33m;\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                            "column": 16,
-                            "line": 81
-                          },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 79 |\u001b[39m     })\u001b[33m;\u001b[39m\n \u001b[90m 80 |\u001b[39m     \n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 81 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 82 |\u001b[39m     \n \u001b[90m 83 |\u001b[39m     \u001b[36mif\u001b[39m (errors\u001b[33m.\u001b[39mlength \u001b[33m>\u001b[39m \u001b[35m0\u001b[39m) {\n \u001b[90m 84 |\u001b[39m       logger\u001b[33m.\u001b[39mlogError(\u001b[32m'CONSOLE_ERRORS_DETECTED'\u001b[39m\u001b[33m,\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'Console errors found'\u001b[39m)\u001b[33m,\u001b[39m { errors })\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts:81:16\u001b[22m"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "[2026-04-27T19:22:42.793Z] TEST_START { testName: \u001b[32m'App Startup'\u001b[39m }\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 2,
-                      "startTime": "2026-04-27T19:22:42.446Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium-retry2\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium-retry2\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium-retry2\\error-context.md"
-                        },
-                        {
-                          "name": "trace",
-                          "contentType": "application/zip",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\app-startup-App-Startup-should-load-without-console-errors-chromium-retry2\\trace.zip"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\app-startup.spec.ts",
-                        "column": 16,
-                        "line": 81
-                      }
-                    }
-                  ],
-                  "status": "unexpected"
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
               "id": "6381878f3f51181ca984-5a32014183b25da86564",
@@ -1784,7 +1562,7 @@
       "specs": [
         {
           "title": "debug landing page",
-          "ok": false,
+          "ok": true,
           "tags": [],
           "tests": [
             {
@@ -1793,183 +1571,8 @@
               "expectedStatus": "passed",
               "projectId": "chromium",
               "projectName": "chromium",
-              "results": [
-                {
-                  "workerIndex": 24,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 2935,
-                  "error": {
-                    "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
-                    "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts:4:14",
-                    "location": {
-                      "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts",
-                      "column": 14,
-                      "line": 4
-                    },
-                    "snippet": "\u001b[0m \u001b[90m 2 |\u001b[39m\n \u001b[90m 3 |\u001b[39m test(\u001b[32m'debug landing page'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 4 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m   |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 5 |\u001b[39m   \n \u001b[90m 6 |\u001b[39m   \u001b[90m// Take a screenshot\u001b[39m\n \u001b[90m 7 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mscreenshot({ path\u001b[33m:\u001b[39m \u001b[32m'test-results/screenshots/landing-debug.png'\u001b[39m\u001b[33m,\u001b[39m fullPage\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts",
-                        "column": 14,
-                        "line": 4
-                      },
-                      "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 2 |\u001b[39m\n \u001b[90m 3 |\u001b[39m test(\u001b[32m'debug landing page'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 4 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m   |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 5 |\u001b[39m   \n \u001b[90m 6 |\u001b[39m   \u001b[90m// Take a screenshot\u001b[39m\n \u001b[90m 7 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mscreenshot({ path\u001b[33m:\u001b[39m \u001b[32m'test-results/screenshots/landing-debug.png'\u001b[39m\u001b[33m,\u001b[39m fullPage\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts:4:14\u001b[22m"
-                    }
-                  ],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2026-04-27T19:22:46.925Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium\\test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium\\video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium\\error-context.md"
-                    },
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium\\trace.zip"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts",
-                    "column": 14,
-                    "line": 4
-                  }
-                },
-                {
-                  "workerIndex": 25,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 2878,
-                  "error": {
-                    "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
-                    "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts:4:14",
-                    "location": {
-                      "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts",
-                      "column": 14,
-                      "line": 4
-                    },
-                    "snippet": "\u001b[0m \u001b[90m 2 |\u001b[39m\n \u001b[90m 3 |\u001b[39m test(\u001b[32m'debug landing page'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 4 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m   |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 5 |\u001b[39m   \n \u001b[90m 6 |\u001b[39m   \u001b[90m// Take a screenshot\u001b[39m\n \u001b[90m 7 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mscreenshot({ path\u001b[33m:\u001b[39m \u001b[32m'test-results/screenshots/landing-debug.png'\u001b[39m\u001b[33m,\u001b[39m fullPage\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts",
-                        "column": 14,
-                        "line": 4
-                      },
-                      "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 2 |\u001b[39m\n \u001b[90m 3 |\u001b[39m test(\u001b[32m'debug landing page'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 4 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m   |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 5 |\u001b[39m   \n \u001b[90m 6 |\u001b[39m   \u001b[90m// Take a screenshot\u001b[39m\n \u001b[90m 7 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mscreenshot({ path\u001b[33m:\u001b[39m \u001b[32m'test-results/screenshots/landing-debug.png'\u001b[39m\u001b[33m,\u001b[39m fullPage\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts:4:14\u001b[22m"
-                    }
-                  ],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 1,
-                  "startTime": "2026-04-27T19:22:51.175Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium-retry1\\test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium-retry1\\video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium-retry1\\error-context.md"
-                    },
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium-retry1\\trace.zip"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts",
-                    "column": 14,
-                    "line": 4
-                  }
-                },
-                {
-                  "workerIndex": 26,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 2925,
-                  "error": {
-                    "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
-                    "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts:4:14",
-                    "location": {
-                      "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts",
-                      "column": 14,
-                      "line": 4
-                    },
-                    "snippet": "\u001b[0m \u001b[90m 2 |\u001b[39m\n \u001b[90m 3 |\u001b[39m test(\u001b[32m'debug landing page'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 4 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m   |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 5 |\u001b[39m   \n \u001b[90m 6 |\u001b[39m   \u001b[90m// Take a screenshot\u001b[39m\n \u001b[90m 7 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mscreenshot({ path\u001b[33m:\u001b[39m \u001b[32m'test-results/screenshots/landing-debug.png'\u001b[39m\u001b[33m,\u001b[39m fullPage\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts",
-                        "column": 14,
-                        "line": 4
-                      },
-                      "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 2 |\u001b[39m\n \u001b[90m 3 |\u001b[39m test(\u001b[32m'debug landing page'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 4 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m   |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 5 |\u001b[39m   \n \u001b[90m 6 |\u001b[39m   \u001b[90m// Take a screenshot\u001b[39m\n \u001b[90m 7 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mscreenshot({ path\u001b[33m:\u001b[39m \u001b[32m'test-results/screenshots/landing-debug.png'\u001b[39m\u001b[33m,\u001b[39m fullPage\u001b[33m:\u001b[39m \u001b[36mtrue\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts:4:14\u001b[22m"
-                    }
-                  ],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 2,
-                  "startTime": "2026-04-27T19:22:55.335Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "screenshot",
-                      "contentType": "image/png",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium-retry2\\test-failed-1.png"
-                    },
-                    {
-                      "name": "video",
-                      "contentType": "video/webm",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium-retry2\\video.webm"
-                    },
-                    {
-                      "name": "error-context",
-                      "contentType": "text/markdown",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium-retry2\\error-context.md"
-                    },
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\debug-landing-debug-landing-page-chromium-retry2\\trace.zip"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\debug-landing.spec.ts",
-                    "column": 14,
-                    "line": 4
-                  }
-                }
-              ],
-              "status": "unexpected"
+              "results": [],
+              "status": "skipped"
             }
           ],
           "id": "af9af62c9ea103032c73-34ae3a48607ee86d6d61",
@@ -1994,7 +1597,7 @@
           "specs": [
             {
               "title": "should allow directory selection",
-              "ok": false,
+              "ok": true,
               "tags": [],
               "tests": [
                 {
@@ -2003,128 +1606,8 @@
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 27,
-                      "parallelIndex": 0,
-                      "status": "failed",
-                      "duration": 2934,
-                      "error": {
-                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\directory-scan.spec.ts:19:16",
-                        "location": {
-                          "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\directory-scan.spec.ts",
-                          "column": 16,
-                          "line": 19
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 17 |\u001b[39m\n \u001b[90m 18 |\u001b[39m   test(\u001b[32m'should allow directory selection'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 19 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 20 |\u001b[39m     logger\u001b[33m.\u001b[39mlog(\u001b[32m'PAGE_LOADED'\u001b[39m\u001b[33m,\u001b[39m {})\u001b[33m;\u001b[39m\n \u001b[90m 21 |\u001b[39m\n \u001b[90m 22 |\u001b[39m     \u001b[90m// Look for directory input field\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\directory-scan.spec.ts",
-                            "column": 16,
-                            "line": 19
-                          },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 17 |\u001b[39m\n \u001b[90m 18 |\u001b[39m   test(\u001b[32m'should allow directory selection'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 19 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 20 |\u001b[39m     logger\u001b[33m.\u001b[39mlog(\u001b[32m'PAGE_LOADED'\u001b[39m\u001b[33m,\u001b[39m {})\u001b[33m;\u001b[39m\n \u001b[90m 21 |\u001b[39m\n \u001b[90m 22 |\u001b[39m     \u001b[90m// Look for directory input field\u001b[39m\u001b[0m\n\u001b[2m    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\directory-scan.spec.ts:19:16\u001b[22m"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "[2026-04-27T19:22:59.932Z] TEST_START { testName: \u001b[32m'Directory Scan'\u001b[39m }\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-04-27T19:22:59.576Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\directory-scan-Directory-S-18fa5-d-allow-directory-selection-chromium\\test-failed-1.png"
-                        },
-                        {
-                          "name": "video",
-                          "contentType": "video/webm",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\directory-scan-Directory-S-18fa5-d-allow-directory-selection-chromium\\video.webm"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\directory-scan-Directory-S-18fa5-d-allow-directory-selection-chromium\\error-context.md"
-                        },
-                        {
-                          "name": "trace",
-                          "contentType": "application/zip",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\directory-scan-Directory-S-18fa5-d-allow-directory-selection-chromium\\trace.zip"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\directory-scan.spec.ts",
-                        "column": 16,
-                        "line": 19
-                      }
-                    },
-                    {
-                      "workerIndex": 28,
-                      "parallelIndex": 0,
-                      "status": "interrupted",
-                      "duration": 2773,
-                      "error": {
-                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\directory-scan.spec.ts:19:16",
-                        "location": {
-                          "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\directory-scan.spec.ts",
-                          "column": 16,
-                          "line": 19
-                        },
-                        "snippet": "\u001b[0m \u001b[90m 17 |\u001b[39m\n \u001b[90m 18 |\u001b[39m   test(\u001b[32m'should allow directory selection'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 19 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 20 |\u001b[39m     logger\u001b[33m.\u001b[39mlog(\u001b[32m'PAGE_LOADED'\u001b[39m\u001b[33m,\u001b[39m {})\u001b[33m;\u001b[39m\n \u001b[90m 21 |\u001b[39m\n \u001b[90m 22 |\u001b[39m     \u001b[90m// Look for directory input field\u001b[39m\u001b[0m"
-                      },
-                      "errors": [
-                        {
-                          "location": {
-                            "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\directory-scan.spec.ts",
-                            "column": 16,
-                            "line": 19
-                          },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/\", waiting until \"networkidle\"\u001b[22m\n\n\n\u001b[0m \u001b[90m 17 |\u001b[39m\n \u001b[90m 18 |\u001b[39m   test(\u001b[32m'should allow directory selection'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 19 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'http://localhost:3001'\u001b[39m\u001b[33m,\u001b[39m { waitUntil\u001b[33m:\u001b[39m \u001b[32m'networkidle'\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 20 |\u001b[39m     logger\u001b[33m.\u001b[39mlog(\u001b[32m'PAGE_LOADED'\u001b[39m\u001b[33m,\u001b[39m {})\u001b[33m;\u001b[39m\n \u001b[90m 21 |\u001b[39m\n \u001b[90m 22 |\u001b[39m     \u001b[90m// Look for directory input field\u001b[39m\u001b[0m\n\u001b[2m    at E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\directory-scan.spec.ts:19:16\u001b[22m"
-                        }
-                      ],
-                      "stdout": [
-                        {
-                          "text": "[2026-04-27T19:23:04.248Z] TEST_START { testName: \u001b[32m'Directory Scan'\u001b[39m }\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 1,
-                      "startTime": "2026-04-27T19:23:03.846Z",
-                      "annotations": [],
-                      "attachments": [
-                        {
-                          "name": "screenshot",
-                          "contentType": "image/png",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\directory-scan-Directory-S-18fa5-d-allow-directory-selection-chromium-retry1\\test-failed-1.png"
-                        },
-                        {
-                          "name": "error-context",
-                          "contentType": "text/markdown",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\directory-scan-Directory-S-18fa5-d-allow-directory-selection-chromium-retry1\\error-context.md"
-                        },
-                        {
-                          "name": "trace",
-                          "contentType": "application/zip",
-                          "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\artifacts\\directory-scan-Directory-S-18fa5-d-allow-directory-selection-chromium-retry1\\trace.zip"
-                        }
-                      ],
-                      "errorLocation": {
-                        "file": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\tests\\e2e\\directory-scan.spec.ts",
-                        "column": 16,
-                        "line": 19
-                      }
-                    }
-                  ],
-                  "status": "unexpected"
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
               "id": "64d0b3676eb0e27e3ea7-769652e4f13934ec913e",
@@ -2370,11 +1853,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-04-27T19:21:00.880Z",
-    "duration": 126332.822,
+    "startTime": "2026-04-27T19:38:42.714Z",
+    "duration": 88188.359,
     "expected": 0,
-    "skipped": 9,
-    "unexpected": 10,
+    "skipped": 12,
+    "unexpected": 7,
     "flaky": 0
   }
 }
