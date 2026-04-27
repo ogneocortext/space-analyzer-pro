@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 2.1.6 | 2026-04-27 | Remove obsolete React files from src directory |
 | 2.1.5 | 2026-04-27 | Test cleanup and ES module conversion |
 | 2.1.4 | 2026-04-27 | Remove React plugins from ESLint config |
 | 2.1.3 | 2026-04-27 | Native scanner integration fixes |
@@ -13,6 +14,39 @@ All notable changes to Space Analyzer will be documented in this file.
 | 2.1.1 | 2026-04-27 | Configuration fixes, performance dependencies, Vue migration cleanup |
 | 2.1.0 | 2026-04-27 | Vue 3 migration with enhanced performance dependencies |
 | 2.0.1 | Previous | AI-Powered Space Analyzer with Vision Analysis and Feature Hub |
+
+---
+
+## [2.1.6] - 2026-04-27
+
+### Vue Migration Cleanup
+
+#### Removed React Files
+- `src/App.css` - React styles
+- `src/App.module.css` - React module styles
+- `src/App.test.tsx` - React test
+- `src/App.tsx` - React component
+- `src/AppShell.tsx` - React shell component
+- `src/TestComponent.tsx` - React test component
+- `src/main-react.tsx` - React entry point
+
+#### Removed Test Configuration
+- `src/vitest.setup.ts` - Vitest setup file (vitest removed from project)
+
+### Benefits
+
+- **Cleaner codebase**: No obsolete React files
+- **Reduced confusion**: Only Vue files remain in src directory
+- **Smaller project**: Removed 3,105 lines of obsolete code
+- **Complete migration**: Vue 3 migration now fully complete
+
+### Breaking Changes
+
+None - all changes are removals of obsolete files
+
+### Migration Notes
+
+No migration required. All changes are removals of obsolete React files.
 
 ---
 
