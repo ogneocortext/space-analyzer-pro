@@ -18,19 +18,28 @@
               <Activity class="w-3 h-3 text-emerald-400" />
               <span>{{ metrics.mbPerSecond.toFixed(1) }} MB/s</span>
             </div>
-            <div v-if="metrics.etaSeconds > 0" class="flex items-center gap-1">
+            <div
+              v-if="metrics.etaSeconds > 0"
+              class="flex items-center gap-1"
+            >
               <Clock class="w-3 h-3 text-blue-400" />
               <span>ETA: {{ formatTime(metrics.etaSeconds) }}</span>
             </div>
           </div>
           <!-- Pause/Resume button -->
           <button
-            @click="isPaused = !isPaused"
             class="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors"
             :title="isPaused ? 'Resume scrolling' : 'Pause scrolling'"
+            @click="isPaused = !isPaused"
           >
-            <Play v-if="isPaused" class="w-3 h-3 text-white" />
-            <Pause v-else class="w-3 h-3 text-white" />
+            <Play
+              v-if="isPaused"
+              class="w-3 h-3 text-white"
+            />
+            <Pause
+              v-else
+              class="w-3 h-3 text-white"
+            />
           </button>
         </div>
       </div>
@@ -55,7 +64,10 @@
     </div>
 
     <!-- Category distribution -->
-    <div v-if="topCategories.length > 0" class="px-4 py-2 bg-slate-900/30 border-b border-slate-700">
+    <div
+      v-if="topCategories.length > 0"
+      class="px-4 py-2 bg-slate-900/30 border-b border-slate-700"
+    >
       <div class="flex items-center gap-2 text-xs text-slate-400">
         <span>Top categories:</span>
         <span
@@ -69,7 +81,10 @@
     </div>
 
     <!-- Current file -->
-    <div v-if="progress.currentFile && !progress.completed" class="px-4 py-2 bg-cyan-500/10 border-b border-cyan-500/20">
+    <div
+      v-if="progress.currentFile && !progress.completed"
+      class="px-4 py-2 bg-cyan-500/10 border-b border-cyan-500/20"
+    >
       <div class="flex items-center gap-2 text-xs text-cyan-300">
         <File class="w-3 h-3" />
         <span class="truncate">Scanning: {{ formatFileName(progress.currentFile) }}</span>
@@ -82,10 +97,16 @@
       class="h-64 overflow-y-auto p-2 space-y-1"
       style="max-height: 256px"
     >
-      <div v-if="recentFiles.length === 0 && progress.files === 0" class="text-center text-slate-500 text-sm py-8">
+      <div
+        v-if="recentFiles.length === 0 && progress.files === 0"
+        class="text-center text-slate-500 text-sm py-8"
+      >
         Waiting for scan to start...
       </div>
-      <div v-else-if="recentFiles.length === 0 && progress.files > 0" class="text-center text-slate-400 text-sm py-8">
+      <div
+        v-else-if="recentFiles.length === 0 && progress.files > 0"
+        class="text-center text-slate-400 text-sm py-8"
+      >
         <div class="flex items-center justify-center gap-2 mb-2">
           <Activity class="w-4 h-4 animate-spin" />
           <span>Scanning {{ progress.files.toLocaleString() }} files...</span>
@@ -95,14 +116,16 @@
         </div>
       </div>
       <div
-        v-else
         v-for="(file, index) in recentFiles"
+        v-else
         :key="`${file.path}-${index}`"
         class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-700/30 hover:bg-slate-700/50 transition-colors"
       >
         <File class="w-3 h-3 text-slate-400 shrink-0" />
         <div class="flex-1 min-w-0">
-          <div class="text-xs text-white truncate">{{ formatFileName(file.name, file.path) }}</div>
+          <div class="text-xs text-white truncate">
+            {{ formatFileName(file.name, file.path) }}
+          </div>
           <div class="flex items-center gap-2 text-xs text-slate-500">
             <span class="truncate">{{ file.category || 'Other' }}</span>
           </div>
@@ -111,7 +134,10 @@
     </div>
 
     <!-- Footer -->
-    <div v-if="progress.completed" class="px-4 py-2 bg-emerald-500/10 border-t border-emerald-500/20">
+    <div
+      v-if="progress.completed"
+      class="px-4 py-2 bg-emerald-500/10 border-t border-emerald-500/20"
+    >
       <div class="flex items-center justify-between text-xs text-emerald-300">
         <span>Scan complete!</span>
         <span>{{ progress.files.toLocaleString() }} files processed • {{ formatFileSize(metrics.totalSize) }} total</span>

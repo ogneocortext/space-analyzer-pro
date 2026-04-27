@@ -1,19 +1,29 @@
 <template>
-  <div data-testid="visualization-view" class="p-6 lg:p-8 bg-slate-900 min-h-screen">
+  <div
+    data-testid="visualization-view"
+    class="p-6 lg:p-8 bg-slate-900 min-h-screen"
+  >
     <!-- Header -->
     <div class="mb-8">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <h1 class="text-3xl font-bold text-white mb-2">3D Visualization</h1>
-          <p class="text-slate-400">Interactive 3D graph of your file structure</p>
+          <h1 class="text-3xl font-bold text-white mb-2">
+            3D Visualization
+          </h1>
+          <p class="text-slate-400">
+            Interactive 3D graph of your file structure
+          </p>
         </div>
         <div class="flex gap-2">
           <button
-            @click="navigateToDashboard"
             class="bg-slate-700 hover:bg-slate-600 text-white text-sm py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
             aria-label="Back to dashboard"
+            @click="navigateToDashboard"
           >
-            <ArrowLeft :size="16" aria-hidden="true" />
+            <ArrowLeft
+              :size="16"
+              aria-hidden="true"
+            />
             Back
           </button>
         </div>
@@ -21,21 +31,35 @@
     </div>
 
     <!-- Empty State -->
-    <div v-if="!analysisStore.data" class="flex flex-col items-center justify-center py-16 text-center">
-      <Box class="text-slate-600 mb-4" :size="64" aria-hidden="true" />
-      <h2 class="text-2xl font-semibold text-white mb-2">No Data Available</h2>
-      <p class="text-slate-400 mb-6">Run an analysis to see 3D visualization</p>
+    <div
+      v-if="!analysisStore.data"
+      class="flex flex-col items-center justify-center py-16 text-center"
+    >
+      <Box
+        class="text-slate-600 mb-4"
+        :size="64"
+        aria-hidden="true"
+      />
+      <h2 class="text-2xl font-semibold text-white mb-2">
+        No Data Available
+      </h2>
+      <p class="text-slate-400 mb-6">
+        Run an analysis to see 3D visualization
+      </p>
       <button
-        @click="navigateToLanding"
         class="bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-2 px-6 rounded-lg transition-colors"
         aria-label="Start analysis"
+        @click="navigateToLanding"
       >
         Start Analysis
       </button>
     </div>
 
     <!-- Visualization Content -->
-    <div v-else class="space-y-6">
+    <div
+      v-else
+      class="space-y-6"
+    >
       <!-- Controls -->
       <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
         <div class="flex flex-wrap items-center gap-4">
@@ -45,9 +69,15 @@
               v-model="layoutMode"
               class="bg-slate-700 text-white text-sm py-2 px-3 rounded-lg border border-slate-600 focus:outline-none focus:border-cyan-500"
             >
-              <option value="force">Force Graph</option>
-              <option value="tree">Tree</option>
-              <option value="circular">Circular</option>
+              <option value="force">
+                Force Graph
+              </option>
+              <option value="tree">
+                Tree
+              </option>
+              <option value="circular">
+                Circular
+              </option>
             </select>
           </div>
           <div class="flex items-center gap-2">
@@ -56,9 +86,15 @@
               v-model="colorMode"
               class="bg-slate-700 text-white text-sm py-2 px-3 rounded-lg border border-slate-600 focus:outline-none focus:border-cyan-500"
             >
-              <option value="category">Category</option>
-              <option value="size">Size</option>
-              <option value="type">Type</option>
+              <option value="category">
+                Category
+              </option>
+              <option value="size">
+                Size
+              </option>
+              <option value="type">
+                Type
+              </option>
             </select>
           </div>
           <div class="flex items-center gap-2">
@@ -67,28 +103,50 @@
               v-model="filterCategory"
               class="bg-slate-700 text-white text-sm py-2 px-3 rounded-lg border border-slate-600 focus:outline-none focus:border-cyan-500"
             >
-              <option value="all">All Files</option>
-              <option value="Code">Code</option>
-              <option value="Images">Images</option>
-              <option value="Audio">Audio/Music</option>
-              <option value="Video">Video</option>
-              <option value="Documents">Documents</option>
-              <option value="Archives">Archives</option>
-              <option value="Other">Other</option>
+              <option value="all">
+                All Files
+              </option>
+              <option value="Code">
+                Code
+              </option>
+              <option value="Images">
+                Images
+              </option>
+              <option value="Audio">
+                Audio/Music
+              </option>
+              <option value="Video">
+                Video
+              </option>
+              <option value="Documents">
+                Documents
+              </option>
+              <option value="Archives">
+                Archives
+              </option>
+              <option value="Other">
+                Other
+              </option>
             </select>
           </div>
           <button
-            @click="resetView"
             class="bg-slate-700 hover:bg-slate-600 text-white text-sm py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+            @click="resetView"
           >
-            <RefreshCw :size="16" aria-hidden="true" />
+            <RefreshCw
+              :size="16"
+              aria-hidden="true"
+            />
             Reset View
           </button>
           <button
-            @click="toggleFullscreen"
             class="bg-slate-700 hover:bg-slate-600 text-white text-sm py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+            @click="toggleFullscreen"
           >
-            <Maximize :size="16" aria-hidden="true" />
+            <Maximize
+              :size="16"
+              aria-hidden="true"
+            />
             Fullscreen
           </button>
         </div>
@@ -101,11 +159,16 @@
         :class="{ 'fixed inset-0 z-50': isFullscreen }"
         :style="{ height: isFullscreen ? '100vh' : '600px' }"
       >
-        <canvas ref="canvas" class="w-full h-full"></canvas>
+        <canvas
+          ref="canvas"
+          class="w-full h-full"
+        />
         
         <!-- Legend -->
         <div class="absolute bottom-4 left-4 bg-slate-900/90 rounded-lg p-4 border border-slate-700">
-          <h3 class="text-white font-medium mb-2 text-sm">Legend</h3>
+          <h3 class="text-white font-medium mb-2 text-sm">
+            Legend
+          </h3>
           <div class="space-y-1">
             <div
               v-for="(color, category) in legendColors"
@@ -123,45 +186,76 @@
 
         <!-- Stats -->
         <div class="absolute top-4 right-4 bg-slate-900/90 rounded-lg p-4 border border-slate-700">
-          <div class="text-xs text-slate-400 mb-1">Nodes</div>
-          <div class="text-lg font-bold text-white">{{ nodeCount }}</div>
-          <div class="text-xs text-slate-400 mb-1 mt-2">Edges</div>
-          <div class="text-lg font-bold text-white">{{ edgeCount }}</div>
+          <div class="text-xs text-slate-400 mb-1">
+            Nodes
+          </div>
+          <div class="text-lg font-bold text-white">
+            {{ nodeCount }}
+          </div>
+          <div class="text-xs text-slate-400 mb-1 mt-2">
+            Edges
+          </div>
+          <div class="text-lg font-bold text-white">
+            {{ edgeCount }}
+          </div>
         </div>
       </div>
 
       <!-- Selected Node Info -->
       <Transition name="slide">
-        <div v-if="selectedNode" class="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+        <div
+          v-if="selectedNode"
+          class="bg-slate-800/50 rounded-xl p-4 border border-slate-700"
+        >
           <div class="flex items-center justify-between mb-3">
-            <h3 class="text-lg font-semibold text-white">Selected: {{ selectedNode.name }}</h3>
+            <h3 class="text-lg font-semibold text-white">
+              Selected: {{ selectedNode.name }}
+            </h3>
             <button
-              @click="selectedNode = null"
               class="text-slate-400 hover:text-white"
+              @click="selectedNode = null"
             >
               <X :size="20" />
             </button>
           </div>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <div class="text-slate-400 text-xs">Size</div>
-              <div class="text-white font-medium">{{ formatBytes(selectedNode.size) }}</div>
+              <div class="text-slate-400 text-xs">
+                Size
+              </div>
+              <div class="text-white font-medium">
+                {{ formatBytes(selectedNode.size) }}
+              </div>
             </div>
             <div>
-              <div class="text-slate-400 text-xs">Type</div>
-              <div class="text-white font-medium">{{ selectedNode.type }}</div>
+              <div class="text-slate-400 text-xs">
+                Type
+              </div>
+              <div class="text-white font-medium">
+                {{ selectedNode.type }}
+              </div>
             </div>
             <div>
-              <div class="text-slate-400 text-xs">Category</div>
-              <div class="text-white font-medium">{{ selectedNode.category }}</div>
+              <div class="text-slate-400 text-xs">
+                Category
+              </div>
+              <div class="text-white font-medium">
+                {{ selectedNode.category }}
+              </div>
             </div>
             <div>
-              <div class="text-slate-400 text-xs">Path</div>
-              <div class="text-white font-medium text-xs truncate">{{ selectedNode.path }}</div>
+              <div class="text-slate-400 text-xs">
+                Path
+              </div>
+              <div class="text-white font-medium text-xs truncate">
+                {{ selectedNode.path }}
+              </div>
             </div>
           </div>
           <div class="mt-3 pt-3 border-t border-slate-700">
-            <div class="text-slate-400 text-xs mb-2">Connections ({{ getNodeConnections(selectedNode.id).length }})</div>
+            <div class="text-slate-400 text-xs mb-2">
+              Connections ({{ getNodeConnections(selectedNode.id).length }})
+            </div>
             <div class="flex flex-wrap gap-2">
               <span
                 v-for="(conn, index) in getNodeConnections(selectedNode.id).slice(0, 5)"
@@ -177,12 +271,17 @@
 
       <!-- Hovered Link Info -->
       <Transition name="slide">
-        <div v-if="hoveredLink" class="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+        <div
+          v-if="hoveredLink"
+          class="bg-slate-800/50 rounded-xl p-4 border border-slate-700"
+        >
           <div class="flex items-center justify-between mb-2">
-            <h3 class="text-sm font-semibold text-white">Connection</h3>
+            <h3 class="text-sm font-semibold text-white">
+              Connection
+            </h3>
             <button
-              @click="hoveredLink = null"
               class="text-slate-400 hover:text-white"
+              @click="hoveredLink = null"
             >
               <X :size="16" />
             </button>

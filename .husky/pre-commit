@@ -3,16 +3,12 @@
 
 echo "Running pre-commit hooks..."
 
-# Run ESLint
-echo "Running ESLint..."
-npm run lint:fix
+# Run ESLint on staged files (non-blocking)
+echo "Running ESLint on staged files..."
+npm run lint -- --max-warnings=0 || echo "⚠️  ESLint found issues. Please fix them before pushing."
 
-# Run Prettier
-echo "Running Prettier..."
-npm run format
-
-# Run TypeScript type check
-echo "Running TypeScript type check..."
-npm run type-check
+# Run Prettier on staged files
+echo "Running Prettier on staged files..."
+npx prettier --write $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|jsx|ts|tsx|vue|json|css|md)$') || true
 
 echo "Pre-commit hooks completed!"

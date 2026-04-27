@@ -1,25 +1,41 @@
 <template>
-  <div data-testid="landing-page" class="flex flex-col min-h-screen bg-slate-900 text-white relative">
+  <div
+    data-testid="landing-page"
+    class="flex flex-col min-h-screen bg-slate-900 text-white relative"
+  >
     <!-- Animated Background - simplified for better performance -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
-      <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
-      <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl"></div>
+      <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
+      <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl" />
     </div>
 
     <div class="flex-1 flex items-center justify-center p-6 md:p-12 relative z-10">
       <div class="max-w-7xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
         <!-- Left Side - Hero Content -->
         <div class="space-y-8 lg:space-y-12 text-center lg:text-left animate-in fade-in slide-in-from-left-12 duration-600">
-        <div class="flex justify-center lg:justify-start animate-in zoom-in duration-500 delay-200">
+          <div class="flex justify-center lg:justify-start animate-in zoom-in duration-500 delay-200">
             <div class="relative">
-              <div class="absolute inset-0 bg-linear-to-r from-[#00B4D8] to-purple-500 blur-2xl opacity-20 rounded-full" aria-hidden="true"></div>
-              <div data-testid="app-logo" class="relative bg-slate-800/50 p-4 lg:p-6 rounded-full border border-white/20 shadow-lg">
-                <BrainCircuit :size="80" class="text-transparent bg-linear-to-r from-[#00B4D8] to-purple-500 bg-clip-text w-12 h-12 lg:w-20 lg:h-20" aria-hidden="true" />
+              <div
+                class="absolute inset-0 bg-linear-to-r from-[#00B4D8] to-purple-500 blur-2xl opacity-20 rounded-full"
+                aria-hidden="true"
+              />
+              <div
+                data-testid="app-logo"
+                class="relative bg-slate-800/50 p-4 lg:p-6 rounded-full border border-white/20 shadow-lg"
+              >
+                <BrainCircuit
+                  :size="80"
+                  class="text-transparent bg-linear-to-r from-[#00B4D8] to-purple-500 bg-clip-text w-12 h-12 lg:w-20 lg:h-20"
+                  aria-hidden="true"
+                />
               </div>
             </div>
           </div>
 
-          <h1 data-testid="app-title" class="text-4xl lg:text-5xl text-transparent bg-linear-to-r from-[#00B4D8] to-purple-500 bg-clip-text leading-tight animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300">
+          <h1
+            data-testid="app-title"
+            class="text-4xl lg:text-5xl text-transparent bg-linear-to-r from-[#00B4D8] to-purple-500 bg-clip-text leading-tight animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300"
+          >
             Space Analyzer Pro
           </h1>
 
@@ -53,40 +69,60 @@
         >
           <div :class="['bg-slate-800/50 p-4 lg:p-6 space-y-3 lg:space-y-4 backdrop-blur-lg border border-white/20 rounded-xl', isDragOver ? 'border-2 border-dashed border-[#00B4D8] bg-[#00B4D8]/10' : '']">
             <div data-testid="directory-input-section">
-              <label for="directory-path" class="block text-sm font-medium text-slate-300 mb-2">Target Directory</label>
+              <label
+                for="directory-path"
+                class="block text-sm font-medium text-slate-300 mb-2"
+              >Target Directory</label>
               <div class="relative">
-                <Folder class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" :size="20" />
+                <Folder
+                  class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"
+                  :size="20"
+                />
                 <input
-                  data-testid="directory-path-input"
                   id="directory-path"
+                  v-model.trim="analysisStore.path"
+                  data-testid="directory-path-input"
                   name="directory-path"
                   type="text"
-                  v-model.trim="analysisStore.path"
-                  @input="handlePathChange(analysisStore.path)"
                   class="w-full pl-12 pr-20 font-mono text-sm bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-[#00B4D8] focus:ring-1 focus:ring-[#00B4D8]"
                   placeholder="Enter directory path..."
                   autocomplete="off"
+                  @input="handlePathChange(analysisStore.path)"
                   @keydown.enter="handleEnterKey"
                   @keydown.esc="appStore.showPathPicker && appStore.togglePathPicker()"
-                />
+                >
                 <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
                   <button
-                    @click="handleCopyPath"
                     class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors"
                     aria-label="Copy path"
                     title="Copy path"
+                    @click="handleCopyPath"
                   >
-                    <Check v-if="copied" :size="16" class="text-[#00B4D8]" aria-hidden="true" />
-                    <Copy v-else :size="16" class="text-slate-300" aria-hidden="true" />
+                    <Check
+                      v-if="copied"
+                      :size="16"
+                      class="text-[#00B4D8]"
+                      aria-hidden="true"
+                    />
+                    <Copy
+                      v-else
+                      :size="16"
+                      class="text-slate-300"
+                      aria-hidden="true"
+                    />
                   </button>
                   <button
                     v-if="appStore.recentPaths.length > 0"
-                    @click="appStore.togglePathPicker"
                     class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors"
                     aria-label="Recent paths"
                     title="Recent paths"
+                    @click="appStore.togglePathPicker"
                   >
-                    <FolderOpen :size="16" class="text-slate-300" aria-hidden="true" />
+                    <FolderOpen
+                      :size="16"
+                      class="text-slate-300"
+                      aria-hidden="true"
+                    />
                   </button>
                 </div>
               </div>
@@ -100,8 +136,8 @@
                   <button
                     v-for="path in appStore.recentPaths"
                     :key="path"
-                    @click="selectRecentPath(path)"
                     class="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors first:border-b border-slate-700"
+                    @click="selectRecentPath(path)"
                   >
                     {{ path }}
                   </button>
@@ -110,7 +146,10 @@
             </div>
 
             <!-- Backend status indicator -->
-            <div data-testid="backend-status" class="flex items-center justify-between text-xs">
+            <div
+              data-testid="backend-status"
+              class="flex items-center justify-between text-xs"
+            >
               <div class="flex items-center gap-2">
                 <div :class="['w-2 h-2 rounded-full', appStore.isBackendOnline ? 'bg-[#00B4D8] animate-pulse' : 'bg-red-400']" />
                 <span :class="appStore.isBackendOnline ? 'text-[#00B4D8]' : 'text-red-400'">
@@ -118,56 +157,87 @@
                 </span>
               </div>
               <button
-                @click="downloadDebugLogs"
                 class="text-slate-500 hover:text-slate-300 text-xs"
                 aria-label="Download debug logs"
                 title="Download debug logs"
+                @click="downloadDebugLogs"
               >
                 📋 Logs
               </button>
             </div>
 
             <!-- AI toggle -->
-            <div data-testid="ai-toggle" class="flex items-center justify-between">
+            <div
+              data-testid="ai-toggle"
+              class="flex items-center justify-between"
+            >
               <label class="text-sm text-slate-300">Enable AI Analysis</label>
               <button
                 data-testid="ai-toggle-button"
-                @click="toggleAI"
                 :class="['relative w-12 h-6 rounded-full transition-colors', analysisStore.useAI ? 'bg-[#00B4D8]' : 'bg-slate-600']"
                 :aria-pressed="analysisStore.useAI"
                 aria-label="Toggle AI analysis"
+                @click="toggleAI"
               >
                 <div :class="['absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform', analysisStore.useAI ? 'translate-x-6' : 'translate-x-0']" />
               </button>
             </div>
 
             <!-- AI Model Selection -->
-            <div v-if="analysisStore.useAI" data-testid="ai-panel" class="space-y-2">
+            <div
+              v-if="analysisStore.useAI"
+              data-testid="ai-panel"
+              class="space-y-2"
+            >
               <label class="text-sm text-slate-300">AI Model</label>
               <select
                 data-testid="ai-model-select"
                 class="w-full bg-slate-700 border border-slate-600 rounded-lg text-white text-sm p-2 focus:outline-none focus:border-[#00B4D8]"
                 value="qwen2.5:7b"
               >
-                <option value="qwen2.5:7b">Qwen 2.5 (7B)</option>
-                <option value="qwen2.5:14b">Qwen 2.5 (14B)</option>
-                <option value="phi4-mini:latest">Phi 4 Mini</option>
-                <option value="gemma3:4b">Gemma 3 (4B)</option>
-                <option value="deepseek-coder:6.7b-instruct">DeepSeek Coder</option>
+                <option value="qwen2.5:7b">
+                  Qwen 2.5 (7B)
+                </option>
+                <option value="qwen2.5:14b">
+                  Qwen 2.5 (14B)
+                </option>
+                <option value="phi4-mini:latest">
+                  Phi 4 Mini
+                </option>
+                <option value="gemma3:4b">
+                  Gemma 3 (4B)
+                </option>
+                <option value="deepseek-coder:6.7b-instruct">
+                  DeepSeek Coder
+                </option>
               </select>
-              <div data-testid="ai-status" class="text-xs text-slate-400">
+              <div
+                data-testid="ai-status"
+                class="text-xs text-slate-400"
+              >
                 {{ appStore.isBackendOnline ? 'AI Service: Available' : 'AI Service: Offline' }}
               </div>
             </div>
 
             <Transition name="error">
-              <div v-if="analysisStore.error" class="bg-orange-500/10 border border-orange-500 text-orange-400 px-4 py-3 rounded-xl flex items-center gap-2" role="alert">
-                <AlertTriangle :size="18" aria-hidden="true" />
+              <div
+                v-if="analysisStore.error"
+                class="bg-orange-500/10 border border-orange-500 text-orange-400 px-4 py-3 rounded-xl flex items-center gap-2"
+                role="alert"
+              >
+                <AlertTriangle
+                  :size="18"
+                  aria-hidden="true"
+                />
                 {{ analysisStore.error }}
               </div>
             </Transition>
 
-            <div v-if="analysisStore.isAnalysisRunning" data-testid="progress-section" class="space-y-3">
+            <div
+              v-if="analysisStore.isAnalysisRunning"
+              data-testid="progress-section"
+              class="space-y-3"
+            >
               <div class="flex justify-between text-sm text-slate-300">
                 <span>{{ analysisStore.status }}</span>
                 <span>{{ Math.round(analysisStore.progress) }}%</span>
@@ -182,7 +252,7 @@
               </div>
               <!-- Real-time file scanner -->
               <RealTimeFileScanner
-                :scannedFiles="analysisStore.scannedFiles"
+                :scanned-files="analysisStore.scannedFiles"
                 :progress="analysisStore.progressData"
               />
             </div>
@@ -191,17 +261,24 @@
               v-else
               data-testid="start-analysis-button"
               type="button"
-              @click="handleStartAnalysis"
               :disabled="!appStore.isBackendOnline || analysisStore.isAnalysisRunning"
               class="bg-[#00B4D8] hover:bg-[#0095b8] text-white font-medium py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full"
               :aria-label="analysisStore.isAnalysisRunning ? 'Analysis in progress' : (analysisStore.useAI ? 'Start AI Analysis' : 'Start Standard Analysis')"
+              @click="handleStartAnalysis"
             >
-              <Play :size="20" aria-hidden="true" />
+              <Play
+                :size="20"
+                aria-hidden="true"
+              />
               {{ analysisStore.isAnalysisRunning ? 'Analyzing...' : (analysisStore.useAI ? 'Start AI Analysis' : 'Start Standard Analysis') }}
             </button>
 
             <Transition name="results">
-              <div v-if="analysisStore.data" data-testid="scan-results" class="pt-4 border-t border-slate-700 space-y-4 animate-in fade-in slide-in-from-bottom-5 duration-500 max-h-96 overflow-y-auto">
+              <div
+                v-if="analysisStore.data"
+                data-testid="scan-results"
+                class="pt-4 border-t border-slate-700 space-y-4 animate-in fade-in slide-in-from-bottom-5 duration-500 max-h-96 overflow-y-auto"
+              >
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-sm text-slate-300">Analysis Complete</span>
                   <span class="text-xs text-emerald-400">✓</span>
@@ -214,24 +291,42 @@
                   :categories="categoryData"
                 />
                 
-                <div data-testid="statistics" class="grid grid-cols-2 gap-3">
-                  <div data-testid="file-count" class="bg-slate-800/50 rounded-lg p-3 text-center">
+                <div
+                  data-testid="statistics"
+                  class="grid grid-cols-2 gap-3"
+                >
+                  <div
+                    data-testid="file-count"
+                    class="bg-slate-800/50 rounded-lg p-3 text-center"
+                  >
                     <div class="text-2xl font-bold text-white mb-1">
                       {{ analysisStore.data.files?.length || 0 }}
                     </div>
-                    <div class="text-xs text-slate-300">Files</div>
+                    <div class="text-xs text-slate-300">
+                      Files
+                    </div>
                   </div>
-                  <div data-testid="total-size" class="bg-slate-800/50 rounded-lg p-3 text-center">
+                  <div
+                    data-testid="total-size"
+                    class="bg-slate-800/50 rounded-lg p-3 text-center"
+                  >
                     <div class="text-2xl font-bold text-white mb-1">
                       {{ analysisStore.data.totalSize ? `${(analysisStore.data.totalSize / 1024 / 1024).toFixed(1)}` : '0' }}
                     </div>
-                    <div class="text-xs text-slate-300">MB</div>
+                    <div class="text-xs text-slate-300">
+                      MB
+                    </div>
                   </div>
                 </div>
 
                 <!-- 3D Visualization Preview -->
-                <div data-testid="visualization" class="mt-4 bg-slate-800/50 rounded-lg p-4">
-                  <h4 class="text-sm font-medium text-white mb-2">3D Visualization</h4>
+                <div
+                  data-testid="visualization"
+                  class="mt-4 bg-slate-800/50 rounded-lg p-4"
+                >
+                  <h4 class="text-sm font-medium text-white mb-2">
+                    3D Visualization
+                  </h4>
                   <div class="h-32 bg-slate-900 rounded-lg flex items-center justify-center text-slate-400 text-xs">
                     {{ analysisStore.data?.files?.length > 0 ? `Ready to visualize ${analysisStore.data.files.length} files` : 'Run analysis to enable 3D visualization' }}
                   </div>
@@ -239,46 +334,64 @@
 
                 <!-- Action Buttons -->
                 <div class="space-y-2 mt-4">
-                  <h4 class="text-sm font-medium text-white mb-2">Quick Actions</h4>
+                  <h4 class="text-sm font-medium text-white mb-2">
+                    Quick Actions
+                  </h4>
                   <div class="grid grid-cols-2 gap-2">
                     <button
-                      @click="navigateToBrowser"
                       :disabled="!analysisStore.data"
                       class="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-1"
                       :title="analysisStore.data ? 'Browse Files' : 'Run analysis first'"
                       aria-label="Browse files"
+                      @click="navigateToBrowser"
                     >
-                      <FolderOpen :size="16" class="mr-1" aria-hidden="true" />
+                      <FolderOpen
+                        :size="16"
+                        class="mr-1"
+                        aria-hidden="true"
+                      />
                       Browse Files
                     </button>
                     <button
-                      @click="navigateToDashboard"
                       :disabled="!analysisStore.data"
                       class="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-1"
                       :title="analysisStore.data ? 'View Dashboard' : 'Run analysis first'"
                       aria-label="View dashboard"
+                      @click="navigateToDashboard"
                     >
-                      <BarChart3 :size="16" class="mr-1" aria-hidden="true" />
+                      <BarChart3
+                        :size="16"
+                        class="mr-1"
+                        aria-hidden="true"
+                      />
                       View Dashboard
                     </button>
                     <button
-                      @click="exportReport"
                       :disabled="!analysisStore.data"
                       class="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-1"
                       :title="analysisStore.data ? 'Export Report' : 'Run analysis first'"
                       aria-label="Export report"
+                      @click="exportReport"
                     >
-                      <Download :size="16" class="mr-1" aria-hidden="true" />
+                      <Download
+                        :size="16"
+                        class="mr-1"
+                        aria-hidden="true"
+                      />
                       Export Report
                     </button>
                     <button
-                      @click="navigateToVisualization"
                       :disabled="!analysisStore.data"
                       class="bg-[#00B4D8] hover:bg-[#0095b8] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-1"
                       :title="analysisStore.data ? 'View 3D Visualization' : 'Run analysis first'"
                       aria-label="View 3D visualization"
+                      @click="navigateToVisualization"
                     >
-                      <Box :size="16" class="mr-1" aria-hidden="true" />
+                      <Box
+                        :size="16"
+                        class="mr-1"
+                        aria-hidden="true"
+                      />
                       3D Visualization
                     </button>
                   </div>
