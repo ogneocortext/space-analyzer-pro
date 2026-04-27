@@ -6,11 +6,39 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 2.1.4 | 2026-04-27 | Remove React plugins from ESLint config |
 | 2.1.3 | 2026-04-27 | Native scanner integration fixes |
 | 2.1.2 | 2026-04-27 | Port centralization and dependency cleanup |
 | 2.1.1 | 2026-04-27 | Configuration fixes, performance dependencies, Vue migration cleanup |
 | 2.1.0 | 2026-04-27 | Vue 3 migration with enhanced performance dependencies |
 | 2.0.1 | Previous | AI-Powered Space Analyzer with Vision Analysis and Feature Hub |
+
+---
+
+## [2.1.4] - 2026-04-27
+
+### ESLint Configuration
+
+#### eslint.config.js
+- Removed React plugin imports: `react-hooks`, `react-refresh`
+- Removed React-specific rules configuration
+- Moved common TypeScript rules to shared configuration
+- Updated test file patterns from `.tsx` to `.js` extensions
+- ESLint now configured for Vue 3 only
+
+### Benefits
+
+- **Cleaner configuration**: No unused React plugins
+- **Faster linting**: Fewer plugins to load
+- **Accurate linting**: Rules match actual Vue codebase
+
+### Breaking Changes
+
+None - all changes are internal improvements
+
+### Migration Notes
+
+No migration required. All changes are internal improvements.
 
 ---
 
