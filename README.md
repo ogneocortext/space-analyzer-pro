@@ -143,11 +143,11 @@ docker-compose -f docker-compose.ollama.yml up
 ### Native Scanner Implementation
 
 **Rust Scanner (Preferred)**
-- Location: `src/rust/simple-scanner/`
+- Location: `native/scanner/`
 - Built with: Rust + napi-rs for Node.js N-API bindings
 - Performance: Optimized with AVX2, native CPU targeting, LTO
 - Status: ✅ Production-ready, tested, integrated
-- Build: `cd src/rust/simple-scanner && npm run build`
+- Build: `cd native/scanner && cargo build --release`
 
 **C++ Scanner (Archived)**
 - Location: `src/cpp/native-scanner-archived.zip`

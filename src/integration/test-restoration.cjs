@@ -155,7 +155,7 @@ class RestorationTester {
         try {
             // Check if Rust source files exist
             const rustMain = path.join(this.projectRoot, 'src/main.rs');
-            const rustDir = path.join(this.projectRoot, 'src/rust');
+            const rustDir = path.join(this.projectRoot, 'native/scanner');
             
             const mainExists = await fs.access(rustMain).then(() => true).catch(() => false);
             this.testResults.rust.details.main_rs = mainExists;

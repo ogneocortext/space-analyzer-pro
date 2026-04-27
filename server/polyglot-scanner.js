@@ -22,7 +22,7 @@ class PolyglotScanner {
 
         // Try to load Rust scanner
         try {
-            const rustPath = path.join(__dirname, '../src/rust/cli');
+            const rustPath = path.join(__dirname, '../native/scanner');
             if (fs.existsSync(rustPath)) {
                 console.log('🦀 Attempting to load Rust scanner...');
                 this.rustScanner = await this.loadRustScanner();
@@ -59,7 +59,7 @@ class PolyglotScanner {
         // Load the real Rust scanner using the proper index.js loader
         console.log('🦀 Loading Rust scanner...');
         try {
-            const scannerPath = path.join(__dirname, '../src/rust/simple-scanner');
+            const scannerPath = path.join(__dirname, '../native/scanner');
             console.log('📁 Rust scanner path:', scannerPath);
             console.log('📁 Directory exists:', fs.existsSync(scannerPath));
             
