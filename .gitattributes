@@ -1,0 +1,42 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# The above will handle all files NOT found below
+# These files are text and should be normalized (Convert CRLF to LF)
+*.c text
+*.cpp text
+*.h text
+*.hpp text
+*.css text
+*.html text
+*.js text
+*.jsx text
+*.json text
+*.md text
+*.py text
+*.rs text
+*.ts text
+*.tsx text
+*.vue text
+*.xml text
+*.yml text
+*.yaml text
+
+# These files are binary and should be left untouched
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
+*.rar binary
+*.node binary
+*.dll binary
+*.exe binary
+*.so binary
+*.dylib binary
