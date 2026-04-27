@@ -61,11 +61,10 @@ npm run server
 | `npm run dev` | Start Vite development server |
 | `npm run build` | Build for production |
 | `npm run preview` | Preview production build |
-| `npm run test` | Run tests with Vitest |
+| `npm run test:e2e` | Run Playwright E2E tests |
 | `npm run lint` | Run ESLint |
 | `npm run type-check` | Run TypeScript type checking |
 | `npm run server` | Start backend server |
-| `npm run type-check` | Run TypeScript type checking |
 
 ### Environment Configuration
 
@@ -164,7 +163,7 @@ docker-compose -f docker-compose.ollama.yml up
 - Already production-ready and tested
 
 ### Testing
-Tests use Vitest with React Testing Library. Run with `npm run test`.
+E2E tests use Playwright. Run with `npm run test:e2e`.
 
 ### Performance
 The app includes performance optimizations:

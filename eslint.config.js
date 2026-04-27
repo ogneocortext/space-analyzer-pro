@@ -1,7 +1,6 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import vue from 'eslint-plugin-vue';
-import vueTs from '@vue/eslint-config-typescript';
 import globals from 'globals';
 
 export default tseslint.config(
@@ -24,7 +23,6 @@ export default tseslint.config(
 
   // Vue configuration
   ...vue.configs['flat/recommended'],
-  ...vueTs.configs.recommended,
 
   // Common rules
   {

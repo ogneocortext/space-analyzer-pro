@@ -5,21 +5,17 @@ import json
 import logging
 from datetime import datetime
 import os
-import sys
-
-# Import centralized port configuration
-# Note: Python cannot import ES modules directly, using hardcoded value
-PYTHON_AI_PORT = 8084  # Matches ports.config.js PYTHON_AI_PORT
+from config import PYTHON_AI_PORT, OLLAMA_HOST, LOG_LEVEL
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=getattr(logging, LOG_LEVEL))
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
 
-# Configuration
-OLLAMA_HOST = os.environ.get('OLLAMA_HOST', 'http://localhost:11434')
+# Configuration (from config.py with environment override)
+OLLAMA_HOST = os.environ.get('OLLAMA_HOST', OLLAMA_HOST)
 DEFAULT_MODEL = 'phi4-mini:latest'
 TIMEOUT = 60  # seconds
 

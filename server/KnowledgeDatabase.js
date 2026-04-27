@@ -299,6 +299,63 @@ class KnowledgeDatabase {
     }
 
     /**
+     * Check database size and log warning if exceeds threshold
+     */
+    checkDatabaseSize(thresholdMB = 500) {
+        return new Promise((resolve, reject) => {
+            fs.stat(this.dbPath, (err, stats) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                const sizeMB = stats.size / (1024 * 1024);
+                if (sizeMB > thresholdMB) {
+                    console.warn(`⚠️ Database size warning: ${sizeMB.toFixed(2)} MB (threshold: ${thresholdMB} MB)`);
+                    console.warn('⚠️ Consider running database cleanup to free space');
+                } else {
+                    console.log(`📊 Database size: ${sizeMB.toFixed(2)} MB`);
+                }
+
+                resolve({ sizeMB, thresholdMB, exceedsThreshold: sizeMB > thresholdMB });
+            });
+        });
+    }
+
+    /**
+     * Clean up old data to reduce database size
+     */
+    cleanup(daysToKeep = 30) {
+        return new Promise((resolve, reject) => {
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+
+            const sql = `
+                DELETE FROM ai_responses 
+                WHERE created_at < ?
+            `;
+
+            this.db.run(sql, [cutoffDate.toISOString()], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    console.log(`🧹 Cleaned up ${this.changes} old AI responses (older than ${daysToKeep} days)`);
+                    
+                    // Vacuum database to reclaim space
+                    this.db.run('VACUUM', (vacuumErr) => {
+                        if (vacuumErr) {
+                            console.error('❌ Vacuum failed:', vacuumErr);
+                        } else {
+                            console.log('✅ Database vacuumed successfully');
+                        }
+                        resolve({ deleted: this.changes });
+                    });
+                }
+            });
+        });
+    }
+
+    /**
      * Generate hash for content
      */
     generateHash(content) {
