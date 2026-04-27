@@ -1,0 +1,10 @@
+[
+  {
+    "timestamp": "2026-04-27T19:23:04.248Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\directory-scan.json",
+    "action": "TEST_START",
+    "details": {
+      "testName": "Directory Scan"
+    }
+  }
+]

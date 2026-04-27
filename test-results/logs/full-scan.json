@@ -1,0 +1,225 @@
+[
+  {
+    "timestamp": "2026-04-27T03:09:06.278Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "TEST_START",
+    "details": {
+      "testName": "Full Directory Scan"
+    }
+  },
+  {
+    "timestamp": "2026-04-27T03:09:07.258Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "PAGE_LOADED",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-27T03:09:07.333Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "DIRECTORY_INPUT_FOUND",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-27T03:09:07.395Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "DIRECTORY_PATH_ENTERED",
+    "details": {
+      "path": "C:\\Users"
+    }
+  },
+  {
+    "timestamp": "2026-04-27T03:09:07.461Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "START_BUTTON_FOUND",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-27T03:09:07.595Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "START_BUTTON_CLICKED",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-27T03:09:07.636Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "PROGRESS_SECTION_VISIBLE",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-27T03:09:07.662Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "WAITING_FOR_ANALYSIS",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-27T03:09:38.761Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "ANALYSIS_COMPLETE",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-04-27T03:09:40.814Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "CONSOLE_LOGS",
+    "details": {
+      "logs": [
+        "[log] 🌐 Using baseUrl: http://localhost:3001/api",
+        "[log] 🚀 Sending analysis request...",
+        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 1/6)",
+        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
+        "[log] [WARN] Server error 502, retrying in 1000ms",
+        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 2/6)",
+        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
+        "[log] [WARN] Server error 502, retrying in 2000ms",
+        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 3/6)",
+        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
+        "[log] [WARN] Server error 502, retrying in 4000ms",
+        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 4/6)",
+        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
+        "[log] [WARN] Server error 502, retrying in 8000ms",
+        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 5/6)",
+        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
+        "[log] [WARN] Server error 502, retrying in 16000ms",
+        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 6/6)",
+        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
+        "[log] [WARN] Request failed (attempt 6): HTTP 502: Bad Gateway - "
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-04-27T03:09:40.866Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "DEBUG_LOGS",
+    "details": {
+      "count": 9,
+      "lastLogs": [
+        {
+          "timestamp": "2026-04-27T03:09:06.572Z",
+          "tag": "LANDING_MOUNT",
+          "data": [
+            "LandingPage mounted",
+            {
+              "analysisStore": {
+                "$id": "analysis",
+                "path": "C:\\Users",
+                "status": "error",
+                "progress": 0,
+                "isAnalysisRunning": false,
+                "data": null,
+                "error": "Request failed after 6 attempts: HTTP 502: Bad Gateway - ",
+                "useAI": false,
+                "scannedFiles": [],
+                "progressData": {
+                  "files": 0,
+                  "percentage": 0,
+                  "currentFile": "",
+                  "completed": false
+                },
+                "_isOptionsAPI": false
+              }
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-04-27T03:09:07.554Z",
+          "tag": "BUTTON_CLICK",
+          "data": [
+            "Start Analysis button clicked"
+          ]
+        },
+        {
+          "timestamp": "2026-04-27T03:09:07.555Z",
+          "tag": "ANALYSIS_START",
+          "data": [
+            "Starting analysis"
+          ]
+        },
+        {
+          "timestamp": "2026-04-27T03:09:07.558Z",
+          "tag": "LANDING_STATUS",
+          "data": [
+            "starting"
+          ]
+        },
+        {
+          "timestamp": "2026-04-27T03:09:07.558Z",
+          "tag": "LANDING_RUNNING",
+          "data": [
+            true
+          ]
+        },
+        {
+          "timestamp": "2026-04-27T03:09:38.645Z",
+          "tag": "ERROR",
+          "data": [
+            {
+              "name": "Error"
+            }
+          ]
+        },
+        {
+          "timestamp": "2026-04-27T03:09:38.645Z",
+          "tag": "LANDING_STATUS",
+          "data": [
+            "error"
+          ]
+        },
+        {
+          "timestamp": "2026-04-27T03:09:38.645Z",
+          "tag": "LANDING_RUNNING",
+          "data": [
+            false
+          ]
+        },
+        {
+          "timestamp": "2026-04-27T03:09:38.648Z",
+          "tag": "BUTTON_COMPLETE",
+          "data": [
+            "Analysis completed"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-04-27T03:09:40.920Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "ERROR_FOUND",
+    "details": {
+      "error": ""
+    }
+  },
+  {
+    "timestamp": "2026-04-27T03:09:40.967Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "CURRENT_URL",
+    "details": {
+      "url": "http://localhost:3001/"
+    }
+  },
+  {
+    "timestamp": "2026-04-27T03:09:40.997Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "SCAN_RESULTS_NOT_VISIBLE",
+    "details": {
+      "hasError": true
+    }
+  },
+  {
+    "timestamp": "2026-04-27T03:09:41.164Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "SCREENSHOT_TAKEN",
+    "details": {
+      "path": "test-results/screenshots/scan-results.png"
+    }
+  },
+  {
+    "timestamp": "2026-04-27T03:09:41.191Z",
+    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
+    "action": "TEST_COMPLETE",
+    "details": {
+      "resultsVisible": false,
+      "hasError": true
+    }
+  }
+]

@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-const ports = require('../ports.config.js');
+import ports from './ports.config.js';
 
 export default defineConfig({
   testDir: './tests/e2e',

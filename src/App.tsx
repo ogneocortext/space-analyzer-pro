@@ -1,8 +1,8 @@
 import React, { FC, useCallback, useState, useEffect, lazy, Suspense } from 'react';
 import { AIContextProvider } from './contexts/AIContext';
-import { AppSidebar } from './components/layout/AppSidebar';
-import { LandingPage } from './components/layout/LandingPage';
-import { AppHeader } from './components/layout/AppHeader';
+import { AppSidebar } from './components/react/layout/AppSidebar';
+import { LandingPage } from './components/react/layout/LandingPage';
+import { AppHeader } from './components/react/layout/AppHeader';
 import { useAnalysisState } from './hooks/useAnalysisState';
 import { useNavigationState } from './hooks/useNavigationState';
 import { useBackendHealth } from './hooks/useBackendHealth';
@@ -13,7 +13,7 @@ import { useResponsiveDesign } from './hooks/useResponsiveDesign';
 import './styles/index.css';
 
 // Lazy load heavy components
-const ViewRouter = lazy(() => import('./components/layout/ViewRouter').then(m => ({ default: m.ViewRouter })));
+const ViewRouter = lazy(() => import('./components/react/layout/ViewRouter').then(m => ({ default: m.ViewRouter })));
 
 const App: FC = () => {
     // Get initial path from localStorage or use a sensible default
@@ -111,43 +111,45 @@ const App: FC = () => {
     // Main render
     if (!analysisState.data) {
         return (
-            <LandingPage
-                path={analysisState.path}
-                onPathChange={handlePathChange}
-                onAnalyze={analysisState.handleAnalysis}
-                isBackendOnline={isBackendOnline}
-                isAnalysisRunning={analysisState.isAnalysisRunning}
-                progress={analysisState.progress}
-                status={analysisState.status}
-                error={analysisState.error}
-                useAI={useAI}
-                onToggleAI={() => setUseAI(!useAI)}
-                recentPaths={recentPaths}
-                showPathPicker={showPathPicker}
-                onTogglePathPicker={() => setShowPathPicker(!showPathPicker)}
-                onSelectRecentPath={(path) => {
-                    handlePathChange(path);
-                    setShowPathPicker(false);
-                }}
-                analysisData={analysisState.data}
-                scannedFiles={[]}
-                progressData={{
-                    files: analysisState.filesScanned || 0,
-                    percentage: analysisState.progress || 0,
-                    currentFile: analysisState.currentFile || '',
-                    completed: !analysisState.isAnalysisRunning
-                }}
-                onNavigateToDashboard={() => navigationState.navigateTo('dashboard')}
-                onNavigateToBrowser={() => navigationState.navigateTo('browser')}
-                onExportReport={handleExportReport}
-                onCleanupSuggestions={handleCleanupSuggestions}
-                getCategoryColor={getCategoryColor}
-            />
+            <div id="app" data-testid="app-container">
+                <LandingPage
+                    path={analysisState.path}
+                    onPathChange={handlePathChange}
+                    onAnalyze={analysisState.handleAnalysis}
+                    isBackendOnline={isBackendOnline}
+                    isAnalysisRunning={analysisState.isAnalysisRunning}
+                    progress={analysisState.progress}
+                    status={analysisState.status}
+                    error={analysisState.error}
+                    useAI={useAI}
+                    onToggleAI={() => setUseAI(!useAI)}
+                    recentPaths={recentPaths}
+                    showPathPicker={showPathPicker}
+                    onTogglePathPicker={() => setShowPathPicker(!showPathPicker)}
+                    onSelectRecentPath={(path) => {
+                        handlePathChange(path);
+                        setShowPathPicker(false);
+                    }}
+                    analysisData={analysisState.data}
+                    scannedFiles={[]}
+                    progressData={{
+                        files: analysisState.filesScanned || 0,
+                        percentage: analysisState.progress || 0,
+                        currentFile: analysisState.currentFile || '',
+                        completed: !analysisState.isAnalysisRunning
+                    }}
+                    onNavigateToDashboard={() => navigationState.navigateTo('dashboard')}
+                    onNavigateToBrowser={() => navigationState.navigateTo('browser')}
+                    onExportReport={handleExportReport}
+                    onCleanupSuggestions={handleCleanupSuggestions}
+                    getCategoryColor={getCategoryColor}
+                />
+            </div>
         );
     }
 
     return (
-        <div className="flex h-screen bg-slate-900">
+        <div id="app" data-testid="app-container" className="flex h-screen bg-slate-900">
             {/* Sidebar */}
             <AppSidebar
                 currentView={navigationState.currentView}

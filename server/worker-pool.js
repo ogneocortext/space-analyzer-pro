@@ -1,10 +1,11 @@
 // Advanced Worker Thread Pool for Node.js 2025-2026
-// Features: Load balancing, circuit breaker, health monitoring, graceful shutdown
+// Hardware-optimized: Uses dynamic configuration based on system specs
 
 const { Worker, isMainThread, parentPort, threadId } = require('worker_threads');
 const path = require('path');
 const os = require('os');
 const { EventEmitter } = require('events');
+const dynamicConfig = require('./config/dynamic-config');
 
 class CircuitBreaker {
     constructor(failureThreshold = 5, recoveryTimeout = 30000) {
@@ -61,14 +62,16 @@ class WorkerPool extends EventEmitter {
     constructor(options = {}) {
         super();
 
-        this.numWorkers = options.numWorkers || Math.max(1, os.cpus().length - 1);
+        // Hardware-optimized worker pool configuration
+        this.numWorkers = options.numWorkers || dynamicConfig.workerCount;
         this.workerScript = options.workerScript || path.join(__dirname, 'worker.js');
         this.taskQueue = [];
         this.workers = new Map();
         this.activeWorkers = new Set();
+        // Circuit breaker with hardware-optimized threshold
         this.circuitBreaker = new CircuitBreaker(
-            options.failureThreshold || 3,
-            options.recoveryTimeout || 30000
+            options.failureThreshold || dynamicConfig.circuitBreakerThreshold,
+            options.recoveryTimeout || 5000
         );
 
         this.taskIdCounter = 0;
@@ -92,10 +95,10 @@ class WorkerPool extends EventEmitter {
                 poolSize: this.numWorkers
             },
             resourceLimits: {
-                maxOldGenerationSizeMb: 512,
-                maxYoungGenerationSizeMb: 128,
-                codeRangeSizeMb: 64,
-                stackSizeMb: 8
+                maxOldGenerationSizeMb: dynamicConfig.workerMemoryMB,
+                maxYoungGenerationSizeMb: Math.floor(dynamicConfig.workerMemoryMB / 4),
+                codeRangeSizeMb: Math.floor(dynamicConfig.workerMemoryMB / 16),
+                stackSizeMb: 16
             }
         });
 
@@ -128,7 +131,7 @@ class WorkerPool extends EventEmitter {
                     resolve,
                     reject,
                     submittedAt: Date.now(),
-                    timeout: options.timeout || 30000
+                    timeout: options.timeout || dynamicConfig.taskTimeout
                 };
 
                 this.taskQueue.push(task);
