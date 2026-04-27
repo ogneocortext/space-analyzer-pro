@@ -96,7 +96,7 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
   useEffect(() => {
     aiServiceRef.current = new AIService({
       ollamaEndpoint: 'http://localhost:11434',
-      geminiApiKey: '***REMOVED***',
+      geminiApiKey: process.env.GEMINI_API_KEY || '', // Use environment variable
       usageTracking: true,
       fallbackStrategy: 'ollama-first'
     });
