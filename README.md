@@ -91,6 +91,22 @@ All ports are centrally managed in `ports.config.js` to prevent conflicts:
 
 To change ports, edit `ports.config.js` - all services will automatically use the updated values.
 
+## Documentation
+
+For detailed documentation, see the [docs/](docs/) directory which is organized by topic:
+
+- **[docs/ai/](docs/ai/)** - AI/ML features and integration
+- **[docs/architecture/](docs/architecture/)** - System architecture and design
+- **[docs/development/](docs/development/)** - Development guides and testing
+- **[docs/guides/](docs/guides/)** - Deployment, security, and troubleshooting guides
+- **[docs/performance/](docs/performance/)** - Performance optimization
+
+Key documentation files:
+- [SECURITY.md](SECURITY.md) - Security policies and best practices
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
+- [CHANGELOG.md](CHANGELOG.md) - Project changelog
+- [LICENSE](LICENSE) - MIT License
+
 ## Project Structure
 
 ```
@@ -174,7 +190,7 @@ The app includes performance optimizations:
 
 ## License
 
-Private project - All rights reserved
+MIT License - See [LICENSE](LICENSE) file for details
 
 ## Version History
 

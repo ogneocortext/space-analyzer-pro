@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 2.1.8 | 2026-04-27 | Project cleanup and organization |
 | 2.1.7 | 2026-04-27 | Implement improvement recommendations |
 | 2.1.6 | 2026-04-27 | Remove obsolete React files from src directory |
 | 2.1.5 | 2026-04-27 | Test cleanup and ES module conversion |
@@ -15,6 +16,45 @@ All notable changes to Space Analyzer will be documented in this file.
 | 2.1.1 | 2026-04-27 | Configuration fixes, performance dependencies, Vue migration cleanup |
 | 2.1.0 | 2026-04-27 | Vue 3 migration with enhanced performance dependencies |
 | 2.0.1 | Previous | AI-Powered Space Analyzer with Vision Analysis and Feature Hub |
+
+---
+
+## [2.1.8] - 2026-04-27
+
+### Project Cleanup and Organization
+
+#### Security Fixes
+- **Removed leaked API key**: Removed Google Gemini API key from `config/.env` and replaced with placeholder
+- **Added config/ to gitignore**: Added `config/` to `.gitignore` to protect sensitive configuration files
+- **Added .mcp to gitignore**: Added `.mcp/` to `.gitignore` for MCP server configuration files
+
+#### Documentation Improvements
+- **Created .env.example**: Added environment variable template for configuration
+- **Added SECURITY.md**: Created comprehensive security policy document
+- **Added CONTRIBUTING.md**: Created contribution guidelines document
+- **Added LICENSE at root**: Added MIT License file at project root
+- **Updated docs/README.md**: Updated documentation README to reflect new organized structure
+- **Updated main README.md**: Added documentation section and updated license reference
+
+#### Folder Cleanup
+- **Reorganized docs folder**: 
+  - Removed redundant `docs/.gitignore` (use root `.gitignore`)
+  - Removed 12 empty subdirectories
+  - Archived 30+ temporary status/fix documentation files to `docs/archive/`
+  - Reorganized documentation by topic (ai/, architecture/, development/, guides/, performance/, archive/)
+- **Cleaned up archive folder**:
+  - Removed large `temp_image.txt` file (263KB base64 image data)
+  - Removed 18 empty subdirectories
+  - Removed 10 old backup files
+  - Freed up ~55.7MB of disk space
+- **Cleaned up backups folder**:
+  - Removed large `web_app_stable_2026_01_13.zip` file (164MB)
+  - Freed up 164MB of disk space
+- **Removed empty directories**: Removed `.windsurf/` empty directory
+- **Added cpp-build to gitignore**: Added `cpp-build/` to `.gitignore` and removed empty directory
+
+#### Git Configuration
+- **Updated .gitignore**: Added patterns for `config/`, `.mcp/`, `cpp-build/`
 
 ---
 

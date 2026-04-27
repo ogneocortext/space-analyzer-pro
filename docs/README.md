@@ -6,15 +6,53 @@ Welcome to the **Space Analyzer** documentation! The Space Analyzer is a **power
 
 ## 📋 Table of Contents
 
-- [🏗️ Architecture](./ARCHITECTURE.md) - System architecture and design principles
-- [🧩 Components](./COMPONENTS.md) - Detailed component documentation
-- [🧠 ML Integration](./ML_INTEGRATION.md) - ML capabilities and integration
-- [🚀 Deployment](./DEPLOYMENT.md) - Deployment guide and configuration
-- [🔧 Development](./DEVELOPMENT.md) - Development setup and guidelines
-- [🧪 Testing](./TESTING.md) - Testing strategy and guidelines
-- [🔒 Security](./SECURITY.md) - Security best practices
-- [📊 Performance](./PERFORMANCE.md) - Performance optimization guide
-- [🔍 Troubleshooting](./TROUBLESHOOTING.md) - Common issues and solutions
+### **📁 Documentation Structure**
+
+The documentation is organized by topic for easier navigation:
+
+- **[ai/](./ai/)** - AI/ML related documentation
+  - AI features and implementation
+  - ML integration guides
+  - Ollama production guide
+  - System prompts and configurations
+
+- **[architecture/](./architecture/)** - Architecture and structure
+  - System architecture
+  - Component documentation
+  - Project structure
+  - Design documents
+
+- **[development/](./development/)** - Development guides
+  - Development setup
+  - Testing guidelines
+  - Developer features
+  - Tool improvements
+
+- **[guides/](./guides/)** - Various guides and tutorials
+  - Deployment guides
+  - Security guides
+  - API reference
+  - Troubleshooting
+  - Migration guides
+  - Build tools guides
+
+- **[performance/](./performance/)** - Performance optimization
+  - Performance guides
+  - CSS optimization
+  - Performance metrics
+
+- **[archive/](./archive/)** - Archived documentation
+  - Historical documentation
+  - Temporary status files
+  - Legacy documentation
+
+### **📄 Key Documentation Files**
+
+- [README.md](../README.md) - Main project README
+- [CHANGELOG.md](../CHANGELOG.md) - Project changelog
+- [SECURITY.md](../SECURITY.md) - Security policies
+- [CONTRIBUTING.md](../CONTRIBUTING.md) - Contribution guidelines
+- [LICENSE](../LICENSE) - Project license
 
 ---
 
