@@ -76,6 +76,22 @@ VITE_API_URL=http://localhost:8080
 VITE_OLLAMA_URL=http://localhost:11434
 ```
 
+### Port Configuration
+
+All ports are centrally managed in `ports.config.js` to prevent conflicts:
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Vite Dev Server | 3001 | Frontend development server |
+| Vite Preview Server | 3002 | Production build preview |
+| Backend API | 8080 | Express backend server |
+| Python AI Service | 8084 | Python AI integration |
+| Ollama | 11434 | Local AI service |
+| PostgreSQL | 5432 | Database (if used) |
+| Redis | 6379 | Cache (if used) |
+
+To change ports, edit `ports.config.js` - all services will automatically use the updated values.
+
 ## Project Structure
 
 ```

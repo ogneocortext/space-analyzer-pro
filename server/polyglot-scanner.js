@@ -56,40 +56,40 @@ class PolyglotScanner {
     }
 
     async loadRustScanner() {
-        // Load the real Rust scanner
+        // Load the real Rust scanner using the proper index.js loader
         console.log('🦀 Loading Rust scanner...');
         try {
-            const scannerPath = 'E:/Self Built Web and Mobile Apps/Space Analyzer/src/rust/simple-scanner/scanner.node';
+            const scannerPath = path.join(__dirname, '../src/rust/simple-scanner');
             console.log('📁 Rust scanner path:', scannerPath);
-            console.log('📁 File exists:', fs.existsSync(scannerPath));
+            console.log('📁 Directory exists:', fs.existsSync(scannerPath));
             
             if (fs.existsSync(scannerPath)) {
-                console.log('📁 Attempting to load Rust scanner...');
+                console.log('📁 Attempting to load Rust scanner via index.js...');
                 const nativeScanner = require(scannerPath);
                 console.log('✅ Rust native scanner loaded successfully');
-                console.log('📋 Available methods:', Object.getOwnPropertyNames(nativeScanner));
+                console.log('📋 Available exports:', Object.keys(nativeScanner));
+                console.log('📋 Loaded from:', nativeScanner._loadedPath);
                 
                 return {
                     create_analyzer: () => ({
                         categorize_file: (filename) => {
-                            const ext = filename.split('.').pop()?.toLowerCase() || '';
-                            return nativeScanner.categorizeFile(ext);
+                            return nativeScanner.categorizeFile(filename);
                         }
                     }),
                     analyze_directory_optimized: async (analyzer, directoryPath, maxDepth, includeHidden, parallel) => {
                         console.log(`🦀 Rust-optimized scan for: ${directoryPath}`);
                         
                         const startTime = Date.now();
-                        const result = nativeScanner.scanDirectorySimple(directoryPath);
+                        const result = await nativeScanner.scan(directoryPath);
                         const scanTime = Date.now() - startTime;
                         
                         // Convert Rust result to our format
                         const categories = {};
                         if (result.categories) {
-                            Object.entries(result.categories).forEach(([name, info]) => {
+                            Object.entries(result.categories).forEach(([name, count]) => {
                                 categories[name] = {
-                                    count: info.count,
-                                    size: info.size
+                                    count: count,
+                                    size: 0 // Rust scanner may not provide size per category
                                 };
                             });
                         }
@@ -102,25 +102,22 @@ class PolyglotScanner {
                                 path: f.path,
                                 size: f.size,
                                 extension: f.extension,
-                                category: f.category,
-                                modified: f.modified,
-                                is_hidden: f.is_hidden,
-                                is_directory: f.is_directory
+                                category: f.category
                             })),
                             categories: categories,
-                            analysis_time_ms: result.scanTimeMs,
+                            analysis_time_ms: scanTime,
                             directory_path: directoryPath
                         };
                     },
                     get_system_info: () => {
-                        const info = nativeScanner.getSystemInfo();
+                        const metrics = nativeScanner.getMetrics();
                         return {
                             platform: 'windows',
                             arch: 'x86_64',
                             rust_version: '1.92.0',
                             target: 'x86_64-pc-windows-msvc',
                             scanner_type: 'rust-native',
-                            details: info
+                            details: metrics
                         };
                     }
                 };
@@ -134,18 +131,19 @@ class PolyglotScanner {
     }
 
     async loadCppScanner() {
-        // Load the compiled C++ native scanner
+        // Load the compiled C++ native scanner using proper loader
         console.log('⚙️ Loading C++ native scanner...');
         try {
-            const scannerPath = 'E:/Self Built Web and Mobile Apps/Space Analyzer/src/cpp/native-scanner/build/Release/native_scanner.node';
+            const scannerPath = path.join(__dirname, '../src/cpp/native-scanner');
             console.log('📁 Scanner path:', scannerPath);
-            console.log('📁 File exists:', fs.existsSync(scannerPath));
+            console.log('📁 Directory exists:', fs.existsSync(scannerPath));
             
             if (fs.existsSync(scannerPath)) {
-                console.log('📁 Attempting to load C++ scanner...');
+                console.log('📁 Attempting to load C++ scanner via index.js...');
                 const nativeScanner = require(scannerPath);
                 console.log('✅ C++ native scanner loaded successfully');
-                console.log('📋 Available methods:', Object.getOwnPropertyNames(nativeScanner));
+                console.log('📋 Available exports:', Object.keys(nativeScanner));
+                console.log('📋 Loaded from:', nativeScanner._loadedPath);
                 
                 return {
                     scanDirectory: (dirPath, config) => {
