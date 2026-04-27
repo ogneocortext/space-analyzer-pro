@@ -49,7 +49,7 @@ class EnhancedPolyglotScanner {
     async loadNativeScanners() {
         // Load Rust scanner
         try {
-            const rustPath = path.join(__dirname, '../src/rust/simple-scanner/scanner.node');
+            const rustPath = path.join(__dirname, '../native/scanner/scanner.node');
             if (fs.existsSync(rustPath)) {
                 this.rustScanner = require(rustPath);
                 console.log('✅ 🦀 Rust scanner loaded');

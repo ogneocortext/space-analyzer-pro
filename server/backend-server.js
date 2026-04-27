@@ -2202,8 +2202,6 @@ Answer:`;
             'bin',
             'cli/target/release',
             'cli/target/debug',
-            'src/rust/cli/target/release',
-            'src/rust/cli/target/debug',
             'native/scanner/target/release',
             'native/scanner/target/debug',
             'bin/Release',

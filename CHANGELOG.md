@@ -181,7 +181,7 @@ No migration required. All changes are internal improvements.
 #### polyglot-scanner.js
 - **Rust Scanner Loading**
   - Changed from requiring `.node` file directly to using proper `index.js` loader
-  - Updated path resolution to use `path.join(__dirname, '../src/rust/simple-scanner')`
+  - Updated path resolution to use `path.join(__dirname, '../native/scanner')`
   - Added debug logging for loaded exports and path
   - Fixed API call to use `nativeScanner.scan(path)` instead of `scanDirectorySimple`
   - Removed options object from scan call (Rust scanner only accepts path string)
