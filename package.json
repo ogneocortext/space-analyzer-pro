@@ -24,6 +24,7 @@
     "port:update": "node scripts/port-config.js update",
     "port:status": "node scripts/port-config.js status",
     "port:clear": "node scripts/port-config.js clear",
+    "cleanup:results": "node scripts/cleanup-results.js",
     "type-check": "tsc -p tsconfig.node.json --noEmit",
     "type-check:full": "tsc --noEmit",
     "update-deps": "npm update && npm audit fix",

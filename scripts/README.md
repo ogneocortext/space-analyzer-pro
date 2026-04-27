@@ -45,6 +45,13 @@ This directory contains utility scripts for the Space Analyzer project.
   npm run port:clear    # Clear port configuration
   ```
 
+### Cleanup
+
+- **cleanup-results.js** - Cleans up and organizes results folder by date
+  ```bash
+  npm run cleanup:results [days]  # Clean results (default: keep 7 days)
+  ```
+
 ## Adding New Scripts
 
 1. Create the script file in this directory
