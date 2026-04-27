@@ -13,9 +13,10 @@ const http = require('http');
 const cluster = require('cluster');
 const compression = require('compression');
 const helmet = require('helmet');
+const diskusage = require('diskusage');
+const filesize = require('filesize');
 const { errorHandler, asyncHandler } = require('./utils/errorHandler');
 const PerformanceMonitor = require('./utils/performanceMonitor');
-const rateLimit = require('express-rate-limit');
 const PortDetector = require('./port-detector');
 const EnhancedOllamaService = require('./EnhancedOllamaService');
 const WebSocket = require('ws');
@@ -601,7 +602,7 @@ class SpaceAnalyzerAPIServer {
         });
 
         // System metrics endpoint for real system monitoring
-        this.app.get('/api/system/metrics', (req, res) => {
+        this.app.get('/api/system/metrics', async (req, res) => {
             const os = require('os');
             const cpus = os.cpus();
             
@@ -617,20 +618,25 @@ class SpaceAnalyzerAPIServer {
             const freeMemory = os.freemem();
             const usedMemory = totalMemory - freeMemory;
 
-            // Disk info (using Node.js fs module)
-            const fs = require('fs');
-            let diskInfo = { used: 0, total: 0, percentage: 0 };
+            // Disk info using diskusage package
+            let diskInfo = { used: 0, total: 0, percentage: 0, free: 0 };
             try {
-                const stats = fs.statSync('.');
-                // On Windows, we can get disk space using a different approach
-                // For now, we'll provide basic info
+                const disk = await diskusage.check('.');
                 diskInfo = {
-                    used: usedMemory, // Using memory as fallback
-                    total: totalMemory,
-                    percentage: (usedMemory / totalMemory) * 100
+                    free: disk.free,
+                    total: disk.total,
+                    used: disk.total - disk.free,
+                    percentage: ((disk.total - disk.free) / disk.total) * 100
                 };
             } catch (e) {
                 console.log('Could not get disk info:', e.message);
+                // Fallback to memory-based estimate
+                diskInfo = {
+                    used: usedMemory,
+                    total: totalMemory,
+                    free: freeMemory,
+                    percentage: (usedMemory / totalMemory) * 100
+                };
             }
 
             res.json({
@@ -918,6 +924,7 @@ class SpaceAnalyzerAPIServer {
                         files: incrementalResult.totalFiles,
                         percentage: 100,
                         currentFile: 'Incremental analysis complete',
+                        status: 'complete',
                         completed: true
                     };
 
@@ -942,6 +949,8 @@ class SpaceAnalyzerAPIServer {
                     files: 0,
                     percentage: 0,
                     currentFile: 'Starting full analysis...',
+                    status: 'starting',
+                    completed: false,
                     startTime: Date.now()
                 });
 
@@ -989,6 +998,7 @@ class SpaceAnalyzerAPIServer {
                             files: result.totalFiles,
                             percentage: 100,
                             currentFile: 'Analysis complete',
+                            status: 'complete',
                             completed: true
                         };
                         
@@ -1020,6 +1030,7 @@ class SpaceAnalyzerAPIServer {
                             percentage: 0,
                             currentFile: 'Analysis failed',
                             error: error.message || 'Unknown error',
+                            status: 'failed',
                             completed: true
                         });
                         
@@ -2193,6 +2204,8 @@ Answer:`;
             'cli/target/debug',
             'src/rust/cli/target/release',
             'src/rust/cli/target/debug',
+            'native/scanner/target/release',
+            'native/scanner/target/debug',
             'bin/Release',
             'bin/Debug',
             'target/release',
@@ -2489,12 +2502,40 @@ Answer:`;
         const duration = Date.now() - startTime;
         console.log(`✅ JS Analysis complete: ${totalFiles} files in ${duration}ms`);
         
+        // Generate categories from file extensions
+        const categories = {};
+        const getCategory = (ext) => {
+            const extLower = ext.toLowerCase();
+            if (['.js', '.ts', '.jsx', '.tsx', '.vue', '.py', '.rs', '.cpp', '.c', '.h', '.java', '.go', '.php'].includes(extLower)) return 'Code';
+            if (['.md', '.txt', '.doc', '.docx', '.pdf', '.rtf'].includes(extLower)) return 'Documents';
+            if (['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.bmp', '.ico'].includes(extLower)) return 'Images';
+            if (['.mp3', '.wav', '.ogg', '.flac', '.m4a'].includes(extLower)) return 'Audio';
+            if (['.mp4', '.avi', '.mkv', '.mov', '.webm', '.flv'].includes(extLower)) return 'Video';
+            if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(extLower)) return 'Archives';
+            return 'Other';
+        };
+
+        files.forEach(file => {
+            const ext = path.extname(file.name).toLowerCase();
+            const category = getCategory(ext);
+            if (!categories[category]) {
+                categories[category] = { count: 0, size: 0, files: [] };
+            }
+            categories[category].count++;
+            categories[category].size += file.size;
+            if (categories[category].files.length < 10) {
+                categories[category].files.push({ name: file.name, size: file.size, path: file.path });
+            }
+        });
+        
         // Emit final progress event
         this.eventEmitter.emit('progress', {
             analysisId,
             filesProcessed: totalFiles,
             percentage: 100,
-            currentFile: 'Complete'
+            currentFile: 'Complete',
+            status: 'complete',
+            completed: true
         });
         
         // Scan for dependencies
@@ -2508,7 +2549,7 @@ Answer:`;
             totalSize, 
             files,
             dependencyGraph,
-            categories: {},
+            categories,
             extensionStats: {},
             analysisType: 'js-fallback',
             analysisTime: duration
@@ -2518,7 +2559,12 @@ Answer:`;
 
 // Start the enhanced server only if this file is run directly
 if (require.main === module && !process.env.TESTING) {
-    const app = new SpaceAnalyzerAPIServer();
+    // Load and log hardware-optimized configuration (async to detect Ollama models)
+    (async () => {
+        const { logConfig } = require('./config/dynamic-config');
+        await logConfig();
+        
+        const app = new SpaceAnalyzerAPIServer();
 
     // Create HTTP server from Express app
     server = http.createServer(app.app);
@@ -2562,6 +2608,7 @@ if (require.main === module && !process.env.TESTING) {
     // Start listening
     server.listen(app.config.port, () => {
         console.log(`🚀 Enhanced Backend running on port ${app.config.port}`);
+        console.log(`⚙️  Hardware-optimized configuration active (${require('./config/dynamic-config').tier} tier)`);
         console.log('📡 WebSocket server active');
         console.log('🔌 Ollama AI: ' + (app.ollamaAvailable ? 'Available' : 'Not available'));
         
@@ -2572,6 +2619,7 @@ if (require.main === module && !process.env.TESTING) {
             console.error('❌ Async initialization failed:', err);
         });
     });
+    })();
 }
 
 module.exports = { SpaceAnalyzerAPIServer, server, wss, broadcast };

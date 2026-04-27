@@ -6,6 +6,7 @@
 const enhancedScanner = require('./enhanced-polyglot-scanner');
 const selfLearningML = require('./SelfLearningMLService');
 const ollamaService = require('./OllamaService');
+const filesize = require('filesize');
 
 class AIIntegratedScanner {
     constructor() {
@@ -469,11 +470,7 @@ Provide your enhanced analysis in the same structured format as the self-learnin
     }
 
     formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        return filesize(bytes, { round: 2 });
     }
 
     createComprehensiveAnalysis(scanData, aiInsights, visionInsights, predictiveInsights) {

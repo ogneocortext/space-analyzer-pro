@@ -25,10 +25,10 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 
 ## Tech Stack
 
-- **Frontend**: React 19, TypeScript, Vite
-- **UI Components**: Custom design system with Framer Motion animations
-- **State Management**: Zustand, React Query
-- **Visualization**: Recharts, Custom Canvas/SVG rendering
+- **Frontend**: Vue 3, TypeScript, Vite
+- **UI Components**: Custom design system with Tailwind CSS
+- **State Management**: Pinia
+- **Visualization**: Custom Canvas/SVG rendering
 - **AI Integration**: Ollama, Google Gemini, Custom ML services
 - **Backend**: Express.js (optional server mode)
 - **Styling**: Tailwind CSS
@@ -81,7 +81,7 @@ VITE_OLLAMA_URL=http://localhost:11434
 ```
 space-analyzer/
 ├── src/
-│   ├── components/      # React components
+│   ├── components/      # Vue components
 │   │   ├── ai/          # AI-related components
 │   │   ├── chat/        # Chat interface
 │   │   ├── dashboard/   # Dashboard views
@@ -90,14 +90,14 @@ space-analyzer/
 │   │   ├── settings/    # Settings pages
 │   │   ├── treemap/     # Treemap visualization
 │   │   └── ...
-│   ├── contexts/        # React contexts
-│   ├── hooks/           # Custom React hooks
+│   ├── hooks/           # Custom Vue composables
 │   ├── services/        # API and business logic services
-│   ├── stores/          # Zustand stores
+│   ├── store/           # Pinia stores
 │   ├── styles/          # Global styles and design system
 │   ├── types/           # TypeScript type definitions
 │   ├── utils/           # Utility functions
-│   └── App.tsx          # Main application component
+│   ├── router/          # Vue Router configuration
+│   └── App.vue          # Main application component
 ├── server/              # Express backend server
 ├── public/              # Static public assets
 ├── docs/                # Project documentation
@@ -163,4 +163,12 @@ Private project - All rights reserved
 
 ## Version History
 
+- **2.1.0** - Vue 3 migration with enhanced performance dependencies
+  - Migrated from React to Vue 3
+  - Added fast-glob for high-performance file scanning
+  - Added file-type for accurate file type detection
+  - Added diskusage for real disk space analysis
+  - Added filesize for standardized byte formatting
+  - Enabled TypeScript strict mode
+  - Updated sqlite3 to v6.0.1
 - **2.0.1** - AI-Powered Space Analyzer with Vision Analysis and Feature Hub
