@@ -1,0 +1,22 @@
+{
+  "project": "Space Analyzer Pro 2026",
+  "version": "3.0.0",
+  "structure": {
+    "src/": "Main source code (C++ backend, React frontend)",
+    "bin/": "Compiled executables and binaries",
+    "dist/": "Web application build output",
+    "scripts/": "Development and deployment scripts",
+    "tests/": "Automated and manual test suites",
+    "docs/": "Technical and user documentation",
+    "archive/": "Old builds, tests, and reports",
+    "config/": "Configuration files",
+    "models/": "AI model files",
+    "logs/": "Application logs"
+  },
+  "key_files": {
+    "launcher_server.py": "Main backend server",
+    "CMakeLists.txt": "C++ build configuration",
+    "package.json": "Node.js dependencies",
+    "vite.config.ts": "Frontend build config"
+  }
+}
