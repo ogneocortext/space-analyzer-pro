@@ -6,12 +6,59 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 2.1.5 | 2026-04-27 | Test cleanup and ES module conversion |
 | 2.1.4 | 2026-04-27 | Remove React plugins from ESLint config |
 | 2.1.3 | 2026-04-27 | Native scanner integration fixes |
 | 2.1.2 | 2026-04-27 | Port centralization and dependency cleanup |
 | 2.1.1 | 2026-04-27 | Configuration fixes, performance dependencies, Vue migration cleanup |
 | 2.1.0 | 2026-04-27 | Vue 3 migration with enhanced performance dependencies |
 | 2.0.1 | Previous | AI-Powered Space Analyzer with Vision Analysis and Feature Hub |
+
+---
+
+## [2.1.5] - 2026-04-27
+
+### Test Cleanup
+
+#### Test Files
+- Removed `src/components/react/ErrorBoundary.test.tsx` (React component test)
+- Removed `vitest.config.js` (no unit tests exist)
+- Removed vitest from package.json scripts and devDependencies
+- Removed jsdom and supertest from devDependencies
+- Removed vitest/globals from tsconfig.json types
+- E2E tests remain in `tests/e2e/` directory (use `npm run test:e2e`)
+
+#### Dependencies
+- Removed vitest, jsdom, supertest from devDependencies
+- Reduced package count by 80 packages
+
+### ES Module Conversion
+
+#### ports.config.js
+- Converted from CommonJS (`module.exports`) to ES module (`export default`)
+- Changed validation function to use local variable name
+- Updated to work with ES module imports
+
+#### Configuration Files
+- Updated `vite.config.ts` to use `import ports from './ports.config.js'`
+- Updated `playwright.config.ts` to use `import ports from './ports.config.js'`
+- Updated `server/src/config/index.js` to use `import ports from '../../../ports.config.js'`
+- Reverted `server/python-ai-service/ai_service.py` to use hardcoded port (Python cannot import ES modules)
+
+### Benefits
+
+- **Cleaner test setup**: No failing unit tests
+- **ES module consistency**: All Node.js configs use ES modules
+- **Fewer dependencies**: Removed 80 unused packages
+- **No test interruptions**: E2E tests only run when explicitly called
+
+### Breaking Changes
+
+None - all changes are internal improvements
+
+### Migration Notes
+
+No migration required. All changes are internal improvements.
 
 ---
 
