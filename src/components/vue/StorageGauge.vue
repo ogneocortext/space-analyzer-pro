@@ -1,7 +1,12 @@
 <template>
   <div class="storage-gauge-container">
     <div class="gauge-wrapper">
-      <svg class="gauge-svg" viewBox="0 0 100 100" role="img" aria-label="Storage usage gauge showing {{ Math.round(percentage) }}% used">
+      <svg
+        class="gauge-svg"
+        viewBox="0 0 100 100"
+        role="img"
+        aria-label="Storage usage gauge showing {{ Math.round(percentage) }}% used"
+      >
         <!-- Background circle -->
         <circle
           cx="50"
@@ -29,9 +34,16 @@
         />
       </svg>
       <div class="gauge-content">
-        <HardDrive class="gauge-icon" :size="24" />
-        <div class="gauge-percentage">{{ Math.round(percentage) }}%</div>
-        <div class="gauge-label">Used</div>
+        <HardDrive
+          class="gauge-icon"
+          :size="24"
+        />
+        <div class="gauge-percentage">
+          {{ Math.round(percentage) }}%
+        </div>
+        <div class="gauge-label">
+          Used
+        </div>
       </div>
     </div>
     
@@ -50,7 +62,10 @@
       </div>
     </div>
 
-    <div v-if="categories.length > 0" class="category-breakdown">
+    <div
+      v-if="categories.length > 0"
+      class="category-breakdown"
+    >
       <div
         v-for="category in categories"
         :key="category.name"

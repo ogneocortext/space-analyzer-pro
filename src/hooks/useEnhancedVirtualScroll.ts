@@ -73,7 +73,7 @@ export const useEnhancedVirtualScroll = ({
   const filterByMetadata = useCallback((filterOptions: FilterOptions) => {
     const startTime = performance.now();
     
-    let filtered = items.filter(item => {
+    const filtered = items.filter(item => {
       // Type filter
       if (filterOptions.types && filterOptions.types.length > 0) {
         if (!filterOptions.types.includes(item.type)) return false;
