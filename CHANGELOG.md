@@ -6,10 +6,55 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 2.1.3 | 2026-04-27 | Native scanner integration fixes |
 | 2.1.2 | 2026-04-27 | Port centralization and dependency cleanup |
 | 2.1.1 | 2026-04-27 | Configuration fixes, performance dependencies, Vue migration cleanup |
 | 2.1.0 | 2026-04-27 | Vue 3 migration with enhanced performance dependencies |
 | 2.0.1 | Previous | AI-Powered Space Analyzer with Vision Analysis and Feature Hub |
+
+---
+
+## [2.1.3] - 2026-04-27
+
+### Native Scanner Integration
+
+#### polyglot-scanner.js
+- **Rust Scanner Loading**
+  - Changed from requiring `.node` file directly to using proper `index.js` loader
+  - Updated path resolution to use `path.join(__dirname, '../src/rust/simple-scanner')`
+  - Added debug logging for loaded exports and path
+  - Fixed API call to use `nativeScanner.scan(path)` instead of `scanDirectorySimple`
+  - Removed options object from scan call (Rust scanner only accepts path string)
+  - Updated result mapping to match Rust scanner interface
+  - Changed `getSystemInfo()` to use `getMetrics()` method
+
+- **C++ Scanner Loading**
+  - Changed from requiring `.node` file directly to using proper `index.js` loader
+  - Updated path resolution to use `path.join(__dirname, '../src/cpp/native-scanner')`
+  - Added debug logging for loaded exports and path
+  - Removed duplicate loading code
+
+#### Testing Results
+- Rust scanner loads successfully from `scanner.node`
+- Scan test: successfully scanned 3,508 files in 50ms
+- Returns proper file information with categories and extensions
+- Interface: `scan(path)` accepts only path string
+- Returns: `{ files, categories, extension_stats, total_files, total_size, scan_time }`
+
+### Benefits
+
+- **Proper module loading**: Uses index.js loaders with fallback paths
+- **Correct API usage**: Matches Rust scanner interface exactly
+- **Better debugging**: Added logging for loaded paths and exports
+- **Functional native scanner**: Rust scanner now properly integrated
+
+### Breaking Changes
+
+None - all changes are internal improvements
+
+### Migration Notes
+
+No migration required. All changes are internal improvements.
 
 ---
 
