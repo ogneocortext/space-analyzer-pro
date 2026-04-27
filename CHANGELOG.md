@@ -6,9 +6,71 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date | Summary |
 |---------|------|---------|
+| 2.1.2 | 2026-04-27 | Port centralization and dependency cleanup |
 | 2.1.1 | 2026-04-27 | Configuration fixes, performance dependencies, Vue migration cleanup |
 | 2.1.0 | 2026-04-27 | Vue 3 migration with enhanced performance dependencies |
 | 2.0.1 | Previous | AI-Powered Space Analyzer with Vision Analysis and Feature Hub |
+
+---
+
+## [2.1.2] - 2026-04-27
+
+### Port Configuration
+
+#### New File: ports.config.js
+- Created centralized port configuration file
+- Added validation to prevent duplicate ports
+- Documented port ranges and purposes
+- Added utility functions for port management
+
+#### Port Assignments
+- Vite Dev Server: 3001
+- Vite Preview Server: 3002
+- Backend API: 8080
+- Python AI Service: 8084
+- Ollama: 11434
+- PostgreSQL: 5432
+- Redis: 6379
+
+#### Configuration Updates
+- **vite.config.ts** - Import and use centralized ports for dev and preview servers
+- **playwright.config.ts** - Import and use centralized port for baseURL, added environment-based headless mode
+- **server/src/config/index.js** - Import and use centralized API server port
+- **server/python-ai-service/ai_service.py** - Import and use centralized Python AI service port
+
+#### Documentation
+- Added port configuration table to README.md
+- Explained how to change ports in one place
+
+### Dependency Cleanup
+
+#### package.json
+- Removed React dependencies: `@tanstack/react-query`, `@tanstack/react-query-devtools`, `@tanstack/react-virtual`, `cmdk`, `framer-motion`, `lucide-react`, `react`, `react-dom`, `react-error-boundary`, `react-force-graph-3d`, `recharts`, `zustand`
+- Removed React devDependencies: `@testing-library/react`, `@types/react`, `@types/react-dom`, `@vitejs/plugin-react`, `babel-plugin-react-compiler`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`
+- Regenerated package-lock.json
+
+#### Results
+- Removed 119 packages
+- Reduced from 782 to 663 total packages
+- Project now contains only Vue 3 dependencies
+- No vulnerabilities found
+
+### Benefits
+
+- **Consistent port management**: All services reference the same port configuration
+- **Easy port changes**: Update ports in one place (`ports.config.js`)
+- **Prevents conflicts**: Built-in validation for duplicate ports
+- **Smaller dependency tree**: Removed unused React packages
+- **Faster installs**: Fewer packages to download and install
+- **Cleaner codebase**: Only Vue 3 dependencies remain
+
+### Breaking Changes
+
+None - all changes are backward compatible
+
+### Migration Notes
+
+No migration required. All changes are internal improvements.
 
 ---
 

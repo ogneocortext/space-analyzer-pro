@@ -5,6 +5,15 @@ import json
 import logging
 from datetime import datetime
 import os
+import sys
+
+# Import centralized port configuration
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+try:
+    from ports.config import ports
+    PYTHON_AI_PORT = ports.PYTHON_AI_PORT
+except ImportError:
+    PYTHON_AI_PORT = 8084  # Fallback
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -210,5 +219,5 @@ def format_size(bytes_size):
     return f"{bytes_size:.2f} PB"
 
 if __name__ == '__main__':
-    logger.info("Starting Python AI Service on port 8084...")
-    app.run(host='0.0.0.0', port=8084, debug=True)
+    logger.info(f"Starting Python AI Service on port {PYTHON_AI_PORT}...")
+    app.run(host='0.0.0.0', port=PYTHON_AI_PORT, debug=True)

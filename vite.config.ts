@@ -11,6 +11,9 @@ try {
   // Config not available during initial install
 }
 
+// Centralized port configuration
+const ports = require('./ports.config.js');
+
 // Vue framework
 const plugins = [tailwindcss(), vue()];
 
@@ -90,7 +93,7 @@ export default defineConfig(({ mode }) => {
       reportCompressedSize: true
     },
     server: {
-      port: 3001, // Correct port
+      port: ports.VITE_DEV_PORT,
       strictPort: false,
       host: true,
       open: false,
@@ -167,7 +170,7 @@ export default defineConfig(({ mode }) => {
     },
     // Preview server configuration
     preview: {
-      port: 3002,
+      port: ports.VITE_PREVIEW_PORT,
       strictPort: true,
       host: true
     }

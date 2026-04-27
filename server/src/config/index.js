@@ -7,6 +7,9 @@ const fs = require('fs');
 const path = require('path');
 const Joi = require('joi');
 
+// Import centralized port configuration
+const ports = require('../../ports.config.js');
+
 class ConfigService {
     constructor() {
         this.config = null;
@@ -54,7 +57,7 @@ class ConfigService {
         return {
             // Server configuration
             server: {
-                port: parseInt(process.env.PORT || '3000', 10),
+                port: parseInt(process.env.PORT || ports.API_SERVER_PORT.toString(), 10),
                 host: process.env.HOST || 'localhost',
                 env: process.env.NODE_ENV || 'development',
                 cors: {
