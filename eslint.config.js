@@ -1,7 +1,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import reactHooks from 'eslint-plugin-react-hooks';
-import reactRefresh from 'eslint-plugin-react-refresh';
+import vue from 'eslint-plugin-vue';
+import vueTs from '@vue/eslint-config-typescript';
 import globals from 'globals';
 
 export default tseslint.config(
@@ -15,26 +15,21 @@ export default tseslint.config(
       'server/node_modules/**'
     ]
   },
-  
+
   // Base JavaScript rules
   js.configs.recommended,
-  
+
   // TypeScript rules
   ...tseslint.configs.recommended,
-  
-  // React rules
+
+  // Vue configuration
+  ...vue.configs['flat/recommended'],
+  ...vueTs.configs.recommended,
+
+  // Common rules
   {
-    plugins: {
-      'react-hooks': reactHooks,
-      'react-refresh': reactRefresh
-    },
     rules: {
-      ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true }
-      ],
-      '@typescript-eslint/no-unused-vars': ['warn', { 
+      '@typescript-eslint/no-unused-vars': ['warn', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_'
       }],
@@ -42,7 +37,7 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['warn', 'error'] }]
     }
   },
-  
+
   // Node.js globals
   {
     languageOptions: {
@@ -52,10 +47,28 @@ export default tseslint.config(
       }
     }
   },
-  
+
+  // Vue files configuration
+  {
+    files: ['**/*.vue'],
+    languageOptions: {
+      parserOptions: {
+        parser: tseslint.parser,
+        extraFileExtensions: ['.vue'],
+        ecmaVersion: 'latest',
+        sourceType: 'module'
+      }
+    },
+    rules: {
+      'vue/multi-word-component-names': 'off',
+      'vue/no-v-html': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn'
+    }
+  },
+
   // Test files configuration
   {
-    files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
+    files: ['**/*.test.ts', '**/*.test.js', '**/*.spec.ts', '**/*.spec.js'],
     languageOptions: {
       globals: {
         ...globals.jest,
