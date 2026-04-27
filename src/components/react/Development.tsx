@@ -1,5 +1,14 @@
-import React from 'react';
-import { Code, FileText, GitBranch, Terminal, Bug, CheckCircle, AlertTriangle, Cpu } from 'lucide-react';
+import React from "react";
+import {
+  Code,
+  FileText,
+  GitBranch,
+  Terminal,
+  Bug,
+  CheckCircle,
+  AlertTriangle,
+  Cpu,
+} from "lucide-react";
 
 interface DevelopmentProps {
   analysisData?: any;
@@ -106,7 +115,7 @@ export const Development: React.FC<DevelopmentProps> = ({ analysisData }) => {
                 <span className="text-green-400">78%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
-                <div className="bg-green-400 h-2 rounded-full" style={{ width: '78%' }}></div>
+                <div className="bg-green-400 h-2 rounded-full" style={{ width: "78%" }}></div>
               </div>
             </div>
             <div>
@@ -115,7 +124,7 @@ export const Development: React.FC<DevelopmentProps> = ({ analysisData }) => {
                 <span className="text-blue-400">65%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
-                <div className="bg-blue-400 h-2 rounded-full" style={{ width: '65%' }}></div>
+                <div className="bg-blue-400 h-2 rounded-full" style={{ width: "65%" }}></div>
               </div>
             </div>
             <div>
@@ -124,7 +133,7 @@ export const Development: React.FC<DevelopmentProps> = ({ analysisData }) => {
                 <span className="text-purple-400">82%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
-                <div className="bg-purple-400 h-2 rounded-full" style={{ width: '82%' }}></div>
+                <div className="bg-purple-400 h-2 rounded-full" style={{ width: "82%" }}></div>
               </div>
             </div>
             <div>
@@ -133,7 +142,7 @@ export const Development: React.FC<DevelopmentProps> = ({ analysisData }) => {
                 <span className="text-orange-400">91%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2">
-                <div className="bg-orange-400 h-2 rounded-full" style={{ width: '91%' }}></div>
+                <div className="bg-orange-400 h-2 rounded-full" style={{ width: "91%" }}></div>
               </div>
             </div>
           </div>

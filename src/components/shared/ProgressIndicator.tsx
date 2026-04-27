@@ -1,10 +1,10 @@
-import React from 'react';
-import { Loader2, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import React from "react";
+import { Loader2, CheckCircle, AlertCircle, Info } from "lucide-react";
 
 interface ProgressIndicatorProps {
   message: string;
   progress?: number;
-  status?: 'loading' | 'success' | 'error' | 'info';
+  status?: "loading" | "success" | "error" | "info";
   showProgressBar?: boolean;
   className?: string;
 }
@@ -12,17 +12,17 @@ interface ProgressIndicatorProps {
 const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
   message,
   progress,
-  status = 'loading',
+  status = "loading",
   showProgressBar = false,
-  className = ''
+  className = "",
 }) => {
   const getIcon = () => {
     switch (status) {
-      case 'success':
+      case "success":
         return <CheckCircle className="w-5 h-5 text-green-400" />;
-      case 'error':
+      case "error":
         return <AlertCircle className="w-5 h-5 text-red-400" />;
-      case 'info':
+      case "info":
         return <Info className="w-5 h-5 text-blue-400" />;
       default:
         return <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />;
@@ -31,11 +31,11 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
 
   const getProgressColor = () => {
     if (progress !== undefined) {
-      if (progress < 33) return 'bg-red-500';
-      if (progress < 66) return 'bg-yellow-500';
-      return 'bg-green-500';
+      if (progress < 33) return "bg-red-500";
+      if (progress < 66) return "bg-yellow-500";
+      return "bg-green-500";
     }
-    return 'bg-blue-500';
+    return "bg-blue-500";
   };
 
   return (
@@ -61,7 +61,7 @@ const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
         </div>
       )}
 
-      {status === 'loading' && !showProgressBar && (
+      {status === "loading" && !showProgressBar && (
         <div className="flex space-x-1">
           <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
           <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>

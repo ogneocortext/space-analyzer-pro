@@ -1,9 +1,24 @@
 // Custom hook for managing navigation state
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from "react";
 
-type ViewType = 'dashboard' | 'neural' | 'chat' | 'treemap' | 'export' | 'browser' | 'settings' | 'timeline' | 'system' | '3d' | 'predictions' | 'learning' | 'codeanalysis' | 'duplicates' | 'dependencies';
+type ViewType =
+  | "dashboard"
+  | "neural"
+  | "chat"
+  | "treemap"
+  | "export"
+  | "browser"
+  | "settings"
+  | "timeline"
+  | "system"
+  | "3d"
+  | "predictions"
+  | "learning"
+  | "codeanalysis"
+  | "duplicates"
+  | "dependencies";
 
-export const useNavigationState = (initialView: ViewType = 'dashboard') => {
+export const useNavigationState = (initialView: ViewType = "dashboard") => {
   const [currentView, setCurrentView] = useState<ViewType>(initialView);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -12,7 +27,7 @@ export const useNavigationState = (initialView: ViewType = 'dashboard') => {
   }, []);
 
   const toggleSidebar = useCallback(() => {
-    setIsSidebarOpen(prev => !prev);
+    setIsSidebarOpen((prev) => !prev);
   }, []);
 
   const openSidebar = useCallback(() => {

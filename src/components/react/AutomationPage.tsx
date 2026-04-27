@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { AnalysisResult } from '../services/AnalysisBridge';
-import styles from '../styles/components/App.module.css';
+import React, { useState } from "react";
+import { AnalysisResult } from "../services/AnalysisBridge";
+import styles from "../styles/components/App.module.css";
 
 interface AutomationPageProps {
   analysisData: AnalysisResult;
@@ -21,45 +21,45 @@ interface AutomationRule {
 const AutomationPage: React.FC<AutomationPageProps> = ({ analysisData, isLoading }) => {
   const [rules, setRules] = useState<AutomationRule[]>([
     {
-      id: '1',
-      name: 'Auto Cleanup Temporary Files',
-      description: 'Remove temporary files older than 7 days',
-      trigger: 'Daily at 2:00 AM',
-      action: 'Delete files matching *.tmp, *.temp, *.cache',
+      id: "1",
+      name: "Auto Cleanup Temporary Files",
+      description: "Remove temporary files older than 7 days",
+      trigger: "Daily at 2:00 AM",
+      action: "Delete files matching *.tmp, *.temp, *.cache",
       enabled: true,
       lastRun: new Date(Date.now() - 24 * 60 * 60 * 1000),
-      nextRun: new Date(Date.now() + 24 * 60 * 60 * 1000)
+      nextRun: new Date(Date.now() + 24 * 60 * 60 * 1000),
     },
     {
-      id: '2',
-      name: 'Duplicate File Detection',
-      description: 'Scan for and flag duplicate files',
-      trigger: 'Weekly on Sundays',
-      action: 'Generate duplicate file report',
+      id: "2",
+      name: "Duplicate File Detection",
+      description: "Scan for and flag duplicate files",
+      trigger: "Weekly on Sundays",
+      action: "Generate duplicate file report",
       enabled: true,
       lastRun: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      nextRun: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
+      nextRun: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
     },
     {
-      id: '3',
-      name: 'Archive Old Files',
-      description: 'Move files older than 1 year to archive',
-      trigger: 'Monthly on 1st',
-      action: 'Archive files to external storage',
+      id: "3",
+      name: "Archive Old Files",
+      description: "Move files older than 1 year to archive",
+      trigger: "Monthly on 1st",
+      action: "Archive files to external storage",
       enabled: false,
       lastRun: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      nextRun: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)
+      nextRun: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
     },
     {
-      id: '4',
-      name: 'Storage Usage Alert',
-      description: 'Alert when storage usage exceeds 80%',
-      trigger: 'Real-time monitoring',
-      action: 'Send notification and email',
+      id: "4",
+      name: "Storage Usage Alert",
+      description: "Alert when storage usage exceeds 80%",
+      trigger: "Real-time monitoring",
+      action: "Send notification and email",
       enabled: true,
       lastRun: new Date(Date.now() - 1 * 60 * 60 * 1000),
-      nextRun: new Date(Date.now() + 1 * 60 * 60 * 1000)
-    }
+      nextRun: new Date(Date.now() + 1 * 60 * 60 * 1000),
+    },
   ]);
 
   const [isCreatingRule, setIsCreatingRule] = useState(false);
@@ -74,13 +74,11 @@ const AutomationPage: React.FC<AutomationPageProps> = ({ analysisData, isLoading
   }
 
   const toggleRule = (id: string) => {
-    setRules(rules.map(rule => 
-      rule.id === id ? { ...rule, enabled: !rule.enabled } : rule
-    ));
+    setRules(rules.map((rule) => (rule.id === id ? { ...rule, enabled: !rule.enabled } : rule)));
   };
 
   const deleteRule = (id: string) => {
-    setRules(rules.filter(rule => rule.id !== id));
+    setRules(rules.filter((rule) => rule.id !== id));
   };
 
   const getStorageUsage = () => {
@@ -95,7 +93,7 @@ const AutomationPage: React.FC<AutomationPageProps> = ({ analysisData, isLoading
     <div className={styles.contentSection}>
       <h2>Automation</h2>
       <p>Automated cleanup and maintenance tasks</p>
-      
+
       <div className={styles.automationSection}>
         <div className={styles.automationOverview}>
           <h3>System Status</h3>
@@ -103,42 +101,61 @@ const AutomationPage: React.FC<AutomationPageProps> = ({ analysisData, isLoading
             <div className={styles.statusCard}>
               <h4>Active Rules</h4>
               <div className={styles.statusValue}>
-                {rules.filter(rule => rule.enabled).length} / {rules.length}
+                {rules.filter((rule) => rule.enabled).length} / {rules.length}
               </div>
               <div className={styles.statusIndicator}>
-                <span className={styles.statusDot} style={{ backgroundColor: rules.filter(rule => rule.enabled).length > 0 ? '#10b981' : '#ef4444' }}></span>
-                {rules.filter(rule => rule.enabled).length > 0 ? 'Active' : 'Inactive'}
+                <span
+                  className={styles.statusDot}
+                  style={{
+                    backgroundColor:
+                      rules.filter((rule) => rule.enabled).length > 0 ? "#10b981" : "#ef4444",
+                  }}
+                ></span>
+                {rules.filter((rule) => rule.enabled).length > 0 ? "Active" : "Inactive"}
               </div>
             </div>
             <div className={styles.statusCard}>
               <h4>Storage Usage</h4>
               <div className={styles.statusValue}>{storageUsage.toFixed(1)}%</div>
               <div className={styles.statusIndicator}>
-                <span className={styles.statusDot} style={{ backgroundColor: storageUsage > 80 ? '#ef4444' : '#10b981' }}></span>
-                {storageUsage > 80 ? 'High' : 'Normal'}
+                <span
+                  className={styles.statusDot}
+                  style={{ backgroundColor: storageUsage > 80 ? "#ef4444" : "#10b981" }}
+                ></span>
+                {storageUsage > 80 ? "High" : "Normal"}
               </div>
             </div>
             <div className={styles.statusCard}>
               <h4>Last Run</h4>
               <div className={styles.statusValue}>
-                {rules.reduce((latest, rule) => 
-                  rule.lastRun && (!latest || rule.lastRun > latest) ? rule.lastRun : latest, null as Date | null
-                )?.toLocaleString() || 'Never'}
+                {rules
+                  .reduce(
+                    (latest, rule) =>
+                      rule.lastRun && (!latest || rule.lastRun > latest) ? rule.lastRun : latest,
+                    null as Date | null
+                  )
+                  ?.toLocaleString() || "Never"}
               </div>
               <div className={styles.statusIndicator}>
-                <span className={styles.statusDot} style={{ backgroundColor: '#10b981' }}></span>
+                <span className={styles.statusDot} style={{ backgroundColor: "#10b981" }}></span>
                 System Active
               </div>
             </div>
             <div className={styles.statusCard}>
               <h4>Next Scheduled</h4>
               <div className={styles.statusValue}>
-                {rules.reduce((earliest, rule) => 
-                  rule.nextRun && (!earliest || rule.nextRun < earliest) ? rule.nextRun : earliest, null as Date | null
-                )?.toLocaleString() || 'No scheduled tasks'}
+                {rules
+                  .reduce(
+                    (earliest, rule) =>
+                      rule.nextRun && (!earliest || rule.nextRun < earliest)
+                        ? rule.nextRun
+                        : earliest,
+                    null as Date | null
+                  )
+                  ?.toLocaleString() || "No scheduled tasks"}
               </div>
               <div className={styles.statusIndicator}>
-                <span className={styles.statusDot} style={{ backgroundColor: '#3b82f6' }}></span>
+                <span className={styles.statusDot} style={{ backgroundColor: "#3b82f6" }}></span>
                 Scheduled
               </div>
             </div>
@@ -148,16 +165,16 @@ const AutomationPage: React.FC<AutomationPageProps> = ({ analysisData, isLoading
         <div className={styles.rulesList}>
           <div className={styles.rulesHeader}>
             <h3>Active Automations</h3>
-            <button 
-              className={styles.addRuleButton}
-              onClick={() => setIsCreatingRule(true)}
-            >
+            <button className={styles.addRuleButton} onClick={() => setIsCreatingRule(true)}>
               + Add Rule
             </button>
           </div>
-          
+
           {rules.map((rule) => (
-            <div key={rule.id} className={`${styles.ruleCard} ${rule.enabled ? styles.enabled : styles.disabled}`}>
+            <div
+              key={rule.id}
+              className={`${styles.ruleCard} ${rule.enabled ? styles.enabled : styles.disabled}`}
+            >
               <div className={styles.ruleHeader}>
                 <div className={styles.ruleInfo}>
                   <h4>{rule.name}</h4>
@@ -165,14 +182,14 @@ const AutomationPage: React.FC<AutomationPageProps> = ({ analysisData, isLoading
                 </div>
                 <div className={styles.ruleControls}>
                   <label className={styles.switch}>
-                    <input 
-                      type="checkbox" 
-                      checked={rule.enabled} 
+                    <input
+                      type="checkbox"
+                      checked={rule.enabled}
                       onChange={() => toggleRule(rule.id)}
                     />
                     <span className={styles.slider}></span>
                   </label>
-                  <button 
+                  <button
                     className={styles.deleteButton}
                     onClick={() => deleteRule(rule.id)}
                     title="Delete rule"
@@ -181,7 +198,7 @@ const AutomationPage: React.FC<AutomationPageProps> = ({ analysisData, isLoading
                   </button>
                 </div>
               </div>
-              
+
               <div className={styles.ruleDetails}>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Trigger:</span>
@@ -228,10 +245,7 @@ const AutomationPage: React.FC<AutomationPageProps> = ({ analysisData, isLoading
               </div>
               <div className={styles.formActions}>
                 <button className={styles.formButton}>Create Rule</button>
-                <button 
-                  className={styles.cancelButton}
-                  onClick={() => setIsCreatingRule(false)}
-                >
+                <button className={styles.cancelButton} onClick={() => setIsCreatingRule(false)}>
                   Cancel
                 </button>
               </div>
@@ -244,7 +258,10 @@ const AutomationPage: React.FC<AutomationPageProps> = ({ analysisData, isLoading
           <div className={styles.insightsList}>
             <div className={styles.insightCard}>
               <h4>Smart Cleanup</h4>
-              <p>Based on your file patterns, we recommend setting up automated cleanup for temporary files every 3 days.</p>
+              <p>
+                Based on your file patterns, we recommend setting up automated cleanup for temporary
+                files every 3 days.
+              </p>
               <button className={styles.insightButton}>Setup Now</button>
             </div>
             <div className={styles.insightCard}>

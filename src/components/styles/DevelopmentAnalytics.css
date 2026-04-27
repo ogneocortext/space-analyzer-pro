@@ -1,1 +1,363 @@
-/* Development Analytics Styles */\n.development-analytics {\n  padding: 2rem;\n  background: #1a1a1a;\n  color: #ffffff;\n  min-height: 100vh;\n}\n\n.analytics-header {\n  margin-bottom: 2rem;\n}\n\n.header-content {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  background: #2a2a2a;\n  padding: 1.5rem;\n  border-radius: 12px;\n  border: 1px solid #3a3a3a;\n}\n\n.title-section {\n  display: flex;\n  align-items: center;\n  gap: 1rem;\n}\n\n.title-section h2 {\n  margin: 0;\n  font-size: 1.5rem;\n  font-weight: 600;\n}\n\n.title-section p {\n  margin: 0.25rem 0 0 0;\n  color: #9ca3af;\n  font-size: 0.875rem;\n}\n\n.analyze-button {\n  display: flex;\n  align-items: center;\n  gap: 0.5rem;\n  background: #3b82f6;\n  color: white;\n  border: none;\n  padding: 0.75rem 1.5rem;\n  border-radius: 8px;\n  font-weight: 500;\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.analyze-button:hover:not(:disabled) {\n  background: #2563eb;\n  transform: translateY(-1px);\n}\n\n.analyze-button:disabled {\n  opacity: 0.6;\n  cursor: not-allowed;\n}\n\n.analytics-tabs {\n  display: flex;\n  gap: 0.5rem;\n  margin-bottom: 2rem;\n  background: #2a2a2a;\n  padding: 0.5rem;\n  border-radius: 12px;\n  border: 1px solid #3a3a3a;\n}\n\n.tab-button {\n  display: flex;\n  align-items: center;\n  gap: 0.5rem;\n  background: transparent;\n  color: #9ca3af;\n  border: none;\n  padding: 0.75rem 1.25rem;\n  border-radius: 8px;\n  font-weight: 500;\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.tab-button:hover {\n  background: #3a3a3a;\n  color: #ffffff;\n}\n\n.tab-button.active {\n  background: #3b82f6;\n  color: white;\n}\n\n.analytics-content {\n  background: #2a2a2a;\n  border-radius: 12px;\n  border: 1px solid #3a3a3a;\n  padding: 2rem;\n}\n\n.metrics-grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));\n  gap: 1rem;\n  margin-bottom: 2rem;\n}\n\n.metric-card {\n  display: flex;\n  align-items: center;\n  gap: 1rem;\n  background: #1a1a1a;\n  padding: 1.25rem;\n  border-radius: 8px;\n  border: 1px solid #3a3a3a;\n}\n\n.metric-icon {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  width: 48px;\n  height: 48px;\n  border-radius: 8px;\n  background: rgba(59, 130, 246, 0.1);\n}\n\n.metric-content {\n  flex: 1;\n}\n\n.metric-value {\n  font-size: 1.5rem;\n  font-weight: 700;\n  color: #ffffff;\n  line-height: 1;\n}\n\n.metric-label {\n  font-size: 0.875rem;\n  color: #9ca3af;\n  margin-top: 0.25rem;\n}\n\n.chart-section {\n  margin-bottom: 2rem;\n}\n\n.chart-section h3 {\n  margin: 0 0 1rem 0;\n  font-size: 1.125rem;\n  font-weight: 600;\n  color: #ffffff;\n}\n\n.chart-container {\n  background: #1a1a1a;\n  border-radius: 8px;\n  border: 1px solid #3a3a3a;\n  padding: 1rem;\n}\n\n.chart-grid {\n  display: grid;\n  grid-template-columns: 1fr 1fr;\n  gap: 1rem;\n}\n\n.duplicates-list,\n.dependencies-list {\n  margin-top: 2rem;\n}\n\n.duplicates-list h3,\n.dependencies-list h3 {\n  margin: 0 0 1rem 0;\n  font-size: 1.125rem;\n  font-weight: 600;\n  color: #ffffff;\n}\n\n.duplicate-item,\n.dependency-item {\n  background: #1a1a1a;\n  border: 1px solid #3a3a3a;\n  border-radius: 8px;\n  padding: 1rem;\n  margin-bottom: 0.75rem;\n}\n\n.duplicate-header {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  margin-bottom: 0.75rem;\n}\n\n.file-paths {\n  display: flex;\n  gap: 0.5rem;\n  flex-wrap: wrap;\n}\n\n.file-path {\n  background: #3a3a3a;\n  color: #9ca3af;\n  padding: 0.25rem 0.5rem;\n  border-radius: 4px;\n  font-size: 0.75rem;\n  font-family: monospace;\n}\n\n.similarity-badge {\n  background: #ef4444;\n  color: white;\n  padding: 0.25rem 0.5rem;\n  border-radius: 4px;\n  font-size: 0.75rem;\n  font-weight: 600;\n}\n\n.duplicate-content {\n  background: #0a0a0a;\n  border-radius: 4px;\n  padding: 0.75rem;\n}\n\n.duplicate-content code {\n  color: #10b981;\n  font-family: monospace;\n  font-size: 0.875rem;\n  line-height: 1.4;\n}\n\n.dependency-section {\n  margin-bottom: 1.5rem;\n}\n\n.dependency-section h4 {\n  margin: 0 0 0.75rem 0;\n  font-size: 1rem;\n  font-weight: 600;\n  color: #ffffff;\n}\n\n.dependency-item {\n  display: flex;\n  align-items: center;\n  gap: 0.75rem;\n}\n\n.dependency-item.unused {\n  border-left: 3px solid #ef4444;\n}\n\n.dependency-item.outdated {\n  border-left: 3px solid #f59e0b;\n}\n\n.version-info {\n  margin-left: auto;\n  color: #9ca3af;\n  font-size: 0.875rem;\n}\n\n.remove-button,\n.update-button {\n  background: #ef4444;\n  color: white;\n  border: none;\n  padding: 0.25rem 0.75rem;\n  border-radius: 4px;\n  font-size: 0.75rem;\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.update-button {\n  background: #f59e0b;\n}\n\n.remove-button:hover,\n.update-button:hover {\n  opacity: 0.8;\n}\n\n.performance-recommendations {\n  margin-top: 2rem;\n}\n\n.performance-recommendations h3 {\n  margin: 0 0 1rem 0;\n  font-size: 1.125rem;\n  font-weight: 600;\n  color: #ffffff;\n}\n\n.recommendation {\n  display: flex;\n  align-items: center;\n  gap: 0.75rem;\n  background: #1a1a1a;\n  border: 1px solid #3a3a3a;\n  border-radius: 8px;\n  padding: 1rem;\n  margin-bottom: 0.75rem;\n}\n\n.recommendation.warning {\n  border-left: 3px solid #f59e0b;\n}\n\n.recommendation.success {\n  border-left: 3px solid #10b981;\n}\n\n.recommendation.warning .icon {\n  color: #f59e0b;\n}\n\n.recommendation.success .icon {\n  color: #10b981;\n}\n\n/* Responsive Design */\n@media (max-width: 768px) {\n  .development-analytics {\n    padding: 1rem;\n  }\n  \n  .header-content {\n    flex-direction: column;\n    gap: 1rem;\n    align-items: stretch;\n  }\n  \n  .analytics-tabs {\n    flex-direction: column;\n  }\n  \n  .metrics-grid {\n    grid-template-columns: 1fr;\n  }\n  \n  .chart-grid {\n    grid-template-columns: 1fr;\n  }\n  \n  .duplicate-header {\n    flex-direction: column;\n    align-items: flex-start;\n    gap: 0.5rem;\n  }\n  \n  .file-paths {\n    flex-direction: column;\n  }\n}
+/* Development Analytics Styles */
+.development-analytics {
+  padding: 2rem;
+  background: #1a1a1a;
+  color: #ffffff;
+  min-height: 100vh;
+}
+
+.analytics-header {
+  margin-bottom: 2rem;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2a2a2a;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #3a3a3a;
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.title-section h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.title-section p {
+  margin: 0.25rem 0 0 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.analyze-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.analyze-button:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.analyze-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.analytics-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  background: #2a2a2a;
+  padding: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid #3a3a3a;
+}
+
+.tab-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: #9ca3af;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  background: #3a3a3a;
+  color: #ffffff;
+}
+
+.tab-button.active {
+  background: #3b82f6;
+  color: white;
+}
+
+.analytics-content {
+  background: #2a2a2a;
+  border-radius: 12px;
+  border: 1px solid #3a3a3a;
+  padding: 2rem;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: #1a1a1a;
+  padding: 1.25rem;
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+}
+
+.metric-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.metric-content {
+  flex: 1;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.metric-label {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin-top: 0.25rem;
+}
+
+.chart-section {
+  margin-bottom: 2rem;
+}
+
+.chart-section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.chart-container {
+  background: #1a1a1a;
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+  padding: 1rem;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.duplicates-list,
+.dependencies-list {
+  margin-top: 2rem;
+}
+
+.duplicates-list h3,
+.dependencies-list h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.duplicate-item,
+.dependency-item {
+  background: #1a1a1a;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.duplicate-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.file-paths {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.file-path {
+  background: #3a3a3a;
+  color: #9ca3af;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+.similarity-badge {
+  background: #ef4444;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.duplicate-content {
+  background: #0a0a0a;
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+.duplicate-content code {
+  color: #10b981;
+  font-family: monospace;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.dependency-section {
+  margin-bottom: 1.5rem;
+}
+
+.dependency-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.dependency-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.dependency-item.unused {
+  border-left: 3px solid #ef4444;
+}
+
+.dependency-item.outdated {
+  border-left: 3px solid #f59e0b;
+}
+
+.version-info {
+  margin-left: auto;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.remove-button,
+.update-button {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.update-button {
+  background: #f59e0b;
+}
+
+.remove-button:hover,
+.update-button:hover {
+  opacity: 0.8;
+}
+
+.performance-recommendations {
+  margin-top: 2rem;
+}
+
+.performance-recommendations h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.recommendation {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #1a1a1a;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.recommendation.warning {
+  border-left: 3px solid #f59e0b;
+}
+
+.recommendation.success {
+  border-left: 3px solid #10b981;
+}
+
+.recommendation.warning .icon {
+  color: #f59e0b;
+}
+
+.recommendation.success .icon {
+  color: #10b981;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .development-analytics {
+    padding: 1rem;
+  }
+
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .analytics-tabs {
+    flex-direction: column;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .duplicate-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .file-paths {
+    flex-direction: column;
+  }
+}

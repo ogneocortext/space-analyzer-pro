@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  Search, 
-  Settings, 
-  Moon, 
-  Sun, 
-  Grid3X3, 
-  List, 
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  Search,
+  Settings,
+  Moon,
+  Sun,
+  Grid3X3,
+  List,
   Filter,
   Download,
   Upload,
@@ -22,10 +22,10 @@ import {
   Maximize2,
   Minimize2,
   Eye,
-  EyeOff
-} from 'lucide-react';
-import { AIService } from '../services/AIService';
-import './ModernSpaceAnalyzerDashboard.css';
+  EyeOff,
+} from "lucide-react";
+import { AIService } from "../services/AIService";
+import "./ModernSpaceAnalyzerDashboard.css";
 
 interface ModernSpaceAnalyzerDashboardProps {
   files: any[];
@@ -35,14 +35,14 @@ interface ModernSpaceAnalyzerDashboardProps {
 
 interface AIInsight {
   id: string;
-  type: 'recommendation' | 'warning' | 'optimization' | 'pattern';
+  type: "recommendation" | "warning" | "optimization" | "pattern";
   title: string;
   description: string;
   confidence: number;
-  priority: 'low' | 'medium' | 'high' | 'critical';
+  priority: "low" | "medium" | "high" | "critical";
   actionable: boolean;
   action?: string;
-  source: 'ollama' | 'gemini';
+  source: "ollama" | "gemini";
   timestamp: number;
 }
 
@@ -68,12 +68,12 @@ interface UsageMetrics {
 export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboardProps> = ({
   files,
   onAnalysisStart,
-  onAnalysisComplete
+  onAnalysisComplete,
 }) => {
   // State management
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
@@ -81,12 +81,16 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
   const [usageMetrics, setUsageMetrics] = useState<UsageMetrics>({
     ollama: { requests: 0, tokens: 0, avgResponseTime: 0 },
     gemini: { requests: 0, tokens: 0, cost: 0, avgResponseTime: 0 },
-    total: { insights: 0, accuracy: 0, userSatisfaction: 0 }
+    total: { insights: 0, accuracy: 0, userSatisfaction: 0 },
   });
   const [showUsageMetrics, setShowUsageMetrics] = useState(false);
   const [expandedInsights, setExpandedInsights] = useState<Set<string>>(new Set());
-  const [filterPriority, setFilterPriority] = useState<'all' | 'low' | 'medium' | 'high' | 'critical'>('all');
-  const [filterType, setFilterType] = useState<'all' | 'recommendation' | 'warning' | 'optimization' | 'pattern'>('all');
+  const [filterPriority, setFilterPriority] = useState<
+    "all" | "low" | "medium" | "high" | "critical"
+  >("all");
+  const [filterType, setFilterType] = useState<
+    "all" | "recommendation" | "warning" | "optimization" | "pattern"
+  >("all");
 
   // Refs
   const aiServiceRef = useRef<AIService | undefined>(undefined);
@@ -95,27 +99,27 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
   // Initialize AI service
   useEffect(() => {
     aiServiceRef.current = new AIService({
-      ollamaEndpoint: 'http://localhost:11434',
-      geminiApiKey: process.env.GEMINI_API_KEY || '', // Use environment variable
+      ollamaEndpoint: "http://localhost:11434",
+      geminiApiKey: process.env.GEMINI_API_KEY || "", // Use environment variable
       usageTracking: true,
-      fallbackStrategy: 'ollama-first'
+      fallbackStrategy: "ollama-first",
     });
 
     // Load saved preferences
-    const savedTheme = localStorage.getItem('spaceAnalyzer-theme');
-    if (savedTheme === 'dark') setIsDarkMode(true);
+    const savedTheme = localStorage.getItem("spaceAnalyzer-theme");
+    if (savedTheme === "dark") setIsDarkMode(true);
 
-    const savedViewMode = localStorage.getItem('spaceAnalyzer-viewMode');
-    if (savedViewMode) setViewMode(savedViewMode as 'grid' | 'list');
+    const savedViewMode = localStorage.getItem("spaceAnalyzer-viewMode");
+    if (savedViewMode) setViewMode(savedViewMode as "grid" | "list");
   }, []);
 
   // Save preferences
   useEffect(() => {
-    localStorage.setItem('spaceAnalyzer-theme', isDarkMode ? 'dark' : 'light');
+    localStorage.setItem("spaceAnalyzer-theme", isDarkMode ? "dark" : "light");
   }, [isDarkMode]);
 
   useEffect(() => {
-    localStorage.setItem('spaceAnalyzer-viewMode', viewMode);
+    localStorage.setItem("spaceAnalyzer-viewMode", viewMode);
   }, [viewMode]);
 
   // AI-powered analysis
@@ -136,7 +140,7 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
         onProgress: (progress) => setAnalysisProgress(progress),
         includeRecommendations: true,
         includePatterns: true,
-        includeOptimizations: true
+        includeOptimizations: true,
       });
 
       setAiInsights(insights);
@@ -145,10 +149,9 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
       // Update usage metrics
       const metrics = await aiServiceRef.current.getUsageMetrics();
       setUsageMetrics(metrics);
-
     } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('AI analysis failed:', error);
+      if (error.name !== "AbortError") {
+        console.error("AI analysis failed:", error);
       }
     } finally {
       setIsAnalyzing(false);
@@ -165,74 +168,93 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
   }, []);
 
   // Toggle insight expansion
-  const toggleInsightExpansion = useCallback((insightId: string) => {
-    const newExpanded = new Set(expandedInsights);
-    if (newExpanded.has(insightId)) {
-      newExpanded.delete(insightId);
-    } else {
-      newExpanded.add(insightId);
-    }
-    setExpandedInsights(newExpanded);
-  }, [expandedInsights]);
+  const toggleInsightExpansion = useCallback(
+    (insightId: string) => {
+      const newExpanded = new Set(expandedInsights);
+      if (newExpanded.has(insightId)) {
+        newExpanded.delete(insightId);
+      } else {
+        newExpanded.add(insightId);
+      }
+      setExpandedInsights(newExpanded);
+    },
+    [expandedInsights]
+  );
 
   // Execute AI action
-  const executeAIAction = useCallback(async (insight: AIInsight) => {
-    if (!aiServiceRef.current || !insight.action) return;
+  const executeAIAction = useCallback(
+    async (insight: AIInsight) => {
+      if (!aiServiceRef.current || !insight.action) return;
 
-    try {
-      await aiServiceRef.current.executeAction(insight.action, files);
-      
-      // Mark insight as executed
-      setAiInsights(prev => prev.map(i => 
-        i.id === insight.id ? { ...i, actionable: false } : i
-      ));
-    } catch (error) {
-      console.error('Failed to execute AI action:', error);
-    }
-  }, [files]);
+      try {
+        await aiServiceRef.current.executeAction(insight.action, files);
+
+        // Mark insight as executed
+        setAiInsights((prev) =>
+          prev.map((i) => (i.id === insight.id ? { ...i, actionable: false } : i))
+        );
+      } catch (error) {
+        console.error("Failed to execute AI action:", error);
+      }
+    },
+    [files]
+  );
 
   // Filter insights
-  const filteredInsights = aiInsights.filter(insight => {
-    const matchesPriority = filterPriority === 'all' || insight.priority === filterPriority;
-    const matchesType = filterType === 'all' || insight.type === filterType;
-    const matchesSearch = searchTerm === '' || 
+  const filteredInsights = aiInsights.filter((insight) => {
+    const matchesPriority = filterPriority === "all" || insight.priority === filterPriority;
+    const matchesType = filterType === "all" || insight.type === filterType;
+    const matchesSearch =
+      searchTerm === "" ||
       insight.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       insight.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     return matchesPriority && matchesType && matchesSearch;
   });
 
   // Get insight icon
   const getInsightIcon = (type: string) => {
     switch (type) {
-      case 'recommendation': return <Brain className="w-4 h-4" />;
-      case 'warning': return <AlertTriangle className="w-4 h-4" />;
-      case 'optimization': return <TrendingUp className="w-4 h-4" />;
-      case 'pattern': return <Grid3X3 className="w-4 h-4" />;
-      default: return <Info className="w-4 h-4" />;
+      case "recommendation":
+        return <Brain className="w-4 h-4" />;
+      case "warning":
+        return <AlertTriangle className="w-4 h-4" />;
+      case "optimization":
+        return <TrendingUp className="w-4 h-4" />;
+      case "pattern":
+        return <Grid3X3 className="w-4 h-4" />;
+      default:
+        return <Info className="w-4 h-4" />;
     }
   };
 
   // Get insight color
   const getInsightColor = (priority: string) => {
     switch (priority) {
-      case 'critical': return 'text-red-500 bg-red-50 border-red-200';
-      case 'high': return 'text-orange-500 bg-orange-50 border-orange-200';
-      case 'medium': return 'text-yellow-500 bg-yellow-50 border-yellow-200';
-      case 'low': return 'text-green-500 bg-green-50 border-green-200';
-      default: return 'text-gray-500 bg-gray-50 border-gray-200';
+      case "critical":
+        return "text-red-500 bg-red-50 border-red-200";
+      case "high":
+        return "text-orange-500 bg-orange-50 border-orange-200";
+      case "medium":
+        return "text-yellow-500 bg-yellow-50 border-yellow-200";
+      case "low":
+        return "text-green-500 bg-green-50 border-green-200";
+      default:
+        return "text-gray-500 bg-gray-50 border-gray-200";
     }
   };
 
   // Get source badge
   const getSourceBadge = (source: string) => {
-    return source === 'ollama' 
-      ? <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">Ollama</span>
-      : <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">Gemini</span>;
+    return source === "ollama" ? (
+      <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">Ollama</span>
+    ) : (
+      <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">Gemini</span>
+    );
   };
 
   return (
-    <div className={`modern-space-analyzer ${isDarkMode ? 'dark' : 'light'}`}>
+    <div className={`modern-space-analyzer ${isDarkMode ? "dark" : "light"}`}>
       {/* Header */}
       <div className="dashboard-header">
         <div className="header-left">
@@ -240,9 +262,7 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
             <Zap className="w-6 h-6" />
             Space Analyzer
           </h1>
-          <div className="file-count">
-            {files.length.toLocaleString()} files analyzed
-          </div>
+          <div className="file-count">{files.length.toLocaleString()} files analyzed</div>
         </div>
 
         <div className="header-right">
@@ -261,24 +281,21 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
           {/* View Mode Toggle */}
           <div className="view-toggle">
             <button
-              onClick={() => setViewMode('grid')}
-              className={`toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode("grid")}
+              className={`toggle-btn ${viewMode === "grid" ? "active" : ""}`}
             >
               <Grid3X3 className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setViewMode('list')}
-              className={`toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode("list")}
+              className={`toggle-btn ${viewMode === "list" ? "active" : ""}`}
             >
               <List className="w-4 h-4" />
             </button>
           </div>
 
           {/* Theme Toggle */}
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="theme-toggle"
-          >
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className="theme-toggle">
             {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
@@ -307,14 +324,11 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
             className="analyze-btn"
           >
             <Brain className="w-4 h-4" />
-            {isAnalyzing ? 'Analyzing...' : 'AI Analysis'}
+            {isAnalyzing ? "Analyzing..." : "AI Analysis"}
           </button>
 
           {isAnalyzing && (
-            <button
-              onClick={cancelAnalysis}
-              className="cancel-btn"
-            >
+            <button onClick={cancelAnalysis} className="cancel-btn">
               Cancel
             </button>
           )}
@@ -323,10 +337,7 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
           {isAnalyzing && (
             <div className="progress-container">
               <div className="progress-bar">
-                <div 
-                  className="progress-fill" 
-                  style={{ width: `${analysisProgress}%` }}
-                />
+                <div className="progress-fill" style={{ width: `${analysisProgress}%` }} />
               </div>
               <span className="progress-text">{analysisProgress}%</span>
             </div>
@@ -366,10 +377,7 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
         <div className="usage-metrics-panel">
           <div className="metrics-header">
             <h3>AI Usage Metrics</h3>
-            <button
-              onClick={() => setShowUsageMetrics(false)}
-              className="close-btn"
-            >
+            <button onClick={() => setShowUsageMetrics(false)} className="close-btn">
               ×
             </button>
           </div>
@@ -388,7 +396,9 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
                 </div>
                 <div className="stat">
                   <span className="stat-label">Avg Response:</span>
-                  <span className="stat-value">{usageMetrics.ollama.avgResponseTime.toFixed(0)}ms</span>
+                  <span className="stat-value">
+                    {usageMetrics.ollama.avgResponseTime.toFixed(0)}ms
+                  </span>
                 </div>
               </div>
             </div>
@@ -410,7 +420,9 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
                 </div>
                 <div className="stat">
                   <span className="stat-label">Avg Response:</span>
-                  <span className="stat-value">{usageMetrics.gemini.avgResponseTime.toFixed(0)}ms</span>
+                  <span className="stat-value">
+                    {usageMetrics.gemini.avgResponseTime.toFixed(0)}ms
+                  </span>
                 </div>
               </div>
             </div>
@@ -424,11 +436,15 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
                 </div>
                 <div className="stat">
                   <span className="stat-label">Accuracy:</span>
-                  <span className="stat-value">{(usageMetrics.total.accuracy * 100).toFixed(1)}%</span>
+                  <span className="stat-value">
+                    {(usageMetrics.total.accuracy * 100).toFixed(1)}%
+                  </span>
                 </div>
                 <div className="stat">
                   <span className="stat-label">Satisfaction:</span>
-                  <span className="stat-value">{(usageMetrics.total.userSatisfaction * 100).toFixed(1)}%</span>
+                  <span className="stat-value">
+                    {(usageMetrics.total.userSatisfaction * 100).toFixed(1)}%
+                  </span>
                 </div>
               </div>
             </div>
@@ -442,8 +458,12 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
           <h2>AI Insights</h2>
           <div className="insights-stats">
             <span className="stat">{filteredInsights.length} insights</span>
-            <span className="stat">{filteredInsights.filter(i => i.priority === 'critical').length} critical</span>
-            <span className="stat">{filteredInsights.filter(i => i.priority === 'high').length} high</span>
+            <span className="stat">
+              {filteredInsights.filter((i) => i.priority === "critical").length} critical
+            </span>
+            <span className="stat">
+              {filteredInsights.filter((i) => i.priority === "high").length} high
+            </span>
           </div>
         </div>
 
@@ -451,7 +471,10 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
           <div className="empty-state">
             <Brain className="w-12 h-12" />
             <h3>No AI insights available</h3>
-            <p>Run an AI analysis to get intelligent recommendations and insights about your codebase.</p>
+            <p>
+              Run an AI analysis to get intelligent recommendations and insights about your
+              codebase.
+            </p>
             <button onClick={analyzeWithAI} className="analyze-btn">
               <Brain className="w-4 h-4" />
               Start AI Analysis
@@ -460,10 +483,7 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
         ) : (
           <div className={`insights-grid ${viewMode}`}>
             {filteredInsights.map((insight) => (
-              <div
-                key={insight.id}
-                className={`insight-card ${getInsightColor(insight.priority)}`}
-              >
+              <div key={insight.id} className={`insight-card ${getInsightColor(insight.priority)}`}>
                 <div className="insight-header">
                   <div className="insight-title">
                     {getInsightIcon(insight.type)}
@@ -471,30 +491,22 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
                   </div>
                   <div className="insight-meta">
                     {getSourceBadge(insight.source)}
-                    <span className="confidence">
-                      {(insight.confidence * 100).toFixed(0)}%
-                    </span>
+                    <span className="confidence">{(insight.confidence * 100).toFixed(0)}%</span>
                   </div>
                 </div>
 
                 <div className="insight-content">
                   <p>{insight.description}</p>
-                  
+
                   {insight.action && insight.actionable && (
-                    <button
-                      onClick={() => executeAIAction(insight)}
-                      className="action-btn"
-                    >
+                    <button onClick={() => executeAIAction(insight)} className="action-btn">
                       Execute Action
                     </button>
                   )}
                 </div>
 
                 <div className="insight-footer">
-                  <button
-                    onClick={() => toggleInsightExpansion(insight.id)}
-                    className="expand-btn"
-                  >
+                  <button onClick={() => toggleInsightExpansion(insight.id)} className="expand-btn">
                     {expandedInsights.has(insight.id) ? (
                       <ChevronDown className="w-4 h-4" />
                     ) : (
@@ -504,9 +516,7 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
                   </button>
 
                   <div className="insight-priority">
-                    <span className={`priority-badge ${insight.priority}`}>
-                      {insight.priority}
-                    </span>
+                    <span className={`priority-badge ${insight.priority}`}>{insight.priority}</span>
                   </div>
                 </div>
 
@@ -526,7 +536,9 @@ export const ModernSpaceAnalyzerDashboard: React.FC<ModernSpaceAnalyzerDashboard
                     </div>
                     <div className="detail-row">
                       <span className="detail-label">Timestamp:</span>
-                      <span className="detail-value">{new Date(insight.timestamp).toLocaleString()}</span>
+                      <span className="detail-value">
+                        {new Date(insight.timestamp).toLocaleString()}
+                      </span>
                     </div>
                   </div>
                 )}

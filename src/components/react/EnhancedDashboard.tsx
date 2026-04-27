@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 // @ts-ignore - react-router-dom
-import { useNavigate } from 'react-router-dom';
-import { useAnalysisStore, useUIStore, useErrorStore } from '../store';
-import { useErrorHandler } from './ErrorBoundary';
+import { useNavigate } from "react-router-dom";
+import { useAnalysisStore, useUIStore, useErrorStore } from "../store";
+import { useErrorHandler } from "./ErrorBoundary";
 import {
   LayoutDashboard,
   BrainCircuit,
@@ -41,8 +41,8 @@ import {
   FileText as FileTextIcon,
   Settings as SettingsIcon,
   MessageSquare as MessageSquareIcon,
-  BrainCircuit as BrainCircuitIcon
-} from 'lucide-react';
+  BrainCircuit as BrainCircuitIcon,
+} from "lucide-react";
 
 interface QuickAction {
   id: string;
@@ -55,7 +55,7 @@ interface QuickAction {
 }
 
 interface SystemStatus {
-  status: 'healthy' | 'warning' | 'error';
+  status: "healthy" | "warning" | "error";
   message: string;
   lastCheck: Date;
 }
@@ -68,77 +68,94 @@ const EnhancedDashboard: React.FC = () => {
   const { error } = useErrorHandler();
 
   const [systemStatus, setSystemStatus] = useState<SystemStatus>({
-    status: 'healthy',
-    message: 'All systems operational',
-    lastCheck: new Date()
+    status: "healthy",
+    message: "All systems operational",
+    lastCheck: new Date(),
   });
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  const [recentActivity, setRecentActivity] = useState<Array<{
-    id: string;
-    action: string;
-    timestamp: Date;
-    status: 'success' | 'warning' | 'error';
-  }>>([
-    { id: '1', action: 'Analysis completed', timestamp: new Date(Date.now() - 60000), status: 'success' },
-    { id: '2', action: 'AI insights generated', timestamp: new Date(Date.now() - 300000), status: 'success' },
-    { id: '3', action: 'File scan started', timestamp: new Date(Date.now() - 3600000), status: 'success' }
+  const [recentActivity, setRecentActivity] = useState<
+    Array<{
+      id: string;
+      action: string;
+      timestamp: Date;
+      status: "success" | "warning" | "error";
+    }>
+  >([
+    {
+      id: "1",
+      action: "Analysis completed",
+      timestamp: new Date(Date.now() - 60000),
+      status: "success",
+    },
+    {
+      id: "2",
+      action: "AI insights generated",
+      timestamp: new Date(Date.now() - 300000),
+      status: "success",
+    },
+    {
+      id: "3",
+      action: "File scan started",
+      timestamp: new Date(Date.now() - 3600000),
+      status: "success",
+    },
   ]);
 
   const quickActions: QuickAction[] = [
     {
-      id: 'analyze',
-      label: 'Start Analysis',
-      description: 'Analyze a directory or file',
+      id: "analyze",
+      label: "Start Analysis",
+      description: "Analyze a directory or file",
       icon: PlayIcon,
-      onClick: () => navigate('/file-browser'),
-      disabled: isAnalyzing
+      onClick: () => navigate("/file-browser"),
+      disabled: isAnalyzing,
     },
     {
-      id: 'ai-chat',
-      label: 'AI Assistant',
-      description: 'Chat with AI about your files',
+      id: "ai-chat",
+      label: "AI Assistant",
+      description: "Chat with AI about your files",
       icon: MessageSquareIcon,
-      onClick: () => navigate('/ai-chat')
+      onClick: () => navigate("/ai-chat"),
     },
     {
-      id: 'neural-view',
-      label: 'Neural View',
-      description: 'View AI-powered relationships',
+      id: "neural-view",
+      label: "Neural View",
+      description: "View AI-powered relationships",
       icon: BrainCircuitIcon,
-      onClick: () => navigate('/neural'),
-      beta: true
+      onClick: () => navigate("/neural"),
+      beta: true,
     },
     {
-      id: 'visualizations',
-      label: 'Visualizations',
-      description: 'Interactive data charts',
+      id: "visualizations",
+      label: "Visualizations",
+      description: "Interactive data charts",
       icon: BarChart3Icon,
-      onClick: () => navigate('/treemap')
+      onClick: () => navigate("/treemap"),
     },
     {
-      id: 'file-browser',
-      label: 'File Browser',
-      description: 'Browse and manage files',
+      id: "file-browser",
+      label: "File Browser",
+      description: "Browse and manage files",
       icon: FolderIcon,
-      onClick: () => navigate('/file-browser')
+      onClick: () => navigate("/file-browser"),
     },
     {
-      id: 'export-data',
-      label: 'Export Data',
-      description: 'Export analysis results',
+      id: "export-data",
+      label: "Export Data",
+      description: "Export analysis results",
       icon: FileTextIcon,
-      onClick: () => navigate('/export')
+      onClick: () => navigate("/export"),
     },
     {
-      id: 'settings',
-      label: 'Settings',
-      description: 'Configure application',
+      id: "settings",
+      label: "Settings",
+      description: "Configure application",
       icon: SettingsIcon,
-      onClick: () => navigate('/settings')
-    }
+      onClick: () => navigate("/settings"),
+    },
   ];
 
   // Extract semantic context from analysis result
@@ -146,7 +163,7 @@ const EnhancedDashboard: React.FC = () => {
     const files = (analysisResult as any)?.files || [];
     const semanticTags = new Set<string>();
     const categories = new Set<string>();
-    
+
     files.forEach((file: any) => {
       if (file.semantic_tags) {
         file.semantic_tags.forEach((tag: string) => semanticTags.add(tag));
@@ -157,15 +174,48 @@ const EnhancedDashboard: React.FC = () => {
     });
 
     const allTags = Array.from(semanticTags);
-    
+
     return {
-      technologies: allTags.filter(tag => 
-        ['javascript', 'typescript', 'python', 'rust', 'cpp', 'java', 'go', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'csharp', 'haskell', 'dart', 'lua', 'r'].includes(tag)
-      ).slice(0, 5),
-      platforms: allTags.filter(tag => 
-        ['windows', 'linux', 'macos', 'ios', 'android', 'jvm', '.net', 'apple', 'microsoft', 'unix'].includes(tag)
-      ).slice(0, 5),
-      categories: Array.from(categories).slice(0, 5)
+      technologies: allTags
+        .filter((tag) =>
+          [
+            "javascript",
+            "typescript",
+            "python",
+            "rust",
+            "cpp",
+            "java",
+            "go",
+            "php",
+            "ruby",
+            "swift",
+            "kotlin",
+            "scala",
+            "csharp",
+            "haskell",
+            "dart",
+            "lua",
+            "r",
+          ].includes(tag)
+        )
+        .slice(0, 5),
+      platforms: allTags
+        .filter((tag) =>
+          [
+            "windows",
+            "linux",
+            "macos",
+            "ios",
+            "android",
+            "jvm",
+            ".net",
+            "apple",
+            "microsoft",
+            "unix",
+          ].includes(tag)
+        )
+        .slice(0, 5),
+      categories: Array.from(categories).slice(0, 5),
     };
   }, [analysisResult]);
 
@@ -173,74 +223,74 @@ const EnhancedDashboard: React.FC = () => {
 
   const stats = [
     {
-      label: 'Total Files',
+      label: "Total Files",
       value: ((analysisResult as any)?.totalFiles || 0).toLocaleString(),
       icon: DatabaseIcon,
-      trend: '+12%',
-      trendType: 'positive' as const
+      trend: "+12%",
+      trendType: "positive" as const,
     },
     {
-      label: 'Total Size',
+      label: "Total Size",
       value: `${((analysisResult?.totalSize || 0) / 1024 / 1024).toFixed(2)} MB`,
       icon: CpuIcon,
-      trend: '+8%',
-      trendType: 'positive' as const
+      trend: "+8%",
+      trendType: "positive" as const,
     },
     {
-      label: 'Analysis Time',
-      value: analysisResult?.analysisTime || '0s',
+      label: "Analysis Time",
+      value: analysisResult?.analysisTime || "0s",
       icon: ClockIcon,
-      trend: '-15%',
-      trendType: 'negative' as const
+      trend: "-15%",
+      trendType: "negative" as const,
     },
     {
-      label: 'AI Insights',
+      label: "AI Insights",
       value: ((analysisResult as any)?.insights?.length || 0) as number,
       icon: UsersIcon,
-      trend: '+25%',
-      trendType: 'positive' as const
-    }
+      trend: "+25%",
+      trendType: "positive" as const,
+    },
   ];
 
   // Update system status based on analysis state
   useEffect(() => {
     if (analysisError) {
       setSystemStatus({
-        status: 'error',
-        message: 'Analysis error detected',
-        lastCheck: new Date()
+        status: "error",
+        message: "Analysis error detected",
+        lastCheck: new Date(),
       });
     } else if (isAnalyzing) {
       setSystemStatus({
-        status: 'warning',
-        message: 'Analysis in progress',
-        lastCheck: new Date()
+        status: "warning",
+        message: "Analysis in progress",
+        lastCheck: new Date(),
       });
     } else {
       setSystemStatus({
-        status: 'healthy',
-        message: 'All systems operational',
-        lastCheck: new Date()
+        status: "healthy",
+        message: "All systems operational",
+        lastCheck: new Date(),
       });
     }
   }, [analysisError, isAnalyzing]);
 
   const handleActionClick = (action: QuickAction) => {
     if (action.disabled) return;
-    
+
     try {
       action.onClick();
-      
+
       // Add to recent activity
-      setRecentActivity(prev => [
+      setRecentActivity((prev) => [
         {
           id: Date.now().toString(),
           // @ts-ignore - action property
           action: (action as any).action,
           timestamp: new Date(),
-          status: 'success'
+          status: "success",
         },
-        ...prev.slice(0, 4)
+        ...prev.slice(0, 4),
       ]);
     } catch (err) {
       error(err as Error, `Action ${action.label}`);
@@ -248,28 +298,36 @@ const EnhancedDashboard: React.FC = () => {
   };
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const getStatusColor = (status: SystemStatus['status']) => {
+  const getStatusColor = (status: SystemStatus["status"]) => {
     switch (status) {
-      case 'healthy': return 'text-green-400';
-      case 'warning': return 'text-yellow-400';
-      case 'error': return 'text-red-400';
-      default: return 'text-gray-400';
+      case "healthy":
+        return "text-green-400";
+      case "warning":
+        return "text-yellow-400";
+      case "error":
+        return "text-red-400";
+      default:
+        return "text-gray-400";
     }
   };
 
-  const getStatusIcon = (status: SystemStatus['status']) => {
+  const getStatusIcon = (status: SystemStatus["status"]) => {
     switch (status) {
-      case 'healthy': return <CheckCircle className="w-4 h-4 text-green-400" />;
-      case 'warning': return <AlertTriangleIcon className="w-4 h-4 text-yellow-400" />;
-      case 'error': return <AlertTriangleIcon className="w-4 h-4 text-red-400" />;
-      default: return <Info className="w-4 h-4 text-gray-400" />;
+      case "healthy":
+        return <CheckCircle className="w-4 h-4 text-green-400" />;
+      case "warning":
+        return <AlertTriangleIcon className="w-4 h-4 text-yellow-400" />;
+      case "error":
+        return <AlertTriangleIcon className="w-4 h-4 text-red-400" />;
+      default:
+        return <Info className="w-4 h-4 text-gray-400" />;
     }
   };
 
@@ -301,7 +359,7 @@ const EnhancedDashboard: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             {/* System Status */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-lg border border-white/20">
@@ -313,9 +371,13 @@ const EnhancedDashboard: React.FC = () => {
               <button
                 onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                 className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/20 text-white rounded-lg transition-colors"
-                title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
-                {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+                {isSidebarCollapsed ? (
+                  <ChevronRight className="w-4 h-4" />
+                ) : (
+                  <ChevronLeft className="w-4 h-4" />
+                )}
               </button>
               <button
                 onClick={() => window.location.reload()}
@@ -346,7 +408,7 @@ const EnhancedDashboard: React.FC = () => {
               <span className="text-lg font-bold text-[#00B4D8]">{analysisProgress}%</span>
             </div>
             <div className="w-full bg-slate-700 rounded-full h-3">
-              <div 
+              <div
                 className="bg-gradient-to-r from-[#00B4D8] to-purple-500 h-3 rounded-full transition-all duration-300"
                 style={{ width: `${analysisProgress}%` }}
               />
@@ -375,7 +437,9 @@ const EnhancedDashboard: React.FC = () => {
 
         <div className="flex gap-8">
           {/* Main Content */}
-          <div className={`flex-1 space-y-8 transition-all duration-300 ${isSidebarCollapsed ? 'lg:col-span-3' : 'lg:col-span-2'}`}>
+          <div
+            className={`flex-1 space-y-8 transition-all duration-300 ${isSidebarCollapsed ? "lg:col-span-3" : "lg:col-span-2"}`}
+          >
             {/* Quick Actions */}
             <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
@@ -390,11 +454,13 @@ const EnhancedDashboard: React.FC = () => {
                     disabled={action.disabled}
                     className={`p-3 rounded-lg border transition-all duration-200 hover:scale-105 flex flex-col items-center gap-2 ${
                       action.disabled
-                        ? 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed'
-                        : 'bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-white/40'
-                    } ${action.beta ? 'relative' : ''}`}
+                        ? "bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed"
+                        : "bg-white/5 border-white/20 text-white hover:bg-white/10 hover:border-white/40"
+                    } ${action.beta ? "relative" : ""}`}
                   >
-                    <action.icon className={`w-5 h-5 ${action.disabled ? 'text-slate-500' : 'text-[#00B4D8]'}`} />
+                    <action.icon
+                      className={`w-5 h-5 ${action.disabled ? "text-slate-500" : "text-[#00B4D8]"}`}
+                    />
                     <span className="text-xs font-medium text-center">{action.label}</span>
                     {action.beta && (
                       <span className="absolute top-1 right-1 px-1.5 py-0.5 bg-[#00B4D8]/20 text-[#00B4D8] text-[10px] rounded-full border border-[#00B4D8]/30">
@@ -410,7 +476,9 @@ const EnhancedDashboard: React.FC = () => {
             <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-white">System Statistics</h2>
-                <span className="text-sm text-slate-200">Last updated: {systemStatus.lastCheck.toLocaleTimeString()}</span>
+                <span className="text-sm text-slate-200">
+                  Last updated: {systemStatus.lastCheck.toLocaleTimeString()}
+                </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {stats.map((stat, index) => (
@@ -423,9 +491,11 @@ const EnhancedDashboard: React.FC = () => {
                           <div className="text-2xl font-bold text-white">{stat.value}</div>
                         </div>
                       </div>
-                      <div className={`text-sm font-medium ${
-                        stat.trendType === 'positive' ? 'text-[#00B4D8]' : 'text-amber-400'
-                      }`}>
+                      <div
+                        className={`text-sm font-medium ${
+                          stat.trendType === "positive" ? "text-[#00B4D8]" : "text-amber-400"
+                        }`}
+                      >
                         {stat.trend}
                       </div>
                     </div>
@@ -447,12 +517,20 @@ const EnhancedDashboard: React.FC = () => {
               </div>
               <div className="space-y-3">
                 {recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center justify-between p-3 bg-white/5 border border-white/20 rounded-lg">
+                  <div
+                    key={activity.id}
+                    className="flex items-center justify-between p-3 bg-white/5 border border-white/20 rounded-lg"
+                  >
                     <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${
-                        activity.status === 'success' ? 'bg-[#00B4D8]' :
-                        activity.status === 'warning' ? 'bg-amber-400' : 'bg-red-400'
-                      }`} />
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          activity.status === "success"
+                            ? "bg-[#00B4D8]"
+                            : activity.status === "warning"
+                              ? "bg-amber-400"
+                              : "bg-red-400"
+                        }`}
+                      />
                       <div>
                         <div className="text-white font-medium">{activity.action}</div>
                         <div className="text-xs text-slate-300">
@@ -460,10 +538,15 @@ const EnhancedDashboard: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                    <div className={`px-2 py-1 rounded text-xs font-medium ${
-                      activity.status === 'success' ? 'bg-[#00B4D8]/20 text-[#00B4D8]' :
-                      activity.status === 'warning' ? 'bg-amber-400/20 text-amber-300' : 'bg-red-500/20 text-red-300'
-                    }`}>
+                    <div
+                      className={`px-2 py-1 rounded text-xs font-medium ${
+                        activity.status === "success"
+                          ? "bg-[#00B4D8]/20 text-[#00B4D8]"
+                          : activity.status === "warning"
+                            ? "bg-amber-400/20 text-amber-300"
+                            : "bg-red-500/20 text-red-300"
+                      }`}
+                    >
                       {activity.status}
                     </div>
                   </div>
@@ -473,7 +556,9 @@ const EnhancedDashboard: React.FC = () => {
           </div>
 
           {/* Sidebar */}
-          <div className={`space-y-8 transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-80'}`}>
+          <div
+            className={`space-y-8 transition-all duration-300 ${isSidebarCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-80"}`}
+          >
             {/* Analysis Summary */}
             {analysisResult && (
               <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
@@ -481,16 +566,22 @@ const EnhancedDashboard: React.FC = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-300">Total Files:</span>
-                    <span className="text-white font-medium">{(analysisResult as any)?.totalFiles || 0}</span>
+                    <span className="text-white font-medium">
+                      {(analysisResult as any)?.totalFiles || 0}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-300">Total Size:</span>
-                    <span className="text-white font-medium">{formatFileSize(analysisResult.totalSize || 0)}</span>
+                    <span className="text-white font-medium">
+                      {formatFileSize(analysisResult.totalSize || 0)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-300">File Types:</span>
                     {/* @ts-ignore - fileTypes property */}
-                    <span className="text-white font-medium">{(analysisResult as any).fileTypes?.length || 0}</span>
+                    <span className="text-white font-medium">
+                      {(analysisResult as any).fileTypes?.length || 0}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-300">Analysis Time:</span>
@@ -501,50 +592,66 @@ const EnhancedDashboard: React.FC = () => {
             )}
 
             {/* Semantic Context */}
-            {analysisResult && (semanticContext.technologies.length > 0 || semanticContext.platforms.length > 0) && (
-              <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Semantic Context</h3>
-                
-                {semanticContext.technologies.length > 0 && (
-                  <div className="mb-4">
-                    <div className="text-xs text-slate-300 mb-2 uppercase tracking-wide">Technologies</div>
-                    <div className="flex flex-wrap gap-2">
-                      {semanticContext.technologies.map((tech, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-[#00B4D8]/20 text-[#00B4D8] text-xs rounded-md border border-[#00B4D8]/30">
-                          {tech}
-                        </span>
-                      ))}
+            {analysisResult &&
+              (semanticContext.technologies.length > 0 || semanticContext.platforms.length > 0) && (
+                <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4">Semantic Context</h3>
+
+                  {semanticContext.technologies.length > 0 && (
+                    <div className="mb-4">
+                      <div className="text-xs text-slate-300 mb-2 uppercase tracking-wide">
+                        Technologies
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {semanticContext.technologies.map((tech, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-1 bg-[#00B4D8]/20 text-[#00B4D8] text-xs rounded-md border border-[#00B4D8]/30"
+                          >
+                            {tech}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-                
-                {semanticContext.platforms.length > 0 && (
-                  <div className="mb-4">
-                    <div className="text-xs text-slate-300 mb-2 uppercase tracking-wide">Platforms</div>
-                    <div className="flex flex-wrap gap-2">
-                      {semanticContext.platforms.map((platform, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-md border border-purple-500/30">
-                          {platform}
-                        </span>
-                      ))}
+                  )}
+
+                  {semanticContext.platforms.length > 0 && (
+                    <div className="mb-4">
+                      <div className="text-xs text-slate-300 mb-2 uppercase tracking-wide">
+                        Platforms
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {semanticContext.platforms.map((platform, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-md border border-purple-500/30"
+                          >
+                            {platform}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-                
-                {semanticContext.categories.length > 0 && (
-                  <div>
-                    <div className="text-xs text-slate-300 mb-2 uppercase tracking-wide">Categories</div>
-                    <div className="flex flex-wrap gap-2">
-                      {semanticContext.categories.map((category, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-amber-500/20 text-amber-300 text-xs rounded-md border border-amber-500/30">
-                          {category}
-                        </span>
-                      ))}
+                  )}
+
+                  {semanticContext.categories.length > 0 && (
+                    <div>
+                      <div className="text-xs text-slate-300 mb-2 uppercase tracking-wide">
+                        Categories
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {semanticContext.categories.map((category, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2 py-1 bg-amber-500/20 text-amber-300 text-xs rounded-md border border-amber-500/30"
+                          >
+                            {category}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
 
             {/* AI Insights */}
             {/* @ts-ignore - insights property */}
@@ -553,7 +660,7 @@ const EnhancedDashboard: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">AI Insights</h3>
                   <button
-                    onClick={() => navigate('/ai-chat')}
+                    onClick={() => navigate("/ai-chat")}
                     className="text-sm text-[#00B4D8] hover:text-[#00B4D8]/80"
                   >
                     View All
@@ -561,17 +668,19 @@ const EnhancedDashboard: React.FC = () => {
                 </div>
                 <div className="space-y-3">
                   {/* @ts-ignore - insights property */}
-                  {(analysisResult as any).insights.slice(0, 3).map((insight: any, index: number) => (
-                    <div key={index} className="p-3 bg-white/5 border border-white/20 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <BrainCircuitIcon className="w-4 h-4 text-purple-400 mt-0.5" />
-                        <div>
-                          <div className="text-sm text-white font-medium">{insight.title}</div>
-                          <div className="text-xs text-slate-300 mt-1">{insight.description}</div>
+                  {(analysisResult as any).insights
+                    .slice(0, 3)
+                    .map((insight: any, index: number) => (
+                      <div key={index} className="p-3 bg-white/5 border border-white/20 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <BrainCircuitIcon className="w-4 h-4 text-purple-400 mt-0.5" />
+                          <div>
+                            <div className="text-sm text-white font-medium">{insight.title}</div>
+                            <div className="text-xs text-slate-300 mt-1">{insight.description}</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </div>
             ) : (
@@ -584,7 +693,9 @@ const EnhancedDashboard: React.FC = () => {
                     <BrainCircuitIcon className="w-6 h-6 text-[#00B4D8]" />
                   </div>
                   <p className="text-slate-300 text-sm mb-2">Waiting for analysis to complete...</p>
-                  <p className="text-slate-400 text-xs">AI insights will appear here after scanning</p>
+                  <p className="text-slate-400 text-xs">
+                    AI insights will appear here after scanning
+                  </p>
                 </div>
               </div>
             )}
@@ -595,7 +706,10 @@ const EnhancedDashboard: React.FC = () => {
               <div className="space-y-3 text-sm text-slate-200">
                 <div className="flex items-start gap-2">
                   <span className="w-2 h-2 bg-[#00B4D8] rounded-full mt-2 flex-shrink-0" />
-                  <span>Use keyboard shortcuts for faster navigation (Ctrl+D for Dashboard, Ctrl+N for Neural View)</span>
+                  <span>
+                    Use keyboard shortcuts for faster navigation (Ctrl+D for Dashboard, Ctrl+N for
+                    Neural View)
+                  </span>
                 </div>
                 <div className="flex items-start gap-2">
                   <span className="w-2 h-2 bg-amber-400 rounded-full mt-2 flex-shrink-0" />

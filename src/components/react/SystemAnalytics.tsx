@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Monitor,
   Cpu,
@@ -15,8 +15,8 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
-  CheckCircle
-} from 'lucide-react';
+  CheckCircle,
+} from "lucide-react";
 
 interface SystemMetrics {
   cpu: {
@@ -42,7 +42,7 @@ interface SystemMetrics {
     latency: number;
   };
   server: {
-    status: 'online' | 'offline' | 'degraded';
+    status: "online" | "offline" | "degraded";
     uptime: number;
     requests: number;
     errors: number;
@@ -55,19 +55,19 @@ export const SystemAnalytics: React.FC = () => {
     memory: { used: 0, total: 0, percentage: 0 },
     disk: { used: 0, total: 0, percentage: 0, readSpeed: 0, writeSpeed: 0 },
     network: { upload: 0, download: 0, latency: 0 },
-    server: { status: 'online', uptime: 0, requests: 0, errors: 0 }
+    server: { status: "online", uptime: 0, requests: 0, errors: 0 },
   });
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
 
   // Fetch memory info from browser
   const getMemoryInfo = useCallback(() => {
-    if ('memory' in performance) {
+    if ("memory" in performance) {
       const memory = (performance as any).memory;
       return {
         used: memory.usedJSHeapSize,
         total: memory.jsHeapSizeLimit,
-        percentage: (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100
+        percentage: (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100,
       };
     }
     return { used: 0, total: 0, percentage: 0 };
@@ -76,7 +76,7 @@ export const SystemAnalytics: React.FC = () => {
   // Fetch system metrics from backend
   const fetchSystemMetrics = useCallback(async () => {
     try {
-      const response = await fetch('/api/system/metrics');
+      const response = await fetch("/api/system/metrics");
       if (response.ok) {
         const data = await response.json();
         return {
@@ -84,12 +84,12 @@ export const SystemAnalytics: React.FC = () => {
           memory: data.memory,
           disk: data.disk,
           system: data.system,
-          process: data.process
+          process: data.process,
         };
       }
       return null;
     } catch (error) {
-      console.error('Failed to fetch system metrics:', error);
+      console.error("Failed to fetch system metrics:", error);
       return null;
     }
   }, []);
@@ -98,22 +98,22 @@ export const SystemAnalytics: React.FC = () => {
   const fetchServerStatus = useCallback(async () => {
     try {
       const startTime = Date.now();
-      const response = await fetch('/api/health');
+      const response = await fetch("/api/health");
       const latency = Date.now() - startTime;
-      
+
       if (response.ok) {
         const data = await response.json();
         return {
-          status: 'online' as const,
+          status: "online" as const,
           uptime: data.uptime || 0,
           requests: data.requests || 0,
           errors: data.errors || 0,
-          latency
+          latency,
         };
       }
-      return { status: 'degraded' as const, uptime: 0, requests: 0, errors: 1, latency: 0 };
+      return { status: "degraded" as const, uptime: 0, requests: 0, errors: 1, latency: 0 };
     } catch (error) {
-      return { status: 'offline' as const, uptime: 0, requests: 0, errors: 1, latency: 0 };
+      return { status: "offline" as const, uptime: 0, requests: 0, errors: 1, latency: 0 };
     }
   }, []);
 
@@ -123,30 +123,30 @@ export const SystemAnalytics: React.FC = () => {
     const server = await fetchServerStatus();
 
     if (systemMetrics) {
-      setMetrics(prev => ({
+      setMetrics((prev) => ({
         cpu: {
           usage: systemMetrics.cpu.usage,
           cores: systemMetrics.cpu.cores,
-          temperature: undefined
+          temperature: undefined,
         },
         memory: {
           used: systemMetrics.memory.used,
           total: systemMetrics.memory.total,
-          percentage: systemMetrics.memory.percentage
+          percentage: systemMetrics.memory.percentage,
         },
         disk: {
           used: systemMetrics.disk.used,
           total: systemMetrics.disk.total,
           percentage: systemMetrics.disk.percentage,
           readSpeed: 0, // Disk I/O requires continuous monitoring
-          writeSpeed: 0
+          writeSpeed: 0,
         },
         network: {
           upload: 0,
           download: 0,
-          latency: server.latency
+          latency: server.latency,
         },
-        server
+        server,
       }));
     }
     setLastUpdate(Date.now());
@@ -161,9 +161,9 @@ export const SystemAnalytics: React.FC = () => {
   }, [updateMetrics]);
 
   const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
@@ -177,19 +177,27 @@ export const SystemAnalytics: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'online': return 'text-green-400';
-      case 'offline': return 'text-red-400';
-      case 'degraded': return 'text-yellow-400';
-      default: return 'text-slate-400';
+      case "online":
+        return "text-green-400";
+      case "offline":
+        return "text-red-400";
+      case "degraded":
+        return "text-yellow-400";
+      default:
+        return "text-slate-400";
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'online': return <CheckCircle size={16} className="text-green-400" />;
-      case 'offline': return <AlertTriangle size={16} className="text-red-400" />;
-      case 'degraded': return <AlertTriangle size={16} className="text-yellow-400" />;
-      default: return <Activity size={16} className="text-slate-400" />;
+      case "online":
+        return <CheckCircle size={16} className="text-green-400" />;
+      case "offline":
+        return <AlertTriangle size={16} className="text-red-400" />;
+      case "degraded":
+        return <AlertTriangle size={16} className="text-yellow-400" />;
+      default:
+        return <Activity size={16} className="text-slate-400" />;
     }
   };
 
@@ -209,9 +217,7 @@ export const SystemAnalytics: React.FC = () => {
           <Monitor className="w-8 h-8 text-cyan-400" />
           System Analytics
         </h1>
-        <p className="text-slate-400 text-lg">
-          Real-time resource monitoring and system health
-        </p>
+        <p className="text-slate-400 text-lg">Real-time resource monitoring and system health</p>
         <div className="flex items-center gap-4 mt-4 text-sm text-slate-400">
           <span className="flex items-center gap-2">
             <Clock size={14} />
@@ -242,11 +248,15 @@ export const SystemAnalytics: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-slate-700/50 rounded-lg p-4">
             <div className="text-slate-400 text-sm mb-1">Uptime</div>
-            <div className="text-2xl font-bold text-white">{formatUptime(metrics.server.uptime)}</div>
+            <div className="text-2xl font-bold text-white">
+              {formatUptime(metrics.server.uptime)}
+            </div>
           </div>
           <div className="bg-slate-700/50 rounded-lg p-4">
             <div className="text-slate-400 text-sm mb-1">Total Requests</div>
-            <div className="text-2xl font-bold text-white">{metrics.server.requests.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-white">
+              {metrics.server.requests.toLocaleString()}
+            </div>
           </div>
           <div className="bg-slate-700/50 rounded-lg p-4">
             <div className="text-slate-400 text-sm mb-1">Errors</div>
@@ -263,7 +273,9 @@ export const SystemAnalytics: React.FC = () => {
             <Cpu className="w-6 h-6 text-cyan-400" />
             <h3 className="text-lg font-semibold">CPU</h3>
           </div>
-          <div className="text-3xl font-bold text-cyan-400 mb-2">{metrics.cpu.usage.toFixed(1)}%</div>
+          <div className="text-3xl font-bold text-cyan-400 mb-2">
+            {metrics.cpu.usage.toFixed(1)}%
+          </div>
           <div className="text-slate-400 text-sm mb-4">{metrics.cpu.cores} cores</div>
           <div className="w-full bg-slate-700 rounded-full h-2">
             <div
@@ -324,8 +336,10 @@ export const SystemAnalytics: React.FC = () => {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-slate-400">Status</span>
-              <span className={metrics.network.latency < 100 ? 'text-green-400' : 'text-yellow-400'}>
-                {metrics.network.latency < 100 ? 'Good' : 'Slow'}
+              <span
+                className={metrics.network.latency < 100 ? "text-green-400" : "text-yellow-400"}
+              >
+                {metrics.network.latency < 100 ? "Good" : "Slow"}
               </span>
             </div>
           </div>
@@ -353,7 +367,7 @@ export const SystemAnalytics: React.FC = () => {
             <div>
               <div className="text-slate-400 text-sm">Memory Efficiency</div>
               <div className="text-lg font-bold text-white">
-                {metrics.memory.percentage < 80 ? 'Good' : 'High'}
+                {metrics.memory.percentage < 80 ? "Good" : "High"}
               </div>
             </div>
           </div>
@@ -371,7 +385,7 @@ export const SystemAnalytics: React.FC = () => {
             <div>
               <div className="text-slate-400 text-sm">System Health</div>
               <div className="text-lg font-bold text-white">
-                {metrics.server.status === 'online' ? 'Healthy' : 'Warning'}
+                {metrics.server.status === "online" ? "Healthy" : "Warning"}
               </div>
             </div>
           </div>

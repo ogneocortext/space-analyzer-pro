@@ -1,5 +1,5 @@
-import React from 'react';
-import { Brain, Sparkles, TrendingUp, AlertTriangle } from 'lucide-react';
+import React from "react";
+import { Brain, Sparkles, TrendingUp, AlertTriangle } from "lucide-react";
 
 interface AIInsightsProps {
   analysisData?: any;
@@ -28,7 +28,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ analysisData }) => {
           <div className="text-3xl font-bold text-blue-400 mb-2">98%</div>
           <p className="text-slate-400 text-sm">High confidence in analysis results</p>
           <div className="mt-4 bg-slate-700 rounded-full h-2">
-            <div className="bg-blue-400 h-2 rounded-full" style={{ width: '98%' }}></div>
+            <div className="bg-blue-400 h-2 rounded-full" style={{ width: "98%" }}></div>
           </div>
         </div>
 
@@ -41,7 +41,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ analysisData }) => {
           <div className="text-3xl font-bold text-green-400 mb-2">24</div>
           <p className="text-slate-400 text-sm">Usage patterns identified</p>
           <div className="mt-4 bg-slate-700 rounded-full h-2">
-            <div className="bg-green-400 h-2 rounded-full" style={{ width: '85%' }}></div>
+            <div className="bg-green-400 h-2 rounded-full" style={{ width: "85%" }}></div>
           </div>
         </div>
 
@@ -54,7 +54,7 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ analysisData }) => {
           <div className="text-3xl font-bold text-orange-400 mb-2">3</div>
           <p className="text-slate-400 text-sm">Potential issues flagged</p>
           <div className="mt-4 bg-slate-700 rounded-full h-2">
-            <div className="bg-orange-400 h-2 rounded-full" style={{ width: '60%' }}></div>
+            <div className="bg-orange-400 h-2 rounded-full" style={{ width: "60%" }}></div>
           </div>
         </div>
       </div>
@@ -73,7 +73,8 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ analysisData }) => {
               <div>
                 <h4 className="text-green-400 font-medium mb-1">Storage Optimization</h4>
                 <p className="text-slate-300 text-sm">
-                  Based on your usage patterns, consolidating small files could save approximately 2.3 GB of storage space.
+                  Based on your usage patterns, consolidating small files could save approximately
+                  2.3 GB of storage space.
                 </p>
               </div>
             </div>
@@ -85,7 +86,8 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ analysisData }) => {
               <div>
                 <h4 className="text-blue-400 font-medium mb-1">Backup Strategy</h4>
                 <p className="text-slate-300 text-sm">
-                  Your backup frequency analysis suggests optimizing to weekly incremental backups for critical project files.
+                  Your backup frequency analysis suggests optimizing to weekly incremental backups
+                  for critical project files.
                 </p>
               </div>
             </div>
@@ -97,7 +99,8 @@ export const AIInsights: React.FC<AIInsightsProps> = ({ analysisData }) => {
               <div>
                 <h4 className="text-purple-400 font-medium mb-1">Performance Insights</h4>
                 <p className="text-slate-300 text-sm">
-                  Large media files are impacting load times. Consider moving them to external storage or implementing lazy loading.
+                  Large media files are impacting load times. Consider moving them to external
+                  storage or implementing lazy loading.
                 </p>
               </div>
             </div>

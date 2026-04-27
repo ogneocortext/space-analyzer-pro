@@ -1,23 +1,26 @@
-import React, { useState, FC } from 'react';
-import { 
-  AlertTriangle, 
-  CheckCircle, 
-  Info, 
-  XCircle, 
-  GitBranch, 
-  FileText, 
-  Shield, 
+import React, { useState, FC } from "react";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Info,
+  XCircle,
+  GitBranch,
+  FileText,
+  Shield,
   TrendingUp,
   ArrowRight,
   Zap,
   Lock,
   Unlock,
   Eye,
-  EyeOff
-} from 'lucide-react';
-import './DependencyImpactAnalyzer.css';
+  EyeOff,
+} from "lucide-react";
+import "./DependencyImpactAnalyzer.css";
 // @ts-ignore - DependencyCheckerService module
-import { PredictiveDependencyAnalysis, DependencyImpact } from '../services/DependencyCheckerService';
+import {
+  PredictiveDependencyAnalysis,
+  DependencyImpact,
+} from "../services/DependencyCheckerService";
 
 interface DependencyImpactAnalyzerProps {
   analysis: PredictiveDependencyAnalysis | null;
@@ -25,54 +28,77 @@ interface DependencyImpactAnalyzerProps {
   loading?: boolean;
 }
 
-export const DependencyImpactAnalyzer: FC<DependencyImpactAnalyzerProps> = ({ 
-  analysis, 
-  onExecuteAction, 
-  loading = false 
+export const DependencyImpactAnalyzer: FC<DependencyImpactAnalyzerProps> = ({
+  analysis,
+  onExecuteAction,
+  loading = false,
 }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [selectedImpact, setSelectedImpact] = useState<DependencyImpact | null>(null);
 
-  const getRiskColor = (risk: 'critical' | 'high' | 'medium' | 'low' | 'none') => {
+  const getRiskColor = (risk: "critical" | "high" | "medium" | "low" | "none") => {
     switch (risk) {
-      case 'critical': return '#ef4444';
-      case 'high': return '#f59e0b';
-      case 'medium': return '#3b82f6';
-      case 'low': return '#22c55e';
-      case 'none': return '#6b7280';
-      default: return '#6b7280';
+      case "critical":
+        return "#ef4444";
+      case "high":
+        return "#f59e0b";
+      case "medium":
+        return "#3b82f6";
+      case "low":
+        return "#22c55e";
+      case "none":
+        return "#6b7280";
+      default:
+        return "#6b7280";
     }
   };
 
-  const getRiskIcon = (risk: 'critical' | 'high' | 'medium' | 'low' | 'none') => {
+  const getRiskIcon = (risk: "critical" | "high" | "medium" | "low" | "none") => {
     switch (risk) {
-      case 'critical': return <XCircle size={16} className="severity-icon severity-icon-error" />;
-      case 'high': return <AlertTriangle size={16} className="severity-icon severity-icon-warning" />;
-      case 'medium': return <Info size={16} className="severity-icon severity-icon-info" />;
-      case 'low': return <CheckCircle size={16} className="severity-icon severity-icon-info" />;
-      case 'none': return <CheckCircle size={16} className="severity-icon severity-icon-info" />;
+      case "critical":
+        return <XCircle size={16} className="severity-icon severity-icon-error" />;
+      case "high":
+        return <AlertTriangle size={16} className="severity-icon severity-icon-warning" />;
+      case "medium":
+        return <Info size={16} className="severity-icon severity-icon-info" />;
+      case "low":
+        return <CheckCircle size={16} className="severity-icon severity-icon-info" />;
+      case "none":
+        return <CheckCircle size={16} className="severity-icon severity-icon-info" />;
     }
   };
 
-  const getImpactIcon = (impact: 'critical' | 'high' | 'medium' | 'low' | 'none') => {
+  const getImpactIcon = (impact: "critical" | "high" | "medium" | "low" | "none") => {
     switch (impact) {
-      case 'critical': return <XCircle size={14} style={{ color: '#ef4444' }} />;
-      case 'high': return <AlertTriangle size={14} style={{ color: '#f59e0b' }} />;
-      case 'medium': return <Info size={14} style={{ color: '#3b82f6' }} />;
-      case 'low': return <CheckCircle size={14} style={{ color: '#22c55e' }} />;
-      case 'none': return <CheckCircle size={14} style={{ color: '#6b7280' }} />;
-      default: return <Info size={14} style={{ color: '#6b7280' }} />;
+      case "critical":
+        return <XCircle size={14} style={{ color: "#ef4444" }} />;
+      case "high":
+        return <AlertTriangle size={14} style={{ color: "#f59e0b" }} />;
+      case "medium":
+        return <Info size={14} style={{ color: "#3b82f6" }} />;
+      case "low":
+        return <CheckCircle size={14} style={{ color: "#22c55e" }} />;
+      case "none":
+        return <CheckCircle size={14} style={{ color: "#6b7280" }} />;
+      default:
+        return <Info size={14} style={{ color: "#6b7280" }} />;
     }
   };
 
-  const getRiskBackground = (risk: 'critical' | 'high' | 'medium' | 'low' | 'none') => {
+  const getRiskBackground = (risk: "critical" | "high" | "medium" | "low" | "none") => {
     switch (risk) {
-      case 'critical': return 'rgba(239, 68, 68, 0.1)';
-      case 'high': return 'rgba(245, 158, 11, 0.1)';
-      case 'medium': return 'rgba(59, 130, 246, 0.1)';
-      case 'low': return 'rgba(34, 197, 94, 0.1)';
-      case 'none': return 'rgba(107, 114, 128, 0.1)';
-      default: return 'rgba(107, 114, 128, 0.1)';
+      case "critical":
+        return "rgba(239, 68, 68, 0.1)";
+      case "high":
+        return "rgba(245, 158, 11, 0.1)";
+      case "medium":
+        return "rgba(59, 130, 246, 0.1)";
+      case "low":
+        return "rgba(34, 197, 94, 0.1)";
+      case "none":
+        return "rgba(107, 114, 128, 0.1)";
+      default:
+        return "rgba(107, 114, 128, 0.1)";
     }
   };
 
@@ -90,37 +116,51 @@ export const DependencyImpactAnalyzer: FC<DependencyImpactAnalyzerProps> = ({
   }
 
   const totalAffectedFiles = analysis.directImpacts.length + analysis.cascadingImpacts.length;
-  const criticalImpacts = [...analysis.directImpacts, ...analysis.cascadingImpacts].filter(i => i.riskLevel === 'critical').length;
-  const highImpacts = [...analysis.directImpacts, ...analysis.cascadingImpacts].filter(i => i.riskLevel === 'high').length;
+  const criticalImpacts = [...analysis.directImpacts, ...analysis.cascadingImpacts].filter(
+    (i) => i.riskLevel === "critical"
+  ).length;
+  const highImpacts = [...analysis.directImpacts, ...analysis.cascadingImpacts].filter(
+    (i) => i.riskLevel === "high"
+  ).length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
       {/* Risk Overview */}
-      <div className="glass-panel" style={{ 
-        background: getRiskBackground(analysis.overallRisk),
-        borderLeft: `4px solid ${getRiskColor(analysis.overallRisk)}`
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+      <div
+        className="glass-panel"
+        style={{
+          background: getRiskBackground(analysis.overallRisk),
+          borderLeft: `4px solid ${getRiskColor(analysis.overallRisk)}`,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
           {getRiskIcon(analysis.overallRisk)}
           <div style={{ flex: 1 }}>
-            <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>
+            <h3 style={{ margin: 0, color: "var(--text-primary)" }}>
               {analysis.action.charAt(0).toUpperCase() + analysis.action.slice(1)} Impact Analysis
             </h3>
-            <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            <p
+              style={{
+                margin: "0.25rem 0 0 0",
+                color: "var(--text-secondary)",
+                fontSize: "0.875rem",
+              }}
+            >
               {analysis.targetFiles.length} target files • {totalAffectedFiles} total affected
             </p>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ 
-              padding: '0.5rem 1rem', 
-              borderRadius: '20px', 
-              background: getRiskColor(analysis.overallRisk),
-              color: 'white',
-              fontSize: '0.875rem',
-              fontWeight: 'bold',
-              textTransform: 'uppercase'
-            }}>
-            </div>
+          <div style={{ textAlign: "right" }}>
+            <div
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: "20px",
+                background: getRiskColor(analysis.overallRisk),
+                color: "white",
+                fontSize: "0.875rem",
+                fontWeight: "bold",
+                textTransform: "uppercase",
+              }}
+            ></div>
           </div>
         </div>
 
@@ -170,24 +210,30 @@ export const DependencyImpactAnalyzer: FC<DependencyImpactAnalyzerProps> = ({
             {analysis.alternativeActions.map((alt, index) => (
               <div key={index} className="alternative-action-item">
                 <div className="alternative-action-header">
-                  <div className="alternative-action-title">{alt.action.charAt(0).toUpperCase() + alt.action.slice(1)}</div>
+                  <div className="alternative-action-title">
+                    {alt.action.charAt(0).toUpperCase() + alt.action.slice(1)}
+                  </div>
                   <div className="alternative-action-risk-level">
-                    <span className={`risk-level ${getRiskColor(alt.risk)}`}>{alt.risk.toUpperCase()}</span>
+                    <span className={`risk-level ${getRiskColor(alt.risk)}`}>
+                      {alt.risk.toUpperCase()}
+                    </span>
                   </div>
                 </div>
                 <div className="alternative-action-description">{alt.description}</div>
                 <div className="alternative-action-benefits">
                   {alt.benefits.map((benefit, benefitIndex) => (
-                    <span key={benefitIndex} className="benefit">{benefit}</span>
+                    <span key={benefitIndex} className="benefit">
+                      {benefit}
+                    </span>
                   ))}
                 </div>
                 <button
                   onClick={() => onExecuteAction(alt.action)}
                   disabled={loading}
-                  className={`execute-action-btn ${loading ? 'loading' : ''}`}
+                  className={`execute-action-btn ${loading ? "loading" : ""}`}
                 >
                   <Zap size={14} />
-                  {loading ? 'Processing...' : `Execute ${alt.action}`}
+                  {loading ? "Processing..." : `Execute ${alt.action}`}
                 </button>
               </div>
             ))}
@@ -201,10 +247,10 @@ export const DependencyImpactAnalyzer: FC<DependencyImpactAnalyzerProps> = ({
           <h4 className="impact-details-title">Impact Details</h4>
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className={`show-details-btn ${showDetails ? 'active' : ''}`}
+            className={`show-details-btn ${showDetails ? "active" : ""}`}
           >
             {showDetails ? <EyeOff size={14} /> : <Eye size={14} />}
-            {showDetails ? 'Hide' : 'Show'} Details
+            {showDetails ? "Hide" : "Show"} Details
           </button>
         </div>
 
@@ -213,12 +259,14 @@ export const DependencyImpactAnalyzer: FC<DependencyImpactAnalyzerProps> = ({
             {/* Direct Impacts */}
             {analysis.directImpacts.length > 0 && (
               <div>
-                <h5 className="impact-type-title">Direct Impacts ({analysis.directImpacts.length})</h5>
+                <h5 className="impact-type-title">
+                  Direct Impacts ({analysis.directImpacts.length})
+                </h5>
                 <div className="impact-list">
                   {analysis.directImpacts.map((impact, index) => (
-                    <ImpactCard 
-                      key={index} 
-                      impact={impact} 
+                    <ImpactCard
+                      key={index}
+                      impact={impact}
                       onSelect={setSelectedImpact}
                       selected={selectedImpact?.file === impact.file}
                     />
@@ -230,12 +278,14 @@ export const DependencyImpactAnalyzer: FC<DependencyImpactAnalyzerProps> = ({
             {/* Cascading Impacts */}
             {analysis.cascadingImpacts.length > 0 && (
               <div>
-                <h5 className="impact-type-title">Cascading Impacts ({analysis.cascadingImpacts.length})</h5>
+                <h5 className="impact-type-title">
+                  Cascading Impacts ({analysis.cascadingImpacts.length})
+                </h5>
                 <div className="impact-list">
                   {analysis.cascadingImpacts.map((impact, index) => (
-                    <ImpactCard 
-                      key={index} 
-                      impact={impact} 
+                    <ImpactCard
+                      key={index}
+                      impact={impact}
                       onSelect={setSelectedImpact}
                       selected={selectedImpact?.file === impact.file}
                       isCascading={true}
@@ -256,7 +306,9 @@ export const DependencyImpactAnalyzer: FC<DependencyImpactAnalyzerProps> = ({
             <h4 className="selected-impact-title">{selectedImpact.file.split(/[/\\]/).pop()}</h4>
             <div className="selected-impact-actions">
               {getImpactIcon(selectedImpact.impact)}
-              <span className="selected-impact-risk-level">{selectedImpact.impact.toUpperCase()}</span>
+              <span className="selected-impact-risk-level">
+                {selectedImpact.impact.toUpperCase()}
+              </span>
             </div>
           </div>
 
@@ -301,8 +353,8 @@ export const DependencyImpactAnalyzer: FC<DependencyImpactAnalyzerProps> = ({
       <div className="execute-action-container">
         <button
           onClick={() => onExecuteAction(analysis.action)}
-          disabled={loading || analysis.overallRisk === 'critical'}
-          className={`execute-action-btn ${loading || analysis.overallRisk === 'critical' ? 'disabled' : ''}`}
+          disabled={loading || analysis.overallRisk === "critical"}
+          className={`execute-action-btn ${loading || analysis.overallRisk === "critical" ? "disabled" : ""}`}
         >
           {loading ? (
             <>
@@ -316,8 +368,8 @@ export const DependencyImpactAnalyzer: FC<DependencyImpactAnalyzerProps> = ({
             </>
           )}
         </button>
-        
-        {analysis.overallRisk === 'critical' && (
+
+        {analysis.overallRisk === "critical" && (
           <div className="critical-risk-warning">
             <XCircle size={16} className="critical-risk-icon" />
             Critical risk detected - consider alternatives
@@ -338,10 +390,7 @@ interface ImpactCardProps {
 
 const ImpactCard: FC<ImpactCardProps> = ({ impact, onSelect, selected, isCascading = false }) => {
   return (
-    <div
-      onClick={() => onSelect(impact)}
-      className={`impact-card ${selected ? 'selected' : ''}`}
-    >
+    <div onClick={() => onSelect(impact)} className={`impact-card ${selected ? "selected" : ""}`}>
       <div className="impact-card-header">
         {isCascading && <ArrowRight size={14} className="impact-card-arrow" />}
         {/* @ts-ignore - impact.impact type */}
@@ -352,12 +401,20 @@ const ImpactCard: FC<ImpactCardProps> = ({ impact, onSelect, selected, isCascadi
           {impact.riskLevel.toUpperCase()}
         </span>
       </div>
-      
-      <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+
+      <div style={{ color: "var(--text-secondary)", fontSize: "0.75rem", marginBottom: "0.5rem" }}>
         {impact.reason}
       </div>
-      
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "1rem",
+          fontSize: "0.75rem",
+          color: "var(--text-secondary)",
+        }}
+      >
         <span>{impact.affectedFiles.length} affected files</span>
         {impact.consequences.length > 0 && <span>{impact.consequences.length} consequences</span>}
         {impact.benefits.length > 0 && <span>{impact.benefits.length} benefits</span>}

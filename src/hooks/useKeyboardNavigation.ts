@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from "react";
 // @ts-ignore - react-router-dom may not be installed
-import { useNavigate } from 'react-router-dom';
-import { useUIStore, useErrorStore } from '../store';
+import { useNavigate } from "react-router-dom";
+import { useUIStore, useErrorStore } from "../store";
 
 interface KeyboardShortcut {
   key: string;
@@ -17,145 +17,152 @@ export const useKeyboardNavigation = () => {
   const navigate = useNavigate();
   const { openModal, closeModal, toggleSidebar, theme, setTheme } = useUIStore();
   const { addError } = useErrorStore();
-  
+
   const shortcuts = useRef<KeyboardShortcut[]>([
     // Navigation shortcuts
     {
-      key: 'd',
+      key: "d",
       ctrl: true,
-      description: 'Go to Dashboard',
-      action: () => navigate('/')
+      description: "Go to Dashboard",
+      action: () => navigate("/"),
     },
     {
-      key: 'n',
+      key: "n",
       ctrl: true,
-      description: 'Go to Neural View',
-      action: () => navigate('/neural')
+      description: "Go to Neural View",
+      action: () => navigate("/neural"),
     },
     {
-      key: 'a',
+      key: "a",
       ctrl: true,
-      description: 'Open AI Assistant',
-      action: () => openModal('aiChat')
+      description: "Open AI Assistant",
+      action: () => openModal("aiChat"),
     },
     {
-      key: 'v',
+      key: "v",
       ctrl: true,
-      description: 'Go to Visualizations',
-      action: () => navigate('/treemap')
+      description: "Go to Visualizations",
+      action: () => navigate("/treemap"),
     },
     {
-      key: 'f',
+      key: "f",
       ctrl: true,
-      description: 'Open File Browser',
-      action: () => openModal('fileBrowser')
+      description: "Open File Browser",
+      action: () => openModal("fileBrowser"),
     },
     {
-      key: 'e',
+      key: "e",
       ctrl: true,
-      description: 'Open Export',
-      action: () => openModal('export')
+      description: "Open Export",
+      action: () => openModal("export"),
     },
     {
-      key: 's',
+      key: "s",
       ctrl: true,
-      description: 'Open Settings',
-      action: () => openModal('settings')
+      description: "Open Settings",
+      action: () => openModal("settings"),
     },
-    
+
     // UI shortcuts
     {
-      key: 'k',
+      key: "k",
       ctrl: true,
-      description: 'Focus Search',
+      description: "Focus Search",
       action: () => {
-        const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
+        const searchInput = document.querySelector(
+          'input[placeholder*="Search"]'
+        ) as HTMLInputElement;
         if (searchInput) searchInput.focus();
-      }
+      },
     },
     {
-      key: 'b',
+      key: "b",
       ctrl: true,
-      description: 'Toggle Sidebar',
-      action: toggleSidebar
+      description: "Toggle Sidebar",
+      action: toggleSidebar,
     },
     {
-      key: 't',
+      key: "t",
       ctrl: true,
-      description: 'Toggle Theme',
+      description: "Toggle Theme",
       action: () => {
-        const newTheme = theme === 'dark' ? 'light' : 'dark';
+        const newTheme = theme === "dark" ? "light" : "dark";
         setTheme(newTheme);
-      }
+      },
     },
     {
-      key: 'Escape',
-      description: 'Close Modal',
+      key: "Escape",
+      description: "Close Modal",
       action: () => {
-        closeModal('aiChat');
-        closeModal('fileBrowser');
-        closeModal('settings');
-        closeModal('export');
-      }
+        closeModal("aiChat");
+        closeModal("fileBrowser");
+        closeModal("settings");
+        closeModal("export");
+      },
     },
-    
+
     // System shortcuts
     {
-      key: 'r',
+      key: "r",
       ctrl: true,
-      description: 'Refresh Analysis',
+      description: "Refresh Analysis",
       action: () => {
         // Trigger analysis refresh
-        window.dispatchEvent(new CustomEvent('refresh-analysis'));
-      }
+        window.dispatchEvent(new CustomEvent("refresh-analysis"));
+      },
     },
     {
-      key: 'h',
+      key: "h",
       ctrl: true,
-      description: 'Show Help',
+      description: "Show Help",
       action: () => {
-        openModal('settings'); // Could open a help modal instead
-      }
-    }
+        openModal("settings"); // Could open a help modal instead
+      },
+    },
   ]);
 
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    // Ignore if typing in input/textarea
-    if (event.target instanceof HTMLInputElement || 
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      // Ignore if typing in input/textarea
+      if (
+        event.target instanceof HTMLInputElement ||
         event.target instanceof HTMLTextAreaElement ||
-        event.target instanceof HTMLSelectElement) {
-      return;
-    }
-
-    // Check for matching shortcuts
-    const matchingShortcut = shortcuts.current.find(shortcut => {
-      return (
-        shortcut.key.toLowerCase() === event.key.toLowerCase() &&
-        (!shortcut.ctrl || event.ctrlKey) &&
-        (!shortcut.alt || event.altKey) &&
-        (!shortcut.shift || event.shiftKey) &&
-        (!shortcut.meta || event.metaKey)
-      );
-    });
-
-    if (matchingShortcut) {
-      event.preventDefault();
-      event.stopPropagation();
-      try {
-        matchingShortcut.action();
-      } catch (error) {
-        addError({
-          message: `Keyboard shortcut error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          type: 'error'
-        });
+        event.target instanceof HTMLSelectElement
+      ) {
+        return;
       }
-    }
-  }, [navigate, openModal, closeModal, toggleSidebar, setTheme, addError]);
+
+      // Check for matching shortcuts
+      const matchingShortcut = shortcuts.current.find((shortcut) => {
+        return (
+          shortcut.key.toLowerCase() === event.key.toLowerCase() &&
+          (!shortcut.ctrl || event.ctrlKey) &&
+          (!shortcut.alt || event.altKey) &&
+          (!shortcut.shift || event.shiftKey) &&
+          (!shortcut.meta || event.metaKey)
+        );
+      });
+
+      if (matchingShortcut) {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+          matchingShortcut.action();
+        } catch (error) {
+          addError({
+            message: `Keyboard shortcut error: ${error instanceof Error ? error.message : "Unknown error"}`,
+            type: "error",
+          });
+        }
+      }
+    },
+    [navigate, openModal, closeModal, toggleSidebar, setTheme, addError]
+  );
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [handleKeyDown]);
 
@@ -167,9 +174,15 @@ export const useKeyboardNavigation = () => {
   // Get shortcuts by category
   const getShortcutsByCategory = useCallback(() => {
     const categories = {
-      navigation: shortcuts.current.filter(s => s.description.includes('Go to') || s.description.includes('Open')),
-      ui: shortcuts.current.filter(s => s.description.includes('Toggle') || s.description.includes('Focus')),
-      system: shortcuts.current.filter(s => s.description.includes('Refresh') || s.description.includes('Help'))
+      navigation: shortcuts.current.filter(
+        (s) => s.description.includes("Go to") || s.description.includes("Open")
+      ),
+      ui: shortcuts.current.filter(
+        (s) => s.description.includes("Toggle") || s.description.includes("Focus")
+      ),
+      system: shortcuts.current.filter(
+        (s) => s.description.includes("Refresh") || s.description.includes("Help")
+      ),
     };
     return categories;
   }, []);
@@ -177,45 +190,45 @@ export const useKeyboardNavigation = () => {
   return {
     handleKeyDown,
     getShortcuts,
-    getShortcutsByCategory
+    getShortcutsByCategory,
   };
 };
 
 // Hook for global keyboard shortcuts that work across the app
 export const useGlobalShortcuts = () => {
   const { addError } = useErrorStore();
-  
+
   useEffect(() => {
     const handleGlobalShortcuts = (event: KeyboardEvent) => {
       // Global shortcuts that should work everywhere
-      if (event.ctrlKey && event.key.toLowerCase() === 'p') {
+      if (event.ctrlKey && event.key.toLowerCase() === "p") {
         event.preventDefault();
         // Print current page
         window.print();
       }
-      
-      if (event.ctrlKey && event.key.toLowerCase() === 's') {
+
+      if (event.ctrlKey && event.key.toLowerCase() === "s") {
         event.preventDefault();
         // Save current state
-        window.dispatchEvent(new CustomEvent('save-state'));
+        window.dispatchEvent(new CustomEvent("save-state"));
       }
-      
-      if (event.ctrlKey && event.key.toLowerCase() === 'z') {
+
+      if (event.ctrlKey && event.key.toLowerCase() === "z") {
         event.preventDefault();
         // Undo action
-        window.dispatchEvent(new CustomEvent('undo-action'));
+        window.dispatchEvent(new CustomEvent("undo-action"));
       }
-      
-      if (event.ctrlKey && event.key.toLowerCase() === 'y') {
+
+      if (event.ctrlKey && event.key.toLowerCase() === "y") {
         event.preventDefault();
         // Redo action
-        window.dispatchEvent(new CustomEvent('redo-action'));
+        window.dispatchEvent(new CustomEvent("redo-action"));
       }
     };
 
-    window.addEventListener('keydown', handleGlobalShortcuts);
+    window.addEventListener("keydown", handleGlobalShortcuts);
     return () => {
-      window.removeEventListener('keydown', handleGlobalShortcuts);
+      window.removeEventListener("keydown", handleGlobalShortcuts);
     };
   }, [addError]);
 };
@@ -225,42 +238,52 @@ export const useAccessibilityNavigation = () => {
   useEffect(() => {
     const handleAccessibilityKeys = (event: KeyboardEvent) => {
       // Enhanced keyboard navigation for accessibility
-      if (event.key === 'Tab') {
+      if (event.key === "Tab") {
         // Enhance tab navigation
         const focusableElements = document.querySelectorAll(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
         );
-        
+
         // Add visual indicators for focus
-        document.addEventListener('focus', (e) => {
-          if (e.target instanceof HTMLElement) {
-            e.target.style.outline = '2px solid #3b82f6';
-            e.target.style.outlineOffset = '2px';
-          }
-        }, true);
-        
-        document.addEventListener('blur', (e) => {
-          if (e.target instanceof HTMLElement) {
-            e.target.style.outline = '';
-          }
-        }, true);
+        document.addEventListener(
+          "focus",
+          (e) => {
+            if (e.target instanceof HTMLElement) {
+              e.target.style.outline = "2px solid #3b82f6";
+              e.target.style.outlineOffset = "2px";
+            }
+          },
+          true
+        );
+
+        document.addEventListener(
+          "blur",
+          (e) => {
+            if (e.target instanceof HTMLElement) {
+              e.target.style.outline = "";
+            }
+          },
+          true
+        );
       }
-      
+
       // Arrow key navigation for lists and menus
-      if (event.key.startsWith('Arrow')) {
+      if (event.key.startsWith("Arrow")) {
         const activeElement = document.activeElement;
         if (activeElement) {
           // Handle arrow navigation in custom components
-          window.dispatchEvent(new CustomEvent('arrow-navigation', {
-            detail: { key: event.key, element: activeElement }
-          }));
+          window.dispatchEvent(
+            new CustomEvent("arrow-navigation", {
+              detail: { key: event.key, element: activeElement },
+            })
+          );
         }
       }
     };
 
-    window.addEventListener('keydown', handleAccessibilityKeys);
+    window.addEventListener("keydown", handleAccessibilityKeys);
     return () => {
-      window.removeEventListener('keydown', handleAccessibilityKeys);
+      window.removeEventListener("keydown", handleAccessibilityKeys);
     };
   }, []);
 };
@@ -269,35 +292,46 @@ export const useAccessibilityNavigation = () => {
 export const useCommandPalette = () => {
   const navigate = useNavigate();
   const { openModal } = useUIStore();
-  
+
   const commands = [
-    { id: 'dashboard', label: 'Go to Dashboard', action: () => navigate('/') },
-    { id: 'neural', label: 'Go to Neural View', action: () => navigate('/neural') },
-    { id: 'ai-chat', label: 'Open AI Assistant', action: () => openModal('aiChat') },
-    { id: 'file-browser', label: 'Open File Browser', action: () => openModal('fileBrowser') },
-    { id: 'settings', label: 'Open Settings', action: () => openModal('settings') },
-    { id: 'export', label: 'Open Export', action: () => openModal('export') },
-    { id: 'refresh', label: 'Refresh Analysis', action: () => window.dispatchEvent(new CustomEvent('refresh-analysis')) },
-    { id: 'print', label: 'Print Page', action: () => window.print() },
-    { id: 'theme', label: 'Toggle Theme', action: () => {
-      const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-      document.documentElement.classList.toggle('dark');
-    }}
+    { id: "dashboard", label: "Go to Dashboard", action: () => navigate("/") },
+    { id: "neural", label: "Go to Neural View", action: () => navigate("/neural") },
+    { id: "ai-chat", label: "Open AI Assistant", action: () => openModal("aiChat") },
+    { id: "file-browser", label: "Open File Browser", action: () => openModal("fileBrowser") },
+    { id: "settings", label: "Open Settings", action: () => openModal("settings") },
+    { id: "export", label: "Open Export", action: () => openModal("export") },
+    {
+      id: "refresh",
+      label: "Refresh Analysis",
+      action: () => window.dispatchEvent(new CustomEvent("refresh-analysis")),
+    },
+    { id: "print", label: "Print Page", action: () => window.print() },
+    {
+      id: "theme",
+      label: "Toggle Theme",
+      action: () => {
+        const currentTheme = document.documentElement.classList.contains("dark") ? "dark" : "light";
+        document.documentElement.classList.toggle("dark");
+      },
+    },
   ];
 
-  const executeCommand = useCallback((commandId: string) => {
-    const command = commands.find(c => c.id === commandId);
-    if (command) {
-      try {
-        command.action();
-      } catch (error) {
-        console.error('Command execution failed:', error);
+  const executeCommand = useCallback(
+    (commandId: string) => {
+      const command = commands.find((c) => c.id === commandId);
+      if (command) {
+        try {
+          command.action();
+        } catch (error) {
+          console.error("Command execution failed:", error);
+        }
       }
-    }
-  }, [commands]);
+    },
+    [commands]
+  );
 
   return {
     commands,
-    executeCommand
+    executeCommand,
   };
 };

@@ -4,47 +4,47 @@
 /* CSS Custom Properties (Design Tokens) */
 :root {
   /* Background Colors */
-  --bg-page: #0B0B0E;
-  --bg-card: #16161A;
-  --bg-elevated: #1A1A1E;
+  --bg-page: #0b0b0e;
+  --bg-card: #16161a;
+  --bg-elevated: #1a1a1e;
   --bg-elevated-hover: #222226;
-  --bg-sidebar: #16161A;
-  --bg-input: #0B0B0E;
+  --bg-sidebar: #16161a;
+  --bg-input: #0b0b0e;
   --bg-overlay: rgba(0, 0, 0, 0.8);
 
   /* Text Colors */
-  --text-primary: #FAFAF9;
-  --text-secondary: #6B6B70;
-  --text-tertiary: #4A4A50;
-  --text-muted: #8E8E93;
-  --text-inverse: #0B0B0E;
+  --text-primary: #fafaf9;
+  --text-secondary: #6b6b70;
+  --text-tertiary: #4a4a50;
+  --text-muted: #8e8e93;
+  --text-inverse: #0b0b0e;
 
   /* Accent Colors */
-  --accent-indigo: #6366F1;
-  --accent-indigo-dark: #4F46E5;
-  --accent-indigo-light: #6366F133;
-  --accent-emerald: #32D583;
+  --accent-indigo: #6366f1;
+  --accent-indigo-dark: #4f46e5;
+  --accent-indigo-light: #6366f133;
+  --accent-emerald: #32d583;
   --accent-emerald-dark: #059669;
-  --accent-emerald-light: #32D58333;
-  --accent-coral: #E85A4F;
-  --accent-coral-dark: #DC2626;
-  --accent-coral-light: #E85A4F33;
-  --accent-amber: #FFB547;
-  --accent-amber-dark: #F59E0B;
-  --accent-amber-light: #FFB54733;
+  --accent-emerald-light: #32d58333;
+  --accent-coral: #e85a4f;
+  --accent-coral-dark: #dc2626;
+  --accent-coral-light: #e85a4f33;
+  --accent-amber: #ffb547;
+  --accent-amber-dark: #f59e0b;
+  --accent-amber-light: #ffb54733;
 
   /* Border Colors */
-  --border-subtle: #2A2A2E;
-  --border-strong: #3A3A40;
-  --border-accent: #6366F1;
-  --border-success: #32D583;
-  --border-warning: #FFB547;
-  --border-error: #E85A4F;
+  --border-subtle: #2a2a2e;
+  --border-strong: #3a3a40;
+  --border-accent: #6366f1;
+  --border-success: #32d583;
+  --border-warning: #ffb547;
+  --border-error: #e85a4f;
 
   /* Typography */
-  --font-display: 'Fraunces', serif;
-  --font-body: 'DM Sans', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: "Fraunces", serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 
   /* Font Sizes */
   --font-size-xs: 10px;
@@ -663,46 +663,122 @@ body {
   justify-content: space-between;
 }
 
-.gap-xs { gap: var(--spacing-xs); }
-.gap-sm { gap: var(--spacing-sm); }
-.gap-md { gap: var(--spacing-md); }
-.gap-lg { gap: var(--spacing-lg); }
-.gap-xl { gap: var(--spacing-xl); }
-.gap-2xl { gap: var(--spacing-2xl); }
-.gap-3xl { gap: var(--spacing-3xl); }
-.gap-4xl { gap: var(--spacing-4xl); }
+.gap-xs {
+  gap: var(--spacing-xs);
+}
+.gap-sm {
+  gap: var(--spacing-sm);
+}
+.gap-md {
+  gap: var(--spacing-md);
+}
+.gap-lg {
+  gap: var(--spacing-lg);
+}
+.gap-xl {
+  gap: var(--spacing-xl);
+}
+.gap-2xl {
+  gap: var(--spacing-2xl);
+}
+.gap-3xl {
+  gap: var(--spacing-3xl);
+}
+.gap-4xl {
+  gap: var(--spacing-4xl);
+}
 
-.w-full { width: 100%; }
-.h-full { height: 100%; }
-.w-fit { width: fit-content; }
-.h-fit { height: fit-content; }
+.w-full {
+  width: 100%;
+}
+.h-full {
+  height: 100%;
+}
+.w-fit {
+  width: fit-content;
+}
+.h-fit {
+  height: fit-content;
+}
 
-.rounded-xs { border-radius: var(--radius-xs); }
-.rounded-sm { border-radius: var(--radius-sm); }
-.rounded-md { border-radius: var(--radius-md); }
-.rounded-lg { border-radius: var(--radius-lg); }
-.rounded-xl { border-radius: var(--radius-xl); }
-.rounded-2xl { border-radius: var(--radius-2xl); }
-.rounded-3xl { border-radius: var(--radius-3xl); }
-.rounded-pill { border-radius: var(--radius-pill); }
-.rounded-full { border-radius: var(--radius-full); }
+.rounded-xs {
+  border-radius: var(--radius-xs);
+}
+.rounded-sm {
+  border-radius: var(--radius-sm);
+}
+.rounded-md {
+  border-radius: var(--radius-md);
+}
+.rounded-lg {
+  border-radius: var(--radius-lg);
+}
+.rounded-xl {
+  border-radius: var(--radius-xl);
+}
+.rounded-2xl {
+  border-radius: var(--radius-2xl);
+}
+.rounded-3xl {
+  border-radius: var(--radius-3xl);
+}
+.rounded-pill {
+  border-radius: var(--radius-pill);
+}
+.rounded-full {
+  border-radius: var(--radius-full);
+}
 
-.p-xs { padding: var(--spacing-xs); }
-.p-sm { padding: var(--spacing-sm); }
-.p-md { padding: var(--spacing-md); }
-.p-lg { padding: var(--spacing-lg); }
-.p-xl { padding: var(--spacing-xl); }
-.p-2xl { padding: var(--spacing-2xl); }
-.p-3xl { padding: var(--spacing-3xl); }
-.p-4xl { padding: var(--spacing-4xl); }
+.p-xs {
+  padding: var(--spacing-xs);
+}
+.p-sm {
+  padding: var(--spacing-sm);
+}
+.p-md {
+  padding: var(--spacing-md);
+}
+.p-lg {
+  padding: var(--spacing-lg);
+}
+.p-xl {
+  padding: var(--spacing-xl);
+}
+.p-2xl {
+  padding: var(--spacing-2xl);
+}
+.p-3xl {
+  padding: var(--spacing-3xl);
+}
+.p-4xl {
+  padding: var(--spacing-4xl);
+}
 
-.px-2xl { padding-left: var(--spacing-2xl); padding-right: var(--spacing-2xl); }
-.px-3xl { padding-left: var(--spacing-3xl); padding-right: var(--spacing-3xl); }
-.px-4xl { padding-left: var(--spacing-4xl); padding-right: var(--spacing-4xl); }
+.px-2xl {
+  padding-left: var(--spacing-2xl);
+  padding-right: var(--spacing-2xl);
+}
+.px-3xl {
+  padding-left: var(--spacing-3xl);
+  padding-right: var(--spacing-3xl);
+}
+.px-4xl {
+  padding-left: var(--spacing-4xl);
+  padding-right: var(--spacing-4xl);
+}
 
-.py-2xl { padding-top: var(--spacing-2xl); padding-bottom: var(--spacing-2xl); }
-.py-3xl { padding-top: var(--spacing-3xl); padding-bottom: var(--spacing-3xl); }
-.py-4xl { padding-top: var(--spacing-4xl); padding-bottom: var(--spacing-4xl); }
+.py-2xl {
+  padding-top: var(--spacing-2xl);
+  padding-bottom: var(--spacing-2xl);
+}
+.py-3xl {
+  padding-top: var(--spacing-3xl);
+  padding-bottom: var(--spacing-3xl);
+}
+.py-4xl {
+  padding-top: var(--spacing-4xl);
+  padding-bottom: var(--spacing-4xl);
+}
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -741,18 +817,33 @@ body {
 
 /* Animation Classes */
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideIn {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .animate-pulse {

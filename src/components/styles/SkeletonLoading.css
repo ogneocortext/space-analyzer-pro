@@ -1,8 +1,9 @@
 /* Skeleton Loading Styles */
 .skeleton {
-  background: linear-gradient(90deg, 
-    rgba(255, 255, 255, 0.05) 25%, 
-    rgba(255, 255, 255, 0.1) 50%, 
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.1) 50%,
     rgba(255, 255, 255, 0.05) 75%
   );
   background-size: 200% 100%;
@@ -154,7 +155,7 @@
   padding: 1rem;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.875rem;
   overflow-x: auto;
 }
@@ -355,21 +356,81 @@
   opacity: 0.6;
 }
 
-.skeleton-connection:nth-child(1) { top: 20%; left: 10%; transform: rotate(15deg); }
-.skeleton-connection:nth-child(2) { top: 30%; left: 20%; transform: rotate(-10deg); }
-.skeleton-connection:nth-child(3) { top: 40%; left: 30%; transform: rotate(25deg); }
-.skeleton-connection:nth-child(4) { top: 50%; left: 40%; transform: rotate(-5deg); }
-.skeleton-connection:nth-child(5) { top: 60%; left: 50%; transform: rotate(30deg); }
-.skeleton-connection:nth-child(6) { top: 70%; left: 60%; transform: rotate(-15deg); }
-.skeleton-connection:nth-child(7) { top: 80%; left: 70%; transform: rotate(20deg); }
-.skeleton-connection:nth-child(8) { top: 25%; left: 75%; transform: rotate(-25deg); }
-.skeleton-connection:nth-child(9) { top: 35%; left: 85%; transform: rotate(10deg); }
-.skeleton-connection:nth-child(10) { top: 45%; left: 15%; transform: rotate(35deg); }
-.skeleton-connection:nth-child(11) { top: 55%; left: 25%; transform: rotate(-20deg); }
-.skeleton-connection:nth-child(12) { top: 65%; left: 35%; transform: rotate(15deg); }
-.skeleton-connection:nth-child(13) { top: 75%; left: 45%; transform: rotate(-30deg); }
-.skeleton-connection:nth-child(14) { top: 85%; left: 55%; transform: rotate(5deg); }
-.skeleton-connection:nth-child(15) { top: 15%; left: 65%; transform: rotate(40deg); }
+.skeleton-connection:nth-child(1) {
+  top: 20%;
+  left: 10%;
+  transform: rotate(15deg);
+}
+.skeleton-connection:nth-child(2) {
+  top: 30%;
+  left: 20%;
+  transform: rotate(-10deg);
+}
+.skeleton-connection:nth-child(3) {
+  top: 40%;
+  left: 30%;
+  transform: rotate(25deg);
+}
+.skeleton-connection:nth-child(4) {
+  top: 50%;
+  left: 40%;
+  transform: rotate(-5deg);
+}
+.skeleton-connection:nth-child(5) {
+  top: 60%;
+  left: 50%;
+  transform: rotate(30deg);
+}
+.skeleton-connection:nth-child(6) {
+  top: 70%;
+  left: 60%;
+  transform: rotate(-15deg);
+}
+.skeleton-connection:nth-child(7) {
+  top: 80%;
+  left: 70%;
+  transform: rotate(20deg);
+}
+.skeleton-connection:nth-child(8) {
+  top: 25%;
+  left: 75%;
+  transform: rotate(-25deg);
+}
+.skeleton-connection:nth-child(9) {
+  top: 35%;
+  left: 85%;
+  transform: rotate(10deg);
+}
+.skeleton-connection:nth-child(10) {
+  top: 45%;
+  left: 15%;
+  transform: rotate(35deg);
+}
+.skeleton-connection:nth-child(11) {
+  top: 55%;
+  left: 25%;
+  transform: rotate(-20deg);
+}
+.skeleton-connection:nth-child(12) {
+  top: 65%;
+  left: 35%;
+  transform: rotate(15deg);
+}
+.skeleton-connection:nth-child(13) {
+  top: 75%;
+  left: 45%;
+  transform: rotate(-30deg);
+}
+.skeleton-connection:nth-child(14) {
+  top: 85%;
+  left: 55%;
+  transform: rotate(5deg);
+}
+.skeleton-connection:nth-child(15) {
+  top: 15%;
+  left: 65%;
+  transform: rotate(40deg);
+}
 
 .skeleton-metrics {
   display: grid;

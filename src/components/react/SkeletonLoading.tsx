@@ -1,10 +1,10 @@
-import React from 'react';
-import { Loader2 } from 'lucide-react';
-import './SkeletonLoading.css';
+import React from "react";
+import { Loader2 } from "lucide-react";
+import "./SkeletonLoading.css";
 
 interface SkeletonProps {
   className?: string;
-  variant?: 'text' | 'rectangular' | 'circular';
+  variant?: "text" | "rectangular" | "circular";
   width?: string | number;
   height?: string | number;
   lines?: number;
@@ -12,18 +12,18 @@ interface SkeletonProps {
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({
-  className = '',
-  variant = 'rectangular',
-  width = '100%',
-  height = '1rem',
+  className = "",
+  variant = "rectangular",
+  width = "100%",
+  height = "1rem",
   lines = 1,
-  animate = true
+  animate = true,
 }) => {
-  const baseClasses = 'skeleton';
+  const baseClasses = "skeleton";
   const variantClasses = `skeleton-${variant}`;
-  const animationClasses = animate ? 'skeleton-animate' : '';
+  const animationClasses = animate ? "skeleton-animate" : "";
 
-  if (variant === 'text') {
+  if (variant === "text") {
     return (
       <div className={`${baseClasses} ${variantClasses} ${animationClasses} ${className}`}>
         {Array.from({ length: lines }).map((_, index) => (
@@ -31,9 +31,9 @@ export const Skeleton: React.FC<SkeletonProps> = ({
             key={index}
             className="skeleton-text-line"
             style={{
-              width: typeof width === 'number' ? `${width}%` : width,
-              height: '1rem',
-              marginBottom: index < lines - 1 ? '0.5rem' : '0'
+              width: typeof width === "number" ? `${width}%` : width,
+              height: "1rem",
+              marginBottom: index < lines - 1 ? "0.5rem" : "0",
             }}
           />
         ))}
@@ -41,10 +41,10 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     );
   }
 
-  if (variant === 'circular') {
+  if (variant === "circular") {
     return (
       <div className={`${baseClasses} ${variantClasses} ${animationClasses} ${className}`}>
-        <Loader2 size={typeof height === 'number' ? height : 24} className="animate-spin" />
+        <Loader2 size={typeof height === "number" ? height : 24} className="animate-spin" />
       </div>
     );
   }
@@ -53,8 +53,8 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     <div
       className={`${baseClasses} ${variantClasses} ${animationClasses} ${className}`}
       style={{
-        width: typeof width === 'number' ? `${width}%` : width,
-        height
+        width: typeof width === "number" ? `${width}%` : width,
+        height,
       }}
     />
   );
@@ -64,16 +64,16 @@ interface LoadingStateProps {
   message?: string;
   showProgress?: boolean;
   progress?: number;
-  variant?: 'default' | 'compact' | 'overlay';
+  variant?: "default" | "compact" | "overlay";
 }
 
 export const LoadingState: React.FC<LoadingStateProps> = ({
-  message = 'Loading...',
+  message = "Loading...",
   showProgress = false,
   progress = 0,
-  variant = 'default'
+  variant = "default",
 }) => {
-  const baseClasses = 'loading-state';
+  const baseClasses = "loading-state";
   const variantClasses = `loading-state-${variant}`;
 
   return (

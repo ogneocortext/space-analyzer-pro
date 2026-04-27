@@ -1,6 +1,6 @@
 /* Responsive Design Hook for Space Analyzer */
 
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from "react";
 
 export interface Breakpoints {
   xs: number;
@@ -8,7 +8,7 @@ export interface Breakpoints {
   md: number;
   lg: number;
   xl: number;
-  '2xl': number;
+  "2xl": number;
 }
 
 export interface ScreenSize {
@@ -19,7 +19,7 @@ export interface ScreenSize {
   isTablet: boolean;
   isDesktop: boolean;
   isLargeDesktop: boolean;
-  orientation: 'portrait' | 'landscape';
+  orientation: "portrait" | "landscape";
   pixelRatio: number;
 }
 
@@ -36,7 +36,7 @@ export const DEFAULT_BREAKPOINTS: Breakpoints = {
   md: 768,
   lg: 1024,
   xl: 1280,
-  '2xl': 1536
+  "2xl": 1536,
 };
 
 export const useResponsiveDesign = (config?: Partial<ResponsiveConfig>) => {
@@ -45,25 +45,28 @@ export const useResponsiveDesign = (config?: Partial<ResponsiveConfig>) => {
     debounceMs: 250,
     enableOrientation: true,
     enablePixelRatio: true,
-    ...config
+    ...config,
   };
 
   const timeoutRef = useRef<number | undefined>(undefined);
 
-  const getBreakpoint = useCallback((width: number, breakpoints: Breakpoints): keyof Breakpoints => {
-    if (width < breakpoints.sm) return 'xs';
-    if (width < breakpoints.md) return 'sm';
-    if (width < breakpoints.lg) return 'md';
-    if (width < breakpoints.xl) return 'lg';
-    if (width < breakpoints['2xl']) return 'xl';
-    return '2xl';
-  }, []);
+  const getBreakpoint = useCallback(
+    (width: number, breakpoints: Breakpoints): keyof Breakpoints => {
+      if (width < breakpoints.sm) return "xs";
+      if (width < breakpoints.md) return "sm";
+      if (width < breakpoints.lg) return "md";
+      if (width < breakpoints.xl) return "lg";
+      if (width < breakpoints["2xl"]) return "xl";
+      return "2xl";
+    },
+    []
+  );
 
   const [screenSize, setScreenSize] = useState<ScreenSize>(() => {
     const width = window.innerWidth;
     const height = window.innerHeight;
     const breakpoint = getBreakpoint(width, finalConfig.breakpoints);
-    
+
     return {
       width,
       height,
@@ -71,9 +74,9 @@ export const useResponsiveDesign = (config?: Partial<ResponsiveConfig>) => {
       isMobile: width < finalConfig.breakpoints.md,
       isTablet: width >= finalConfig.breakpoints.md && width < finalConfig.breakpoints.lg,
       isDesktop: width >= finalConfig.breakpoints.lg,
-      isLargeDesktop: width >= finalConfig.breakpoints['2xl'],
-      orientation: width > height ? 'landscape' : 'portrait',
-      pixelRatio: window.devicePixelRatio || 1
+      isLargeDesktop: width >= finalConfig.breakpoints["2xl"],
+      orientation: width > height ? "landscape" : "portrait",
+      pixelRatio: window.devicePixelRatio || 1,
     };
   });
 
@@ -89,93 +92,114 @@ export const useResponsiveDesign = (config?: Partial<ResponsiveConfig>) => {
       isMobile: width < finalConfig.breakpoints.md,
       isTablet: width >= finalConfig.breakpoints.md && width < finalConfig.breakpoints.lg,
       isDesktop: width >= finalConfig.breakpoints.lg,
-      isLargeDesktop: width >= finalConfig.breakpoints['2xl'],
-      orientation: finalConfig.enableOrientation ? (width > height ? 'landscape' : 'portrait') : 'landscape',
-      pixelRatio: finalConfig.enablePixelRatio ? window.devicePixelRatio || 1 : 1
+      isLargeDesktop: width >= finalConfig.breakpoints["2xl"],
+      orientation: finalConfig.enableOrientation
+        ? width > height
+          ? "landscape"
+          : "portrait"
+        : "landscape",
+      pixelRatio: finalConfig.enablePixelRatio ? window.devicePixelRatio || 1 : 1,
     });
-  }, [getBreakpoint, finalConfig.breakpoints, finalConfig.enableOrientation, finalConfig.enablePixelRatio]);
+  }, [
+    getBreakpoint,
+    finalConfig.breakpoints,
+    finalConfig.enableOrientation,
+    finalConfig.enablePixelRatio,
+  ]);
 
   const debounceUpdate = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-    
+
     timeoutRef.current = window.setTimeout(updateScreenSize, finalConfig.debounceMs);
   }, [updateScreenSize, finalConfig.debounceMs]);
 
   // Canvas responsive sizing
-  const getCanvasSize = useCallback((containerWidth: number, containerHeight: number) => {
-    const { isMobile, isTablet, isDesktop } = screenSize;
-    
-    let width = containerWidth;
-    let height = containerHeight;
+  const getCanvasSize = useCallback(
+    (containerWidth: number, containerHeight: number) => {
+      const { isMobile, isTablet, isDesktop } = screenSize;
 
-    // Adjust canvas size based on screen size
-    if (isMobile) {
-      // Mobile: prioritize height for better touch interaction
-      height = Math.min(containerHeight, 400);
-      width = containerWidth;
-    } else if (isTablet) {
-      // Tablet: balanced approach
-      height = Math.min(containerHeight, 500);
-      width = containerWidth;
-    } else if (isDesktop) {
-      // Desktop: larger canvas for detailed visualization
-      height = Math.min(containerHeight, 600);
-      width = containerWidth;
-    }
+      let width = containerWidth;
+      let height = containerHeight;
 
-    return { width, height };
-  }, [screenSize]);
+      // Adjust canvas size based on screen size
+      if (isMobile) {
+        // Mobile: prioritize height for better touch interaction
+        height = Math.min(containerHeight, 400);
+        width = containerWidth;
+      } else if (isTablet) {
+        // Tablet: balanced approach
+        height = Math.min(containerHeight, 500);
+        width = containerWidth;
+      } else if (isDesktop) {
+        // Desktop: larger canvas for detailed visualization
+        height = Math.min(containerHeight, 600);
+        width = containerWidth;
+      }
+
+      return { width, height };
+    },
+    [screenSize]
+  );
 
   // Font size scaling
-  const getResponsiveFontSize = useCallback((baseSize: number) => {
-    const { isMobile, isTablet, isDesktop } = screenSize;
-    
-    if (isMobile) {
-      return baseSize * 0.9; // Slightly smaller on mobile
-    } else if (isTablet) {
-      return baseSize * 0.95; // Slightly smaller on tablet
-    } else {
-      return baseSize; // Full size on desktop
-    }
-  }, [screenSize]);
+  const getResponsiveFontSize = useCallback(
+    (baseSize: number) => {
+      const { isMobile, isTablet, isDesktop } = screenSize;
+
+      if (isMobile) {
+        return baseSize * 0.9; // Slightly smaller on mobile
+      } else if (isTablet) {
+        return baseSize * 0.95; // Slightly smaller on tablet
+      } else {
+        return baseSize; // Full size on desktop
+      }
+    },
+    [screenSize]
+  );
 
   // Spacing scaling
-  const getResponsiveSpacing = useCallback((baseSpacing: number) => {
-    const { isMobile, isTablet, isDesktop } = screenSize;
-    
-    if (isMobile) {
-      return baseSpacing * 0.8; // Compact spacing on mobile
-    } else if (isTablet) {
-      return baseSpacing * 0.9; // Slightly compact on tablet
-    } else {
-      return baseSpacing; // Full spacing on desktop
-    }
-  }, [screenSize]);
+  const getResponsiveSpacing = useCallback(
+    (baseSpacing: number) => {
+      const { isMobile, isTablet, isDesktop } = screenSize;
+
+      if (isMobile) {
+        return baseSpacing * 0.8; // Compact spacing on mobile
+      } else if (isTablet) {
+        return baseSpacing * 0.9; // Slightly compact on tablet
+      } else {
+        return baseSpacing; // Full spacing on desktop
+      }
+    },
+    [screenSize]
+  );
 
   // Component visibility based on screen size
-  const shouldShowComponent = useCallback((component: 'sidebar' | 'header' | 'footer' | 'toolbar') => {
-    const { isMobile, isTablet, isDesktop } = screenSize;
-    
-    switch (component) {
-      case 'sidebar':
-        return isDesktop || isTablet; // Hide sidebar on mobile
-      case 'header':
-        return true; // Always show header
-      case 'footer':
-        return isDesktop; // Hide footer on mobile and tablet
-      case 'toolbar':
-        return isDesktop; // Hide toolbar on mobile
-      default:
-        return true;
-    }
-  }, [screenSize]);
+  const shouldShowComponent = useCallback(
+    (component: "sidebar" | "header" | "footer" | "toolbar") => {
+      const { isMobile, isTablet, isDesktop } = screenSize;
+
+      switch (component) {
+        case "sidebar":
+          return isDesktop || isTablet; // Hide sidebar on mobile
+        case "header":
+          return true; // Always show header
+        case "footer":
+          return isDesktop; // Hide footer on mobile and tablet
+        case "toolbar":
+          return isDesktop; // Hide toolbar on mobile
+        default:
+          return true;
+      }
+    },
+    [screenSize]
+  );
 
   // Touch target sizing
   const getTouchTargetSize = useCallback(() => {
     const { isMobile, isTablet } = screenSize;
-    
+
     if (isMobile) {
       return 44; // Minimum touch target size for mobile
     } else if (isTablet) {
@@ -186,22 +210,25 @@ export const useResponsiveDesign = (config?: Partial<ResponsiveConfig>) => {
   }, [screenSize]);
 
   // Animation duration scaling
-  const getResponsiveAnimationDuration = useCallback((baseDuration: number) => {
-    const { isMobile, isTablet } = screenSize;
-    
-    if (isMobile) {
-      return baseDuration * 0.8; // Faster animations on mobile
-    } else if (isTablet) {
-      return baseDuration * 0.9; // Slightly faster on tablet
-    } else {
-      return baseDuration; // Standard duration on desktop
-    }
-  }, [screenSize]);
+  const getResponsiveAnimationDuration = useCallback(
+    (baseDuration: number) => {
+      const { isMobile, isTablet } = screenSize;
+
+      if (isMobile) {
+        return baseDuration * 0.8; // Faster animations on mobile
+      } else if (isTablet) {
+        return baseDuration * 0.9; // Slightly faster on tablet
+      } else {
+        return baseDuration; // Standard duration on desktop
+      }
+    },
+    [screenSize]
+  );
 
   // Image quality scaling
   const getResponsiveImageQuality = useCallback(() => {
     const { isMobile, isTablet, isDesktop, pixelRatio } = screenSize;
-    
+
     if (isMobile) {
       return Math.min(0.7, 1 / pixelRatio); // Lower quality on mobile
     } else if (isTablet) {
@@ -212,38 +239,44 @@ export const useResponsiveDesign = (config?: Partial<ResponsiveConfig>) => {
   }, [screenSize]);
 
   // Grid columns calculation
-  const getGridColumns = useCallback((baseColumns: number) => {
-    const { isMobile, isTablet, isDesktop } = screenSize;
-    
-    if (isMobile) {
-      return Math.min(1, baseColumns); // Single column on mobile
-    } else if (isTablet) {
-      return Math.min(2, baseColumns); // Up to 2 columns on tablet
-    } else {
-      return baseColumns; // Full columns on desktop
-    }
-  }, [screenSize]);
+  const getGridColumns = useCallback(
+    (baseColumns: number) => {
+      const { isMobile, isTablet, isDesktop } = screenSize;
+
+      if (isMobile) {
+        return Math.min(1, baseColumns); // Single column on mobile
+      } else if (isTablet) {
+        return Math.min(2, baseColumns); // Up to 2 columns on tablet
+      } else {
+        return baseColumns; // Full columns on desktop
+      }
+    },
+    [screenSize]
+  );
 
   // Chart dimensions
-  const getChartDimensions = useCallback((containerWidth: number, containerHeight: number) => {
-    const { isMobile, isTablet, isDesktop } = screenSize;
-    
-    let width = containerWidth;
-    let height = containerHeight;
+  const getChartDimensions = useCallback(
+    (containerWidth: number, containerHeight: number) => {
+      const { isMobile, isTablet, isDesktop } = screenSize;
 
-    if (isMobile) {
-      height = Math.min(containerHeight, 300);
-      width = containerWidth;
-    } else if (isTablet) {
-      height = Math.min(containerHeight, 400);
-      width = containerWidth;
-    } else {
-      height = Math.min(containerHeight, 500);
-      width = containerWidth;
-    }
+      let width = containerWidth;
+      let height = containerHeight;
 
-    return { width, height };
-  }, [screenSize]);
+      if (isMobile) {
+        height = Math.min(containerHeight, 300);
+        width = containerWidth;
+      } else if (isTablet) {
+        height = Math.min(containerHeight, 400);
+        width = containerWidth;
+      } else {
+        height = Math.min(containerHeight, 500);
+        width = containerWidth;
+      }
+
+      return { width, height };
+    },
+    [screenSize]
+  );
 
   // Initialize and cleanup
   useEffect(() => {
@@ -253,12 +286,12 @@ export const useResponsiveDesign = (config?: Partial<ResponsiveConfig>) => {
       debounceUpdate();
     };
 
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
@@ -276,7 +309,7 @@ export const useResponsiveDesign = (config?: Partial<ResponsiveConfig>) => {
     getResponsiveImageQuality,
     getGridColumns,
     getChartDimensions,
-    config: finalConfig
+    config: finalConfig,
   };
 };
 
@@ -286,7 +319,7 @@ export const useViewportUnits = () => {
     vw: 0,
     vh: 0,
     vmin: 0,
-    vmax: 0
+    vmax: 0,
   });
 
   const updateViewport = useCallback(() => {
@@ -305,12 +338,12 @@ export const useViewportUnits = () => {
       updateViewport();
     };
 
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleResize);
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
     };
   }, [updateViewport]);
 
@@ -321,22 +354,25 @@ export const useViewportUnits = () => {
 export const useResponsiveStyles = () => {
   const { screenSize } = useResponsiveDesign();
 
-  const getResponsiveStyle = useCallback((styles: Record<string, any>) => {
-    const { isMobile, isTablet, isDesktop } = screenSize;
-    
-    const baseStyle = styles.base || {};
-    const mobileStyle = styles.mobile || {};
-    const tabletStyle = styles.tablet || {};
-    const desktopStyle = styles.desktop || {};
+  const getResponsiveStyle = useCallback(
+    (styles: Record<string, any>) => {
+      const { isMobile, isTablet, isDesktop } = screenSize;
 
-    if (isMobile) {
-      return { ...baseStyle, ...mobileStyle };
-    } else if (isTablet) {
-      return { ...baseStyle, ...tabletStyle };
-    } else {
-      return { ...baseStyle, ...desktopStyle };
-    }
-  }, [screenSize]);
+      const baseStyle = styles.base || {};
+      const mobileStyle = styles.mobile || {};
+      const tabletStyle = styles.tablet || {};
+      const desktopStyle = styles.desktop || {};
+
+      if (isMobile) {
+        return { ...baseStyle, ...mobileStyle };
+      } else if (isTablet) {
+        return { ...baseStyle, ...tabletStyle };
+      } else {
+        return { ...baseStyle, ...desktopStyle };
+      }
+    },
+    [screenSize]
+  );
 
   return { getResponsiveStyle };
 };
@@ -345,39 +381,45 @@ export const useResponsiveStyles = () => {
 export const useResponsiveTypography = () => {
   const { screenSize } = useResponsiveDesign();
 
-  const getFontSize = useCallback((size: 'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl') => {
-    const baseSizes = {
-      xs: 12,
-      sm: 14,
-      base: 16,
-      lg: 18,
-      xl: 20,
-      '2xl': 24,
-      '3xl': 30,
-      '4xl': 36
-    };
+  const getFontSize = useCallback(
+    (size: "xs" | "sm" | "base" | "lg" | "xl" | "2xl" | "3xl" | "4xl") => {
+      const baseSizes = {
+        xs: 12,
+        sm: 14,
+        base: 16,
+        lg: 18,
+        xl: 20,
+        "2xl": 24,
+        "3xl": 30,
+        "4xl": 36,
+      };
 
-    const baseSize = baseSizes[size];
-    const { isMobile, isTablet } = screenSize;
+      const baseSize = baseSizes[size];
+      const { isMobile, isTablet } = screenSize;
 
-    if (isMobile) {
-      return baseSize * 0.9;
-    } else if (isTablet) {
-      return baseSize * 0.95;
-    } else {
-      return baseSize;
-    }
-  }, [screenSize]);
+      if (isMobile) {
+        return baseSize * 0.9;
+      } else if (isTablet) {
+        return baseSize * 0.95;
+      } else {
+        return baseSize;
+      }
+    },
+    [screenSize]
+  );
 
-  const getLineHeight = useCallback((fontSize: number) => {
-    const { isMobile } = screenSize;
-    
-    if (isMobile) {
-      return fontSize * 1.6; // More line height on mobile for readability
-    } else {
-      return fontSize * 1.4;
-    }
-  }, [screenSize]);
+  const getLineHeight = useCallback(
+    (fontSize: number) => {
+      const { isMobile } = screenSize;
+
+      if (isMobile) {
+        return fontSize * 1.6; // More line height on mobile for readability
+      } else {
+        return fontSize * 1.4;
+      }
+    },
+    [screenSize]
+  );
 
   return { getFontSize, getLineHeight };
 };

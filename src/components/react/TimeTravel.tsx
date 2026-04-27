@@ -1,7 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, ArrowRightLeft, TrendingUp, TrendingDown, FilePlus, FileMinus, FolderPlus, FolderMinus, Calendar, HardDrive, FileText } from 'lucide-react';
-import { useIndexedDB } from '../hooks/useIndexedDB';
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Clock,
+  ArrowRightLeft,
+  TrendingUp,
+  TrendingDown,
+  FilePlus,
+  FileMinus,
+  FolderPlus,
+  FolderMinus,
+  Calendar,
+  HardDrive,
+  FileText,
+} from "lucide-react";
+import { useIndexedDB } from "../hooks/useIndexedDB";
 
 interface ComparisonResult {
   timeDifference: number;
@@ -22,7 +34,7 @@ interface SnapshotInfo {
 }
 
 interface FileChange {
-  type: 'added' | 'removed' | 'modified' | 'moved';
+  type: "added" | "removed" | "modified" | "moved";
   path: string;
   size?: number;
   sizeDifference?: number;
@@ -35,10 +47,10 @@ interface TimeTravelProps {
   className?: string;
 }
 
-const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) => {
+const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = "" }) => {
   const { snapshots, compareSnapshots, isLoading, error } = useIndexedDB();
-  const [selectedSnapshot1, setSelectedSnapshot1] = useState<string>('');
-  const [selectedSnapshot2, setSelectedSnapshot2] = useState<string>('');
+  const [selectedSnapshot1, setSelectedSnapshot1] = useState<string>("");
+  const [selectedSnapshot2, setSelectedSnapshot2] = useState<string>("");
   const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null);
   const [isComparing, setIsComparing] = useState(false);
 
@@ -52,21 +64,21 @@ const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) =>
 
     try {
       const result = await compareSnapshots(selectedSnapshot1, selectedSnapshot2);
-      
+
       if (result) {
         // Generate mock file changes for demonstration
         const mockChanges: FileChange[] = generateMockChanges(result);
-        
+
         const enhancedResult: ComparisonResult = {
           ...result,
-          changes: mockChanges
+          changes: mockChanges,
         };
 
         setComparisonResult(enhancedResult);
         onCompare?.(enhancedResult);
       }
     } catch (err) {
-      console.error('Comparison failed:', err);
+      console.error("Comparison failed:", err);
     } finally {
       setIsComparing(false);
     }
@@ -81,22 +93,22 @@ const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) =>
       // Added files
       for (let i = 0; i < Math.min(result.filesDifference, 5); i++) {
         changes.push({
-          type: 'added',
+          type: "added",
           path: `/new/file_${i}.txt`,
           size: Math.floor(Math.random() * 1000000) + 1000,
           timestamp: now - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000),
-          fileType: 'txt'
+          fileType: "txt",
         });
       }
     } else if (result.filesDifference < 0) {
       // Removed files
       for (let i = 0; i < Math.min(Math.abs(result.filesDifference), 5); i++) {
         changes.push({
-          type: 'removed',
+          type: "removed",
           path: `/old/file_${i}.txt`,
           size: Math.floor(Math.random() * 1000000) + 1000,
           timestamp: now - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000),
-          fileType: 'txt'
+          fileType: "txt",
         });
       }
     }
@@ -104,11 +116,11 @@ const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) =>
     // Add some modified files
     for (let i = 0; i < 3; i++) {
       changes.push({
-        type: 'modified',
+        type: "modified",
         path: `/modified/file_${i}.js`,
         sizeDifference: Math.floor(Math.random() * 10000) - 5000,
         timestamp: now - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000),
-        fileType: 'js'
+        fileType: "js",
       });
     }
 
@@ -116,9 +128,9 @@ const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) =>
   };
 
   const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(Math.abs(bytes)) / Math.log(k));
     return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
   };
@@ -133,29 +145,39 @@ const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) =>
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (days > 0) return `${days} day${days > 1 ? 's' : ''}`;
-    if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''}`;
-    if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''}`;
-    return `${seconds} second${seconds > 1 ? 's' : ''}`;
+    if (days > 0) return `${days} day${days > 1 ? "s" : ""}`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""}`;
+    if (minutes > 0) return `${minutes} minute${minutes > 1 ? "s" : ""}`;
+    return `${seconds} second${seconds > 1 ? "s" : ""}`;
   };
 
-  const getChangeIcon = (type: FileChange['type']) => {
+  const getChangeIcon = (type: FileChange["type"]) => {
     switch (type) {
-      case 'added': return <FilePlus className="w-4 h-4 text-green-400" />;
-      case 'removed': return <FileMinus className="w-4 h-4 text-red-400" />;
-      case 'modified': return <FileText className="w-4 h-4 text-yellow-400" />;
-      case 'moved': return <ArrowRightLeft className="w-4 h-4 text-blue-400" />;
-      default: return <FileText className="w-4 h-4 text-gray-400" />;
+      case "added":
+        return <FilePlus className="w-4 h-4 text-green-400" />;
+      case "removed":
+        return <FileMinus className="w-4 h-4 text-red-400" />;
+      case "modified":
+        return <FileText className="w-4 h-4 text-yellow-400" />;
+      case "moved":
+        return <ArrowRightLeft className="w-4 h-4 text-blue-400" />;
+      default:
+        return <FileText className="w-4 h-4 text-gray-400" />;
     }
   };
 
-  const getChangeColor = (type: FileChange['type']) => {
+  const getChangeColor = (type: FileChange["type"]) => {
     switch (type) {
-      case 'added': return 'text-green-400 bg-green-400/10 border-green-400/30';
-      case 'removed': return 'text-red-400 bg-red-400/10 border-red-400/30';
-      case 'modified': return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/30';
-      case 'moved': return 'text-blue-400 bg-blue-400/10 border-blue-400/30';
-      default: return 'text-gray-400 bg-gray-400/10 border-gray-400/30';
+      case "added":
+        return "text-green-400 bg-green-400/10 border-green-400/30";
+      case "removed":
+        return "text-red-400 bg-red-400/10 border-red-400/30";
+      case "modified":
+        return "text-yellow-400 bg-yellow-400/10 border-yellow-400/30";
+      case "moved":
+        return "text-blue-400 bg-blue-400/10 border-blue-400/30";
+      default:
+        return "text-gray-400 bg-gray-400/10 border-gray-400/30";
     }
   };
 
@@ -210,11 +232,16 @@ const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) =>
         <div className="flex justify-center">
           <button
             onClick={handleCompare}
-            disabled={!selectedSnapshot1 || !selectedSnapshot2 || selectedSnapshot1 === selectedSnapshot2 || isComparing}
+            disabled={
+              !selectedSnapshot1 ||
+              !selectedSnapshot2 ||
+              selectedSnapshot1 === selectedSnapshot2 ||
+              isComparing
+            }
             className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
           >
             <ArrowRightLeft className="w-4 h-4" />
-            <span>{isComparing ? 'Comparing...' : 'Compare Snapshots'}</span>
+            <span>{isComparing ? "Comparing..." : "Compare Snapshots"}</span>
           </button>
         </div>
 
@@ -266,10 +293,13 @@ const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) =>
                     <TrendingDown className="w-4 h-4 text-red-400" />
                   )}
                 </div>
-                <div className={`font-semibold ${
-                  comparisonResult.sizeDifference > 0 ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {comparisonResult.sizeDifference > 0 ? '+' : ''}{formatBytes(comparisonResult.sizeDifference)}
+                <div
+                  className={`font-semibold ${
+                    comparisonResult.sizeDifference > 0 ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  {comparisonResult.sizeDifference > 0 ? "+" : ""}
+                  {formatBytes(comparisonResult.sizeDifference)}
                 </div>
                 <div className="text-gray-400 text-xs">
                   {comparisonResult.percentageChange.toFixed(1)}% change
@@ -286,10 +316,13 @@ const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) =>
                   <span className="text-gray-400 text-sm">Files Change</span>
                   <FileText className="w-4 h-4 text-blue-400" />
                 </div>
-                <div className={`font-semibold ${
-                  comparisonResult.filesDifference > 0 ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {comparisonResult.filesDifference > 0 ? '+' : ''}{comparisonResult.filesDifference}
+                <div
+                  className={`font-semibold ${
+                    comparisonResult.filesDifference > 0 ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  {comparisonResult.filesDifference > 0 ? "+" : ""}
+                  {comparisonResult.filesDifference}
                 </div>
               </motion.div>
 
@@ -303,10 +336,13 @@ const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) =>
                   <span className="text-gray-400 text-sm">Directories</span>
                   <HardDrive className="w-4 h-4 text-blue-400" />
                 </div>
-                <div className={`font-semibold ${
-                  comparisonResult.directoriesDifference > 0 ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {comparisonResult.directoriesDifference > 0 ? '+' : ''}{comparisonResult.directoriesDifference}
+                <div
+                  className={`font-semibold ${
+                    comparisonResult.directoriesDifference > 0 ? "text-green-400" : "text-red-400"
+                  }`}
+                >
+                  {comparisonResult.directoriesDifference > 0 ? "+" : ""}
+                  {comparisonResult.directoriesDifference}
                 </div>
               </motion.div>
             </div>
@@ -314,7 +350,7 @@ const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) =>
             {/* File Changes */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
               <h3 className="text-lg font-semibold text-white mb-4">File Changes</h3>
-              
+
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {comparisonResult.changes.map((change, index) => (
                   <motion.div
@@ -334,16 +370,19 @@ const TimeTravel: React.FC<TimeTravelProps> = ({ onCompare, className = '' }) =>
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="text-right">
                       {change.size && (
                         <div className="text-white font-medium">{formatBytes(change.size)}</div>
                       )}
                       {change.sizeDifference && (
-                        <div className={`text-sm ${
-                          change.sizeDifference > 0 ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                          {change.sizeDifference > 0 ? '+' : ''}{formatBytes(change.sizeDifference)}
+                        <div
+                          className={`text-sm ${
+                            change.sizeDifference > 0 ? "text-green-400" : "text-red-400"
+                          }`}
+                        >
+                          {change.sizeDifference > 0 ? "+" : ""}
+                          {formatBytes(change.sizeDifference)}
                         </div>
                       )}
                     </div>

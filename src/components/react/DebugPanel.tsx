@@ -1,6 +1,6 @@
-import React, { useState, useEffect, type FC } from 'react';
-import { Bug, Play, Pause, RotateCcw, Trash2, Download, Eye } from 'lucide-react';
-import { performanceMonitor } from '../services/PerformanceMonitor';
+import React, { useState, useEffect, type FC } from "react";
+import { Bug, Play, Pause, RotateCcw, Trash2, Download, Eye } from "lucide-react";
+import { performanceMonitor } from "../services/PerformanceMonitor";
 
 interface DebugPanelProps {
   visible?: boolean;
@@ -23,18 +23,18 @@ const DebugPanel: FC<DebugPanelProps> = ({ visible = false }) => {
 
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setLogs(prev => [`[${timestamp}] ${message}`, ...prev].slice(0, 100));
+    setLogs((prev) => [`[${timestamp}] ${message}`, ...prev].slice(0, 100));
   };
 
   const handleClearLogs = () => {
     setLogs([]);
-    addLog('Logs cleared');
+    addLog("Logs cleared");
   };
 
   const handleClearMetrics = () => {
     performanceMonitor.clearMetrics();
     setMetrics({});
-    addLog('Performance metrics cleared');
+    addLog("Performance metrics cleared");
   };
 
   const handleExportLogs = () => {
@@ -43,29 +43,29 @@ const DebugPanel: FC<DebugPanelProps> = ({ visible = false }) => {
       metrics: performanceMonitor.getAllMetrics(),
       logs: logs,
       userAgent: navigator.userAgent,
-      url: window.location.href
+      url: window.location.href,
     };
-    
-    const blob = new Blob([JSON.stringify(logData, null, 2)], { type: 'application/json' });
+
+    const blob = new Blob([JSON.stringify(logData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = `space-analyzer-debug-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    
-    addLog('Debug data exported');
+
+    addLog("Debug data exported");
   };
 
   const handleViewLocalStorage = () => {
     try {
-      const performanceMetrics = localStorage.getItem('performance-metrics');
+      const performanceMetrics = localStorage.getItem("performance-metrics");
       if (performanceMetrics) {
         const data = JSON.parse(performanceMetrics);
         addLog(`Found ${data.length} stored performance metrics`);
         console.table(data);
       } else {
-        addLog('No stored performance metrics found');
+        addLog("No stored performance metrics found");
       }
     } catch (error) {
       addLog(`Error reading localStorage: ${error}`);
@@ -83,7 +83,7 @@ const DebugPanel: FC<DebugPanelProps> = ({ visible = false }) => {
       >
         <Bug size={16} />
         <span className="text-sm font-medium">Debug Panel</span>
-        <span className={`transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+        <span className={`transform transition-transform ${isExpanded ? "rotate-180" : ""}`}>
           ▼
         </span>
       </button>
@@ -96,15 +96,13 @@ const DebugPanel: FC<DebugPanelProps> = ({ visible = false }) => {
             <button
               onClick={() => setIsMonitoring(!isMonitoring)}
               className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                isMonitoring 
-                  ? 'bg-red-600 hover:bg-red-700' 
-                  : 'bg-green-600 hover:bg-green-700'
+                isMonitoring ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
               } text-white transition-colors`}
             >
               {isMonitoring ? <Pause size={12} /> : <Play size={12} />}
-              {isMonitoring ? 'Pause' : 'Monitor'}
+              {isMonitoring ? "Pause" : "Monitor"}
             </button>
-            
+
             <button
               onClick={handleViewLocalStorage}
               className="flex items-center gap-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs transition-colors"
@@ -112,7 +110,7 @@ const DebugPanel: FC<DebugPanelProps> = ({ visible = false }) => {
               <Eye size={12} />
               Storage
             </button>
-            
+
             <button
               onClick={handleClearMetrics}
               className="flex items-center gap-1 px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs transition-colors"
@@ -120,7 +118,7 @@ const DebugPanel: FC<DebugPanelProps> = ({ visible = false }) => {
               <RotateCcw size={12} />
               Clear Metrics
             </button>
-            
+
             <button
               onClick={handleClearLogs}
               className="flex items-center gap-1 px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs transition-colors"
@@ -128,7 +126,7 @@ const DebugPanel: FC<DebugPanelProps> = ({ visible = false }) => {
               <Trash2 size={12} />
               Clear Logs
             </button>
-            
+
             <button
               onClick={handleExportLogs}
               className="flex items-center gap-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs transition-colors"
@@ -176,8 +174,10 @@ const DebugPanel: FC<DebugPanelProps> = ({ visible = false }) => {
             <h4 className="text-sm font-semibold text-gray-300 mb-2">System Info</h4>
             <div className="bg-gray-800 rounded p-2 text-xs text-gray-400">
               <div>URL: {window.location.href}</div>
-              <div>User Agent: {navigator.userAgent.split(' ').slice(-2).join(' ')}</div>
-              <div>Viewport: {window.innerWidth}x{window.innerHeight}</div>
+              <div>User Agent: {navigator.userAgent.split(" ").slice(-2).join(" ")}</div>
+              <div>
+                Viewport: {window.innerWidth}x{window.innerHeight}
+              </div>
             </div>
           </div>
         </div>
@@ -194,21 +194,21 @@ export const useDebugPanel = () => {
 
   useEffect(() => {
     // Show debug panel in development or with debug flag
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    const debugFlag = localStorage.getItem('debug-mode') === 'true';
-    
+    const isDevelopment = process.env.NODE_ENV === "development";
+    const debugFlag = localStorage.getItem("debug-mode") === "true";
+
     setShowDebug(isDevelopment || debugFlag);
 
     // Add keyboard shortcut to toggle debug panel (Ctrl+Shift+D)
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-        localStorage.setItem('debug-mode', (!debugFlag).toString());
+      if (e.ctrlKey && e.shiftKey && e.key === "D") {
+        localStorage.setItem("debug-mode", (!debugFlag).toString());
         setShowDebug(!debugFlag);
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
   }, []);
 
   return showDebug;

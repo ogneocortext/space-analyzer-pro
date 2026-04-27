@@ -1,4 +1,4 @@
-import { designTokens } from '../tokens';
+import { designTokens } from "../tokens";
 
 export const buttonStyles = {
   base: `
@@ -63,7 +63,7 @@ export const buttonStyles = {
       &:hover {
         background-color: #dc2626;
       }
-    `
+    `,
   },
 
   sizes: {
@@ -78,7 +78,7 @@ export const buttonStyles = {
     lg: `
       padding: ${designTokens.spacing.md} ${designTokens.spacing.lg};
       font-size: ${designTokens.typography.fontSize.base};
-    `
+    `,
   },
 
   states: {
@@ -104,14 +104,14 @@ export const buttonStyles = {
         border-radius: 50%;
         animation: spin 1s linear infinite;
       }
-    `
-  }
+    `,
+  },
 };
 
 // Utility functions for composing styles
 export const getButtonStyles = (
-  variant: keyof typeof buttonStyles.variants = 'primary',
-  size: keyof typeof buttonStyles.sizes = 'md',
+  variant: keyof typeof buttonStyles.variants = "primary",
+  size: keyof typeof buttonStyles.sizes = "md",
   disabled = false,
   loading = false
 ) => {

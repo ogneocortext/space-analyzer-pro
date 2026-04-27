@@ -34,19 +34,12 @@
         />
       </svg>
       <div class="gauge-content">
-        <HardDrive
-          class="gauge-icon"
-          :size="24"
-        />
-        <div class="gauge-percentage">
-          {{ Math.round(percentage) }}%
-        </div>
-        <div class="gauge-label">
-          Used
-        </div>
+        <HardDrive class="gauge-icon" :size="24" />
+        <div class="gauge-percentage">{{ Math.round(percentage) }}%</div>
+        <div class="gauge-label">Used</div>
       </div>
     </div>
-    
+
     <div class="gauge-details">
       <div class="gauge-metric">
         <span class="metric-label">Used</span>
@@ -62,19 +55,9 @@
       </div>
     </div>
 
-    <div
-      v-if="categories.length > 0"
-      class="category-breakdown"
-    >
-      <div
-        v-for="category in categories"
-        :key="category.name"
-        class="category-item"
-      >
-        <div
-          class="category-color"
-          :style="{ backgroundColor: category.color }"
-        />
+    <div v-if="categories.length > 0" class="category-breakdown">
+      <div v-for="category in categories" :key="category.name" class="category-item">
+        <div class="category-color" :style="{ backgroundColor: category.color }" />
         <span class="category-name">{{ category.name }}</span>
         <span class="category-size">{{ formatBytes(category.size) }}</span>
       </div>
@@ -83,46 +66,46 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { HardDrive } from 'lucide-vue-next'
+import { computed } from "vue";
+import { HardDrive } from "lucide-vue-next";
 
 interface Props {
-  used: number
-  total: number
-  categories?: { name: string; size: number; color: string }[]
+  used: number;
+  total: number;
+  categories?: { name: string; size: number; color: string }[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  categories: () => []
-})
+  categories: () => [],
+});
 
 const percentage = computed(() => {
-  return props.total > 0 ? (props.used / props.total) * 100 : 0
-})
+  return props.total > 0 ? (props.used / props.total) * 100 : 0;
+});
 
 const remaining = computed(() => {
-  return props.total - props.used
-})
+  return props.total - props.used;
+});
 
 const gaugeColor = computed(() => {
-  if (percentage.value < 50) return '#10b981' // emerald
-  if (percentage.value < 75) return '#f59e0b' // amber
-  if (percentage.value < 90) return '#f97316' // orange
-  return '#ef4444' // red
-})
+  if (percentage.value < 50) return "#10b981"; // emerald
+  if (percentage.value < 75) return "#f59e0b"; // amber
+  if (percentage.value < 90) return "#f97316"; // orange
+  return "#ef4444"; // red
+});
 
-const circumference = 2 * Math.PI * 45 // radius = 45
+const circumference = 2 * Math.PI * 45; // radius = 45
 const offset = computed(() => {
-  return circumference - (percentage.value / 100) * circumference
-})
+  return circumference - (percentage.value / 100) * circumference;
+});
 
 const formatBytes = (bytes: number) => {
-  if (bytes === 0 || !bytes || isNaN(bytes) || bytes < 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
-}
+  if (bytes === 0 || !bytes || isNaN(bytes) || bytes < 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+};
 </script>
 
 <style scoped>

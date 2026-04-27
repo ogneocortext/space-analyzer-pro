@@ -1,12 +1,15 @@
 // Web Worker for heavy computations in Space Analyzer
 // Handles file analysis, neural physics calculations, and data processing
 
-import * as Comlink from 'comlink';
+import * as Comlink from "comlink";
 
 export interface WorkerAPI {
   analyzeFileTree: (files: FileNode[], options: AnalysisOptions) => Promise<AnalysisResult>;
   calculateNeuralPhysics: (nodes: NeuralNode[], deltaTime: number) => Promise<NeuralNode[]>;
-  processLargeDataset: (data: Array<Record<string, unknown>>, operation: string) => Promise<Record<string, unknown>>;
+  processLargeDataset: (
+    data: Array<Record<string, unknown>>,
+    operation: string
+  ) => Promise<Record<string, unknown>>;
   generateFileInsights: (files: FileNode[]) => Promise<FileInsights>;
   calculateDuplicates: (files: FileNode[]) => Promise<DuplicateGroup[]>;
   compressAnalysis: (data: Record<string, unknown>) => Promise<CompressedData>;
@@ -17,7 +20,7 @@ export interface FileNode {
   name: string;
   path: string;
   size: number;
-  type: 'file' | 'directory';
+  type: "file" | "directory";
   modified: Date;
   accessed?: Date;
   children?: FileNode[];
@@ -85,7 +88,7 @@ export interface CompressedData {
 const worker: WorkerAPI = {
   async analyzeFileTree(files: FileNode[], options: AnalysisOptions = {}): Promise<AnalysisResult> {
     const startTime = performance.now();
-    
+
     const result: AnalysisResult = {
       totalSize: 0,
       totalFiles: 0,
@@ -93,31 +96,31 @@ const worker: WorkerAPI = {
       largestFiles: [],
       fileTypes: {},
       sizeDistribution: [],
-      scanTime: 0
+      scanTime: 0,
     };
 
     const processNode = (node: FileNode, depth = 0): void => {
       if (options.maxDepth && depth > options.maxDepth) return;
 
-      if (node.type === 'file') {
+      if (node.type === "file") {
         result.totalFiles++;
         result.totalSize += node.size;
-        
+
         // Track file types
-        const ext = node.name.split('.').pop()?.toLowerCase() || 'unknown';
+        const ext = node.name.split(".").pop()?.toLowerCase() || "unknown";
         if (!result.fileTypes[ext]) {
           result.fileTypes[ext] = { count: 0, size: 0 };
         }
         result.fileTypes[ext].count++;
         result.fileTypes[ext].size += node.size;
-        
+
         // Track largest files
         result.largestFiles.push(node);
         result.largestFiles.sort((a, b) => b.size - a.size);
         if (result.largestFiles.length > 10) {
           result.largestFiles.pop();
         }
-      } else if (node.type === 'directory') {
+      } else if (node.type === "directory") {
         result.totalDirectories++;
       }
 
@@ -136,28 +139,28 @@ const worker: WorkerAPI = {
 
     // Generate size distribution
     const sizeBuckets = [
-      { min: 0, max: 1024, label: '< 1KB' },
-      { min: 1024, max: 1024 * 1024, label: '1KB - 1MB' },
-      { min: 1024 * 1024, max: 1024 * 1024 * 100, label: '1MB - 100MB' },
-      { min: 1024 * 1024 * 100, max: 1024 * 1024 * 1024, label: '100MB - 1GB' },
-      { min: 1024 * 1024 * 1024, max: Infinity, label: '> 1GB' }
+      { min: 0, max: 1024, label: "< 1KB" },
+      { min: 1024, max: 1024 * 1024, label: "1KB - 1MB" },
+      { min: 1024 * 1024, max: 1024 * 1024 * 100, label: "1MB - 100MB" },
+      { min: 1024 * 1024 * 100, max: 1024 * 1024 * 1024, label: "100MB - 1GB" },
+      { min: 1024 * 1024 * 1024, max: Infinity, label: "> 1GB" },
     ];
 
-    result.sizeDistribution = sizeBuckets.map(bucket => {
-      const bucketFiles = files.filter(f => 
-        f.type === 'file' && f.size >= bucket.min && f.size < bucket.max
+    result.sizeDistribution = sizeBuckets.map((bucket) => {
+      const bucketFiles = files.filter(
+        (f) => f.type === "file" && f.size >= bucket.min && f.size < bucket.max
       );
-      
+
       return {
         min: bucket.min,
         max: bucket.max,
         count: bucketFiles.length,
-        totalSize: bucketFiles.reduce((sum, f) => sum + f.size, 0)
+        totalSize: bucketFiles.reduce((sum, f) => sum + f.size, 0),
       };
     });
 
     result.scanTime = performance.now() - startTime;
-    
+
     return result;
   },
 
@@ -177,12 +180,12 @@ const worker: WorkerAPI = {
       // Repulsion between all nodes
       for (let j = 0; j < updatedNodes.length; j++) {
         if (i === j) continue;
-        
+
         const other = updatedNodes[j];
         const dx = node.x - other.x;
         const dy = node.y - other.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        
+
         if (distance > 0 && distance < 200) {
           const force = repulsionStrength / (distance * distance);
           fx += (dx / distance) * force;
@@ -192,12 +195,12 @@ const worker: WorkerAPI = {
 
       // Attraction along connections
       for (const connectionId of node.connections) {
-        const connected = updatedNodes.find(n => n.id === connectionId);
+        const connected = updatedNodes.find((n) => n.id === connectionId);
         if (connected) {
           const dx = connected.x - node.x;
           const dy = connected.y - node.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
-          
+
           if (distance > 50) {
             fx += dx * attractionStrength;
             fy += dy * attractionStrength;
@@ -233,30 +236,30 @@ const worker: WorkerAPI = {
 
   async processLargeDataset(data: Array<Record<string, unknown>>, operation: string): Promise<any> {
     switch (operation) {
-      case 'sort':
+      case "sort":
         return data.sort((a: any, b: any) => b.size - a.size);
-      
-      case 'group': {
+
+      case "group": {
         const groups = data.reduce((acc: any, item) => {
-          const key = (item.type as string) || 'unknown';
+          const key = (item.type as string) || "unknown";
           if (!acc[key]) acc[key] = [];
           acc[key].push(item);
           return acc;
         }, {});
         return groups;
       }
-      
-      case 'aggregate': {
+
+      case "aggregate": {
         return data.reduce((acc: any, item: any) => {
           acc.totalSize = (acc.totalSize || 0) + (item.size || 0);
           acc.count = (acc.count || 0) + 1;
           return acc;
         }, {});
       }
-      
-      case 'filter-large':
+
+      case "filter-large":
         return data.filter((item: any) => item.size > 1024 * 1024); // > 1MB
-      
+
       default:
         return data;
     }
@@ -268,7 +271,7 @@ const worker: WorkerAPI = {
       largeFiles: [],
       oldFiles: [],
       temporaryFiles: [],
-      recommendations: []
+      recommendations: [],
     };
 
     const now = new Date();
@@ -277,37 +280,43 @@ const worker: WorkerAPI = {
 
     // Find large files (>100MB)
     insights.largeFiles = files
-      .filter(f => f.type === 'file' && f.size > 100 * 1024 * 1024)
+      .filter((f) => f.type === "file" && f.size > 100 * 1024 * 1024)
       .sort((a, b) => b.size - a.size)
       .slice(0, 20);
 
     // Find old files (>1 year)
     insights.oldFiles = files
-      .filter(f => f.type === 'file' && f.modified < oneYearAgo)
+      .filter((f) => f.type === "file" && f.modified < oneYearAgo)
       .sort((a, b) => a.modified.getTime() - b.modified.getTime());
 
     // Find temporary files
-    insights.temporaryFiles = files.filter(f => 
-      f.type === 'file' && (
-        f.name.startsWith('.') ||
-        f.name.includes('tmp') ||
-        f.name.includes('temp') ||
-        f.name.endsWith('.tmp') ||
-        f.name.endsWith('.temp')
-      )
+    insights.temporaryFiles = files.filter(
+      (f) =>
+        f.type === "file" &&
+        (f.name.startsWith(".") ||
+          f.name.includes("tmp") ||
+          f.name.includes("temp") ||
+          f.name.endsWith(".tmp") ||
+          f.name.endsWith(".temp"))
     );
 
     // Generate recommendations
     if (insights.largeFiles.length > 0) {
-      insights.recommendations.push(`Found ${insights.largeFiles.length} large files that could be compressed or moved to cloud storage`);
+      insights.recommendations.push(
+        `Found ${insights.largeFiles.length} large files that could be compressed or moved to cloud storage`
+      );
     }
 
     if (insights.oldFiles.length > 0) {
-      insights.recommendations.push(`Found ${insights.oldFiles.length} files older than 1 year that could be archived`);
+      insights.recommendations.push(
+        `Found ${insights.oldFiles.length} files older than 1 year that could be archived`
+      );
     }
 
     if (insights.temporaryFiles.length > 0) {
-      insights.recommendations.push(`Found ${insights.temporaryFiles.length} temporary files that can likely be safely deleted`);
+      insights.recommendations.push(
+        `Found ${insights.temporaryFiles.length} temporary files that can likely be safely deleted`
+      );
     }
 
     return insights;
@@ -315,9 +324,9 @@ const worker: WorkerAPI = {
 
   async calculateDuplicates(files: FileNode[]): Promise<DuplicateGroup[]> {
     const hashGroups = new Map<string, FileNode[]>();
-    
+
     // Group files by hash (simulated - in real implementation, would calculate actual hashes)
-    for (const file of files.filter(f => f.type === 'file')) {
+    for (const file of files.filter((f) => f.type === "file")) {
       const hash = file.hash || this.simulateHash(file);
       if (!hashGroups.has(hash)) {
         hashGroups.set(hash, []);
@@ -332,7 +341,7 @@ const worker: WorkerAPI = {
         duplicateGroups.push({
           files: group,
           totalSize: group.reduce((sum, f) => sum + f.size, 0),
-          hash
+          hash,
         });
       }
     }
@@ -343,10 +352,10 @@ const worker: WorkerAPI = {
   async compressAnalysis(data: Record<string, unknown>): Promise<CompressedData> {
     // Simple compression simulation
     return {
-      version: '1.0',
+      version: "1.0",
       timestamp: Date.now(),
       data: JSON.stringify(data),
-      compression: 'json'
+      compression: "json",
     };
   },
 
@@ -357,11 +366,11 @@ const worker: WorkerAPI = {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash).toString(16);
-  }
+  },
 };
 
 // Expose the worker API with Comlink

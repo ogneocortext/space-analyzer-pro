@@ -1,14 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AnalysisResult } from '../services/AnalysisBridge';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AnalysisResult } from "../services/AnalysisBridge";
 
 // Custom hook for analysis data with intelligent caching
 export const useAnalysisData = (directoryPath: string | null) => {
   return useQuery({
-    queryKey: ['analysis', directoryPath],
+    queryKey: ["analysis", directoryPath],
     queryFn: async (): Promise<AnalysisResult | null> => {
       if (!directoryPath) return null;
 
-      const { AnalysisBridge } = await import('../services/AnalysisBridge');
+      const { AnalysisBridge } = await import("../services/AnalysisBridge");
       const bridge = new AnalysisBridge();
 
       const result = await bridge.analyzeDirectory(directoryPath);
@@ -29,12 +29,12 @@ export const useAnalysisWithProgress = () => {
   return useMutation({
     mutationFn: async ({
       directoryPath,
-      onProgress
+      onProgress,
     }: {
       directoryPath: string;
       onProgress?: (progress: any) => void;
     }) => {
-      const { AnalysisBridge } = await import('../services/AnalysisBridge');
+      const { AnalysisBridge } = await import("../services/AnalysisBridge");
       const bridge = new AnalysisBridge();
 
       const result = await bridge.analyzeDirectoryWithProgress(directoryPath, (progress) => {
@@ -45,11 +45,11 @@ export const useAnalysisWithProgress = () => {
     },
     onSuccess: (data, variables) => {
       // Update the cached analysis data
-      queryClient.setQueryData(['analysis', variables.directoryPath], data);
+      queryClient.setQueryData(["analysis", variables.directoryPath], data);
 
       // Also invalidate related queries
-      queryClient.invalidateQueries({ queryKey: ['analysis-stats'] });
-      queryClient.invalidateQueries({ queryKey: ['file-categories'] });
+      queryClient.invalidateQueries({ queryKey: ["analysis-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["file-categories"] });
     },
   });
 };
@@ -57,7 +57,7 @@ export const useAnalysisWithProgress = () => {
 // Hook for analysis statistics (memoized computation)
 export const useAnalysisStats = (analysisData: AnalysisResult | null) => {
   return useQuery({
-    queryKey: ['analysis-stats', analysisData?.directoryPath],
+    queryKey: ["analysis-stats", analysisData?.directoryPath],
     queryFn: () => {
       if (!analysisData) return null;
 
@@ -65,15 +65,15 @@ export const useAnalysisStats = (analysisData: AnalysisResult | null) => {
       const stats = {
         totalFiles: analysisData.totalFiles,
         totalSize: analysisData.totalSize,
-        largestFile: analysisData.files?.reduce((max, file) =>
-          file.size > max.size ? file : max,
+        largestFile: analysisData.files?.reduce(
+          (max, file) => (file.size > max.size ? file : max),
           analysisData.files[0]
         ),
         fileTypes: analysisData.categories ? Object.keys(analysisData.categories).length : 0,
         averageFileSize: analysisData.totalSize / analysisData.totalFiles,
-        directoriesCount: analysisData.files?.filter(file =>
-          !file.extension || file.extension === ''
-        ).length || 0,
+        directoriesCount:
+          analysisData.files?.filter((file) => !file.extension || file.extension === "").length ||
+          0,
       };
 
       return stats;
@@ -86,7 +86,7 @@ export const useAnalysisStats = (analysisData: AnalysisResult | null) => {
 // Hook for file categories with memoization
 export const useFileCategories = (analysisData: AnalysisResult | null) => {
   return useQuery({
-    queryKey: ['file-categories', analysisData?.directoryPath],
+    queryKey: ["file-categories", analysisData?.directoryPath],
     queryFn: () => {
       if (!analysisData?.categories) return [];
 
@@ -111,9 +111,9 @@ export const useFileCategories = (analysisData: AnalysisResult | null) => {
 // Hook for cached snapshots
 export const useAnalysisSnapshots = () => {
   return useQuery({
-    queryKey: ['analysis-snapshots'],
+    queryKey: ["analysis-snapshots"],
     queryFn: async () => {
-      const { useIndexedDB } = await import('../hooks/useIndexedDB');
+      const { useIndexedDB } = await import("../hooks/useIndexedDB");
       // This would need to be refactored to work with the existing hook
       // For now, return mock data
       return [];
@@ -126,29 +126,29 @@ export const useAnalysisSnapshots = () => {
 // Utility function for category colors (memoized)
 const getCategoryColor = (categoryName: string): string => {
   const colors: Record<string, string> = {
-    'JavaScript': '#f7df1e',
-    'TypeScript': '#3178c6',
-    'Python': '#3776ab',
-    'Java': '#ed8b00',
-    'CSS': '#1572b6',
-    'HTML': '#e34f26',
-    'JSON': '#000000',
-    'Markdown': '#083fa1',
-    'Images': '#ff6b35',
-    'Videos': '#ff4757',
-    'Audio': '#3742fa',
-    'Documents': '#2f3542',
-    'Archives': '#ffa502',
-    'Other': '#7bed9f',
+    JavaScript: "#f7df1e",
+    TypeScript: "#3178c6",
+    Python: "#3776ab",
+    Java: "#ed8b00",
+    CSS: "#1572b6",
+    HTML: "#e34f26",
+    JSON: "#000000",
+    Markdown: "#083fa1",
+    Images: "#ff6b35",
+    Videos: "#ff4757",
+    Audio: "#3742fa",
+    Documents: "#2f3542",
+    Archives: "#ffa502",
+    Other: "#7bed9f",
   };
 
-  return colors[categoryName] || '#6366f1'; // Default blue
+  return colors[categoryName] || "#6366f1"; // Default blue
 };
 
 // Hook for performance metrics
 export const usePerformanceMetrics = () => {
   return useQuery({
-    queryKey: ['performance-metrics'],
+    queryKey: ["performance-metrics"],
     queryFn: async () => {
       // Simulate performance metrics collection
       const metrics = {
@@ -168,12 +168,12 @@ export const usePerformanceMetrics = () => {
 // Hook for AI insights caching
 export const useAIInsights = (analysisData: AnalysisResult | null) => {
   return useQuery({
-    queryKey: ['ai-insights', analysisData?.directoryPath],
+    queryKey: ["ai-insights", analysisData?.directoryPath],
     queryFn: async () => {
       if (!analysisData?.ai_insights) return null;
 
       // Simulate AI processing time (expensive operation)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       return {
         ...analysisData.ai_insights,
@@ -195,9 +195,9 @@ export const usePrefetchAnalysis = (directoryPath: string | null) => {
     if (!directoryPath) return;
 
     await queryClient.prefetchQuery({
-      queryKey: ['analysis', directoryPath],
+      queryKey: ["analysis", directoryPath],
       queryFn: async (): Promise<AnalysisResult | null> => {
-        const { AnalysisBridge } = await import('../services/AnalysisBridge');
+        const { AnalysisBridge } = await import("../services/AnalysisBridge");
         const bridge = new AnalysisBridge();
         const result = await bridge.analyzeDirectory(directoryPath);
         return result;
@@ -212,89 +212,95 @@ export const usePrefetchAnalysis = (directoryPath: string | null) => {
 // Hook for Neural View data (calculating dependencies on the fly)
 export const useNeuralData = (analysisData: AnalysisResult | null) => {
   return useQuery({
-    queryKey: ['neural-data', analysisData?.directoryPath],
+    queryKey: ["neural-data", analysisData?.directoryPath],
     queryFn: async () => {
       if (!analysisData || !analysisData.files || analysisData.files.length === 0) {
         return null; // Return null to fall back to safe default in component
       }
 
-      console.log('🧠 Calculating neural dependency graph...');
-      const { dependencyCheckerService } = await import('../services/DependencyCheckerService');
-      
+      console.warn("🧠 Calculating neural dependency graph...");
+      const { dependencyCheckerService } = await import("../services/DependencyCheckerService");
+
       // Build the graph (this is async)
       // Limit to 200 files for performance
       const filesToAnalyze = analysisData.files.slice(0, 200);
       await dependencyCheckerService.buildDependencyGraph(filesToAnalyze);
-      
+
       const graph = await dependencyCheckerService.getDependencyGraph();
       const nodes: any[] = [];
       const connections: any[] = [];
-      
+
       // Convert Map<string, FileDependency[]> to NeuralData format
       // First create nodes
       filesToAnalyze.forEach((file, index) => {
-          // Calculate node metadata
-          const fileType = file.extension ? 'file' : 'directory';
-          let specificType = 'other';
-          if (['mp4', 'avi', 'mov'].includes(file.extension?.toLowerCase() || '')) specificType = 'video';
-          else if (['pdf', 'doc', 'docx', 'txt', 'md'].includes(file.extension?.toLowerCase() || '')) specificType = 'document';
-          else if (['exe', 'dll', 'sys'].includes(file.extension?.toLowerCase() || '')) specificType = 'system';
-          
-          nodes.push({
-              id: file.path.replace(/\\/g, '/'), // Normalize paths for IDs
-              label: file.name,
-              x: Math.random() * 800, // Initial random position, physics will fix
-              y: Math.random() * 600,
-              size: Math.max(5, Math.min(25, Math.log10(file.size + 1) * 3)),
-              type: fileType,
-              connections: [], // Will be filled below
-              fileType: specificType,
-              fileSize: file.size,
-              accessFrequency: 50 // Default
-          });
+        // Calculate node metadata
+        const fileType = file.extension ? "file" : "directory";
+        let specificType = "other";
+        if (["mp4", "avi", "mov"].includes(file.extension?.toLowerCase() || ""))
+          specificType = "video";
+        else if (["pdf", "doc", "docx", "txt", "md"].includes(file.extension?.toLowerCase() || ""))
+          specificType = "document";
+        else if (["exe", "dll", "sys"].includes(file.extension?.toLowerCase() || ""))
+          specificType = "system";
+
+        nodes.push({
+          id: file.path.replace(/\\/g, "/"), // Normalize paths for IDs
+          label: file.name,
+          x: Math.random() * 800, // Initial random position, physics will fix
+          y: Math.random() * 600,
+          size: Math.max(5, Math.min(25, Math.log10(file.size + 1) * 3)),
+          type: fileType,
+          connections: [], // Will be filled below
+          fileType: specificType,
+          fileSize: file.size,
+          accessFrequency: 50, // Default
+        });
       });
 
       // Then create connections
       for (const [filePath, deps] of graph.entries()) {
-          const normalizedPath = filePath.replace(/\\/g, '/');
-          const sourceNode = nodes.find(n => n.id === normalizedPath);
-          if (!sourceNode) continue;
+        const normalizedPath = filePath.replace(/\\/g, "/");
+        const sourceNode = nodes.find((n) => n.id === normalizedPath);
+        if (!sourceNode) continue;
 
-          deps.forEach(dep => {
-              const normalizedDepPath = dep.path.replace(/\\/g, '/');
-              const targetNode = nodes.find(n => n.id === normalizedDepPath);
-              if (targetNode) {
-                  // Add to source connections list
-                  if (!sourceNode.connections.includes(normalizedDepPath)) {
-                      sourceNode.connections.push(normalizedDepPath);
-                  }
-                  
-                  // Add edge object
-                  connections.push({
-                      from: normalizedPath,
-                      to: normalizedDepPath,
-                      strength: dep.strength === 'strong' ? 0.9 : (dep.strength === 'medium' ? 0.6 : 0.3),
-                      type: dep.type === 'import' || dep.type === 'require' ? 'dependency' : 'similarity',
-                      accessFrequency: 50
-                  });
-              }
-          });
+        deps.forEach((dep) => {
+          const normalizedDepPath = dep.path.replace(/\\/g, "/");
+          const targetNode = nodes.find((n) => n.id === normalizedDepPath);
+          if (targetNode) {
+            // Add to source connections list
+            if (!sourceNode.connections.includes(normalizedDepPath)) {
+              sourceNode.connections.push(normalizedDepPath);
+            }
+
+            // Add edge object
+            connections.push({
+              from: normalizedPath,
+              to: normalizedDepPath,
+              strength: dep.strength === "strong" ? 0.9 : dep.strength === "medium" ? 0.6 : 0.3,
+              type: dep.type === "import" || dep.type === "require" ? "dependency" : "similarity",
+              accessFrequency: 50,
+            });
+          }
+        });
       }
 
       // Calculate metrics
       const metrics = {
-          neuralDensity: connections.length / Math.max(1, nodes.length),
-          connectionStrength: connections.reduce((s, c) => s + c.strength, 0) / Math.max(1, connections.length),
-          patternRecognition: 0.8, // Placeholder
-          anomalyScore: 0.1 // Placeholder
+        neuralDensity: connections.length / Math.max(1, nodes.length),
+        connectionStrength:
+          connections.reduce((s, c) => s + c.strength, 0) / Math.max(1, connections.length),
+        patternRecognition: 0.8, // Placeholder
+        anomalyScore: 0.1, // Placeholder
       };
 
-      console.log(`🧠 Neural graph built: ${nodes.length} nodes, ${connections.length} connections`);
+      console.warn(
+        `🧠 Neural graph built: ${nodes.length} nodes, ${connections.length} connections`
+      );
 
       return {
-          nodes,
-          connections,
-          metrics
+        nodes,
+        connections,
+        metrics,
       };
     },
     enabled: !!analysisData?.files,

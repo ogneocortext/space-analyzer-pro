@@ -1,22 +1,29 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useCallback,
+} from "react";
 
 // Constants for accessibility settings
 export const FONT_SIZES = {
-  SMALL: 'small',
-  MEDIUM: 'medium',
-  LARGE: 'large'
+  SMALL: "small",
+  MEDIUM: "medium",
+  LARGE: "large",
 } as const;
 
-export type FontSizeType = typeof FONT_SIZES[keyof typeof FONT_SIZES];
+export type FontSizeType = (typeof FONT_SIZES)[keyof typeof FONT_SIZES];
 
 export const FOCUS_MODES = {
-  NONE: 'none',
-  MINIMAL: 'minimal',
-  ADHD: 'adhd',
-  COGNITIVE: 'cognitive'
+  NONE: "none",
+  MINIMAL: "minimal",
+  ADHD: "adhd",
+  COGNITIVE: "cognitive",
 } as const;
 
-export type FocusModeType = typeof FOCUS_MODES[keyof typeof FOCUS_MODES];
+export type FocusModeType = (typeof FOCUS_MODES)[keyof typeof FOCUS_MODES];
 
 interface AccessibilitySettings {
   highContrast: boolean;
@@ -48,7 +55,7 @@ const defaultSettings: AccessibilitySettings = {
   fontSize: FONT_SIZES.MEDIUM,
   focusMode: FOCUS_MODES.NONE,
   cognitiveSimplify: false,
-  antiFlash: false
+  antiFlash: false,
 };
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);
@@ -66,91 +73,94 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
       console.warn(`Invalid fontSize: ${updates.fontSize}. Using default.`);
       updates.fontSize = FONT_SIZES.MEDIUM;
     }
-    
+
     // Validate focusMode if provided
     if (updates.focusMode && !Object.values(FOCUS_MODES).includes(updates.focusMode)) {
       console.warn(`Invalid focusMode: ${updates.focusMode}. Using default.`);
       updates.focusMode = FOCUS_MODES.NONE;
     }
-    
-    setSettings(prev => ({ ...prev, ...updates }));
+
+    setSettings((prev) => ({ ...prev, ...updates }));
   }, []);
 
   const resetSettings = useCallback(() => {
     setSettings(defaultSettings);
   }, []);
 
-  const announceToScreenReader = useCallback((message: string) => {
-    if (settings.screenReaderOptimized) {
-      const announcement = document.createElement('div');
-      announcement.setAttribute('aria-live', 'polite');
-      announcement.setAttribute('aria-atomic', 'true');
-      announcement.className = 'sr-only';
-      announcement.textContent = message;
-      document.body.appendChild(announcement);
-      setTimeout(() => {
-        if (document.body.contains(announcement)) {
-          document.body.removeChild(announcement);
-        }
-      }, 1000);
-    }
-  }, [settings.screenReaderOptimized]);
+  const announceToScreenReader = useCallback(
+    (message: string) => {
+      if (settings.screenReaderOptimized) {
+        const announcement = document.createElement("div");
+        announcement.setAttribute("aria-live", "polite");
+        announcement.setAttribute("aria-atomic", "true");
+        announcement.className = "sr-only";
+        announcement.textContent = message;
+        document.body.appendChild(announcement);
+        setTimeout(() => {
+          if (document.body.contains(announcement)) {
+            document.body.removeChild(announcement);
+          }
+        }, 1000);
+      }
+    },
+    [settings.screenReaderOptimized]
+  );
 
   // Apply accessibility settings to document root
   useEffect(() => {
     const root = document.documentElement;
-    
+
     // Apply high contrast
     if (settings.highContrast) {
-      root.classList.add('high-contrast');
+      root.classList.add("high-contrast");
     } else {
-      root.classList.remove('high-contrast');
+      root.classList.remove("high-contrast");
     }
-    
+
     // Apply large text
     if (settings.largeText) {
-      root.classList.add('large-text');
+      root.classList.add("large-text");
     } else {
-      root.classList.remove('large-text');
+      root.classList.remove("large-text");
     }
-    
+
     // Apply reduced motion
     if (settings.reducedMotion) {
-      root.classList.add('reduced-motion');
+      root.classList.add("reduced-motion");
     } else {
-      root.classList.remove('reduced-motion');
+      root.classList.remove("reduced-motion");
     }
-    
+
     // Apply font size
     if (settings.fontSize) {
-      root.setAttribute('data-font-size', settings.fontSize);
+      root.setAttribute("data-font-size", settings.fontSize);
     }
-    
+
     // Apply focus mode
     if (settings.focusMode) {
-      root.setAttribute('data-focus-mode', settings.focusMode);
+      root.setAttribute("data-focus-mode", settings.focusMode);
     }
   }, [settings]);
 
   // Check system preferences
   useEffect(() => {
     const checkSystemPreferences = () => {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         updateSettings({ reducedMotion: true });
       }
-      
-      if (window.matchMedia('(prefers-contrast: high)').matches) {
+
+      if (window.matchMedia("(prefers-contrast: high)").matches) {
         updateSettings({ highContrast: true });
       }
     };
-    
+
     checkSystemPreferences();
-    
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    mediaQuery.addEventListener('change', checkSystemPreferences);
-    
+
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    mediaQuery.addEventListener("change", checkSystemPreferences);
+
     return () => {
-      mediaQuery.removeEventListener('change', checkSystemPreferences);
+      mediaQuery.removeEventListener("change", checkSystemPreferences);
     };
   }, [updateSettings]);
 
@@ -158,20 +168,16 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     settings,
     updateSettings,
     resetSettings,
-    announceToScreenReader
+    announceToScreenReader,
   };
 
-  return (
-    <AccessibilityContext.Provider value={value}>
-      {children}
-    </AccessibilityContext.Provider>
-  );
+  return <AccessibilityContext.Provider value={value}>{children}</AccessibilityContext.Provider>;
 };
 
 export const useAccessibility = (): AccessibilityContextType => {
   const context = useContext(AccessibilityContext);
   if (context === undefined) {
-    throw new Error('useAccessibility must be used within an AccessibilityProvider');
+    throw new Error("useAccessibility must be used within an AccessibilityProvider");
   }
   return context;
 };
@@ -182,7 +188,7 @@ export const AccessibilityControls: React.FC = () => {
   return (
     <div className="accessibility-controls p-4 bg-gray-100 rounded-lg">
       <h3 className="text-lg font-semibold mb-4">Accessibility Settings</h3>
-      
+
       <div className="space-y-3">
         <label className="flex items-center space-x-2">
           <input

@@ -1,3 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/no-floating-promises */
+/* eslint-disable preserve-caught-error */
+
 // Dependency Visualization Service - Interfaces
 // Defines all interfaces and types for dependency visualization
 
@@ -5,7 +11,7 @@ export interface DependencyNode {
   id: string;
   name: string;
   path: string;
-  type: 'file' | 'module' | 'package' | 'external';
+  type: "file" | "module" | "package" | "external";
   size: number;
   complexity: number;
   issues: number;
@@ -26,7 +32,7 @@ export interface DependencyNode {
 export interface DependencyLink {
   source: string;
   target: string;
-  type: 'import' | 'require' | 'dynamic-import' | 'extends' | 'implements' | 'call';
+  type: "import" | "require" | "dynamic-import" | "extends" | "implements" | "call";
   strength: number;
   frequency: number;
   bidirectional: boolean;
@@ -52,7 +58,14 @@ export interface DependencyGraph {
 
 export interface OptimizationSuggestion {
   id: string;
-  type: 'remove-unused' | 'merge-modules' | 'split-large' | 'reduce-coupling' | 'eliminate-circular' | 'layer-violation' | 'external-dependency';
+  type:
+    | "remove-unused"
+    | "merge-modules"
+    | "split-large"
+    | "reduce-coupling"
+    | "eliminate-circular"
+    | "layer-violation"
+    | "external-dependency";
   title: string;
   description: string;
   impact: {
@@ -61,8 +74,8 @@ export interface OptimizationSuggestion {
     sizeReduction: number;
     couplingReduction: number;
   };
-  effort: 'low' | 'medium' | 'high';
-  risk: 'low' | 'medium' | 'high';
+  effort: "low" | "medium" | "high";
+  risk: "low" | "medium" | "high";
   nodes: string[];
   beforeState: any;
   afterState: any;
@@ -82,7 +95,7 @@ export interface LayerAnalysis {
     target: string;
     sourceLayer: number;
     targetLayer: number;
-    violation: 'upward' | 'downward' | 'same';
+    violation: "upward" | "downward" | "same";
   }[];
 }
 

@@ -117,13 +117,13 @@
     height: 300px;
     padding: 0.75rem;
   }
-  
+
   .chartHeader {
     flex-direction: column;
     gap: 0.5rem;
     align-items: flex-start;
   }
-  
+
   .chartControls {
     width: 100%;
     justify-content: flex-end;

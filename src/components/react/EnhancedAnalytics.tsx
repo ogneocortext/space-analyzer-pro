@@ -1,5 +1,18 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BarChart3, PieChart, TrendingUp, Activity, Clock, CheckCircle, AlertTriangle, Zap, Target, Code, Eye, Layers } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  BarChart3,
+  PieChart,
+  TrendingUp,
+  Activity,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  Zap,
+  Target,
+  Code,
+  Eye,
+  Layers,
+} from "lucide-react";
 
 interface AnalyticsData {
   totalAnalyses: number;
@@ -33,13 +46,21 @@ const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
     visionAnalyses: 6,
     codeAnalyses: 6,
     combinedAnalyses: 3,
-    pagesAnalyzed: ['Landing', 'Dashboard', 'Explorer'],
-    modelsUsed: ['llava:7b', 'deepseek-coder:6.7b', 'codegemma:7b-instruct', 'qwen2.5-coder:7b-instruct', 'codellama:7b-python'],
-    lastAnalysis: new Date().toISOString()
+    pagesAnalyzed: ["Landing", "Dashboard", "Explorer"],
+    modelsUsed: [
+      "llava:7b",
+      "deepseek-coder:6.7b",
+      "codegemma:7b-instruct",
+      "qwen2.5-coder:7b-instruct",
+      "codellama:7b-python",
+    ],
+    lastAnalysis: new Date().toISOString(),
   },
-  onRunAnalysis = () => {}
+  onRunAnalysis = () => {},
 }) => {
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'performance' | 'models' | 'insights'>('overview');
+  const [selectedTab, setSelectedTab] = useState<
+    "overview" | "performance" | "models" | "insights"
+  >("overview");
   const [isAnimating, setIsAnimating] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -50,14 +71,15 @@ const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
     return () => clearTimeout(timer);
   }, [selectedTab]);
 
-  const successRate = data.totalAnalyses > 0 ? (data.successfulAnalyses / data.totalAnalyses) * 100 : 0;
+  const successRate =
+    data.totalAnalyses > 0 ? (data.successfulAnalyses / data.totalAnalyses) * 100 : 0;
   const avgResponseTimeSeconds = (data.averageResponseTime / 1000).toFixed(1);
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'performance', label: 'Performance', icon: TrendingUp },
-    { id: 'models', label: 'Models', icon: Layers },
-    { id: 'insights', label: 'Insights', icon: Target }
+    { id: "overview", label: "Overview", icon: BarChart3 },
+    { id: "performance", label: "Performance", icon: TrendingUp },
+    { id: "models", label: "Models", icon: Layers },
+    { id: "insights", label: "Insights", icon: Target },
   ];
 
   const renderOverview = () => (
@@ -83,7 +105,9 @@ const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
             <span className="text-2xl font-bold text-green-600">{successRate.toFixed(1)}%</span>
           </div>
           <h3 className="text-sm font-medium text-gray-600">Success Rate</h3>
-          <p className="text-xs text-gray-500 mt-1">{data.successfulAnalyses}/{data.totalAnalyses} successful</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {data.successfulAnalyses}/{data.totalAnalyses} successful
+          </p>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -203,21 +227,27 @@ const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
             <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
             <div>
               <p className="font-medium text-yellow-900">Optimize Response Time</p>
-              <p className="text-sm text-yellow-700">Current average is {avgResponseTimeSeconds}s - consider optimizing model selection</p>
+              <p className="text-sm text-yellow-700">
+                Current average is {avgResponseTimeSeconds}s - consider optimizing model selection
+              </p>
             </div>
           </div>
           <div className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg">
             <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
             <div>
               <p className="font-medium text-green-900">Good Success Rate</p>
-              <p className="text-sm text-green-700">{successRate.toFixed(1)}% success rate is acceptable</p>
+              <p className="text-sm text-green-700">
+                {successRate.toFixed(1)}% success rate is acceptable
+              </p>
             </div>
           </div>
           <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
             <Zap className="w-5 h-5 text-blue-600 mt-0.5" />
             <div>
               <p className="font-medium text-blue-900">Enable Parallel Processing</p>
-              <p className="text-sm text-blue-700">Run multiple models simultaneously to reduce total time</p>
+              <p className="text-sm text-blue-700">
+                Run multiple models simultaneously to reduce total time
+              </p>
             </div>
           </div>
         </div>
@@ -233,27 +263,34 @@ const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
         <div className="space-y-4">
           {data.modelsUsed.map((model, index) => {
             const modelData = {
-              'llava:7b': { type: 'Vision', success: true, avgTime: 15.2 },
-              'deepseek-coder:6.7b': { type: 'Code', success: false, avgTime: 0 },
-              'codegemma:7b-instruct': { type: 'Combined', success: true, avgTime: 15.3 },
-              'qwen2.5-coder:7b-instruct': { type: 'Vision', success: true, avgTime: 15.5 },
-              'codellama:7b-python': { type: 'Code', success: true, avgTime: 31.4 }
+              "llava:7b": { type: "Vision", success: true, avgTime: 15.2 },
+              "deepseek-coder:6.7b": { type: "Code", success: false, avgTime: 0 },
+              "codegemma:7b-instruct": { type: "Combined", success: true, avgTime: 15.3 },
+              "qwen2.5-coder:7b-instruct": { type: "Vision", success: true, avgTime: 15.5 },
+              "codellama:7b-python": { type: "Code", success: true, avgTime: 31.4 },
             };
-            
+
             const info = modelData[model as keyof typeof modelData];
-            
+
             return (
-              <div key={model} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div
+                key={model}
+                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+              >
                 <div className="flex items-center space-x-3">
-                  <div className={`w-2 h-2 rounded-full ${info.success ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <div
+                    className={`w-2 h-2 rounded-full ${info.success ? "bg-green-500" : "bg-red-500"}`}
+                  ></div>
                   <div>
                     <p className="font-medium text-gray-900">{model}</p>
                     <p className="text-sm text-gray-600">{info.type} Analysis</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-medium ${info.success ? 'text-green-600' : 'text-red-600'}`}>
-                    {info.success ? '✅ Working' : '⚠️ Issues'}
+                  <p
+                    className={`text-sm font-medium ${info.success ? "text-green-600" : "text-red-600"}`}
+                  >
+                    {info.success ? "✅ Working" : "⚠️ Issues"}
                   </p>
                   <p className="text-xs text-gray-500">{info.avgTime}s avg</p>
                 </div>
@@ -269,7 +306,9 @@ const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
         <div className="space-y-3">
           <div className="p-3 bg-red-50 rounded-lg">
             <p className="font-medium text-red-900 mb-1">Fix deepseek-coder:6.7b</p>
-            <p className="text-sm text-red-700">Technical Architect model experiencing response format issues</p>
+            <p className="text-sm text-red-700">
+              Technical Architect model experiencing response format issues
+            </p>
           </div>
           <div className="p-3 bg-blue-50 rounded-lg">
             <p className="font-medium text-blue-900 mb-1">Optimize codellama:7b-python</p>
@@ -292,11 +331,15 @@ const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
         <div className="space-y-4">
           <div className="p-4 bg-blue-50 rounded-lg">
             <h4 className="font-medium text-blue-900 mb-2">🎯 Priority 1: Visual Hierarchy</h4>
-            <p className="text-sm text-blue-700">Enhanced typography, spacing, and layout structure implemented</p>
+            <p className="text-sm text-blue-700">
+              Enhanced typography, spacing, and layout structure implemented
+            </p>
           </div>
           <div className="p-4 bg-green-50 rounded-lg">
             <h4 className="font-medium text-green-900 mb-2">🏗️ Priority 2: Code Architecture</h4>
-            <p className="text-sm text-green-700">Modular component structure with performance optimizations</p>
+            <p className="text-sm text-green-700">
+              Modular component structure with performance optimizations
+            </p>
           </div>
           <div className="p-4 bg-purple-50 rounded-lg">
             <h4 className="font-medium text-purple-900 mb-2">🔗 Priority 3: Integration</h4>
@@ -304,7 +347,9 @@ const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
           </div>
           <div className="p-4 bg-orange-50 rounded-lg">
             <h4 className="font-medium text-orange-900 mb-2">🎨 Priority 4: UX Enhancements</h4>
-            <p className="text-sm text-orange-700">Accessibility improvements and interaction design</p>
+            <p className="text-sm text-orange-700">
+              Accessibility improvements and interaction design
+            </p>
           </div>
         </div>
       </div>
@@ -359,16 +404,18 @@ const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
   );
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      className={`enhanced-analytics space-y-6 ${isAnimating ? 'animate-pulse' : ''}`}
+      className={`enhanced-analytics space-y-6 ${isAnimating ? "animate-pulse" : ""}`}
     >
       {/* Header */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Enhanced Analytics</h2>
-            <p className="text-gray-600">Comprehensive MoE analysis insights and performance metrics</p>
+            <p className="text-gray-600">
+              Comprehensive MoE analysis insights and performance metrics
+            </p>
           </div>
           <div className="flex items-center space-x-2">
             <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
@@ -390,8 +437,8 @@ const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
                 onClick={() => setSelectedTab(tab.id as any)}
                 className={`flex items-center space-x-2 px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
                   selectedTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -404,10 +451,10 @@ const EnhancedAnalytics: React.FC<EnhancedAnalyticsProps> = ({
 
       {/* Tab Content */}
       <div className="transition-all duration-300 ease-in-out">
-        {selectedTab === 'overview' && renderOverview()}
-        {selectedTab === 'performance' && renderPerformance()}
-        {selectedTab === 'models' && renderModels()}
-        {selectedTab === 'insights' && renderInsights()}
+        {selectedTab === "overview" && renderOverview()}
+        {selectedTab === "performance" && renderPerformance()}
+        {selectedTab === "models" && renderModels()}
+        {selectedTab === "insights" && renderInsights()}
       </div>
     </div>
   );

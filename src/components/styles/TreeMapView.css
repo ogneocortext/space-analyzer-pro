@@ -273,7 +273,9 @@
 }
 
 .treemap-node.selected {
-  box-shadow: 0 0 0 2px var(--accent-blue), 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow:
+    0 0 0 2px var(--accent-blue),
+    0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .treemap-node-content {
@@ -439,7 +441,7 @@
 }
 
 .treemap-stat-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -1274,13 +1276,21 @@
 }
 
 @keyframes treemap-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes treemap-spin-reverse {
-  0% { transform: rotate(360deg); }
-  100% { transform: rotate(0deg); }
+  0% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
 }
 
 @keyframes fadeInScale {
@@ -1328,7 +1338,9 @@
   padding: 1rem;
   font-size: 0.875rem;
   color: var(--text-primary);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.2);
   z-index: 1000;
   max-width: 320px;
   pointer-events: none;
@@ -1340,8 +1352,14 @@
 }
 
 @keyframes tooltipFadeIn {
-  0% { opacity: 0; transform: translateY(5px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Smart tooltip positioning to stay within viewport */
@@ -1528,27 +1546,27 @@
   }
 
   /* Enhanced Interactive Animations */
-.treemap-control-btn.hovered {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
-}
+  .treemap-control-btn.hovered {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.2);
+  }
 
-.treemap-control-btn.clicked {
-  transform: scale(0.95);
-  transition: transform 0.1s ease;
-}
+  .treemap-control-btn.clicked {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
 
-.treemap-mode-btn.hovered {
-  transform: translateY(-1px);
-  background: rgba(59, 130, 246, 0.1);
-}
+  .treemap-mode-btn.hovered {
+    transform: translateY(-1px);
+    background: rgba(59, 130, 246, 0.1);
+  }
 
-.treemap-mode-btn.clicked {
-  transform: scale(0.98);
-  transition: transform 0.1s ease;
-}
+  .treemap-mode-btn.clicked {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
 
-/* Touch feedback animations */
+  /* Touch feedback animations */
   .treemap-node:active {
     transform: scale(0.98);
     transition: transform 0.1s ease;
@@ -1569,7 +1587,7 @@
 
   .treemap-control-btn::after,
   .treemap-mode-btn::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 50%;
     left: 50%;
@@ -1578,7 +1596,9 @@
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.3);
     transform: translate(-50%, -50%);
-    transition: width 0.3s ease, height 0.3s ease;
+    transition:
+      width 0.3s ease,
+      height 0.3s ease;
   }
 
   .treemap-control-btn.clicked::after,

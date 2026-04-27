@@ -282,8 +282,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Responsive Design */
@@ -291,43 +295,43 @@
   .drag-drop-container {
     padding: 0.5rem;
   }
-  
+
   .drag-drop-area {
     padding: 1.5rem;
   }
-  
+
   .drag-drop-content {
     gap: 0.75rem;
   }
-  
+
   .upload-icon {
     width: 36px;
     height: 36px;
   }
-  
+
   .drag-text h3 {
     font-size: 1.125rem;
   }
-  
+
   .drag-text p {
     font-size: 0.8rem;
   }
-  
+
   .file-item {
     padding: 0.75rem;
   }
-  
+
   .queue-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.75rem;
   }
-  
+
   .queue-actions {
     width: 100%;
     justify-content: space-between;
   }
-  
+
   .analyze-btn,
   .clear-btn {
     flex: 1;
@@ -337,17 +341,13 @@
 
 /* Animation for file drop */
 .drag-drop-area::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(45deg, 
-    transparent 30%, 
-    rgba(59, 130, 246, 0.1) 50%, 
-    transparent 70%
-  );
+  background: linear-gradient(45deg, transparent 30%, rgba(59, 130, 246, 0.1) 50%, transparent 70%);
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;

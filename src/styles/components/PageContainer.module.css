@@ -1,30 +1,30 @@
 /* Page Container Component Styles */
 .pageContainer {
-    flex: 1;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background-color: #0f172a;
-    color: #ffffff;
-    font-family: 'Inter', system-ui, sans-serif;
+  flex: 1;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: #0f172a;
+  color: #ffffff;
+  font-family: "Inter", system-ui, sans-serif;
 }
 
 .pageContent {
-    flex: 1;
-    overflow: auto;
-    padding: 24px;
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .pageContent {
-        padding: 16px;
-    }
+  .pageContent {
+    padding: 16px;
+  }
 }
 
 @media (max-width: 480px) {
-    .pageContent {
-        padding: 12px;
-    }
+  .pageContent {
+    padding: 12px;
+  }
 }

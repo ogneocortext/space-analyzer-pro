@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   Filter,
@@ -20,9 +20,9 @@ import {
   Minimize2,
   Palette,
   HelpCircle,
-  X
-} from 'lucide-react';
-import styles from './EnhancedTreeMapView.module.css';
+  X,
+} from "lucide-react";
+import styles from "./EnhancedTreeMapView.module.css";
 
 interface TreeMapData {
   name: string;
@@ -48,23 +48,47 @@ interface EnhancedTreeMapViewProps {
   width?: number;
   height?: number;
   onNodeClick?: (node: TreeMapData) => void;
-  onExport?: (format: 'png' | 'svg' | 'json') => void;
+  onExport?: (format: "png" | "svg" | "json") => void;
 }
 
 // Colorblind-friendly palette
 const COLOR_PALETTES = {
   default: [
-    '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444',
-    '#06b6d4', '#f43f5e', '#a855f7', '#22c55e', '#f97316'
+    "#3b82f6",
+    "#8b5cf6",
+    "#10b981",
+    "#f59e0b",
+    "#ef4444",
+    "#06b6d4",
+    "#f43f5e",
+    "#a855f7",
+    "#22c55e",
+    "#f97316",
   ],
   colorblind: [
-    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#9467bd",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+    "#bcbd22",
+    "#17becf",
   ],
   highContrast: [
-    '#ffffff', '#cccccc', '#999999', '#666666', '#333333',
-    '#000000', '#ff0000', '#00ff00', '#0000ff', '#ffff00'
-  ]
+    "#ffffff",
+    "#cccccc",
+    "#999999",
+    "#666666",
+    "#333333",
+    "#000000",
+    "#ff0000",
+    "#00ff00",
+    "#0000ff",
+    "#ffff00",
+  ],
 };
 
 const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
@@ -72,49 +96,53 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
   width = 800,
   height = 500,
   onNodeClick,
-  onExport
+  onExport,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
+
   // State management
   const [dimensions, setDimensions] = useState({ width, height });
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<TreeMapData | null>(null);
   const [hoveredNode, setHoveredNode] = useState<TreeMapData | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [visualizationMode, setVisualizationMode] = useState<'treemap' | 'sunburst' | 'icicle'>('treemap');
-  const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([{ name: 'Root', data: [], path: '' }]);
+  const [visualizationMode, setVisualizationMode] = useState<"treemap" | "sunburst" | "icicle">(
+    "treemap"
+  );
+  const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([
+    { name: "Root", data: [], path: "" },
+  ]);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showLabels, setShowLabels] = useState(true);
   const [showGrid, setShowGrid] = useState(false);
-  const [colorPalette, setColorPalette] = useState<keyof typeof COLOR_PALETTES>('default');
+  const [colorPalette, setColorPalette] = useState<keyof typeof COLOR_PALETTES>("default");
   const [minNodeSize, setMinNodeSize] = useState(20);
   const [showHelp, setShowHelp] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
+
   // Touch state for mobile
   const [touchState, setTouchState] = useState({
     isTouching: false,
     lastTouchDistance: 0,
     lastTouchCenter: { x: 0, y: 0 },
     isPanning: false,
-    lastPanPoint: { x: 0, y: 0 }
+    lastPanPoint: { x: 0, y: 0 },
   });
 
   // Process data with filters
   const processedData = useMemo(() => {
     let categories = Object.entries(data.categories);
-    
+
     // Apply search filter
     if (searchQuery) {
       categories = categories.filter(([category]) =>
         category.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    
+
     // Convert to TreeMapData format
     const treeData: TreeMapData[] = categories.map(([category, info], index) => ({
       name: category,
@@ -122,28 +150,32 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
       files: info.count,
       color: COLOR_PALETTES[colorPalette][index % COLOR_PALETTES[colorPalette].length],
       category,
-      children: []
+      children: [],
     }));
 
     // Apply breadcrumb filtering
     if (breadcrumb.length > 1) {
       const currentCategory = breadcrumb[breadcrumb.length - 1].name;
-      const categoryFiles = data.files.filter(file => file.category === currentCategory);
-      const subCategories = [...new Set(categoryFiles.map(file => {
-        const pathParts = file.path.split('/');
-        return pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : file.path;
-      }))];
+      const categoryFiles = data.files.filter((file) => file.category === currentCategory);
+      const subCategories = [
+        ...new Set(
+          categoryFiles.map((file) => {
+            const pathParts = file.path.split("/");
+            return pathParts.length > 1 ? pathParts.slice(0, -1).join("/") : file.path;
+          })
+        ),
+      ];
 
       return subCategories.map((subCat, index) => {
-        const subFiles = categoryFiles.filter(file => file.path.startsWith(subCat + '/'));
+        const subFiles = categoryFiles.filter((file) => file.path.startsWith(subCat + "/"));
         const totalSize = subFiles.reduce((sum, file) => sum + file.size, 0);
         return {
-          name: subCat.split('/').pop() || subCat,
+          name: subCat.split("/").pop() || subCat,
           size: totalSize,
           files: subFiles.length,
           path: subCat,
           color: COLOR_PALETTES[colorPalette][index % COLOR_PALETTES[colorPalette].length],
-          category: currentCategory
+          category: currentCategory,
         };
       });
     }
@@ -163,7 +195,9 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
     // Sort by size descending and filter by minimum size
     const sorted = [...processedData]
       .sort((a, b) => b.size - a.size)
-      .filter(node => (node.size / totalSize) * Math.min(availableWidth, availableHeight) >= minNodeSize);
+      .filter(
+        (node) => (node.size / totalSize) * Math.min(availableWidth, availableHeight) >= minNodeSize
+      );
 
     const result: Array<TreeMapData & { x: number; y: number; w: number; h: number }> = [];
 
@@ -185,7 +219,7 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
           x: childX,
           y: childY,
           w: childW,
-          h: childH
+          h: childH,
         });
         return;
       }
@@ -203,13 +237,13 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
         const sum2 = group2.reduce((sum, child) => sum + child.size, 0);
 
         // Calculate worst aspect ratio
-        const ratio1 = isHorizontal ? 
-          Math.max((sum1 * h) / (sum1 * w / sum1), (sum1 * w) / (sum1 * h / sum1)) :
-          Math.max((sum1 * w) / (sum1 * h / sum1), (sum1 * h) / (sum1 * w / sum1));
-        
-        const ratio2 = isHorizontal ? 
-          Math.max((sum2 * h) / (sum2 * w / sum2), (sum2 * w) / (sum2 * h / sum2)) :
-          Math.max((sum2 * w) / (sum2 * h / sum2), (sum2 * h) / (sum2 * w / sum2));
+        const ratio1 = isHorizontal
+          ? Math.max((sum1 * h) / ((sum1 * w) / sum1), (sum1 * w) / ((sum1 * h) / sum1))
+          : Math.max((sum1 * w) / ((sum1 * h) / sum1), (sum1 * h) / ((sum1 * w) / sum1));
+
+        const ratio2 = isHorizontal
+          ? Math.max((sum2 * h) / ((sum2 * w) / sum2), (sum2 * w) / ((sum2 * h) / sum2))
+          : Math.max((sum2 * w) / ((sum2 * h) / sum2), (sum2 * h) / ((sum2 * w) / sum2));
 
         const worstRatio = Math.max(ratio1, ratio2);
 
@@ -264,65 +298,78 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
 
   // Format file size
   const formatSize = useCallback((bytes: number) => {
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const units = ["B", "KB", "MB", "GB", "TB"];
     let size = bytes;
     let unitIndex = 0;
-    
+
     while (size >= 1024 && unitIndex < units.length - 1) {
       size /= 1024;
       unitIndex++;
     }
-    
+
     return `${size.toFixed(1)} ${units[unitIndex]}`;
   }, []);
 
   // Event handlers
-  const handleNodeClick = useCallback((node: TreeMapData) => {
-    setSelectedNode(node);
-    onNodeClick?.(node);
-    
-    // Drill down functionality
-    if (breadcrumb.length === 1 && node.children === undefined) {
-      const categoryFiles = data.files.filter(file => file.category === node.name);
-      const subCategories = [...new Set(categoryFiles.map(file => {
-        const pathParts = file.path.split('/');
-        return pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : file.path;
-      }))];
+  const handleNodeClick = useCallback(
+    (node: TreeMapData) => {
+      setSelectedNode(node);
+      onNodeClick?.(node);
 
-      const childNodes: TreeMapData[] = subCategories.map((subCat, index) => {
-        const subFiles = categoryFiles.filter(file => file.path.startsWith(subCat + '/'));
-        const totalSize = subFiles.reduce((sum, file) => sum + file.size, 0);
-        return {
-          name: subCat.split('/').pop() || subCat,
-          size: totalSize,
-          files: subFiles.length,
-          path: subCat,
-          color: COLOR_PALETTES[colorPalette][index % COLOR_PALETTES[colorPalette].length],
-          category: node.name
-        };
-      });
+      // Drill down functionality
+      if (breadcrumb.length === 1 && node.children === undefined) {
+        const categoryFiles = data.files.filter((file) => file.category === node.name);
+        const subCategories = [
+          ...new Set(
+            categoryFiles.map((file) => {
+              const pathParts = file.path.split("/");
+              return pathParts.length > 1 ? pathParts.slice(0, -1).join("/") : file.path;
+            })
+          ),
+        ];
 
-      if (childNodes.length > 0) {
-        setBreadcrumb(prev => [...prev, { name: node.name, data: childNodes, path: node.path || '' }]);
-        setSelectedCategory(node.name);
+        const childNodes: TreeMapData[] = subCategories.map((subCat, index) => {
+          const subFiles = categoryFiles.filter((file) => file.path.startsWith(subCat + "/"));
+          const totalSize = subFiles.reduce((sum, file) => sum + file.size, 0);
+          return {
+            name: subCat.split("/").pop() || subCat,
+            size: totalSize,
+            files: subFiles.length,
+            path: subCat,
+            color: COLOR_PALETTES[colorPalette][index % COLOR_PALETTES[colorPalette].length],
+            category: node.name,
+          };
+        });
+
+        if (childNodes.length > 0) {
+          setBreadcrumb((prev) => [
+            ...prev,
+            { name: node.name, data: childNodes, path: node.path || "" },
+          ]);
+          setSelectedCategory(node.name);
+        }
       }
-    }
-  }, [breadcrumb, data.files, colorPalette, onNodeClick]);
+    },
+    [breadcrumb, data.files, colorPalette, onNodeClick]
+  );
 
-  const handleBreadcrumbClick = useCallback((index: number) => {
-    if (index === 0) {
-      setBreadcrumb([{ name: 'Root', data: [], path: '' }]);
-      setSelectedCategory(null);
-    } else {
-      setBreadcrumb(prev => prev.slice(0, index + 1));
-      setSelectedCategory(breadcrumb[index].name);
-    }
-  }, [breadcrumb]);
+  const handleBreadcrumbClick = useCallback(
+    (index: number) => {
+      if (index === 0) {
+        setBreadcrumb([{ name: "Root", data: [], path: "" }]);
+        setSelectedCategory(null);
+      } else {
+        setBreadcrumb((prev) => prev.slice(0, index + 1));
+        setSelectedCategory(breadcrumb[index].name);
+      }
+    },
+    [breadcrumb]
+  );
 
-  const handleZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
-    setZoomLevel(prev => {
-      if (direction === 'in') return Math.min(prev * 1.2, 3);
-      if (direction === 'out') return Math.max(prev / 1.2, 0.5);
+  const handleZoom = useCallback((direction: "in" | "out" | "reset") => {
+    setZoomLevel((prev) => {
+      if (direction === "in") return Math.min(prev * 1.2, 3);
+      if (direction === "out") return Math.max(prev / 1.2, 0.5);
       return 1;
     });
   }, []);
@@ -332,7 +379,7 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
     if (rect) {
       setTooltipPosition({
         x: event.clientX - rect.left,
-        y: event.clientY - rect.top
+        y: event.clientY - rect.top,
       });
     }
   }, []);
@@ -340,72 +387,75 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
   // Touch handlers for mobile
   const handleTouchStart = useCallback((event: React.TouchEvent) => {
     if (event.touches.length === 1) {
-      setTouchState(prev => ({
+      setTouchState((prev) => ({
         ...prev,
         isTouching: true,
         isPanning: true,
         lastTouchCenter: {
           x: event.touches[0].clientX,
-          y: event.touches[0].clientY
+          y: event.touches[0].clientY,
         },
         lastPanPoint: {
           x: event.touches[0].clientX,
-          y: event.touches[0].clientY
-        }
+          y: event.touches[0].clientY,
+        },
       }));
     } else if (event.touches.length === 2) {
       const dx = event.touches[1].clientX - event.touches[0].clientX;
       const dy = event.touches[1].clientY - event.touches[0].clientY;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      setTouchState(prev => ({
+
+      setTouchState((prev) => ({
         ...prev,
         isTouching: true,
         isPanning: false,
         lastTouchDistance: distance,
         lastTouchCenter: {
           x: (event.touches[0].clientX + event.touches[1].clientX) / 2,
-          y: (event.touches[0].clientY + event.touches[1].clientY) / 2
-        }
+          y: (event.touches[0].clientY + event.touches[1].clientY) / 2,
+        },
       }));
     }
   }, []);
 
-  const handleTouchMove = useCallback((event: React.TouchEvent) => {
-    if (event.touches.length === 1 && touchState.isPanning) {
-      // Pan
-      const dx = event.touches[0].clientX - touchState.lastPanPoint.x;
-      const dy = event.touches[0].clientY - touchState.lastPanPoint.y;
-      
-      setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-      setTouchState(prev => ({
-        ...prev,
-        lastPanPoint: {
-          x: event.touches[0].clientX,
-          y: event.touches[0].clientY
+  const handleTouchMove = useCallback(
+    (event: React.TouchEvent) => {
+      if (event.touches.length === 1 && touchState.isPanning) {
+        // Pan
+        const dx = event.touches[0].clientX - touchState.lastPanPoint.x;
+        const dy = event.touches[0].clientY - touchState.lastPanPoint.y;
+
+        setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+        setTouchState((prev) => ({
+          ...prev,
+          lastPanPoint: {
+            x: event.touches[0].clientX,
+            y: event.touches[0].clientY,
+          },
+        }));
+      } else if (event.touches.length === 2) {
+        // Zoom
+        const dx = event.touches[1].clientX - event.touches[0].clientX;
+        const dy = event.touches[1].clientY - event.touches[0].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (touchState.lastTouchDistance > 0) {
+          const scale = distance / touchState.lastTouchDistance;
+          setZoomLevel((prev) => Math.max(0.5, Math.min(3, prev * scale)));
         }
-      }));
-    } else if (event.touches.length === 2) {
-      // Zoom
-      const dx = event.touches[1].clientX - event.touches[0].clientX;
-      const dy = event.touches[1].clientY - event.touches[0].clientY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      if (touchState.lastTouchDistance > 0) {
-        const scale = distance / touchState.lastTouchDistance;
-        setZoomLevel(prev => Math.max(0.5, Math.min(3, prev * scale)));
+
+        setTouchState((prev) => ({
+          ...prev,
+          lastTouchDistance: distance,
+          lastTouchCenter: {
+            x: (event.touches[0].clientX + event.touches[1].clientX) / 2,
+            y: (event.touches[0].clientY + event.touches[1].clientY) / 2,
+          },
+        }));
       }
-      
-      setTouchState(prev => ({
-        ...prev,
-        lastTouchDistance: distance,
-        lastTouchCenter: {
-          x: (event.touches[0].clientX + event.touches[1].clientX) / 2,
-          y: (event.touches[0].clientY + event.touches[1].clientY) / 2
-        }
-      }));
-    }
-  }, [touchState]);
+    },
+    [touchState]
+  );
 
   const handleTouchEnd = useCallback(() => {
     setTouchState({
@@ -413,7 +463,7 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
       lastTouchDistance: 0,
       lastTouchCenter: { x: 0, y: 0 },
       isPanning: false,
-      lastPanPoint: { x: 0, y: 0 }
+      lastPanPoint: { x: 0, y: 0 },
     });
   }, []);
 
@@ -421,34 +471,34 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       switch (event.key) {
-        case '+':
-        case '=':
-          handleZoom('in');
+        case "+":
+        case "=":
+          handleZoom("in");
           break;
-        case '-':
-        case '_':
-          handleZoom('out');
+        case "-":
+        case "_":
+          handleZoom("out");
           break;
-        case '0':
-          handleZoom('reset');
+        case "0":
+          handleZoom("reset");
           break;
-        case 'l':
-          setShowLabels(prev => !prev);
+        case "l":
+          setShowLabels((prev) => !prev);
           break;
-        case 'g':
-          setShowGrid(prev => !prev);
+        case "g":
+          setShowGrid((prev) => !prev);
           break;
-        case 'f':
-          setIsFullscreen(prev => !prev);
+        case "f":
+          setIsFullscreen((prev) => !prev);
           break;
-        case 'Escape':
+        case "Escape":
           setSelectedNode(null);
           break;
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleZoom]);
 
   // Resize handler
@@ -461,8 +511,8 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
     };
 
     handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Fullscreen handler
@@ -471,8 +521,8 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
       setIsFullscreen(!!document.fullscreenElement);
     };
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
   const toggleFullscreen = useCallback(() => {
@@ -503,22 +553,22 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
         <div className={styles.controlSection}>
           <div className={styles.viewModeSelector}>
             <button
-              onClick={() => setVisualizationMode('treemap')}
-              className={`${styles.viewModeButton} ${visualizationMode === 'treemap' ? styles.active : ''}`}
+              onClick={() => setVisualizationMode("treemap")}
+              className={`${styles.viewModeButton} ${visualizationMode === "treemap" ? styles.active : ""}`}
               title="Treemap View"
             >
               <Grid3x3 size={16} />
             </button>
             <button
-              onClick={() => setVisualizationMode('sunburst')}
-              className={`${styles.viewModeButton} ${visualizationMode === 'sunburst' ? styles.active : ''}`}
+              onClick={() => setVisualizationMode("sunburst")}
+              className={`${styles.viewModeButton} ${visualizationMode === "sunburst" ? styles.active : ""}`}
               title="Sunburst View"
             >
               <Sun size={16} />
             </button>
             <button
-              onClick={() => setVisualizationMode('icicle')}
-              className={`${styles.viewModeButton} ${visualizationMode === 'icicle' ? styles.active : ''}`}
+              onClick={() => setVisualizationMode("icicle")}
+              className={`${styles.viewModeButton} ${visualizationMode === "icicle" ? styles.active : ""}`}
               title="Icicle View"
             >
               <Layers size={16} />
@@ -529,24 +579,22 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
         <div className={styles.controlSection}>
           <div className={styles.zoomControls}>
             <button
-              onClick={() => handleZoom('out')}
+              onClick={() => handleZoom("out")}
               className={styles.controlButton}
               title="Zoom Out"
             >
               <ZoomOut size={16} />
             </button>
-            <div className={styles.zoomIndicator}>
-              {Math.round(zoomLevel * 100)}%
-            </div>
+            <div className={styles.zoomIndicator}>{Math.round(zoomLevel * 100)}%</div>
             <button
-              onClick={() => handleZoom('in')}
+              onClick={() => handleZoom("in")}
               className={styles.controlButton}
               title="Zoom In"
             >
               <ZoomIn size={16} />
             </button>
             <button
-              onClick={() => handleZoom('reset')}
+              onClick={() => handleZoom("reset")}
               className={styles.controlButton}
               title="Reset View"
             >
@@ -559,14 +607,14 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
           <div className={styles.displayControls}>
             <button
               onClick={() => setShowLabels(!showLabels)}
-              className={`${styles.controlButton} ${showLabels ? styles.active : ''}`}
+              className={`${styles.controlButton} ${showLabels ? styles.active : ""}`}
               title="Toggle Labels"
             >
               {showLabels ? <Eye size={16} /> : <EyeOff size={16} />}
             </button>
             <button
               onClick={() => setShowGrid(!showGrid)}
-              className={`${styles.controlButton} ${showGrid ? styles.active : ''}`}
+              className={`${styles.controlButton} ${showGrid ? styles.active : ""}`}
               title="Toggle Grid"
             >
               <Grid3x3 size={16} />
@@ -577,22 +625,22 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
         <div className={styles.controlSection}>
           <div className={styles.colorPaletteSelector}>
             <button
-              onClick={() => setColorPalette('default')}
-              className={`${styles.paletteButton} ${colorPalette === 'default' ? styles.active : ''}`}
+              onClick={() => setColorPalette("default")}
+              className={`${styles.paletteButton} ${colorPalette === "default" ? styles.active : ""}`}
               title="Default Colors"
             >
               <Palette size={16} />
             </button>
             <button
-              onClick={() => setColorPalette('colorblind')}
-              className={`${styles.paletteButton} ${colorPalette === 'colorblind' ? styles.active : ''}`}
+              onClick={() => setColorPalette("colorblind")}
+              className={`${styles.paletteButton} ${colorPalette === "colorblind" ? styles.active : ""}`}
               title="Colorblind Friendly"
             >
               <Palette size={16} />
             </button>
             <button
-              onClick={() => setColorPalette('highContrast')}
-              className={`${styles.paletteButton} ${colorPalette === 'highContrast' ? styles.active : ''}`}
+              onClick={() => setColorPalette("highContrast")}
+              className={`${styles.paletteButton} ${colorPalette === "highContrast" ? styles.active : ""}`}
               title="High Contrast"
             >
               <Palette size={16} />
@@ -610,7 +658,7 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
               {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
             <button
-              onClick={() => onExport?.('png')}
+              onClick={() => onExport?.("png")}
               className={styles.controlButton}
               title="Export as PNG"
             >
@@ -633,7 +681,7 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
           <React.Fragment key={index}>
             <button
               onClick={() => handleBreadcrumbClick(index)}
-              className={`${styles.breadcrumbItem} ${index === breadcrumb.length - 1 ? styles.active : ''}`}
+              className={`${styles.breadcrumbItem} ${index === breadcrumb.length - 1 ? styles.active : ""}`}
             >
               {index === 0 ? <Home size={14} /> : item.name}
             </button>
@@ -653,26 +701,24 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
         onTouchEnd={handleTouchEnd}
         style={{
           transform: `scale(${zoomLevel}) translate(${panOffset.x}px, ${panOffset.y}px)`,
-          transformOrigin: 'top left'
+          transformOrigin: "top left",
         }}
       >
         {/* Grid Background */}
-        {showGrid && (
-          <div className={styles.gridBackground} />
-        )}
+        {showGrid && <div className={styles.gridBackground} />}
 
         {/* Treemap Nodes */}
         {layout.map((node, index) => (
           <motion.div
             key={`${node.name}-${index}`}
-            className={`${styles.treemapNode} ${selectedNode?.name === node.name ? styles.selected : ''}`}
+            className={`${styles.treemapNode} ${selectedNode?.name === node.name ? styles.selected : ""}`}
             style={{
               left: node.x,
               top: node.y,
               width: node.w,
               height: node.h,
               backgroundColor: node.color,
-              cursor: breadcrumb.length === 1 ? 'pointer' : 'default'
+              cursor: breadcrumb.length === 1 ? "pointer" : "default",
             }}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -682,7 +728,9 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
             onMouseEnter={() => setHoveredNode(node)}
             onMouseLeave={() => setHoveredNode(null)}
           >
-            <div className={`${styles.nodeContent} ${node.w > 100 ? styles.large : node.w > 50 ? styles.medium : styles.small}`}>
+            <div
+              className={`${styles.nodeContent} ${node.w > 100 ? styles.large : node.w > 50 ? styles.medium : styles.small}`}
+            >
               {showLabels && (
                 <>
                   <div className={styles.nodeName}>{node.name}</div>
@@ -706,7 +754,7 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
             style={{
               left: tooltipPosition.x + 15,
               top: tooltipPosition.y - 15,
-              position: 'absolute'
+              position: "absolute",
             }}
           >
             <div className={styles.tooltipHeader}>
@@ -717,7 +765,9 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
               <div>Files: {hoveredNode.files.toLocaleString()}</div>
               {hoveredNode.path && <div>Path: {hoveredNode.path}</div>}
               {hoveredNode.category && <div>Category: {hoveredNode.category}</div>}
-              {breadcrumb.length === 1 && <div className={styles.tooltipHint}>Click to drill down</div>}
+              {breadcrumb.length === 1 && (
+                <div className={styles.tooltipHint}>Click to drill down</div>
+              )}
             </div>
           </motion.div>
         )}
@@ -760,42 +810,65 @@ const EnhancedTreeMapView: React.FC<EnhancedTreeMapViewProps> = ({
             <div className={styles.helpContent}>
               <div className={styles.helpHeader}>
                 <h3>TreeMap Help</h3>
-                <button
-                  onClick={() => setShowHelp(false)}
-                  className={styles.helpClose}
-                >
+                <button onClick={() => setShowHelp(false)} className={styles.helpClose}>
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className={styles.helpSections}>
                 <div className={styles.helpSection}>
                   <h4>Controls</h4>
                   <ul>
-                    <li><kbd>Click</kbd> - Select node</li>
-                    <li><kbd>+/-</kbd> - Zoom in/out</li>
-                    <li><kbd>0</kbd> - Reset view</li>
-                    <li><kbd>L</kbd> - Toggle labels</li>
-                    <li><kbd>G</kbd> - Toggle grid</li>
-                    <li><kbd>F</kbd> - Fullscreen</li>
+                    <li>
+                      <kbd>Click</kbd> - Select node
+                    </li>
+                    <li>
+                      <kbd>+/-</kbd> - Zoom in/out
+                    </li>
+                    <li>
+                      <kbd>0</kbd> - Reset view
+                    </li>
+                    <li>
+                      <kbd>L</kbd> - Toggle labels
+                    </li>
+                    <li>
+                      <kbd>G</kbd> - Toggle grid
+                    </li>
+                    <li>
+                      <kbd>F</kbd> - Fullscreen
+                    </li>
                   </ul>
                 </div>
-                
+
                 <div className={styles.helpSection}>
                   <h4>Touch Gestures</h4>
                   <ul>
-                    <li><strong>Tap</strong> - Select node</li>
-                    <li><strong>Pinch</strong> - Zoom</li>
-                    <li><strong>Drag</strong> - Pan</li>
+                    <li>
+                      <strong>Tap</strong> - Select node
+                    </li>
+                    <li>
+                      <strong>Pinch</strong> - Zoom
+                    </li>
+                    <li>
+                      <strong>Drag</strong> - Pan
+                    </li>
                   </ul>
                 </div>
-                
+
                 <div className={styles.helpSection}>
                   <h4>Color Palettes</h4>
                   <ul>
-                    <li><span className={styles.paletteDefault}>Default</span> - Standard colors</li>
-                    <li><span className={styles.paletteColorblind}>Colorblind</span> - Accessible colors</li>
-                    <li><span className={styles.paletteHighContrast}>High Contrast</span> - Maximum contrast</li>
+                    <li>
+                      <span className={styles.paletteDefault}>Default</span> - Standard colors
+                    </li>
+                    <li>
+                      <span className={styles.paletteColorblind}>Colorblind</span> - Accessible
+                      colors
+                    </li>
+                    <li>
+                      <span className={styles.paletteHighContrast}>High Contrast</span> - Maximum
+                      contrast
+                    </li>
                   </ul>
                 </div>
               </div>

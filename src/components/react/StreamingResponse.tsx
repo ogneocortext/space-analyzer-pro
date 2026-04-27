@@ -1,6 +1,6 @@
-import React, { FC, useState, useEffect } from 'react';
-import { BrainCircuit, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { FC, useState, useEffect } from "react";
+import { BrainCircuit, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface StreamingResponseProps {
   isStreaming: boolean;
@@ -18,12 +18,12 @@ export const StreamingResponse: FC<StreamingResponseProps> = ({
   response,
   isComplete = false,
   error = null,
-  model = 'AI Assistant',
+  model = "AI Assistant",
   confidence = 85,
   responseTime,
-  onCancel
+  onCancel,
 }) => {
-  const [displayedText, setDisplayedText] = useState('');
+  const [displayedText, setDisplayedText] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Simulate streaming effect
@@ -46,7 +46,7 @@ export const StreamingResponse: FC<StreamingResponseProps> = ({
   // Reset when new response starts
   useEffect(() => {
     if (isStreaming && !displayedText) {
-      setDisplayedText('');
+      setDisplayedText("");
       setCurrentIndex(0);
     }
   }, [isStreaming, displayedText]);
@@ -84,19 +84,14 @@ export const StreamingResponse: FC<StreamingResponseProps> = ({
           <div>
             <span className="text-white font-medium">{model}</span>
             {confidence && (
-              <span className="ml-2 text-xs text-gray-400">
-                {confidence}% confidence
-              </span>
+              <span className="ml-2 text-xs text-gray-400">{confidence}% confidence</span>
             )}
           </div>
         </div>
 
         <div className="flex items-center space-x-3">
           {isStreaming && onCancel && (
-            <button
-              onClick={onCancel}
-              className="text-xs text-gray-400 hover:text-white underline"
-            >
+            <button onClick={onCancel} className="text-xs text-gray-400 hover:text-white underline">
               Cancel
             </button>
           )}
@@ -112,11 +107,7 @@ export const StreamingResponse: FC<StreamingResponseProps> = ({
             </motion.div>
           )}
 
-          {responseTime && (
-            <span className="text-xs text-gray-400">
-              {responseTime}ms
-            </span>
-          )}
+          {responseTime && <span className="text-xs text-gray-400">{responseTime}ms</span>}
         </div>
       </div>
 
@@ -163,12 +154,12 @@ export const StreamingResponse: FC<StreamingResponseProps> = ({
                         key={i}
                         animate={{
                           scale: [1, 1.2, 1],
-                          opacity: [0.5, 1, 0.5]
+                          opacity: [0.5, 1, 0.5],
                         }}
                         transition={{
                           repeat: Infinity,
                           duration: 1.5,
-                          delay: i * 0.2
+                          delay: i * 0.2,
                         }}
                         className="w-1 h-1 bg-blue-400 rounded-full"
                       />
@@ -183,9 +174,7 @@ export const StreamingResponse: FC<StreamingResponseProps> = ({
                 <BrainCircuit size={16} className="text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-white leading-relaxed whitespace-pre-wrap">
-                  {response}
-                </div>
+                <div className="text-white leading-relaxed whitespace-pre-wrap">{response}</div>
                 {isComplete && (
                   <motion.div
                     initial={{ opacity: 0, y: 5 }}
@@ -208,9 +197,9 @@ export const StreamingResponse: FC<StreamingResponseProps> = ({
           <div className="w-full bg-gray-700 rounded-full h-1">
             <motion.div
               className="bg-gradient-to-r from-blue-400 to-purple-400 h-1 rounded-full"
-              initial={{ width: '0%' }}
+              initial={{ width: "0%" }}
               animate={{
-                width: response ? `${(displayedText.length / response.length) * 100}%` : '30%'
+                width: response ? `${(displayedText.length / response.length) * 100}%` : "30%",
               }}
               transition={{ duration: 0.5 }}
             />
@@ -222,10 +211,10 @@ export const StreamingResponse: FC<StreamingResponseProps> = ({
 };
 
 // Skeleton loading component for initial state
-export const ResponseSkeleton: FC<{ variant?: 'default' | 'minimal' }> = ({
-  variant = 'default'
+export const ResponseSkeleton: FC<{ variant?: "default" | "minimal" }> = ({
+  variant = "default",
 }) => {
-  if (variant === 'minimal') {
+  if (variant === "minimal") {
     return (
       <div className="bg-white/5 border border-white/10 rounded-xl p-4 animate-pulse">
         <div className="flex items-center space-x-3 mb-3">
@@ -283,12 +272,12 @@ export const ResponseSkeleton: FC<{ variant?: 'default' | 'minimal' }> = ({
                 key={i}
                 animate={{
                   scale: [1, 1.2, 1],
-                  opacity: [0.5, 1, 0.5]
+                  opacity: [0.5, 1, 0.5],
                 }}
                 transition={{
                   repeat: Infinity,
                   duration: 1.5,
-                  delay: i * 0.2
+                  delay: i * 0.2,
                 }}
                 className="w-1 h-1 bg-blue-400 rounded-full"
               />

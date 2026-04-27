@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, File, Folder, AlertCircle } from 'lucide-react';
+import React, { useState, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Upload, X, File, Folder, AlertCircle } from "lucide-react";
 
 interface DragDropZoneProps {
   onDrop: (files: File[], context?: string) => void;
@@ -24,17 +24,17 @@ const DragDropZone: React.FC<DragDropZoneProps> = ({
   onDrop,
   onTextDrop,
   children,
-  className = '',
+  className = "",
   disabled = false,
   accept = [],
   maxSize = 100 * 1024 * 1024, // 100MB default
-  multiple = true
+  multiple = true,
 }) => {
   const [state, setState] = useState<DropZoneState>({
     isDragging: false,
     isDragOver: false,
     dragCounter: 0,
-    error: null
+    error: null,
   });
 
   const dragCounter = useRef(0);
@@ -42,133 +42,154 @@ const DragDropZone: React.FC<DragDropZoneProps> = ({
   const timeoutRef = useRef<NodeJS.Timeout>(null);
 
   const clearError = useCallback(() => {
-    setState(prev => ({ ...prev, error: null }));
+    setState((prev) => ({ ...prev, error: null }));
   }, []);
 
-  const showError = useCallback((message: string) => {
-    setState(prev => ({ ...prev, error: message }));
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(clearError, 3000);
-  }, [clearError]);
-
-  const validateFiles = useCallback((files: FileList): File[] => {
-    const validFiles: File[] = [];
-    
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      
-      // Check file size
-      if (file.size > maxSize) {
-        showError(`File "${file.name}" exceeds maximum size of ${formatFileSize(maxSize)}`);
-        continue;
+  const showError = useCallback(
+    (message: string) => {
+      setState((prev) => ({ ...prev, error: message }));
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
-      
-      // Check file type if accept is specified
-      if (accept.length > 0 && !accept.some(type => file.type.includes(type) || file.name.endsWith(type))) {
-        showError(`File type "${file.type}" not accepted`);
-        continue;
-      }
-      
-      validFiles.push(file);
-    }
-    
-    return validFiles;
-  }, [accept, maxSize, showError]);
+      timeoutRef.current = setTimeout(clearError, 3000);
+    },
+    [clearError]
+  );
 
-  const handleDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (disabled) return;
-    
-    dragCounter.current++;
-    
-    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-      setState(prev => ({
-        ...prev,
-        isDragging: true,
-        isDragOver: true,
-        dragCounter: dragCounter.current
-      }));
-    }
-  }, [disabled]);
+  const validateFiles = useCallback(
+    (files: FileList): File[] => {
+      const validFiles: File[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        // Check file size
+        if (file.size > maxSize) {
+          showError(`File "${file.name}" exceeds maximum size of ${formatFileSize(maxSize)}`);
+          continue;
+        }
+
+        // Check file type if accept is specified
+        if (
+          accept.length > 0 &&
+          !accept.some((type) => file.type.includes(type) || file.name.endsWith(type))
+        ) {
+          showError(`File type "${file.type}" not accepted`);
+          continue;
+        }
+
+        validFiles.push(file);
+      }
+
+      return validFiles;
+    },
+    [accept, maxSize, showError]
+  );
+
+  const handleDragEnter = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (disabled) return;
+
+      dragCounter.current++;
+
+      if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+        setState((prev) => ({
+          ...prev,
+          isDragging: true,
+          isDragOver: true,
+          dragCounter: dragCounter.current,
+        }));
+      }
+    },
+    [disabled]
+  );
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     dragCounter.current--;
-    
+
     if (dragCounter.current === 0) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         isDragging: false,
         isDragOver: false,
-        dragCounter: 0
+        dragCounter: 0,
       }));
     }
   }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (disabled) return;
-    
-    if (e.dataTransfer.dropEffect === 'copy') {
-      e.dataTransfer.dropEffect = 'copy';
-    }
-  }, [disabled]);
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (disabled) return;
-    
-    setState(prev => ({
-      ...prev,
-      isDragging: false,
-      isDragOver: false,
-      dragCounter: 0
-    }));
-    
-    dragCounter.current = 0;
+      if (disabled) return;
 
-    // Handle text drop
-    if (e.dataTransfer.types.includes('text/plain') && onTextDrop) {
-      const text = e.dataTransfer.getData('text/plain');
-      if (text.trim()) {
-        onTextDrop(text);
-        return;
+      if (e.dataTransfer.dropEffect === "copy") {
+        e.dataTransfer.dropEffect = "copy";
       }
-    }
+    },
+    [disabled]
+  );
 
-    // Handle file drop
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const files = validateFiles(e.dataTransfer.files);
-      
-      if (files.length > 0) {
-        if (!multiple && files.length > 1) {
-          showError('Only one file can be dropped at a time');
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (disabled) return;
+
+      setState((prev) => ({
+        ...prev,
+        isDragging: false,
+        isDragOver: false,
+        dragCounter: 0,
+      }));
+
+      dragCounter.current = 0;
+
+      // Handle text drop
+      if (e.dataTransfer.types.includes("text/plain") && onTextDrop) {
+        const text = e.dataTransfer.getData("text/plain");
+        if (text.trim()) {
+          onTextDrop(text);
           return;
         }
-        
-        // Determine context from the drop target
-        const context = (e.target as HTMLElement).closest('[data-drop-context]')?.getAttribute('data-drop-context') || undefined;
-        onDrop(files, context);
       }
-    }
-  }, [disabled, validateFiles, multiple, onDrop, onTextDrop, showError]);
+
+      // Handle file drop
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const files = validateFiles(e.dataTransfer.files);
+
+        if (files.length > 0) {
+          if (!multiple && files.length > 1) {
+            showError("Only one file can be dropped at a time");
+            return;
+          }
+
+          // Determine context from the drop target
+          const context =
+            (e.target as HTMLElement)
+              .closest("[data-drop-context]")
+              ?.getAttribute("data-drop-context") || undefined;
+          onDrop(files, context);
+        }
+      }
+    },
+    [disabled, validateFiles, multiple, onDrop, onTextDrop, showError]
+  );
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   return (
@@ -181,7 +202,7 @@ const DragDropZone: React.FC<DragDropZoneProps> = ({
       data-drop-context="general"
     >
       {children}
-      
+
       {/* Drag Overlay */}
       <AnimatePresence>
         {state.isDragOver && (
@@ -205,11 +226,9 @@ const DragDropZone: React.FC<DragDropZoneProps> = ({
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
               >
-                <p className="text-blue-300 font-medium mb-2">
-                  Drop files here to analyze
-                </p>
+                <p className="text-blue-300 font-medium mb-2">Drop files here to analyze</p>
                 <p className="text-blue-400/70 text-sm">
-                  {multiple ? 'Drop multiple files' : 'Drop one file'}
+                  {multiple ? "Drop multiple files" : "Drop one file"}
                 </p>
                 {maxSize && (
                   <p className="text-blue-400/50 text-xs mt-1">
@@ -253,7 +272,7 @@ const DragDropZone: React.FC<DragDropZoneProps> = ({
 // Hook for AI Chat drag and drop
 export const useAIDragDrop = () => {
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
-  const [droppedText, setDroppedText] = useState<string>('');
+  const [droppedText, setDroppedText] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleFileDrop = useCallback(async (files: File[], context?: string) => {
@@ -262,53 +281,55 @@ export const useAIDragDrop = () => {
 
     try {
       // Generate AI prompt based on dropped files
-      const fileNames = files.map(f => f.name).join(', ');
+      const fileNames = files.map((f) => f.name).join(", ");
       const totalSize = files.reduce((acc, f) => acc + f.size, 0);
-      
+
       let prompt = `Analyze the following file(s): ${fileNames}\n`;
       prompt += `Total size: ${formatFileSize(totalSize)}\n`;
-      
+
       if (context) {
         prompt += `Context: ${context}\n`;
       }
-      
+
       // Add file-specific analysis
       for (const file of files) {
         prompt += `\n- ${file.name} (${formatFileSize(file.size)})`;
-        
+
         // Add file type specific suggestions
-        const extension = file.name.split('.').pop()?.toLowerCase();
+        const extension = file.name.split(".").pop()?.toLowerCase();
         switch (extension) {
-          case 'js':
-          case 'jsx':
-          case 'ts':
-          case 'tsx':
-            prompt += ' - JavaScript/TypeScript file: Check for unused dependencies and bundle size optimization';
+          case "js":
+          case "jsx":
+          case "ts":
+          case "tsx":
+            prompt +=
+              " - JavaScript/TypeScript file: Check for unused dependencies and bundle size optimization";
             break;
-          case 'png':
-          case 'jpg':
-          case 'jpeg':
-          case 'gif':
-            prompt += ' - Image file: Consider compression or conversion to WebP';
+          case "png":
+          case "jpg":
+          case "jpeg":
+          case "gif":
+            prompt += " - Image file: Consider compression or conversion to WebP";
             break;
-          case 'mp4':
-          case 'avi':
-          case 'mov':
-            prompt += ' - Video file: Large media file, consider compression or cloud storage';
+          case "mp4":
+          case "avi":
+          case "mov":
+            prompt += " - Video file: Large media file, consider compression or cloud storage";
             break;
-          case 'log':
-            prompt += ' - Log file: Can likely be cleared if old';
+          case "log":
+            prompt += " - Log file: Can likely be cleared if old";
             break;
           default:
-            prompt += ' - File: Review if still needed';
+            prompt += " - File: Review if still needed";
         }
       }
-      
-      prompt += '\n\nPlease provide specific recommendations for optimizing storage and suggest cleanup actions.';
-      
+
+      prompt +=
+        "\n\nPlease provide specific recommendations for optimizing storage and suggest cleanup actions.";
+
       setDroppedText(prompt);
     } catch (error) {
-      console.error('Error processing dropped files:', error);
+      console.error("Error processing dropped files:", error);
     } finally {
       setIsProcessing(false);
     }
@@ -320,7 +341,7 @@ export const useAIDragDrop = () => {
 
   const clearDrops = useCallback(() => {
     setDroppedFiles([]);
-    setDroppedText('');
+    setDroppedText("");
   }, []);
 
   return {
@@ -329,16 +350,16 @@ export const useAIDragDrop = () => {
     isProcessing,
     handleFileDrop,
     handleTextDrop,
-    clearDrops
+    clearDrops,
   };
 };
 
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
 export default DragDropZone;

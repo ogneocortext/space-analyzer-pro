@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface CardProps {
   label: string;
@@ -10,7 +10,9 @@ export const StatCard: React.FC<CardProps> = ({ label, value, color }) => {
   return (
     <div className="card">
       <div className="card-label">{label}</div>
-      <div className="card-value" style={color ? { color } : {}}>{value}</div>
+      <div className="card-value" style={color ? { color } : {}}>
+        {value}
+      </div>
     </div>
   );
 };

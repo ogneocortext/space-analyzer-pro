@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Lightbulb, Zap, Target, TrendingUp, AlertTriangle,
-  CheckCircle, Clock, ArrowRight, Play, Pause,
-  BarChart3, FileText, Trash2, Archive, FolderOpen
-} from 'lucide-react';
-import { ollamaService } from '../services/OllamaService';
+import React, { useState, useEffect } from "react";
+import {
+  Lightbulb,
+  Zap,
+  Target,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  ArrowRight,
+  Play,
+  Pause,
+  BarChart3,
+  FileText,
+  Trash2,
+  Archive,
+  FolderOpen,
+} from "lucide-react";
+import { ollamaService } from "../services/OllamaService";
 
 interface SmartRecommendationsProps {
   analysisData: any;
@@ -13,15 +25,15 @@ interface SmartRecommendationsProps {
 
 interface RecommendationAction {
   id: string;
-  type: 'delete' | 'archive' | 'compress' | 'organize' | 'analyze';
+  type: "delete" | "archive" | "compress" | "organize" | "analyze";
   title: string;
   description: string;
-  impact: 'high' | 'medium' | 'low';
-  effort: 'easy' | 'medium' | 'hard';
+  impact: "high" | "medium" | "low";
+  effort: "easy" | "medium" | "hard";
   savings: string;
   files?: any[];
   automated: boolean;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: "pending" | "running" | "completed" | "failed";
   progress?: number;
 }
 
@@ -37,36 +49,36 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
   const [recommendations, setRecommendations] = useState<RecommendationAction[]>([]);
   const [categories] = useState<RecommendationCategory[]>([
     {
-      id: 'quick-wins',
-      name: 'Quick Wins',
+      id: "quick-wins",
+      name: "Quick Wins",
       icon: Zap,
-      color: 'text-green-400',
-      description: 'Easy actions with immediate impact'
+      color: "text-green-400",
+      description: "Easy actions with immediate impact",
     },
     {
-      id: 'space-recovery',
-      name: 'Space Recovery',
+      id: "space-recovery",
+      name: "Space Recovery",
       icon: Trash2,
-      color: 'text-red-400',
-      description: 'Actions to recover significant storage'
+      color: "text-red-400",
+      description: "Actions to recover significant storage",
     },
     {
-      id: 'organization',
-      name: 'Organization',
+      id: "organization",
+      name: "Organization",
       icon: FolderOpen,
-      color: 'text-blue-400',
-      description: 'Improve file structure and accessibility'
+      color: "text-blue-400",
+      description: "Improve file structure and accessibility",
     },
     {
-      id: 'optimization',
-      name: 'Optimization',
+      id: "optimization",
+      name: "Optimization",
       icon: TrendingUp,
-      color: 'text-purple-400',
-      description: 'Long-term improvements and maintenance'
-    }
+      color: "text-purple-400",
+      description: "Long-term improvements and maintenance",
+    },
   ]);
-  
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isGenerating, setIsGenerating] = useState(false);
   const [executingAction, setExecutingAction] = useState<string | null>(null);
 
@@ -78,16 +90,16 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
 
   const generateSmartRecommendations = async () => {
     setIsGenerating(true);
-    
+
     try {
       // Get AI recommendations
       const aiRecommendations = await ollamaService.generateRecommendations(analysisData);
-      
+
       // Generate actionable recommendations based on analysis data
       const actionableRecs = generateActionableRecommendations(aiRecommendations);
       setRecommendations(actionableRecs);
     } catch (error) {
-      console.error('Failed to generate recommendations:', error);
+      console.error("Failed to generate recommendations:", error);
     } finally {
       setIsGenerating(false);
     }
@@ -95,74 +107,77 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
 
   const generateActionableRecommendations = (aiRecs: string[]): RecommendationAction[] => {
     const recommendations: RecommendationAction[] = [];
-    
+
     // Analyze the data to create specific actionable recommendations
     if (analysisData?.largestFiles?.length > 0) {
       const largeFiles = analysisData.largestFiles.slice(0, 5);
       const totalSize = largeFiles.reduce((sum: number, file: any) => sum + file.size, 0);
-      
+
       recommendations.push({
-        id: 'remove-large-files',
-        type: 'delete',
-        title: 'Remove Large Unused Files',
+        id: "remove-large-files",
+        type: "delete",
+        title: "Remove Large Unused Files",
         description: `Delete ${largeFiles.length} large files that haven't been accessed recently`,
-        impact: 'high',
-        effort: 'easy',
+        impact: "high",
+        effort: "easy",
         savings: formatFileSize(totalSize),
         files: largeFiles,
         automated: false,
-        status: 'pending'
+        status: "pending",
       });
     }
 
     if (analysisData?.duplicates?.length > 0) {
-      const duplicateSize = analysisData.duplicates.reduce((sum: number, dup: any) => sum + dup.size, 0);
-      
+      const duplicateSize = analysisData.duplicates.reduce(
+        (sum: number, dup: any) => sum + dup.size,
+        0
+      );
+
       recommendations.push({
-        id: 'remove-duplicates',
-        type: 'delete',
-        title: 'Remove Duplicate Files',
+        id: "remove-duplicates",
+        type: "delete",
+        title: "Remove Duplicate Files",
         description: `Clean up ${analysisData.duplicates.length} duplicate files`,
-        impact: 'medium',
-        effort: 'easy',
+        impact: "medium",
+        effort: "easy",
         savings: formatFileSize(duplicateSize),
         files: analysisData.duplicates,
         automated: true,
-        status: 'pending'
+        status: "pending",
       });
     }
 
     if (analysisData?.oldFiles?.length > 0) {
       const oldFiles = analysisData.oldFiles.slice(0, 10);
       const oldSize = oldFiles.reduce((sum: number, file: any) => sum + file.size, 0);
-      
+
       recommendations.push({
-        id: 'archive-old-files',
-        type: 'archive',
-        title: 'Archive Old Files',
+        id: "archive-old-files",
+        type: "archive",
+        title: "Archive Old Files",
         description: `Archive ${oldFiles.length} files older than 1 year`,
-        impact: 'medium',
-        effort: 'medium',
+        impact: "medium",
+        effort: "medium",
         savings: formatFileSize(oldSize),
         files: oldFiles,
         automated: true,
-        status: 'pending'
+        status: "pending",
       });
     }
 
     // Add AI-generated recommendations as actionable items
     aiRecs.forEach((rec, index) => {
-      if (rec.toLowerCase().includes('compress') || rec.toLowerCase().includes('optimize')) {
+      if (rec.toLowerCase().includes("compress") || rec.toLowerCase().includes("optimize")) {
         recommendations.push({
           id: `ai-compress-${index}`,
-          type: 'compress',
-          title: 'Compress Files',
-          description: rec.replace(/^\d+\.\s*/, ''),
-          impact: 'medium',
-          effort: 'easy',
-          savings: 'Estimating...',
+          type: "compress",
+          title: "Compress Files",
+          description: rec.replace(/^\d+\.\s*/, ""),
+          impact: "medium",
+          effort: "easy",
+          savings: "Estimating...",
           automated: true,
-          status: 'pending'
+          status: "pending",
         });
       }
     });
@@ -172,46 +187,32 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
 
   const executeAction = async (action: RecommendationAction) => {
     setExecutingAction(action.id);
-    
+
     // Update action status to running
-    setRecommendations(prev => 
-      prev.map(rec => 
-        rec.id === action.id 
-          ? { ...rec, status: 'running', progress: 0 }
-          : rec
-      )
+    setRecommendations((prev) =>
+      prev.map((rec) => (rec.id === action.id ? { ...rec, status: "running", progress: 0 } : rec))
     );
 
     try {
       // Simulate progress
       for (let i = 0; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        setRecommendations(prev => 
-          prev.map(rec => 
-            rec.id === action.id 
-              ? { ...rec, progress: i }
-              : rec
-          )
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        setRecommendations((prev) =>
+          prev.map((rec) => (rec.id === action.id ? { ...rec, progress: i } : rec))
         );
       }
 
       // Mark as completed
-      setRecommendations(prev => 
-        prev.map(rec => 
-          rec.id === action.id 
-            ? { ...rec, status: 'completed', progress: 100 }
-            : rec
+      setRecommendations((prev) =>
+        prev.map((rec) =>
+          rec.id === action.id ? { ...rec, status: "completed", progress: 100 } : rec
         )
       );
 
       onActionExecute?.(action);
     } catch (error) {
-      setRecommendations(prev => 
-        prev.map(rec => 
-          rec.id === action.id 
-            ? { ...rec, status: 'failed' }
-            : rec
-        )
+      setRecommendations((prev) =>
+        prev.map((rec) => (rec.id === action.id ? { ...rec, status: "failed" } : rec))
       );
     } finally {
       setExecutingAction(null);
@@ -219,49 +220,66 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const getImpactColor = (impact: string) => {
     switch (impact) {
-      case 'high': return 'text-red-400 bg-red-900/20 border-red-800';
-      case 'medium': return 'text-yellow-400 bg-yellow-900/20 border-yellow-800';
-      case 'low': return 'text-green-400 bg-green-900/20 border-green-800';
-      default: return 'text-gray-400 bg-gray-900/20 border-gray-800';
+      case "high":
+        return "text-red-400 bg-red-900/20 border-red-800";
+      case "medium":
+        return "text-yellow-400 bg-yellow-900/20 border-yellow-800";
+      case "low":
+        return "text-green-400 bg-green-900/20 border-green-800";
+      default:
+        return "text-gray-400 bg-gray-900/20 border-gray-800";
     }
   };
 
   const getEffortColor = (effort: string) => {
     switch (effort) {
-      case 'easy': return 'text-green-400';
-      case 'medium': return 'text-yellow-400';
-      case 'hard': return 'text-red-400';
-      default: return 'text-gray-400';
+      case "easy":
+        return "text-green-400";
+      case "medium":
+        return "text-yellow-400";
+      case "hard":
+        return "text-red-400";
+      default:
+        return "text-gray-400";
     }
   };
 
-  const filteredRecommendations = selectedCategory === 'all' 
-    ? recommendations 
-    : recommendations.filter(rec => {
-        // Simple categorization based on type and impact
-        if (selectedCategory === 'quick-wins') return rec.effort === 'easy' && rec.impact !== 'low';
-        if (selectedCategory === 'space-recovery') return rec.type === 'delete' || rec.type === 'archive';
-        if (selectedCategory === 'organization') return rec.type === 'organize';
-        if (selectedCategory === 'optimization') return rec.type === 'compress' || rec.type === 'analyze';
-        return true;
-      });
+  const filteredRecommendations =
+    selectedCategory === "all"
+      ? recommendations
+      : recommendations.filter((rec) => {
+          // Simple categorization based on type and impact
+          if (selectedCategory === "quick-wins")
+            return rec.effort === "easy" && rec.impact !== "low";
+          if (selectedCategory === "space-recovery")
+            return rec.type === "delete" || rec.type === "archive";
+          if (selectedCategory === "organization") return rec.type === "organize";
+          if (selectedCategory === "optimization")
+            return rec.type === "compress" || rec.type === "analyze";
+          return true;
+        });
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock className="w-4 h-4 text-gray-400" />;
-      case 'running': return <Play className="w-4 h-4 text-blue-400 animate-pulse" />;
-      case 'completed': return <CheckCircle className="w-4 h-4 text-green-400" />;
-      case 'failed': return <AlertTriangle className="w-4 h-4 text-red-400" />;
-      default: return <Clock className="w-4 h-4 text-gray-400" />;
+      case "pending":
+        return <Clock className="w-4 h-4 text-gray-400" />;
+      case "running":
+        return <Play className="w-4 h-4 text-blue-400 animate-pulse" />;
+      case "completed":
+        return <CheckCircle className="w-4 h-4 text-green-400" />;
+      case "failed":
+        return <AlertTriangle className="w-4 h-4 text-red-400" />;
+      default:
+        return <Clock className="w-4 h-4 text-gray-400" />;
     }
   };
 
@@ -273,9 +291,7 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
           <Lightbulb className="w-6 h-6 text-yellow-400" />
           <div>
             <h2 className="text-xl font-semibold">Smart Recommendations</h2>
-            <p className="text-sm text-gray-400">
-              AI-powered actions to optimize your storage
-            </p>
+            <p className="text-sm text-gray-400">AI-powered actions to optimize your storage</p>
           </div>
         </div>
 
@@ -285,18 +301,18 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
           className="flex items-center space-x-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
         >
           <Target className="w-4 h-4" />
-          <span>{isGenerating ? 'Generating...' : 'Regenerate'}</span>
+          <span>{isGenerating ? "Generating..." : "Regenerate"}</span>
         </button>
       </div>
 
       {/* Category Filter */}
       <div className="flex items-center space-x-2 overflow-x-auto pb-2">
         <button
-          onClick={() => setSelectedCategory('all')}
+          onClick={() => setSelectedCategory("all")}
           className={`flex items-center space-x-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-            selectedCategory === 'all'
-              ? 'bg-yellow-600 text-white'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            selectedCategory === "all"
+              ? "bg-yellow-600 text-white"
+              : "bg-gray-800 text-gray-300 hover:bg-gray-700"
           }`}
         >
           <BarChart3 className="w-4 h-4" />
@@ -305,11 +321,13 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
 
         {categories.map((category) => {
           const Icon = category.icon;
-          const count = recommendations.filter(rec => {
-            if (category.id === 'quick-wins') return rec.effort === 'easy' && rec.impact !== 'low';
-            if (category.id === 'space-recovery') return rec.type === 'delete' || rec.type === 'archive';
-            if (category.id === 'organization') return rec.type === 'organize';
-            if (category.id === 'optimization') return rec.type === 'compress' || rec.type === 'analyze';
+          const count = recommendations.filter((rec) => {
+            if (category.id === "quick-wins") return rec.effort === "easy" && rec.impact !== "low";
+            if (category.id === "space-recovery")
+              return rec.type === "delete" || rec.type === "archive";
+            if (category.id === "organization") return rec.type === "organize";
+            if (category.id === "optimization")
+              return rec.type === "compress" || rec.type === "analyze";
             return false;
           }).length;
 
@@ -319,12 +337,14 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
               onClick={() => setSelectedCategory(category.id)}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
                 selectedCategory === category.id
-                  ? 'bg-gray-800 text-white border border-gray-600'
-                  : 'bg-gray-900 text-gray-300 hover:bg-gray-800'
+                  ? "bg-gray-800 text-white border border-gray-600"
+                  : "bg-gray-900 text-gray-300 hover:bg-gray-800"
               }`}
             >
               <Icon className={`w-4 h-4 ${category.color}`} />
-              <span className="text-sm">{category.name} ({count})</span>
+              <span className="text-sm">
+                {category.name} ({count})
+              </span>
             </button>
           );
         })}
@@ -342,10 +362,14 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
                 <div className="flex items-center space-x-3 mb-2">
                   <h3 className="text-lg font-medium">{recommendation.title}</h3>
                   <div className="flex items-center space-x-2">
-                    <span className={`text-xs px-2 py-1 rounded ${getImpactColor(recommendation.impact)}`}>
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${getImpactColor(recommendation.impact)}`}
+                    >
                       {recommendation.impact} impact
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded bg-gray-900 ${getEffortColor(recommendation.effort)}`}>
+                    <span
+                      className={`text-xs px-2 py-1 rounded bg-gray-900 ${getEffortColor(recommendation.effort)}`}
+                    >
                       {recommendation.effort}
                     </span>
                     {recommendation.automated && (
@@ -355,15 +379,15 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
                     )}
                   </div>
                 </div>
-                
+
                 <p className="text-gray-300 mb-3">{recommendation.description}</p>
-                
+
                 <div className="flex items-center space-x-4 text-sm">
                   <div className="flex items-center space-x-1">
                     <TrendingUp className="w-4 h-4 text-green-400" />
                     <span className="text-green-400">Save {recommendation.savings}</span>
                   </div>
-                  
+
                   {recommendation.files && (
                     <div className="flex items-center space-x-1">
                       <FileText className="w-4 h-4 text-blue-400" />
@@ -375,8 +399,8 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
 
               <div className="flex items-center space-x-2">
                 {getStatusIcon(recommendation.status)}
-                
-                {recommendation.status === 'pending' && (
+
+                {recommendation.status === "pending" && (
                   <button
                     onClick={() => executeAction(recommendation)}
                     disabled={executingAction !== null}
@@ -387,7 +411,7 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
                   </button>
                 )}
 
-                {recommendation.status === 'running' && (
+                {recommendation.status === "running" && (
                   <button
                     disabled
                     className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg cursor-not-allowed"
@@ -397,13 +421,11 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
                   </button>
                 )}
 
-                {recommendation.status === 'completed' && (
-                  <div className="text-green-400 text-sm font-medium">
-                    Completed
-                  </div>
+                {recommendation.status === "completed" && (
+                  <div className="text-green-400 text-sm font-medium">Completed</div>
                 )}
 
-                {recommendation.status === 'failed' && (
+                {recommendation.status === "failed" && (
                   <button
                     onClick={() => executeAction(recommendation)}
                     className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
@@ -416,14 +438,14 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
             </div>
 
             {/* Progress Bar */}
-            {recommendation.status === 'running' && recommendation.progress !== undefined && (
+            {recommendation.status === "running" && recommendation.progress !== undefined && (
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm text-gray-400">Progress</span>
                   <span className="text-sm text-gray-400">{recommendation.progress}%</span>
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${recommendation.progress}%` }}
                   />
@@ -457,10 +479,9 @@ export function SmartRecommendations({ analysisData, onActionExecute }: SmartRec
             <Lightbulb className="w-16 h-16 mx-auto mb-4" />
             <h3 className="text-xl font-medium mb-2">No Recommendations Available</h3>
             <p className="text-sm mb-4">
-              {recommendations.length === 0 
-                ? 'Run a file analysis to get smart recommendations'
-                : 'No recommendations found for the selected category'
-              }
+              {recommendations.length === 0
+                ? "Run a file analysis to get smart recommendations"
+                : "No recommendations found for the selected category"}
             </p>
           </div>
         )}

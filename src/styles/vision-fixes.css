@@ -7,7 +7,7 @@
   font-weight: 700 !important;
   color: #ffffff !important;
   margin-bottom: 0.75rem !important;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
   letter-spacing: -0.025em !important;
 }
 
@@ -31,7 +31,7 @@
 }
 
 .metric-card::before {
-  content: '' !important;
+  content: "" !important;
   position: absolute !important;
   top: 0 !important;
   left: 0 !important;
@@ -48,7 +48,9 @@
 
 .metric-card:hover {
   transform: translateY(-4px) !important;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2) !important;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.3),
+    0 10px 10px -5px rgba(0, 0, 0, 0.2) !important;
   border-color: rgba(148, 163, 184, 0.4) !important;
 }
 
@@ -88,13 +90,13 @@
 }
 
 .btn-enhanced::before {
-  content: '' !important;
+  content: "" !important;
   position: absolute !important;
   top: 0 !important;
   left: -100% !important;
   width: 100% !important;
   height: 100% !important;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent) !important;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent) !important;
   transition: left 0.5s !important;
 }
 
@@ -185,8 +187,13 @@
 
 /* Enhanced Loading States */
 @keyframes pulse-subtle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .loading-subtle {
@@ -219,7 +226,7 @@
   .dashboard-section {
     transition: none !important;
   }
-  
+
   .metric-card:hover,
   .btn-enhanced:hover {
     transform: none !important;
@@ -232,7 +239,7 @@
   .dashboard-section {
     border-color: #ffffff !important;
   }
-  
+
   .metric-value {
     color: #ffffff !important;
   }

@@ -1,0 +1,22 @@
+# Legacy AI files with ESLint disable comments
+src/ai/
+src/ai/extra/
+
+# Legacy React hooks with ESLint disable comments
+src/hooks/useAccessibility.ts
+
+# Integration and test files
+src/integration/
+tests/
+
+# React components (separate codebase)
+src/components/react/
+src/contexts/
+src/routes/
+
+# CPP native scanner
+src/cpp/
+
+# Performance and debug files
+src/performance/
+src/debug.ts

@@ -260,30 +260,30 @@
   .actionablePredictionContainer {
     padding: 0.5rem;
   }
-  
+
   .actionableCategoryHeader {
     flex-direction: column;
     gap: 0.5rem;
     align-items: flex-start;
   }
-  
+
   .actionableCategoryStats {
     width: 100%;
     justify-content: space-between;
   }
-  
+
   .actionableActionItem {
     flex-direction: column;
     gap: 0.5rem;
     align-items: flex-start;
   }
-  
+
   .actionableActionPriority {
     width: 100%;
     flex-direction: row;
     justify-content: space-between;
   }
-  
+
   .actionableModal {
     margin: 1rem;
     max-width: calc(100vw - 2rem);

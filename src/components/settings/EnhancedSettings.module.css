@@ -272,7 +272,7 @@
 }
 
 .toggleSwitch::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 2px;
   left: 2px;
@@ -660,9 +660,6 @@
   .actionButtons {
     display: none !important;
   }
-}
-  align-items: center;
-  gap: 16px;
 }
 
 .headerControls {
@@ -1323,7 +1320,7 @@
 }
 
 .aboutSection li::before {
-  content: '•';
+  content: "•";
   position: absolute;
   left: 0;
   color: #10b981;

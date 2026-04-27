@@ -1,6 +1,6 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Bug, ExternalLink } from 'lucide-react';
-import { useErrorStore } from '../store';
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertTriangle, RefreshCw, Bug, ExternalLink } from "lucide-react";
+import { useErrorStore } from "../store";
 
 interface Props {
   children: ReactNode;
@@ -23,7 +23,7 @@ class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: ''
+      errorId: "",
     };
   }
 
@@ -31,22 +31,22 @@ class ErrorBoundary extends Component<Props, State> {
     return {
       hasError: true,
       error,
-      errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({
       error,
-      errorInfo
+      errorInfo,
     });
 
     // Add error to global error store
     const addError = useErrorStore.getState().addError;
     addError({
       message: `Component Error: ${error.message}`,
-      type: 'error',
-      persistent: true
+      type: "error",
+      persistent: true,
     });
 
     // Call custom error handler if provided
@@ -55,11 +55,11 @@ class ErrorBoundary extends Component<Props, State> {
     }
 
     // Log error details for debugging
-    console.error('ErrorBoundary caught an error:', {
+    console.error("ErrorBoundary caught an error:", {
       error: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,
-      errorId: this.state.errorId
+      errorId: this.state.errorId,
     });
 
     // Send error to error reporting service (if configured)
@@ -69,22 +69,22 @@ class ErrorBoundary extends Component<Props, State> {
   reportError = (error: Error, errorInfo: ErrorInfo) => {
     // Implement error reporting service integration here
     // Examples: Sentry, LogRocket, Bugsnag, etc.
-    
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
       // Only report errors in production
       try {
         // Example: Send to error reporting service
         // This is a placeholder - implement your preferred error reporting
-        console.log('Would report error to service:', {
+        console.log("Would report error to service:", {
           message: error.message,
           stack: error.stack,
           componentStack: errorInfo.componentStack,
           url: window.location.href,
           userAgent: navigator.userAgent,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (reportingError) {
-        console.error('Failed to report error:', reportingError);
+        console.error("Failed to report error:", reportingError);
       }
     }
   };
@@ -94,7 +94,7 @@ class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: ''
+      errorId: "",
     });
   };
 
@@ -103,7 +103,7 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   handleGoHome = () => {
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   render() {
@@ -148,7 +148,7 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
   onReset,
   onReload,
   onGoHome,
-  isolate = false
+  isolate = false,
 }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -162,7 +162,9 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-white">Application Error</h1>
               <p className="text-red-200 mt-1">
-                {isolate ? 'This component has been isolated due to an error.' : 'Something went wrong in the application.'}
+                {isolate
+                  ? "This component has been isolated due to an error."
+                  : "Something went wrong in the application."}
               </p>
             </div>
           </div>
@@ -183,7 +185,7 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
             <div className="bg-white/5 rounded-lg p-4 border border-white/10">
               <div className="text-sm text-slate-300 mb-1">Component</div>
               <div className="font-mono text-sm text-white truncate">
-                {errorInfo?.componentStack?.split('\n')[1]?.trim() || 'Unknown'}
+                {errorInfo?.componentStack?.split("\n")[1]?.trim() || "Unknown"}
               </div>
             </div>
           </div>
@@ -223,7 +225,7 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
               <RefreshCw className="w-4 h-4" />
               Try Again
             </button>
-            
+
             <button
               onClick={onReload}
               className="flex items-center gap-2 px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/40 text-yellow-300 rounded-lg transition-colors"
@@ -231,7 +233,7 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
               <RefreshCw className="w-4 h-4" />
               Reload Page
             </button>
-            
+
             <button
               onClick={onGoHome}
               className="flex items-center gap-2 px-4 py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-300 rounded-lg transition-colors"
@@ -267,19 +269,19 @@ export const useErrorHandler = () => {
     const message = context ? `${context}: ${error.message}` : error.message;
     addError({
       message,
-      type: 'error',
-      persistent: false
+      type: "error",
+      persistent: false,
     });
-    
-    console.error('Handled error:', error);
+
+    console.error("Handled error:", error);
   };
 
   const handleWarning = (message: string, context?: string) => {
     const fullMessage = context ? `${context}: ${message}` : message;
     addError({
       message: fullMessage,
-      type: 'warning',
-      persistent: false
+      type: "warning",
+      persistent: false,
     });
   };
 
@@ -287,22 +289,22 @@ export const useErrorHandler = () => {
     const fullMessage = context ? `${context}: ${message}` : message;
     addError({
       message: fullMessage,
-      type: 'info',
-      persistent: false
+      type: "info",
+      persistent: false,
     });
   };
 
   return {
     error: handleError,
     warning: handleWarning,
-    info: handleInfo
+    info: handleInfo,
   };
 };
 
 // Higher-order component for wrapping components with error boundaries
 export const withErrorBoundary = <P extends object>(
   Component: React.ComponentType<P>,
-  errorBoundaryProps?: Omit<Props, 'children'>
+  errorBoundaryProps?: Omit<Props, "children">
 ) => {
   const WrappedComponent = (props: P) => (
     <ErrorBoundary {...errorBoundaryProps}>
@@ -311,7 +313,7 @@ export const withErrorBoundary = <P extends object>(
   );
 
   WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
-  
+
   return WrappedComponent;
 };
 

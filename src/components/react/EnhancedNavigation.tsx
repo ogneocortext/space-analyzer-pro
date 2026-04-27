@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 // @ts-ignore - react-router-dom
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   BrainCircuit,
@@ -60,10 +60,10 @@ import {
   EyeOff as EyeOffIcon,
   TrendingDown as TrendingDownIcon,
   CheckCircle as CheckCircleIcon,
-  Info as InfoIcon
-} from 'lucide-react';
-import { useUIStore, useNavigationStore, useErrorStore } from '../store';
-import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation';
+  Info as InfoIcon,
+} from "lucide-react";
+import { useUIStore, useNavigationStore, useErrorStore } from "../store";
+import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
 
 interface NavigationItem {
   id: string;
@@ -72,7 +72,7 @@ interface NavigationItem {
   icon: React.ComponentType<{ className?: string }>;
   description?: string;
   shortcut?: string;
-  category: 'primary' | 'ai' | 'analysis' | 'tools' | 'system';
+  category: "primary" | "ai" | "analysis" | "tools" | "system";
   disabled?: boolean;
   beta?: boolean;
   comingSoon?: boolean;
@@ -81,161 +81,161 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   // Primary Navigation
   {
-    id: 'dashboard',
-    label: 'Dashboard',
-    path: '/',
+    id: "dashboard",
+    label: "Dashboard",
+    path: "/",
     icon: LayoutDashboard,
-    description: 'Overview and quick analysis',
-    category: 'primary',
-    shortcut: 'D'
+    description: "Overview and quick analysis",
+    category: "primary",
+    shortcut: "D",
   },
   {
-    id: 'neural',
-    label: 'Neural View',
-    path: '/neural',
+    id: "neural",
+    label: "Neural View",
+    path: "/neural",
     icon: BrainCircuit,
-    description: 'AI-powered file relationships',
-    category: 'ai',
-    shortcut: 'N'
+    description: "AI-powered file relationships",
+    category: "ai",
+    shortcut: "N",
   },
   {
-    id: 'ai-chat',
-    label: 'AI Assistant',
-    path: '/ai-chat',
+    id: "ai-chat",
+    label: "AI Assistant",
+    path: "/ai-chat",
     icon: MessageSquare,
-    description: 'Chat with AI about your files',
-    category: 'ai',
-    shortcut: 'A'
+    description: "Chat with AI about your files",
+    category: "ai",
+    shortcut: "A",
   },
   {
-    id: 'treemap',
-    label: 'Visualizations',
-    path: '/treemap',
+    id: "treemap",
+    label: "Visualizations",
+    path: "/treemap",
     icon: BarChart3,
-    description: 'Interactive data visualizations',
-    category: 'analysis',
-    shortcut: 'V'
+    description: "Interactive data visualizations",
+    category: "analysis",
+    shortcut: "V",
   },
   {
-    id: 'file-browser',
-    label: 'File Browser',
-    path: '/file-browser',
+    id: "file-browser",
+    label: "File Browser",
+    path: "/file-browser",
     icon: Folder,
-    description: 'Browse and manage files',
-    category: 'tools',
-    shortcut: 'F'
+    description: "Browse and manage files",
+    category: "tools",
+    shortcut: "F",
   },
   {
-    id: 'export',
-    label: 'Export Data',
-    path: '/export',
+    id: "export",
+    label: "Export Data",
+    path: "/export",
     icon: FileText,
-    description: 'Export analysis results',
-    category: 'tools',
-    shortcut: 'E'
+    description: "Export analysis results",
+    category: "tools",
+    shortcut: "E",
   },
 
   // AI Features
   {
-    id: 'ai-insights',
-    label: 'AI Insights',
-    path: '/ai-insights',
+    id: "ai-insights",
+    label: "AI Insights",
+    path: "/ai-insights",
     icon: Lightbulb,
-    description: 'AI-generated recommendations',
-    category: 'ai',
-    beta: true
+    description: "AI-generated recommendations",
+    category: "ai",
+    beta: true,
   },
   {
-    id: 'ai-features',
-    label: 'AI Features',
-    path: '/ai-features',
+    id: "ai-features",
+    label: "AI Features",
+    path: "/ai-features",
     icon: SparklesIcon,
-    description: 'Advanced AI capabilities',
-    category: 'ai',
-    beta: true
+    description: "Advanced AI capabilities",
+    category: "ai",
+    beta: true,
   },
 
   // Analysis Tools
   {
-    id: 'time-travel',
-    label: 'Time Travel',
-    path: '/time-travel',
+    id: "time-travel",
+    label: "Time Travel",
+    path: "/time-travel",
     icon: ClockIcon,
-    description: 'Historical analysis comparison',
-    category: 'analysis',
-    beta: true
+    description: "Historical analysis comparison",
+    category: "analysis",
+    beta: true,
   },
   {
-    id: 'temperature',
-    label: 'Temperature Map',
-    path: '/temperature',
+    id: "temperature",
+    label: "Temperature Map",
+    path: "/temperature",
     icon: EyeIcon,
-    description: 'File access patterns',
-    category: 'analysis',
-    beta: true
+    description: "File access patterns",
+    category: "analysis",
+    beta: true,
   },
   {
-    id: 'optimization',
-    label: 'Optimization',
-    path: '/optimization',
+    id: "optimization",
+    label: "Optimization",
+    path: "/optimization",
     icon: TrendingUpIcon,
-    description: 'Storage optimization tools',
-    category: 'tools',
-    beta: true
+    description: "Storage optimization tools",
+    category: "tools",
+    beta: true,
   },
 
   // System Tools
   {
-    id: 'settings',
-    label: 'Settings',
-    path: '/settings',
+    id: "settings",
+    label: "Settings",
+    path: "/settings",
     icon: Settings,
-    description: 'Application settings',
-    category: 'system',
-    shortcut: 'S'
+    description: "Application settings",
+    category: "system",
+    shortcut: "S",
   },
   {
-    id: 'integrations',
-    label: 'Integrations',
-    path: '/integrations',
+    id: "integrations",
+    label: "Integrations",
+    path: "/integrations",
     icon: NetworkIcon,
-    description: 'External service connections',
-    category: 'system',
-    beta: true
+    description: "External service connections",
+    category: "system",
+    beta: true,
   },
   {
-    id: 'monitoring',
-    label: 'Monitoring',
-    path: '/monitoring',
+    id: "monitoring",
+    label: "Monitoring",
+    path: "/monitoring",
     icon: Activity,
-    description: 'System performance monitoring',
-    category: 'system',
-    beta: true
+    description: "System performance monitoring",
+    category: "system",
+    beta: true,
   },
   {
-    id: 'security',
-    label: 'Security',
-    path: '/security',
+    id: "security",
+    label: "Security",
+    path: "/security",
     icon: Shield,
-    description: 'Security analysis and alerts',
-    category: 'system',
-    beta: true
+    description: "Security analysis and alerts",
+    category: "system",
+    beta: true,
   },
   {
-    id: 'automation',
-    label: 'Automation',
-    path: '/automation',
+    id: "automation",
+    label: "Automation",
+    path: "/automation",
     icon: CpuIcon,
-    description: 'Automated workflows',
-    category: 'tools',
-    beta: true
-  }
+    description: "Automated workflows",
+    category: "tools",
+    beta: true,
+  },
 ];
 
 const EnhancedNavigation: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Store state
@@ -249,8 +249,8 @@ const EnhancedNavigation: React.FC = () => {
   // Update breadcrumbs based on current location
   useEffect(() => {
     const currentPath = location.pathname;
-    const currentItem = navigationItems.find(item => item.path === currentPath);
-    
+    const currentItem = navigationItems.find((item) => item.path === currentPath);
+
     if (currentItem) {
       setActivePage(currentItem.id);
       updateBreadcrumbs(currentPath, currentItem.label);
@@ -258,9 +258,9 @@ const EnhancedNavigation: React.FC = () => {
   }, [location.pathname, setActivePage, updateBreadcrumbs]);
 
   // Filter navigation items based on search
-  const filteredItems = navigationItems.filter(item => {
+  const filteredItems = navigationItems.filter((item) => {
     if (!searchQuery) return true;
-    
+
     const query = searchQuery.toLowerCase();
     return (
       item.label.toLowerCase().includes(query) ||
@@ -270,26 +270,32 @@ const EnhancedNavigation: React.FC = () => {
   });
 
   // Group items by category
-  const groupedItems = filteredItems.reduce((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = [];
-    }
-    acc[item.category].push(item);
-    return acc;
-  }, {} as Record<string, NavigationItem[]>);
+  const groupedItems = filteredItems.reduce(
+    (acc, item) => {
+      if (!acc[item.category]) {
+        acc[item.category] = [];
+      }
+      acc[item.category].push(item);
+      return acc;
+    },
+    {} as Record<string, NavigationItem[]>
+  );
 
-  const handleNavigation = useCallback((item: NavigationItem) => {
-    if (item.disabled || item.comingSoon) return;
-    
-    navigate(item.path);
-    if (window.innerWidth < 768) {
-      toggleSidebar();
-    }
-  }, [navigate, toggleSidebar]);
+  const handleNavigation = useCallback(
+    (item: NavigationItem) => {
+      if (item.disabled || item.comingSoon) return;
+
+      navigate(item.path);
+      if (window.innerWidth < 768) {
+        toggleSidebar();
+      }
+    },
+    [navigate, toggleSidebar]
+  );
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setSearchQuery('');
+    if (e.key === "Escape") {
+      setSearchQuery("");
       setIsSearchFocused(false);
     }
   };
@@ -314,7 +320,7 @@ const EnhancedNavigation: React.FC = () => {
               <span className="font-semibold text-white">Space Analyzer</span>
             </div>
           </div>
-          
+
           {/* Error Indicator */}
           {hasErrors && (
             <div className="flex items-center gap-2 bg-red-500/20 px-3 py-1 rounded-full border border-red-500/30">
@@ -326,10 +332,11 @@ const EnhancedNavigation: React.FC = () => {
       </div>
 
       {/* Sidebar Navigation */}
-      <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900/95 backdrop-blur-md border-r border-slate-800 transform transition-transform duration-300 ease-in-out ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } md:translate-x-0 md:static md:inset-0`}>
-        
+      <div
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-slate-900/95 backdrop-blur-md border-r border-slate-800 transform transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } md:translate-x-0 md:static md:inset-0`}
+      >
         {/* Sidebar Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-800">
           <div className="flex items-center gap-3">
@@ -366,7 +373,7 @@ const EnhancedNavigation: React.FC = () => {
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery('')}
+                onClick={() => setSearchQuery("")}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
                 aria-label="Clear search"
               >
@@ -419,18 +426,20 @@ const EnhancedNavigation: React.FC = () => {
                     disabled={item.disabled || item.comingSoon}
                     className={`w-full flex items-center gap-3 px-4 py-2 text-sm font-medium transition-all duration-200 ${
                       location.pathname === item.path
-                        ? 'bg-blue-500/20 text-blue-300 border-r-2 border-blue-400'
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        ? "bg-blue-500/20 text-blue-300 border-r-2 border-blue-400"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
                     } ${
                       item.disabled || item.comingSoon
-                        ? 'opacity-50 cursor-not-allowed hover:bg-transparent'
-                        : 'cursor-pointer'
+                        ? "opacity-50 cursor-not-allowed hover:bg-transparent"
+                        : "cursor-pointer"
                     }`}
                     title={item.description}
                   >
-                    <item.icon className={`w-4 h-4 ${
-                      location.pathname === item.path ? 'text-blue-400' : 'text-slate-400'
-                    }`} />
+                    <item.icon
+                      className={`w-4 h-4 ${
+                        location.pathname === item.path ? "text-blue-400" : "text-slate-400"
+                      }`}
+                    />
                     <span className="flex-1 text-left">{item.label}</span>
                     {item.shortcut && (
                       <kbd className="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded border border-slate-600">

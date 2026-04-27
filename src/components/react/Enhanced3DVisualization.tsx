@@ -1,13 +1,13 @@
 // Enhanced 3D Visualization with Interactive Exploration
-import React, { useState, useCallback, useMemo, useRef } from 'react';
-import ForceGraph3D from 'react-force-graph-3d';
-import './Enhanced3DVisualization.css';
+import React, { useState, useCallback, useMemo, useRef } from "react";
+import ForceGraph3D from "react-force-graph-3d";
+import "./Enhanced3DVisualization.css";
 
 interface EnhancedNode3D {
   id: string;
   name: string;
   path: string;
-  type: 'file' | 'function' | 'class' | 'module' | 'component';
+  type: "file" | "function" | "class" | "module" | "component";
   size: number;
   color: string;
   metadata: {
@@ -22,7 +22,7 @@ interface EnhancedNode3D {
 interface EnhancedLink3D {
   source: string;
   target: string;
-  type: 'import' | 'require' | 'extends' | 'call';
+  type: "import" | "require" | "extends" | "call";
   strength: number;
   color: string;
 }
@@ -37,35 +37,41 @@ export const Enhanced3DVisualization: React.FC<{
   const graphRef = useRef<any>(null);
 
   // Memoize graph data to prevent re-renders
-  const graphData = useMemo(() => ({
-    nodes: data.nodes.map(node => ({
-      id: node.id,
-      name: node.name,
-      val: node.size,
-      color: node.color,
-      group: node.type
-    })),
-    links: data.links.map(link => ({
-      source: link.source,
-      target: link.target,
-      value: link.strength,
-      color: link.color
-    }))
-  }), [data]);
+  const graphData = useMemo(
+    () => ({
+      nodes: data.nodes.map((node) => ({
+        id: node.id,
+        name: node.name,
+        val: node.size,
+        color: node.color,
+        group: node.type,
+      })),
+      links: data.links.map((link) => ({
+        source: link.source,
+        target: link.target,
+        value: link.strength,
+        color: link.color,
+      })),
+    }),
+    [data]
+  );
 
-  const handleNodeClick = useCallback((node: any) => {
-    const nodeData = data.nodes.find(n => n.id === node.id);
-    if (nodeData) {
-      setSelectedNode(nodeData);
-      onNodeClick?.(nodeData);
-    }
-  }, [data, onNodeClick]);
+  const handleNodeClick = useCallback(
+    (node: any) => {
+      const nodeData = data.nodes.find((n) => n.id === node.id);
+      if (nodeData) {
+        setSelectedNode(nodeData);
+        onNodeClick?.(nodeData);
+      }
+    },
+    [data, onNodeClick]
+  );
 
   const handleNodeHover = useCallback((node: any | null) => {
     if (node) {
-      document.body.style.cursor = 'pointer';
+      document.body.style.cursor = "pointer";
     } else {
-      document.body.style.cursor = 'default';
+      document.body.style.cursor = "default";
     }
   }, []);
 
@@ -89,7 +95,11 @@ export const Enhanced3DVisualization: React.FC<{
   }, []);
 
   return (
-    <div data-testid="3d-visualization" className="enhanced-3d-visualization" style={{ width, height }}>
+    <div
+      data-testid="3d-visualization"
+      className="enhanced-3d-visualization"
+      style={{ width, height }}
+    >
       <ForceGraph3D
         ref={graphRef}
         graphData={graphData}
@@ -116,9 +126,15 @@ export const Enhanced3DVisualization: React.FC<{
         </div>
 
         <div className="zoom-controls">
-          <button data-testid="zoom-in" onClick={handleZoomIn} className="zoom-btn">➕ Zoom In</button>
-          <button data-testid="zoom-out" onClick={handleZoomOut} className="zoom-btn">➖ Zoom Out</button>
-          <button data-testid="reset-view" onClick={handleResetView} className="zoom-btn">🔄 Reset View</button>
+          <button data-testid="zoom-in" onClick={handleZoomIn} className="zoom-btn">
+            ➕ Zoom In
+          </button>
+          <button data-testid="zoom-out" onClick={handleZoomOut} className="zoom-btn">
+            ➖ Zoom Out
+          </button>
+          <button data-testid="reset-view" onClick={handleResetView} className="zoom-btn">
+            🔄 Reset View
+          </button>
         </div>
 
         {selectedNode && (

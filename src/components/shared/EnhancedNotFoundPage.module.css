@@ -5,7 +5,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--color-background-primary) 0%, var(--color-glass-bg) 50%, var(--color-glass-bg-dark) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-background-primary) 0%,
+    var(--color-glass-bg) 50%,
+    var(--color-glass-bg-dark) 100%
+  );
   position: relative;
   overflow: hidden;
   padding: var(--spacing-lg);
@@ -240,18 +245,32 @@
 
 /* Animations - Enhanced with Design Tokens */
 @keyframes orbit {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {
-   0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 /* Mobile Optimizations - AI Recommended */
@@ -492,8 +511,13 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
 }
 
 /* Main Content */
@@ -748,8 +772,12 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .resultsGrid {
@@ -1084,7 +1112,7 @@
 }
 
 .helpSection li::before {
-  content: '•';
+  content: "•";
   position: absolute;
   left: 0;
   color: #10b981;

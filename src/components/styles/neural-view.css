@@ -27,7 +27,7 @@
 }
 
 .group-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.5);
   letter-spacing: 1px;
@@ -39,7 +39,7 @@
   border: 1px solid var(--neural-accent);
   color: var(--neural-accent);
   padding: 0.5rem 1rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -66,7 +66,7 @@
   border: 1px solid var(--neural-accent);
   color: var(--neural-accent);
   padding: 0.5rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -103,7 +103,7 @@
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.3);
   color: rgba(255, 255, 255, 0.7);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.75rem;
   letter-spacing: 1px;
   transition: all 0.3s ease;
@@ -141,13 +141,13 @@
 
 /* Tooltip Animation for Nodes */
 .node-tooltip {
-    position: absolute;
-    background: rgba(0, 0, 0, 0.9);
-    border: 1px solid var(--neural-secondary);
-    padding: 10px;
-    pointer-events: none;
-    box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
-    z-index: 100;
+  position: absolute;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid var(--neural-secondary);
+  padding: 10px;
+  pointer-events: none;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+  z-index: 100;
 }
 
 /* Responsive Design */
@@ -177,7 +177,7 @@
 
 /* Additional Visual Effects */
 .neural-controls-container::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -255,7 +255,7 @@
 }
 
 .stat-value {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 1.5rem;
   font-weight: bold;
   color: #3b82f6;
@@ -263,7 +263,7 @@
 }
 
 .stat-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.7);
   letter-spacing: 1px;

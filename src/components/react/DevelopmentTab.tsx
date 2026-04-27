@@ -1,4 +1,4 @@
-import React, { useState, useEffect, FC } from 'react';
+import React, { useState, useEffect, FC } from "react";
 import {
   Code,
   GitBranch,
@@ -26,8 +26,8 @@ import {
   Download,
   Eye,
   EyeOff,
-  Microscope
-} from 'lucide-react';
+  Microscope,
+} from "lucide-react";
 
 interface DevelopmentTabProps {
   projectPath: string;
@@ -59,9 +59,11 @@ export default function DevelopmentTab({
   onPathChange,
   comprehensiveResult,
   isAnalyzing = false,
-  onComprehensiveAnalysis
+  onComprehensiveAnalysis,
 }: DevelopmentTabProps) {
-  const [activeSection, setActiveSection] = useState<'overview' | 'analysis' | 'dependencies' | 'quality' | 'security' | 'performance'>('overview');
+  const [activeSection, setActiveSection] = useState<
+    "overview" | "analysis" | "dependencies" | "quality" | "security" | "performance"
+  >("overview");
   const [metrics, setMetrics] = useState<DevelopmentMetrics | null>(null);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
@@ -82,34 +84,37 @@ export default function DevelopmentTab({
           security: 0,
           performance: 0,
           quality: 0,
-          total: 0
-        }
+          total: 0,
+        },
       };
 
       // Extract metrics from analyzer results
-      Object.entries(comprehensiveResult.results).forEach(([analyzerName, result]: [string, any]) => {
-        switch (analyzerName) {
-          case 'dependency_analysis':
-            calculatedMetrics.dependencies = result.dependencies || {};
-            break;
-          case 'security_analysis':
-            calculatedMetrics.issues.security = result.security_issues?.length || 0;
-            break;
-          case 'performance_analysis':
-            calculatedMetrics.issues.performance = result.performance_issues?.length || 0;
-            break;
-          case 'code_quality_analysis':
-            calculatedMetrics.issues.quality = result.quality_issues?.length || 0;
-            break;
-          case 'test_analysis':
-            calculatedMetrics.testFiles = result.test_files || 0;
-            break;
+      Object.entries(comprehensiveResult.results).forEach(
+        ([analyzerName, result]: [string, any]) => {
+          switch (analyzerName) {
+            case "dependency_analysis":
+              calculatedMetrics.dependencies = result.dependencies || {};
+              break;
+            case "security_analysis":
+              calculatedMetrics.issues.security = result.security_issues?.length || 0;
+              break;
+            case "performance_analysis":
+              calculatedMetrics.issues.performance = result.performance_issues?.length || 0;
+              break;
+            case "code_quality_analysis":
+              calculatedMetrics.issues.quality = result.quality_issues?.length || 0;
+              break;
+            case "test_analysis":
+              calculatedMetrics.testFiles = result.test_files || 0;
+              break;
+          }
         }
-      });
+      );
 
-      calculatedMetrics.issues.total = calculatedMetrics.issues.security + 
-                                      calculatedMetrics.issues.performance + 
-                                      calculatedMetrics.issues.quality;
+      calculatedMetrics.issues.total =
+        calculatedMetrics.issues.security +
+        calculatedMetrics.issues.performance +
+        calculatedMetrics.issues.quality;
 
       setMetrics(calculatedMetrics);
     }
@@ -118,10 +123,10 @@ export default function DevelopmentTab({
   const handleQuickAnalysis = () => {
     const config = {
       projectPath,
-      selectedAnalyzers: ['dependency', 'quality', 'security', 'performance', 'test'],
-      outputFormat: 'json' as const,
+      selectedAnalyzers: ["dependency", "quality", "security", "performance", "test"],
+      outputFormat: "json" as const,
       progress: true,
-      verbose: true
+      verbose: true,
     };
     onComprehensiveAnalysis?.(config);
   };
@@ -145,13 +150,10 @@ export default function DevelopmentTab({
             <Code className="w-6 h-6 mr-2" />
             Software Development Dashboard
           </h2>
-          <p className="project-path">{projectPath || 'No project selected'}</p>
+          <p className="project-path">{projectPath || "No project selected"}</p>
         </div>
         <div className="project-actions">
-          <button
-            onClick={() => onPathChange('')}
-            className="btn-secondary"
-          >
+          <button onClick={() => onPathChange("")} className="btn-secondary">
             <FileSearch className="w-4 h-4 mr-2" />
             Change Project
           </button>
@@ -244,55 +246,37 @@ export default function DevelopmentTab({
       <div className="quick-actions">
         <h3 className="section-title">Development Tools</h3>
         <div className="action-grid">
-          <button
-            onClick={() => setActiveSection('analysis')}
-            className="action-btn"
-          >
+          <button onClick={() => setActiveSection("analysis")} className="action-btn">
             <BrainCircuit className="w-5 h-5 mb-2" />
             <span>Comprehensive Analysis</span>
             <span className="action-desc">Run all 12 specialized analyzers</span>
           </button>
 
-          <button
-            onClick={() => setActiveSection('dependencies')}
-            className="action-btn"
-          >
+          <button onClick={() => setActiveSection("dependencies")} className="action-btn">
             <Package className="w-5 h-5 mb-2" />
             <span>Dependencies</span>
             <span className="action-desc">Analyze project dependencies</span>
           </button>
 
-          <button
-            onClick={() => setActiveSection('quality')}
-            className="action-btn"
-          >
+          <button onClick={() => setActiveSection("quality")} className="action-btn">
             <CheckCircle className="w-5 h-5 mb-2" />
             <span>Code Quality</span>
             <span className="action-desc">Check code quality metrics</span>
           </button>
 
-          <button
-            onClick={() => setActiveSection('security')}
-            className="action-btn"
-          >
+          <button onClick={() => setActiveSection("security")} className="action-btn">
             <Shield className="w-5 h-5 mb-2" />
             <span>Security</span>
             <span className="action-desc">Security vulnerability scan</span>
           </button>
 
-          <button
-            onClick={() => setActiveSection('performance')}
-            className="action-btn"
-          >
+          <button onClick={() => setActiveSection("performance")} className="action-btn">
             <Zap className="w-5 h-5 mb-2" />
             <span>Performance</span>
             <span className="action-desc">Performance analysis</span>
           </button>
 
-          <button
-            onClick={() => setShowAnalysisModal(true)}
-            className="action-btn"
-          >
+          <button onClick={() => setShowAnalysisModal(true)} className="action-btn">
             <Settings className="w-5 h-5 mb-2" />
             <span>Custom Analysis</span>
             <span className="action-desc">Configure custom analysis</span>
@@ -326,7 +310,9 @@ export default function DevelopmentTab({
   const renderAnalysisSection = () => (
     <div className="analysis-section">
       <div className="section-header">
-        <h2><Microscope className="w-5 h-5" /> Comprehensive Analysis</h2>
+        <h2>
+          <Microscope className="w-5 h-5" /> Comprehensive Analysis
+        </h2>
         <p>Deep code analysis with 12 specialized analyzers</p>
       </div>
 
@@ -337,79 +323,91 @@ export default function DevelopmentTab({
             <div className="summary-grid">
               <div className="summary-item">
                 <span className="summary-label">Analyzers Run:</span>
-                <span className="summary-value">{comprehensiveResult.metadata.analyzers_run.length}</span>
+                <span className="summary-value">
+                  {comprehensiveResult.metadata.analyzers_run.length}
+                </span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Files Analyzed:</span>
-                <span className="summary-value">{comprehensiveResult.metadata.total_files.toLocaleString()}</span>
+                <span className="summary-value">
+                  {comprehensiveResult.metadata.total_files.toLocaleString()}
+                </span>
               </div>
               <div className="summary-item">
                 <span className="summary-label">Analysis Time:</span>
-                <span className="summary-value">{new Date(comprehensiveResult.metadata.timestamp).toLocaleString()}</span>
+                <span className="summary-value">
+                  {new Date(comprehensiveResult.metadata.timestamp).toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
 
           <div className="analyzer-results">
             <h3>Analyzer Results</h3>
-            {Object.entries(comprehensiveResult.results).map(([analyzerName, result]: [string, any]) => (
-              <div key={analyzerName} className="analyzer-result">
-                <div 
-                  className="analyzer-header"
-                  onClick={() => toggleFileExpansion(analyzerName)}
-                >
-                  <ChevronRight 
-                    className={`w-4 h-4 transition-transform chevron ${
-                      expandedFiles.has(analyzerName) ? 'rotate-90' : ''
-                    }`} 
-                  />
-                  <h4>{analyzerName.replace('_analysis', '').replace(/_/g, ' ').toUpperCase()}</h4>
-                  <div className="analyzer-status">
-                    {result.status === 'completed' ? (
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <XCircle className="w-4 h-4 text-red-500" />
-                    )}
-                  </div>
-                </div>
-                
-                {expandedFiles.has(analyzerName) && (
-                  <div className="analyzer-details">
-                    <div className="detail-grid">
-                      <div className="detail-item">
-                        <span className="detail-label">Issues Found:</span>
-                        <span className="detail-value">{result.issues_found || 0}</span>
-                      </div>
-                      <div className="detail-item">
-                        <span className="detail-label">Score:</span>
-                        <span className="detail-value">
-                          {result.score ? `${result.score.toFixed(1)}%` : 'N/A'}
-                        </span>
-                      </div>
-                      <div className="detail-item">
-                        <span className="detail-label">Files Analyzed:</span>
-                        <span className="detail-value">{result.analyzed_files || 0}</span>
-                      </div>
+            {Object.entries(comprehensiveResult.results).map(
+              ([analyzerName, result]: [string, any]) => (
+                <div key={analyzerName} className="analyzer-result">
+                  <div
+                    className="analyzer-header"
+                    onClick={() => toggleFileExpansion(analyzerName)}
+                  >
+                    <ChevronRight
+                      className={`w-4 h-4 transition-transform chevron ${
+                        expandedFiles.has(analyzerName) ? "rotate-90" : ""
+                      }`}
+                    />
+                    <h4>
+                      {analyzerName.replace("_analysis", "").replace(/_/g, " ").toUpperCase()}
+                    </h4>
+                    <div className="analyzer-status">
+                      {result.status === "completed" ? (
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <XCircle className="w-4 h-4 text-red-500" />
+                      )}
                     </div>
-                    
-                    {result.issues && result.issues.length > 0 && (
-                      <div className="issues-list">
-                        <h5>Issues Found:</h5>
-                        {result.issues.slice(0, 5).map((issue: any, index: number) => (
-                          <div key={index} className="issue-item">
-                            <span className="issue-severity">{issue.severity}</span>
-                            <span className="issue-description">{issue.description}</span>
-                          </div>
-                        ))}
-                        {result.issues.length > 5 && (
-                          <p className="more-issues">... and {result.issues.length - 5} more issues</p>
-                        )}
-                      </div>
-                    )}
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {expandedFiles.has(analyzerName) && (
+                    <div className="analyzer-details">
+                      <div className="detail-grid">
+                        <div className="detail-item">
+                          <span className="detail-label">Issues Found:</span>
+                          <span className="detail-value">{result.issues_found || 0}</span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Score:</span>
+                          <span className="detail-value">
+                            {result.score ? `${result.score.toFixed(1)}%` : "N/A"}
+                          </span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Files Analyzed:</span>
+                          <span className="detail-value">{result.analyzed_files || 0}</span>
+                        </div>
+                      </div>
+
+                      {result.issues && result.issues.length > 0 && (
+                        <div className="issues-list">
+                          <h5>Issues Found:</h5>
+                          {result.issues.slice(0, 5).map((issue: any, index: number) => (
+                            <div key={index} className="issue-item">
+                              <span className="issue-severity">{issue.severity}</span>
+                              <span className="issue-description">{issue.description}</span>
+                            </div>
+                          ))}
+                          {result.issues.length > 5 && (
+                            <p className="more-issues">
+                              ... and {result.issues.length - 5} more issues
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            )}
           </div>
         </div>
       ) : (
@@ -429,7 +427,9 @@ export default function DevelopmentTab({
   const renderDependenciesSection = () => (
     <div className="dependencies-section">
       <div className="section-header">
-        <h2><GitBranch className="w-5 h-5" /> Dependencies Analysis</h2>
+        <h2>
+          <GitBranch className="w-5 h-5" /> Dependencies Analysis
+        </h2>
         <p>Project dependencies and relationships</p>
       </div>
 
@@ -445,9 +445,11 @@ export default function DevelopmentTab({
               <div className="stat-item">
                 <span className="stat-label">External Packages:</span>
                 <span className="stat-value">
-                  {Object.values(metrics.dependencies).filter((dep: string) => 
-                    dep.includes('node_modules') || dep.includes('vendor')
-                  ).length}
+                  {
+                    Object.values(metrics.dependencies).filter(
+                      (dep: string) => dep.includes("node_modules") || dep.includes("vendor")
+                    ).length
+                  }
                 </span>
               </div>
             </div>
@@ -455,12 +457,14 @@ export default function DevelopmentTab({
 
           <div className="dependencies-list">
             <h3>Dependency Details</h3>
-            {Object.entries(metrics.dependencies).slice(0, 20).map(([name, version]: [string, string]) => (
-              <div key={name} className="dependency-item">
-                <span className="dependency-name">{name}</span>
-                <span className="dependency-version">{version}</span>
-              </div>
-            ))}
+            {Object.entries(metrics.dependencies)
+              .slice(0, 20)
+              .map(([name, version]: [string, string]) => (
+                <div key={name} className="dependency-item">
+                  <span className="dependency-name">{name}</span>
+                  <span className="dependency-version">{version}</span>
+                </div>
+              ))}
           </div>
         </div>
       ) : (
@@ -476,7 +480,9 @@ export default function DevelopmentTab({
   const renderQualitySection = () => (
     <div className="quality-section">
       <div className="section-header">
-        <h2><CheckCircle className="w-5 h-5" /> Code Quality Analysis</h2>
+        <h2>
+          <CheckCircle className="w-5 h-5" /> Code Quality Analysis
+        </h2>
         <p>Code quality metrics and technical debt</p>
       </div>
 
@@ -486,12 +492,12 @@ export default function DevelopmentTab({
             <div className="quality-score">
               <div className="score-circle">
                 <div className="score-value">
-                  {Math.max(0, 100 - (metrics.issues.quality * 5)).toFixed(0)}%
+                  {Math.max(0, 100 - metrics.issues.quality * 5).toFixed(0)}%
                 </div>
               </div>
               <div className="score-label">Quality Score</div>
             </div>
-            
+
             <div className="quality-metrics">
               <div className="quality-metric">
                 <span className="metric-label">Code Smells:</span>
@@ -517,7 +523,9 @@ export default function DevelopmentTab({
   const renderSecuritySection = () => (
     <div className="security-section">
       <div className="section-header">
-        <h2><Shield className="w-5 h-5" /> Security Analysis</h2>
+        <h2>
+          <Shield className="w-5 h-5" /> Security Analysis
+        </h2>
         <p>Security vulnerabilities and risks</p>
       </div>
 
@@ -554,7 +562,9 @@ export default function DevelopmentTab({
   const renderPerformanceSection = () => (
     <div className="performance-section">
       <div className="section-header">
-        <h2><Zap className="w-5 h-5" /> Performance Analysis</h2>
+        <h2>
+          <Zap className="w-5 h-5" /> Performance Analysis
+        </h2>
         <p>Performance bottlenecks and optimization opportunities</p>
       </div>
 
@@ -589,19 +599,19 @@ export default function DevelopmentTab({
       {/* Section Navigation */}
       <div className="section-nav">
         {[
-          { id: 'overview', label: 'Overview', icon: FileSearch },
-          { id: 'analysis', label: 'Analysis', icon: BrainCircuit },
-          { id: 'dependencies', label: 'Dependencies', icon: Package },
-          { id: 'quality', label: 'Quality', icon: CheckCircle },
-          { id: 'security', label: 'Security', icon: Shield },
-          { id: 'performance', label: 'Performance', icon: Zap }
+          { id: "overview", label: "Overview", icon: FileSearch },
+          { id: "analysis", label: "Analysis", icon: BrainCircuit },
+          { id: "dependencies", label: "Dependencies", icon: Package },
+          { id: "quality", label: "Quality", icon: CheckCircle },
+          { id: "security", label: "Security", icon: Shield },
+          { id: "performance", label: "Performance", icon: Zap },
         ].map((section) => {
           const Icon = section.icon;
           return (
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id as any)}
-              className={`section-btn ${activeSection === section.id ? 'active' : ''}`}
+              className={`section-btn ${activeSection === section.id ? "active" : ""}`}
             >
               <Icon className="w-4 h-4 mr-2" />
               {section.label}
@@ -612,13 +622,13 @@ export default function DevelopmentTab({
 
       {/* Section Content */}
       <div className="section-content">
-        {activeSection === 'overview' && renderOverview()}
-        {activeSection === 'analysis' && renderAnalysisSection()}
-        {activeSection === 'dependencies' && renderDependenciesSection()}
-        {activeSection === 'quality' && renderQualitySection()}
-        {activeSection === 'security' && renderSecuritySection()}
-        {activeSection === 'performance' && renderPerformanceSection()}
+        {activeSection === "overview" && renderOverview()}
+        {activeSection === "analysis" && renderAnalysisSection()}
+        {activeSection === "dependencies" && renderDependenciesSection()}
+        {activeSection === "quality" && renderQualitySection()}
+        {activeSection === "security" && renderSecuritySection()}
+        {activeSection === "performance" && renderPerformanceSection()}
       </div>
     </div>
   );
-};
+}

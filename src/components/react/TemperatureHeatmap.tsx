@@ -1,12 +1,12 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Thermometer, Flame, Snowflake, Clock, Calendar, Filter, Download } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from "react";
+import { motion } from "framer-motion";
+import { Thermometer, Flame, Snowflake, Clock, Calendar, Filter, Download } from "lucide-react";
 
 interface FileNode {
   name: string;
   path: string;
   size: number;
-  type: 'file' | 'directory';
+  type: "file" | "directory";
   modified: Date;
   accessed?: Date;
   children?: FileNode[];
@@ -16,7 +16,7 @@ interface TemperatureData {
   path: string;
   name: string;
   size: number;
-  temperature: 'hot' | 'warm' | 'cool' | 'cold';
+  temperature: "hot" | "warm" | "cool" | "cold";
   lastAccessed: Date;
   lastModified: Date;
   accessFrequency: number;
@@ -34,40 +34,45 @@ interface TemperatureHeatmapProps {
 const TemperatureHeatmap: React.FC<TemperatureHeatmapProps> = ({
   files,
   onFileClick,
-  className = '',
-  showControls = true
+  className = "",
+  showControls = true,
 }) => {
-  const [selectedTemperature, setSelectedTemperature] = useState<'all' | 'hot' | 'warm' | 'cool' | 'cold'>('all');
-  const [sortBy, setSortBy] = useState<'temperature' | 'size' | 'name' | 'accessed'>('temperature');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedTemperature, setSelectedTemperature] = useState<
+    "all" | "hot" | "warm" | "cool" | "cold"
+  >("all");
+  const [sortBy, setSortBy] = useState<"temperature" | "size" | "name" | "accessed">("temperature");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Calculate temperature for each file
   const calculateTemperature = useCallback((file: FileNode): TemperatureData => {
     const now = new Date();
     const lastAccessed = file.accessed || file.modified;
-    const daysSinceAccess = Math.floor((now.getTime() - lastAccessed.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const daysSinceAccess = Math.floor(
+      (now.getTime() - lastAccessed.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
     // Calculate temperature score (0-100, where 100 is hottest)
     let temperatureScore = 0;
-    
+
     // Recent access (higher score for more recent)
     if (daysSinceAccess <= 1) temperatureScore += 40;
     else if (daysSinceAccess <= 7) temperatureScore += 30;
     else if (daysSinceAccess <= 30) temperatureScore += 20;
     else if (daysSinceAccess <= 90) temperatureScore += 10;
-    
+
     // File size bonus (larger files get slightly higher score)
-    if (file.size > 100 * 1024 * 1024) temperatureScore += 10; // > 100MB
+    if (file.size > 100 * 1024 * 1024)
+      temperatureScore += 10; // > 100MB
     else if (file.size > 10 * 1024 * 1024) temperatureScore += 5; // > 10MB
-    
+
     // File type bonus (certain file types are typically accessed more)
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    const hotExtensions = ['js', 'jsx', 'ts', 'tsx', 'py', 'java', 'cpp', 'c'];
-    const warmExtensions = ['doc', 'docx', 'pdf', 'txt', 'md'];
-    
-    if (hotExtensions.includes(ext || '')) temperatureScore += 10;
-    else if (warmExtensions.includes(ext || '')) temperatureScore += 5;
-    
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    const hotExtensions = ["js", "jsx", "ts", "tsx", "py", "java", "cpp", "c"];
+    const warmExtensions = ["doc", "docx", "pdf", "txt", "md"];
+
+    if (hotExtensions.includes(ext || "")) temperatureScore += 10;
+    else if (warmExtensions.includes(ext || "")) temperatureScore += 5;
+
     // Access frequency (simulated based on file patterns)
     let accessFrequency = 0;
     if (daysSinceAccess <= 1) accessFrequency = 100;
@@ -75,14 +80,14 @@ const TemperatureHeatmap: React.FC<TemperatureHeatmapProps> = ({
     else if (daysSinceAccess <= 30) accessFrequency = 20;
     else if (daysSinceAccess <= 90) accessFrequency = 10;
     else accessFrequency = 1;
-    
+
     // Determine temperature category
-    let temperature: 'hot' | 'warm' | 'cool' | 'cold';
-    if (temperatureScore >= 70) temperature = 'hot';
-    else if (temperatureScore >= 50) temperature = 'warm';
-    else if (temperatureScore >= 30) temperature = 'cool';
-    else temperature = 'cold';
-    
+    let temperature: "hot" | "warm" | "cool" | "cold";
+    if (temperatureScore >= 70) temperature = "hot";
+    else if (temperatureScore >= 50) temperature = "warm";
+    else if (temperatureScore >= 30) temperature = "cool";
+    else temperature = "cold";
+
     return {
       path: file.path,
       name: file.name,
@@ -92,7 +97,7 @@ const TemperatureHeatmap: React.FC<TemperatureHeatmapProps> = ({
       lastModified: file.modified,
       accessFrequency,
       daysSinceAccess,
-      temperatureScore
+      temperatureScore,
     };
   }, []);
 
@@ -100,47 +105,47 @@ const TemperatureHeatmap: React.FC<TemperatureHeatmapProps> = ({
   const temperatureData = useMemo(() => {
     const processFiles = (files: FileNode[]): TemperatureData[] => {
       const result: TemperatureData[] = [];
-      
+
       const traverse = (file: FileNode) => {
-        if (file.type === 'file') {
+        if (file.type === "file") {
           result.push(calculateTemperature(file));
         } else if (file.children) {
           file.children.forEach(traverse);
         }
       };
-      
+
       files.forEach(traverse);
       return result;
     };
-    
+
     return processFiles(files);
   }, [files, calculateTemperature]);
 
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
     let filtered = temperatureData;
-    
+
     // Filter by temperature
-    if (selectedTemperature !== 'all') {
-      filtered = filtered.filter(item => item.temperature === selectedTemperature);
+    if (selectedTemperature !== "all") {
+      filtered = filtered.filter((item) => item.temperature === selectedTemperature);
     }
-    
+
     // Sort data
     filtered.sort((a, b) => {
       switch (sortBy) {
-        case 'temperature':
+        case "temperature":
           return b.temperatureScore - a.temperatureScore;
-        case 'size':
+        case "size":
           return b.size - a.size;
-        case 'name':
+        case "name":
           return a.name.localeCompare(b.name);
-        case 'accessed':
+        case "accessed":
           return b.lastAccessed.getTime() - a.lastAccessed.getTime();
         default:
           return 0;
       }
     });
-    
+
     return filtered;
   }, [temperatureData, selectedTemperature, sortBy]);
 
@@ -153,23 +158,24 @@ const TemperatureHeatmap: React.FC<TemperatureHeatmapProps> = ({
       cold: 0,
       totalFiles: temperatureData.length,
       totalSize: temperatureData.reduce((sum, item) => sum + item.size, 0),
-      averageTemperature: 0
+      averageTemperature: 0,
     };
-    
-    temperatureData.forEach(item => {
+
+    temperatureData.forEach((item) => {
       stats[item.temperature]++;
       stats.averageTemperature += item.temperatureScore;
     });
-    
-    stats.averageTemperature = stats.totalFiles > 0 ? stats.averageTemperature / stats.totalFiles : 0;
-    
+
+    stats.averageTemperature =
+      stats.totalFiles > 0 ? stats.averageTemperature / stats.totalFiles : 0;
+
     return stats;
   }, [temperatureData]);
 
   const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
   };
@@ -180,41 +186,61 @@ const TemperatureHeatmap: React.FC<TemperatureHeatmapProps> = ({
 
   const getTemperatureColor = (temperature: string): string => {
     switch (temperature) {
-      case 'hot': return 'bg-red-500 border-red-600 text-red-100';
-      case 'warm': return 'bg-orange-500 border-orange-600 text-orange-100';
-      case 'cool': return 'bg-blue-500 border-blue-600 text-blue-100';
-      case 'cold': return 'bg-cyan-500 border-cyan-600 text-cyan-100';
-      default: return 'bg-gray-500 border-gray-600 text-gray-100';
+      case "hot":
+        return "bg-red-500 border-red-600 text-red-100";
+      case "warm":
+        return "bg-orange-500 border-orange-600 text-orange-100";
+      case "cool":
+        return "bg-blue-500 border-blue-600 text-blue-100";
+      case "cold":
+        return "bg-cyan-500 border-cyan-600 text-cyan-100";
+      default:
+        return "bg-gray-500 border-gray-600 text-gray-100";
     }
   };
 
   const getTemperatureGradient = (temperature: string): string => {
     switch (temperature) {
-      case 'hot': return 'from-red-600 to-red-400';
-      case 'warm': return 'from-orange-600 to-orange-400';
-      case 'cool': return 'from-blue-600 to-blue-400';
-      case 'cold': return 'from-cyan-600 to-cyan-400';
-      default: return 'from-gray-600 to-gray-400';
+      case "hot":
+        return "from-red-600 to-red-400";
+      case "warm":
+        return "from-orange-600 to-orange-400";
+      case "cool":
+        return "from-blue-600 to-blue-400";
+      case "cold":
+        return "from-cyan-600 to-cyan-400";
+      default:
+        return "from-gray-600 to-gray-400";
     }
   };
 
   const getTemperatureIcon = (temperature: string) => {
     switch (temperature) {
-      case 'hot': return <Flame className="w-4 h-4" />;
-      case 'warm': return <Thermometer className="w-4 h-4" />;
-      case 'cool': return <Clock className="w-4 h-4" />;
-      case 'cold': return <Snowflake className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
+      case "hot":
+        return <Flame className="w-4 h-4" />;
+      case "warm":
+        return <Thermometer className="w-4 h-4" />;
+      case "cool":
+        return <Clock className="w-4 h-4" />;
+      case "cold":
+        return <Snowflake className="w-4 h-4" />;
+      default:
+        return <Clock className="w-4 h-4" />;
     }
   };
 
   const getTemperatureDescription = (temperature: string): string => {
     switch (temperature) {
-      case 'hot': return 'Frequently accessed (last 24 hours)';
-      case 'warm': return 'Recently accessed (last week)';
-      case 'cool': return 'Moderately accessed (last month)';
-      case 'cold': return 'Rarely accessed (over 3 months)';
-      default: return 'Unknown access pattern';
+      case "hot":
+        return "Frequently accessed (last 24 hours)";
+      case "warm":
+        return "Recently accessed (last week)";
+      case "cool":
+        return "Moderately accessed (last month)";
+      case "cold":
+        return "Rarely accessed (over 3 months)";
+      default:
+        return "Unknown access pattern";
     }
   };
 
@@ -234,21 +260,19 @@ const TemperatureHeatmap: React.FC<TemperatureHeatmapProps> = ({
 
         {/* Statistics Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          {(['hot', 'warm', 'cool', 'cold'] as const).map((temp) => (
+          {(["hot", "warm", "cool", "cold"] as const).map((temp) => (
             <motion.div
               key={temp}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: ['hot', 'warm', 'cool', 'cold'].indexOf(temp) * 0.1 }}
+              transition={{ delay: ["hot", "warm", "cool", "cold"].indexOf(temp) * 0.1 }}
               className={`p-3 rounded-lg border ${getTemperatureColor(temp)}`}
             >
               <div className="flex items-center justify-between mb-1">
                 {getTemperatureIcon(temp)}
                 <span className="font-bold">{statistics[temp]}</span>
               </div>
-              <div className="text-xs opacity-80">
-                {getTemperatureDescription(temp)}
-              </div>
+              <div className="text-xs opacity-80">{getTemperatureDescription(temp)}</div>
             </motion.div>
           ))}
         </div>
@@ -287,10 +311,10 @@ const TemperatureHeatmap: React.FC<TemperatureHeatmapProps> = ({
 
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
                 className="px-3 py-1 bg-gray-800 border border-gray-700 rounded text-white text-sm hover:bg-gray-700 transition-colors"
               >
-                {viewMode === 'grid' ? 'List View' : 'Grid View'}
+                {viewMode === "grid" ? "List View" : "Grid View"}
               </button>
             </div>
           </div>
@@ -299,7 +323,7 @@ const TemperatureHeatmap: React.FC<TemperatureHeatmapProps> = ({
 
       {/* Heatmap Display */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-        {viewMode === 'grid' ? (
+        {viewMode === "grid" ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
             {filteredAndSortedData.map((item, index) => (
               <motion.div
@@ -311,18 +335,14 @@ const TemperatureHeatmap: React.FC<TemperatureHeatmapProps> = ({
                 className={`relative p-3 rounded-lg border cursor-pointer transition-all ${getTemperatureColor(item.temperature)}`}
                 onClick={() => onFileClick?.(item)}
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${getTemperatureGradient(item.temperature)} opacity-20 rounded-lg`} />
-                
+                <div
+                  className={`absolute inset-0 bg-gradient-to-br ${getTemperatureGradient(item.temperature)} opacity-20 rounded-lg`}
+                />
+
                 <div className="relative">
-                  <div className="text-xs font-medium truncate mb-1">
-                    {item.name}
-                  </div>
-                  <div className="text-xs opacity-80">
-                    {formatBytes(item.size)}
-                  </div>
-                  <div className="text-xs opacity-60 mt-1">
-                    {item.daysSinceAccess}d ago
-                  </div>
+                  <div className="text-xs font-medium truncate mb-1">{item.name}</div>
+                  <div className="text-xs opacity-80">{formatBytes(item.size)}</div>
+                  <div className="text-xs opacity-60 mt-1">{item.daysSinceAccess}d ago</div>
                 </div>
 
                 {/* Temperature indicator */}
@@ -352,12 +372,10 @@ const TemperatureHeatmap: React.FC<TemperatureHeatmapProps> = ({
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="text-right">
                   <div className="font-medium">{formatBytes(item.size)}</div>
-                  <div className="text-sm opacity-60">
-                    {item.daysSinceAccess} days ago
-                  </div>
+                  <div className="text-sm opacity-60">{item.daysSinceAccess} days ago</div>
                 </div>
               </motion.div>
             ))}

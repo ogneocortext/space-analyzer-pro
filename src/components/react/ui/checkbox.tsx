@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface CheckboxProps {
   id?: string;
@@ -12,8 +12,8 @@ export const Checkbox: React.FC<CheckboxProps> = ({
   id,
   checked = false,
   onCheckedChange,
-  className = '',
-  children
+  className = "",
+  children,
 }) => {
   return (
     <div className={`flex items-center space-x-2 ${className}`}>

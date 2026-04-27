@@ -1,27 +1,29 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { SkeletonLoader, StaggeredList, PageTransition } from './shared/ProgressiveLoading';
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { SkeletonLoader, StaggeredList, PageTransition } from "./shared/ProgressiveLoading";
 
 const FramerMotionDemo: React.FC = () => {
   const [showContent, setShowContent] = useState(false);
   const [items, setItems] = useState([
-    { id: 1, text: 'Item 1', color: 'bg-blue-500' },
-    { id: 2, text: 'Item 2', color: 'bg-green-500' },
-    { id: 3, text: 'Item 3', color: 'bg-purple-500' },
-    { id: 4, text: 'Item 4', color: 'bg-pink-500' },
+    { id: 1, text: "Item 1", color: "bg-blue-500" },
+    { id: 2, text: "Item 2", color: "bg-green-500" },
+    { id: 3, text: "Item 3", color: "bg-purple-500" },
+    { id: 4, text: "Item 4", color: "bg-pink-500" },
   ]);
 
   const addItem = () => {
     const newItem = {
       id: Date.now(),
       text: `Item ${items.length + 1}`,
-      color: ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500'][Math.floor(Math.random() * 4)]
+      color: ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-pink-500"][
+        Math.floor(Math.random() * 4)
+      ],
     };
-    setItems(prev => [...prev, newItem]);
+    setItems((prev) => [...prev, newItem]);
   };
 
   const removeItem = (id: number) => {
-    setItems(prev => prev.filter(item => item.id !== id));
+    setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
   return (
@@ -51,7 +53,7 @@ const FramerMotionDemo: React.FC = () => {
           onClick={() => setShowContent(!showContent)}
           className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
         >
-          {showContent ? 'Hide' : 'Show'} Content
+          {showContent ? "Hide" : "Show"} Content
         </motion.button>
 
         <motion.button
@@ -103,7 +105,7 @@ const FramerMotionDemo: React.FC = () => {
                     <motion.div
                       className={`p-4 ${item.color} text-white rounded-lg flex justify-between items-center`}
                       whileHover={{ scale: 1.02 }}
-                      transition={{ type: 'spring', stiffness: 300 }}
+                      transition={{ type: "spring", stiffness: 300 }}
                     >
                       <span className="font-medium">{item.text}</span>
                       <motion.button
@@ -136,7 +138,7 @@ const FramerMotionDemo: React.FC = () => {
                       whileHover={{
                         scale: 1.05,
                         rotate: 5,
-                        boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+                        boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
                       }}
                       whileTap={{ scale: 0.95 }}
                       className="bg-gradient-to-br from-blue-500 to-purple-600 p-6 rounded-lg text-white text-center cursor-pointer"
@@ -171,7 +173,7 @@ const FramerMotionDemo: React.FC = () => {
                 >
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                   >
                     🎪
                   </motion.div>

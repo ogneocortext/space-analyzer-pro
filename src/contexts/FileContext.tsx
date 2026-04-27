@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { TransformedFileData } from '../utils/dataTransformers';
+import React, { createContext, useContext, useReducer, ReactNode } from "react";
+import { TransformedFileData } from "../utils/dataTransformers";
 
 // File Context State
 interface FileState {
@@ -16,86 +16,86 @@ interface FileState {
     extensions?: string[];
   };
   sortOptions: {
-    sortBy: 'name' | 'size' | 'modified' | 'type' | 'path';
-    direction: 'asc' | 'desc';
+    sortBy: "name" | "size" | "modified" | "type" | "path";
+    direction: "asc" | "desc";
   };
 }
 
 // File Context Actions
 type FileAction =
-  | { type: 'SET_FILES'; payload: TransformedFileData[] }
-  | { type: 'SET_SELECTED_FILES'; payload: Set<string> }
-  | { type: 'SET_CURRENT_PATH'; payload: string }
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'SET_FILTERS'; payload: Partial<FileState['filters']> }
-  | { type: 'SET_SORT_OPTIONS'; payload: FileState['sortOptions'] }
-  | { type: 'CLEAR_FILTERS' }
-  | { type: 'CLEAR_SELECTION' }
-  | { type: 'SELECT_FILE'; payload: string }
-  | { type: 'DESELECT_FILE'; payload: string }
-  | { type: 'TOGGLE_FILE_SELECTION'; payload: string };
+  | { type: "SET_FILES"; payload: TransformedFileData[] }
+  | { type: "SET_SELECTED_FILES"; payload: Set<string> }
+  | { type: "SET_CURRENT_PATH"; payload: string }
+  | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_ERROR"; payload: string | null }
+  | { type: "SET_FILTERS"; payload: Partial<FileState["filters"]> }
+  | { type: "SET_SORT_OPTIONS"; payload: FileState["sortOptions"] }
+  | { type: "CLEAR_FILTERS" }
+  | { type: "CLEAR_SELECTION" }
+  | { type: "SELECT_FILE"; payload: string }
+  | { type: "DESELECT_FILE"; payload: string }
+  | { type: "TOGGLE_FILE_SELECTION"; payload: string };
 
 // Initial state
 const initialFileState: FileState = {
   files: [],
   selectedFiles: new Set(),
-  currentPath: '',
+  currentPath: "",
   loading: false,
   error: null,
   filters: {},
   sortOptions: {
-    sortBy: 'name',
-    direction: 'asc'
-  }
+    sortBy: "name",
+    direction: "asc",
+  },
 };
 
 // Reducer function
 function fileReducer(state: FileState, action: FileAction): FileState {
   switch (action.type) {
-    case 'SET_FILES':
+    case "SET_FILES":
       return { ...state, files: action.payload };
 
-    case 'SET_SELECTED_FILES':
+    case "SET_SELECTED_FILES":
       return { ...state, selectedFiles: action.payload };
 
-    case 'SET_CURRENT_PATH':
+    case "SET_CURRENT_PATH":
       return { ...state, currentPath: action.payload };
 
-    case 'SET_LOADING':
+    case "SET_LOADING":
       return { ...state, loading: action.payload };
 
-    case 'SET_ERROR':
+    case "SET_ERROR":
       return { ...state, error: action.payload };
 
-    case 'SET_FILTERS':
+    case "SET_FILTERS":
       return { ...state, filters: { ...state.filters, ...action.payload } };
 
-    case 'SET_SORT_OPTIONS':
+    case "SET_SORT_OPTIONS":
       return { ...state, sortOptions: action.payload };
 
-    case 'CLEAR_FILTERS':
+    case "CLEAR_FILTERS":
       return {
         ...state,
         filters: {},
-        sortOptions: { sortBy: 'name', direction: 'asc' }
+        sortOptions: { sortBy: "name", direction: "asc" },
       };
 
-    case 'CLEAR_SELECTION':
+    case "CLEAR_SELECTION":
       return { ...state, selectedFiles: new Set() };
 
-    case 'SELECT_FILE':
+    case "SELECT_FILE":
       return {
         ...state,
-        selectedFiles: new Set([...state.selectedFiles, action.payload])
+        selectedFiles: new Set([...state.selectedFiles, action.payload]),
       };
 
-    case 'DESELECT_FILE':
+    case "DESELECT_FILE":
       const newSelection = new Set(state.selectedFiles);
       newSelection.delete(action.payload);
       return { ...state, selectedFiles: newSelection };
 
-    case 'TOGGLE_FILE_SELECTION':
+    case "TOGGLE_FILE_SELECTION":
       const toggledSelection = new Set(state.selectedFiles);
       if (toggledSelection.has(action.payload)) {
         toggledSelection.delete(action.payload);
@@ -119,8 +119,8 @@ const FileContext = createContext<{
     setCurrentPath: (path: string) => void;
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
-    setFilters: (filters: Partial<FileState['filters']>) => void;
-    setSortOptions: (options: FileState['sortOptions']) => void;
+    setFilters: (filters: Partial<FileState["filters"]>) => void;
+    setSortOptions: (options: FileState["sortOptions"]) => void;
     clearFilters: () => void;
     clearSelection: () => void;
     selectFile: (fileId: string) => void;
@@ -137,77 +137,73 @@ export const FileProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Action creators
   const actions = {
     setFiles: (files: TransformedFileData[]) => {
-      dispatch({ type: 'SET_FILES', payload: files });
+      dispatch({ type: "SET_FILES", payload: files });
     },
 
     setSelectedFiles: (files: Set<string>) => {
-      dispatch({ type: 'SET_SELECTED_FILES', payload: files });
+      dispatch({ type: "SET_SELECTED_FILES", payload: files });
     },
 
     setCurrentPath: (path: string) => {
-      dispatch({ type: 'SET_CURRENT_PATH', payload: path });
+      dispatch({ type: "SET_CURRENT_PATH", payload: path });
     },
 
     setLoading: (loading: boolean) => {
-      dispatch({ type: 'SET_LOADING', payload: loading });
+      dispatch({ type: "SET_LOADING", payload: loading });
     },
 
     setError: (error: string | null) => {
-      dispatch({ type: 'SET_ERROR', payload: error });
+      dispatch({ type: "SET_ERROR", payload: error });
     },
 
-    setFilters: (filters: Partial<FileState['filters']>) => {
-      dispatch({ type: 'SET_FILTERS', payload: filters });
+    setFilters: (filters: Partial<FileState["filters"]>) => {
+      dispatch({ type: "SET_FILTERS", payload: filters });
     },
 
-    setSortOptions: (options: FileState['sortOptions']) => {
-      dispatch({ type: 'SET_SORT_OPTIONS', payload: options });
+    setSortOptions: (options: FileState["sortOptions"]) => {
+      dispatch({ type: "SET_SORT_OPTIONS", payload: options });
     },
 
     clearFilters: () => {
-      dispatch({ type: 'CLEAR_FILTERS' });
+      dispatch({ type: "CLEAR_FILTERS" });
     },
 
     clearSelection: () => {
-      dispatch({ type: 'CLEAR_SELECTION' });
+      dispatch({ type: "CLEAR_SELECTION" });
     },
 
     selectFile: (fileId: string) => {
-      dispatch({ type: 'SELECT_FILE', payload: fileId });
+      dispatch({ type: "SELECT_FILE", payload: fileId });
     },
 
     deselectFile: (fileId: string) => {
-      dispatch({ type: 'DESELECT_FILE', payload: fileId });
+      dispatch({ type: "DESELECT_FILE", payload: fileId });
     },
 
     toggleFileSelection: (fileId: string) => {
-      dispatch({ type: 'TOGGLE_FILE_SELECTION', payload: fileId });
+      dispatch({ type: "TOGGLE_FILE_SELECTION", payload: fileId });
     },
 
     selectAllFiles: () => {
-      const allFileIds = new Set(state.files.map(f => f.id));
-      dispatch({ type: 'SET_SELECTED_FILES', payload: allFileIds });
-    }
+      const allFileIds = new Set(state.files.map((f) => f.id));
+      dispatch({ type: "SET_SELECTED_FILES", payload: allFileIds });
+    },
   };
 
   const value = {
     state,
     dispatch,
-    actions
+    actions,
   };
 
-  return (
-    <FileContext.Provider value={value}>
-      {children}
-    </FileContext.Provider>
-  );
+  return <FileContext.Provider value={value}>{children}</FileContext.Provider>;
 };
 
 // Custom hook to use the File context
 export const useFileContext = () => {
   const context = useContext(FileContext);
   if (!context) {
-    throw new Error('useFileContext must be used within a FileProvider');
+    throw new Error("useFileContext must be used within a FileProvider");
   }
   return context;
 };
@@ -235,6 +231,6 @@ export const useFileFilters = () => {
     sortOptions: state.sortOptions,
     setFilters: actions.setFilters,
     setSortOptions: actions.setSortOptions,
-    clearFilters: actions.clearFilters
+    clearFilters: actions.clearFilters,
   };
 };

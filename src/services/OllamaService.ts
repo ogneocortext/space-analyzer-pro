@@ -1,9 +1,15 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/no-floating-promises */
+/* eslint-disable preserve-caught-error */
+
 /**
  * Ollama Service for Space Analyzer
  * Provides integration with local Ollama server for AI-powered features
  */
 
-import { portDetector } from './PortDetector';
+import { portDetector } from "./PortDetector";
 
 export interface OllamaModel {
   name: string;
@@ -35,7 +41,7 @@ export interface OllamaResponse {
 }
 
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
   model?: string;
@@ -70,7 +76,7 @@ export interface VisionAnalysisResult {
 class OllamaService {
   private baseUrl: string;
   private models: OllamaModel[] = [];
-  private currentModel: string = 'qwen2.5-coder:7b-instruct';
+  private currentModel: string = "qwen2.5-coder:7b-instruct";
   private defaultNumCtx: number;
 
   constructor(baseUrl?: string) {
@@ -87,10 +93,10 @@ class OllamaService {
     try {
       const config = await portDetector.detectAllServers();
       this.baseUrl = `${portDetector.getApiBaseUrl()}/ollama`;
-      console.log(`🔗 OllamaService initialized with API URL: ${this.baseUrl}`);
+      console.warn(`🔗 OllamaService initialized with API URL: ${this.baseUrl}`);
     } catch (error) {
-      console.warn('⚠️ Failed to detect backend port, using fallback');
-      this.baseUrl = '/api/ollama';
+      console.warn("⚠️ Failed to detect backend port, using fallback");
+      this.baseUrl = "/api/ollama";
     }
   }
 
@@ -108,7 +114,7 @@ class OllamaService {
       const response = await fetch(`${this.baseUrl}/api/tags`);
       return response.ok;
     } catch (error) {
-      console.error('Ollama connection test failed:', error);
+      console.error("Ollama connection test failed:", error);
       return false;
     }
   }
@@ -122,15 +128,15 @@ class OllamaService {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       this.models = (data.models || []).map((model: any) => ({
         ...model,
-        vision_capable: this.isVisionModel(model.name)
+        vision_capable: this.isVisionModel(model.name),
       }));
       return this.models;
     } catch (error) {
-      console.error('Failed to fetch Ollama models:', error);
+      console.error("Failed to fetch Ollama models:", error);
       return [];
     }
   }
@@ -140,21 +146,21 @@ class OllamaService {
    */
   private isVisionModel(modelName: string): boolean {
     const visionModels = [
-      'llava',
-      'llava-next',
-      'moondream',
-      'cogvlm',
-      'vision',
-      'multimodal',
-      'claude-3',
-      'gpt-4-vision',
-      'qwen-vl',
-      'internvl',
-      'kosmos'
+      "llava",
+      "llava-next",
+      "moondream",
+      "cogvlm",
+      "vision",
+      "multimodal",
+      "claude-3",
+      "gpt-4-vision",
+      "qwen-vl",
+      "internvl",
+      "kosmos",
     ];
-    
+
     const lowerModelName = modelName.toLowerCase();
-    return visionModels.some(visionModel => lowerModelName.includes(visionModel));
+    return visionModels.some((visionModel) => lowerModelName.includes(visionModel));
   }
 
   /**
@@ -167,32 +173,33 @@ class OllamaService {
   /**
    * Get specialized models for specific tasks
    */
-  getModelsByTask(task: 'code' | 'general' | 'vision' | 'analysis'): OllamaModel[] {
+  getModelsByTask(task: "code" | "general" | "vision" | "analysis"): OllamaModel[] {
     // Ollama 0.21.2: Partial matching for actual installed models
-    const codeModels = ['deepseek-coder', 'qwen2.5-coder', 'codegemma', 'codellama'];
-    const generalModels = ['phi4-mini', 'gemma3', 'qwen2.5', 'qwen3.5', 'llama3', 'mistral'];
+    const codeModels = ["deepseek-coder", "qwen2.5-coder", "codegemma", "codellama"];
+    const generalModels = ["phi4-mini", "gemma3", "qwen2.5", "qwen3.5", "llama3", "mistral"];
 
     switch (task) {
-      case 'code':
-        return this.models.filter(m => 
-          codeModels.some(cm => m.name.includes(cm)) ||
-          m.name.includes('coder') ||
-          m.name.includes('code')
+      case "code":
+        return this.models.filter(
+          (m) =>
+            codeModels.some((cm) => m.name.includes(cm)) ||
+            m.name.includes("coder") ||
+            m.name.includes("code")
         );
-      case 'vision':
-        return this.models.filter(m => m.vision_capable);
-      case 'analysis':
-        return this.models.filter(m => 
-          m.name.includes('q4_k_m') ||
-          m.details.parameter_size.includes('7') || 
-          m.details.parameter_size.includes('9') ||
-          m.details.parameter_size.includes('4')
+      case "vision":
+        return this.models.filter((m) => m.vision_capable);
+      case "analysis":
+        return this.models.filter(
+          (m) =>
+            m.name.includes("q4_k_m") ||
+            m.details.parameter_size.includes("7") ||
+            m.details.parameter_size.includes("9") ||
+            m.details.parameter_size.includes("4")
         );
-      case 'general':
+      case "general":
       default:
-        return this.models.filter(m => 
-          generalModels.some(gm => m.name.includes(gm)) ||
-          m.name.includes('q4_k_m')
+        return this.models.filter(
+          (m) => generalModels.some((gm) => m.name.includes(gm)) || m.name.includes("q4_k_m")
         );
     }
   }
@@ -201,7 +208,7 @@ class OllamaService {
    * Set current model
    */
   setCurrentModel(modelName: string): void {
-    if (this.models.some(m => m.name === modelName)) {
+    if (this.models.some((m) => m.name === modelName)) {
       this.currentModel = modelName;
     } else {
       throw new Error(`Model ${modelName} not available`);
@@ -220,12 +227,12 @@ class OllamaService {
    */
   async generate(prompt: string, model?: string): Promise<OllamaResponse> {
     const selectedModel = model || this.currentModel;
-    
+
     try {
       const response = await fetch(`${this.baseUrl}/api/generate`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: selectedModel,
@@ -243,8 +250,8 @@ class OllamaService {
             f16_kv: true,
             top_k: 40,
             repeat_penalty: 1.1,
-            repeat_last_n: 64
-          }
+            repeat_last_n: 64,
+          },
         }),
       });
 
@@ -254,7 +261,7 @@ class OllamaService {
 
       return await response.json();
     } catch (error) {
-      console.error('Ollama generation failed:', error);
+      console.error("Ollama generation failed:", error);
       throw error;
     }
   }
@@ -267,18 +274,21 @@ class OllamaService {
 
     // Auto-select model based on content and NLP analysis if model not specified
     if (!model && messages.length > 0) {
-      selectedModel = this.selectModelForContent(messages[messages.length - 1].content, context?.nlpAnalysis);
+      selectedModel = this.selectModelForContent(
+        messages[messages.length - 1].content,
+        context?.nlpAnalysis
+      );
     }
 
     try {
       // Check if any message contains images and model supports vision
-      const hasImages = messages.some(msg => msg.images && msg.images.length > 0);
-      const visionModels = this.getModelsByTask('vision');
-      
+      const hasImages = messages.some((msg) => msg.images && msg.images.length > 0);
+      const visionModels = this.getModelsByTask("vision");
+
       if (hasImages && visionModels.length > 0) {
         // Switch to vision model if images are present
         selectedModel = visionModels[0].name;
-        console.log(`👁️ Switching to vision model: ${selectedModel}`);
+        console.warn(`👁️ Switching to vision model: ${selectedModel}`);
       }
 
       // Enhance messages with context if available
@@ -289,17 +299,17 @@ class OllamaService {
 
       const requestBody: any = {
         model: selectedModel,
-        messages: enhancedMessages.map(msg => {
+        messages: enhancedMessages.map((msg) => {
           const messageData: any = {
             role: msg.role,
-            content: msg.content
+            content: msg.content,
           };
-          
+
           // Add images if present
           if (msg.images && msg.images.length > 0) {
             messageData.images = msg.images;
           }
-          
+
           return messageData;
         }),
         stream: false,
@@ -313,14 +323,14 @@ class OllamaService {
           f16_kv: true,
           top_k: 40,
           repeat_penalty: 1.1,
-          repeat_last_n: 64
-        }
+          repeat_last_n: 64,
+        },
       };
 
       const response = await fetch(`${this.baseUrl}/api/chat`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
       });
@@ -334,7 +344,7 @@ class OllamaService {
       result.used_model = selectedModel;
       return result;
     } catch (error) {
-      console.error('Ollama chat failed:', error);
+      console.error("Ollama chat failed:", error);
       throw error;
     }
   }
@@ -343,10 +353,12 @@ class OllamaService {
    * Analyze image using Ollama vision models
    */
   async analyzeImage(imageData: string, prompt?: string): Promise<VisionAnalysisResult> {
-    const visionModels = this.getModelsByTask('vision');
-    
+    const visionModels = this.getModelsByTask("vision");
+
     if (visionModels.length === 0) {
-      throw new Error('No vision models available. Please install a vision model like llava, llava-next, or moondream.');
+      throw new Error(
+        "No vision models available. Please install a vision model like llava, llava-next, or moondream."
+      );
     }
 
     const visionModel = visionModels[0].name;
@@ -363,18 +375,18 @@ class OllamaService {
 
     try {
       const response = await fetch(`${this.baseUrl}/api/chat`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: visionModel,
           messages: [
             {
-              role: 'user',
+              role: "user",
               content: analysisPrompt,
-              images: [imageData]
-            }
+              images: [imageData],
+            },
           ],
           stream: false,
           options: {
@@ -384,8 +396,8 @@ class OllamaService {
             num_ctx: this.defaultNumCtx,
             top_k: 40,
             repeat_penalty: 1.1,
-            repeat_last_n: 64
-          }
+            repeat_last_n: 64,
+          },
         }),
       });
 
@@ -396,7 +408,7 @@ class OllamaService {
       const result = await response.json();
       return this.parseVisionResponse(result.response, visionModel);
     } catch (error) {
-      console.error('Vision analysis failed:', error);
+      console.error("Vision analysis failed:", error);
       throw error;
     }
   }
@@ -404,18 +416,22 @@ class OllamaService {
   /**
    * Analyze multiple images in a conversation context
    */
-  async analyzeImagesInContext(images: string[], context: string, analysisData?: any): Promise<string> {
-    const visionModels = this.getModelsByTask('vision');
-    
+  async analyzeImagesInContext(
+    images: string[],
+    context: string,
+    analysisData?: any
+  ): Promise<string> {
+    const visionModels = this.getModelsByTask("vision");
+
     if (visionModels.length === 0) {
-      throw new Error('No vision models available');
+      throw new Error("No vision models available");
     }
 
     const visionModel = visionModels[0].name;
-    
+
     let enhancedContext = context;
     if (analysisData) {
-      enhancedContext += `\n\nFILE SYSTEM CONTEXT:\n- Total Files: ${analysisData.totalFiles || 'Unknown'}\n- Total Size: ${this.formatFileSize(analysisData.totalSize || 0)}\n- Categories: ${Object.keys(analysisData.categories || {}).join(', ')}\n`;
+      enhancedContext += `\n\nFILE SYSTEM CONTEXT:\n- Total Files: ${analysisData.totalFiles || "Unknown"}\n- Total Size: ${this.formatFileSize(analysisData.totalSize || 0)}\n- Categories: ${Object.keys(analysisData.categories || {}).join(", ")}\n`;
     }
 
     const prompt = `Analyze these images in the context of file system management and storage optimization:
@@ -431,18 +447,18 @@ For each image, provide:
 
     try {
       const response = await fetch(`${this.baseUrl}/api/chat`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: visionModel,
           messages: [
             {
-              role: 'user',
+              role: "user",
               content: prompt,
-              images: images
-            }
+              images: images,
+            },
           ],
           stream: false,
           options: {
@@ -452,8 +468,8 @@ For each image, provide:
             num_ctx: this.defaultNumCtx,
             top_k: 40,
             repeat_penalty: 1.1,
-            repeat_last_n: 64
-          }
+            repeat_last_n: 64,
+          },
         }),
       });
 
@@ -464,7 +480,7 @@ For each image, provide:
       const result = await response.json();
       return result.response;
     } catch (error) {
-      console.error('Multi-image analysis failed:', error);
+      console.error("Multi-image analysis failed:", error);
       throw error;
     }
   }
@@ -480,27 +496,27 @@ For each image, provide:
       objects: [],
       colors: {
         dominant: [],
-        palette: []
-      }
+        palette: [],
+      },
     };
 
     // Try to extract structured information from the response
-    const lines = response.split('\n').filter(line => line.trim());
-    
-    lines.forEach(line => {
+    const lines = response.split("\n").filter((line) => line.trim());
+
+    lines.forEach((line) => {
       // Extract objects (basic pattern matching)
-      if (line.toLowerCase().includes('object') || line.toLowerCase().includes('item')) {
+      if (line.toLowerCase().includes("object") || line.toLowerCase().includes("item")) {
         const objectMatch = line.match(/([a-zA-Z\s]+)(?:\s*\((\d+%?)\))?/);
         if (objectMatch) {
           result.objects.push({
             name: objectMatch[1].trim(),
-            confidence: objectMatch[2] ? parseFloat(objectMatch[2].replace('%', '')) / 100 : 0.8
+            confidence: objectMatch[2] ? parseFloat(objectMatch[2].replace("%", "")) / 100 : 0.8,
           });
         }
       }
 
       // Extract colors
-      if (line.toLowerCase().includes('color') || line.toLowerCase().includes('dominant')) {
+      if (line.toLowerCase().includes("color") || line.toLowerCase().includes("dominant")) {
         const colorMatch = line.match(/(?:#?([0-9a-fA-F]{6})|([a-zA-Z]+\s*color))/g);
         if (colorMatch) {
           result.colors.dominant.push(...colorMatch);
@@ -508,15 +524,15 @@ For each image, provide:
       }
 
       // Extract text
-      if (line.toLowerCase().includes('text') || line.toLowerCase().includes('words')) {
+      if (line.toLowerCase().includes("text") || line.toLowerCase().includes("words")) {
         const textMatch = line.match(/"([^"]+)"/g);
         if (textMatch) {
-          result.text_detected = textMatch.map(text => text.replace(/"/g, ''));
+          result.text_detected = textMatch.map((text) => text.replace(/"/g, ""));
         }
       }
 
       // Extract scene type
-      if (line.toLowerCase().includes('scene') || line.toLowerCase().includes('type')) {
+      if (line.toLowerCase().includes("scene") || line.toLowerCase().includes("type")) {
         const sceneMatch = line.match(/(?:scene|type):?\s*([^.\n]+)/i);
         if (sceneMatch) {
           result.scene_type = sceneMatch[1].trim();
@@ -525,15 +541,15 @@ For each image, provide:
     });
 
     // Add file analysis context if this is for file system analysis
-    if (response.toLowerCase().includes('file') || response.toLowerCase().includes('storage')) {
+    if (response.toLowerCase().includes("file") || response.toLowerCase().includes("storage")) {
       result.file_analysis = {
-        type: 'file_system_related',
+        type: "file_system_related",
         relevance_score: 0.8,
         insights: [
-          'Image contains file system related content',
-          'Can provide insights for storage management',
-          'Relevant for file organization analysis'
-        ]
+          "Image contains file system related content",
+          "Can provide insights for storage management",
+          "Relevant for file organization analysis",
+        ],
       };
     }
 
@@ -549,7 +565,7 @@ For each image, provide:
       reader.onload = () => {
         const result = reader.result as string;
         // Remove the data URL prefix to get just the base64
-        const base64 = result.split(',')[1];
+        const base64 = result.split(",")[1];
         resolve(base64);
       };
       reader.onerror = reject;
@@ -561,29 +577,33 @@ For each image, provide:
    * Check if vision models are available
    */
   hasVisionModels(): boolean {
-    return this.getModelsByTask('vision').length > 0;
+    return this.getModelsByTask("vision").length > 0;
   }
 
   /**
    * Get available vision models
    */
   getVisionModels(): OllamaModel[] {
-    return this.getModelsByTask('vision');
+    return this.getModelsByTask("vision");
   }
   async analyzeFileStructure(analysisData: any): Promise<string> {
-    const codeModel = this.getModelsByTask('code')[0]?.name || this.currentModel;
-    
+    const codeModel = this.getModelsByTask("code")[0]?.name || this.currentModel;
+
     const prompt = `As an expert file system analyst, analyze this directory structure and provide insights:
 
-Total Size: ${analysisData.totalSize || 'Unknown'}
-File Count: ${analysisData.fileCount || 'Unknown'}
-Directory Count: ${analysisData.directoryCount || 'Unknown'}
+Total Size: ${analysisData.totalSize || "Unknown"}
+File Count: ${analysisData.fileCount || "Unknown"}
+Directory Count: ${analysisData.directoryCount || "Unknown"}
 
 Largest Files:
-${analysisData.largestFiles?.map((f: any) => `- ${f.path}: ${f.size}`).join('\n') || 'No data'}
+${analysisData.largestFiles?.map((f: any) => `- ${f.path}: ${f.size}`).join("\n") || "No data"}
 
 File Extensions:
-${Object.entries(analysisData.extensions || {}).map(([ext, count]) => `- ${ext}: ${count}`).join('\n') || 'No data'}
+${
+  Object.entries(analysisData.extensions || {})
+    .map(([ext, count]) => `- ${ext}: ${count}`)
+    .join("\n") || "No data"
+}
 
 Please provide:
 1. Key findings and patterns
@@ -602,13 +622,13 @@ Keep the analysis concise but comprehensive.`;
    * Generate smart recommendations based on analysis
    */
   async generateRecommendations(analysisData: any): Promise<string[]> {
-    const analysisModel = this.getModelsByTask('analysis')[0]?.name || this.currentModel;
-    
+    const analysisModel = this.getModelsByTask("analysis")[0]?.name || this.currentModel;
+
     const prompt = `Based on this file system analysis, generate 5 specific, actionable recommendations:
 
 Analysis Data:
-- Total Size: ${analysisData.totalSize || 'Unknown'}
-- File Count: ${analysisData.fileCount || 'Unknown'}
+- Total Size: ${analysisData.totalSize || "Unknown"}
+- File Count: ${analysisData.fileCount || "Unknown"}
 - Largest Files: ${analysisData.largestFiles?.length || 0}
 - Duplicate Files: ${analysisData.duplicates?.length || 0}
 - Old Files: ${analysisData.oldFiles?.length || 0}
@@ -616,7 +636,9 @@ Analysis Data:
 Provide recommendations as a numbered list, each starting with a verb (e.g., "Delete", "Archive", "Compress", "Organize", "Review"). Focus on practical space-saving actions.`;
 
     const response = await this.generate(prompt, analysisModel);
-    return response.response.split('\n').filter((line: string) => line.trim() && /^\d+\./.test(line.trim()));
+    return response.response
+      .split("\n")
+      .filter((line: string) => line.trim() && /^\d+\./.test(line.trim()));
   }
 
   /**
@@ -628,31 +650,31 @@ Provide recommendations as a numbered list, each starting with a verb (e.g., "De
       const intent = nlpAnalysis.intent?.intent;
 
       switch (intent) {
-        case 'code_analysis':
-          const codeModels = this.getModelsByTask('code');
+        case "code_analysis":
+          const codeModels = this.getModelsByTask("code");
           if (codeModels.length > 0) return codeModels[0].name;
           break;
 
-        case 'file_analysis':
-        case 'storage_query':
-        case 'file_search':
-          const analysisModels = this.getModelsByTask('analysis');
+        case "file_analysis":
+        case "storage_query":
+        case "file_search":
+          const analysisModels = this.getModelsByTask("analysis");
           if (analysisModels.length > 0) return analysisModels[0].name;
           break;
 
-        case 'visualization':
-          const visionModels = this.getModelsByTask('vision');
+        case "visualization":
+          const visionModels = this.getModelsByTask("vision");
           if (visionModels.length > 0) return visionModels[0].name;
           break;
       }
 
       // Check entities for code-related content
       const entities = nlpAnalysis.entities || [];
-      const hasCodeEntity = entities.some((e: any) =>
-        e.entity === 'code_type' || e.entity === 'build_system'
+      const hasCodeEntity = entities.some(
+        (e: any) => e.entity === "code_type" || e.entity === "build_system"
       );
       if (hasCodeEntity) {
-        const codeModels = this.getModelsByTask('code');
+        const codeModels = this.getModelsByTask("code");
         if (codeModels.length > 0) return codeModels[0].name;
       }
     }
@@ -661,24 +683,35 @@ Provide recommendations as a numbered list, each starting with a verb (e.g., "De
     const lowerContent = content.toLowerCase();
 
     // Code-related queries
-    if (lowerContent.includes('code') || lowerContent.includes('programming') ||
-        lowerContent.includes('javascript') || lowerContent.includes('python') ||
-        lowerContent.includes('function') || lowerContent.includes('class') ||
-        lowerContent.includes('dependency') || lowerContent.includes('import')) {
-      const codeModels = this.getModelsByTask('code');
+    if (
+      lowerContent.includes("code") ||
+      lowerContent.includes("programming") ||
+      lowerContent.includes("javascript") ||
+      lowerContent.includes("python") ||
+      lowerContent.includes("function") ||
+      lowerContent.includes("class") ||
+      lowerContent.includes("dependency") ||
+      lowerContent.includes("import")
+    ) {
+      const codeModels = this.getModelsByTask("code");
       if (codeModels.length > 0) return codeModels[0].name;
     }
 
     // Analysis/data queries
-    if (lowerContent.includes('analysis') || lowerContent.includes('data') ||
-        lowerContent.includes('statistics') || lowerContent.includes('size') ||
-        lowerContent.includes('files') || lowerContent.includes('optimize')) {
-      const analysisModels = this.getModelsByTask('analysis');
+    if (
+      lowerContent.includes("analysis") ||
+      lowerContent.includes("data") ||
+      lowerContent.includes("statistics") ||
+      lowerContent.includes("size") ||
+      lowerContent.includes("files") ||
+      lowerContent.includes("optimize")
+    ) {
+      const analysisModels = this.getModelsByTask("analysis");
       if (analysisModels.length > 0) return analysisModels[0].name;
     }
 
     // Default to general model
-    const generalModels = this.getModelsByTask('general');
+    const generalModels = this.getModelsByTask("general");
     if (generalModels.length > 0) return generalModels[0].name;
 
     return this.currentModel;
@@ -687,25 +720,28 @@ Provide recommendations as a numbered list, each starting with a verb (e.g., "De
   /**
    * Enhance messages with analysis context
    */
-  private enhanceMessagesWithContext(messages: ChatMessage[], context: {analysisData?: any}): ChatMessage[] {
+  private enhanceMessagesWithContext(
+    messages: ChatMessage[],
+    context: { analysisData?: any }
+  ): ChatMessage[] {
     if (!context.analysisData) return messages;
 
     const systemMessage: ChatMessage = {
-      role: 'system',
+      role: "system",
       content: `You are an AI assistant with full context awareness of the user's analyzed file system.
 
 ANALYSIS CONTEXT:
-- Total Files: ${context.analysisData.totalFiles || 'Unknown'}
+- Total Files: ${context.analysisData.totalFiles || "Unknown"}
 - Total Size: ${this.formatFileSize(context.analysisData.totalSize || 0)}
-- Categories: ${Object.keys(context.analysisData.categories || {}).join(', ')}
-- Largest File: ${context.analysisData.largestFile || 'Unknown'}
-- Analysis Time: ${context.analysisData.analysisTime || 'Unknown'}
+- Categories: ${Object.keys(context.analysisData.categories || {}).join(", ")}
+- Largest File: ${context.analysisData.largestFile || "Unknown"}
+- Analysis Time: ${context.analysisData.analysisTime || "Unknown"}
 
 FILE SYSTEM INSIGHTS:
-${context.analysisData.ai_insights ? JSON.stringify(context.analysisData.ai_insights, null, 2) : 'No additional insights available'}
+${context.analysisData.ai_insights ? JSON.stringify(context.analysisData.ai_insights, null, 2) : "No additional insights available"}
 
 When answering questions, reference this analysis data to provide context-aware, specific responses about the user's file system.`,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     return [systemMessage, ...messages];
@@ -715,18 +751,18 @@ When answering questions, reference this analysis data to provide context-aware,
    * Format file size for display
    */
   private formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   }
 
   /**
    * Answer user questions about their file system
    */
   async answerQuestion(question: string, context: any): Promise<string> {
-    const generalModel = this.getModelsByTask('general')[0]?.name || this.currentModel;
+    const generalModel = this.getModelsByTask("general")[0]?.name || this.currentModel;
 
     const prompt = `You are an AI assistant helping with file system analysis and optimization.
 

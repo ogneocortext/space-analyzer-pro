@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 // @ts-ignore - react-virtualized
-import { FixedSizeList as List } from 'react-virtualized';
+import { FixedSizeList as List } from "react-virtualized";
 // @ts-ignore - react-virtual
-import { useVirtual } from 'react-virtual';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useVirtual } from "react-virtual";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText,
   Folder,
@@ -17,21 +17,21 @@ import {
   Trash2,
   ExternalLink,
   FileIcon,
-  FolderIcon
-} from 'lucide-react';
+  FolderIcon,
+} from "lucide-react";
 // @ts-ignore
-import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
-import { usePerformanceMonitor } from '../hooks/usePerformanceMonitor';
-import { formatFileSize, formatDate } from '../utils/formatters';
-import { FileData } from '../types/frontend';
+import { useIntersectionObserver } from "../hooks/useIntersectionObserver";
+import { usePerformanceMonitor } from "../hooks/usePerformanceMonitor";
+import { formatFileSize, formatDate } from "../utils/formatters";
+import { FileData } from "../types/frontend";
 
 interface VirtualFileListProps {
   files: FileData[];
   onFileSelect?: (file: FileData) => void;
   onFileAction?: (file: FileData, action: string) => void;
   selectedFiles?: Set<string>;
-  sortBy?: 'name' | 'size' | 'date' | 'type';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "name" | "size" | "date" | "type";
+  sortOrder?: "asc" | "desc";
   searchTerm?: string;
   showHidden?: boolean;
   itemHeight?: number;
@@ -61,55 +61,61 @@ const FileItem: React.FC<FileItemProps> = ({
   onSelect,
   onAction,
   enableSelection,
-  enableActions
+  enableActions,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const handleSelect = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    onSelect(file);
-  }, [file, onSelect]);
+  const handleSelect = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onSelect(file);
+    },
+    [file, onSelect]
+  );
 
-  const handleAction = useCallback((action: string) => {
-    onAction(file, action);
-  }, [file, onAction]);
+  const handleAction = useCallback(
+    (action: string) => {
+      onAction(file, action);
+    },
+    [file, onAction]
+  );
 
   const getFileIcon = useCallback((file: FileData) => {
-    if (file.type === 'directory') {
+    if (file.type === "directory") {
       return <Folder className="w-4 h-4 text-blue-400" />;
     }
 
-    const extension = file.extension || '';
+    const extension = file.extension || "";
     const name = file.name.toLowerCase();
 
     // Document files
-    if (['.pdf', '.doc', '.docx', '.txt', '.rtf'].includes(extension)) {
+    if ([".pdf", ".doc", ".docx", ".txt", ".rtf"].includes(extension)) {
       return <FileText className="w-4 h-4 text-red-400" />;
     }
 
     // Image files
-    if (['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.svg'].includes(extension)) {
+    if ([".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg"].includes(extension)) {
       return <File className="w-4 h-4 text-green-400" />;
     }
 
     // Video files
-    if (['.mp4', '.avi', '.mov', '.wmv', '.flv'].includes(extension)) {
+    if ([".mp4", ".avi", ".mov", ".wmv", ".flv"].includes(extension)) {
       return <File className="w-4 h-4 text-purple-400" />;
     }
 
     // Audio files
-    if (['.mp3', '.wav', '.flac', '.aac'].includes(extension)) {
+    if ([".mp3", ".wav", ".flac", ".aac"].includes(extension)) {
       return <File className="w-4 h-4 text-pink-400" />;
     }
 
     // Code files
-    if (['.js', '.jsx', '.ts', '.tsx', '.py', '.java', '.cpp', '.c'].includes(extension)) {
+    if ([".js", ".jsx", ".ts", ".tsx", ".py", ".java", ".cpp", ".c"].includes(extension)) {
       return <File className="w-4 h-4 text-yellow-400" />;
     }
 
     // Archive files
-    if (['.zip', '.rar', '.7z', '.tar', '.gz'].includes(extension)) {
+    if ([".zip", ".rar", ".7z", ".tar", ".gz"].includes(extension)) {
       return <File className="w-4 h-4 text-orange-400" />;
     }
 
@@ -121,7 +127,7 @@ const FileItem: React.FC<FileItemProps> = ({
     <motion.div
       style={style}
       className={`group file-item border-b border-gray-800 hover:bg-gray-800/50 transition-all duration-200 ${
-        isSelected ? 'bg-blue-900/30 border-blue-600' : ''
+        isSelected ? "bg-blue-900/30 border-blue-600" : ""
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -139,28 +145,20 @@ const FileItem: React.FC<FileItemProps> = ({
         )}
 
         {/* File icon */}
-        <div className="flex-shrink-0">
-          {getFileIcon(file)}
-        </div>
+        <div className="flex-shrink-0">{getFileIcon(file)}</div>
 
         {/* File info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-white truncate">
-              {file.name}
-            </span>
+            <span className="text-sm font-medium text-white truncate">{file.name}</span>
             {file.isHidden && (
-              <span className="px-1 py-0.5 text-xs bg-gray-600 text-gray-200 rounded">
-                hidden
-              </span>
+              <span className="px-1 py-0.5 text-xs bg-gray-600 text-gray-200 rounded">hidden</span>
             )}
             {file.isCorrupted && (
-              <span className="px-1 py-0.5 text-xs bg-red-600 text-red-100 rounded">
-                corrupted
-              </span>
+              <span className="px-1 py-0.5 text-xs bg-red-600 text-red-100 rounded">corrupted</span>
             )}
           </div>
-          
+
           <div className="flex items-center gap-4 text-xs text-gray-400 mt-1">
             <span>{file.type}</span>
             <span>{formatFileSize(file.size)}</span>
@@ -176,39 +174,35 @@ const FileItem: React.FC<FileItemProps> = ({
           {isExpanded && (
             <div className="mt-2 text-xs text-gray-300 space-y-1">
               <div>Path: {file.path}</div>
-              {file.created && (
-                <div>Created: {formatDate(file.created)}</div>
-              )}
-              {file.accessed && (
-                <div>Accessed: {formatDate(file.accessed)}</div>
-              )}
-              {file.checksum && (
-                <div>Checksum: {file.checksum.slice(0, 16)}...</div>
-              )}
+              {file.created && <div>Created: {formatDate(file.created)}</div>}
+              {file.accessed && <div>Accessed: {formatDate(file.accessed)}</div>}
+              {file.checksum && <div>Checksum: {file.checksum.slice(0, 16)}...</div>}
             </div>
           )}
         </div>
 
         {/* Actions */}
         {enableActions && (
-          <div className={`flex items-center gap-1 transition-all duration-200 ${
-            isHovered || isExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
-          }`}>
+          <div
+            className={`flex items-center gap-1 transition-all duration-200 ${
+              isHovered || isExpanded ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2"
+            }`}
+          >
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleAction('preview');
+                handleAction("preview");
               }}
               className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
               title="Preview"
             >
               <Eye className="w-4 h-4" />
             </button>
-            
+
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleAction('download');
+                handleAction("download");
               }}
               className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
               title="Download"
@@ -219,7 +213,7 @@ const FileItem: React.FC<FileItemProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleAction('open');
+                handleAction("open");
               }}
               className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
               title="Open"
@@ -230,7 +224,7 @@ const FileItem: React.FC<FileItemProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleAction('delete');
+                handleAction("delete");
               }}
               className="p-1 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
               title="Delete"
@@ -250,11 +244,7 @@ const FileItem: React.FC<FileItemProps> = ({
             className="ml-2 p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
             title={isExpanded ? "Hide details" : "Show details"}
           >
-            {isExpanded ? (
-              <EyeOff className="w-4 h-4" />
-            ) : (
-              <Eye className="w-4 h-4" />
-            )}
+            {isExpanded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         )}
       </div>
@@ -267,16 +257,16 @@ const VirtualFileList: React.FC<VirtualFileListProps> = ({
   onFileSelect,
   onFileAction,
   selectedFiles = new Set(),
-  sortBy = 'name',
-  sortOrder = 'asc',
-  searchTerm = '',
+  sortBy = "name",
+  sortOrder = "asc",
+  searchTerm = "",
   showHidden = true,
   itemHeight = 64,
   height = 600,
   enableSelection = true,
   enableActions = true,
   enableVirtualization = true,
-  className = ''
+  className = "",
 }) => {
   const listRef = useRef<List>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -292,16 +282,17 @@ const VirtualFileList: React.FC<VirtualFileListProps> = ({
     // Filter by search term
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
-      result = result.filter(file =>
-        file.name.toLowerCase().includes(lowerSearchTerm) ||
-        file.path.toLowerCase().includes(lowerSearchTerm) ||
-        (file.category && file.category.toLowerCase().includes(lowerSearchTerm))
+      result = result.filter(
+        (file) =>
+          file.name.toLowerCase().includes(lowerSearchTerm) ||
+          file.path.toLowerCase().includes(lowerSearchTerm) ||
+          (file.category && file.category.toLowerCase().includes(lowerSearchTerm))
       );
     }
 
     // Filter hidden files
     if (!showHidden) {
-      result = result.filter(file => !file.isHidden);
+      result = result.filter((file) => !file.isHidden);
     }
 
     return result;
@@ -314,19 +305,19 @@ const VirtualFileList: React.FC<VirtualFileListProps> = ({
       let bValue: string | number;
 
       switch (sortBy) {
-        case 'name':
+        case "name":
           aValue = a.name.toLowerCase();
           bValue = b.name.toLowerCase();
           break;
-        case 'size':
+        case "size":
           aValue = a.size;
           bValue = b.size;
           break;
-        case 'date':
+        case "date":
           aValue = new Date(a.modified || 0).getTime();
           bValue = new Date(b.modified || 0).getTime();
           break;
-        case 'type':
+        case "type":
           aValue = a.type.toLowerCase();
           bValue = b.type.toLowerCase();
           break;
@@ -335,8 +326,8 @@ const VirtualFileList: React.FC<VirtualFileListProps> = ({
           bValue = b.name.toLowerCase();
       }
 
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      if (aValue < bValue) return sortOrder === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
 
@@ -348,20 +339,20 @@ const VirtualFileList: React.FC<VirtualFileListProps> = ({
     size: sortedFiles.length,
     parentRef: containerRef,
     estimateSize: useCallback(() => itemHeight, [itemHeight]),
-    overscan: 10
+    overscan: 10,
   });
 
   // Intersection Observer for performance monitoring
   const { isVisible, observerRef } = useIntersectionObserver({
     threshold: 0.1,
-    rootMargin: '100px'
+    rootMargin: "100px",
   });
 
   // Handle scroll events
   const handleScroll = useCallback((event: any) => {
     const scrollTop = event.target.scrollTop;
     setIsScrolled(scrollTop > 0);
-    
+
     // Show/hide scroll to top button
     setScrollToTopVisible(scrollTop > 300);
   }, []);
@@ -383,21 +374,27 @@ const VirtualFileList: React.FC<VirtualFileListProps> = ({
   // Performance monitoring
   useEffect(() => {
     if (isVisible) {
-      performanceMonitor.recordMetric('file_list_render', {
+      performanceMonitor.recordMetric("file_list_render", {
         fileCount: sortedFiles.length,
         virtualizationEnabled: enableVirtualization,
-        renderTime: performance.now()
+        renderTime: performance.now(),
       });
     }
   }, [isVisible, sortedFiles.length, enableVirtualization, performanceMonitor]);
 
-  const handleFileSelect = useCallback((file: FileData) => {
-    onFileSelect?.(file);
-  }, [onFileSelect]);
+  const handleFileSelect = useCallback(
+    (file: FileData) => {
+      onFileSelect?.(file);
+    },
+    [onFileSelect]
+  );
 
-  const handleFileAction = useCallback((file: FileData, action: string) => {
-    onFileAction?.(file, action);
-  }, [onFileAction]);
+  const handleFileAction = useCallback(
+    (file: FileData, action: string) => {
+      onFileAction?.(file, action);
+    },
+    [onFileAction]
+  );
 
   // Render virtualized list
   const renderVirtualizedList = () => {
@@ -459,7 +456,7 @@ const VirtualFileList: React.FC<VirtualFileListProps> = ({
             </span>
             <span className="flex items-center gap-2">
               <Folder className="w-4 h-4 text-green-400" />
-              {sortedFiles.filter(f => f.type === 'directory').length} directories
+              {sortedFiles.filter((f) => f.type === "directory").length} directories
             </span>
             {!showHidden && (
               <span className="flex items-center gap-2">
@@ -474,10 +471,10 @@ const VirtualFileList: React.FC<VirtualFileListProps> = ({
               </span>
             )}
           </div>
-          
+
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500">
-              Virtualization: {enableVirtualization ? 'ON' : 'OFF'}
+              Virtualization: {enableVirtualization ? "ON" : "OFF"}
             </span>
             {enableVirtualization && (
               <span className="text-xs text-gray-500">
@@ -489,11 +486,7 @@ const VirtualFileList: React.FC<VirtualFileListProps> = ({
       </div>
 
       {/* Virtualized content */}
-      <div 
-        ref={observerRef}
-        className="virtual-list-container"
-        style={{ height: `${height}px` }}
-      >
+      <div ref={observerRef} className="virtual-list-container" style={{ height: `${height}px` }}>
         {renderVirtualizedList()}
       </div>
 
@@ -509,7 +502,12 @@ const VirtualFileList: React.FC<VirtualFileListProps> = ({
             title="Scroll to top"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 10l7-7m0 0l7 7m-7-7v18"
+              />
             </svg>
           </motion.button>
         )}

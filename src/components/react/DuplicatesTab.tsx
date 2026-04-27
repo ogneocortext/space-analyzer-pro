@@ -1,22 +1,22 @@
-import React, { useState, useMemo, useCallback, FC } from 'react';
-import { 
-  Search, 
-  Filter, 
-  File, 
-  Folder, 
-  Trash2, 
-  Download, 
-  CheckCircle, 
-  AlertTriangle, 
-  Copy, 
-  Eye, 
+import React, { useState, useMemo, useCallback, FC } from "react";
+import {
+  Search,
+  Filter,
+  File,
+  Folder,
+  Trash2,
+  Download,
+  CheckCircle,
+  AlertTriangle,
+  Copy,
+  Eye,
   EyeOff,
   HardDrive,
   Zap,
   BarChart3,
-  RefreshCw
-} from 'lucide-react';
-import './DuplicatesTab.css';
+  RefreshCw,
+} from "lucide-react";
+import "./DuplicatesTab.css";
 
 interface DuplicateGroup {
   hash: string;
@@ -44,12 +44,12 @@ interface DuplicatesTabProps {
 }
 
 export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [minSize, setMinSize] = useState(0);
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [isScanning, setIsScanning] = useState(false);
-  const [sortBy, setSortBy] = useState<'size' | 'count' | 'name'>('size');
+  const [sortBy, setSortBy] = useState<"size" | "count" | "name">("size");
 
   // Simple hash function for duplicate detection
   const generateFileHash = useCallback((file: any): string => {
@@ -59,7 +59,7 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
     let hash = 0;
     for (let i = 0; i < baseString.length; i++) {
       const char = baseString.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash;
     }
     return Math.abs(hash).toString(16);
@@ -71,9 +71,9 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
 
     setIsScanning(true);
     const fileMap = new Map<string, any[]>();
-    
+
     // Group files by hash
-    files.forEach(file => {
+    files.forEach((file) => {
       const hash = generateFileHash(file);
       if (!fileMap.has(hash)) {
         fileMap.set(hash, []);
@@ -83,19 +83,19 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
 
     // Filter for actual duplicates (groups with 2+ files)
     const duplicates: DuplicateGroup[] = [];
-    
+
     fileMap.forEach((fileList, hash) => {
       if (fileList.length > 1) {
         const totalSize = fileList.reduce((sum, file) => sum + file.size, 0);
-        const largestFile = Math.max(...fileList.map(f => f.size));
+        const largestFile = Math.max(...fileList.map((f) => f.size));
         const wastedSpace = totalSize - largestFile; // Space wasted by duplicates
-        
+
         duplicates.push({
           hash,
           files: fileList,
           size: totalSize,
           totalWastedSpace: wastedSpace,
-          potentialSavings: formatFileSize(wastedSpace)
+          potentialSavings: formatFileSize(wastedSpace),
         });
       }
     });
@@ -103,11 +103,11 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
     setIsScanning(false);
     return duplicates.sort((a, b) => {
       switch (sortBy) {
-        case 'size':
+        case "size":
           return b.totalWastedSpace - a.totalWastedSpace;
-        case 'count':
+        case "count":
           return b.files.length - a.files.length;
-        case 'name':
+        case "name":
           return a.files[0].name.localeCompare(b.files[0].name);
         default:
           return 0;
@@ -117,20 +117,20 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
 
   // Filter duplicates
   const filteredDuplicates = useMemo(() => {
-    return duplicateGroups.filter(group => {
+    return duplicateGroups.filter((group) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const matchesSearch = group.files.some(file => 
-          file.name.toLowerCase().includes(query) ||
-          file.path.toLowerCase().includes(query)
+        const matchesSearch = group.files.some(
+          (file) =>
+            file.name.toLowerCase().includes(query) || file.path.toLowerCase().includes(query)
         );
         if (!matchesSearch) return false;
       }
 
       // Size filter
       if (minSize > 0) {
-        const hasLargeEnoughFile = group.files.some(file => file.size >= minSize);
+        const hasLargeEnoughFile = group.files.some((file) => file.size >= minSize);
         if (!hasLargeEnoughFile) return false;
       }
 
@@ -140,32 +140,38 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const totalDuplicates = filteredDuplicates.reduce((sum, group) => sum + group.files.length - 1, 0); // Subtract 1 from each group (keep original)
-    const totalWastedSpace = filteredDuplicates.reduce((sum, group) => sum + group.totalWastedSpace, 0);
+    const totalDuplicates = filteredDuplicates.reduce(
+      (sum, group) => sum + group.files.length - 1,
+      0
+    ); // Subtract 1 from each group (keep original)
+    const totalWastedSpace = filteredDuplicates.reduce(
+      (sum, group) => sum + group.totalWastedSpace,
+      0
+    );
     const totalGroups = filteredDuplicates.length;
-    const largestWaste = Math.max(...filteredDuplicates.map(g => g.totalWastedSpace), 0);
+    const largestWaste = Math.max(...filteredDuplicates.map((g) => g.totalWastedSpace), 0);
 
     return {
       totalDuplicates,
       totalWastedSpace,
       totalGroups,
       largestWaste,
-      averageWastePerGroup: totalGroups > 0 ? totalWastedSpace / totalGroups : 0
+      averageWastePerGroup: totalGroups > 0 ? totalWastedSpace / totalGroups : 0,
     };
   }, [filteredDuplicates]);
 
   // Format file size
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   // Toggle group expansion
   const toggleGroupExpansion = (hash: string) => {
-    setExpandedGroups(prev => {
+    setExpandedGroups((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(hash)) {
         newSet.delete(hash);
@@ -178,7 +184,7 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
 
   // Toggle group selection
   const toggleGroupSelection = (hash: string) => {
-    setSelectedGroups(prev => {
+    setSelectedGroups((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(hash)) {
         newSet.delete(hash);
@@ -194,7 +200,7 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
     if (selectedGroups.size === filteredDuplicates.length) {
       setSelectedGroups(new Set());
     } else {
-      setSelectedGroups(new Set(filteredDuplicates.map(g => g.hash)));
+      setSelectedGroups(new Set(filteredDuplicates.map((g) => g.hash)));
     }
   };
 
@@ -202,16 +208,16 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
   const handleDuplicateAction = (action: string, group: DuplicateGroup) => {
     const filesToKeep = [group.files[0]]; // Keep the first file (original/largest)
     const filesToDelete = group.files.slice(1); // Delete the rest
-    
+
     switch (action) {
-      case 'delete':
-        onFileAction?.('delete', filesToDelete);
+      case "delete":
+        onFileAction?.("delete", filesToDelete);
         break;
-      case 'keep':
-        onFileAction?.('keep', filesToKeep);
+      case "keep":
+        onFileAction?.("keep", filesToKeep);
         break;
-      case 'move':
-        onFileAction?.('move', filesToDelete);
+      case "move":
+        onFileAction?.("move", filesToDelete);
         break;
     }
   };
@@ -221,24 +227,24 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
     const report = {
       generated: new Date().toISOString(),
       stats,
-      duplicates: filteredDuplicates.map(group => ({
+      duplicates: filteredDuplicates.map((group) => ({
         hash: group.hash,
         fileCount: group.files.length,
         wastedSpace: group.totalWastedSpace,
-        files: group.files.map(f => ({
+        files: group.files.map((f) => ({
           name: f.name,
           path: f.path,
           size: f.size,
-          modified: f.modified
-        }))
-      }))
+          modified: f.modified,
+        })),
+      })),
     };
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `duplicates-report-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `duplicates-report-${new Date().toISOString().split("T")[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -268,7 +274,7 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
           </h2>
           <p>Identify and manage duplicate files to reclaim storage space</p>
         </div>
-        
+
         {isScanning && (
           <div className="scanning-indicator">
             <RefreshCw className="spinner" />
@@ -310,7 +316,7 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
               placeholder="Search by file name or path..."
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="clear-search">
+              <button onClick={() => setSearchQuery("")} className="clear-search">
                 ×
               </button>
             )}
@@ -348,29 +354,28 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
 
       {/* Actions */}
       <div className="duplicates-actions">
-        <button
-          onClick={toggleAllGroups}
-          className="action-btn"
-        >
-          {selectedGroups.size === filteredDuplicates.length ? 'Deselect All' : 'Select All'}
+        <button onClick={toggleAllGroups} className="action-btn">
+          {selectedGroups.size === filteredDuplicates.length ? "Deselect All" : "Select All"}
         </button>
-        
+
         {selectedGroups.size > 0 && (
           <>
             <button
-              onClick={() => onFileAction?.('delete', Array.from(selectedGroups).flatMap(hash => 
-                filteredDuplicates.find(g => g.hash === hash)?.files.slice(1) || []
-              ))}
+              onClick={() =>
+                onFileAction?.(
+                  "delete",
+                  Array.from(selectedGroups).flatMap(
+                    (hash) => filteredDuplicates.find((g) => g.hash === hash)?.files.slice(1) || []
+                  )
+                )
+              }
               className="action-btn danger"
             >
               <Trash2 size={16} />
               Delete Selected Duplicates
             </button>
-            
-            <button
-              onClick={exportDuplicatesReport}
-              className="action-btn"
-            >
+
+            <button onClick={exportDuplicatesReport} className="action-btn">
               <Download size={16} />
               Export Report
             </button>
@@ -394,14 +399,8 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
             const duplicateFiles = group.files.slice(1);
 
             return (
-              <div
-                key={group.hash}
-                className={`duplicate-group ${isSelected ? 'selected' : ''}`}
-              >
-                <div
-                  className="group-header"
-                  onClick={() => toggleGroupExpansion(group.hash)}
-                >
+              <div key={group.hash} className={`duplicate-group ${isSelected ? "selected" : ""}`}>
+                <div className="group-header" onClick={() => toggleGroupExpansion(group.hash)}>
                   <input
                     type="checkbox"
                     checked={isSelected}
@@ -457,7 +456,7 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
                           <h4>Duplicate Files (Can Delete)</h4>
                           <div className="duplicate-actions">
                             <button
-                              onClick={() => handleDuplicateAction('delete', group)}
+                              onClick={() => handleDuplicateAction("delete", group)}
                               className="duplicate-action-btn danger"
                               title="Delete all duplicate files"
                             >
@@ -465,7 +464,7 @@ export const DuplicatesTab: FC<DuplicatesTabProps> = ({ files, onFileAction }) =
                               Delete All
                             </button>
                             <button
-                              onClick={() => handleDuplicateAction('move', group)}
+                              onClick={() => handleDuplicateAction("move", group)}
                               className="duplicate-action-btn"
                               title="Move duplicate files to another location"
                             >

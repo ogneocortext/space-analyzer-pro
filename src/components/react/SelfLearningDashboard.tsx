@@ -1,8 +1,22 @@
 // Self-Learning Dashboard Component
 // Provides UI for monitoring and managing the self-learning ML service
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 
 interface LearningStats {
   trainingDatabase: {
@@ -31,22 +45,22 @@ export const SelfLearningDashboard: React.FC<{
 }> = ({ service, onRefresh }) => {
   const [stats, setStats] = useState<LearningStats | null>(null);
   const [insights, setInsights] = useState<KnowledgeInsights | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string>('code-analysis');
+  const [selectedModel, setSelectedModel] = useState<string>("code-analysis");
   const [isTraining, setIsTraining] = useState(false);
   const [trainingProgress, setTrainingProgress] = useState(0);
   const [autoTrain, setAutoTrain] = useState(true);
-  const [feedback, setFeedback] = useState({ positive: false, comment: '' });
+  const [feedback, setFeedback] = useState({ positive: false, comment: "" });
 
   // Load initial data
   useEffect(() => {
     loadStats();
     loadInsights();
-    
+
     // Set up periodic refresh
     const interval = setInterval(() => {
       loadStats();
     }, 5000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -56,7 +70,7 @@ export const SelfLearningDashboard: React.FC<{
       const learningStats = service.getLearningStatistics();
       setStats(learningStats);
     } catch (error) {
-      console.error('Failed to load learning statistics:', error);
+      console.error("Failed to load learning statistics:", error);
     }
   }, [service]);
 
@@ -66,7 +80,7 @@ export const SelfLearningDashboard: React.FC<{
       const knowledgeInsights = service.getKnowledgeInsights();
       setInsights(knowledgeInsights);
     } catch (error) {
-      console.error('Failed to load knowledge insights:', error);
+      console.error("Failed to load knowledge insights:", error);
     }
   }, [service]);
 
@@ -74,26 +88,25 @@ export const SelfLearningDashboard: React.FC<{
   const trainModel = async (modelName: string) => {
     setIsTraining(true);
     setTrainingProgress(0);
-    
+
     try {
       const sessionId = await service.mlService.trainModel(modelName);
-      
+
       // Monitor progress
       const checkProgress = setInterval(async () => {
         const session = service.mlService.getLearningSession(sessionId);
         if (session) {
           setTrainingProgress(session.progress);
-          
-          if (session.status === 'completed' || session.status === 'failed') {
+
+          if (session.status === "completed" || session.status === "failed") {
             clearInterval(checkProgress);
             setIsTraining(false);
             loadStats();
           }
         }
       }, 1000);
-      
     } catch (error) {
-      console.error('Training failed:', error);
+      console.error("Training failed:", error);
       setIsTraining(false);
     }
   };
@@ -105,10 +118,10 @@ export const SelfLearningDashboard: React.FC<{
         analysisId: `manual-${Date.now()}`,
         positive: feedback.positive,
         comment: feedback.comment,
-        rating: feedback.positive ? 5 : 1
+        rating: feedback.positive ? 5 : 1,
       });
-      
-      setFeedback({ positive: false, comment: '' });
+
+      setFeedback({ positive: false, comment: "" });
       loadStats();
     }
   };
@@ -116,50 +129,47 @@ export const SelfLearningDashboard: React.FC<{
   // Get performance chart data
   const getPerformanceChartData = () => {
     if (!stats?.performanceHistory) return [];
-    
+
     return stats.performanceHistory
-      .filter(item => item.modelName === selectedModel)
-      .map(item => ({
+      .filter((item) => item.modelName === selectedModel)
+      .map((item) => ({
         timestamp: new Date(item.timestamp).toLocaleTimeString(),
         accuracy: item.accuracy * 100,
-        confidence: item.confidence * 100
+        confidence: item.confidence * 100,
       }));
   };
 
   // Get language distribution data
   const getLanguageDistribution = () => {
     if (!stats?.trainingDatabase.byLanguage) return [];
-    
+
     return Object.entries(stats.trainingDatabase.byLanguage).map(([language, count]) => ({
       name: language,
       value: count,
-      percentage: ((count / stats.trainingDatabase.totalSamples) * 100).toFixed(1)
+      percentage: ((count / stats.trainingDatabase.totalSamples) * 100).toFixed(1),
     }));
   };
 
   // Get model performance data
   const getModelPerformanceData = () => {
     if (!stats?.modelPerformance) return [];
-    
+
     return Object.entries(stats.modelPerformance).map(([name, performance]) => ({
-      name: name.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      name: name.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase()),
       accuracy: performance.accuracy * 100,
       confidence: performance.confidence * 100,
-      feedback: performance.userFeedback.total
+      feedback: performance.userFeedback.total,
     }));
   };
 
-  const COLORS = ['#4A90E2', '#7ED321', '#F5A623', '#BD10E0', '#50E3C2', '#FF6B6B'];
+  const COLORS = ["#4A90E2", "#7ED321", "#F5A623", "#BD10E0", "#50E3C2", "#FF6B6B"];
 
   return (
     <div className="self-learning-dashboard">
       <div className="dashboard-header">
         <h2>🧠 Self-Learning ML Dashboard</h2>
         <div className="header-controls">
-          <button 
-            onClick={loadStats}
-            className="refresh-button"
-          >
+          <button onClick={loadStats} className="refresh-button">
             🔄 Refresh
           </button>
           <label className="auto-train-toggle">
@@ -180,42 +190,41 @@ export const SelfLearningDashboard: React.FC<{
           <div className="stat-value">
             {stats?.trainingDatabase.totalSamples.toLocaleString() || 0}
           </div>
-          <div className="stat-change">
-            +{Math.floor(Math.random() * 100)} this week
-          </div>
+          <div className="stat-change">+{Math.floor(Math.random() * 100)} this week</div>
         </div>
-        
+
         <div className="stat-card">
           <h3>🤖 Models Trained</h3>
           <div className="stat-value">
             {stats?.modelPerformance ? Object.keys(stats.modelPerformance).length : 0}
           </div>
-          <div className="stat-change">
-            {stats?.isLearning ? 'Training...' : 'Ready'}
-          </div>
+          <div className="stat-change">{stats?.isLearning ? "Training..." : "Ready"}</div>
         </div>
-        
+
         <div className="stat-card">
           <h3>👥 User Feedback</h3>
-          <div className="stat-value">
-            {stats?.feedbackBuffer.length || 0}
-          </div>
+          <div className="stat-value">{stats?.feedbackBuffer.length || 0}</div>
           <div className="stat-change">
-            {stats?.feedbackBuffer.length > 0 ? 'New feedback' : 'No feedback'}
+            {stats?.feedbackBuffer.length > 0 ? "New feedback" : "No feedback"}
           </div>
         </div>
-        
+
         <div className="stat-card">
           <h3>⚡ Avg Accuracy</h3>
           <div className="stat-value">
-            {stats?.modelPerformance ? 
-              (Object.values(stats.modelPerformance).reduce((sum: any, p: any) => sum + p.accuracy, 0) / 
-               Object.keys(stats.modelPerformance).length * 100).toFixed(1) : 0
-            }%
+            {stats?.modelPerformance
+              ? (
+                  (Object.values(stats.modelPerformance).reduce(
+                    (sum: any, p: any) => sum + p.accuracy,
+                    0
+                  ) /
+                    Object.keys(stats.modelPerformance).length) *
+                  100
+                ).toFixed(1)
+              : 0}
+            %
           </div>
-          <div className="stat-change positive">
-            +2.3%
-          </div>
+          <div className="stat-change positive">+2.3%</div>
         </div>
       </div>
 
@@ -224,24 +233,21 @@ export const SelfLearningDashboard: React.FC<{
         <h3>📈 Model Performance</h3>
         <div className="model-selector">
           <label>Select Model:</label>
-          <select 
-            value={selectedModel} 
-            onChange={(e) => setSelectedModel(e.target.value)}
-          >
+          <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
             <option value="code-analysis">Code Analysis</option>
             <option value="code-smell-detection">Code Smell Detection</option>
             <option value="refactoring-suggestion">Refactoring Suggestion</option>
             <option value="pattern-recognition">Pattern Recognition</option>
           </select>
-          <button 
+          <button
             onClick={() => trainModel(selectedModel)}
             disabled={isTraining}
             className="train-button"
           >
-            {isTraining ? `Training... ${trainingProgress}%` : 'Train Model'}
+            {isTraining ? `Training... ${trainingProgress}%` : "Train Model"}
           </button>
         </div>
-        
+
         <div className="chart-container">
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={getPerformanceChartData()}>
@@ -250,17 +256,17 @@ export const SelfLearningDashboard: React.FC<{
               <YAxis domain={[0, 100]} />
               <Tooltip />
               <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="accuracy" 
-                stroke="#4A90E2" 
+              <Line
+                type="monotone"
+                dataKey="accuracy"
+                stroke="#4A90E2"
                 strokeWidth={2}
                 name="Accuracy"
               />
-              <Line 
-                type="monotone" 
-                dataKey="confidence" 
-                stroke="#7ED321" 
+              <Line
+                type="monotone"
+                dataKey="confidence"
+                stroke="#7ED321"
                 strokeWidth={2}
                 name="Confidence"
               />
@@ -322,39 +328,45 @@ export const SelfLearningDashboard: React.FC<{
             <div className="insight-card">
               <h4>🔍 Common Patterns</h4>
               <div className="insight-content">
-                {Object.entries(insights.patterns).slice(0, 3).map(([name, count]) => (
-                  <div key={name} className="pattern-item">
-                    <span className="pattern-name">{name}:</span>
-                    <span className="pattern-count">{String(count)}</span>
-                  </div>
-                ))}
+                {Object.entries(insights.patterns)
+                  .slice(0, 3)
+                  .map(([name, count]) => (
+                    <div key={name} className="pattern-item">
+                      <span className="pattern-name">{name}:</span>
+                      <span className="pattern-count">{String(count)}</span>
+                    </div>
+                  ))}
               </div>
             </div>
-            
+
             <div className="insight-card">
               <h4>👃 Code Smells</h4>
               <div className="insight-content">
-                {Object.entries(insights.codeSmells).slice(0, 3).map(([name, count]) => (
-                  <div key={name} className="smell-item">
-                    <span className="smell-name">{name}:</span>
-                    <span className="smell-count">{String(count)}</span>
-                  </div>
-                ))}
+                {Object.entries(insights.codeSmells)
+                  .slice(0, 3)
+                  .map(([name, count]) => (
+                    <div key={name} className="smell-item">
+                      <span className="smell-name">{name}:</span>
+                      <span className="smell-count">{String(count)}</span>
+                    </div>
+                  ))}
               </div>
             </div>
-            
+
             <div className="insight-card">
               <h4>✨ Best Practices</h4>
               <div className="insight-content">
-                {Object.entries(insights.bestPractices).slice(0, 3).map(([name, count]) => (
-                  <div key={name} className="practice-item">
-                    <span className="practice-name">{name}:</span>
-                    <span className="practice-count">{String(count)}</span>
-                  </div>
-                ))}
+                {Object.entries(insights.bestPractices)
+                  .slice(0, 3)
+                  .map(([name, count]) => (
+                    <div key={name} className="practice-item">
+                      <span className="practice-name">{name}:</span>
+                      <span className="practice-count">{String(count)}</span>
+                    </div>
+                  ))}
               </div>
             </div>
-            
+
             <div className="insight-card recommendations">
               <h4>🎯 Recommendations</h4>
               <div className="insight-content">
@@ -393,7 +405,7 @@ export const SelfLearningDashboard: React.FC<{
               👎 Negative
             </label>
           </div>
-          
+
           <input
             type="text"
             placeholder="Add your feedback comment..."
@@ -401,8 +413,8 @@ export const SelfLearningDashboard: React.FC<{
             onChange={(e) => setFeedback({ ...feedback, comment: e.target.value })}
             className="feedback-input"
           />
-          
-          <button 
+
+          <button
             onClick={addFeedback}
             disabled={!feedback.comment.trim()}
             className="feedback-submit"
@@ -410,22 +422,27 @@ export const SelfLearningDashboard: React.FC<{
             Submit Feedback
           </button>
         </div>
-        
+
         {stats?.feedbackBuffer && stats.feedbackBuffer.length > 0 && (
           <div className="feedback-history">
             <h4>Recent Feedback</h4>
             <div className="feedback-list">
-              {stats.feedbackBuffer.slice(-5).reverse().map((item, index) => (
-                <div key={index} className="feedback-item">
-                  <span className={`feedback-indicator ${item.positive ? 'positive' : 'negative'}`}>
-                    {item.positive ? '👍' : '👎'}
-                  </span>
-                  <span className="feedback-comment">{item.comment}</span>
-                  <span className="feedback-time">
-                    {new Date(item.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-              ))}
+              {stats.feedbackBuffer
+                .slice(-5)
+                .reverse()
+                .map((item, index) => (
+                  <div key={index} className="feedback-item">
+                    <span
+                      className={`feedback-indicator ${item.positive ? "positive" : "negative"}`}
+                    >
+                      {item.positive ? "👍" : "👎"}
+                    </span>
+                    <span className="feedback-comment">{item.comment}</span>
+                    <span className="feedback-time">
+                      {new Date(item.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))}
             </div>
           </div>
         )}
@@ -447,7 +464,7 @@ export const SelfLearningDashboard: React.FC<{
           padding: 20px;
           background: white;
           border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .dashboard-header h2 {
@@ -461,9 +478,10 @@ export const SelfLearningDashboard: React.FC<{
           align-items: center;
         }
 
-        .refresh-button, .train-button {
+        .refresh-button,
+        .train-button {
           padding: 8px 16px;
-          background: #4A90E2;
+          background: #4a90e2;
           color: white;
           border: none;
           border-radius: 4px;
@@ -471,8 +489,9 @@ export const SelfLearningDashboard: React.FC<{
           font-size: 14px;
         }
 
-        .refresh-button:hover, .train-button:hover {
-          background: #357ABD;
+        .refresh-button:hover,
+        .train-button:hover {
+          background: #357abd;
         }
 
         .train-button:disabled {
@@ -498,7 +517,7 @@ export const SelfLearningDashboard: React.FC<{
           background: white;
           padding: 20px;
           border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
           text-align: center;
         }
 
@@ -521,18 +540,24 @@ export const SelfLearningDashboard: React.FC<{
         }
 
         .stat-change.positive {
-          color: #4CAF50;
+          color: #4caf50;
         }
 
-        .performance-section, .chart-section, .insights-section, .feedback-section {
+        .performance-section,
+        .chart-section,
+        .insights-section,
+        .feedback-section {
           background: white;
           padding: 20px;
           border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
           margin-bottom: 20px;
         }
 
-        .performance-section h3, .chart-section h3, .insights-section h3, .feedback-section h3 {
+        .performance-section h3,
+        .chart-section h3,
+        .insights-section h3,
+        .feedback-section h3 {
           margin: 0 0 20px 0;
           color: #333;
         }
@@ -589,17 +614,23 @@ export const SelfLearningDashboard: React.FC<{
           font-size: 12px;
         }
 
-        .pattern-item, .smell-item, .practice-item {
+        .pattern-item,
+        .smell-item,
+        .practice-item {
           display: flex;
           justify-content: space-between;
           margin-bottom: 5px;
         }
 
-        .pattern-name, .smell-name, .practice-name {
+        .pattern-name,
+        .smell-name,
+        .practice-name {
           font-weight: 500;
         }
 
-        .pattern-count, .smell-count, .practice-count {
+        .pattern-count,
+        .smell-count,
+        .practice-count {
           color: #666;
         }
 
@@ -629,7 +660,7 @@ export const SelfLearningDashboard: React.FC<{
 
         .feedback-submit {
           padding: 8px 16px;
-          background: #4A90E2;
+          background: #4a90e2;
           color: white;
           border: none;
           border-radius: 4px;

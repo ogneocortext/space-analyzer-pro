@@ -74,7 +74,8 @@
 }
 
 @keyframes swipeHintPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.3;
     transform: translateY(-50%) scale(1);
   }

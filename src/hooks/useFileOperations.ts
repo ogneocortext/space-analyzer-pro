@@ -1,7 +1,12 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useMemoizedCallback } from '../utils/memoization';
-import { fileCache } from '../services/cache/APICache';
-import { transformFileData, filterFiles, sortFiles, TransformedFileData } from '../utils/dataTransformers';
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { useMemoizedCallback } from "../utils/memoization";
+import { fileCache } from "../services/cache/APICache";
+import {
+  transformFileData,
+  filterFiles,
+  sortFiles,
+  TransformedFileData,
+} from "../utils/dataTransformers";
 
 export interface FileOperationResult {
   success: boolean;
@@ -18,8 +23,8 @@ export interface FileFilters {
 }
 
 export interface FileSortOptions {
-  sortBy: 'name' | 'size' | 'modified' | 'type' | 'path';
-  direction: 'asc' | 'desc';
+  sortBy: "name" | "size" | "modified" | "type" | "path";
+  direction: "asc" | "desc";
 }
 
 export const useFileOperations = (initialPath?: string) => {
@@ -28,13 +33,13 @@ export const useFileOperations = (initialPath?: string) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [currentPath, setCurrentPath] = useState(initialPath || '');
+  const [currentPath, setCurrentPath] = useState(initialPath || "");
 
   // Filtering and sorting state
   const [filters, setFilters] = useState<FileFilters>({});
   const [sortOptions, setSortOptions] = useState<FileSortOptions>({
-    sortBy: 'name',
-    direction: 'asc'
+    sortBy: "name",
+    direction: "asc",
   });
 
   // Computed filtered and sorted files
@@ -53,88 +58,96 @@ export const useFileOperations = (initialPath?: string) => {
   }, [files, filters, sortOptions]);
 
   // Load files from directory
-  const loadFiles = useCallback(async (path: string = currentPath): Promise<FileOperationResult> => {
-    setLoading(true);
-    setError(null);
+  const loadFiles = useCallback(
+    async (path: string = currentPath): Promise<FileOperationResult> => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      // Check cache first
-      const cacheKey = `files_${path}`;
-      const cachedData = fileCache.get<TransformedFileData[]>(cacheKey);
+      try {
+        // Check cache first
+        const cacheKey = `files_${path}`;
+        const cachedData = fileCache.get<TransformedFileData[]>(cacheKey);
 
-      if (cachedData) {
-        setFiles(cachedData);
+        if (cachedData) {
+          setFiles(cachedData);
+          setCurrentPath(path);
+          setLoading(false);
+          return { success: true, data: cachedData };
+        }
+
+        // In a real implementation, this would call your file system service
+        // For now, we'll simulate the API call
+        const rawFileData = await simulateFileSystemCall(path);
+
+        // Transform the data
+        const transformedData = transformFileData(rawFileData);
+
+        // Cache the result
+        fileCache.set(cacheKey, transformedData, 10 * 60 * 1000); // 10 minutes
+
+        setFiles(transformedData);
         setCurrentPath(path);
         setLoading(false);
-        return { success: true, data: cachedData };
+
+        return { success: true, data: transformedData };
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to load files";
+        setError(errorMessage);
+        setLoading(false);
+        return { success: false, error: errorMessage };
       }
-
-      // In a real implementation, this would call your file system service
-      // For now, we'll simulate the API call
-      const rawFileData = await simulateFileSystemCall(path);
-
-      // Transform the data
-      const transformedData = transformFileData(rawFileData);
-
-      // Cache the result
-      fileCache.set(cacheKey, transformedData, 10 * 60 * 1000); // 10 minutes
-
-      setFiles(transformedData);
-      setCurrentPath(path);
-      setLoading(false);
-
-      return { success: true, data: transformedData };
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load files';
-      setError(errorMessage);
-      setLoading(false);
-      return { success: false, error: errorMessage };
-    }
-  }, [currentPath]);
+    },
+    [currentPath]
+  );
 
   // Search files
   const searchFiles = useMemoizedCallback((query: string) => {
-    setFilters(prev => ({ ...prev, search: query }));
+    setFilters((prev) => ({ ...prev, search: query }));
   }, []);
 
   // Filter by category
   const filterByCategory = useMemoizedCallback((categories: string[]) => {
-    setFilters(prev => ({ ...prev, categories }));
+    setFilters((prev) => ({ ...prev, categories }));
   }, []);
 
   // Filter by size range
   const filterBySize = useMemoizedCallback((minSize?: number, maxSize?: number) => {
-    const sizeRange = minSize !== undefined && maxSize !== undefined ? [minSize, maxSize] : undefined;
-    setFilters(prev => ({ ...prev, sizeRange: sizeRange as [number, number] }));
+    const sizeRange =
+      minSize !== undefined && maxSize !== undefined ? [minSize, maxSize] : undefined;
+    setFilters((prev) => ({ ...prev, sizeRange: sizeRange as [number, number] }));
   }, []);
 
   // Filter by date range
   const filterByDate = useMemoizedCallback((startDate?: Date, endDate?: Date) => {
     const dateRange = startDate && endDate ? [startDate, endDate] : undefined;
-    setFilters(prev => ({ ...prev, dateRange: dateRange as [Date, Date] }));
+    setFilters((prev) => ({ ...prev, dateRange: dateRange as [Date, Date] }));
   }, []);
 
   // Sort files
-  const sortFilesBy = useMemoizedCallback((sortBy: FileSortOptions['sortBy'], direction?: FileSortOptions['direction']) => {
-    setSortOptions(prev => ({
-      sortBy,
-      direction: direction || (prev.sortBy === sortBy && prev.direction === 'asc' ? 'desc' : 'asc')
-    }));
-  }, []);
+  const sortFilesBy = useMemoizedCallback(
+    (sortBy: FileSortOptions["sortBy"], direction?: FileSortOptions["direction"]) => {
+      setSortOptions((prev) => ({
+        sortBy,
+        direction:
+          direction || (prev.sortBy === sortBy && prev.direction === "asc" ? "desc" : "asc"),
+      }));
+    },
+    []
+  );
 
   // Clear all filters
   const clearFilters = useMemoizedCallback(() => {
     setFilters({});
-    setSortOptions({ sortBy: 'name', direction: 'asc' });
+    setSortOptions({ sortBy: "name", direction: "asc" });
   }, []);
 
   // File selection operations
   const selectFile = useMemoizedCallback((fileId: string) => {
-    setSelectedFiles(prev => new Set([...prev, fileId]));
+    setSelectedFiles((prev) => new Set([...prev, fileId]));
   }, []);
 
   const deselectFile = useMemoizedCallback((fileId: string) => {
-    setSelectedFiles(prev => {
+    setSelectedFiles((prev) => {
       const newSet = new Set(prev);
       newSet.delete(fileId);
       return newSet;
@@ -142,7 +155,7 @@ export const useFileOperations = (initialPath?: string) => {
   }, []);
 
   const toggleFileSelection = useMemoizedCallback((fileId: string) => {
-    setSelectedFiles(prev => {
+    setSelectedFiles((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(fileId)) {
         newSet.delete(fileId);
@@ -154,7 +167,7 @@ export const useFileOperations = (initialPath?: string) => {
   }, []);
 
   const selectAllFiles = useMemoizedCallback(() => {
-    setSelectedFiles(new Set(processedFiles.map(f => f.id)));
+    setSelectedFiles(new Set(processedFiles.map((f) => f.id)));
   }, [processedFiles]);
 
   const clearSelection = useMemoizedCallback(() => {
@@ -164,7 +177,7 @@ export const useFileOperations = (initialPath?: string) => {
   // Bulk operations
   const deleteSelectedFiles = useMemoizedCallback(async (): Promise<FileOperationResult> => {
     if (selectedFiles.size === 0) {
-      return { success: false, error: 'No files selected' };
+      return { success: false, error: "No files selected" };
     }
 
     try {
@@ -173,7 +186,7 @@ export const useFileOperations = (initialPath?: string) => {
       await simulateBulkDelete(selectedFileIds);
 
       // Remove from local state
-      setFiles(prev => prev.filter(f => !selectedFiles.has(f.id)));
+      setFiles((prev) => prev.filter((f) => !selectedFiles.has(f.id)));
 
       // Clear selection
       clearSelection();
@@ -183,51 +196,57 @@ export const useFileOperations = (initialPath?: string) => {
 
       return { success: true };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete files';
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete files";
       setError(errorMessage);
       return { success: false, error: errorMessage };
     }
   }, [selectedFiles, currentPath]);
 
-  const moveSelectedFiles = useMemoizedCallback(async (destinationPath: string): Promise<FileOperationResult> => {
-    if (selectedFiles.size === 0) {
-      return { success: false, error: 'No files selected' };
-    }
+  const moveSelectedFiles = useMemoizedCallback(
+    async (destinationPath: string): Promise<FileOperationResult> => {
+      if (selectedFiles.size === 0) {
+        return { success: false, error: "No files selected" };
+      }
 
-    try {
-      // In a real implementation, this would call your file system service
-      const selectedFileIds = Array.from(selectedFiles);
-      await simulateBulkMove(selectedFileIds, destinationPath);
+      try {
+        // In a real implementation, this would call your file system service
+        const selectedFileIds = Array.from(selectedFiles);
+        await simulateBulkMove(selectedFileIds, destinationPath);
 
-      // Remove from current directory
-      setFiles(prev => prev.filter(f => !selectedFiles.has(f.id)));
+        // Remove from current directory
+        setFiles((prev) => prev.filter((f) => !selectedFiles.has(f.id)));
 
-      // Clear selection
-      clearSelection();
+        // Clear selection
+        clearSelection();
 
-      // Invalidate caches
-      fileCache.invalidate(`files_${currentPath}`);
-      fileCache.invalidate(`files_${destinationPath}`);
+        // Invalidate caches
+        fileCache.invalidate(`files_${currentPath}`);
+        fileCache.invalidate(`files_${destinationPath}`);
 
-      return { success: true };
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to move files';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
-    }
-  }, [selectedFiles, currentPath]);
+        return { success: true };
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to move files";
+        setError(errorMessage);
+        return { success: false, error: errorMessage };
+      }
+    },
+    [selectedFiles, currentPath]
+  );
 
   // Navigation
-  const navigateToDirectory = useMemoizedCallback(async (path: string): Promise<FileOperationResult> => {
-    return await loadFiles(path);
-  }, [loadFiles]);
+  const navigateToDirectory = useMemoizedCallback(
+    async (path: string): Promise<FileOperationResult> => {
+      return await loadFiles(path);
+    },
+    [loadFiles]
+  );
 
   const goUpDirectory = useMemoizedCallback(async (): Promise<FileOperationResult> => {
     const parentPath = getParentDirectory(currentPath);
     if (parentPath !== currentPath) {
       return await loadFiles(parentPath);
     }
-    return { success: false, error: 'Already at root directory' };
+    return { success: false, error: "Already at root directory" };
   }, [currentPath, loadFiles]);
 
   // Refresh current directory
@@ -238,7 +257,7 @@ export const useFileOperations = (initialPath?: string) => {
 
   // Statistics
   const statistics = useMemo(() => {
-    const selectedFileObjects = processedFiles.filter(f => selectedFiles.has(f.id));
+    const selectedFileObjects = processedFiles.filter((f) => selectedFiles.has(f.id));
     const totalSelectedSize = selectedFileObjects.reduce((sum, f) => sum + f.size, 0);
 
     return {
@@ -246,8 +265,8 @@ export const useFileOperations = (initialPath?: string) => {
       selectedFiles: selectedFiles.size,
       totalSize: processedFiles.reduce((sum, f) => sum + f.size, 0),
       selectedSize: totalSelectedSize,
-      directories: processedFiles.filter(f => f.isDirectory).length,
-      categories: [...new Set(processedFiles.map(f => f.category))]
+      directories: processedFiles.filter((f) => f.isDirectory).length,
+      categories: [...new Set(processedFiles.map((f) => f.category))],
     };
   }, [processedFiles, selectedFiles]);
 
@@ -296,60 +315,60 @@ export const useFileOperations = (initialPath?: string) => {
     // Navigation
     navigateToDirectory,
     goUpDirectory,
-    refresh
+    refresh,
   };
 };
 
 // Helper functions (would be replaced with real file system calls)
 async function simulateFileSystemCall(path: string) {
   // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise((resolve) => setTimeout(resolve, 500));
 
   // Mock data - in real implementation, this would call your file system service
   return [
     {
-      name: 'Documents',
+      name: "Documents",
       path: `${path}/Documents`,
       size: 0,
       modified: new Date(),
-      type: 'directory'
+      type: "directory",
     },
     {
-      name: 'Images',
+      name: "Images",
       path: `${path}/Images`,
       size: 0,
       modified: new Date(),
-      type: 'directory'
+      type: "directory",
     },
     {
-      name: 'app.js',
+      name: "app.js",
       path: `${path}/app.js`,
       size: 1024,
       modified: new Date(),
-      type: 'file'
+      type: "file",
     },
     {
-      name: 'styles.css',
+      name: "styles.css",
       path: `${path}/styles.css`,
       size: 2048,
       modified: new Date(),
-      type: 'file'
-    }
+      type: "file",
+    },
   ];
 }
 
 async function simulateBulkDelete(fileIds: string[]) {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  console.log('Deleted files:', fileIds);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  console.warn("Deleted files:", fileIds);
 }
 
 async function simulateBulkMove(fileIds: string[], destination: string) {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  console.log('Moved files:', fileIds, 'to:', destination);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  console.warn("Moved files:", fileIds, "to:", destination);
 }
 
 function getParentDirectory(path: string): string {
-  const parts = path.split('/').filter(Boolean);
+  const parts = path.split("/").filter(Boolean);
   parts.pop();
-  return parts.length > 0 ? '/' + parts.join('/') : '/';
+  return parts.length > 0 ? "/" + parts.join("/") : "/";
 }

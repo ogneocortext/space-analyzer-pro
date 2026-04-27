@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
-import styles from '../../styles/components/Tooltip.module.css';
+import React, { useState, useRef, useEffect } from "react";
+import styles from "../../styles/components/Tooltip.module.css";
 
 interface TooltipProps {
   content: string;
   children: React.ReactNode;
-  position?: 'top' | 'bottom' | 'left' | 'right';
+  position?: "top" | "bottom" | "left" | "right";
   delay?: number;
   disabled?: boolean;
   className?: string;
@@ -16,10 +16,10 @@ interface TooltipProps {
 const Tooltip: React.FC<TooltipProps> = ({
   content,
   children,
-  position = 'top',
+  position = "top",
   delay = 300,
   disabled = false,
-  className = ''
+  className = "",
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
@@ -44,27 +44,27 @@ const Tooltip: React.FC<TooltipProps> = ({
         const tooltipRect = tooltipRef.current.getBoundingClientRect();
         const viewport = {
           width: window.innerWidth,
-          height: window.innerHeight
+          height: window.innerHeight,
         };
 
         let top = 0;
         let left = 0;
 
         switch (position) {
-          case 'top':
+          case "top":
             top = triggerRect.top - tooltipRect.height - 8;
-            left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
+            left = triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2;
             break;
-          case 'bottom':
+          case "bottom":
             top = triggerRect.bottom + 8;
-            left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
+            left = triggerRect.left + triggerRect.width / 2 - tooltipRect.width / 2;
             break;
-          case 'left':
-            top = triggerRect.top + (triggerRect.height / 2) - (tooltipRect.height / 2);
+          case "left":
+            top = triggerRect.top + triggerRect.height / 2 - tooltipRect.height / 2;
             left = triggerRect.left - tooltipRect.width - 8;
             break;
-          case 'right':
-            top = triggerRect.top + (triggerRect.height / 2) - (tooltipRect.height / 2);
+          case "right":
+            top = triggerRect.top + triggerRect.height / 2 - tooltipRect.height / 2;
             left = triggerRect.right + 8;
             break;
         }
@@ -108,13 +108,11 @@ const Tooltip: React.FC<TooltipProps> = ({
           className={`${styles.tooltip} ${styles[`tooltip-${position}`]}`}
           style={{
             top: tooltipPosition.top,
-            left: tooltipPosition.left
+            left: tooltipPosition.left,
           }}
           role="tooltip"
         >
-          <div className={styles.tooltipContent}>
-            {content}
-          </div>
+          <div className={styles.tooltipContent}>{content}</div>
           <div className={styles.tooltipArrow} />
         </div>
       )}
@@ -125,14 +123,12 @@ const Tooltip: React.FC<TooltipProps> = ({
 /**
  * Simple tooltip variant for icons and small elements
  */
-export const IconTooltip: React.FC<Omit<TooltipProps, 'children'> & { icon: React.ReactNode }> = ({
+export const IconTooltip: React.FC<Omit<TooltipProps, "children"> & { icon: React.ReactNode }> = ({
   icon,
   ...props
 }) => (
   <Tooltip {...props}>
-    <div className={styles.iconWrapper}>
-      {icon}
-    </div>
+    <div className={styles.iconWrapper}>{icon}</div>
   </Tooltip>
 );
 

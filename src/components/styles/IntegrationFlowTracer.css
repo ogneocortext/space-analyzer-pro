@@ -6,7 +6,9 @@
   background: #1f2937;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .loading-state {
@@ -23,8 +25,12 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Header */
@@ -147,7 +153,9 @@
   border-radius: 6px;
   color: #d1d5db;
   cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -497,42 +505,42 @@
     gap: 1rem;
     align-items: stretch;
   }
-  
+
   .header-left {
     flex-direction: column;
     gap: 0.5rem;
     align-items: flex-start;
   }
-  
+
   .header-right {
     flex-wrap: wrap;
     gap: 0.5rem;
   }
-  
+
   .flow-stats {
     flex-wrap: wrap;
     gap: 0.5rem;
   }
-  
+
   .stat {
     min-width: 50px;
   }
-  
+
   .search-input {
     width: 100%;
   }
-  
+
   .connection-header {
     flex-direction: column;
     gap: 0.5rem;
     align-items: flex-start;
   }
-  
+
   .connection-arrow {
     width: 24px;
     transform: rotate(90deg);
   }
-  
+
   .connection-meta {
     flex-direction: column;
     gap: 0.5rem;
@@ -544,21 +552,21 @@
   .flow-title {
     font-size: 1rem;
   }
-  
+
   .flow-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
     gap: 0.5rem;
   }
-  
+
   .connection-header {
     align-items: center;
   }
-  
+
   .connection-arrow {
     transform: rotate(90deg);
   }
-  
+
   .connection-details {
     font-size: 0.75rem;
   }

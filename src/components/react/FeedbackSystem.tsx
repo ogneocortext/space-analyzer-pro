@@ -1,44 +1,44 @@
-import React, { FC, useState } from 'react';
-import { ThumbsUp, ThumbsDown, CheckCircle2, Sparkles, RotateCcw } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { FC, useState } from "react";
+import { ThumbsUp, ThumbsDown, CheckCircle2, Sparkles, RotateCcw } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface FeedbackSystemProps {
-  onFeedback: (type: 'positive' | 'negative', comment?: string) => void;
+  onFeedback: (type: "positive" | "negative", comment?: string) => void;
   showCommentPrompt?: boolean;
-  size?: 'sm' | 'md' | 'lg';
-  variant?: 'default' | 'minimal' | 'detailed';
+  size?: "sm" | "md" | "lg";
+  variant?: "default" | "minimal" | "detailed";
 }
 
 export const FeedbackSystem: FC<FeedbackSystemProps> = ({
   onFeedback,
   showCommentPrompt = true,
-  size = 'md',
-  variant = 'default'
+  size = "md",
+  variant = "default",
 }) => {
-  const [status, setStatus] = useState<'idle' | 'learning' | 'complete' | 'feedback-given'>('idle');
-  const [selectedFeedback, setSelectedFeedback] = useState<'positive' | 'negative' | null>(null);
+  const [status, setStatus] = useState<"idle" | "learning" | "complete" | "feedback-given">("idle");
+  const [selectedFeedback, setSelectedFeedback] = useState<"positive" | "negative" | null>(null);
   const [showCommentInput, setShowCommentInput] = useState(false);
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("");
 
-  const handleFeedback = (type: 'positive' | 'negative') => {
+  const handleFeedback = (type: "positive" | "negative") => {
     setSelectedFeedback(type);
-    setStatus('learning');
+    setStatus("learning");
 
     // Simulate AI learning animation
     setTimeout(() => {
-      setStatus('complete');
+      setStatus("complete");
       onFeedback(type, comment || undefined);
 
       // Reset after showing completion
       setTimeout(() => {
-        setStatus('feedback-given');
+        setStatus("feedback-given");
         setShowCommentInput(false);
-        setComment('');
+        setComment("");
       }, 2000);
     }, 1500);
 
     // Show comment prompt for negative feedback
-    if (type === 'negative' && showCommentPrompt) {
+    if (type === "negative" && showCommentPrompt) {
       setShowCommentInput(true);
     }
   };
@@ -51,27 +51,30 @@ export const FeedbackSystem: FC<FeedbackSystemProps> = ({
   };
 
   const resetFeedback = () => {
-    setStatus('idle');
+    setStatus("idle");
     setSelectedFeedback(null);
     setShowCommentInput(false);
-    setComment('');
+    setComment("");
   };
 
   const getSizeClasses = () => {
     switch (size) {
-      case 'sm': return { button: 'w-8 h-8', icon: 14, text: 'text-xs' };
-      case 'lg': return { button: 'w-12 h-12', icon: 20, text: 'text-base' };
-      default: return { button: 'w-10 h-10', icon: 16, text: 'text-sm' };
+      case "sm":
+        return { button: "w-8 h-8", icon: 14, text: "text-xs" };
+      case "lg":
+        return { button: "w-12 h-12", icon: 20, text: "text-base" };
+      default:
+        return { button: "w-10 h-10", icon: 16, text: "text-sm" };
     }
   };
 
   const sizeConfig = getSizeClasses();
 
-  if (variant === 'minimal') {
+  if (variant === "minimal") {
     return (
       <div className="flex items-center space-x-2">
         <AnimatePresence mode="wait">
-          {status === 'idle' && (
+          {status === "idle" && (
             <motion.div
               key="idle"
               initial={{ opacity: 0 }}
@@ -80,23 +83,29 @@ export const FeedbackSystem: FC<FeedbackSystemProps> = ({
               className="flex space-x-1"
             >
               <button
-                onClick={() => handleFeedback('positive')}
+                onClick={() => handleFeedback("positive")}
                 className={`flex items-center justify-center ${sizeConfig.button} rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 hover:border-green-500/50 transition-all duration-200 group`}
                 title="Good response"
               >
-                <ThumbsUp size={sizeConfig.icon} className="text-green-400 group-hover:text-green-300 transition-colors" />
+                <ThumbsUp
+                  size={sizeConfig.icon}
+                  className="text-green-400 group-hover:text-green-300 transition-colors"
+                />
               </button>
               <button
-                onClick={() => handleFeedback('negative')}
+                onClick={() => handleFeedback("negative")}
                 className={`flex items-center justify-center ${sizeConfig.button} rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 transition-all duration-200 group`}
                 title="Needs improvement"
               >
-                <ThumbsDown size={sizeConfig.icon} className="text-red-400 group-hover:text-red-300 transition-colors" />
+                <ThumbsDown
+                  size={sizeConfig.icon}
+                  className="text-red-400 group-hover:text-red-300 transition-colors"
+                />
               </button>
             </motion.div>
           )}
 
-          {status === 'learning' && (
+          {status === "learning" && (
             <motion.div
               key="learning"
               initial={{ scale: 0.8, opacity: 0 }}
@@ -114,7 +123,7 @@ export const FeedbackSystem: FC<FeedbackSystemProps> = ({
             </motion.div>
           )}
 
-          {status === 'complete' && (
+          {status === "complete" && (
             <motion.div
               key="complete"
               initial={{ scale: 0.8, opacity: 0 }}
@@ -140,37 +149,39 @@ export const FeedbackSystem: FC<FeedbackSystemProps> = ({
   return (
     <div className="relative">
       <AnimatePresence mode="wait">
-        {status === 'idle' && (
-          <motion.div
-            key="idle"
-            className="flex items-center space-x-3"
-            exit={{ opacity: 0 }}
-          >
+        {status === "idle" && (
+          <motion.div key="idle" className="flex items-center space-x-3" exit={{ opacity: 0 }}>
             <span className={`${sizeConfig.text} text-gray-400`}>Was this helpful?</span>
             <div className="flex space-x-2">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => handleFeedback('positive')}
+                onClick={() => handleFeedback("positive")}
                 className={`flex items-center justify-center ${sizeConfig.button} rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 hover:border-green-500/50 transition-all duration-200 group`}
                 title="Helpful response"
               >
-                <ThumbsUp size={sizeConfig.icon} className="text-green-400 group-hover:text-green-300 transition-colors" />
+                <ThumbsUp
+                  size={sizeConfig.icon}
+                  className="text-green-400 group-hover:text-green-300 transition-colors"
+                />
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => handleFeedback('negative')}
+                onClick={() => handleFeedback("negative")}
                 className={`flex items-center justify-center ${sizeConfig.button} rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 transition-all duration-200 group`}
                 title="Could be better"
               >
-                <ThumbsDown size={sizeConfig.icon} className="text-red-400 group-hover:text-red-300 transition-colors" />
+                <ThumbsDown
+                  size={sizeConfig.icon}
+                  className="text-red-400 group-hover:text-red-300 transition-colors"
+                />
               </motion.button>
             </div>
           </motion.div>
         )}
 
-        {status === 'learning' && (
+        {status === "learning" && (
           <motion.div
             key="learning"
             initial={{ opacity: 0 }}
@@ -184,12 +195,14 @@ export const FeedbackSystem: FC<FeedbackSystemProps> = ({
               <Sparkles size={sizeConfig.icon} className="text-blue-400" />
             </motion.div>
             <div>
-              <span className={`${sizeConfig.text} text-blue-300 font-medium`}>AI is learning from your feedback...</span>
+              <span className={`${sizeConfig.text} text-blue-300 font-medium`}>
+                AI is learning from your feedback...
+              </span>
               <div className="w-full bg-blue-500/20 rounded-full h-1 mt-1">
                 <motion.div
                   className="bg-blue-400 h-1 rounded-full"
                   initial={{ width: 0 }}
-                  animate={{ width: '100%' }}
+                  animate={{ width: "100%" }}
                   transition={{ duration: 1.5 }}
                 />
               </div>
@@ -197,7 +210,7 @@ export const FeedbackSystem: FC<FeedbackSystemProps> = ({
           </motion.div>
         )}
 
-        {status === 'complete' && (
+        {status === "complete" && (
           <motion.div
             key="complete"
             initial={{ scale: 0.9, opacity: 0 }}
@@ -212,33 +225,36 @@ export const FeedbackSystem: FC<FeedbackSystemProps> = ({
               <CheckCircle2 size={sizeConfig.icon} className="text-green-400" />
             </motion.div>
             <div>
-              <span className={`${sizeConfig.text} text-green-300 font-medium`}>Feedback recorded!</span>
+              <span className={`${sizeConfig.text} text-green-300 font-medium`}>
+                Feedback recorded!
+              </span>
               <p className="text-xs text-gray-400 mt-1">AI model updated with your input</p>
             </div>
           </motion.div>
         )}
 
-        {status === 'feedback-given' && (
-          <motion.div
-            key="feedback-given"
-            className="flex items-center space-x-3"
-          >
-            <div className={`flex items-center justify-center ${sizeConfig.button} rounded-lg ${
-              selectedFeedback === 'positive'
-                ? 'bg-green-500/20 border border-green-500/30'
-                : 'bg-red-500/20 border border-red-500/30'
-            }`}>
-              {selectedFeedback === 'positive' ? (
+        {status === "feedback-given" && (
+          <motion.div key="feedback-given" className="flex items-center space-x-3">
+            <div
+              className={`flex items-center justify-center ${sizeConfig.button} rounded-lg ${
+                selectedFeedback === "positive"
+                  ? "bg-green-500/20 border border-green-500/30"
+                  : "bg-red-500/20 border border-red-500/30"
+              }`}
+            >
+              {selectedFeedback === "positive" ? (
                 <ThumbsUp size={sizeConfig.icon} className="text-green-400" />
               ) : (
                 <ThumbsDown size={sizeConfig.icon} className="text-red-400" />
               )}
             </div>
             <div>
-              <span className={`${sizeConfig.text} ${
-                selectedFeedback === 'positive' ? 'text-green-300' : 'text-red-300'
-              } font-medium`}>
-                {selectedFeedback === 'positive' ? 'Marked as helpful' : 'Feedback noted'}
+              <span
+                className={`${sizeConfig.text} ${
+                  selectedFeedback === "positive" ? "text-green-300" : "text-red-300"
+                } font-medium`}
+              >
+                {selectedFeedback === "positive" ? "Marked as helpful" : "Feedback noted"}
               </span>
               <button
                 onClick={resetFeedback}

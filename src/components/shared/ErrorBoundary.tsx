@@ -1,5 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { designTokens } from '../../styles/tokens';
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { designTokens } from "../../styles/tokens";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -23,7 +23,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: ''
+      errorId: "",
     };
   }
 
@@ -31,18 +31,18 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     return {
       hasError: true,
       error,
-      errorId: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      errorId: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     this.setState({
-      errorInfo
+      errorInfo,
     });
 
     // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('ErrorBoundary caught an error:', error, errorInfo);
+    if (process.env.NODE_ENV === "development") {
+      console.error("ErrorBoundary caught an error:", error, errorInfo);
     }
 
     // Call custom error handler if provided
@@ -61,10 +61,10 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
       url: window.location.href,
-      boundary: this.props.name || 'Unknown'
+      boundary: this.props.name || "Unknown",
     };
 
-    console.error('Error Report:', errorReport);
+    console.error("Error Report:", errorReport);
   };
 
   private handleRetry = () => {
@@ -72,7 +72,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: ''
+      errorId: "",
     });
   };
 
@@ -108,7 +108,7 @@ const GenericErrorFallback: React.FC<GenericErrorFallbackProps> = ({
   error,
   errorInfo,
   onRetry,
-  errorId
+  errorId,
 }) => {
   const [showDetails, setShowDetails] = React.useState(false);
 
@@ -120,19 +120,19 @@ const GenericErrorFallback: React.FC<GenericErrorFallbackProps> = ({
         border: `1px solid ${designTokens.colors.semantic.error}`,
         borderRadius: designTokens.borderRadius.lg,
         backgroundColor: `${designTokens.colors.semantic.error}10`,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        textAlign: 'center'
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        textAlign: "center",
       }}
       role="alert"
       aria-live="assertive"
     >
       <div
         style={{
-          fontSize: '3rem',
+          fontSize: "3rem",
           marginBottom: designTokens.spacing.md,
-          opacity: 0.7
+          opacity: 0.7,
         }}
         aria-hidden="true"
       >
@@ -143,8 +143,8 @@ const GenericErrorFallback: React.FC<GenericErrorFallbackProps> = ({
         style={{
           color: designTokens.colors.semantic.error,
           marginBottom: designTokens.spacing.md,
-          fontSize: designTokens.typography.fontSize['2xl'],
-          fontWeight: designTokens.typography.fontWeight.bold
+          fontSize: designTokens.typography.fontSize["2xl"],
+          fontWeight: designTokens.typography.fontWeight.bold,
         }}
       >
         Something went wrong
@@ -154,25 +154,26 @@ const GenericErrorFallback: React.FC<GenericErrorFallbackProps> = ({
         style={{
           color: designTokens.colors.neutral[700],
           marginBottom: designTokens.spacing.lg,
-          maxWidth: '500px',
-          lineHeight: designTokens.typography.lineHeight.relaxed
+          maxWidth: "500px",
+          lineHeight: designTokens.typography.lineHeight.relaxed,
         }}
       >
-        We encountered an unexpected error. Our team has been notified and is working to fix this issue.
+        We encountered an unexpected error. Our team has been notified and is working to fix this
+        issue.
       </p>
 
-      <div style={{ display: 'flex', gap: designTokens.spacing.sm, flexWrap: 'wrap' }}>
+      <div style={{ display: "flex", gap: designTokens.spacing.sm, flexWrap: "wrap" }}>
         <button
           onClick={onRetry}
           style={{
             padding: `${designTokens.spacing.sm} ${designTokens.spacing.md}`,
             backgroundColor: designTokens.colors.primary[500],
-            color: 'white',
-            border: 'none',
+            color: "white",
+            border: "none",
             borderRadius: designTokens.borderRadius.md,
-            cursor: 'pointer',
+            cursor: "pointer",
             fontWeight: designTokens.typography.fontWeight.medium,
-            transition: designTokens.transitions.fast
+            transition: designTokens.transitions.fast,
           }}
           onMouseOver={(e) => {
             e.currentTarget.style.backgroundColor = designTokens.colors.primary[600];
@@ -188,16 +189,16 @@ const GenericErrorFallback: React.FC<GenericErrorFallbackProps> = ({
           onClick={() => setShowDetails(!showDetails)}
           style={{
             padding: `${designTokens.spacing.sm} ${designTokens.spacing.md}`,
-            backgroundColor: 'transparent',
+            backgroundColor: "transparent",
             color: designTokens.colors.primary[500],
             border: `1px solid ${designTokens.colors.primary[500]}`,
             borderRadius: designTokens.borderRadius.md,
-            cursor: 'pointer',
+            cursor: "pointer",
             fontWeight: designTokens.typography.fontWeight.medium,
-            transition: designTokens.transitions.fast
+            transition: designTokens.transitions.fast,
           }}
         >
-          {showDetails ? 'Hide Details' : 'Show Details'}
+          {showDetails ? "Hide Details" : "Show Details"}
         </button>
       </div>
 
@@ -205,16 +206,16 @@ const GenericErrorFallback: React.FC<GenericErrorFallbackProps> = ({
         <details
           style={{
             marginTop: designTokens.spacing.lg,
-            width: '100%',
-            maxWidth: '600px',
-            textAlign: 'left'
+            width: "100%",
+            maxWidth: "600px",
+            textAlign: "left",
           }}
         >
           <summary
             style={{
-              cursor: 'pointer',
+              cursor: "pointer",
               fontWeight: designTokens.typography.fontWeight.medium,
-              marginBottom: designTokens.spacing.sm
+              marginBottom: designTokens.spacing.sm,
             }}
           >
             Technical Details
@@ -226,8 +227,8 @@ const GenericErrorFallback: React.FC<GenericErrorFallbackProps> = ({
               padding: designTokens.spacing.md,
               borderRadius: designTokens.borderRadius.md,
               fontSize: designTokens.typography.fontSize.sm,
-              fontFamily: 'monospace',
-              border: `1px solid ${designTokens.colors.neutral[200]}`
+              fontFamily: "monospace",
+              border: `1px solid ${designTokens.colors.neutral[200]}`,
             }}
           >
             <div style={{ marginBottom: designTokens.spacing.sm }}>
@@ -238,24 +239,28 @@ const GenericErrorFallback: React.FC<GenericErrorFallbackProps> = ({
             </div>
             <div style={{ marginBottom: designTokens.spacing.sm }}>
               <strong>Stack:</strong>
-              <pre style={{
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                marginTop: designTokens.spacing.xs,
-                fontSize: '0.8em'
-              }}>
+              <pre
+                style={{
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  marginTop: designTokens.spacing.xs,
+                  fontSize: "0.8em",
+                }}
+              >
                 {error.stack}
               </pre>
             </div>
             {errorInfo && (
               <div>
                 <strong>Component Stack:</strong>
-                <pre style={{
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  marginTop: designTokens.spacing.xs,
-                  fontSize: '0.8em'
-                }}>
+                <pre
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    marginTop: designTokens.spacing.xs,
+                    fontSize: "0.8em",
+                  }}
+                >
                   {errorInfo.componentStack}
                 </pre>
               </div>
@@ -281,18 +286,18 @@ export const NetworkErrorBoundary: React.FC<{ children: ReactNode }> = ({ childr
           border: `1px solid ${designTokens.colors.semantic.warning}`,
           borderRadius: designTokens.borderRadius.lg,
           backgroundColor: `${designTokens.colors.semantic.warning}10`,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center'
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
         }}
         role="alert"
       >
         <div
           style={{
-            fontSize: '3rem',
+            fontSize: "3rem",
             marginBottom: designTokens.spacing.md,
-            opacity: 0.7
+            opacity: 0.7,
           }}
           aria-hidden="true"
         >
@@ -301,12 +306,14 @@ export const NetworkErrorBoundary: React.FC<{ children: ReactNode }> = ({ childr
         <h3
           style={{
             color: designTokens.colors.semantic.warning,
-            marginBottom: designTokens.spacing.md
+            marginBottom: designTokens.spacing.md,
           }}
         >
           Connection Error
         </h3>
-        <p style={{ color: designTokens.colors.neutral[700], marginBottom: designTokens.spacing.lg }}>
+        <p
+          style={{ color: designTokens.colors.neutral[700], marginBottom: designTokens.spacing.lg }}
+        >
           Unable to connect to services. Please check your internet connection and try again.
         </p>
         <button
@@ -314,10 +321,10 @@ export const NetworkErrorBoundary: React.FC<{ children: ReactNode }> = ({ childr
           style={{
             padding: `${designTokens.spacing.sm} ${designTokens.spacing.md}`,
             backgroundColor: designTokens.colors.primary[500],
-            color: 'white',
-            border: 'none',
+            color: "white",
+            border: "none",
             borderRadius: designTokens.borderRadius.md,
-            cursor: 'pointer'
+            cursor: "pointer",
           }}
         >
           Retry Connection
@@ -326,7 +333,7 @@ export const NetworkErrorBoundary: React.FC<{ children: ReactNode }> = ({ childr
     )}
     onError={(error) => {
       // Log network-specific errors
-      console.error('Network error:', error);
+      console.error("Network error:", error);
     }}
   >
     {children}
@@ -345,18 +352,18 @@ export const DataErrorBoundary: React.FC<{ children: ReactNode }> = ({ children 
           border: `1px solid ${designTokens.colors.semantic.info}`,
           borderRadius: designTokens.borderRadius.lg,
           backgroundColor: `${designTokens.colors.semantic.info}10`,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center'
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
         }}
         role="alert"
       >
         <div
           style={{
-            fontSize: '3rem',
+            fontSize: "3rem",
             marginBottom: designTokens.spacing.md,
-            opacity: 0.7
+            opacity: 0.7,
           }}
           aria-hidden="true"
         >
@@ -365,12 +372,14 @@ export const DataErrorBoundary: React.FC<{ children: ReactNode }> = ({ children 
         <h3
           style={{
             color: designTokens.colors.semantic.info,
-            marginBottom: designTokens.spacing.md
+            marginBottom: designTokens.spacing.md,
           }}
         >
           Data Loading Error
         </h3>
-        <p style={{ color: designTokens.colors.neutral[700], marginBottom: designTokens.spacing.lg }}>
+        <p
+          style={{ color: designTokens.colors.neutral[700], marginBottom: designTokens.spacing.lg }}
+        >
           Unable to load data. The data might be corrupted or temporarily unavailable.
         </p>
         <button
@@ -378,10 +387,10 @@ export const DataErrorBoundary: React.FC<{ children: ReactNode }> = ({ children 
           style={{
             padding: `${designTokens.spacing.sm} ${designTokens.spacing.md}`,
             backgroundColor: designTokens.colors.primary[500],
-            color: 'white',
-            border: 'none',
+            color: "white",
+            border: "none",
             borderRadius: designTokens.borderRadius.md,
-            cursor: 'pointer'
+            cursor: "pointer",
           }}
         >
           Reload Data
@@ -404,11 +413,13 @@ export const ComponentErrorBoundary: React.FC<{ children: ReactNode }> = ({ chil
           border: `1px solid ${designTokens.colors.neutral[300]}`,
           borderRadius: designTokens.borderRadius.md,
           backgroundColor: designTokens.colors.neutral[50],
-          textAlign: 'center'
+          textAlign: "center",
         }}
         role="alert"
       >
-        <p style={{ color: designTokens.colors.neutral[600], marginBottom: designTokens.spacing.sm }}>
+        <p
+          style={{ color: designTokens.colors.neutral[600], marginBottom: designTokens.spacing.sm }}
+        >
           This component encountered an error and couldn't render properly.
         </p>
         <button
@@ -416,11 +427,11 @@ export const ComponentErrorBoundary: React.FC<{ children: ReactNode }> = ({ chil
           style={{
             padding: `${designTokens.spacing.xs} ${designTokens.spacing.sm}`,
             backgroundColor: designTokens.colors.primary[500],
-            color: 'white',
-            border: 'none',
+            color: "white",
+            border: "none",
             borderRadius: designTokens.borderRadius.sm,
-            cursor: 'pointer',
-            fontSize: designTokens.typography.fontSize.sm
+            cursor: "pointer",
+            fontSize: designTokens.typography.fontSize.sm,
           }}
         >
           Retry
@@ -438,21 +449,21 @@ export const AsyncErrorBoundary: React.FC<{ children: ReactNode }> = ({ children
 
   React.useEffect(() => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error('Unhandled promise rejection:', event.reason);
+      console.error("Unhandled promise rejection:", event.reason);
       setAsyncError(event.reason instanceof Error ? event.reason : new Error(String(event.reason)));
     };
 
     const handleError = (event: ErrorEvent) => {
-      console.error('Unhandled error:', event.error);
+      console.error("Unhandled error:", event.error);
       setAsyncError(event.error);
     };
 
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
-    window.addEventListener('error', handleError);
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    window.addEventListener("error", handleError);
 
     return () => {
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-      window.removeEventListener('error', handleError);
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+      window.removeEventListener("error", handleError);
     };
   }, []);
 
@@ -465,17 +476,24 @@ export const AsyncErrorBoundary: React.FC<{ children: ReactNode }> = ({ children
           border: `1px solid ${designTokens.colors.semantic.error}`,
           borderRadius: designTokens.borderRadius.lg,
           backgroundColor: `${designTokens.colors.semantic.error}10`,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center'
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
         }}
         role="alert"
       >
-        <h3 style={{ color: designTokens.colors.semantic.error, marginBottom: designTokens.spacing.md }}>
+        <h3
+          style={{
+            color: designTokens.colors.semantic.error,
+            marginBottom: designTokens.spacing.md,
+          }}
+        >
           Async Operation Failed
         </h3>
-        <p style={{ color: designTokens.colors.neutral[700], marginBottom: designTokens.spacing.lg }}>
+        <p
+          style={{ color: designTokens.colors.neutral[700], marginBottom: designTokens.spacing.lg }}
+        >
           {asyncError.message}
         </p>
         <button
@@ -483,10 +501,10 @@ export const AsyncErrorBoundary: React.FC<{ children: ReactNode }> = ({ children
           style={{
             padding: `${designTokens.spacing.sm} ${designTokens.spacing.md}`,
             backgroundColor: designTokens.colors.primary[500],
-            color: 'white',
-            border: 'none',
+            color: "white",
+            border: "none",
             borderRadius: designTokens.borderRadius.md,
-            cursor: 'pointer'
+            cursor: "pointer",
           }}
         >
           Dismiss

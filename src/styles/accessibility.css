@@ -478,7 +478,9 @@
   z-index: 1000;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s, visibility 0.3s;
+  transition:
+    opacity 0.3s,
+    visibility 0.3s;
 }
 
 .tooltip-accessible:focus [role="tooltip"],
@@ -536,29 +538,35 @@
   .no-print {
     display: none !important;
   }
-  
+
   body {
     font-size: 12pt;
     line-height: 1.4;
     color: #000;
     background: #fff;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     color: #000;
     page-break-after: avoid;
   }
-  
-  p, li {
+
+  p,
+  li {
     orphans: 3;
     widows: 3;
   }
-  
+
   a {
     color: #000;
     text-decoration: underline;
   }
-  
+
   a[href^="http"]:after {
     content: " (" attr(href) ")";
     font-size: 90%;

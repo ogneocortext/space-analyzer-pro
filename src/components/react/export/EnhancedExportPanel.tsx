@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Download,
   FileText,
@@ -51,9 +51,9 @@ import {
   Link,
   Smartphone,
   Monitor,
-  Tablet
-} from 'lucide-react';
-import styles from './EnhancedExportPanel.module.css';
+  Tablet,
+} from "lucide-react";
+import styles from "./EnhancedExportPanel.module.css";
 
 interface ExportPanelProps {
   analysisData?: any;
@@ -66,7 +66,7 @@ interface ExportTemplate {
   id: string;
   name: string;
   description: string;
-  format: 'json' | 'csv' | 'pdf' | 'xml' | 'xlsx' | 'yaml' | 'html' | 'txt';
+  format: "json" | "csv" | "pdf" | "xml" | "xlsx" | "yaml" | "html" | "txt";
   icon: React.ReactNode;
   sections: string[];
   aiOptimized: boolean;
@@ -85,7 +85,7 @@ interface ScheduledExport {
   nextRun?: Date;
   format: string;
   recipients?: string[];
-  permissions?: 'public' | 'private' | 'team';
+  permissions?: "public" | "private" | "team";
 }
 
 interface ExportHistory {
@@ -95,10 +95,10 @@ interface ExportHistory {
   format: string;
   timestamp: Date;
   size: number;
-  status: 'completed' | 'failed' | 'processing';
+  status: "completed" | "failed" | "processing";
   downloadUrl?: string;
   sharedWith?: string[];
-  permissions?: 'public' | 'private' | 'team';
+  permissions?: "public" | "private" | "team";
 }
 
 interface ExportProgress {
@@ -115,7 +115,7 @@ interface DataSelection {
   fileTypes: string[];
   dateRange: { start: Date; end: Date };
   sizeRange: { min: number; max: number };
-  riskLevel: 'all' | 'low' | 'medium' | 'high';
+  riskLevel: "all" | "low" | "medium" | "high";
   tags: string[];
 }
 
@@ -123,12 +123,14 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
   analysisData,
   files = [],
   categories = {},
-  onExport
+  onExport,
 }) => {
   // Enhanced state management
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('comprehensive');
-  const [selectedSections, setSelectedSections] = useState<Set<string>>(new Set(['all']));
-  const [exportFormat, setExportFormat] = useState<'json' | 'csv' | 'pdf' | 'xml' | 'xlsx' | 'yaml' | 'html' | 'txt'>('json');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("comprehensive");
+  const [selectedSections, setSelectedSections] = useState<Set<string>>(new Set(["all"]));
+  const [exportFormat, setExportFormat] = useState<
+    "json" | "csv" | "pdf" | "xml" | "xlsx" | "yaml" | "html" | "txt"
+  >("json");
   const [isExporting, setIsExporting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showTemplateBuilder, setShowTemplateBuilder] = useState(false);
@@ -137,225 +139,244 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
   const [showDataSelection, setShowDataSelection] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  
+
   // Template management
   const [customTemplates, setCustomTemplates] = useState<ExportTemplate[]>([]);
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [scheduledExports, setScheduledExports] = useState<ScheduledExport[]>([]);
   const [exportHistory, setExportHistory] = useState<ExportHistory[]>([]);
-  
+
   // Data selection
   const [dataSelection, setDataSelection] = useState<DataSelection>({
     categories: [],
     fileTypes: [],
     dateRange: { start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), end: new Date() },
     sizeRange: { min: 0, max: Number.MAX_SAFE_INTEGER },
-    riskLevel: 'all',
-    tags: []
+    riskLevel: "all",
+    tags: [],
   });
-  
+
   // Export progress
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   const [exportProgressVisible, setExportProgressVisible] = useState(false);
-  
+
   // Search and filtering
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'custom' | 'ai-optimized'>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'date' | 'format' | 'size'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "custom" | "ai-optimized">("all");
+  const [sortBy, setSortBy] = useState<"name" | "date" | "format" | "size">("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // AI-powered export templates
-  const exportTemplates: ExportTemplate[] = useMemo(() => [
-    {
-      id: 'comprehensive',
-      name: 'Comprehensive Analysis',
-      description: 'Complete analysis with AI insights and recommendations',
-      format: 'json',
-      icon: <Database size={20} />,
-      sections: ['overview', 'categories', 'files', 'ai-insights', 'recommendations', 'timeline'],
-      aiOptimized: true
-    },
-    {
-      id: 'executive-summary',
-      name: 'Executive Summary',
-      description: 'High-level overview for stakeholders',
-      format: 'pdf',
-      icon: <FileText size={20} />,
-      sections: ['overview', 'key-metrics', 'ai-insights', 'recommendations'],
-      aiOptimized: true
-    },
-    {
-      id: 'technical-report',
-      name: 'Technical Report',
-      description: 'Detailed technical analysis for developers',
-      format: 'xlsx',
-      icon: <Code size={20} />,
-      sections: ['files', 'categories', 'extensions', 'dependencies', 'performance'],
-      aiOptimized: false
-    },
-    {
-      id: 'security-audit',
-      name: 'Security Audit',
-      description: 'Security-focused analysis with risk assessment',
-      format: 'json',
-      icon: <AlertTriangle size={20} />,
-      sections: ['security-analysis', 'file-permissions', 'sensitive-data', 'recommendations'],
-      aiOptimized: true
-    },
-    {
-      id: 'web-report',
-      name: 'Web Report',
-      description: 'Interactive HTML report for web viewing',
-      format: 'html',
-      icon: <Monitor size={20} />,
-      sections: ['overview', 'charts', 'tables', 'insights'],
-      aiOptimized: true
-    },
-    {
-      id: 'data-dump',
-      name: 'Raw Data Dump',
-      description: 'Complete raw data export',
-      format: 'json',
-      icon: <FileJson size={20} />,
-      sections: ['all-data'],
-      aiOptimized: false
-    }
-  ], []);
+  const exportTemplates: ExportTemplate[] = useMemo(
+    () => [
+      {
+        id: "comprehensive",
+        name: "Comprehensive Analysis",
+        description: "Complete analysis with AI insights and recommendations",
+        format: "json",
+        icon: <Database size={20} />,
+        sections: ["overview", "categories", "files", "ai-insights", "recommendations", "timeline"],
+        aiOptimized: true,
+      },
+      {
+        id: "executive-summary",
+        name: "Executive Summary",
+        description: "High-level overview for stakeholders",
+        format: "pdf",
+        icon: <FileText size={20} />,
+        sections: ["overview", "key-metrics", "ai-insights", "recommendations"],
+        aiOptimized: true,
+      },
+      {
+        id: "technical-report",
+        name: "Technical Report",
+        description: "Detailed technical analysis for developers",
+        format: "xlsx",
+        icon: <Code size={20} />,
+        sections: ["files", "categories", "extensions", "dependencies", "performance"],
+        aiOptimized: false,
+      },
+      {
+        id: "security-audit",
+        name: "Security Audit",
+        description: "Security-focused analysis with risk assessment",
+        format: "json",
+        icon: <AlertTriangle size={20} />,
+        sections: ["security-analysis", "file-permissions", "sensitive-data", "recommendations"],
+        aiOptimized: true,
+      },
+      {
+        id: "web-report",
+        name: "Web Report",
+        description: "Interactive HTML report for web viewing",
+        format: "html",
+        icon: <Monitor size={20} />,
+        sections: ["overview", "charts", "tables", "insights"],
+        aiOptimized: true,
+      },
+      {
+        id: "data-dump",
+        name: "Raw Data Dump",
+        description: "Complete raw data export",
+        format: "json",
+        icon: <FileJson size={20} />,
+        sections: ["all-data"],
+        aiOptimized: false,
+      },
+    ],
+    []
+  );
 
   // AI-generated export insights
   const aiInsights = useMemo(() => {
     if (!analysisData) return [];
-    
+
     const insights = [];
     const totalSize = analysisData.totalSize || 0;
     const fileCount = analysisData.totalFiles || 0;
-    
+
     if (totalSize > 1024 * 1024 * 1024 * 10) {
       insights.push({
-        type: 'warning',
+        type: "warning",
         icon: <AlertTriangle size={16} />,
-        title: 'Large Dataset Detected',
-        description: 'Consider using compressed formats or data filtering for faster exports',
-        action: 'Enable data filtering'
+        title: "Large Dataset Detected",
+        description: "Consider using compressed formats or data filtering for faster exports",
+        action: "Enable data filtering",
       });
     }
-    
+
     if (fileCount > 100000) {
       insights.push({
-        type: 'info',
+        type: "info",
         icon: <Info size={16} />,
-        title: 'High File Count',
-        description: 'Large file count may impact export performance',
-        action: 'Use batch processing'
+        title: "High File Count",
+        description: "Large file count may impact export performance",
+        action: "Use batch processing",
       });
     }
-    
+
     insights.push({
-      type: 'success',
+      type: "success",
       icon: <CheckCircle size={16} />,
-      title: 'AI Optimization Available',
-      description: 'AI can optimize your export for better performance and insights',
-      action: 'Enable AI optimization'
+      title: "AI Optimization Available",
+      description: "AI can optimize your export for better performance and insights",
+      action: "Enable AI optimization",
     });
-    
+
     return insights;
   }, [analysisData]);
 
   // Enhanced export data generation
   const generateExportData = useCallback(() => {
     if (!analysisData) return null;
-    
-    const template = exportTemplates.find(t => t.id === selectedTemplate);
+
+    const template = exportTemplates.find((t) => t.id === selectedTemplate);
     if (!template) return null;
-    
+
     const data: any = {
       metadata: {
         exportDate: new Date().toISOString(),
         template: template.name,
         format: template.format,
-        version: '2.0',
-        aiOptimized: template.aiOptimized
+        version: "2.0",
+        aiOptimized: template.aiOptimized,
       },
       overview: {
         totalSize: analysisData.totalSize || 0,
         totalFiles: analysisData.totalFiles || 0,
         totalDirectories: analysisData.totalDirectories || 0,
         categories: Object.keys(categories).length,
-        scanDuration: analysisData.scanDuration || 0
+        scanDuration: analysisData.scanDuration || 0,
       },
       categories: Object.entries(categories).map(([name, info]) => ({
         name,
         count: info.count,
         size: info.size,
-        percentage: ((info.size / (analysisData.totalSize || 1)) * 100).toFixed(2)
+        percentage: ((info.size / (analysisData.totalSize || 1)) * 100).toFixed(2),
       })),
-      files: files.slice(0, 1000).map(file => ({
+      files: files.slice(0, 1000).map((file) => ({
         name: file.name,
         path: file.path,
         size: file.size,
-        type: file.type || 'unknown',
+        type: file.type || "unknown",
         modified: file.modified,
         riskScore: calculateRiskScore(file),
-        aiTags: generateAITags(file)
+        aiTags: generateAITags(file),
       })),
       aiInsights: aiInsights,
       recommendations: generateRecommendations(),
-      dataSelection: dataSelection
+      dataSelection: dataSelection,
     };
-    
+
     return data;
-  }, [analysisData, selectedTemplate, exportTemplates, categories, files, aiInsights, dataSelection]);
+  }, [
+    analysisData,
+    selectedTemplate,
+    exportTemplates,
+    categories,
+    files,
+    aiInsights,
+    dataSelection,
+  ]);
 
   // Enhanced risk scoring
   const calculateRiskScore = useCallback((file: any): number => {
     let score = 0;
-    
+
     if (file.size > 1024 * 1024 * 100) score += 30;
     else if (file.size > 1024 * 1024 * 10) score += 15;
-    
-    const riskyExtensions = ['exe', 'dll', 'bat', 'sh', 'ps1', 'scr', 'com'];
+
+    const riskyExtensions = ["exe", "dll", "bat", "sh", "ps1", "scr", "com"];
     if (riskyExtensions.includes(file.extension)) score += 25;
-    
-    if (file.category === 'System') score += 20;
-    else if (file.category === 'Executables') score += 15;
-    
+
+    if (file.category === "System") score += 20;
+    else if (file.category === "Executables") score += 15;
+
     return Math.min(score, 100);
   }, []);
 
   // Enhanced AI tags generation
   const generateAITags = useCallback((file: any): string[] => {
     const tags = [];
-    
-    if (file.size > 1024 * 1024 * 100) tags.push('large-file');
-    else if (file.size < 1024) tags.push('tiny-file');
-    
+
+    if (file.size > 1024 * 1024 * 100) tags.push("large-file");
+    else if (file.size < 1024) tags.push("tiny-file");
+
     const extensionTags: { [key: string]: string } = {
-      'js': 'javascript', 'ts': 'typescript', 'py': 'python',
-      'md': 'documentation', 'json': 'data', 'xml': 'config',
-      'jpg': 'image', 'png': 'image', 'gif': 'image',
-      'mp4': 'video', 'mp3': 'audio', 'pdf': 'document'
+      js: "javascript",
+      ts: "typescript",
+      py: "python",
+      md: "documentation",
+      json: "data",
+      xml: "config",
+      jpg: "image",
+      png: "image",
+      gif: "image",
+      mp4: "video",
+      mp3: "audio",
+      pdf: "document",
     };
-    
+
     if (extensionTags[file.extension]) tags.push(extensionTags[file.extension]);
-    
+
     return tags;
   }, []);
 
   // Generate recommendations
   const generateRecommendations = useCallback((): string[] => {
     const recommendations = [];
-    
+
     if (files.length > 10000) {
-      recommendations.push('Consider using data filtering for large datasets');
+      recommendations.push("Consider using data filtering for large datasets");
     }
-    
+
     if (analysisData?.totalSize > 1024 * 1024 * 1024 * 5) {
-      recommendations.push('Use compressed formats for large exports');
+      recommendations.push("Use compressed formats for large exports");
     }
-    
-    recommendations.push('Enable AI optimization for better insights');
-    recommendations.push('Schedule regular exports for data consistency');
-    
+
+    recommendations.push("Enable AI optimization for better insights");
+    recommendations.push("Schedule regular exports for data consistency");
+
     return recommendations;
   }, [files, analysisData]);
 
@@ -364,25 +385,25 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
     setIsExporting(true);
     setExportProgressVisible(true);
     setExportProgress({
-      stage: 'Preparing data',
+      stage: "Preparing data",
       progress: 0,
       total: 100,
-      current: 0
+      current: 0,
     });
-    
+
     try {
       const data = generateExportData();
       if (!data) return;
 
       // Simulate export stages with progress
       const stages = [
-        { stage: 'Preparing data', duration: 500 },
-        { stage: 'Processing files', duration: 1000 },
-        { stage: 'Generating insights', duration: 800 },
-        { stage: 'Formatting output', duration: 600 },
-        { stage: 'Creating file', duration: 400 }
+        { stage: "Preparing data", duration: 500 },
+        { stage: "Processing files", duration: 1000 },
+        { stage: "Generating insights", duration: 800 },
+        { stage: "Formatting output", duration: 600 },
+        { stage: "Creating file", duration: 400 },
       ];
-      
+
       let totalProgress = 0;
       for (const stage of stages) {
         setExportProgress({
@@ -390,79 +411,80 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
           progress: totalProgress,
           total: 100,
           current: totalProgress,
-          estimatedTime: stages.reduce((acc, s) => acc + s.duration, 0) - stages.slice(0, stages.indexOf(stage)).reduce((acc, s) => acc + s.duration, 0)
+          estimatedTime:
+            stages.reduce((acc, s) => acc + s.duration, 0) -
+            stages.slice(0, stages.indexOf(stage)).reduce((acc, s) => acc + s.duration, 0),
         });
-        
-        await new Promise(resolve => setTimeout(resolve, stage.duration));
+
+        await new Promise((resolve) => setTimeout(resolve, stage.duration));
         totalProgress += 20;
       }
-      
+
       setExportProgress({
-        stage: 'Complete',
+        stage: "Complete",
         progress: 100,
         total: 100,
-        current: 100
+        current: 100,
       });
-      
+
       // Create and download file
-      let content = '';
-      let mimeType = '';
+      let content = "";
+      let mimeType = "";
       const fileExtension = exportFormat;
-      
+
       switch (exportFormat) {
-        case 'json':
+        case "json":
           content = JSON.stringify(data, null, 2);
-          mimeType = 'application/json';
+          mimeType = "application/json";
           break;
-        case 'csv':
+        case "csv":
           content = generateCSV(data);
-          mimeType = 'text/csv';
+          mimeType = "text/csv";
           break;
-        case 'html':
+        case "html":
           content = generateHTML(data);
-          mimeType = 'text/html';
+          mimeType = "text/html";
           break;
         default:
           content = JSON.stringify(data, null, 2);
-          mimeType = 'application/json';
+          mimeType = "application/json";
       }
-      
+
       const blob = new Blob([content], { type: mimeType });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `space-analyzer-export-${Date.now()}.${fileExtension}`;
       a.click();
       URL.revokeObjectURL(url);
-      
+
       // Add to history
       const historyItem: ExportHistory = {
         id: Date.now().toString(),
-        name: exportTemplates.find(t => t.id === selectedTemplate)?.name || 'Custom Export',
+        name: exportTemplates.find((t) => t.id === selectedTemplate)?.name || "Custom Export",
         template: selectedTemplate,
         format: exportFormat,
         timestamp: new Date(),
         size: content.length,
-        status: 'completed',
+        status: "completed",
         downloadUrl: url,
-        permissions: 'private'
+        permissions: "private",
       };
-      
-      setExportHistory(prev => [historyItem, ...prev]);
-      
+
+      setExportHistory((prev) => [historyItem, ...prev]);
+
       setTimeout(() => {
         setExportProgressVisible(false);
         setIsExporting(false);
       }, 2000);
-      
     } catch (error) {
-      console.error('Export failed:', error);
+      console.error("Export failed:", error);
       setExportProgress({
-        stage: 'Error',
+        stage: "Error",
         progress: 0,
         total: 100,
         current: 0,
-        errors: [error instanceof Error ? error.message : 'Unknown error']
+        errors: [error instanceof Error ? error.message : "Unknown error"],
       });
     } finally {
       setTimeout(() => {
@@ -474,17 +496,18 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
 
   // Generate CSV format
   const generateCSV = (data: any): string => {
-    const headers = ['Name', 'Path', 'Size', 'Type', 'Risk Score', 'AI Tags'];
-    const rows = data.files?.map((file: any) => [
-      file.name,
-      file.path,
-      file.size,
-      file.type,
-      file.riskScore,
-      file.aiTags?.join(';') || ''
-    ]) || [];
-    
-    return [headers, ...rows].map(row => row.join(',')).join('\n');
+    const headers = ["Name", "Path", "Size", "Type", "Risk Score", "AI Tags"];
+    const rows =
+      data.files?.map((file: any) => [
+        file.name,
+        file.path,
+        file.size,
+        file.type,
+        file.riskScore,
+        file.aiTags?.join(";") || "",
+      ]) || [];
+
+    return [headers, ...rows].map((row) => row.join(",")).join("\n");
   };
 
   // Generate HTML format
@@ -524,14 +547,21 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
                 <tr><th>Name</th><th>Size</th><th>Type</th><th>Risk Score</th></tr>
             </thead>
             <tbody>
-                ${data.files?.slice(0, 100).map((file: any) => `
+                ${
+                  data.files
+                    ?.slice(0, 100)
+                    .map(
+                      (file: any) => `
                     <tr>
                         <td>${file.name}</td>
                         <td>${formatBytes(file.size)}</td>
                         <td>${file.type}</td>
                         <td>${file.riskScore}%</td>
                     </tr>
-                `).join('') || ''}
+                `
+                    )
+                    .join("") || ""
+                }
             </tbody>
         </table>
     </div>
@@ -541,20 +571,20 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
 
   // Format bytes utility
   const formatBytes = useCallback((bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
   }, []);
 
   // Template management
   const saveCustomTemplate = useCallback((template: ExportTemplate) => {
-    setCustomTemplates(prev => [...prev, template]);
+    setCustomTemplates((prev) => [...prev, template]);
   }, []);
 
   const deleteCustomTemplate = useCallback((id: string) => {
-    setCustomTemplates(prev => prev.filter(t => t.id !== id));
+    setCustomTemplates((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   // Keyboard shortcuts
@@ -562,27 +592,27 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey) {
         switch (event.key) {
-          case 'e':
+          case "e":
             event.preventDefault();
             handleExport();
             break;
-          case 'h':
+          case "h":
             event.preventDefault();
             setShowHistory(true);
             break;
-          case 't':
+          case "t":
             event.preventDefault();
             setShowTemplateBuilder(true);
             break;
-          case 'f':
+          case "f":
             event.preventDefault();
-            setIsFullscreen(prev => !prev);
+            setIsFullscreen((prev) => !prev);
             break;
         }
       }
-      
+
       switch (event.key) {
-        case 'Escape':
+        case "Escape":
           setShowHelp(false);
           setShowHistory(false);
           setShowTemplateBuilder(false);
@@ -592,49 +622,50 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleExport]);
 
   // Filter and sort templates
   const filteredTemplates = useMemo(() => {
     let filtered = [...exportTemplates, ...customTemplates];
-    
+
     if (searchQuery) {
-      filtered = filtered.filter(template =>
-        template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        template.description.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(
+        (template) =>
+          template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          template.description.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    
-    if (filterType !== 'all') {
-      filtered = filtered.filter(template => {
-        if (filterType === 'custom') return template.custom;
-        if (filterType === 'ai-optimized') return template.aiOptimized;
+
+    if (filterType !== "all") {
+      filtered = filtered.filter((template) => {
+        if (filterType === "custom") return template.custom;
+        if (filterType === "ai-optimized") return template.aiOptimized;
         return true;
       });
     }
-    
+
     return filtered.sort((a, b) => {
       let comparison = 0;
-      
+
       switch (sortBy) {
-        case 'name':
+        case "name":
           comparison = a.name.localeCompare(b.name);
           break;
-        case 'format':
+        case "format":
           comparison = a.format.localeCompare(b.format);
           break;
         default:
           comparison = 0;
       }
-      
-      return sortOrder === 'asc' ? comparison : -comparison;
+
+      return sortOrder === "asc" ? comparison : -comparison;
     });
   }, [exportTemplates, customTemplates, searchQuery, filterType, sortBy, sortOrder]);
 
   return (
-    <div className={`${styles.enhancedExportPanel} ${isFullscreen ? styles.fullscreen : ''}`}>
+    <div className={`${styles.enhancedExportPanel} ${isFullscreen ? styles.fullscreen : ""}`}>
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
@@ -644,7 +675,7 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
             <div className={styles.headerSubtitle}>Export your analysis results</div>
           </div>
         </div>
-        
+
         <div className={styles.headerRight}>
           <div className={styles.headerControls}>
             <button
@@ -654,7 +685,7 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
             >
               <Filter size={16} />
             </button>
-            
+
             <button
               onClick={() => setShowTemplateBuilder(!showTemplateBuilder)}
               className={styles.controlButton}
@@ -662,7 +693,7 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
             >
               <Edit size={16} />
             </button>
-            
+
             <button
               onClick={() => setShowHistory(!showHistory)}
               className={styles.controlButton}
@@ -670,7 +701,7 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
             >
               <History size={16} />
             </button>
-            
+
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className={styles.controlButton}
@@ -678,7 +709,7 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
             >
               {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
-            
+
             <button
               onClick={() => setShowHelp(!showHelp)}
               className={styles.controlButton}
@@ -729,7 +760,7 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
                   className={styles.searchInput}
                 />
               </div>
-              
+
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value as any)}
@@ -739,7 +770,7 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
                 <option value="ai-optimized">AI Optimized</option>
                 <option value="custom">Custom</option>
               </select>
-              
+
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
@@ -750,12 +781,12 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
               </select>
             </div>
           </div>
-          
+
           <div className={styles.templateGrid}>
             {filteredTemplates.map((template) => (
               <motion.div
                 key={template.id}
-                className={`${styles.templateCard} ${selectedTemplate === template.id ? styles.selected : ''}`}
+                className={`${styles.templateCard} ${selectedTemplate === template.id ? styles.selected : ""}`}
                 onClick={() => setSelectedTemplate(template.id)}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -768,15 +799,11 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
                     <p>{template.description}</p>
                   </div>
                   <div className={styles.templateBadges}>
-                    {template.aiOptimized && (
-                      <span className={styles.aiBadge}>AI</span>
-                    )}
-                    {template.custom && (
-                      <span className={styles.customBadge}>Custom</span>
-                    )}
+                    {template.aiOptimized && <span className={styles.aiBadge}>AI</span>}
+                    {template.custom && <span className={styles.customBadge}>Custom</span>}
                   </div>
                 </div>
-                
+
                 <div className={styles.templateDetails}>
                   <div className={styles.templateFormat}>
                     <FileText size={14} />
@@ -786,7 +813,7 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
                     <span>{template.sections.length} sections</span>
                   </div>
                 </div>
-                
+
                 {template.custom && (
                   <div className={styles.templateActions}>
                     <button
@@ -819,27 +846,24 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
           <div className={styles.formatSelection}>
             <h3>Export Format</h3>
             <div className={styles.formatGrid}>
-              {['json', 'csv', 'pdf', 'xml', 'xlsx', 'yaml', 'html', 'txt'].map(format => (
+              {["json", "csv", "pdf", "xml", "xlsx", "yaml", "html", "txt"].map((format) => (
                 <button
                   key={format}
                   onClick={() => setExportFormat(format as any)}
-                  className={`${styles.formatButton} ${exportFormat === format ? styles.selected : ''}`}
+                  className={`${styles.formatButton} ${exportFormat === format ? styles.selected : ""}`}
                 >
                   {format.toUpperCase()}
                 </button>
               ))}
             </div>
           </div>
-          
+
           <div className={styles.exportActions}>
-            <button
-              onClick={() => setShowPreview(!showPreview)}
-              className={styles.previewButton}
-            >
+            <button onClick={() => setShowPreview(!showPreview)} className={styles.previewButton}>
               <Eye size={16} />
               Preview
             </button>
-            
+
             <button
               onClick={handleExport}
               disabled={isExporting || !selectedTemplate}
@@ -885,7 +909,7 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className={styles.progressBody}>
                 <div className={styles.progressStage}>
                   <span>{exportProgress.stage}</span>
@@ -893,19 +917,21 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
                     <span>~{Math.ceil(exportProgress.estimatedTime / 1000)}s remaining</span>
                   )}
                 </div>
-                
+
                 <div className={styles.progressBar}>
                   <div
                     className={styles.progressFill}
                     style={{ width: `${exportProgress.progress}%` }}
                   />
                 </div>
-                
+
                 <div className={styles.progressDetails}>
-                  <span>{exportProgress.current} / {exportProgress.total}</span>
+                  <span>
+                    {exportProgress.current} / {exportProgress.total}
+                  </span>
                   <span>{exportProgress.progress}%</span>
                 </div>
-                
+
                 {exportProgress.errors && exportProgress.errors.length > 0 && (
                   <div className={styles.progressErrors}>
                     {exportProgress.errors.map((error, index) => (
@@ -939,44 +965,69 @@ const EnhancedExportPanel: React.FC<ExportPanelProps> = ({
             >
               <div className={styles.helpHeader}>
                 <h3>Export Help</h3>
-                <button
-                  onClick={() => setShowHelp(false)}
-                  className={styles.closeButton}
-                >
+                <button onClick={() => setShowHelp(false)} className={styles.closeButton}>
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className={styles.helpSections}>
                 <div className={styles.helpSection}>
                   <h4>Keyboard Shortcuts</h4>
                   <ul>
-                    <li><kbd>Ctrl+E</kbd> - Start export</li>
-                    <li><kbd>Ctrl+H</kbd> - Show export history</li>
-                    <li><kbd>Ctrl+T</kbd> - Open template builder</li>
-                    <li><kbd>Ctrl+F</kbd> - Toggle fullscreen</li>
+                    <li>
+                      <kbd>Ctrl+E</kbd> - Start export
+                    </li>
+                    <li>
+                      <kbd>Ctrl+H</kbd> - Show export history
+                    </li>
+                    <li>
+                      <kbd>Ctrl+T</kbd> - Open template builder
+                    </li>
+                    <li>
+                      <kbd>Ctrl+F</kbd> - Toggle fullscreen
+                    </li>
                   </ul>
                 </div>
-                
+
                 <div className={styles.helpSection}>
                   <h4>Export Formats</h4>
                   <ul>
-                    <li><strong>JSON:</strong> Structured data format</li>
-                    <li><strong>CSV:</strong> Tabular data for spreadsheets</li>
-                    <li><strong>PDF:</strong> Professional reports</li>
-                    <li><strong>HTML:</strong> Interactive web reports</li>
-                    <li><strong>XLSX:</strong> Excel spreadsheets</li>
+                    <li>
+                      <strong>JSON:</strong> Structured data format
+                    </li>
+                    <li>
+                      <strong>CSV:</strong> Tabular data for spreadsheets
+                    </li>
+                    <li>
+                      <strong>PDF:</strong> Professional reports
+                    </li>
+                    <li>
+                      <strong>HTML:</strong> Interactive web reports
+                    </li>
+                    <li>
+                      <strong>XLSX:</strong> Excel spreadsheets
+                    </li>
                   </ul>
                 </div>
-                
+
                 <div className={styles.helpSection}>
                   <h4>Features</h4>
                   <ul>
-                    <li><strong>AI Templates:</strong> Pre-configured export templates</li>
-                    <li><strong>Custom Templates:</strong> Create your own templates</li>
-                    <li><strong>Data Selection:</strong> Filter data before export</li>
-                    <li><strong>Export History:</strong> Track all your exports</li>
-                    <li><strong>Real-time Progress:</strong> Monitor export progress</li>
+                    <li>
+                      <strong>AI Templates:</strong> Pre-configured export templates
+                    </li>
+                    <li>
+                      <strong>Custom Templates:</strong> Create your own templates
+                    </li>
+                    <li>
+                      <strong>Data Selection:</strong> Filter data before export
+                    </li>
+                    <li>
+                      <strong>Export History:</strong> Track all your exports
+                    </li>
+                    <li>
+                      <strong>Real-time Progress:</strong> Monitor export progress
+                    </li>
                   </ul>
                 </div>
               </div>

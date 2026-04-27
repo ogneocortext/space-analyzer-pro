@@ -1,5 +1,5 @@
-import React from 'react';
-import { Sparkles, Lightbulb, Target, CheckCircle } from 'lucide-react';
+import React from "react";
+import { Sparkles, Lightbulb, Target, CheckCircle } from "lucide-react";
 
 interface RecommendationsProps {
   analysisData?: any;
@@ -92,7 +92,8 @@ export const Recommendations: React.FC<RecommendationsProps> = ({ analysisData }
               <div className="flex-1">
                 <h4 className="text-red-400 font-medium mb-1">Critical: Large Duplicate Files</h4>
                 <p className="text-slate-300 text-sm mb-2">
-                  Found 15 duplicate video files totaling 8.7 GB. Removing duplicates could save significant storage space.
+                  Found 15 duplicate video files totaling 8.7 GB. Removing duplicates could save
+                  significant storage space.
                 </p>
                 <div className="flex gap-2">
                   <button className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded">
@@ -110,9 +111,12 @@ export const Recommendations: React.FC<RecommendationsProps> = ({ analysisData }
             <div className="flex items-start gap-3">
               <div className="w-3 h-3 bg-yellow-400 rounded-full mt-2 flex-shrink-0"></div>
               <div className="flex-1">
-                <h4 className="text-yellow-400 font-medium mb-1">Warning: Unorganized Project Files</h4>
+                <h4 className="text-yellow-400 font-medium mb-1">
+                  Warning: Unorganized Project Files
+                </h4>
                 <p className="text-slate-300 text-sm mb-2">
-                  Development files are scattered across multiple directories. Consider consolidating into a proper project structure.
+                  Development files are scattered across multiple directories. Consider
+                  consolidating into a proper project structure.
                 </p>
                 <button className="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded">
                   Organize Projects
@@ -127,7 +131,8 @@ export const Recommendations: React.FC<RecommendationsProps> = ({ analysisData }
               <div className="flex-1">
                 <h4 className="text-blue-400 font-medium mb-1">Suggestion: Backup Strategy</h4>
                 <p className="text-slate-300 text-sm mb-2">
-                  Based on your file modification patterns, a weekly incremental backup would be most efficient for your workflow.
+                  Based on your file modification patterns, a weekly incremental backup would be
+                  most efficient for your workflow.
                 </p>
                 <button className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded">
                   Configure Backup

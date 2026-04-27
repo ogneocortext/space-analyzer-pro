@@ -13,7 +13,13 @@
     "configure:vs2026": "node-gyp configure --msvs_version=2026",
     "install": "node-gyp rebuild"
   },
-  "keywords": ["native", "scanner", "napi", "cpp", "performance"],
+  "keywords": [
+    "native",
+    "scanner",
+    "napi",
+    "cpp",
+    "performance"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",

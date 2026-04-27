@@ -1,1 +1,180 @@
-/* Test Dashboard Styles */\n.test-dashboard {\n  padding: 2rem;\n  background: #1a1a1a;\n  color: #ffffff;\n  min-height: 100vh;\n}\n\n.dashboard-header {\n  text-align: center;\n  margin-bottom: 2rem;\n}\n\n.dashboard-header h1 {\n  margin: 0 0 0.5rem 0;\n  font-size: 2.5rem;\n  font-weight: 700;\n  background: linear-gradient(135deg, #3b82f6, #10b981);\n  -webkit-background-clip: text;\n  -webkit-text-fill-color: transparent;\n  background-clip: text;\n}\n\n.dashboard-header p {\n  margin: 0;\n  color: #9ca3af;\n  font-size: 1.125rem;\n}\n\n.view-selector {\n  display: flex;\n  justify-content: center;\n  gap: 1rem;\n  margin-bottom: 2rem;\n  background: #2a2a2a;\n  padding: 0.5rem;\n  border-radius: 12px;\n  border: 1px solid #3a3a3a;\n}\n\n.view-button {\n  display: flex;\n  align-items: center;\n  gap: 0.5rem;\n  background: transparent;\n  color: #9ca3af;\n  border: none;\n  padding: 0.75rem 1.5rem;\n  border-radius: 8px;\n  font-weight: 500;\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.view-button:hover {\n  background: #3a3a3a;\n  color: #ffffff;\n}\n\n.view-button.active {\n  background: #3b82f6;\n  color: #ffffff;\n}\n\n.view-container {\n  margin-bottom: 3rem;\n}\n\n.view-panel {\n  background: #2a2a2a;\n  border-radius: 12px;\n  border: 1px solid #3a3a3a;\n  padding: 1rem;\n  min-height: 600px;\n}\n\n.test-info {\n  background: #2a2a2a;\n  border-radius: 12px;\n  border: 1px solid #3a3a3a;\n  padding: 2rem;\n}\n\n.test-info h3 {\n  margin: 0 0 1.5rem 0;\n  font-size: 1.5rem;\n  font-weight: 600;\n  color: #ffffff;\n  text-align: center;\n}\n\n.info-grid {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));\n  gap: 1.5rem;\n  margin-bottom: 2rem;\n}\n\n.info-card {\n  background: #1a1a1a;\n  border: 1px solid #3a3a3a;\n  border-radius: 8px;\n  padding: 1.5rem;\n}\n\n.info-card h4 {\n  margin: 0 0 1rem 0;\n  font-size: 1.125rem;\n  font-weight: 600;\n  color: #3b82f6;\n}\n\n.info-card ul {\n  margin: 0;\n  padding: 0;\n  list-style: none;\n}\n\n.info-card li {\n  display: flex;\n  align-items: center;\n  gap: 0.5rem;\n  margin-bottom: 0.5rem;\n  color: #d1d5db;\n  font-size: 0.875rem;\n}\n\n.info-card li::before {\n  content: '✓';\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  width: 16px;\n  height: 16px;\n  background: #10b981;\n  color: #ffffff;\n  border-radius: 50%;\n  font-size: 0.75rem;\n  font-weight: 600;\n}\n\n.mock-data-note {\n  background: rgba(59, 130, 246, 0.1);\n  border: 1px solid #3b82f6;\n  border-radius: 8px;\n  padding: 1rem;\n  text-align: center;\n}\n\n.mock-data-note p {\n  margin: 0;\n  color: #dbeafe;\n  font-size: 0.875rem;\n  line-height: 1.5;\n}\n\n.mock-data-note strong {\n  color: #ffffff;\n  font-weight: 600;\n}\n\n/* Responsive Design */\n@media (max-width: 768px) {\n  .test-dashboard {\n    padding: 1rem;\n  }\n  \n  .dashboard-header h1 {\n    font-size: 2rem;\n  }\n  \n  .view-selector {\n    flex-direction: column;\n    gap: 0.5rem;\n  }\n  \n  .info-grid {\n    grid-template-columns: 1fr;\n  }\n}
+/* Test Dashboard Styles */
+.test-dashboard {
+  padding: 2rem;
+  background: #1a1a1a;
+  color: #ffffff;
+  min-height: 100vh;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.dashboard-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #3b82f6, #10b981);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dashboard-header p {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 1.125rem;
+}
+
+.view-selector {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  background: #2a2a2a;
+  padding: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid #3a3a3a;
+}
+
+.view-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: #9ca3af;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-button:hover {
+  background: #3a3a3a;
+  color: #ffffff;
+}
+
+.view-button.active {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.view-container {
+  margin-bottom: 3rem;
+}
+
+.view-panel {
+  background: #2a2a2a;
+  border-radius: 12px;
+  border: 1px solid #3a3a3a;
+  padding: 1rem;
+  min-height: 600px;
+}
+
+.test-info {
+  background: #2a2a2a;
+  border-radius: 12px;
+  border: 1px solid #3a3a3a;
+  padding: 2rem;
+}
+
+.test-info h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #ffffff;
+  text-align: center;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.info-card {
+  background: #1a1a1a;
+  border: 1px solid #3a3a3a;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.info-card h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.info-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.info-card li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: #d1d5db;
+  font-size: 0.875rem;
+}
+
+.info-card li::before {
+  content: "✓";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #10b981;
+  color: #ffffff;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.mock-data-note {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+}
+
+.mock-data-note p {
+  margin: 0;
+  color: #dbeafe;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.mock-data-note strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .test-dashboard {
+    padding: 1rem;
+  }
+
+  .dashboard-header h1 {
+    font-size: 2rem;
+  }
+
+  .view-selector {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}

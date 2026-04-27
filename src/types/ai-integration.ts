@@ -6,7 +6,7 @@
 // Core AI Provider Types
 export interface AIProvider {
   name: string;
-  type: 'local' | 'cloud' | 'hybrid';
+  type: "local" | "cloud" | "hybrid";
   endpoint: string;
   priority: number;
   limits: ProviderLimits;
@@ -24,7 +24,7 @@ export interface ProviderLimits {
   monthlyTokens?: number;
 }
 
-export type AIFeature = 'chat' | 'embeddings' | 'vision' | 'audio' | 'multimodal' | 'tool-calling';
+export type AIFeature = "chat" | "embeddings" | "vision" | "audio" | "multimodal" | "tool-calling";
 
 export interface ProviderStatus {
   healthy: boolean;
@@ -37,7 +37,7 @@ export interface ProviderStatus {
 // Message and Chat Types
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
   model?: string;
@@ -59,12 +59,12 @@ export interface ToolCall {
   name: string;
   arguments: Record<string, any>;
   result?: any;
-  status: 'pending' | 'completed' | 'failed';
+  status: "pending" | "completed" | "failed";
 }
 
 // Request and Response Types
 export interface AIRequest {
-  type: 'chat' | 'embeddings' | 'vision' | 'audio';
+  type: "chat" | "embeddings" | "vision" | "audio";
   payload: ChatRequest | EmbeddingsRequest | VisionRequest | AudioRequest;
   options: RequestOptions;
   context?: RequestContext;
@@ -99,7 +99,7 @@ export interface RequestOptions {
   provider?: string;
   timeout?: number;
   retries?: number;
-  priority?: 'low' | 'normal' | 'high';
+  priority?: "low" | "normal" | "high";
   cache?: boolean;
   stream?: boolean;
 }
@@ -137,7 +137,7 @@ export interface CategoryInfo {
 export interface AIResponse {
   id: string;
   provider: string;
-  type: 'chat' | 'embeddings' | 'vision' | 'audio';
+  type: "chat" | "embeddings" | "vision" | "audio";
   success: boolean;
   data: ChatResponse | EmbeddingsResponse | VisionResponse | AudioResponse;
   metadata: ResponseMetadata;
@@ -197,7 +197,7 @@ export interface UsageInfo {
 // Streaming Types
 export interface StreamChunk {
   id: string;
-  type: 'content' | 'reasoning' | 'tool_call' | 'end' | 'error';
+  type: "content" | "reasoning" | "tool_call" | "end" | "error";
   content?: string;
   reasoning?: string;
   toolCall?: ToolCall;
@@ -243,16 +243,16 @@ export interface AIError extends Error {
   suggestedAction?: string;
 }
 
-export type ErrorCode = 
-  | 'PROVIDER_UNAVAILABLE'
-  | 'RATE_LIMIT_EXCEEDED'
-  | 'TOKEN_LIMIT_EXCEEDED'
-  | 'MODEL_NOT_FOUND'
-  | 'INVALID_REQUEST'
-  | 'TIMEOUT'
-  | 'NETWORK_ERROR'
-  | 'PARSING_ERROR'
-  | 'UNKNOWN_ERROR';
+export type ErrorCode =
+  | "PROVIDER_UNAVAILABLE"
+  | "RATE_LIMIT_EXCEEDED"
+  | "TOKEN_LIMIT_EXCEEDED"
+  | "MODEL_NOT_FOUND"
+  | "INVALID_REQUEST"
+  | "TIMEOUT"
+  | "NETWORK_ERROR"
+  | "PARSING_ERROR"
+  | "UNKNOWN_ERROR";
 
 // Configuration Types
 export interface AIConfig {
@@ -266,7 +266,7 @@ export interface AIConfig {
 
 export interface ProviderConfig {
   name: string;
-  type: 'local' | 'cloud' | 'hybrid';
+  type: "local" | "cloud" | "hybrid";
   endpoint: string;
   apiKey?: string;
   models: ModelConfig[];
@@ -293,7 +293,7 @@ export interface UsageTrackingConfig {
   enabled: boolean;
   retentionDays: number;
   anonymize: boolean;
-  exportFormat: 'json' | 'csv' | 'prometheus';
+  exportFormat: "json" | "csv" | "prometheus";
 }
 
 export interface RateLimitConfig {
@@ -307,7 +307,7 @@ export interface CachingConfig {
   enabled: boolean;
   ttl: number;
   maxSize: number;
-  strategy: 'lru' | 'fifo' | 'lfu';
+  strategy: "lru" | "fifo" | "lfu";
 }
 
 // Event Types
@@ -319,16 +319,16 @@ export interface AIEvent {
   requestId?: string;
 }
 
-export type EventType = 
-  | 'provider_switch'
-  | 'request_start'
-  | 'request_complete'
-  | 'request_failed'
-  | 'stream_start'
-  | 'stream_chunk'
-  | 'stream_end'
-  | 'usage_limit_reached'
-  | 'error';
+export type EventType =
+  | "provider_switch"
+  | "request_start"
+  | "request_complete"
+  | "request_failed"
+  | "stream_start"
+  | "stream_chunk"
+  | "stream_end"
+  | "usage_limit_reached"
+  | "error";
 
 // Hook Types for React
 export interface UseAIChatOptions {

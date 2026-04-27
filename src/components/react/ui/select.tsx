@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 interface SelectProps {
   children: React.ReactNode;
@@ -30,11 +30,11 @@ interface SelectValueProps {
   className?: string;
 }
 
-export const Select: React.FC<SelectProps> = ({ 
-  children, 
-  className = '',
+export const Select: React.FC<SelectProps> = ({
+  children,
+  className = "",
   value,
-  onValueChange
+  onValueChange,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -55,29 +55,22 @@ export const Select: React.FC<SelectProps> = ({
   );
 };
 
-export const SelectContent: React.FC<SelectContentProps> = ({ 
-  children, 
-  className = ''
-}) => {
-  return (
-    <div className={`py-1 ${className}`}>
-      {children}
-    </div>
-  );
+export const SelectContent: React.FC<SelectContentProps> = ({ children, className = "" }) => {
+  return <div className={`py-1 ${className}`}>{children}</div>;
 };
 
 export const SelectItem: React.FC<SelectItemProps> = ({
   children,
   value,
-  className = '',
-  onClick
+  className = "",
+  onClick,
 }) => {
   return (
     <div
       onClick={() => {
         // Find parent Select and call onValueChange
         // @ts-ignore
-        const selectElement = document.body.closest('[data-select]');
+        const selectElement = document.body.closest("[data-select]");
         if (selectElement) {
           // @ts-ignore
           const selectComponent = selectElement.__reactInternalInstance;
@@ -95,24 +88,10 @@ export const SelectItem: React.FC<SelectItemProps> = ({
   );
 };
 
-export const SelectTrigger: React.FC<SelectTriggerProps> = ({ 
-  children, 
-  className = ''
-}) => {
-  return (
-    <div className={className}>
-      {children}
-    </div>
-  );
+export const SelectTrigger: React.FC<SelectTriggerProps> = ({ children, className = "" }) => {
+  return <div className={className}>{children}</div>;
 };
 
-export const SelectValue: React.FC<SelectValueProps> = ({ 
-  placeholder, 
-  className = ''
-}) => {
-  return (
-    <span className={`block truncate ${className}`}>
-      {placeholder}
-    </span>
-  );
+export const SelectValue: React.FC<SelectValueProps> = ({ placeholder, className = "" }) => {
+  return <span className={`block truncate ${className}`}>{placeholder}</span>;
 };

@@ -33,8 +33,9 @@
   word-wrap: break-word;
   white-space: normal;
   border: 1px solid rgba(75, 85, 99, 0.3);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3),
-              0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.3),
+    0 4px 6px -2px rgba(0, 0, 0, 0.2);
 }
 
 .tooltipArrow {
@@ -45,7 +46,7 @@
 }
 
 .tooltipArrow::before {
-  content: '';
+  content: "";
   position: absolute;
   width: 0;
   height: 0;

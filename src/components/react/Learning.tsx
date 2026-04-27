@@ -1,5 +1,5 @@
-import React from 'react';
-import { TrendingUp, Brain, BookOpen, Target, Zap, Users } from 'lucide-react';
+import React from "react";
+import { TrendingUp, Brain, BookOpen, Target, Zap, Users } from "lucide-react";
 
 interface LearningProps {
   analysisData?: any;
@@ -62,19 +62,28 @@ export const Learning: React.FC<LearningProps> = ({ analysisData }) => {
           <div className="space-y-4">
             <div className="bg-slate-700/50 rounded-lg p-4">
               <h4 className="text-white font-medium mb-2">Storage Analysis Focus</h4>
-              <p className="text-slate-300 text-sm">You frequently analyze storage usage and cleanup opportunities. The system now prioritizes these insights.</p>
+              <p className="text-slate-300 text-sm">
+                You frequently analyze storage usage and cleanup opportunities. The system now
+                prioritizes these insights.
+              </p>
               <div className="mt-2 text-xs text-blue-400">Learned from 45 queries</div>
             </div>
 
             <div className="bg-slate-700/50 rounded-lg p-4">
               <h4 className="text-white font-medium mb-2">Visual Preferences</h4>
-              <p className="text-slate-300 text-sm">You prefer detailed charts and visual representations. The system now defaults to expanded visualizations.</p>
+              <p className="text-slate-300 text-sm">
+                You prefer detailed charts and visual representations. The system now defaults to
+                expanded visualizations.
+              </p>
               <div className="mt-2 text-xs text-green-400">Adapted from 32 sessions</div>
             </div>
 
             <div className="bg-slate-700/50 rounded-lg p-4">
               <h4 className="text-white font-medium mb-2">Time-based Analysis</h4>
-              <p className="text-slate-300 text-sm">You often check historical trends. Timeline views are now more prominent in recommendations.</p>
+              <p className="text-slate-300 text-sm">
+                You often check historical trends. Timeline views are now more prominent in
+                recommendations.
+              </p>
               <div className="mt-2 text-xs text-purple-400">Learned from 28 interactions</div>
             </div>
           </div>
@@ -113,7 +122,7 @@ export const Learning: React.FC<LearningProps> = ({ analysisData }) => {
             <h3 className="text-white font-medium mb-2">Pattern Recognition</h3>
             <p className="text-slate-400 text-sm">Learning your usage patterns and preferences</p>
             <div className="mt-2 bg-slate-700 rounded-full h-2">
-              <div className="bg-blue-400 h-2 rounded-full" style={{ width: '85%' }}></div>
+              <div className="bg-blue-400 h-2 rounded-full" style={{ width: "85%" }}></div>
             </div>
           </div>
 
@@ -124,7 +133,7 @@ export const Learning: React.FC<LearningProps> = ({ analysisData }) => {
             <h3 className="text-white font-medium mb-2">Prediction Accuracy</h3>
             <p className="text-slate-400 text-sm">Improving prediction accuracy over time</p>
             <div className="mt-2 bg-slate-700 rounded-full h-2">
-              <div className="bg-green-400 h-2 rounded-full" style={{ width: '89%' }}></div>
+              <div className="bg-green-400 h-2 rounded-full" style={{ width: "89%" }}></div>
             </div>
           </div>
 
@@ -135,7 +144,7 @@ export const Learning: React.FC<LearningProps> = ({ analysisData }) => {
             <h3 className="text-white font-medium mb-2">Adaptation Level</h3>
             <p className="text-slate-400 text-sm">How well the system adapts to your needs</p>
             <div className="mt-2 bg-slate-700 rounded-full h-2">
-              <div className="bg-purple-400 h-2 rounded-full" style={{ width: '76%' }}></div>
+              <div className="bg-purple-400 h-2 rounded-full" style={{ width: "76%" }}></div>
             </div>
           </div>
         </div>

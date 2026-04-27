@@ -1,10 +1,10 @@
-import { create } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
-import { AnalysisResult } from '../services/AnalysisBridge';
+import { create } from "zustand";
+import { subscribeWithSelector } from "zustand/middleware";
+import { AnalysisResult } from "../services/AnalysisBridge";
 
 // UI State Interface
 interface UIState {
-  theme: 'dark' | 'light' | 'auto';
+  theme: "dark" | "light" | "auto";
   sidebarCollapsed: boolean;
   focusMode: boolean;
   commandPaletteOpen: boolean;
@@ -63,12 +63,12 @@ interface AppState extends UIState, AnalysisState, AIState, PerformanceState {
 // Actions Interface
 interface AppActions {
   // UI Actions
-  setTheme: (theme: AppState['theme']) => void;
+  setTheme: (theme: AppState["theme"]) => void;
   toggleSidebar: () => void;
   setFocusMode: (active: boolean) => void;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
-  addNotification: (notification: Omit<Notification, 'id' | 'timestamp'>) => void;
+  addNotification: (notification: Omit<Notification, "id" | "timestamp">) => void;
   removeNotification: (id: string) => void;
   setActiveModal: (modal: string | null) => void;
 
@@ -77,7 +77,7 @@ interface AppActions {
   setAnalysisData: (data: AnalysisResult | null) => void;
   addToHistory: (data: AnalysisResult) => void;
   setAnalyzing: (analyzing: boolean) => void;
-  setAnalysisProgress: (progress: AppState['analysisProgress']) => void;
+  setAnalysisProgress: (progress: AppState["analysisProgress"]) => void;
   createSnapshot: (name: string, data: AnalysisResult) => void;
   deleteSnapshot: (id: string) => void;
 
@@ -89,8 +89,8 @@ interface AppActions {
   updateModelConfig: (provider: string, config: Partial<ModelConfig>) => void;
 
   // Performance Actions
-  updateMetrics: (metrics: Partial<AppState['metrics']>) => void;
-  updateCacheStats: (stats: Partial<AppState['cacheStats']>) => void;
+  updateMetrics: (metrics: Partial<AppState["metrics"]>) => void;
+  updateCacheStats: (stats: Partial<AppState["cacheStats"]>) => void;
 
   // Utility Actions
   reset: () => void;
@@ -100,7 +100,7 @@ interface AppActions {
 // Supporting Types
 interface Notification {
   id: string;
-  type: 'success' | 'error' | 'warning' | 'info';
+  type: "success" | "error" | "warning" | "info";
   title: string;
   message: string;
   timestamp: Date;
@@ -118,7 +118,7 @@ interface AnalysisSnapshot {
 
 interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
   metadata?: Record<string, any>;
@@ -126,7 +126,7 @@ interface ChatMessage {
 
 interface AIInsight {
   id: string;
-  type: 'warning' | 'optimization' | 'security' | 'performance';
+  type: "warning" | "optimization" | "security" | "performance";
   title: string;
   description: string;
   confidence: number;
@@ -146,7 +146,7 @@ interface ModelConfig {
 export const useAppStore = create<AppState & AppActions>()(
   subscribeWithSelector((set, get) => ({
     // Initial UI State
-    theme: 'dark',
+    theme: "dark",
     sidebarCollapsed: false,
     focusMode: false,
     commandPaletteOpen: false,
@@ -155,7 +155,7 @@ export const useAppStore = create<AppState & AppActions>()(
     activeModal: null,
 
     // Initial Analysis State
-    currentDirectory: 'D:\\Backup of Important Data for Windows 11 Upgrade\\Native Media AI Studio',
+    currentDirectory: "D:\\Backup of Important Data for Windows 11 Upgrade\\Native Media AI Studio",
     analysisData: null,
     analysisHistory: [],
     snapshots: [],
@@ -163,32 +163,32 @@ export const useAppStore = create<AppState & AppActions>()(
     analysisProgress: null,
 
     // Initial AI State
-    availableProviders: ['ollama', 'google', 'openai'],
-    activeProvider: 'ollama',
+    availableProviders: ["ollama", "google", "openai"],
+    activeProvider: "ollama",
     chatHistory: [],
     insights: [],
     modelConfigs: {
       ollama: {
         temperature: 0.7,
         maxTokens: 2048,
-        model: 'mistral:7b-instruct',
+        model: "mistral:7b-instruct",
         enabled: true,
-        priority: 1
+        priority: 1,
       },
       google: {
         temperature: 0.7,
         maxTokens: 2048,
-        model: 'gemini-pro',
+        model: "gemini-pro",
         enabled: true,
-        priority: 2
+        priority: 2,
       },
       openai: {
         temperature: 0.7,
         maxTokens: 2048,
-        model: 'gpt-4',
+        model: "gpt-4",
         enabled: false,
-        priority: 3
-      }
+        priority: 3,
+      },
     },
 
     // Initial Performance State
@@ -196,12 +196,12 @@ export const useAppStore = create<AppState & AppActions>()(
       renderTime: 0,
       memoryUsage: 0,
       cacheHitRate: 0,
-      lastUpdated: new Date()
+      lastUpdated: new Date(),
     },
     cacheStats: {
       totalQueries: 0,
       cachedQueries: 0,
-      staleQueries: 0
+      staleQueries: 0,
     },
 
     // Computed Getters
@@ -213,9 +213,7 @@ export const useAppStore = create<AppState & AppActions>()(
     },
     get cacheEfficiency() {
       const stats = get().cacheStats;
-      return stats.totalQueries > 0
-        ? (stats.cachedQueries / stats.totalQueries) * 100
-        : 0;
+      return stats.totalQueries > 0 ? (stats.cachedQueries / stats.totalQueries) * 100 : 0;
     },
 
     // UI Actions
@@ -224,159 +222,190 @@ export const useAppStore = create<AppState & AppActions>()(
     setFocusMode: (active) => set({ focusMode: active }),
     openCommandPalette: () => set({ commandPaletteOpen: true }),
     closeCommandPalette: () => set({ commandPaletteOpen: false }),
-    addNotification: (notification) => set((state) => ({
-      notifications: [...state.notifications, {
-        ...notification,
-        id: Date.now().toString(),
-        timestamp: new Date(),
-        autoClose: notification.autoClose ?? true,
-        duration: notification.duration ?? 5000
-      }]
-    })),
-    removeNotification: (id) => set((state) => ({
-      notifications: state.notifications.filter(n => n.id !== id)
-    })),
+    addNotification: (notification) =>
+      set((state) => ({
+        notifications: [
+          ...state.notifications,
+          {
+            ...notification,
+            id: Date.now().toString(),
+            timestamp: new Date(),
+            autoClose: notification.autoClose ?? true,
+            duration: notification.duration ?? 5000,
+          },
+        ],
+      })),
+    removeNotification: (id) =>
+      set((state) => ({
+        notifications: state.notifications.filter((n) => n.id !== id),
+      })),
     setActiveModal: (modal) => set({ activeModal: modal }),
 
     // Analysis Actions
     setCurrentDirectory: (path) => set({ currentDirectory: path }),
     setAnalysisData: (data) => set({ analysisData: data }),
-    addToHistory: (data) => set((state) => ({
-      analysisHistory: [data, ...state.analysisHistory.slice(0, 9)] // Keep last 10
-    })),
+    addToHistory: (data) =>
+      set((state) => ({
+        analysisHistory: [data, ...state.analysisHistory.slice(0, 9)], // Keep last 10
+      })),
     setAnalyzing: (analyzing) => set({ isAnalyzing: analyzing }),
     setAnalysisProgress: (progress) => set({ analysisProgress: progress }),
-    createSnapshot: (name, data) => set((state) => ({
-      snapshots: [...state.snapshots, {
-        id: Date.now().toString(),
-        name,
-        data,
-        createdAt: new Date(),
-        size: JSON.stringify(data).length
-      }]
-    })),
-    deleteSnapshot: (id) => set((state) => ({
-      snapshots: state.snapshots.filter(s => s.id !== id)
-    })),
+    createSnapshot: (name, data) =>
+      set((state) => ({
+        snapshots: [
+          ...state.snapshots,
+          {
+            id: Date.now().toString(),
+            name,
+            data,
+            createdAt: new Date(),
+            size: JSON.stringify(data).length,
+          },
+        ],
+      })),
+    deleteSnapshot: (id) =>
+      set((state) => ({
+        snapshots: state.snapshots.filter((s) => s.id !== id),
+      })),
 
     // AI Actions
     setActiveProvider: (provider) => set({ activeProvider: provider }),
-    addChatMessage: (message) => set((state) => ({
-      chatHistory: [...state.chatHistory, {
-        ...message,
-        id: Date.now().toString(),
-        timestamp: new Date()
-      }]
-    })),
+    addChatMessage: (message) =>
+      set((state) => ({
+        chatHistory: [
+          ...state.chatHistory,
+          {
+            ...message,
+            id: Date.now().toString(),
+            timestamp: new Date(),
+          },
+        ],
+      })),
     clearChatHistory: () => set({ chatHistory: [] }),
-    addInsight: (insight) => set((state) => ({
-      insights: [...state.insights, {
-        ...insight,
-        id: Date.now().toString(),
-        timestamp: new Date()
-      }]
-    })),
-    updateModelConfig: (provider, config) => set((state) => ({
-      modelConfigs: {
-        ...state.modelConfigs,
-        [provider]: { ...state.modelConfigs[provider], ...config }
-      }
-    })),
+    addInsight: (insight) =>
+      set((state) => ({
+        insights: [
+          ...state.insights,
+          {
+            ...insight,
+            id: Date.now().toString(),
+            timestamp: new Date(),
+          },
+        ],
+      })),
+    updateModelConfig: (provider, config) =>
+      set((state) => ({
+        modelConfigs: {
+          ...state.modelConfigs,
+          [provider]: { ...state.modelConfigs[provider], ...config },
+        },
+      })),
 
     // Performance Actions
-    updateMetrics: (metrics) => set((state) => ({
-      metrics: { ...state.metrics, ...metrics, lastUpdated: new Date() }
-    })),
-    updateCacheStats: (stats) => set((state) => ({
-      cacheStats: { ...state.cacheStats, ...stats }
-    })),
+    updateMetrics: (metrics) =>
+      set((state) => ({
+        metrics: { ...state.metrics, ...metrics, lastUpdated: new Date() },
+      })),
+    updateCacheStats: (stats) =>
+      set((state) => ({
+        cacheStats: { ...state.cacheStats, ...stats },
+      })),
 
     // Utility Actions
-    reset: () => set({
-      // Reset to initial state
-      theme: 'dark',
-      sidebarCollapsed: false,
-      focusMode: false,
-      commandPaletteOpen: false,
-      loadingStates: {},
-      notifications: [],
-      activeModal: null,
-      analysisData: null,
-      analysisHistory: [],
-      isAnalyzing: false,
-      analysisProgress: null,
-      chatHistory: [],
-      insights: []
-    }),
-    hydrate: (state) => set(state)
+    reset: () =>
+      set({
+        // Reset to initial state
+        theme: "dark",
+        sidebarCollapsed: false,
+        focusMode: false,
+        commandPaletteOpen: false,
+        loadingStates: {},
+        notifications: [],
+        activeModal: null,
+        analysisData: null,
+        analysisHistory: [],
+        isAnalyzing: false,
+        analysisProgress: null,
+        chatHistory: [],
+        insights: [],
+      }),
+    hydrate: (state) => set(state),
   }))
 );
 
 // Selectors for optimized re-renders
-export const useUIState = () => useAppStore((state) => ({
-  theme: state.theme,
-  sidebarCollapsed: state.sidebarCollapsed,
-  focusMode: state.focusMode,
-  commandPaletteOpen: state.commandPaletteOpen,
-  activeModal: state.activeModal
-}));
+export const useUIState = () =>
+  useAppStore((state) => ({
+    theme: state.theme,
+    sidebarCollapsed: state.sidebarCollapsed,
+    focusMode: state.focusMode,
+    commandPaletteOpen: state.commandPaletteOpen,
+    activeModal: state.activeModal,
+  }));
 
-export const useAnalysisState = () => useAppStore((state) => ({
-  currentDirectory: state.currentDirectory,
-  analysisData: state.analysisData,
-  analysisHistory: state.analysisHistory,
-  snapshots: state.snapshots,
-  isAnalyzing: state.isAnalyzing,
-  analysisProgress: state.analysisProgress,
-  totalFiles: state.totalFiles,
-  totalSize: state.totalSize
-}));
+export const useAnalysisState = () =>
+  useAppStore((state) => ({
+    currentDirectory: state.currentDirectory,
+    analysisData: state.analysisData,
+    analysisHistory: state.analysisHistory,
+    snapshots: state.snapshots,
+    isAnalyzing: state.isAnalyzing,
+    analysisProgress: state.analysisProgress,
+    totalFiles: state.totalFiles,
+    totalSize: state.totalSize,
+  }));
 
-export const useAIState = () => useAppStore((state) => ({
-  availableProviders: state.availableProviders,
-  activeProvider: state.activeProvider,
-  chatHistory: state.chatHistory,
-  insights: state.insights,
-  modelConfigs: state.modelConfigs
-}));
+export const useAIState = () =>
+  useAppStore((state) => ({
+    availableProviders: state.availableProviders,
+    activeProvider: state.activeProvider,
+    chatHistory: state.chatHistory,
+    insights: state.insights,
+    modelConfigs: state.modelConfigs,
+  }));
 
-export const usePerformanceState = () => useAppStore((state) => ({
-  metrics: state.metrics,
-  cacheStats: state.cacheStats,
-  cacheEfficiency: state.cacheEfficiency
-}));
+export const usePerformanceState = () =>
+  useAppStore((state) => ({
+    metrics: state.metrics,
+    cacheStats: state.cacheStats,
+    cacheEfficiency: state.cacheEfficiency,
+  }));
 
 export const useNotifications = () => useAppStore((state) => state.notifications);
 
 // Action hooks
-export const useUIActions = () => useAppStore((state) => ({
-  setTheme: state.setTheme,
-  toggleSidebar: state.toggleSidebar,
-  setFocusMode: state.setFocusMode,
-  openCommandPalette: state.openCommandPalette,
-  closeCommandPalette: state.closeCommandPalette,
-  setActiveModal: state.setActiveModal
-}));
+export const useUIActions = () =>
+  useAppStore((state) => ({
+    setTheme: state.setTheme,
+    toggleSidebar: state.toggleSidebar,
+    setFocusMode: state.setFocusMode,
+    openCommandPalette: state.openCommandPalette,
+    closeCommandPalette: state.closeCommandPalette,
+    setActiveModal: state.setActiveModal,
+  }));
 
-export const useAnalysisActions = () => useAppStore((state) => ({
-  setCurrentDirectory: state.setCurrentDirectory,
-  setAnalysisData: state.setAnalysisData,
-  addToHistory: state.addToHistory,
-  setAnalyzing: state.setAnalyzing,
-  setAnalysisProgress: state.setAnalysisProgress,
-  createSnapshot: state.createSnapshot,
-  deleteSnapshot: state.deleteSnapshot
-}));
+export const useAnalysisActions = () =>
+  useAppStore((state) => ({
+    setCurrentDirectory: state.setCurrentDirectory,
+    setAnalysisData: state.setAnalysisData,
+    addToHistory: state.addToHistory,
+    setAnalyzing: state.setAnalyzing,
+    setAnalysisProgress: state.setAnalysisProgress,
+    createSnapshot: state.createSnapshot,
+    deleteSnapshot: state.deleteSnapshot,
+  }));
 
-export const useAIActions = () => useAppStore((state) => ({
-  setActiveProvider: state.setActiveProvider,
-  addChatMessage: state.addChatMessage,
-  clearChatHistory: state.clearChatHistory,
-  addInsight: state.addInsight,
-  updateModelConfig: state.updateModelConfig
-}));
+export const useAIActions = () =>
+  useAppStore((state) => ({
+    setActiveProvider: state.setActiveProvider,
+    addChatMessage: state.addChatMessage,
+    clearChatHistory: state.clearChatHistory,
+    addInsight: state.addInsight,
+    updateModelConfig: state.updateModelConfig,
+  }));
 
-export const useNotificationActions = () => useAppStore((state) => ({
-  addNotification: state.addNotification,
-  removeNotification: state.removeNotification
-}));
+export const useNotificationActions = () =>
+  useAppStore((state) => ({
+    addNotification: state.addNotification,
+    removeNotification: state.removeNotification,
+  }));

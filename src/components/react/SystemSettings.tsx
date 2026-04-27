@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Settings, Database, Cpu, HardDrive, Shield, Bell, Palette, Globe } from 'lucide-react';
+import React, { useState } from "react";
+import { Settings, Database, Cpu, HardDrive, Shield, Bell, Palette, Globe } from "lucide-react";
 
 interface SystemSettingsProps {
   onSettingsChange?: (settings: any) => void;
@@ -10,16 +10,18 @@ interface SystemSettingsProps {
  * Configuration panel for system preferences and settings
  */
 const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'performance' | 'security' | 'notifications'>('general');
+  const [activeTab, setActiveTab] = useState<
+    "general" | "performance" | "security" | "notifications"
+  >("general");
   const [settings, setSettings] = useState({
-    theme: 'light',
-    language: 'en',
+    theme: "light",
+    language: "en",
     autoSave: true,
-    cacheSize: '500MB',
+    cacheSize: "500MB",
     maxConnections: 10,
     enableSecurity: true,
     enableNotifications: true,
-    notificationSound: true
+    notificationSound: true,
   });
 
   const updateSetting = (key: string, value: any) => {
@@ -29,10 +31,10 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
   };
 
   const tabs = [
-    { id: 'general', label: 'General', icon: Settings },
-    { id: 'performance', label: 'Performance', icon: Cpu },
-    { id: 'security', label: 'Security', icon: Shield },
-    { id: 'notifications', label: 'Notifications', icon: Bell }
+    { id: "general", label: "General", icon: Settings },
+    { id: "performance", label: "Performance", icon: Cpu },
+    { id: "security", label: "Security", icon: Shield },
+    { id: "notifications", label: "Notifications", icon: Bell },
   ];
 
   return (
@@ -54,8 +56,8 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center space-x-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
                 }`}
                 aria-label={`${tab.label} settings`}
               >
@@ -68,15 +70,13 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
 
         {/* Tab Content */}
         <div className="p-6">
-          {activeTab === 'general' && (
+          {activeTab === "general" && (
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Theme
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Theme</label>
                 <select
                   value={settings.theme}
-                  onChange={(e) => updateSetting('theme', e.target.value)}
+                  onChange={(e) => updateSetting("theme", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   aria-label="Select theme"
                 >
@@ -87,12 +87,10 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Language
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
                 <select
                   value={settings.language}
-                  onChange={(e) => updateSetting('language', e.target.value)}
+                  onChange={(e) => updateSetting("language", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   aria-label="Select language"
                 >
@@ -109,15 +107,15 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
                   <p className="text-sm text-gray-600">Automatically save analysis results</p>
                 </div>
                 <button
-                  onClick={() => updateSetting('autoSave', !settings.autoSave)}
+                  onClick={() => updateSetting("autoSave", !settings.autoSave)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.autoSave ? 'bg-blue-600' : 'bg-gray-200'
+                    settings.autoSave ? "bg-blue-600" : "bg-gray-200"
                   }`}
                   aria-label="Toggle auto save"
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.autoSave ? 'translate-x-6' : 'translate-x-1'
+                      settings.autoSave ? "translate-x-6" : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -125,15 +123,13 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
             </div>
           )}
 
-          {activeTab === 'performance' && (
+          {activeTab === "performance" && (
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cache Size
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Cache Size</label>
                 <select
                   value={settings.cacheSize}
-                  onChange={(e) => updateSetting('cacheSize', e.target.value)}
+                  onChange={(e) => updateSetting("cacheSize", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   aria-label="Select cache size"
                 >
@@ -151,7 +147,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
                 <input
                   type="number"
                   value={settings.maxConnections}
-                  onChange={(e) => updateSetting('maxConnections', parseInt(e.target.value))}
+                  onChange={(e) => updateSetting("maxConnections", parseInt(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                   min="1"
                   max="20"
@@ -161,7 +157,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
             </div>
           )}
 
-          {activeTab === 'security' && (
+          {activeTab === "security" && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -169,15 +165,15 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
                   <p className="text-sm text-gray-600">Enable security features and protections</p>
                 </div>
                 <button
-                  onClick={() => updateSetting('enableSecurity', !settings.enableSecurity)}
+                  onClick={() => updateSetting("enableSecurity", !settings.enableSecurity)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.enableSecurity ? 'bg-blue-600' : 'bg-gray-200'
+                    settings.enableSecurity ? "bg-blue-600" : "bg-gray-200"
                   }`}
                   aria-label="Toggle security"
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.enableSecurity ? 'translate-x-6' : 'translate-x-1'
+                      settings.enableSecurity ? "translate-x-6" : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -185,7 +181,7 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
             </div>
           )}
 
-          {activeTab === 'notifications' && (
+          {activeTab === "notifications" && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -193,15 +189,17 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
                   <p className="text-sm text-gray-600">Receive system notifications</p>
                 </div>
                 <button
-                  onClick={() => updateSetting('enableNotifications', !settings.enableNotifications)}
+                  onClick={() =>
+                    updateSetting("enableNotifications", !settings.enableNotifications)
+                  }
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.enableNotifications ? 'bg-blue-600' : 'bg-gray-200'
+                    settings.enableNotifications ? "bg-blue-600" : "bg-gray-200"
                   }`}
                   aria-label="Toggle notifications"
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.enableNotifications ? 'translate-x-6' : 'translate-x-1'
+                      settings.enableNotifications ? "translate-x-6" : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -213,15 +211,15 @@ const SystemSettings: React.FC<SystemSettingsProps> = ({ onSettingsChange }) => 
                   <p className="text-sm text-gray-600">Play sound for notifications</p>
                 </div>
                 <button
-                  onClick={() => updateSetting('notificationSound', !settings.notificationSound)}
+                  onClick={() => updateSetting("notificationSound", !settings.notificationSound)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.notificationSound ? 'bg-blue-600' : 'bg-gray-200'
+                    settings.notificationSound ? "bg-blue-600" : "bg-gray-200"
                   }`}
                   aria-label="Toggle notification sound"
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings.notificationSound ? 'translate-x-6' : 'translate-x-1'
+                      settings.notificationSound ? "translate-x-6" : "translate-x-1"
                     }`}
                   />
                 </button>

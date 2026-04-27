@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { AnalysisResult } from '../services/AnalysisBridge';
+import { useState, useEffect } from "react";
+import { AnalysisResult } from "../services/AnalysisBridge";
 
 export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
   const [dependencyGraph, setDependencyGraph] = useState<any>(null);
@@ -16,27 +16,27 @@ export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
 
         // Simulate dependency analysis based on file data
         const files = analysisData.files || [];
-        
+
         // Create a simple dependency graph based on file categories
         const graph = {
-          nodes: files.map(file => ({
+          nodes: files.map((file) => ({
             id: file.path,
             name: file.name,
             path: file.path,
-            type: 'file',
+            type: "file",
             category: file.category,
             size: file.size,
             dependencies: [],
-            dependents: []
+            dependents: [],
           })),
           edges: [],
           circularDependencies: [],
-          missingDependencies: []
+          missingDependencies: [],
         };
 
         // Create connections between files in the same category
         const categoryMap: Record<string, string[]> = {};
-        files.forEach(file => {
+        files.forEach((file) => {
           if (!categoryMap[file.category]) {
             categoryMap[file.category] = [];
           }
@@ -44,14 +44,14 @@ export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
         });
 
         // Add edges for files in the same category
-        Object.values(categoryMap).forEach(categoryFiles => {
+        Object.values(categoryMap).forEach((categoryFiles) => {
           if (categoryFiles.length > 1) {
             for (let i = 0; i < categoryFiles.length - 1; i++) {
               graph.edges.push({
                 from: categoryFiles[i],
                 to: categoryFiles[i + 1],
-                type: 'category',
-                strength: 0.3
+                type: "category",
+                strength: 0.3,
               });
             }
           }
@@ -59,21 +59,19 @@ export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
 
         setDependencyGraph(graph);
         setIsLoading(false);
-
       } catch (err) {
-        console.error('Dependency analysis failed:', err);
-        setError('Failed to analyze dependencies');
+        console.error("Dependency analysis failed:", err);
+        setError("Failed to analyze dependencies");
         setIsLoading(false);
       }
     };
 
     analyzeDependencies();
-
   }, [analysisData]);
 
   return {
     dependencyGraph,
     isLoading,
-    error
+    error,
   };
 };

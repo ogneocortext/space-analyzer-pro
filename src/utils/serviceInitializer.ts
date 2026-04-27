@@ -98,37 +98,12 @@ interface FeatureConfig {
 
 // Service registry for organized initialization
 const serviceRegistry = {
-  analytics: [
-    AppAnalytics,
-    AppMetrics,
-    AppTelemetry,
-  ],
-  performance: [
-    AppPerformance,
-    AppProfiler,
-    AppBenchmark,
-  ],
-  accessibility: [
-    AppAccessibility,
-    AppAccessibilityAudit,
-  ],
-  ai: [
-    AppAI,
-    AppML,
-    AppVision,
-    AppOllama,
-    AppSelfLearning,
-    AppNeural,
-  ],
-  updates: [
-    AppUpdates,
-    AppVersion,
-  ],
-  notifications: [
-    AppNotifications,
-    AppFeedback,
-    AppSupport,
-  ],
+  analytics: [AppAnalytics, AppMetrics, AppTelemetry],
+  performance: [AppPerformance, AppProfiler, AppBenchmark],
+  accessibility: [AppAccessibility, AppAccessibilityAudit],
+  ai: [AppAI, AppML, AppVision, AppOllama, AppSelfLearning, AppNeural],
+  updates: [AppUpdates, AppVersion],
+  notifications: [AppNotifications, AppFeedback, AppSupport],
   debugging: [
     AppDebug,
     AppLogging,
@@ -197,14 +172,14 @@ const serviceRegistry = {
     AppPrivacy,
     AppTerms,
     AppLicense,
-  ]
+  ],
 };
 
 export const initializeServices = async (features: FeatureConfig = {}) => {
   const initPromises: Promise<void>[] = [];
 
   // Initialize core services first
-  serviceRegistry.core.forEach(Service => {
+  serviceRegistry.core.forEach((Service) => {
     try {
       if (Service.initialize) {
         initPromises.push(Promise.resolve(Service.initialize()));
@@ -217,7 +192,7 @@ export const initializeServices = async (features: FeatureConfig = {}) => {
   // Initialize feature-based services
   Object.entries(features).forEach(([feature, enabled]) => {
     if (enabled && serviceRegistry[feature as keyof typeof serviceRegistry]) {
-      serviceRegistry[feature as keyof typeof serviceRegistry].forEach(Service => {
+      serviceRegistry[feature as keyof typeof serviceRegistry].forEach((Service) => {
         try {
           if (Service.initialize) {
             initPromises.push(Promise.resolve(Service.initialize()));
@@ -232,13 +207,13 @@ export const initializeServices = async (features: FeatureConfig = {}) => {
   // Wait for all services to initialize
   try {
     await Promise.allSettled(initPromises);
-    console.log('All services initialized successfully');
+    console.warn("All services initialized successfully");
   } catch (error) {
-    console.error('Some services failed to initialize:', error);
+    console.error("Some services failed to initialize:", error);
   }
 };
 
 export const cleanupServices = () => {
   // Cleanup logic if needed
-  console.log('Cleaning up services...');
+  console.warn("Cleaning up services...");
 };

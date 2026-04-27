@@ -404,10 +404,6 @@
     display: none !important;
   }
 }
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
 .controlButton {
   width: 40px;
@@ -780,7 +776,8 @@
 }
 
 @keyframes typingPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.6;
   }
   50% {
@@ -789,7 +786,9 @@
 }
 
 @keyframes typingDot {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: scale(1);
     opacity: 0.3;
   }
@@ -898,7 +897,8 @@
 }
 
 @keyframes recordingPulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
   }
   50% {

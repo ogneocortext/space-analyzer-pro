@@ -1,7 +1,7 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { HardDrive } from 'lucide-react';
-import './StorageGauge.css';
+import React from "react";
+import { motion } from "framer-motion";
+import { HardDrive } from "lucide-react";
+import "./StorageGauge.css";
 
 interface StorageGaugeProps {
   used: number;
@@ -12,13 +12,13 @@ interface StorageGaugeProps {
 export const StorageGauge: React.FC<StorageGaugeProps> = ({ used, total, categories = [] }) => {
   const percentage = total > 0 ? (used / total) * 100 : 0;
   const remaining = total - used;
-  
+
   // Color based on usage
   const getGaugeColor = () => {
-    if (percentage < 50) return '#10b981'; // emerald
-    if (percentage < 75) return '#f59e0b'; // amber
-    if (percentage < 90) return '#f97316'; // orange
-    return '#ef4444'; // red
+    if (percentage < 50) return "#10b981"; // emerald
+    if (percentage < 75) return "#f59e0b"; // amber
+    if (percentage < 90) return "#f97316"; // orange
+    return "#ef4444"; // red
   };
 
   const gaugeColor = getGaugeColor();
@@ -26,9 +26,9 @@ export const StorageGauge: React.FC<StorageGaugeProps> = ({ used, total, categor
   const offset = circumference - (percentage / 100) * circumference;
 
   const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
   };
@@ -38,14 +38,7 @@ export const StorageGauge: React.FC<StorageGaugeProps> = ({ used, total, categor
       <div className="gauge-wrapper">
         <svg className="gauge-svg" viewBox="0 0 100 100">
           {/* Background circle */}
-          <circle
-            cx="50"
-            cy="50"
-            r="45"
-            fill="none"
-            stroke="#1e293b"
-            strokeWidth="8"
-          />
+          <circle cx="50" cy="50" r="45" fill="none" stroke="#1e293b" strokeWidth="8" />
           {/* Progress circle */}
           <motion.circle
             cx="50"
@@ -69,7 +62,7 @@ export const StorageGauge: React.FC<StorageGaugeProps> = ({ used, total, categor
           <div className="gauge-label">Used</div>
         </div>
       </div>
-      
+
       <div className="gauge-details">
         <div className="gauge-metric">
           <span className="metric-label">Used</span>
@@ -89,10 +82,7 @@ export const StorageGauge: React.FC<StorageGaugeProps> = ({ used, total, categor
         <div className="category-breakdown">
           {categories.map((category, index) => (
             <div key={index} className="category-item">
-              <div
-                className="category-color"
-                style={{ backgroundColor: category.color }}
-              />
+              <div className="category-color" style={{ backgroundColor: category.color }} />
               <span className="category-name">{category.name}</span>
               <span className="category-size">{formatBytes(category.size)}</span>
             </div>

@@ -44,7 +44,7 @@
 }
 
 .category-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -346,14 +346,30 @@
 }
 
 /* Color Indicators for Charts */
-.color-indicator-0 { background-color: hsl(0, 70%, 50%); }
-.color-indicator-1 { background-color: hsl(45, 70%, 50%); }
-.color-indicator-2 { background-color: hsl(90, 70%, 50%); }
-.color-indicator-3 { background-color: hsl(135, 70%, 50%); }
-.color-indicator-4 { background-color: hsl(180, 70%, 50%); }
-.color-indicator-5 { background-color: hsl(225, 70%, 50%); }
-.color-indicator-6 { background-color: hsl(270, 70%, 50%); }
-.color-indicator-7 { background-color: hsl(315, 70%, 50%); }
+.color-indicator-0 {
+  background-color: hsl(0, 70%, 50%);
+}
+.color-indicator-1 {
+  background-color: hsl(45, 70%, 50%);
+}
+.color-indicator-2 {
+  background-color: hsl(90, 70%, 50%);
+}
+.color-indicator-3 {
+  background-color: hsl(135, 70%, 50%);
+}
+.color-indicator-4 {
+  background-color: hsl(180, 70%, 50%);
+}
+.color-indicator-5 {
+  background-color: hsl(225, 70%, 50%);
+}
+.color-indicator-6 {
+  background-color: hsl(270, 70%, 50%);
+}
+.color-indicator-7 {
+  background-color: hsl(315, 70%, 50%);
+}
 
 /* Card Component */
 .card {
@@ -399,7 +415,9 @@
   color: var(--color-text-primary);
   font-family: var(--font-family-primary);
   font-size: var(--font-size-md);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
   min-height: 44px;
 }
 
@@ -633,7 +651,9 @@
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+  transition:
+    transform var(--transition-normal),
+    box-shadow var(--transition-normal);
 }
 
 .insightCard:hover {
@@ -706,7 +726,8 @@
 
 /* Animations */
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

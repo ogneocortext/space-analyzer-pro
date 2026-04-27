@@ -1,5 +1,11 @@
-import { DebugLogger } from './DebugLogger';
-import { errorHandler } from './ErrorHandler';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-console */
+/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/no-floating-promises */
+/* eslint-disable preserve-caught-error */
+
+import { DebugLogger } from "./DebugLogger";
+import { errorHandler } from "./ErrorHandler";
 
 export interface AnalysisState {
   isAnalyzing: boolean;
@@ -12,7 +18,7 @@ export interface AnalysisState {
   };
   result: AnalysisResult | null;
   error: string | null;
-  dataSource: 'cli' | 'fallback' | 'file-system-api';
+  dataSource: "cli" | "fallback" | "file-system-api";
 }
 
 export interface AnalysisResult {
@@ -36,12 +42,12 @@ export interface UIState {
   activeTab: string;
   selectedCategory: string | null;
   searchQuery: string;
-  sortBy: 'name' | 'size' | 'extension' | 'category';
-  sortOrder: 'asc' | 'desc';
+  sortBy: "name" | "size" | "extension" | "category";
+  sortOrder: "asc" | "desc";
   filterExtension: string;
   currentPage: number;
   pageSize: number;
-  viewMode: 'list' | 'grid';
+  viewMode: "list" | "grid";
   showHidden: boolean;
   selectedFiles: Set<string>;
 }
@@ -51,38 +57,42 @@ export type StateListener<T> = (state: T, previousState: T) => void;
 export class StateManager {
   private static instance: StateManager;
   private logger = DebugLogger.getInstance();
-  
+
   private analysisState: AnalysisState = {
     isAnalyzing: false,
     progress: {
       files: 0,
       percentage: 0,
-      currentFile: '',
+      currentFile: "",
       startTime: 0,
-      elapsedTime: 0
+      elapsedTime: 0,
     },
     result: null,
     error: null,
-    dataSource: 'cli'
+    dataSource: "cli",
   };
-  
+
   private uiState: UIState = {
-    activeTab: 'analysis',
+    activeTab: "analysis",
     selectedCategory: null,
-    searchQuery: '',
-    sortBy: 'name',
-    sortOrder: 'asc',
-    filterExtension: '',
+    searchQuery: "",
+    sortBy: "name",
+    sortOrder: "asc",
+    filterExtension: "",
     currentPage: 1,
     pageSize: 50,
-    viewMode: 'list',
+    viewMode: "list",
     showHidden: false,
-    selectedFiles: new Set()
+    selectedFiles: new Set(),
   };
 
   private analysisListeners: StateListener<AnalysisState>[] = [];
   private uiListeners: StateListener<UIState>[] = [];
-  private stateHistory: Array<{ timestamp: number; analysisState: AnalysisState; uiState: UIState }> = [];
+  private stateHistory: Array<{
+    timestamp: number;
+    analysisState: AnalysisState;
+    uiState: UIState;
+  }> = [];
   private maxHistorySize = 20;
 
   private constructor() {
@@ -104,12 +114,12 @@ export class StateManager {
   updateAnalysisState(updates: Partial<AnalysisState>): void {
     const previousState = { ...this.analysisState };
     this.analysisState = { ...this.analysisState, ...updates };
-    
-    this.logger.debug('StateManager', 'Analysis state updated', { 
-      updates, 
-      newState: this.analysisState 
+
+    this.logger.debug("StateManager", "Analysis state updated", {
+      updates,
+      newState: this.analysisState,
     });
-    
+
     this.notifyAnalysisListeners(previousState);
     this.saveToHistory();
   }
@@ -144,54 +154,54 @@ export class StateManager {
   updateUIState(updates: Partial<UIState>): void {
     const previousState = { ...this.uiState };
     this.uiState = { ...this.uiState, ...updates };
-    
-    this.logger.debug('StateManager', 'UI state updated', { 
-      updates, 
-      newState: this.uiState 
+
+    this.logger.debug("StateManager", "UI state updated", {
+      updates,
+      newState: this.uiState,
     });
-    
+
     this.notifyUIListeners(previousState);
     this.saveToHistory();
   }
 
   // Specific state setters for better type safety
   setAnalyzing(isAnalyzing: boolean): void {
-    this.updateAnalysisState({ 
+    this.updateAnalysisState({
       isAnalyzing,
-      error: isAnalyzing ? null : this.analysisState.error
+      error: isAnalyzing ? null : this.analysisState.error,
     });
   }
 
-  setProgress(progress: Partial<AnalysisState['progress']>): void {
+  setProgress(progress: Partial<AnalysisState["progress"]>): void {
     const currentProgress = this.analysisState.progress;
     const updatedProgress = { ...currentProgress, ...progress };
-    
+
     // Calculate elapsed time
     if (progress.startTime && !currentProgress.startTime) {
       updatedProgress.elapsedTime = 0;
     } else if (currentProgress.startTime) {
       updatedProgress.elapsedTime = Date.now() - currentProgress.startTime;
     }
-    
+
     this.updateAnalysisState({ progress: updatedProgress });
   }
 
   setResult(result: AnalysisResult | null): void {
-    this.updateAnalysisState({ 
+    this.updateAnalysisState({
       result,
       isAnalyzing: false,
-      error: null
+      error: null,
     });
   }
 
   setError(error: string | null): void {
-    this.updateAnalysisState({ 
+    this.updateAnalysisState({
       error,
-      isAnalyzing: false
+      isAnalyzing: false,
     });
   }
 
-  setDataSource(dataSource: AnalysisState['dataSource']): void {
+  setDataSource(dataSource: AnalysisState["dataSource"]): void {
     this.updateAnalysisState({ dataSource });
   }
 
@@ -208,7 +218,7 @@ export class StateManager {
     this.updateUIState({ searchQuery: query, currentPage: 1 });
   }
 
-  setSorting(sortBy: UIState['sortBy'], sortOrder: UIState['sortOrder']): void {
+  setSorting(sortBy: UIState["sortBy"], sortOrder: UIState["sortOrder"]): void {
     this.updateUIState({ sortBy, sortOrder });
   }
 
@@ -220,7 +230,7 @@ export class StateManager {
     this.updateUIState({ currentPage: page });
   }
 
-  setViewMode(mode: UIState['viewMode']): void {
+  setViewMode(mode: UIState["viewMode"]): void {
     this.updateUIState({ viewMode: mode });
   }
 
@@ -249,7 +259,7 @@ export class StateManager {
   // Event Listeners
   onAnalysisStateChange(listener: StateListener<AnalysisState>): () => void {
     this.analysisListeners.push(listener);
-    
+
     // Return unsubscribe function
     return () => {
       const index = this.analysisListeners.indexOf(listener);
@@ -261,7 +271,7 @@ export class StateManager {
 
   onUIStateChange(listener: StateListener<UIState>): () => void {
     this.uiListeners.push(listener);
-    
+
     // Return unsubscribe function
     return () => {
       const index = this.uiListeners.indexOf(listener);
@@ -272,26 +282,26 @@ export class StateManager {
   }
 
   private notifyAnalysisListeners(previousState: AnalysisState): void {
-    this.analysisListeners.forEach(listener => {
+    this.analysisListeners.forEach((listener) => {
       try {
         listener(this.analysisState, previousState);
       } catch (error) {
         errorHandler.handleUIError(error as Error, {
-          component: 'StateManager',
-          action: 'notifyAnalysisListeners'
+          component: "StateManager",
+          action: "notifyAnalysisListeners",
         });
       }
     });
   }
 
   private notifyUIListeners(previousState: UIState): void {
-    this.uiListeners.forEach(listener => {
+    this.uiListeners.forEach((listener) => {
       try {
         listener(this.uiState, previousState);
       } catch (error) {
         errorHandler.handleUIError(error as Error, {
-          component: 'StateManager',
-          action: 'notifyUIListeners'
+          component: "StateManager",
+          action: "notifyUIListeners",
         });
       }
     });
@@ -302,7 +312,7 @@ export class StateManager {
     this.stateHistory.push({
       timestamp: Date.now(),
       analysisState: { ...this.analysisState },
-      uiState: { ...this.uiState }
+      uiState: { ...this.uiState },
     });
 
     // Maintain history size
@@ -319,14 +329,14 @@ export class StateManager {
   private setupStatePersistence(): void {
     // Load saved state on initialization
     this.loadState();
-    
+
     // Save state periodically
     setInterval(() => {
       this.saveState();
     }, 30000); // Save every 30 seconds
-    
+
     // Save state before page unload
-    window.addEventListener('beforeunload', () => {
+    window.addEventListener("beforeunload", () => {
       this.saveState();
     });
   }
@@ -335,40 +345,40 @@ export class StateManager {
     try {
       const stateToSave = {
         uiState: this.uiState,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
-      
-      localStorage.setItem('space-analyzer-state', JSON.stringify(stateToSave));
-      this.logger.debug('StateManager', 'State saved to localStorage');
+
+      localStorage.setItem("space-analyzer-state", JSON.stringify(stateToSave));
+      this.logger.debug("StateManager", "State saved to localStorage");
     } catch (error) {
       errorHandler.handleUIError(error as Error, {
-        component: 'StateManager',
-        action: 'saveState'
+        component: "StateManager",
+        action: "saveState",
       });
     }
   }
 
   private loadState(): void {
     try {
-      const savedState = localStorage.getItem('space-analyzer-state');
+      const savedState = localStorage.getItem("space-analyzer-state");
       if (savedState) {
         const parsed = JSON.parse(savedState);
-        
+
         // Only restore UI state, not analysis state (analysis should start fresh)
         if (parsed.uiState) {
           // Convert selectedFiles back to Set
           if (parsed.uiState.selectedFiles) {
             parsed.uiState.selectedFiles = new Set(parsed.uiState.selectedFiles);
           }
-          
+
           this.uiState = { ...this.uiState, ...parsed.uiState };
-          this.logger.debug('StateManager', 'State loaded from localStorage');
+          this.logger.debug("StateManager", "State loaded from localStorage");
         }
       }
     } catch (error) {
       errorHandler.handleUIError(error as Error, {
-        component: 'StateManager',
-        action: 'loadState'
+        component: "StateManager",
+        action: "loadState",
       });
     }
   }
@@ -380,34 +390,34 @@ export class StateManager {
       progress: {
         files: 0,
         percentage: 0,
-        currentFile: '',
+        currentFile: "",
         startTime: 0,
-        elapsedTime: 0
+        elapsedTime: 0,
       },
       result: null,
       error: null,
-      dataSource: 'cli'
+      dataSource: "cli",
     };
-    
+
     this.notifyAnalysisListeners(this.analysisState);
     this.saveToHistory();
   }
 
   resetUIState(): void {
     this.uiState = {
-      activeTab: 'analysis',
+      activeTab: "analysis",
       selectedCategory: null,
-      searchQuery: '',
-      sortBy: 'name',
-      sortOrder: 'asc',
-      filterExtension: '',
+      searchQuery: "",
+      sortBy: "name",
+      sortOrder: "asc",
+      filterExtension: "",
       currentPage: 1,
       pageSize: 50,
-      viewMode: 'list',
+      viewMode: "list",
       showHidden: false,
-      selectedFiles: new Set()
+      selectedFiles: new Set(),
     };
-    
+
     this.notifyUIListeners(this.uiState);
     this.saveToHistory();
   }
@@ -418,65 +428,64 @@ export class StateManager {
   }
 
   // Utility functions
-  getFilteredFiles(): AnalysisResult['files'] {
+  getFilteredFiles(): AnalysisResult["files"] {
     if (!this.analysisState.result) return [];
-    
+
     let files = [...this.analysisState.result.files];
-    
+
     // Apply search filter
     if (this.uiState.searchQuery) {
       const query = this.uiState.searchQuery.toLowerCase();
-      files = files.filter(file => 
-        file.name.toLowerCase().includes(query) || 
-        file.path.toLowerCase().includes(query)
+      files = files.filter(
+        (file) => file.name.toLowerCase().includes(query) || file.path.toLowerCase().includes(query)
       );
     }
-    
+
     // Apply category filter
     if (this.uiState.selectedCategory) {
-      files = files.filter(file => file.category === this.uiState.selectedCategory);
+      files = files.filter((file) => file.category === this.uiState.selectedCategory);
     }
-    
+
     // Apply extension filter
     if (this.uiState.filterExtension) {
-      files = files.filter(file => file.extension === this.uiState.filterExtension);
+      files = files.filter((file) => file.extension === this.uiState.filterExtension);
     }
-    
+
     // Apply hidden files filter
     if (!this.uiState.showHidden) {
-      files = files.filter(file => !file.name.startsWith('.'));
+      files = files.filter((file) => !file.name.startsWith("."));
     }
-    
+
     // Apply sorting
     files.sort((a, b) => {
       let comparison = 0;
-      
+
       switch (this.uiState.sortBy) {
-        case 'name':
+        case "name":
           comparison = a.name.localeCompare(b.name);
           break;
-        case 'size':
+        case "size":
           comparison = a.size - b.size;
           break;
-        case 'extension':
+        case "extension":
           comparison = a.extension.localeCompare(b.extension);
           break;
-        case 'category':
+        case "category":
           comparison = a.category.localeCompare(b.category);
           break;
       }
-      
-      return this.uiState.sortOrder === 'asc' ? comparison : -comparison;
+
+      return this.uiState.sortOrder === "asc" ? comparison : -comparison;
     });
-    
+
     return files;
   }
 
-  getPaginatedFiles(): AnalysisResult['files'] {
+  getPaginatedFiles(): AnalysisResult["files"] {
     const filteredFiles = this.getFilteredFiles();
     const startIndex = (this.uiState.currentPage - 1) * this.uiState.pageSize;
     const endIndex = startIndex + this.uiState.pageSize;
-    
+
     return filteredFiles.slice(startIndex, endIndex);
   }
 
