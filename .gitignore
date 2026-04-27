@@ -19,6 +19,7 @@ analysis-results/
 code-analysis-results/
 code-centric-reports/
 development/test-results/
+test-results/
 webapp-analysis-results/
 results/
 backups/
