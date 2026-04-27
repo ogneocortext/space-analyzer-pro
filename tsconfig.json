@@ -10,21 +10,19 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
-    "strict": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "ignoreDeprecations": "6.0",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     },
-    "noImplicitReturns": false,
-    "noImplicitThis": false,
-    "noImplicitAny": false,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noImplicitAny": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["react", "react-dom", "vitest/globals", "node"]
+    "types": ["vitest/globals", "node"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

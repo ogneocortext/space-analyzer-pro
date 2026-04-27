@@ -3,6 +3,8 @@
  * Provides integration with local Ollama server for AI-powered features
  */
 
+const filesize = require('filesize');
+
 class OllamaService {
   constructor(baseUrl = 'http://localhost:11434') {
     this.baseUrl = baseUrl;
@@ -429,11 +431,7 @@ When answering questions, reference this analysis data to provide context-aware,
    * Format file size for display
    */
   formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return filesize(bytes, { round: 2 });
   }
 
   /**

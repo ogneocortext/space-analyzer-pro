@@ -2,6 +2,10 @@ const path = require('path');
 const { existsSync, statSync } = require('fs');
 const crypto = require('crypto');
 const { exec } = require('child_process');
+const fg = require('fast-glob');
+const { fileTypeFromFile } = require('file-type');
+const diskusage = require('diskusage');
+const filesize = require('filesize');
 
 /**
  * Find project root directory
@@ -81,12 +85,67 @@ async function findCppExecutable() {
 }
 
 /**
- * Get directory files quickly
+ * Get directory files quickly using fast-glob
  * @param {string} directoryPath - Directory path
  * @param {Function} generateFileHash - Function to generate file hash
  * @returns {Promise<Array>} Array of file info
  */
 async function getDirectoryFilesQuick(directoryPath, generateFileHash) {
+    const { promises: fsPromises } = require('fs');
+    const startTime = Date.now();
+
+    try {
+        // Use fast-glob for efficient file scanning
+        const patterns = [
+            '**/*',
+            '!**/node_modules/**',
+            '!**/.git/**',
+            '!**/__pycache__/**',
+            '!**/.next/**',
+            '!**/dist/**',
+            '!**/build/**',
+            '!**/target/**'
+        ];
+
+        const filePaths = await fg(patterns, {
+            cwd: directoryPath,
+            absolute: true,
+            onlyFiles: true,
+            deep: 10
+        });
+
+        const files = [];
+        for (const filePath of filePaths) {
+            try {
+                const stats = await fsPromises.stat(filePath);
+                files.push({
+                    path: filePath,
+                    size: stats.size,
+                    hash: generateFileHash(filePath, stats.size, stats.mtime.getTime()),
+                    lastModified: stats.mtime.toISOString()
+                });
+            } catch (e) {
+                // Skip files we can't access
+            }
+        }
+
+        const duration = Date.now() - startTime;
+        console.log(`⚡ Quick scan complete: ${files.length} files in ${duration}ms`);
+        return files;
+    } catch (error) {
+        console.error('❌ Fast-glob scan failed, falling back to manual scan:', error.message);
+        // Fallback to manual scan if fast-glob fails
+        return getDirectoryFilesManual(directoryPath, generateFileHash);
+    }
+}
+
+/**
+ * Manual fallback for directory scanning
+ * @param {string} directoryPath - Directory path
+ * @param {Function} generateFileHash - Function to generate file hash
+ * @returns {Promise<Array>} Array of file info
+ */
+async function getDirectoryFilesManual(directoryPath, generateFileHash) {
     const { promises: fsPromises } = require('fs');
     const files = [];
     const startTime = Date.now();
@@ -127,8 +186,51 @@ async function getDirectoryFilesQuick(directoryPath, generateFileHash) {
 
     await walk(directoryPath);
     const duration = Date.now() - startTime;
-    console.log(`⚡ Quick scan complete: ${files.length} files in ${duration}ms`);
+    console.log(`⚡ Manual scan complete: ${files.length} files in ${duration}ms`);
     return files;
+}
+
+/**
+ * Get file type from magic numbers
+ * @param {string} filePath - File path
+ * @returns {Promise<Object|null>} File type info or null
+ */
+async function getFileType(filePath) {
+    try {
+        const type = await fileTypeFromFile(filePath);
+        return type;
+    } catch (error) {
+        return null;
+    }
+}
+
+/**
+ * Get disk usage information
+ * @param {string} path - Path to check
+ * @returns {Promise<Object>} Disk usage info
+ */
+async function getDiskUsage(path) {
+    try {
+        const info = await diskusage.check(path);
+        return {
+            free: info.free,
+            total: info.total,
+            used: info.total - info.free,
+            percentage: ((info.total - info.free) / info.total) * 100
+        };
+    } catch (error) {
+        console.error('❌ Failed to get disk usage:', error.message);
+        return null;
+    }
+}
+
+/**
+ * Format bytes to human readable string
+ * @param {number} bytes - Bytes to format
+ * @returns {string} Formatted string
+ */
+function formatBytes(bytes) {
+    return filesize(bytes, { round: 2 });
 }
 
 module.exports = {
@@ -136,5 +238,8 @@ module.exports = {
     isValidPath,
     generateFileHash,
     findCppExecutable,
-    getDirectoryFilesQuick
+    getDirectoryFilesQuick,
+    getFileType,
+    getDiskUsage,
+    formatBytes
 };
