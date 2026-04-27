@@ -5,6 +5,7 @@ target
 cpp-build
 .cache
 .env
+config/
 *.log
 *.sqlite
 *.db
