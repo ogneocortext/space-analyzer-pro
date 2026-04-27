@@ -1,17 +1,17 @@
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import App from './App.vue'
-import router from './router'
-import './styles/index.css'
+import { createApp } from "vue";
+import { createPinia } from "pinia";
+import App from "./App.vue";
+import router from "./router";
+import "./styles/index.css";
 
-console.log('Starting Vue app...')
+console.warn("Starting Vue app...");
 
-const app = createApp(App)
-const pinia = createPinia()
+const app = createApp(App);
+const pinia = createPinia();
 
-app.use(pinia)
-app.use(router)
+app.use(pinia);
+app.use(router);
 
-app.mount('#app')
+app.mount("#app");
 
-console.log('Vue app mounted successfully')
+console.warn("Vue app mounted successfully");
