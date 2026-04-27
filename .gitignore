@@ -6,6 +6,7 @@ cpp-build
 .cache
 .env
 config/
+.mcp
 *.log
 *.sqlite
 *.db
