@@ -126,7 +126,7 @@ AIService
 ```typescript
 const aiService = new AIService({
   ollamaEndpoint: 'http://localhost:11434',
-  geminiApiKey: 'AIzaSyD7PeeEVXmnGwy1d1nLeK5FUh1f8y8bG00',
+  geminiApiKey: process.env.GEMINI_API_KEY, // Use environment variable
   usageTracking: true,
   fallbackStrategy: 'ollama-first' // Options: 'ollama-first', 'gemini-first', 'ollama-only', 'gemini-only'
 });
