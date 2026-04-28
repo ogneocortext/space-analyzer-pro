@@ -277,7 +277,7 @@ impl Cli {
     /// Fast NTFS MFT reading for 46x speedup (Windows only, requires admin)
     #[cfg(windows)]
     fn analyze_mft_fast(&self, start_time: Instant) -> anyhow::Result<AnalysisResult> {
-        use std::collections::HashSet;
+
 
         // Get drive letter from path
         let drive_letter = self.path.to_string_lossy().chars().next()
@@ -399,6 +399,7 @@ impl Cli {
 
     /// Incremental scan using USN Journal (Windows only)
     #[cfg(windows)]
+    #[allow(dead_code)]
     fn analyze_usn_incremental(
         &self,
         start_time: Instant,
@@ -959,7 +960,7 @@ impl Cli {
 
     #[cfg(windows)]
     fn filetime_to_iso(ft: &winapi::shared::minwindef::FILETIME) -> String {
-        use chrono::{DateTime, Utc};
+        use chrono::DateTime;
 
         // Convert FILETIME (100-nanosecond intervals since January 1, 1601) to Unix timestamp
         let ft_64 = ((ft.dwHighDateTime as u64) << 32) | (ft.dwLowDateTime as u64);
@@ -1080,6 +1081,7 @@ impl Cli {
 
     /// Find all hard links to a file
     #[cfg(windows)]
+    #[allow(dead_code)]
     fn find_hard_links(_file_id: u64, _volume_path: &Path) -> Vec<String> {
         // This requires complex NTFS parsing - simplified version
         // Full implementation would use FSCTL_ENUM_USN_DATA or NTFS MFT parsing
