@@ -37,6 +37,7 @@ pub mod advanced {
     }
 
     #[repr(C)]
+    #[allow(dead_code)]
     pub struct READ_USN_JOURNAL_DATA {
         pub start_usn: i64,
         pub reason_mask: u32,
@@ -47,6 +48,7 @@ pub mod advanced {
     }
 
     #[repr(C, packed)]
+    #[allow(dead_code)]
     pub struct USN_RECORD {
         pub record_length: u32,
         pub major_version: u16,
@@ -109,6 +111,7 @@ pub mod advanced {
 
     /// Read USN Journal records for changed files
     /// Returns list of (file_id, parent_id, usn, reason, filename) tuples
+    #[allow(dead_code)]
     pub fn read_usn_journal_changes(
         volume_path: &Path,
         journal_id: u64,
@@ -158,7 +161,7 @@ pub mod advanced {
             if result != 0 && bytes_read > 0 {
                 // Parse USN records from buffer
                 let mut offset = 0;
-                let mut usn_offset = std::ptr::read_unaligned(buffer.as_ptr() as *const i64);
+                let _usn_offset = std::ptr::read_unaligned(buffer.as_ptr() as *const i64);
 
                 while offset < bytes_read as usize {
                     let record = buffer.as_ptr().add(offset) as *const USN_RECORD;
@@ -192,6 +195,7 @@ pub mod advanced {
     }
 
     /// Check if file was created, modified, or deleted since last scan
+    #[allow(dead_code)]
     pub fn has_file_changed(
         _volume_path: &Path,
         _file_id: u64,
@@ -207,97 +211,14 @@ pub mod advanced {
     // ============================================================================
 
     /// Find all paths (hard links) to a file by its file ID
+    #[allow(dead_code)]
     pub fn find_all_hard_links(
-        file_id: u64,
-        volume_path: &Path,
+        _file_id: u64,
+        _volume_path: &Path,
     ) -> Vec<PathBuf> {
-        let wide_volume: Vec<u16> = volume_path.as_os_str().encode_wide().chain(Some(0)).collect();
-        let mut links = Vec::new();
-
-        unsafe {
-            let handle: HANDLE = CreateFileW(
-                wide_volume.as_ptr(),
-                GENERIC_READ,
-                FILE_SHARE_READ | FILE_SHARE_WRITE,
-                std::ptr::null_mut(),
-                OPEN_EXISTING,
-                0,
-                std::ptr::null_mut(),
-            );
-
-            if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
-                return links;
-            }
-
-            // Use FSCTL_ENUM_USN_DATA to enumerate files and find matches
-            #[repr(C)]
-            struct MFT_ENUM_DATA {
-                start_file_reference_number: u64,
-                low_usn: i64,
-                high_usn: i64,
-            }
-
-            let enum_data = MFT_ENUM_DATA {
-                start_file_reference_number: 0,
-                low_usn: 0,
-                high_usn: i64::MAX,
-            };
-
-            let mut buffer: Vec<u8> = vec![0; 256 * 1024]; // 256KB buffer
-            let mut bytes_returned: u32 = 0;
-
-            loop {
-                let result = DeviceIoControl(
-                    handle,
-                    FSCTL_ENUM_USN_DATA,
-                    &enum_data as *const _ as *mut _,
-                    mem::size_of::<MFT_ENUM_DATA>() as u32,
-                    buffer.as_mut_ptr() as *mut _,
-                    buffer.len() as u32,
-                    &mut bytes_returned,
-                    std::ptr::null_mut(),
-                );
-
-                if result == 0 || bytes_returned == 0 {
-                    break;
-                }
-
-                // Parse USN records and look for matching file IDs
-                let mut offset = 0;
-                let start_offset = std::ptr::read_unaligned(buffer.as_ptr() as *const u64);
-
-                while offset < bytes_returned as usize {
-                    let record = buffer.as_ptr().add(offset) as *const USN_RECORD;
-                    let rec = &*record;
-
-                    if rec.record_length == 0 {
-                        break;
-                    }
-
-                    // Check if this is our target file
-                    if rec.file_reference_number == file_id {
-                        // Extract filename
-                        let name_ptr = buffer.as_ptr().add(offset + rec.file_name_offset as usize) as *const u16;
-                        let name_slice = std::slice::from_raw_parts(name_ptr, rec.file_name_length as usize / 2);
-                        let filename = String::from_utf16_lossy(name_slice);
-
-                        // Build full path (simplified - would need parent chain in production)
-                        links.push(PathBuf::from(filename));
-                    }
-
-                    offset += rec.record_length as usize;
-                }
-
-                // Continue from next file
-                if start_offset == 0 {
-                    break;
-                }
-            }
-
-            CloseHandle(handle);
-        }
-
-        links
+        // Simplified - full implementation would enumerate MFT via FSCTL_ENUM_USN_DATA
+        // This requires complex NTFS parsing to build full paths from parent references
+        Vec::new()
     }
 
     // ============================================================================
@@ -305,6 +226,7 @@ pub mod advanced {
     // ============================================================================
 
     #[derive(Debug)]
+    #[allow(dead_code)]
     pub struct MftFileInfo {
         pub file_id: u64,
         pub parent_id: u64,
@@ -318,6 +240,7 @@ pub mod advanced {
     }
 
     impl MftFileInfo {
+        #[allow(dead_code)]
         pub fn new() -> Self {
             Self {
                 file_id: 0,
@@ -337,6 +260,7 @@ pub mod advanced {
     /// This provides 46x speed improvement over standard directory enumeration
     ///
     /// WARNING: Requires administrator privileges
+    #[allow(dead_code)]
     pub fn read_mft_direct(
         drive_letter: char,
         max_files: usize,
@@ -481,11 +405,13 @@ pub mod advanced {
     }
 
     /// Example: Check if USN Journal is available
+    #[allow(dead_code)]
     pub fn is_usn_journal_available(volume_path: &Path) -> bool {
         query_usn_journal(volume_path).is_some()
     }
 
     /// Example: Get last USN for incremental scan
+    #[allow(dead_code)]
     pub fn get_last_usn(volume_path: &Path) -> Option<i64> {
         query_usn_journal(volume_path).map(|j| j.next_usn)
     }
@@ -495,13 +421,17 @@ pub mod advanced {
 pub mod advanced {
     use std::path::{Path, PathBuf};
 
+    #[allow(dead_code)]
     pub struct USN_JOURNAL_DATA;
+    #[allow(dead_code)]
     pub struct MftFileInfo;
 
+    #[allow(dead_code)]
     pub fn query_usn_journal(_volume_path: &Path) -> Option<USN_JOURNAL_DATA> {
         None
     }
 
+    #[allow(dead_code)]
     pub fn read_usn_journal_changes(
         _volume_path: &Path,
         _journal_id: u64,
@@ -510,21 +440,23 @@ pub mod advanced {
         Vec::new()
     }
 
+    #[allow(dead_code)]
     pub fn find_all_hard_links(_file_id: u64, _volume_path: &Path) -> Vec<PathBuf> {
         Vec::new()
     }
 
+    #[allow(dead_code)]
     pub fn read_mft_direct(_drive_letter: char, _max_files: usize) -> Vec<MftFileInfo> {
         Vec::new()
     }
 
+    #[allow(dead_code)]
     pub fn get_volume_path(_path: &Path) -> Option<PathBuf> {
         None
     }
 
+    #[allow(dead_code)]
     pub fn is_usn_journal_available(_volume_path: &Path) -> bool {
         false
     }
 }
-
-pub use advanced::*;
