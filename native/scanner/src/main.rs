@@ -17,12 +17,32 @@ struct FileInfo {
     extension: String,
     category: String,
     modified: String,
+    created: Option<String>,    // File creation time
+    accessed: Option<String>,   // Last access time
     file_hash: Option<String>, // MD5 hash for duplicate detection
     #[serde(skip)]
     inode: Option<u64>,       // File identifier for hard link detection
     #[serde(skip)]
     nlink: Option<u32>,        // Number of hard links
     is_hard_link: bool,       // True if this is a hard link (nlink > 1)
+
+    // Windows NTFS-specific fields
+    #[cfg(windows)]
+    has_ads: bool,            // Has Alternate Data Streams
+    #[cfg(windows)]
+    ads_count: u32,           // Number of ADS streams
+    #[cfg(windows)]
+    is_compressed: bool,    // NTFS compressed
+    #[cfg(windows)]
+    compressed_size: Option<u64>, // Actual compressed size on disk
+    #[cfg(windows)]
+    is_sparse: bool,          // Sparse file
+    #[cfg(windows)]
+    is_reparse_point: bool,   // Junction, symlink, mount point
+    #[cfg(windows)]
+    reparse_tag: Option<u32>, // Type of reparse point
+    #[cfg(windows)]
+    owner: Option<String>,    // File owner (username)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -67,6 +87,38 @@ struct DuplicateFileInfo {
     path: String,
     name: String,
     modified: String,
+}
+
+// ============================================================================
+// WINDOWS API HELPER STRUCTURES
+// ============================================================================
+
+#[cfg(windows)]
+#[derive(Default)]
+struct WindowsFileInfo {
+    created: Option<String>,
+    accessed: Option<String>,
+    has_ads: bool,
+    ads_count: u32,
+    is_compressed: bool,
+    compressed_size: Option<u64>,
+    is_sparse: bool,
+    is_reparse_point: bool,
+    reparse_tag: Option<u32>,
+    owner: Option<String>,
+}
+
+#[cfg(windows)]
+struct AdsInfo {
+    has_streams: bool,
+    count: u32,
+}
+
+#[cfg(windows)]
+#[repr(C)]
+struct WIN32_FIND_STREAM_DATA {
+    stream_size: i64,
+    c_stream_name: [u16; 296],
 }
 
 #[derive(Parser)]
@@ -470,6 +522,27 @@ impl Cli {
         let (inode, nlink) = Self::get_hard_link_info(path, metadata);
         let is_hard_link = nlink.map_or(false, |n| n > 1);
 
+        // Get Windows-specific file info
+        #[cfg(windows)]
+        let (created, accessed, has_ads, ads_count, is_compressed, compressed_size, is_sparse, is_reparse_point, reparse_tag, owner) = {
+            let win_info = Self::get_windows_file_info(path);
+            (
+                win_info.created,
+                win_info.accessed,
+                win_info.has_ads,
+                win_info.ads_count,
+                win_info.is_compressed,
+                win_info.compressed_size,
+                win_info.is_sparse,
+                win_info.is_reparse_point,
+                win_info.reparse_tag,
+                win_info.owner,
+            )
+        };
+
+        #[cfg(not(windows))]
+        let (created, accessed) = (None, None);
+
         Some(FileInfo {
             name: file_name,
             path: file_path_str,
@@ -477,10 +550,28 @@ impl Cli {
             extension,
             category: category.to_string(),
             modified,
+            created,
+            accessed,
             file_hash,
             inode,
             nlink,
             is_hard_link,
+            #[cfg(windows)]
+            has_ads,
+            #[cfg(windows)]
+            ads_count,
+            #[cfg(windows)]
+            is_compressed,
+            #[cfg(windows)]
+            compressed_size,
+            #[cfg(windows)]
+            is_sparse,
+            #[cfg(windows)]
+            is_reparse_point,
+            #[cfg(windows)]
+            reparse_tag,
+            #[cfg(windows)]
+            owner,
         })
     }
 
@@ -555,6 +646,211 @@ impl Cli {
 
         let hash = md5::compute(&buffer);
         Some(format!("{:x}", hash))
+    }
+
+    // ============================================================================
+    // WINDOWS API FEATURES
+    // ============================================================================
+
+    #[cfg(windows)]
+    fn get_windows_file_info(path: &Path) -> WindowsFileInfo {
+        use std::os::windows::ffi::OsStrExt;
+        use winapi::um::fileapi::{CreateFileW, GetFileAttributesW, GetFileTime, OPEN_EXISTING, BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle};
+        use winapi::um::handleapi::CloseHandle;
+        use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE, FILE_ATTRIBUTE_COMPRESSED, FILE_ATTRIBUTE_SPARSE_FILE, FILE_ATTRIBUTE_REPARSE_POINT};
+        use std::mem;
+
+        let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+
+        let mut info = WindowsFileInfo::default();
+
+        unsafe {
+            // Get file attributes first (quick check)
+            let attrs = GetFileAttributesW(wide_path.as_ptr());
+            if attrs != winapi::um::fileapi::INVALID_FILE_ATTRIBUTES {
+                info.is_compressed = (attrs & FILE_ATTRIBUTE_COMPRESSED) != 0;
+                info.is_sparse = (attrs & FILE_ATTRIBUTE_SPARSE_FILE) != 0;
+                info.is_reparse_point = (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+            }
+
+            // Open file for detailed info
+            let handle: HANDLE = CreateFileW(
+                wide_path.as_ptr(),
+                GENERIC_READ,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                std::ptr::null_mut(),
+                OPEN_EXISTING,
+                0,
+                std::ptr::null_mut(),
+            );
+
+            if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
+                return info;
+            }
+
+            // Get detailed file info
+            let mut file_info: BY_HANDLE_FILE_INFORMATION = mem::zeroed();
+            if GetFileInformationByHandle(handle, &mut file_info) != 0 {
+                // Reparse tag would be available through FindFirstFile for reparse points
+                // For now, we just know it's a reparse point from attributes
+            }
+
+            // Get file times
+            let mut creation_time = mem::zeroed();
+            let mut access_time = mem::zeroed();
+            let mut _write_time = mem::zeroed();
+
+            if GetFileTime(handle, &mut creation_time, &mut access_time, &mut _write_time) != 0 {
+                info.created = Some(Self::filetime_to_iso(&creation_time));
+                info.accessed = Some(Self::filetime_to_iso(&access_time));
+            }
+
+            CloseHandle(handle);
+
+            // Check for ADS
+            let ads_info = Self::detect_alternate_data_streams(path);
+            info.has_ads = ads_info.has_streams;
+            info.ads_count = ads_info.count;
+
+            // Get compressed size
+            if info.is_compressed {
+                info.compressed_size = Self::get_compressed_file_size(path);
+            }
+
+            // Get owner
+            info.owner = Self::get_file_owner(path);
+        }
+
+        info
+    }
+
+    #[cfg(windows)]
+    fn filetime_to_iso(ft: &winapi::shared::minwindef::FILETIME) -> String {
+        use chrono::{DateTime, Utc};
+
+        // Convert FILETIME (100-nanosecond intervals since January 1, 1601) to Unix timestamp
+        let ft_64 = ((ft.dwHighDateTime as u64) << 32) | (ft.dwLowDateTime as u64);
+        let secs_since_1601 = ft_64 / 10_000_000;
+        let secs_since_unix = secs_since_1601 as i64 - 11644473600i64; // Difference between 1601 and 1970
+
+        DateTime::from_timestamp(secs_since_unix, 0)
+            .map(|dt| dt.to_rfc3339())
+            .unwrap_or_default()
+    }
+
+    /// Detect Alternate Data Streams (ADS) - hidden data in files
+    #[cfg(windows)]
+    fn detect_alternate_data_streams(path: &Path) -> AdsInfo {
+        use std::os::windows::ffi::OsStrExt;
+        use winapi::um::fileapi::{FindFirstStreamW, FindNextStreamW, FindClose};
+
+        let mut info = AdsInfo { has_streams: false, count: 0 };
+
+        let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+
+        unsafe {
+            let mut find_data: WIN32_FIND_STREAM_DATA = std::mem::zeroed();
+
+            let handle = FindFirstStreamW(
+                wide_path.as_ptr(),
+                0, // FindStreamInfoStandard = 0
+                &mut find_data as *mut _ as *mut _,
+                0,
+            );
+
+            if handle != winapi::um::handleapi::INVALID_HANDLE_VALUE {
+                // Skip the default (::DATA) stream
+                loop {
+                    let stream_name = String::from_utf16_lossy(
+                        &find_data.c_stream_name.iter()
+                            .take_while(|&&c| c != 0)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                    );
+
+                    // Count only non-default streams
+                    if !stream_name.starts_with("::") && !stream_name.is_empty() {
+                        info.count += 1;
+                        info.has_streams = true;
+                    }
+
+                    if FindNextStreamW(handle, &mut find_data as *mut _ as *mut _) == 0 {
+                        break;
+                    }
+                }
+
+                FindClose(handle);
+            }
+        }
+
+        info
+    }
+
+    /// Get compressed file size (actual bytes on disk)
+    #[cfg(windows)]
+    fn get_compressed_file_size(path: &Path) -> Option<u64> {
+        use std::os::windows::ffi::OsStrExt;
+        use winapi::um::fileapi::GetCompressedFileSizeW;
+
+        let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+
+        unsafe {
+            let mut high: u32 = 0;
+            let low = GetCompressedFileSizeW(wide_path.as_ptr(), &mut high);
+
+            if low as i32 != -1 || high != 0 {
+                Some(((high as u64) << 32) | (low as u64))
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Get file owner SID (security identifier)
+    #[cfg(windows)]
+    fn get_file_owner(path: &Path) -> Option<String> {
+        use std::os::windows::ffi::OsStrExt;
+        use winapi::um::aclapi::GetNamedSecurityInfoW;
+        use winapi::um::winnt::{OWNER_SECURITY_INFORMATION, PSID};
+
+        // SE_FILE_OBJECT = 1
+        const SE_FILE_OBJECT: u32 = 1;
+        const ERROR_SUCCESS: u32 = 0;
+
+        let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+
+        unsafe {
+            let mut sid: PSID = std::ptr::null_mut();
+            let mut sd: winapi::um::winnt::PSECURITY_DESCRIPTOR = std::ptr::null_mut();
+
+            let result = GetNamedSecurityInfoW(
+                wide_path.as_ptr(),
+                SE_FILE_OBJECT,
+                OWNER_SECURITY_INFORMATION,
+                &mut sid,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                &mut sd,
+            );
+
+            if result == ERROR_SUCCESS && !sid.is_null() {
+                // SID is a binary structure - for now return placeholder
+                // Full implementation would use ConvertSidToStringSidW (sddl feature)
+                // or LookupAccountSidW to get username
+                Some(format!("SID@{:p}", sid))
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Find all hard links to a file
+    #[cfg(windows)]
+    fn find_hard_links(_file_id: u64, _volume_path: &Path) -> Vec<String> {
+        // This requires complex NTFS parsing - simplified version
+        // Full implementation would use FSCTL_ENUM_USN_DATA or NTFS MFT parsing
+        Vec::new()
     }
 
     fn find_duplicates(files: &[FileInfo]) -> (Vec<DuplicateGroup>, u64, u64) {

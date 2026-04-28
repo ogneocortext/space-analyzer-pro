@@ -30,15 +30,19 @@ rayon = "1.7"
 crossbeam = "0.8"
 num_cpus = "1.16"
 
-# Windows-specific dependencies for hard links, MFT, compression, and other NTFS features
+# Windows-specific dependencies for all NTFS and Windows features
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = [
-    "fileapi",      # CreateFileW, GetFileInformationByHandle, etc.
-    "handleapi",    # CloseHandle
-    "winbase",      # File information structures
-    "winnt",        # NT definitions
-    "minwindef",    # Basic Windows types
-    "fileapi",      # File operations
+    "fileapi",          # File operations, streams, compression
+    "handleapi",        # Handle management
+    "winbase",          # File information, times
+    "winnt",            # NT definitions, security
+    "minwindef",        # Basic types
+    "aclapi",           # Security descriptors, ownership
+    "accctrl",          # Access control
+    "securitybaseapi",  # Security constants
+    "sddl",             # SID conversion
+    "std",              # Standard definitions
 ] }
 
 # Remove Windows-specific dependencies
