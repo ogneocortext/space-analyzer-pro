@@ -1,9 +1,9 @@
 /**
  * Complete User Flow Test - End-to-end user journey
- * Tests the complete workflow from app load to analysis
+ * Tests the complete workflow from app load to analysis completion
  */
 
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 import TestLogger from '../utils/logger';
 
 test.describe('Complete User Flow', () => {
@@ -19,104 +19,85 @@ test.describe('Complete User Flow', () => {
       await page.goto('http://localhost:3001', { waitUntil: 'networkidle' });
       logger.log('APP_LOADED', { title: await page.title() });
 
-      // Step 2: Check for main interface elements
-      logger.log('STEP_2', { action: 'Check interface elements' });
-      const mainSelectors = [
-        '#app',
-        '[data-testid="app-container"]',
-        '.app-container',
-        'main',
-        '[role="main"]'
-      ];
+      // Step 2: Check for landing page
+      logger.log('STEP_2', { action: 'Check landing page' });
+      const landingPage = page.locator('[data-testid="landing-page"]').first();
+      const landingVisible = await landingPage.isVisible().catch(() => false);
+      logger.log('LANDING_PAGE_VISIBLE', { visible: landingVisible });
 
-      let mainFound = false;
-      for (const selector of mainSelectors) {
-        if (await page.locator(selector).first().isVisible().catch(() => false)) {
-          mainFound = true;
-          logger.log('MAIN_ELEMENT_FOUND', { selector });
-          break;
-        }
-      }
+      // Step 3: Check for directory input
+      logger.log('STEP_3', { action: 'Check directory input' });
+      const dirInput = page.locator('[data-testid="directory-path-input"]').first();
+      const inputVisible = await dirInput.isVisible().catch(() => false);
+      logger.log('DIRECTORY_INPUT_VISIBLE', { visible: inputVisible });
 
-      if (!mainFound) {
-        logger.log('MAIN_ELEMENT_NOT_FOUND', { selectors: mainSelectors });
-      }
+      // Step 4: Check for start button
+      logger.log('STEP_4', { action: 'Check start button' });
+      const startBtn = page.locator('[data-testid="start-analysis-button"]').first();
+      const btnVisible = await startBtn.isVisible().catch(() => false);
+      logger.log('START_BUTTON_VISIBLE', { visible: btnVisible });
 
-      // Step 3: Check for navigation
-      logger.log('STEP_3', { action: 'Check navigation' });
-      const navSelectors = ['nav', '[role="navigation"]', '.navbar', '.sidebar'];
-      let navFound = false;
-      for (const selector of navSelectors) {
-        if (await page.locator(selector).first().isVisible().catch(() => false)) {
-          navFound = true;
-          logger.log('NAVIGATION_FOUND', { selector });
-          break;
-        }
-      }
+      // Step 5: Check for backend status
+      logger.log('STEP_5', { action: 'Check backend status' });
+      const backendStatus = page.locator('[data-testid="backend-status"]').first();
+      const statusVisible = await backendStatus.isVisible().catch(() => false);
+      logger.log('BACKEND_STATUS_VISIBLE', { visible: statusVisible });
 
-      // Step 4: Check for action buttons
-      logger.log('STEP_4', { action: 'Check action buttons' });
-      const buttonSelectors = [
-        'button:has-text("Scan")',
-        'button:has-text("Analyze")',
-        'button:has-text("Select")',
-        'button:has-text("Start")',
-        '[data-testid="scan-button"]',
-        '[data-testid="analyze-button"]'
-      ];
+      // Step 6: Check for AI toggle
+      logger.log('STEP_6', { action: 'Check AI toggle' });
+      const aiToggle = page.locator('[data-testid="ai-toggle-button"]').first();
+      const aiVisible = await aiToggle.isVisible().catch(() => false);
+      logger.log('AI_TOGGLE_VISIBLE', { visible: aiVisible });
 
-      const foundButtons: string[] = [];
-      for (const selector of buttonSelectors) {
-        if (await page.locator(selector).first().isVisible().catch(() => false)) {
-          foundButtons.push(selector);
-          logger.log('BUTTON_FOUND', { selector });
-        }
-      }
+      // Step 7: Perform analysis if all elements are visible
+      if (inputVisible && btnVisible) {
+        logger.log('STEP_7', { action: 'Perform analysis' });
 
-      // Step 5: Check for results/visualization area
-      logger.log('STEP_5', { action: 'Check results area' });
-      const resultsSelectors = [
-        '[data-testid="results"]',
-        '.results',
-        '.visualization',
-        '[data-testid="visualization"]',
-        '.file-tree'
-      ];
+        // Use a smaller test directory for faster testing
+        const testPath = process.env.TEST_DIR || 'C:\\Users\\Public';
+        await dirInput.fill(testPath);
+        logger.log('DIRECTORY_PATH_ENTERED', { path: testPath });
 
-      let resultsFound = false;
-      for (const selector of resultsSelectors) {
-        if (await page.locator(selector).first().isVisible().catch(() => false)) {
-          resultsFound = true;
-          logger.log('RESULTS_AREA_FOUND', { selector });
-          break;
-        }
-      }
+        // Click start button
+        await startBtn.click();
+        logger.log('START_BUTTON_CLICKED', {});
 
-      // Step 6: Check for AI panel
-      logger.log('STEP_6', { action: 'Check AI panel' });
-      const aiSelectors = [
-        '[data-testid="ai-panel"]',
-        '.ai-panel',
-        '.ai-analysis',
-        '[data-testid="insights"]'
-      ];
+        // Wait for progress section
+        const progressSection = page.locator('[data-testid="progress-section"]').first();
+        const progressVisible = await progressSection.isVisible({ timeout: 10000 }).catch(() => false);
+        logger.log('PROGRESS_SECTION_VISIBLE', { visible: progressVisible });
 
-      let aiFound = false;
-      for (const selector of aiSelectors) {
-        if (await page.locator(selector).first().isVisible().catch(() => false)) {
-          aiFound = true;
-          logger.log('AI_PANEL_FOUND', { selector });
-          break;
+        if (progressVisible) {
+          // Wait for analysis to complete - poll for progress section to disappear
+          logger.log('WAITING_FOR_ANALYSIS', {});
+
+          // Wait up to 2 minutes for analysis to complete
+          const maxWaitTime = 120000; // 2 minutes
+          const startTime = Date.now();
+
+          while (Date.now() - startTime < maxWaitTime) {
+            const stillVisible = await progressSection.isVisible().catch(() => false);
+            if (!stillVisible) {
+              logger.log('ANALYSIS_COMPLETE', { duration: Date.now() - startTime });
+              break;
+            }
+            await page.waitForTimeout(2000); // Check every 2 seconds
+          }
+
+          // Check for scan results
+          const scanResults = page.locator('[data-testid="scan-results"]').first();
+          const resultsVisible = await scanResults.isVisible({ timeout: 5000 }).catch(() => false);
+          logger.log('SCAN_RESULTS_VISIBLE', { visible: resultsVisible });
         }
       }
 
       // Summary
       logger.log('TEST_COMPLETE', {
-        mainFound,
-        navFound,
-        buttonsFound: foundButtons.length,
-        resultsFound,
-        aiFound
+        landingVisible,
+        inputVisible,
+        btnVisible,
+        statusVisible,
+        aiVisible
       });
 
       // Take screenshot for debugging

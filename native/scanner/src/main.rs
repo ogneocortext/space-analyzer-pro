@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 use walkdir::WalkDir;
 use chrono::{DateTime, Utc};
+use rayon::prelude::*;
+use crossbeam::channel::bounded;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct FileInfo {
@@ -63,6 +65,10 @@ struct Cli {
     /// Output file path
     #[arg(short, long)]
     output: Option<PathBuf>,
+
+    /// Use parallel processing for faster scanning
+    #[arg(long, default_value = "true")]
+    parallel: bool,
 }
 
 impl Cli {
@@ -103,16 +109,6 @@ impl Cli {
 
     fn analyze_directory(&self) -> anyhow::Result<AnalysisResult> {
         let start_time = Instant::now();
-        let mut total_files = 0u64;
-        let mut total_size = 0u64;
-        let mut files = Vec::new();
-        let mut categories = HashMap::new();
-        let mut extension_stats = HashMap::new();
-
-        let walker = WalkDir::new(&self.path)
-            .max_depth(self.max_depth)
-            .follow_links(false)
-            .into_iter();
 
         // Directories to exclude for performance
         let exclude_dirs = [
@@ -120,77 +116,131 @@ impl Cli {
             ".vscode", ".idea", ".tmp", "temp", "tmp"
         ];
 
-        for entry in walker.filter_map(|e| e.ok()) {
-            let path = entry.path();
+        let walker = WalkDir::new(&self.path)
+            .max_depth(self.max_depth)
+            .follow_links(false)
+            .into_iter();
 
-            // Skip excluded directories
-            if let Some(file_name) = path.file_name() {
-                if let Some(name_str) = file_name.to_str() {
-                    if exclude_dirs.contains(&name_str) {
-                        continue;
-                    }
-                }
+        if self.parallel {
+            // Parallel processing with rayon
+            self.analyze_parallel(walker, &exclude_dirs, start_time)
+        } else {
+            // Sequential processing (fallback)
+            self.analyze_sequential(walker, &exclude_dirs, start_time)
+        }
+    }
+
+    fn analyze_parallel(
+        &self,
+        walker: walkdir::IntoIter,
+        exclude_dirs: &[&str],
+        start_time: Instant,
+    ) -> anyhow::Result<AnalysisResult> {
+        let (sender, receiver) = bounded::<FileInfo>(10000);
+
+        // Spawn collector thread
+        let collector_handle = std::thread::spawn(move || {
+            let mut files = Vec::new();
+            let mut total_files = 0u64;
+            let mut total_size = 0u64;
+            let mut categories = HashMap::new();
+            let mut extension_stats = HashMap::new();
+
+            for file_info in receiver {
+                total_files += 1;
+                total_size += file_info.size;
+
+                let cat_stats = categories
+                    .entry(file_info.category.clone())
+                    .or_insert(CategoryStats { count: 0, size: 0 });
+                cat_stats.count += 1;
+                cat_stats.size += file_info.size;
+
+                let ext_stats = extension_stats
+                    .entry(file_info.extension.clone())
+                    .or_insert(ExtensionStats { count: 0, size: 0 });
+                ext_stats.count += 1;
+                ext_stats.size += file_info.size;
+
+                files.push(file_info);
             }
 
-            // Skip hidden files unless requested
-            if !self.hidden {
-                if let Some(file_name) = path.file_name() {
-                    if let Some(name_str) = file_name.to_str() {
-                        if name_str.starts_with('.') {
-                            continue;
+            (files, total_files, total_size, categories, extension_stats)
+        });
+
+        // Parallel processing of directory entries
+        walker
+            .filter_map(|e| e.ok())
+            .filter(|entry| self.should_include_entry(entry, exclude_dirs))
+            .par_bridge()
+            .for_each(|entry| {
+                if let Ok(metadata) = entry.metadata() {
+                    if metadata.is_file() {
+                        if let Some(file_info) = self.create_file_info(&entry, &metadata) {
+                            if sender.send(file_info).is_err() {
+                                return;
+                            }
                         }
                     }
                 }
+            });
+
+        drop(sender); // Close channel
+
+        // Wait for collector
+        let (files, total_files, total_size, categories, extension_stats) =
+            collector_handle.join().map_err(|_| anyhow::anyhow!("Thread join failed"))?;
+
+        let analysis_time = start_time.elapsed();
+
+        Ok(AnalysisResult {
+            total_files,
+            total_size,
+            files,
+            categories,
+            extension_stats,
+            analysis_time_ms: analysis_time.as_millis(),
+            directory_path: self.path.to_string_lossy().to_string(),
+        })
+    }
+
+    fn analyze_sequential(
+        &self,
+        walker: walkdir::IntoIter,
+        exclude_dirs: &[&str],
+        start_time: Instant,
+    ) -> anyhow::Result<AnalysisResult> {
+        let mut total_files = 0u64;
+        let mut total_size = 0u64;
+        let mut files = Vec::new();
+        let mut categories = HashMap::new();
+        let mut extension_stats = HashMap::new();
+
+        for entry in walker.filter_map(|e| e.ok()) {
+            if !self.should_include_entry(&entry, exclude_dirs) {
+                continue;
             }
 
             if let Ok(metadata) = entry.metadata() {
                 if metadata.is_file() {
-                    let file_size = metadata.len();
-                    let file_path_str = path.to_string_lossy().to_string();
+                    if let Some(file_info) = self.create_file_info(&entry, &metadata) {
+                        total_files += 1;
+                        total_size += file_info.size;
 
-                    if let Some(file_name) = path.file_name() {
-                        if let Some(name_str) = file_name.to_str() {
-                            let extension = path
-                                .extension()
-                                .and_then(|ext| ext.to_str())
-                                .unwrap_or("")
-                                .to_lowercase();
+                        let cat_stats = categories
+                            .entry(file_info.category.clone())
+                            .or_insert(CategoryStats { count: 0, size: 0 });
+                        cat_stats.count += 1;
+                        cat_stats.size += file_info.size;
 
-                            let category = Self::categorize_file(&extension);
-                            let modified = DateTime::<Utc>::from(metadata.modified()?)
-                                .to_rfc3339();
+                        let ext_stats = extension_stats
+                            .entry(file_info.extension.clone())
+                            .or_insert(ExtensionStats { count: 0, size: 0 });
+                        ext_stats.count += 1;
+                        ext_stats.size += file_info.size;
 
-                            let file_info = FileInfo {
-                                name: name_str.to_string(),
-                                path: file_path_str,
-                                size: file_size,
-                                extension: extension.clone(),
-                                category: category.to_string(),
-                                modified,
-                            };
-
-                            // Update stats
-                            let cat_stats = categories.entry(category.to_string()).or_insert(CategoryStats {
-                                count: 0,
-                                size: 0,
-                            });
-                            cat_stats.count += 1;
-                            cat_stats.size += file_size;
-
-                            let ext_stats = extension_stats.entry(extension).or_insert(ExtensionStats {
-                                count: 0,
-                                size: 0,
-                            });
-                            ext_stats.count += 1;
-                            ext_stats.size += file_size;
-
-                            total_files += 1;
-                            total_size += file_size;
-
-                            // Respect max_files limit
-                            if self.max_files == 0 || files.len() < self.max_files {
-                                files.push(file_info);
-                            }
+                        if self.max_files == 0 || files.len() < self.max_files {
+                            files.push(file_info);
                         }
                     }
                 }
@@ -207,6 +257,62 @@ impl Cli {
             extension_stats,
             analysis_time_ms: analysis_time.as_millis(),
             directory_path: self.path.to_string_lossy().to_string(),
+        })
+    }
+
+    fn should_include_entry(&self, entry: &walkdir::DirEntry, exclude_dirs: &[&str]) -> bool {
+        let path = entry.path();
+
+        // Skip excluded directories
+        if let Some(file_name) = path.file_name() {
+            if let Some(name_str) = file_name.to_str() {
+                if exclude_dirs.contains(&name_str) {
+                    return false;
+                }
+            }
+        }
+
+        // Skip hidden files unless requested
+        if !self.hidden {
+            if let Some(file_name) = path.file_name() {
+                if let Some(name_str) = file_name.to_str() {
+                    if name_str.starts_with('.') {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        true
+    }
+
+    fn create_file_info(&self, entry: &walkdir::DirEntry, metadata: &fs::Metadata) -> Option<FileInfo> {
+        let path = entry.path();
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        let file_path_str = path.to_string_lossy().to_string();
+
+        let extension = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+
+        let category = Self::categorize_file(&extension);
+
+        let modified = metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| DateTime::<Utc>::from(std::time::UNIX_EPOCH + d).to_rfc3339())
+            .unwrap_or_else(|| DateTime::<Utc>::from(std::time::UNIX_EPOCH).to_rfc3339());
+
+        Some(FileInfo {
+            name: file_name,
+            path: file_path_str,
+            size: metadata.len(),
+            extension,
+            category: category.to_string(),
+            modified,
         })
     }
 }

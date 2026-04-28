@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": "2026-04-27T03:09:06.278Z",
+    "timestamp": "2026-04-27T23:43:31.305Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
     "action": "TEST_START",
     "details": {
@@ -8,19 +8,21 @@
     }
   },
   {
-    "timestamp": "2026-04-27T03:09:07.258Z",
+    "timestamp": "2026-04-27T23:43:32.180Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
     "action": "PAGE_LOADED",
     "details": {}
   },
   {
-    "timestamp": "2026-04-27T03:09:07.333Z",
+    "timestamp": "2026-04-27T23:43:32.223Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
-    "action": "DIRECTORY_INPUT_FOUND",
-    "details": {}
+    "action": "DIRECTORY_INPUT_VISIBLE",
+    "details": {
+      "visible": true
+    }
   },
   {
-    "timestamp": "2026-04-27T03:09:07.395Z",
+    "timestamp": "2026-04-27T23:43:32.261Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
     "action": "DIRECTORY_PATH_ENTERED",
     "details": {
@@ -28,73 +30,79 @@
     }
   },
   {
-    "timestamp": "2026-04-27T03:09:07.461Z",
+    "timestamp": "2026-04-27T23:43:32.282Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
-    "action": "START_BUTTON_FOUND",
-    "details": {}
+    "action": "START_BUTTON_VISIBLE",
+    "details": {
+      "visible": true
+    }
   },
   {
-    "timestamp": "2026-04-27T03:09:07.595Z",
+    "timestamp": "2026-04-27T23:43:32.371Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
     "action": "START_BUTTON_CLICKED",
     "details": {}
   },
   {
-    "timestamp": "2026-04-27T03:09:07.636Z",
+    "timestamp": "2026-04-27T23:43:32.405Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
     "action": "PROGRESS_SECTION_VISIBLE",
-    "details": {}
+    "details": {
+      "visible": true
+    }
   },
   {
-    "timestamp": "2026-04-27T03:09:07.662Z",
+    "timestamp": "2026-04-27T23:43:32.427Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
     "action": "WAITING_FOR_ANALYSIS",
     "details": {}
   },
   {
-    "timestamp": "2026-04-27T03:09:38.761Z",
+    "timestamp": "2026-04-27T23:43:37.462Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
-    "action": "ANALYSIS_COMPLETE",
-    "details": {}
+    "action": "ANALYSIS_STATUS",
+    "details": {
+      "stillRunning": true
+    }
   },
   {
-    "timestamp": "2026-04-27T03:09:40.814Z",
+    "timestamp": "2026-04-27T23:43:39.493Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
     "action": "CONSOLE_LOGS",
     "details": {
       "logs": [
-        "[log] 🌐 Using baseUrl: http://localhost:3001/api",
-        "[log] 🚀 Sending analysis request...",
-        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 1/6)",
-        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
-        "[log] [WARN] Server error 502, retrying in 1000ms",
-        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 2/6)",
-        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
-        "[log] [WARN] Server error 502, retrying in 2000ms",
-        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 3/6)",
-        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
-        "[log] [WARN] Server error 502, retrying in 4000ms",
-        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 4/6)",
-        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
-        "[log] [WARN] Server error 502, retrying in 8000ms",
-        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 5/6)",
-        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
-        "[log] [WARN] Server error 502, retrying in 16000ms",
-        "[log] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 6/6)",
-        "[error] Failed to load resource: the server responded with a status of 502 (Bad Gateway)",
-        "[log] [WARN] Request failed (attempt 6): HTTP 502: Bad Gateway - "
+        "[warning] 🚀 Sending analysis request...",
+        "[warning] [DEBUG] Attempting request to http://localhost:3001/api/analyze (attempt 1/6)",
+        "[warning] 📡 Analysis request response status: 200",
+        "[warning] ✅ Analysis started: {success: true, analysisId: Users_20260427-1643, serviceMetadata: Object, message: Analysis started}",
+        "[warning] 📋 Analysis ID for progress tracking: Users_20260427-1643",
+        "[warning] 🚀 Starting progress polling with callback...",
+        "[warning] 🚀 Starting pollProgress immediately...",
+        "[warning] 🔄 Progress poll attempt 1/180",
+        "[warning] ⏳ Starting results polling...",
+        "[warning] 🔄 Results poll attempt 1/180",
+        "[warning] 📊 Progress data received: {analysisId: Users_20260427-1643, files: 0, percentage: 0, currentFile: Starting full analysis..., status: starting}",
+        "[warning] 📋 Results response status: 202",
+        "[warning] 📋 Results data received: {success: false, status: processing, progress: Object}",
+        "[warning] 🔄 Results poll attempt 1/180",
+        "[warning] 📋 Results response status: 202",
+        "[warning] 📋 Results data received: {success: false, status: processing, progress: Object}",
+        "[warning] 🔄 Results poll attempt 1/180",
+        "[warning] 📋 Results response status: 202",
+        "[warning] 📋 Results data received: {success: false, status: processing, progress: Object}",
+        "[warning] 🔄 Results poll attempt 1/180"
       ]
     }
   },
   {
-    "timestamp": "2026-04-27T03:09:40.866Z",
+    "timestamp": "2026-04-27T23:43:39.530Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
     "action": "DEBUG_LOGS",
     "details": {
-      "count": 9,
+      "count": 5,
       "lastLogs": [
         {
-          "timestamp": "2026-04-27T03:09:06.572Z",
+          "timestamp": "2026-04-27T23:43:31.595Z",
           "tag": "LANDING_MOUNT",
           "data": [
             "LandingPage mounted",
@@ -102,11 +110,11 @@
               "analysisStore": {
                 "$id": "analysis",
                 "path": "C:\\Users",
-                "status": "error",
+                "status": "starting",
                 "progress": 0,
-                "isAnalysisRunning": false,
+                "isAnalysisRunning": true,
                 "data": null,
-                "error": "Request failed after 6 attempts: HTTP 502: Bad Gateway - ",
+                "error": null,
                 "useAI": false,
                 "scannedFiles": [],
                 "progressData": {
@@ -121,68 +129,38 @@
           ]
         },
         {
-          "timestamp": "2026-04-27T03:09:07.554Z",
+          "timestamp": "2026-04-27T23:43:32.344Z",
           "tag": "BUTTON_CLICK",
           "data": [
             "Start Analysis button clicked"
           ]
         },
         {
-          "timestamp": "2026-04-27T03:09:07.555Z",
+          "timestamp": "2026-04-27T23:43:32.344Z",
           "tag": "ANALYSIS_START",
           "data": [
             "Starting analysis"
           ]
         },
         {
-          "timestamp": "2026-04-27T03:09:07.558Z",
+          "timestamp": "2026-04-27T23:43:32.346Z",
           "tag": "LANDING_STATUS",
           "data": [
             "starting"
           ]
         },
         {
-          "timestamp": "2026-04-27T03:09:07.558Z",
+          "timestamp": "2026-04-27T23:43:32.346Z",
           "tag": "LANDING_RUNNING",
           "data": [
             true
-          ]
-        },
-        {
-          "timestamp": "2026-04-27T03:09:38.645Z",
-          "tag": "ERROR",
-          "data": [
-            {
-              "name": "Error"
-            }
-          ]
-        },
-        {
-          "timestamp": "2026-04-27T03:09:38.645Z",
-          "tag": "LANDING_STATUS",
-          "data": [
-            "error"
-          ]
-        },
-        {
-          "timestamp": "2026-04-27T03:09:38.645Z",
-          "tag": "LANDING_RUNNING",
-          "data": [
-            false
-          ]
-        },
-        {
-          "timestamp": "2026-04-27T03:09:38.648Z",
-          "tag": "BUTTON_COMPLETE",
-          "data": [
-            "Analysis completed"
           ]
         }
       ]
     }
   },
   {
-    "timestamp": "2026-04-27T03:09:40.920Z",
+    "timestamp": "2026-04-27T23:43:39.565Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
     "action": "ERROR_FOUND",
     "details": {
@@ -190,23 +168,15 @@
     }
   },
   {
-    "timestamp": "2026-04-27T03:09:40.967Z",
+    "timestamp": "2026-04-27T23:43:39.592Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
-    "action": "CURRENT_URL",
+    "action": "SCAN_RESULTS_VISIBLE",
     "details": {
-      "url": "http://localhost:3001/"
+      "visible": false
     }
   },
   {
-    "timestamp": "2026-04-27T03:09:40.997Z",
-    "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
-    "action": "SCAN_RESULTS_NOT_VISIBLE",
-    "details": {
-      "hasError": true
-    }
-  },
-  {
-    "timestamp": "2026-04-27T03:09:41.164Z",
+    "timestamp": "2026-04-27T23:43:39.730Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
     "action": "SCREENSHOT_TAKEN",
     "details": {
@@ -214,7 +184,7 @@
     }
   },
   {
-    "timestamp": "2026-04-27T03:09:41.191Z",
+    "timestamp": "2026-04-27T23:43:39.748Z",
     "test": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test-results\\logs\\full-scan.json",
     "action": "TEST_COMPLETE",
     "details": {
