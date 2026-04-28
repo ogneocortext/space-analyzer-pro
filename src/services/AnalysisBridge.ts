@@ -224,8 +224,8 @@ export class AnalysisBridge {
         totalFiles: backendResult.summary?.totalFiles || 0,
         totalSize: backendResult.summary?.totalSize || 0,
         files: [], // Backend doesn't return individual files for large directories
-        categories: this.generateCategoriesFromSummary(backendResult),
-        extensionStats: {},
+        categories: backendResult.categories || this.generateCategoriesFromSummary(backendResult),
+        extensionStats: backendResult.extensionStats || {},
         analysisType: backendResult.strategy || "smart-analysis",
         analysisTime: backendResult.summary?.analysisTime,
         ai_insights: {
@@ -336,8 +336,8 @@ export class AnalysisBridge {
         totalFiles: backendResult.summary.totalFiles || 0,
         totalSize: backendResult.summary.totalSize || 0,
         files: [], // Backend doesn't return individual files for large directories
-        categories: this.generateCategoriesFromSummary(backendResult),
-        extensionStats: {},
+        categories: backendResult.categories || this.generateCategoriesFromSummary(backendResult),
+        extensionStats: backendResult.extensionStats || {},
         analysisType: backendResult.strategy || "smart-analysis",
         analysisTime: backendResult.summary.analysisTime,
         ai_insights: {
