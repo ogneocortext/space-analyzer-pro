@@ -1,9 +1,8 @@
-use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::path::Path;
+use std::time::SystemTime;
 use walkdir::WalkDir;
 use serde::{Serialize, Deserialize};
 use rayon::prelude::*;
@@ -12,10 +11,11 @@ use num_cpus;
 
 // Re-use existing structures from main.rs
 #[derive(Debug, Serialize, Deserialize)]
+#[napi(object)]
 pub struct FileInfo {
     pub name: String,
     pub path: String,
-    pub size: u64,
+    pub size: i64,
     pub extension: String,
     pub category: String,
     pub modified: String,
@@ -24,29 +24,33 @@ pub struct FileInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[napi(object)]
 pub struct CategoryStats {
-    pub count: u64,
-    pub size: u64,
+    pub count: i64,
+    pub size: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[napi(object)]
 pub struct ExtensionStats {
-    pub count: u64,
-    pub size: u64,
+    pub count: i64,
+    pub size: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[napi(object)]
 pub struct AnalysisResult {
-    pub total_files: u64,
-    pub total_size: u64,
+    pub total_files: i64,
+    pub total_size: i64,
     pub files: Vec<FileInfo>,
-    pub categories: HashMap<String, CategoryStats>,
-    pub extension_stats: HashMap<String, ExtensionStats>,
-    pub analysis_time_ms: u128,
+    pub categories_json: String,
+    pub extension_stats_json: String,
+    pub analysis_time_ms: i64,
     pub directory_path: String,
 }
 
 // Enhanced analyzer with NAPI bindings
+#[napi]
 pub struct SpaceAnalyzer {
     exclude_dirs: Vec<String>,
 }
@@ -122,13 +126,13 @@ impl SpaceAnalyzer {
             return Err(anyhow::anyhow!("Directory does not exist or is not a directory"));
         }
 
-        let mut total_files = 0u64;
-        let mut total_size = 0u64;
-        let mut files = Vec::new();
-        let mut categories = HashMap::new();
-        let mut extension_stats = HashMap::new();
+        let _total_files = 0i64;
+        let _total_size = 0i64;
+        let _files: Vec<FileInfo> = Vec::new();
+        let _categories: HashMap<String, CategoryStats> = HashMap::new();
+        let _extension_stats: HashMap<String, ExtensionStats> = HashMap::new();
 
-        let (sender, receiver) = bounded(10000);
+        let (sender, receiver) = bounded::<FileInfo>(10000);
         let walker = WalkDir::new(&directory_path)
             .max_depth(max_depth)
             .follow_links(false)
@@ -137,8 +141,8 @@ impl SpaceAnalyzer {
         // Spawn collector thread
         let collector_handle = std::thread::spawn(move || {
             let mut collected_files = Vec::new();
-            let mut collected_total = 0u64;
-            let mut collected_size = 0u64;
+            let mut collected_total = 0i64;
+            let mut collected_size = 0i64;
             let mut collected_categories = HashMap::new();
             let mut collected_extensions = HashMap::new();
 
@@ -166,26 +170,25 @@ impl SpaceAnalyzer {
 
         // Process directory entries
         if use_parallel {
-            // Parallel processing
-            let entry_iter = walker
+            // Parallel processing - use for_each for rayon parallel iterator
+            walker
                 .filter_map(|e| e.ok())
                 .filter(|entry| self.should_include_entry(entry, include_hidden))
-                .par_bridge();
-
-            for entry in entry_iter {
-                if let Ok(metadata) = entry.metadata() {
-                    if let Some(file_info) = self.create_file_info(entry, &metadata) {
-                        if sender.send(file_info).is_err() {
-                            break;
+                .par_bridge()
+                .for_each(|entry| {
+                    if let Ok(metadata) = entry.metadata() {
+                        if let Some(file_info) = self.create_file_info(&entry, &metadata) {
+                            if sender.send(file_info).is_err() {
+                                return;
+                            }
                         }
                     }
-                }
-            }
+                });
         } else {
             // Sequential processing
             for entry in walker.filter_map(|e| e.ok()).filter(|entry| self.should_include_entry(entry, include_hidden)) {
                 if let Ok(metadata) = entry.metadata() {
-                    if let Some(file_info) = self.create_file_info(entry, &metadata) {
+                    if let Some(file_info) = self.create_file_info(&entry, &metadata) {
                         if sender.send(file_info).is_err() {
                             break;
                         }
@@ -205,13 +208,19 @@ impl SpaceAnalyzer {
             .unwrap_or_default()
             .as_millis();
 
+        // Serialize HashMaps to JSON strings for NAPI compatibility
+        let categories_json = serde_json::to_string(&collected_categories)
+            .unwrap_or_else(|_| "{}".to_string());
+        let extension_stats_json = serde_json::to_string(&collected_extensions)
+            .unwrap_or_else(|_| "{}".to_string());
+
         Ok(AnalysisResult {
             total_files: collected_total,
             total_size: collected_size,
             files: collected_files,
-            categories: collected_categories,
-            extension_stats: collected_extensions,
-            analysis_time_ms: analysis_time,
+            categories_json,
+            extension_stats_json,
+            analysis_time_ms: analysis_time as i64,
             directory_path,
         })
     }
@@ -269,7 +278,7 @@ impl SpaceAnalyzer {
         Some(FileInfo {
             name: file_name,
             path: file_path_str,
-            size: metadata.len(),
+            size: metadata.len() as i64,
             extension,
             category,
             modified,
@@ -281,47 +290,31 @@ impl SpaceAnalyzer {
 
 // NAPI bindings
 #[napi]
-pub fn create_analyzer() -> SpaceAnalyzer {
-    SpaceAnalyzer::new()
+impl SpaceAnalyzer {
+    #[napi(constructor)]
+    pub fn new_napi() -> Self {
+        Self::new()
+    }
+
+    #[napi]
+    pub fn categorize_file_napi(&self, filename: String) -> String {
+        let extension = Path::new(&filename)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("");
+
+        self.categorize_file(extension).to_string()
+    }
 }
 
 #[napi]
-pub async fn analyze_directory_optimized(
-    analyzer: &SpaceAnalyzer,
-    directory_path: String,
-    max_depth: Option<u32>,
-    include_hidden: Option<bool>,
-    parallel: Option<bool>,
-) -> Result<AnalysisResult> {
-    let result = analyzer.analyze_directory_optimized(
-        directory_path,
-        max_depth.map(|d| d as usize),
-        include_hidden,
-        parallel,
-    )?;
-
-    Ok(result)
-}
-
-#[napi]
-pub fn categorize_file(analyzer: &SpaceAnalyzer, filename: String) -> String {
-    let extension = Path::new(&filename)
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .unwrap_or("");
-
-    analyzer.categorize_file(extension).to_string()
-}
-
-#[napi]
-pub fn get_system_info() -> Result<serde_json::Value> {
+pub fn get_system_info() -> String {
     let info = serde_json::json!({
         "platform": std::env::consts::OS,
         "arch": std::env::consts::ARCH,
-        "target": std::env::consts::TARGET,
-        "rust_version": env!("RUSTC_VERSION"),
+        "target": std::env::consts::ARCH,
         "num_cpus": num_cpus::get(),
     });
 
-    Ok(info)
+    info.to_string()
 }

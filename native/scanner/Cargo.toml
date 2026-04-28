@@ -1,13 +1,19 @@
 [package]
-name = "space-scanner"
+name = "space-analyzer"
 version = "1.0.0"
 edition = "2021"
 authors = ["Space Analyzer Team"]
 description = "High-performance file analysis CLI for Space Analyzer Pro"
 license = "MIT"
 
+[[bin]]
+name = "space-analyzer"
+path = "src/main.rs"
+
 [lib]
-crate-type = ["cdylib"]
+name = "space_scanner"
+crate-type = ["cdylib", "lib"]
+path = "src/lib.rs"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
