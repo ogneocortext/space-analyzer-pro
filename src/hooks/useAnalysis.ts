@@ -41,6 +41,10 @@ export const useAnalysisWithProgress = () => {
         onProgress?.(progress);
       });
 
+      console.warn("[useAnalysis] Raw result:", result);
+      console.warn("[useAnalysis] result.result:", result.result);
+      console.warn("[useAnalysis] result.result?.files?.length:", result.result?.files?.length);
+
       return result.result;
     },
     onSuccess: (data, variables) => {
