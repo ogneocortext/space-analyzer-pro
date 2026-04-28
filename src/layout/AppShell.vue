@@ -15,9 +15,16 @@ const analysisNav = [
   { name: "Trends", path: "/trends", icon: "TrendingUp" },
   { name: "Smart Search", path: "/search", icon: "Search" },
   { name: "Treemap", path: "/treemap", icon: "LayoutGrid" },
+  { name: "Insights", path: "/insights", icon: "Lightbulb" },
+  { name: "Network", path: "/network", icon: "Share2" },
 ];
 
-const systemNav = [{ name: "Settings", path: "/settings", icon: "Settings" }];
+const visualizationNav = [{ name: "Timeline", path: "/timeline", icon: "Clock" }];
+
+const systemNav = [
+  { name: "System Monitor", path: "/system", icon: "Activity" },
+  { name: "Settings", path: "/settings", icon: "Settings" },
+];
 
 function toggleSidebar() {
   sidebarOpen.value = !sidebarOpen.value;
@@ -71,6 +78,26 @@ function toggleSidebar() {
               'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
               $route.path === item.path
                 ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100',
+            ]"
+          >
+            <span>{{ item.name }}</span>
+          </router-link>
+        </div>
+
+        <!-- Visualization Navigation -->
+        <div class="space-y-2">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4">
+            Visualization
+          </div>
+          <router-link
+            v-for="item in visualizationNav"
+            :key="item.path"
+            :to="item.path"
+            :class="[
+              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+              $route.path === item.path
+                ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30'
                 : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100',
             ]"
           >

@@ -50,6 +50,26 @@ const router = createRouter({
       name: "treemap",
       component: () => import("../features/treemap/TreemapView.vue"),
     },
+    {
+      path: "/insights",
+      name: "insights",
+      component: () => import("../features/insights/InsightsView.vue"),
+    },
+    {
+      path: "/network",
+      name: "network",
+      component: () => import("../features/network/NetworkView.vue"),
+    },
+    {
+      path: "/system",
+      name: "system",
+      component: () => import("../features/system/SystemMonitorView.vue"),
+    },
+    {
+      path: "/timeline",
+      name: "timeline",
+      component: () => import("../features/timeline/TimelineView.vue"),
+    },
   ],
 });
 

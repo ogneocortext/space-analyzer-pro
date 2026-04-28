@@ -4,24 +4,37 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 
 ## Features
 
-### Visualization
-- **Neural Network View** - Interactive visualization of file relationships using force-directed graphs
-- **Treemap** - Hierarchical visualization of file sizes
-- **Timeline** - File modification history over time
-- **System Analytics** - System resource monitoring and visualization
-- **3D Visualization** - Three-dimensional representations of storage data
+### Core Analysis ✅
 
-### AI-Powered
+- **Disk Scanning** - High-performance directory scanning with Rust native scanner
+- **File Browser** - Advanced file browser with filtering and sorting
+- **Duplicate Detection** - Hash-based duplicate file detection with cleanup recommendations
+- **Storage Trends** - Historical tracking with growth projections and category analysis
+- **Real-time Progress** - Live scanning progress with WebSocket updates
+
+### AI-Powered Features ✅
+
 - **AI Chat Interface** - Natural language interface for querying your filesystem
-- **Smart Predictions** - ML-based predictions for file清理 recommendations
-- **Self-Learning** - Adapts to your usage patterns over time
-- **Code Analysis** - Dependency analysis and code quality metrics
+- **Semantic Search** - Smart natural language file search ("photos from last summer", "large videos")
+- **AI Cleanup Recommendations** - Intelligent suggestions for temp files, old files, and duplicates
+- **Trend Predictions** - ML-based storage growth forecasting
 
-### Analysis
-- **Duplicate Detection** - Find duplicate files across your storage
-- **Dependency Analysis** - Visualize file and module dependencies
-- **System Analysis** - Monitor disk, memory, and system health
-- **Trend Analysis** - Track storage growth and usage patterns
+### Visualization ✅
+
+- **Interactive Treemap** - Hierarchical storage visualization with color-coded categories
+- **Dashboard** - Overview metrics with category breakdowns
+- **Timeline** - File modification history with optional 3D perspective view
+- **Network Graph** - Force-directed graph showing file relationships, folder structures, and duplicates
+
+### System & Insights ✅
+
+- **System Monitor** - Real-time CPU, memory, disk, and network monitoring with health score
+- **Insights Dashboard** - Consolidated view of smart predictions, usage patterns, and code analysis
+
+### Coming Soon 🚧
+
+- **Self-Learning** - Usage pattern adaptation for personalized recommendations
+- **3D File System Browser** - Immersive 3D file system navigation
 
 ## Tech Stack
 
@@ -37,6 +50,7 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
 - npm 9+
 - Optional: Ollama for local AI features
@@ -56,15 +70,15 @@ npm run server
 
 ### Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start Vite development server |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build |
-| `npm run test:e2e` | Run Playwright E2E tests |
-| `npm run lint` | Run ESLint |
-| `npm run type-check` | Run TypeScript type checking |
-| `npm run server` | Start backend server |
+| Command              | Description                   |
+| -------------------- | ----------------------------- |
+| `npm run dev`        | Start Vite development server |
+| `npm run build`      | Build for production          |
+| `npm run preview`    | Preview production build      |
+| `npm run test:e2e`   | Run Playwright E2E tests      |
+| `npm run lint`       | Run ESLint                    |
+| `npm run type-check` | Run TypeScript type checking  |
+| `npm run server`     | Start backend server          |
 
 ### Environment Configuration
 
@@ -79,15 +93,15 @@ VITE_OLLAMA_URL=http://localhost:11434
 
 All ports are centrally managed in `ports.config.js` to prevent conflicts:
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Vite Dev Server | 3001 | Frontend development server |
-| Vite Preview Server | 3002 | Production build preview |
-| Backend API | 8080 | Express backend server |
-| Python AI Service | 8084 | Python AI integration |
-| Ollama | 11434 | Local AI service |
-| PostgreSQL | 5432 | Database (if used) |
-| Redis | 6379 | Cache (if used) |
+| Service             | Port  | Description                 |
+| ------------------- | ----- | --------------------------- |
+| Vite Dev Server     | 3001  | Frontend development server |
+| Vite Preview Server | 3002  | Production build preview    |
+| Backend API         | 8080  | Express backend server      |
+| Python AI Service   | 8084  | Python AI integration       |
+| Ollama              | 11434 | Local AI service            |
+| PostgreSQL          | 5432  | Database (if used)          |
+| Redis               | 6379  | Cache (if used)             |
 
 To change ports, edit `ports.config.js` - all services will automatically use the updated values.
 
@@ -102,6 +116,7 @@ For detailed documentation, see the [docs/](docs/) directory which is organized 
 - **[docs/performance/](docs/performance/)** - Performance optimization
 
 Key documentation files:
+
 - [SECURITY.md](SECURITY.md) - Security policies and best practices
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
 - [CHANGELOG.md](CHANGELOG.md) - Project changelog
@@ -112,39 +127,70 @@ Key documentation files:
 ```
 space-analyzer/
 ├── src/
-│   ├── components/      # Vue components
+│   ├── components/      # Shared Vue components
 │   │   ├── ai/          # AI-related components
 │   │   ├── chat/        # Chat interface
-│   │   ├── dashboard/   # Dashboard views
-│   │   ├── insights/    # Analytics insights
-│   │   ├── neural/      # Neural network visualization
-│   │   ├── settings/    # Settings pages
-│   │   ├── treemap/     # Treemap visualization
 │   │   └── ...
+│   ├── features/        # Feature-based views (Vue 3)
+│   │   ├── browser/     # File browser
+│   │   ├── cleanup/     # AI cleanup recommendations
+│   │   ├── dashboard/   # Dashboard
+│   │   ├── duplicates/  # Duplicate detection
+│   │   ├── insights/    # Insights dashboard (consolidated)
+│   │   ├── network/     # Network graph (consolidated)
+│   │   ├── scanning/    # Scan interface
+│   │   ├── search/      # Semantic search
+│   │   ├── settings/    # Settings
+│   │   ├── system/      # System monitor (consolidated)
+│   │   ├── timeline/    # Timeline (consolidated with 3D)
+│   │   ├── treemap/     # Treemap visualization
+│   │   └── trends/      # Storage trends
+│   ├── layout/          # Layout components (AppShell)
+│   ├── design-system/   # UI components and design tokens
 │   ├── hooks/           # Custom Vue composables
 │   ├── services/        # API and business logic services
 │   ├── store/           # Pinia stores
-│   ├── styles/          # Global styles and design system
-│   ├── types/           # TypeScript type definitions
-│   ├── utils/           # Utility functions
 │   ├── router/          # Vue Router configuration
 │   └── App.vue          # Main application component
 ├── server/              # Express backend server
+│   ├── modules/         # Backend modules (duplicate-detector, etc.)
+│   └── backend-server.js
+├── native/              # Native scanners
+│   └── scanner/         # Rust scanner
 ├── public/              # Static public assets
 ├── docs/                # Project documentation
-├── scripts/              # Development and test scripts
-├── tests/                # Test files
-└── corrupted-files/      # Quarantined files (need recovery)
+├── scripts/             # Development and test scripts
+└── tests/               # Test files
 ```
 
 ## Key Components
 
-- **SpaceAnalyzerDashboard** - Main dashboard with overview metrics
-- **NeuralView** - Interactive file relationship visualization
-- **TreeMapView** - File size visualization
-- **EnhancedAIChat** - AI-powered chat interface
-- **EnhancedFileBrowser** - Advanced file browser with filters
-- **ExportPanel** - Data export functionality
+### Feature Views (Vue 3)
+
+#### Core
+
+- **DashboardView** - Main dashboard with storage overview and category breakdown
+- **FileBrowserView** - Advanced file browser with filtering and sorting
+- **ScanView** - Directory scanning interface with real-time progress
+- **SettingsView** - Application configuration
+
+#### Analysis
+
+- **DuplicateFinderView** - Hash-based duplicate file detection with cleanup recommendations
+- **CleanupRecommendationsView** - AI-powered cleanup suggestions for temp/old/duplicate files
+- **TrendsView** - Storage trends with growth projections and predictions
+- **SemanticSearchView** - Natural language file search ("photos from last summer")
+- **InsightsView** - Smart predictions, usage patterns, and code analysis (consolidated)
+
+#### Visualization
+
+- **TreemapView** - Interactive hierarchical storage visualization
+- **NetworkView** - Force-directed graph of file relationships (consolidated: Neural + Dependencies)
+- **TimelineView** - File modification history with optional 3D perspective (consolidated: Timeline + 3D)
+
+#### System
+
+- **SystemMonitorView** - Real-time CPU, memory, disk, network monitoring (consolidated: System Analytics + Analysis)
 
 ## Docker Support
 
@@ -159,6 +205,7 @@ docker-compose -f docker-compose.ollama.yml up
 ### Native Scanner Implementation
 
 **Rust Scanner (Preferred)**
+
 - Location: `native/scanner/`
 - Built with: Rust + napi-rs for Node.js N-API bindings
 - Performance: Optimized with AVX2, native CPU targeting, LTO
@@ -166,12 +213,14 @@ docker-compose -f docker-compose.ollama.yml up
 - Build: `cd native/scanner && cargo build --release`
 
 **C++ Scanner (Archived)**
+
 - Location: `src/cpp/native-scanner-archived.zip`
 - Status: ❌ Archived due to build complexity
 - Issues: Requires full Node.js installation (not NVM), node-gyp compatibility with VS2026
 - Archived: April 2026 - Rust scanner provides equivalent functionality with simpler build process
 
 **Why Rust is Preferred:**
+
 - Memory safety guarantees at compile time
 - Simpler cross-platform build system (Cargo)
 - Better dependency management
@@ -179,10 +228,13 @@ docker-compose -f docker-compose.ollama.yml up
 - Already production-ready and tested
 
 ### Testing
+
 E2E tests use Playwright. Run with `npm run test:e2e`.
 
 ### Performance
+
 The app includes performance optimizations:
+
 - Virtual scrolling for large file lists
 - Canvas optimization for visualizations
 - Lazy loading for routes and components
