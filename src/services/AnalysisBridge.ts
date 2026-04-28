@@ -1110,12 +1110,23 @@ export class AnalysisBridge {
   ): () => void {
     this.log("info", `Subscribing to progress for analysis: ${analysisId}`);
 
-    const eventSource = new EventSource(`${this.baseUrl}/progress/${analysisId}`);
+    const url = `${this.baseUrl}/progress/stream/${analysisId}`;
+    console.warn(`[SSE Frontend] Connecting to: ${url}`);
+    const eventSource = new EventSource(url);
+
+    eventSource.onopen = () => {
+      console.warn(`[SSE Frontend] Connection opened for ${analysisId}`);
+    };
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        this.log("debug", `Progress update: ${data.percentage}%`);
+        console.warn(
+          `[SSE Frontend] Received progress:`,
+          data.percentage || data.progress || 0,
+          "%",
+          data
+        );
         onProgress(data);
 
         // Close connection if analysis is complete or failed
@@ -1123,12 +1134,14 @@ export class AnalysisBridge {
           this.log("info", `Analysis ${analysisId} finished, closing SSE`);
           eventSource.close();
         }
-      } catch (err) {
-        this.log("error", `Failed to parse progress data: ${err.message}`);
+      } catch (error) {
+        console.error("[SSE Frontend] Failed to parse SSE progress:", error);
       }
     };
 
     eventSource.onerror = (error) => {
+      console.error("[SSE Frontend] SSE error:", error);
+      onError?.(error);
       this.log("error", `SSE error for analysis ${analysisId}:`, error);
       if (onError) {
         onError("Connection lost");
