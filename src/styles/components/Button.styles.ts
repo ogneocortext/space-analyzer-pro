@@ -11,7 +11,7 @@ export const buttonStyles = {
     border-radius: ${designTokens.borderRadius.md};
     border: 1px solid transparent;
     cursor: pointer;
-    transition: all ${designTokens.transitions.fast};
+    transition: background-color ${designTokens.transitions.fast}, border-color ${designTokens.transitions.fast}, transform ${designTokens.transitions.fast}, box-shadow ${designTokens.transitions.fast};
     box-sizing: border-box;
     text-decoration: none;
     outline: none;

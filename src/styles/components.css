@@ -38,9 +38,12 @@
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   position: relative;
   overflow: hidden;
+  contain: layout paint;
 }
 
 .category-card::before {
@@ -108,7 +111,9 @@
   border-radius: var(--radius-full);
   font-size: var(--font-size-sm);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
   border: 1px solid var(--color-border-primary);
   background: var(--color-surface-primary);
   color: var(--color-text-secondary);
@@ -127,7 +132,10 @@
 /* Metric Card Styles */
 .metric-card {
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  contain: layout paint;
 }
 
 .metric-card:hover {
@@ -194,7 +202,10 @@
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .insight-card:hover {
@@ -267,7 +278,10 @@
   border: 1px solid var(--color-border-primary);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .recommendation-item:hover {
