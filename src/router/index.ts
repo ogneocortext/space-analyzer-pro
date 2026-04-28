@@ -80,6 +80,11 @@ const router = createRouter({
       name: "empty",
       component: () => import("../features/empty/EmptyFoldersView.vue"),
     },
+    {
+      path: "/old",
+      name: "old",
+      component: () => import("../features/old/OldFilesView.vue"),
+    },
   ],
 });
 

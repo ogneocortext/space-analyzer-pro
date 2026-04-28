@@ -11,6 +11,7 @@ const navigation = [
 
 const analysisNav = [
   { name: "Largest Files", path: "/largest", icon: "BarChart3" },
+  { name: "Old Files", path: "/old", icon: "Clock" },
   { name: "Duplicates", path: "/duplicates", icon: "Copy" },
   { name: "Empty Folders", path: "/empty", icon: "FolderOpen" },
   { name: "Cleanup", path: "/cleanup", icon: "Sparkles" },

@@ -18,6 +18,11 @@ struct FileInfo {
     category: String,
     modified: String,
     file_hash: Option<String>, // MD5 hash for duplicate detection
+    #[serde(skip)]
+    inode: Option<u64>,       // File identifier for hard link detection
+    #[serde(skip)]
+    nlink: Option<u32>,        // Number of hard links
+    is_hard_link: bool,       // True if this is a hard link (nlink > 1)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -44,6 +49,9 @@ struct AnalysisResult {
     duplicate_groups: Vec<DuplicateGroup>, // Groups of duplicate files
     duplicate_count: u64,                  // Total number of duplicate files
     duplicate_size: u64,                   // Total size of duplicate files
+    hard_link_count: u64,                  // Number of hard-linked files
+    hard_link_savings: u64,                // Size saved by hard links (not double-counted)
+    apparent_size: u64,                    // Size if hard links were counted separately
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -176,41 +184,77 @@ impl Cli {
         let progress_counter_clone = progress_counter.clone();
         let show_progress = self.progress;
 
-        // Spawn collector thread with progress reporting
+        // Spawn collector thread with progress reporting and hard link tracking
         let collector_handle = std::thread::spawn(move || {
             let mut files = Vec::new();
             let mut total_files = 0u64;
             let mut total_size = 0u64;
+            let mut apparent_size = 0u64; // Size if hard links counted separately
             let mut categories = HashMap::new();
             let mut extension_stats = HashMap::new();
             let mut last_progress = 0u64;
 
+            // Track seen inodes to avoid double-counting hard links
+            let mut seen_inodes: HashMap<(u64, u64), u64> = HashMap::new(); // (inode, device) -> first_seen_size
+            let mut hard_link_count = 0u64;
+            let mut hard_link_savings = 0u64;
+
             for file_info in receiver {
-                total_files += 1;
-                total_size += file_info.size;
+                let is_new_hard_link = if let (Some(inode), _) = (file_info.inode, file_info.nlink) {
+                    // Create a unique key from inode and device (to handle cross-device)
+                    let key = (inode, 0u64); // device not available without extra syscall
 
-                let cat_stats = categories
-                    .entry(file_info.category.clone())
-                    .or_insert(CategoryStats { count: 0, size: 0 });
-                cat_stats.count += 1;
-                cat_stats.size += file_info.size;
+                    if file_info.is_hard_link {
+                        if let Some(first_size) = seen_inodes.get(&key) {
+                            // This is a hard link we've seen before
+                            hard_link_count += 1;
+                            hard_link_savings += first_size;
+                            apparent_size += file_info.size;
+                            false // Don't count again
+                        } else {
+                            // First time seeing this hard link
+                            seen_inodes.insert(key, file_info.size);
+                            apparent_size += file_info.size;
+                            true // Count this one
+                        }
+                    } else {
+                        apparent_size += file_info.size;
+                        true // Regular file, always count
+                    }
+                } else {
+                    apparent_size += file_info.size;
+                    true // Can't detect hard links, count normally
+                };
 
-                let ext_stats = extension_stats
-                    .entry(file_info.extension.clone())
-                    .or_insert(ExtensionStats { count: 0, size: 0 });
-                ext_stats.count += 1;
-                ext_stats.size += file_info.size;
+                if is_new_hard_link {
+                    total_files += 1;
+                    total_size += file_info.size;
+
+                    let cat_stats = categories
+                        .entry(file_info.category.clone())
+                        .or_insert(CategoryStats { count: 0, size: 0 });
+                    cat_stats.count += 1;
+                    cat_stats.size += file_info.size;
+
+                    let ext_stats = extension_stats
+                        .entry(file_info.extension.clone())
+                        .or_insert(ExtensionStats { count: 0, size: 0 });
+                    ext_stats.count += 1;
+                    ext_stats.size += file_info.size;
+                }
 
                 files.push(file_info);
 
                 // Report progress every 100 files
                 if show_progress && total_files % 100 == 0 && total_files != last_progress {
                     last_progress = total_files;
-                    eprintln!("Scanned: {} files, Size: {}", total_files, total_size);
+                    eprintln!("Scanned: {} files, Size: {} (hard link savings: {})",
+                        total_files, total_size, hard_link_savings);
                 }
             }
 
-            (files, total_files, total_size, categories, extension_stats)
+            (files, total_files, total_size, apparent_size, categories, extension_stats,
+             hard_link_count, hard_link_savings)
         });
 
         // Parallel processing of directory entries
@@ -234,7 +278,8 @@ impl Cli {
         drop(sender); // Close channel
 
         // Wait for collector
-        let (files, total_files, total_size, categories, extension_stats) =
+        let (files, total_files, total_size, apparent_size, categories, extension_stats,
+             hard_link_count, hard_link_savings) =
             collector_handle.join().map_err(|_| anyhow::anyhow!("Thread join failed"))?;
 
         let analysis_time = start_time.elapsed();
@@ -257,6 +302,9 @@ impl Cli {
             duplicate_groups,
             duplicate_count,
             duplicate_size,
+            hard_link_count,
+            hard_link_savings,
+            apparent_size,
         })
     }
 
@@ -268,10 +316,16 @@ impl Cli {
     ) -> anyhow::Result<AnalysisResult> {
         let mut total_files = 0u64;
         let mut total_size = 0u64;
+        let mut apparent_size = 0u64;
         let mut files = Vec::new();
         let mut categories = HashMap::new();
         let mut extension_stats = HashMap::new();
         let mut last_progress = 0u64;
+
+        // Track seen inodes for hard link detection
+        let mut seen_inodes: HashMap<(u64, u64), u64> = HashMap::new();
+        let mut hard_link_count = 0u64;
+        let mut hard_link_savings = 0u64;
 
         for entry in walker.filter_map(|e| e.ok()) {
             if !self.should_include_entry(&entry, exclude_dirs) {
@@ -281,8 +335,30 @@ impl Cli {
             if let Ok(metadata) = entry.metadata() {
                 if metadata.is_file() {
                     if let Some(file_info) = self.create_file_info(&entry, &metadata) {
-                        total_files += 1;
-                        total_size += file_info.size;
+                        apparent_size += file_info.size;
+
+                        // Check for hard links
+                        let is_new = if let (Some(inode), _) = (file_info.inode, file_info.nlink) {
+                            let key = (inode, 0u64);
+                            if file_info.is_hard_link {
+                                if let Some(first_size) = seen_inodes.get(&key) {
+                                    hard_link_count += 1;
+                                    hard_link_savings += first_size;
+                                    false
+                                } else {
+                                    seen_inodes.insert(key, file_info.size);
+                                    true
+                                }
+                            } else {
+                                true
+                            }
+                        } else {
+                            true
+                        };
+
+                        if is_new {
+                            total_files += 1;
+                            total_size += file_info.size;
 
                         let cat_stats = categories
                             .entry(file_info.category.clone())
@@ -330,6 +406,9 @@ impl Cli {
             duplicate_groups,
             duplicate_count,
             duplicate_size,
+            hard_link_count,
+            hard_link_savings,
+            apparent_size,
         })
     }
 
@@ -386,6 +465,10 @@ impl Cli {
             None
         };
 
+        // Detect hard links - platform specific
+        let (inode, nlink) = Self::get_hard_link_info(metadata);
+        let is_hard_link = nlink.map_or(false, |n| n > 1);
+
         Some(FileInfo {
             name: file_name,
             path: file_path_str,
@@ -394,7 +477,30 @@ impl Cli {
             category: category.to_string(),
             modified,
             file_hash,
+            inode,
+            nlink,
+            is_hard_link,
         })
+    }
+
+    /// Get hard link information - platform specific implementation
+    #[cfg(unix)]
+    fn get_hard_link_info(metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
+        use std::os::unix::fs::MetadataExt;
+        (Some(metadata.ino()), Some(metadata.nlink() as u32))
+    }
+
+    #[cfg(windows)]
+    fn get_hard_link_info(metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
+        use std::os::windows::fs::MetadataExt;
+        // On Windows, file_index is the equivalent of inode
+        // number_of_links gives us the hard link count
+        (metadata.file_index(), metadata.number_of_links())
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    fn get_hard_link_info(_metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
+        (None, None)
     }
 
     fn calculate_file_hash(path: &Path) -> Option<String> {
