@@ -381,6 +381,7 @@ impl Cli {
                             last_progress = total_files;
                             eprintln!("Scanned: {} files, Size: {}", total_files, total_size);
                         }
+                        } // Close if is_new
                     }
                 }
             }
@@ -491,11 +492,11 @@ impl Cli {
     }
 
     #[cfg(windows)]
-    fn get_hard_link_info(metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
-        use std::os::windows::fs::MetadataExt;
-        // On Windows, file_index is the equivalent of inode
-        // number_of_links gives us the hard link count
-        (metadata.file_index(), metadata.number_of_links())
+    fn get_hard_link_info(_metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
+        // Note: Windows hard link detection requires unstable features
+        // or the winapi crate. For now, we return None on Windows.
+        // TODO: Implement using winapi for production Windows builds
+        (None, None)
     }
 
     #[cfg(not(any(unix, windows)))]
@@ -504,23 +505,14 @@ impl Cli {
     }
 
     fn calculate_file_hash(path: &Path) -> Option<String> {
-        use md5::{Md5, Digest};
         use std::io::Read;
 
         let mut file = fs::File::open(path).ok()?;
-        let mut hasher = Md5::new();
-        let mut buffer = [0u8; 8192];
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer).ok()?;
 
-        loop {
-            let bytes_read = file.read(&mut buffer).ok()?;
-            if bytes_read == 0 {
-                break;
-            }
-            hasher.update(&buffer[..bytes_read]);
-        }
-
-        let result = hasher.finalize();
-        Some(format!("{:x}", result))
+        let hash = md5::compute(&buffer);
+        Some(format!("{:x}", hash))
     }
 
     fn find_duplicates(files: &[FileInfo]) -> (Vec<DuplicateGroup>, u64, u64) {
