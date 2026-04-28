@@ -1,36 +1,53 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useAnalysisStore } from '../../store/analysis'
-import { Card, Button } from '../../design-system/components'
+import { ref, watch } from "vue";
+import { useAnalysisStore } from "../../store/analysis";
+import { Card, Button } from "../../design-system/components";
 
-const store = useAnalysisStore()
-const selectedPath = ref('')
+const store = useAnalysisStore();
+const selectedPath = ref(store.path);
+
+// Sync with store
+watch(selectedPath, (newPath) => {
+  store.path = newPath;
+});
 
 async function startScan() {
-  if (!selectedPath.value) return
-  await store.handleAnalysis(false)
+  if (!selectedPath.value) return;
+  await store.handleAnalysis(false);
+}
+
+interface FileWithPath extends File {
+  path?: string;
 }
 
 function selectDirectory() {
-  // Open native file picker
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.webkitdirectory = true
+  // Note: webkitdirectory shows "upload" dialog but we only read the path
+  // The actual files are never uploaded, only analyzed locally by the backend
+  const input = document.createElement("input");
+  input.type = "file";
+  input.webkitdirectory = true;
   input.onchange = (e: Event) => {
-    const files = (e.target as HTMLInputElement).files
+    const files = (e.target as HTMLInputElement).files;
     if (files && files.length > 0) {
-      selectedPath.value = files[0].path || 'Selected Directory'
+      // Get path from first file (Electron/Chrome extension)
+      const fileWithPath = files[0] as FileWithPath;
+      const filePath = fileWithPath.path || "";
+      // Extract directory path (remove filename)
+      const lastSlash = filePath.lastIndexOf("\\");
+      const dirPath = lastSlash > 0 ? filePath.substring(0, lastSlash) : filePath;
+      selectedPath.value = dirPath;
+      store.path = dirPath;
     }
-  }
-  input.click()
+  };
+  input.click();
 }
 
 function formatSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }
 </script>
 
@@ -48,13 +65,16 @@ function formatSize(bytes: number): string {
             placeholder="Enter directory path..."
             class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
           />
-          <Button variant="secondary" @click="selectDirectory">
-            Browse
-          </Button>
+          <Button variant="secondary" @click="selectDirectory"> Browse </Button>
         </div>
-        <p class="text-sm text-slate-400">
-          Choose a directory to analyze file sizes, types, and storage usage.
-        </p>
+        <div class="text-sm text-slate-400 space-y-2">
+          <p>Select a directory for <strong class="text-slate-300">local analysis only</strong>.</p>
+          <ul class="list-disc list-inside space-y-1 text-slate-500">
+            <li>Files stay in place - nothing is moved or uploaded</li>
+            <li>Analysis runs locally on your machine</li>
+            <li>Results display in dashboard and feed AI insights</li>
+          </ul>
+        </div>
       </div>
     </Card>
 
@@ -67,7 +87,7 @@ function formatSize(bytes: number): string {
         :disabled="!selectedPath || store.isAnalysisRunning"
         @click="startScan"
       >
-        {{ store.isAnalysisRunning ? 'Scanning...' : 'Start Scan' }}
+        {{ store.isAnalysisRunning ? "Scanning..." : "Start Scan" }}
       </Button>
     </div>
 
@@ -114,9 +134,7 @@ function formatSize(bytes: number): string {
           </div>
         </div>
         <div class="flex justify-center mt-4">
-          <Button variant="primary" @click="$router.push('/')">
-            View Dashboard
-          </Button>
+          <Button variant="primary" @click="$router.push('/')"> View Dashboard </Button>
         </div>
       </Card>
     </div>
