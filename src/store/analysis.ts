@@ -104,6 +104,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
     progress,
     isAnalysisRunning,
     data,
+    analysisResult: data, // Alias for dashboard components
     error,
     useAI,
     scannedFiles,
