@@ -11,6 +11,12 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 - **Duplicate Detection** - Hash-based duplicate file detection with cleanup recommendations
 - **Storage Trends** - Historical tracking with growth projections and category analysis
 - **Real-time Progress** - Live scanning progress with WebSocket updates
+- **Largest Files Report** - Top 100 largest files with filtering and sorting
+- **Old File Finder** - Find files not accessed in X years with cleanup suggestions
+- **Empty Folder Finder** - Detect and clean empty directories
+- **AI Auto-Organization** - Smart suggestions for organizing files by date, project, type, or size
+- **PDF Report Generation** - Export professional PDF reports with scan results
+- **CSV/JSON/TXT Export** - Multiple export formats for data analysis
 
 ### AI-Powered Features ✅
 
@@ -31,10 +37,23 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 - **System Monitor** - Real-time CPU, memory, disk, and network monitoring with health score
 - **Insights Dashboard** - Consolidated view of smart predictions, usage patterns, and code analysis
 
+### Windows API Features (Windows Only) 🪟
+
+- **Hard Link Detection** - Track hard links to avoid double-counting file sizes
+- **Alternate Data Streams (ADS)** - Detect hidden data streams in files
+- **NTFS Compression Status** - Show compressed files with real vs compressed size
+- **Sparse File Detection** - Identify sparse files with unallocated regions
+- **Reparse Point Detection** - Handle junctions, symlinks, and mount points correctly
+- **File Ownership (SID)** - Display file owner security identifiers
+- **Creation & Access Time** - Track file creation and last access timestamps
+
 ### Coming Soon 🚧
 
 - **Self-Learning** - Usage pattern adaptation for personalized recommendations
 - **3D File System Browser** - Immersive 3D file system navigation
+- **NTFS MFT Direct Reading** - 46x faster scanning via direct MFT access (requires admin)
+- **USN Journal Integration** - Incremental scanning using NTFS change journal
+- **Windows Explorer Context Menu** - "Scan with Space Analyzer" in right-click menu
 
 ## Tech Stack
 
