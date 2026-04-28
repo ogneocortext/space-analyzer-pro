@@ -28,6 +28,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
     percentage: 0,
     currentFile: "",
     completed: false as boolean | undefined,
+    totalSize: 0,
   });
 
   const analysisBridge = new AnalysisBridge();
@@ -53,6 +54,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
             percentage: progressInfo.percentage,
             currentFile: progressInfo.currentFile,
             completed: progressInfo.completed || false,
+            totalSize: progressInfo.totalSize || 0,
           };
           status.value = "analyzing";
         },
@@ -61,6 +63,10 @@ export const useAnalysisStore = defineStore("analysis", () => {
 
       log("RESULT", result);
       data.value = result;
+      // Populate scannedFiles from result for RealTimeFileScanner
+      if (result?.files && Array.isArray(result.files)) {
+        scannedFiles.value = result.files;
+      }
       status.value = "complete";
       progress.value = 100;
       progressData.value.completed = true;
@@ -88,6 +94,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
       percentage: 0,
       currentFile: "",
       completed: false,
+      totalSize: 0,
     };
   };
 

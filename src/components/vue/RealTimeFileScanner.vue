@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from "vue";
+import { ref, computed, watch, nextTick, onUnmounted } from "vue";
 import { File, Activity, Zap, Clock, Pause, Play } from "lucide-vue-next";
 
 interface ScannedFile {
@@ -150,6 +150,7 @@ interface ProgressData {
   percentage: number;
   currentFile: string;
   completed: boolean;
+  totalSize?: number;
 }
 
 interface Props {
@@ -159,13 +160,64 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   scannedFiles: () => [],
-  progress: () => ({ files: 0, percentage: 0, currentFile: "", completed: false }),
+  progress: () => ({ files: 0, percentage: 0, currentFile: "", completed: false, totalSize: 0 }),
 });
 
 const scrollRef = ref<HTMLDivElement>();
 const isPaused = ref(false);
-const startTime = ref(Date.now());
+const startTime = ref<number | null>(null);
 const recentFiles = ref<ScannedFile[]>([]);
+const isScanning = ref(false);
+const currentTime = ref(Date.now());
+let timeInterval: ReturnType<typeof setInterval> | null = null;
+
+// Update current time every second for metrics calculation
+watch(
+  () => isScanning.value,
+  (scanning) => {
+    if (scanning) {
+      timeInterval = setInterval(() => {
+        currentTime.value = Date.now();
+      }, 1000);
+    } else if (timeInterval) {
+      clearInterval(timeInterval);
+      timeInterval = null;
+    }
+  }
+);
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (timeInterval) {
+    clearInterval(timeInterval);
+  }
+});
+
+// Watch for scan start/reset
+watch(
+  () => props.progress,
+  (newProgress, oldProgress) => {
+    // Reset timer when scan starts (files was 0 and now > 0, or just started)
+    if (!isScanning.value && newProgress.files > 0 && !newProgress.completed) {
+      isScanning.value = true;
+      startTime.value = Date.now();
+      currentTime.value = Date.now();
+      recentFiles.value = [];
+    }
+    // Reset when scan completes
+    if (newProgress.completed) {
+      isScanning.value = false;
+    }
+    // Reset if files went back to 0 (new scan)
+    if (newProgress.files === 0 && oldProgress && oldProgress.files > 0) {
+      isScanning.value = false;
+      startTime.value = null;
+      currentTime.value = Date.now();
+      recentFiles.value = [];
+    }
+  },
+  { deep: true }
+);
 
 // Add current file to recent files when it changes
 watch(
@@ -175,13 +227,20 @@ watch(
       newFile &&
       newFile !== "Analysis complete" &&
       newFile !== "Analysis failed" &&
-      !newFile.startsWith("Scanned")
+      newFile !== "Complete" &&
+      newFile !== "Incremental analysis complete" &&
+      newFile !== "Starting full analysis..." &&
+      newFile !== "Starting analysis..." &&
+      !newFile.startsWith("Scanned") &&
+      !newFile.startsWith("Processing")
     ) {
       const category = getCategoryFromFileName(newFile);
+      // Try to find actual file size from scannedFiles prop
+      const existingFile = props.scannedFiles.find((f) => f.name === newFile || f.path === newFile);
       recentFiles.value.unshift({
         name: newFile,
         path: newFile,
-        size: 0,
+        size: existingFile?.size || 0,
         category,
       });
       // Keep only last 50 files
@@ -204,22 +263,29 @@ watch(
   { deep: true }
 );
 
-// Reset startTime when scan starts
-watch(
-  () => props.progress.files,
-  (newFiles, oldFiles) => {
-    if (oldFiles === 0 && newFiles > 0) {
-      startTime.value = Date.now();
-    }
-  }
-);
-
 // Calculate speed metrics
 const metrics = computed(() => {
-  const elapsedSeconds = (Date.now() - startTime.value) / 1000;
+  // If scan hasn't started or timer not set, return zeros
+  if (!startTime.value) {
+    return {
+      filesPerSecond: 0,
+      mbPerSecond: 0,
+      etaSeconds: 0,
+      categoryCount: {},
+      totalSize: 0,
+    };
+  }
+
+  const elapsedSeconds = (currentTime.value - startTime.value) / 1000;
   const filesPerSecond = elapsedSeconds > 0 ? props.progress.files / elapsedSeconds : 0;
 
-  const totalSize = recentFiles.value.reduce((acc, file) => acc + file.size, 0);
+  // Use totalSize from progress if available (sent by backend during scanning)
+  // Fall back to scannedFiles or recentFiles
+  const totalSize =
+    props.progress?.totalSize ||
+    (props.scannedFiles.length > 0
+      ? props.scannedFiles.reduce((acc, file) => acc + (file.size || 0), 0)
+      : recentFiles.value.reduce((acc, file) => acc + (file.size || 0), 0));
   const mbPerSecond = elapsedSeconds > 0 ? totalSize / 1024 / 1024 / elapsedSeconds : 0;
 
   // Estimate remaining time

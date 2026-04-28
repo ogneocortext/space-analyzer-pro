@@ -66,6 +66,14 @@ struct Cli {
     #[arg(short, long)]
     output: Option<PathBuf>,
 
+    /// Output format (json)
+    #[arg(long, default_value = "json")]
+    format: String,
+
+    /// Show progress output
+    #[arg(long)]
+    progress: bool,
+
     /// Use parallel processing for faster scanning
     #[arg(long, default_value = "true")]
     parallel: bool,
@@ -137,14 +145,18 @@ impl Cli {
         start_time: Instant,
     ) -> anyhow::Result<AnalysisResult> {
         let (sender, receiver) = bounded::<FileInfo>(10000);
+        let progress_counter = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let progress_counter_clone = progress_counter.clone();
+        let show_progress = self.progress;
 
-        // Spawn collector thread
+        // Spawn collector thread with progress reporting
         let collector_handle = std::thread::spawn(move || {
             let mut files = Vec::new();
             let mut total_files = 0u64;
             let mut total_size = 0u64;
             let mut categories = HashMap::new();
             let mut extension_stats = HashMap::new();
+            let mut last_progress = 0u64;
 
             for file_info in receiver {
                 total_files += 1;
@@ -163,6 +175,12 @@ impl Cli {
                 ext_stats.size += file_info.size;
 
                 files.push(file_info);
+
+                // Report progress every 100 files
+                if show_progress && total_files % 100 == 0 && total_files != last_progress {
+                    last_progress = total_files;
+                    eprintln!("Scanned: {} files", total_files);
+                }
             }
 
             (files, total_files, total_size, categories, extension_stats)
@@ -180,6 +198,7 @@ impl Cli {
                             if sender.send(file_info).is_err() {
                                 return;
                             }
+                            progress_counter_clone.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         }
                     }
                 }
@@ -215,6 +234,7 @@ impl Cli {
         let mut files = Vec::new();
         let mut categories = HashMap::new();
         let mut extension_stats = HashMap::new();
+        let mut last_progress = 0u64;
 
         for entry in walker.filter_map(|e| e.ok()) {
             if !self.should_include_entry(&entry, exclude_dirs) {
@@ -241,6 +261,12 @@ impl Cli {
 
                         if self.max_files == 0 || files.len() < self.max_files {
                             files.push(file_info);
+                        }
+
+                        // Report progress every 100 files
+                        if self.progress && total_files % 100 == 0 && total_files != last_progress {
+                            last_progress = total_files;
+                            eprintln!("Scanned: {} files", total_files);
                         }
                     }
                 }

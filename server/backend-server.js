@@ -2468,10 +2468,10 @@ Answer:`;
 
     const searchSubdirs = [
       "bin",
-      "cli/target/release",
-      "cli/target/debug",
       "native/scanner/target/release",
       "native/scanner/target/debug",
+      "cli/target/release",
+      "cli/target/debug",
       "bin/Release",
       "bin/Debug",
       "target/release",
@@ -2797,6 +2797,7 @@ Answer:`;
                 this.eventEmitter.emit("progress", {
                   analysisId,
                   filesProcessed: totalFiles,
+                  totalSize: totalSize,
                   percentage: percentage,
                   currentFile: entry.name,
                 });
@@ -2863,6 +2864,7 @@ Answer:`;
     this.eventEmitter.emit("progress", {
       analysisId,
       filesProcessed: totalFiles,
+      totalSize: totalSize,
       percentage: 100,
       currentFile: "Complete",
       status: "complete",

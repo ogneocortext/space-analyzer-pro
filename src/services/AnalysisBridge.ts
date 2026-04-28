@@ -58,6 +58,7 @@ export interface AnalysisProgress {
   currentFile: string;
   completed?: boolean;
   analysisId?: string;
+  totalSize?: number;
 }
 
 export class AnalysisBridge {
@@ -387,6 +388,7 @@ export class AnalysisBridge {
                 percentage: progress.percentage || 0,
                 currentFile: progress.currentFile || "",
                 completed: progress.status === "complete",
+                totalSize: progress.totalSize || 0,
               });
 
               console.warn("✅ Progress callback called successfully");
@@ -427,6 +429,7 @@ export class AnalysisBridge {
             percentage: progressUpdate.percentage || 0,
             currentFile: progressUpdate.currentFile || "",
             completed: progressUpdate.completed || progressUpdate.status === "complete",
+            totalSize: progressUpdate.totalSize || 0,
           });
         },
         (error) => {
@@ -441,40 +444,35 @@ export class AnalysisBridge {
       console.warn("⚠️ No progress callback provided");
     }
 
-    // Wait for analysis to complete and get results
-    console.warn("⏳ Starting results polling...");
+    // Wait for analysis to complete and track progress
+    console.warn("⏳ Waiting for analysis to complete...");
+    let isComplete = false;
     let attempts = 0;
-    const maxAttempts = 180; // Reduce to 3 minutes for automated testing
-    let pollInterval = 2000; // Start with 2 second intervals
+    const maxAttempts = 60; // 2 minutes with 2 second delay
+    const pollDelay = 2000;
 
-    while (attempts < maxAttempts) {
-      console.warn(`🔄 Results poll attempt ${attempts + 1}/${maxAttempts}`);
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
-
+    while (!isComplete && attempts < maxAttempts) {
       try {
-        const resultsResponse = await fetch(`${this.baseUrl}/results/${immediateAnalysisId}`);
-        console.warn("📋 Results response status:", resultsResponse.status);
+        await new Promise((resolve) => setTimeout(resolve, pollDelay));
 
-        if (resultsResponse.ok) {
-          const resultsData = await resultsResponse.json();
-          console.warn("📋 Results data received:", resultsData);
+        // Poll for results
+        const resultsResponse = await fetch(
+          `${this.baseUrl}/api/analysis-results/${immediateAnalysisId}`
+        );
 
-          if (resultsData.success) {
-            console.warn("✅ Analysis results successfully retrieved!");
-            return { result: resultsData.data, analysisId: immediateAnalysisId };
-          }
-        } else if (resultsResponse.status === 202) {
-          console.warn("⏳ Analysis still processing (202 Accepted)");
-          attempts++;
-          // Exponential backoff: increase interval by 500ms every 10 attempts, max 5 seconds
-          if (attempts % 10 === 0 && pollInterval < 5000) {
-            pollInterval += 500;
-            console.warn(`📈 Increasing poll interval to ${pollInterval}ms`);
-          }
-          continue;
-        } else {
+        if (!resultsResponse.ok) {
           console.error("❌ Results endpoint error:", resultsResponse.status);
           throw new Error("Results endpoint error");
+        }
+
+        const results = await resultsResponse.json();
+
+        if (results.status === "complete" || results.data) {
+          isComplete = true;
+          return {
+            result: this.convertToFrontendFormat(results.data || results),
+            analysisId: immediateAnalysisId,
+          };
         }
       } catch (error) {
         console.error("❌ Results polling error:", error);
@@ -1088,9 +1086,36 @@ export class AnalysisBridge {
       this.log("debug", "Health check passed");
       return data;
     } catch (error) {
-      this.log("error", `Health check failed: ${error.message}`);
-      throw new Error(`Backend connection failed: ${error.message}`);
+      this.log("error", `Health check failed: ${(error as Error).message}`);
+      throw new Error(`Backend connection failed: ${(error as Error).message}`);
     }
+  }
+
+  // Convert backend result format to frontend AnalysisResult format
+  private convertToFrontendFormat(backendData: any): AnalysisResult {
+    // Handle different backend response formats
+    const data = backendData.data || backendData;
+
+    return {
+      totalFiles: data.totalFiles || data.summary?.totalFiles || 0,
+      totalSize: data.totalSize || data.summary?.totalSize || 0,
+      files: data.files || [],
+      categories: data.categories || this.generateCategoriesFromSummary(data),
+      extensionStats: data.extensionStats || data.extension_stats || {},
+      analysisType: data.analysisType || data.strategy || "standard",
+      analysisTime: data.analysisTime || data.summary?.analysisTime || 0,
+      directoryPath: data.directoryPath || data.directory,
+      dependencyGraph: data.dependencyGraph || data.dependency_graph || { nodes: [], edges: [] },
+      ai_insights: data.ai_insights || {
+        recommended_categories: [],
+        potential_duplicates: [],
+        large_files: [],
+        unusual_extensions: [],
+        dependency_candidates: [],
+        storage_warnings: [],
+        optimization_suggestions: data.insights || [],
+      },
+    };
   }
 
   // SSE Progress Subscription
@@ -1103,6 +1128,7 @@ export class AnalysisBridge {
       currentFile: string;
       status: string;
       completed: boolean;
+      totalSize?: number;
       result?: AnalysisResult;
       error?: string;
     }) => void,

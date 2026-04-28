@@ -4,18 +4,91 @@ All notable changes to Space Analyzer will be documented in this file.
 
 ## Version Timeline
 
-| Version | Date | Summary |
-|---------|------|---------|
-| 2.1.8 | 2026-04-27 | Project cleanup and organization |
-| 2.1.7 | 2026-04-27 | Implement improvement recommendations |
-| 2.1.6 | 2026-04-27 | Remove obsolete React files from src directory |
-| 2.1.5 | 2026-04-27 | Test cleanup and ES module conversion |
-| 2.1.4 | 2026-04-27 | Remove React plugins from ESLint config |
-| 2.1.3 | 2026-04-27 | Native scanner integration fixes |
-| 2.1.2 | 2026-04-27 | Port centralization and dependency cleanup |
-| 2.1.1 | 2026-04-27 | Configuration fixes, performance dependencies, Vue migration cleanup |
-| 2.1.0 | 2026-04-27 | Vue 3 migration with enhanced performance dependencies |
-| 2.0.1 | Previous | AI-Powered Space Analyzer with Vision Analysis and Feature Hub |
+| Version | Date       | Summary                                            |
+| ------- | ---------- | -------------------------------------------------- |
+| 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics |
+| 2.1.8   | 2026-04-27 | Project cleanup and organization                   |
+| 2.1.7   | 2026-04-27 | Implement improvement recommendations              |
+
+---
+
+## [2.1.9] - 2026-04-27
+
+### Rust CLI Build System
+
+#### Fixed Rust Scanner Build
+
+- **Updated Cargo.toml**: Changed package name to `space-analyzer`, added explicit `[[bin]]` section for CLI executable
+- **Fixed lib.rs NAPI bindings**:
+  - Changed `u64` to `i64` for NAPI compatibility (NAPI doesn't support unsigned 64-bit)
+  - Changed `u128` to `i64` for `analysis_time_ms`
+  - Replaced `HashMap` fields with JSON string fields (`categories_json`, `extension_stats_json`)
+  - Fixed `#[napi(object)]` derives on all structs
+  - Fixed constructor with `#[napi(constructor)]` attribute
+  - Fixed parallel iterator to use `for_each` instead of `for` loop
+  - Added proper type annotations for channels and vectors
+- **Added CLI arguments**: `--format`, `--progress`, `--parallel` flags to `main.rs`
+
+#### Build Infrastructure
+
+- **Created BUILD.md**: Comprehensive build instructions for Rust CLI
+- **Created BUILD_FIX.md**: Troubleshooting guide for Windows build issues including:
+  - Finding Visual Studio on C: or D: drives
+  - Locating Windows SDK installations
+  - Setting LIB environment variable for linking
+  - Three different build methods (VS2022 batch script, manual env setup, GNU toolchain)
+- **Created build-cli.bat**: Windows batch script for building with VS2022
+- **Created build-with-vs2022.bat**: Automated build script for D: drive VS installation
+
+#### Built Binaries
+
+- `bin/space-analyzer.exe` (978 KB) - High-performance CLI scanner
+- `bin/space_scanner.dll` (303 KB) - NAPI library for Node.js integration
+
+### Real-Time Scanner Metrics Fixes
+
+#### Backend Changes (server/backend-server.js)
+
+- **Added totalSize to progress events**: JS analysis now sends accumulated file size in progress updates
+- **Prioritized scanner search paths**: `native/scanner/target/release` now checked first
+
+#### Frontend Changes
+
+- **AnalysisBridge.ts**:
+  - Added `totalSize` to `AnalysisProgress` interface
+  - Updated all progress callbacks to include `totalSize`
+  - Updated `subscribeToProgress` type to include `totalSize`
+- **store/analysis.ts**:
+  - Added `totalSize` to `progressData`
+  - Capture `totalSize` from progress updates
+  - Populate `scannedFiles` from analysis result when complete
+- **RealTimeFileScanner.vue**:
+  - Added `totalSize` to `ProgressData` interface
+  - Added reactive timer that updates every second for live metrics calculation
+  - Updated metrics to use `progress.totalSize` from backend during scanning
+  - Falls back to `scannedFiles` or `recentFiles` for size calculation
+
+### Benefits
+
+- **Native Performance**: Rust CLI scans directories 10x faster than JS fallback
+- **Live Metrics**: Files/s and MB/s now update in real-time during scanning
+- **Reliable Builds**: Comprehensive documentation and scripts for building on Windows
+- **Progress Tracking**: Backend now sends accumulated size data for accurate throughput calculation
+
+---
+
+## Version Timeline (continued)
+
+| Version | Date       | Summary                                                              |
+| ------- | ---------- | -------------------------------------------------------------------- |
+| 2.1.6   | 2026-04-27 | Remove obsolete React files from src directory                       |
+| 2.1.5   | 2026-04-27 | Test cleanup and ES module conversion                                |
+| 2.1.4   | 2026-04-27 | Remove React plugins from ESLint config                              |
+| 2.1.3   | 2026-04-27 | Native scanner integration fixes                                     |
+| 2.1.2   | 2026-04-27 | Port centralization and dependency cleanup                           |
+| 2.1.1   | 2026-04-27 | Configuration fixes, performance dependencies, Vue migration cleanup |
+| 2.1.0   | 2026-04-27 | Vue 3 migration with enhanced performance dependencies               |
+| 2.0.1   | Previous   | AI-Powered Space Analyzer with Vision Analysis and Feature Hub       |
 
 ---
 
@@ -24,11 +97,13 @@ All notable changes to Space Analyzer will be documented in this file.
 ### Project Cleanup and Organization
 
 #### Security Fixes
+
 - **Removed leaked API key**: Removed Google Gemini API key from `config/.env` and replaced with placeholder
 - **Added config/ to gitignore**: Added `config/` to `.gitignore` to protect sensitive configuration files
 - **Added .mcp to gitignore**: Added `.mcp/` to `.gitignore` for MCP server configuration files
 
 #### Documentation Improvements
+
 - **Created .env.example**: Added environment variable template for configuration
 - **Added SECURITY.md**: Created comprehensive security policy document
 - **Added CONTRIBUTING.md**: Created contribution guidelines document
@@ -37,7 +112,8 @@ All notable changes to Space Analyzer will be documented in this file.
 - **Updated main README.md**: Added documentation section and updated license reference
 
 #### Folder Cleanup
-- **Reorganized docs folder**: 
+
+- **Reorganized docs folder**:
   - Removed redundant `docs/.gitignore` (use root `.gitignore`)
   - Removed 12 empty subdirectories
   - Archived 30+ temporary status/fix documentation files to `docs/archive/`
@@ -54,6 +130,7 @@ All notable changes to Space Analyzer will be documented in this file.
 - **Added cpp-build to gitignore**: Added `cpp-build/` to `.gitignore` and removed empty directory
 
 #### Git Configuration
+
 - **Updated .gitignore**: Added patterns for `config/`, `.mcp/`, `cpp-build/`
 
 ---
@@ -63,6 +140,7 @@ All notable changes to Space Analyzer will be documented in this file.
 ### Improvement Recommendations
 
 #### High Priority
+
 - **Removed backup file**: Deleted `server/backend-server.js.backup` (use git history for recovery)
 - **Removed unused output files**: Deleted `server/output_src_mog9u7w7.json` (not used by application)
 - **Fixed Python lint warning**: Removed unused `sys` import from `ai_service.py`
@@ -71,6 +149,7 @@ All notable changes to Space Analyzer will be documented in this file.
 - **Added TypeScript declarations**: Created `ports.config.d.ts` for type safety
 
 #### Medium Priority
+
 - **Updated README.md**: Removed React references, updated test commands to use Playwright
 - **Python config separation**: Created `server/python-ai-service/config.py` for centralized configuration
 - **Updated AI service**: Modified `ai_service.py` to import from `config.py`
@@ -80,12 +159,14 @@ All notable changes to Space Analyzer will be documented in this file.
 - **Updated TypeScript config**: Added `vitest/globals` back to `tsconfig.json`
 
 #### Low Priority
+
 - **Database size monitoring**: Added `checkDatabaseSize()` method to `KnowledgeDatabase.js`
 - **Database cleanup**: Added `cleanup()` method with VACUUM to reclaim space
 - **CI/CD pipeline**: Created `.github/workflows/ci.yml` for automated testing
 - **Dependency cleanup**: Removed `playwright` from dependencies (keep `@playwright/test` in devDependencies)
 
 #### Skipped
+
 - **Playwright E2E test fixes**: Not fixed due to user disruption (version conflicts)
 - **Pre-commit hooks**: Disabled due to blocking commits (lint/type-check errors)
 
@@ -113,6 +194,7 @@ No migration required. All changes are internal improvements.
 ### Vue Migration Cleanup
 
 #### Removed React Files
+
 - `src/App.css` - React styles
 - `src/App.module.css` - React module styles
 - `src/App.test.tsx` - React test
@@ -122,6 +204,7 @@ No migration required. All changes are internal improvements.
 - `src/main-react.tsx` - React entry point
 
 #### Removed Test Configuration
+
 - `src/vitest.setup.ts` - Vitest setup file (vitest removed from project)
 
 ### Benefits
@@ -146,6 +229,7 @@ No migration required. All changes are removals of obsolete React files.
 ### Test Cleanup
 
 #### Test Files
+
 - Removed `src/components/react/ErrorBoundary.test.tsx` (React component test)
 - Removed `vitest.config.js` (no unit tests exist)
 - Removed vitest from package.json scripts and devDependencies
@@ -154,17 +238,20 @@ No migration required. All changes are removals of obsolete React files.
 - E2E tests remain in `tests/e2e/` directory (use `npm run test:e2e`)
 
 #### Dependencies
+
 - Removed vitest, jsdom, supertest from devDependencies
 - Reduced package count by 80 packages
 
 ### ES Module Conversion
 
 #### ports.config.js
+
 - Converted from CommonJS (`module.exports`) to ES module (`export default`)
 - Changed validation function to use local variable name
 - Updated to work with ES module imports
 
 #### Configuration Files
+
 - Updated `vite.config.ts` to use `import ports from './ports.config.js'`
 - Updated `playwright.config.ts` to use `import ports from './ports.config.js'`
 - Updated `server/src/config/index.js` to use `import ports from '../../../ports.config.js'`
@@ -192,6 +279,7 @@ No migration required. All changes are internal improvements.
 ### ESLint Configuration
 
 #### eslint.config.js
+
 - Removed React plugin imports: `react-hooks`, `react-refresh`
 - Removed React-specific rules configuration
 - Moved common TypeScript rules to shared configuration
@@ -219,6 +307,7 @@ No migration required. All changes are internal improvements.
 ### Native Scanner Integration
 
 #### polyglot-scanner.js
+
 - **Rust Scanner Loading**
   - Changed from requiring `.node` file directly to using proper `index.js` loader
   - Updated path resolution to use `path.join(__dirname, '../native/scanner')`
@@ -235,6 +324,7 @@ No migration required. All changes are internal improvements.
   - Removed duplicate loading code
 
 #### Testing Results
+
 - Rust scanner loads successfully from `scanner.node`
 - Scan test: successfully scanned 3,508 files in 50ms
 - Returns proper file information with categories and extensions
@@ -263,12 +353,14 @@ No migration required. All changes are internal improvements.
 ### Port Configuration
 
 #### New File: ports.config.js
+
 - Created centralized port configuration file
 - Added validation to prevent duplicate ports
 - Documented port ranges and purposes
 - Added utility functions for port management
 
 #### Port Assignments
+
 - Vite Dev Server: 3001
 - Vite Preview Server: 3002
 - Backend API: 8080
@@ -278,23 +370,27 @@ No migration required. All changes are internal improvements.
 - Redis: 6379
 
 #### Configuration Updates
+
 - **vite.config.ts** - Import and use centralized ports for dev and preview servers
 - **playwright.config.ts** - Import and use centralized port for baseURL, added environment-based headless mode
 - **server/src/config/index.js** - Import and use centralized API server port
 - **server/python-ai-service/ai_service.py** - Import and use centralized Python AI service port
 
 #### Documentation
+
 - Added port configuration table to README.md
 - Explained how to change ports in one place
 
 ### Dependency Cleanup
 
 #### package.json
+
 - Removed React dependencies: `@tanstack/react-query`, `@tanstack/react-query-devtools`, `@tanstack/react-virtual`, `cmdk`, `framer-motion`, `lucide-react`, `react`, `react-dom`, `react-error-boundary`, `react-force-graph-3d`, `recharts`, `zustand`
 - Removed React devDependencies: `@testing-library/react`, `@types/react`, `@types/react-dom`, `@vitejs/plugin-react`, `babel-plugin-react-compiler`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`
 - Regenerated package-lock.json
 
 #### Results
+
 - Removed 119 packages
 - Reduced from 782 to 663 total packages
 - Project now contains only Vue 3 dependencies
@@ -324,6 +420,7 @@ No migration required. All changes are internal improvements.
 ### Configuration Fixes
 
 #### vite.config.ts
+
 - Removed React-specific dependencies from `optimizeDeps.include` (lucide-react, framer-motion, cmdk, recharts)
 - Added Vue equivalent (lucide-vue-next) to dependency optimization
 - Updated `manualChunks` to chunk Vue libraries instead of React libraries
@@ -331,6 +428,7 @@ No migration required. All changes are internal improvements.
 - Removed unused React configuration
 
 #### tsconfig.json
+
 - Removed `"jsx": "react-jsx"` setting (Vue doesn't use JSX)
 - Removed React types (`react`, `react-dom`) from types array
 - Enabled `"strict": true` for better type safety
@@ -338,23 +436,28 @@ No migration required. All changes are internal improvements.
 - Removed invalid `ignoreDeprecations: "6.0"` setting
 
 #### tsconfig.app.json
+
 - Fixed include path from `src/main.tsx` to `src/main.ts` (Vue entry point)
 
 #### index.html
+
 - Removed unused `#root` div (React mount point)
 - Kept only `#app` div (Vue mount point)
 
 ### Dependency Updates
 
 #### server/package.json
+
 - Updated sqlite3 from `^5.1.7` to `^6.0.1` to match latest version
 
 #### Root Directory
+
 - Deleted `sqlite3-6.0.1.tgz` (3MB cached package - no longer needed)
 
 ### New Dependencies Added
 
 #### High-Priority Performance Packages
+
 - **fast-glob** - High-performance file pattern matching for faster directory scanning
 - **file-type** - Accurate file type detection from magic numbers (not just extensions)
 - **diskusage** - Cross-platform disk space analysis
@@ -363,6 +466,7 @@ No migration required. All changes are internal improvements.
 ### Code Updates
 
 #### server/modules/file-utils.js
+
 - Integrated fast-glob for efficient file scanning with pattern-based exclusion
 - Added `getFileType()` function for magic number-based file type detection
 - Added `getDiskUsage()` function for real disk space analysis
@@ -370,20 +474,24 @@ No migration required. All changes are internal improvements.
 - Implemented manual fallback for compatibility if fast-glob fails
 
 #### server/backend-server.js
+
 - Added diskusage and filesize imports
 - Updated `/api/system/metrics` endpoint to use real disk space data via diskusage.check()
 - Made endpoint async to support disk usage checking
 - Maintained fallback to memory-based estimates if disk usage check fails
 
 #### server/OllamaService.js
+
 - Added filesize import
 - Replaced custom `formatFileSize()` implementation with filesize package
 
 #### server/ai-integrated-scanner.js
+
 - Added filesize import
 - Replaced custom `formatFileSize()` implementation with filesize package
 
 #### server/temp/ai-integrated-scanner.js
+
 - Added filesize import
 - Replaced custom `formatFileSize()` implementation with filesize package
 
