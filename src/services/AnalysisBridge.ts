@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable no-undef */
-/* eslint-disable @typescript-eslint/no-floating-promises */
 /* eslint-disable preserve-caught-error */
 
 export interface AnalysisResult {
@@ -421,9 +417,26 @@ export class AnalysisBridge {
         }
       };
 
-      // Start polling immediately
-      console.warn("🚀 Starting pollProgress immediately...");
-      pollProgress();
+      // Start SSE subscription for real-time progress (preferred) with polling fallback
+      console.warn("🚀 Starting SSE subscription for progress...");
+      const unsubscribe = this.subscribeToProgress(
+        immediateAnalysisId,
+        (progressUpdate) => {
+          onProgress({
+            files: progressUpdate.files || 0,
+            percentage: progressUpdate.percentage || 0,
+            currentFile: progressUpdate.currentFile || "",
+            completed: progressUpdate.completed || progressUpdate.status === "complete",
+          });
+        },
+        (error) => {
+          console.warn("⚠️ SSE failed, falling back to polling:", error);
+          pollProgress(); // Fallback to polling
+        }
+      );
+
+      // Store unsubscribe function for cleanup
+      (window as any).__analysisUnsubscribe = unsubscribe;
     } else {
       console.warn("⚠️ No progress callback provided");
     }
@@ -1078,6 +1091,56 @@ export class AnalysisBridge {
       this.log("error", `Health check failed: ${error.message}`);
       throw new Error(`Backend connection failed: ${error.message}`);
     }
+  }
+
+  // SSE Progress Subscription
+  subscribeToProgress(
+    analysisId: string,
+    onProgress: (progress: {
+      analysisId: string;
+      files: number;
+      percentage: number;
+      currentFile: string;
+      status: string;
+      completed: boolean;
+      result?: AnalysisResult;
+      error?: string;
+    }) => void,
+    onError?: (error: string) => void
+  ): () => void {
+    this.log("info", `Subscribing to progress for analysis: ${analysisId}`);
+
+    const eventSource = new EventSource(`${this.baseUrl}/progress/${analysisId}`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        this.log("debug", `Progress update: ${data.percentage}%`);
+        onProgress(data);
+
+        // Close connection if analysis is complete or failed
+        if (data.completed || data.status === "failed") {
+          this.log("info", `Analysis ${analysisId} finished, closing SSE`);
+          eventSource.close();
+        }
+      } catch (err) {
+        this.log("error", `Failed to parse progress data: ${err.message}`);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      this.log("error", `SSE error for analysis ${analysisId}:`, error);
+      if (onError) {
+        onError("Connection lost");
+      }
+      eventSource.close();
+    };
+
+    // Return cleanup function
+    return () => {
+      this.log("info", `Unsubscribing from progress: ${analysisId}`);
+      eventSource.close();
+    };
   }
 }
 
