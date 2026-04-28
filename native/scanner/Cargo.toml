@@ -30,9 +30,16 @@ rayon = "1.7"
 crossbeam = "0.8"
 num_cpus = "1.16"
 
-# Windows-specific dependencies for hard links (future MFT support)
+# Windows-specific dependencies for hard links, MFT, compression, and other NTFS features
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["fileapi", "handleapi", "winbase", "winnt"] }
+winapi = { version = "0.3", features = [
+    "fileapi",      # CreateFileW, GetFileInformationByHandle, etc.
+    "handleapi",    # CloseHandle
+    "winbase",      # File information structures
+    "winnt",        # NT definitions
+    "minwindef",    # Basic Windows types
+    "fileapi",      # File operations
+] }
 
 # Remove Windows-specific dependencies
 # tokio = { version = "1", features = ["full"] }
