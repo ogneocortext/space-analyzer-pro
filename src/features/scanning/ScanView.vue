@@ -1,14 +1,46 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
+import { useRouter } from "vue-router";
 import { useAnalysisStore } from "../../store/analysis";
 import { Card, Button } from "../../design-system/components";
 
 const store = useAnalysisStore();
+const router = useRouter();
 const selectedPath = ref(store.path);
 
 // Sync with store
 watch(selectedPath, (newPath) => {
   store.path = newPath;
+});
+
+// Auto-redirect to dashboard when complete
+watch(
+  () => store.status,
+  (newStatus) => {
+    if (newStatus === "complete" && store.analysisResult) {
+      // Wait 3 seconds so user can see completion, then redirect
+      setTimeout(() => {
+        router.push("/");
+      }, 3000);
+    }
+  }
+);
+
+// Computed for reactive progress
+const progressPercent = computed(() => {
+  return store.progressData.percentage || 0;
+});
+
+const filesScanned = computed(() => {
+  return store.progressData.files || 0;
+});
+
+const totalBytes = computed(() => {
+  return store.progressData.totalSize || 0;
+});
+
+const currentFile = computed(() => {
+  return store.progressData.currentFile || "Starting scan...";
 });
 
 async function startScan() {
@@ -92,49 +124,86 @@ function formatSize(bytes: number): string {
     </div>
 
     <!-- Progress -->
-    <div v-if="store.isAnalysisRunning" class="space-y-4">
-      <Card title="Scanning Progress">
+    <div v-if="store.isAnalysisRunning || store.status === 'complete'" class="space-y-4">
+      <Card :title="store.status === 'complete' ? 'Scan Complete!' : 'Scanning Progress'">
         <div class="space-y-4">
-          <div class="flex justify-between text-sm">
-            <span class="text-slate-400">Files scanned:</span>
-            <span class="text-slate-200">{{ store.progressData.files }}</span>
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-3 gap-4 text-center">
+            <div>
+              <div class="text-2xl font-bold text-blue-400">
+                {{ filesScanned }}
+              </div>
+              <div class="text-xs text-slate-500">Files</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-emerald-400">
+                {{ formatSize(totalBytes) }}
+              </div>
+              <div class="text-xs text-slate-500">Scanned</div>
+            </div>
+            <div>
+              <div class="text-2xl font-bold text-purple-400">{{ progressPercent }}%</div>
+              <div class="text-xs text-slate-500">Complete</div>
+            </div>
           </div>
-          <div class="flex justify-between text-sm">
-            <span class="text-slate-400">Data scanned:</span>
-            <span class="text-slate-200">{{ formatSize(store.progressData.totalSize) }}</span>
-          </div>
-          <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+
+          <!-- Progress Bar -->
+          <div class="h-3 bg-slate-800 rounded-full overflow-hidden">
             <div
-              class="h-full bg-blue-500 rounded-full transition-all duration-300"
-              :style="{ width: store.progressData.percentage + '%' }"
+              :class="[
+                'h-full rounded-full transition-all duration-500 ease-out',
+                store.status === 'complete' ? 'bg-emerald-500' : 'bg-blue-500 animate-pulse',
+              ]"
+              :style="{ width: progressPercent + '%' }"
             />
           </div>
-          <p class="text-sm text-slate-500 text-center">
-            {{ store.progressData.currentFile }}
+
+          <!-- Current File -->
+          <p class="text-sm text-slate-500 text-center truncate px-4">
+            {{ store.status === "complete" ? "Analysis finished successfully!" : currentFile }}
           </p>
         </div>
       </Card>
     </div>
 
     <!-- Results Summary -->
-    <div v-if="store.analysisResult && !store.isAnalysisRunning" class="space-y-4">
-      <Card title="Scan Complete">
-        <div class="grid grid-cols-2 gap-4">
-          <div class="text-center">
-            <div class="text-3xl font-bold text-blue-400">
-              {{ store.analysisResult.totalFiles.toLocaleString() }}
+    <div v-if="store.analysisResult && store.status === 'complete'" class="space-y-4">
+      <Card title="Analysis Complete">
+        <div class="space-y-6">
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+              <div class="text-3xl font-bold text-blue-400">
+                {{ store.analysisResult.totalFiles.toLocaleString() }}
+              </div>
+              <div class="text-sm text-slate-400 mt-1">Files Found</div>
             </div>
-            <div class="text-sm text-slate-400">Files Found</div>
-          </div>
-          <div class="text-center">
-            <div class="text-3xl font-bold text-emerald-400">
-              {{ formatSize(store.analysisResult.totalSize) }}
+            <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+              <div class="text-3xl font-bold text-emerald-400">
+                {{ formatSize(store.analysisResult.totalSize) }}
+              </div>
+              <div class="text-sm text-slate-400 mt-1">Total Size</div>
             </div>
-            <div class="text-sm text-slate-400">Total Size</div>
           </div>
-        </div>
-        <div class="flex justify-center mt-4">
-          <Button variant="primary" @click="$router.push('/')"> View Dashboard </Button>
+
+          <!-- Next Steps -->
+          <div class="space-y-3">
+            <p class="text-sm text-slate-400 text-center">What would you like to do next?</p>
+            <div class="flex gap-3 justify-center">
+              <Button variant="primary" @click="$router.push('/')"> View Dashboard </Button>
+              <Button variant="secondary" @click="$router.push('/browser')"> Browse Files </Button>
+            </div>
+          </div>
+
+          <!-- AI Insights Note -->
+          <div
+            v-if="store.useAI"
+            class="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-center"
+          >
+            <p class="text-sm text-blue-300">
+              AI insights are being generated from your scan results
+            </p>
+          </div>
         </div>
       </Card>
     </div>
