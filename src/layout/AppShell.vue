@@ -7,8 +7,17 @@ const navigation = [
   { name: "Dashboard", path: "/", icon: "LayoutDashboard" },
   { name: "Files", path: "/browser", icon: "FolderOpen" },
   { name: "Scan", path: "/scan", icon: "Scan" },
-  { name: "Settings", path: "/settings", icon: "Settings" },
 ];
+
+const analysisNav = [
+  { name: "Duplicates", path: "/duplicates", icon: "Copy" },
+  { name: "Cleanup", path: "/cleanup", icon: "Sparkles" },
+  { name: "Trends", path: "/trends", icon: "TrendingUp" },
+  { name: "Smart Search", path: "/search", icon: "Search" },
+  { name: "Treemap", path: "/treemap", icon: "LayoutGrid" },
+];
+
+const systemNav = [{ name: "Settings", path: "/settings", icon: "Settings" }];
 
 function toggleSidebar() {
   sidebarOpen.value = !sidebarOpen.value;
@@ -30,20 +39,64 @@ function toggleSidebar() {
         <button class="lg:hidden p-2 hover:bg-slate-800 rounded" @click="toggleSidebar">✕</button>
       </div>
 
-      <nav class="p-4 space-y-2">
-        <router-link
-          v-for="item in navigation"
-          :key="item.path"
-          :to="item.path"
-          :class="[
-            'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
-            $route.path === item.path
-              ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30'
-              : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100',
-          ]"
-        >
-          <span>{{ item.name }}</span>
-        </router-link>
+      <nav class="p-4 space-y-6">
+        <!-- Main Navigation -->
+        <div class="space-y-2">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4">Main</div>
+          <router-link
+            v-for="item in navigation"
+            :key="item.path"
+            :to="item.path"
+            :class="[
+              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+              $route.path === item.path
+                ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100',
+            ]"
+          >
+            <span>{{ item.name }}</span>
+          </router-link>
+        </div>
+
+        <!-- Analysis Navigation -->
+        <div class="space-y-2">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4">
+            Analysis
+          </div>
+          <router-link
+            v-for="item in analysisNav"
+            :key="item.path"
+            :to="item.path"
+            :class="[
+              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+              $route.path === item.path
+                ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100',
+            ]"
+          >
+            <span>{{ item.name }}</span>
+          </router-link>
+        </div>
+
+        <!-- System Navigation -->
+        <div class="space-y-2">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4">
+            System
+          </div>
+          <router-link
+            v-for="item in systemNav"
+            :key="item.path"
+            :to="item.path"
+            :class="[
+              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+              $route.path === item.path
+                ? 'bg-slate-600/30 text-slate-300 border border-slate-600/40'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100',
+            ]"
+          >
+            <span>{{ item.name }}</span>
+          </router-link>
+        </div>
       </nav>
     </aside>
 
