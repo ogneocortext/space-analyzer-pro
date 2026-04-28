@@ -2439,6 +2439,7 @@ Answer:`;
 
   async findCppExecutable() {
     const serverDir = __dirname;
+    console.log(`🔍 findCppExecutable: serverDir = ${serverDir}`);
     const searchPaths = new Set();
 
     searchPaths.add(serverDir);
