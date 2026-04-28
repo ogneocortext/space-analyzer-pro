@@ -114,7 +114,10 @@
   font-weight: 600;
   font-size: 0.75rem;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -123,6 +126,7 @@
   overflow: hidden;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  contain: layout paint;
 }
 
 .cyber-btn::before {
@@ -173,12 +177,17 @@
   width: 36px;
   height: 36px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 6px;
   position: relative;
+  contain: layout paint;
 }
 
 .cyber-icon-btn:hover {
@@ -233,7 +242,10 @@
   border-radius: 3px;
   margin-right: 6px;
   position: relative;
-  transition: all 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .cyber-toggle input[type="checkbox"]:checked + .toggle-text::before {
@@ -275,7 +287,10 @@
   font-family: "JetBrains Mono", monospace;
   font-size: 0.75rem;
   width: 100%;
-  transition: all 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
   outline: none;
 }
 
@@ -307,7 +322,7 @@
   overflow: hidden;
   border: var(--border-glow);
   backdrop-filter: var(--glass-blur);
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease;
 }
 
 .neural-canvas:hover {
