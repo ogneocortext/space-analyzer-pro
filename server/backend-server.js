@@ -844,13 +844,20 @@ class SpaceAnalyzerAPIServer {
       }
 
       const progressListener = (progress) => {
+        console.log(
+          `[SSE ${analysisId}] Received progress event:`,
+          progress.analysisId,
+          progress.percentage + "%"
+        );
         if (progress.analysisId === analysisId) {
+          console.log(`[SSE ${analysisId}] Sending progress to client:`, progress.percentage + "%");
           sendProgress(progress);
-
-          if (progress.percentage >= 100) {
-            res.end();
-            this.eventEmitter.removeListener("progress", progressListener);
-          }
+        } else {
+          console.log(`[SSE ${analysisId}] Ignoring event for different ID:`, progress.analysisId);
+        }
+        if (progress.percentage >= 100) {
+          res.end();
+          this.eventEmitter.removeListener("progress", progressListener);
         }
       };
 
