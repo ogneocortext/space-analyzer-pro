@@ -30,6 +30,10 @@ rayon = "1.7"
 crossbeam = "0.8"
 num_cpus = "1.16"
 
+# Windows-specific dependencies for hard links (future MFT support)
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["fileapi", "handleapi", "winbase", "winnt"] }
+
 # Remove Windows-specific dependencies
 # tokio = { version = "1", features = ["full"] }
 
