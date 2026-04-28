@@ -4,11 +4,108 @@ All notable changes to Space Analyzer will be documented in this file.
 
 ## Version Timeline
 
-| Version | Date       | Summary                                            |
-| ------- | ---------- | -------------------------------------------------- |
-| 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics |
-| 2.1.8   | 2026-04-27 | Project cleanup and organization                   |
-| 2.1.7   | 2026-04-27 | Implement improvement recommendations              |
+| Version | Date       | Summary                                                                           |
+| ------- | ---------- | --------------------------------------------------------------------------------- |
+| 2.2.0   | 2026-04-28 | Major feature expansion: 15 views, Windows API, AI Auto-Organization, PDF reports |
+| 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                |
+| 2.1.8   | 2026-04-27 | Project cleanup and organization                                                  |
+| 2.1.7   | 2026-04-27 | Implement improvement recommendations                                             |
+
+---
+
+## [2.2.0] - 2026-04-28
+
+### Major Feature Expansion
+
+#### New Analysis Views (11 total in Analysis section)
+
+- **Largest Files** (`/largest`) - Top 100 largest files with filtering, sorting, multi-select, and copy path
+- **Old Files** (`/old`) - Find files not accessed in X years (30 days to 5 years) with age distribution chart
+- **Empty Folders** (`/empty`) - Detect empty directories with depth sorting and simulated deletion
+- **AI Auto-Organization** (`/organize`) - Smart suggestions for organizing files by date, project, type, or size
+- **Duplicates** (`/duplicates`) - Enhanced duplicate detection with cleanup recommendations
+- **Cleanup** (`/cleanup`) - AI-powered cleanup suggestions
+- **Trends** (`/trends`) - Storage trend analysis with projections
+- **Smart Search** (`/search`) - Natural language file search
+- **Treemap** (`/treemap`) - Hierarchical storage visualization
+- **Insights** (`/insights`) - AI-powered insights dashboard
+- **Network** (`/network`) - Force-directed graph of file relationships
+
+#### Export System
+
+- **PDF Report Generation** - Professional PDF exports with:
+  - Scan summary (total files, size, analysis time)
+  - Duplicate files section with wasted space
+  - Top categories by size
+  - Top file types by count
+  - Largest files (top 20)
+  - Multi-page support with page numbers
+- **Export Panel Component** - Reusable UI for exporting data
+  - CSV format for spreadsheet analysis
+  - JSON format for developer integrations
+  - Text Report for human-readable summaries
+  - File Manifest for selected files
+- **jspdf library** - Client-side PDF generation (no server required)
+
+#### Windows API Features (Rust Scanner)
+
+Complete Windows NTFS integration with 10 API features:
+
+1. **Hard Link Detection** - Uses `CreateFileW` + `GetFileInformationByHandle` to get `nFileIndex` and `nNumberOfLinks`
+2. **Alternate Data Streams (ADS)** - Uses `FindFirstStreamW` / `FindNextStreamW` to detect hidden data streams
+3. **NTFS Compression** - Uses `GetFileAttributesW` + `FILE_ATTRIBUTE_COMPRESSED` and `GetCompressedFileSizeW`
+4. **Sparse Files** - Detects `FILE_ATTRIBUTE_SPARSE_FILE` to identify files with unallocated regions
+5. **Reparse Points** - Detects `FILE_ATTRIBUTE_REPARSE_POINT` for junctions/symlinks/mount points
+6. **File Creation Time** - Uses `GetFileTime` with FILETIME to ISO 8601 conversion
+7. **Last Access Time** - Uses `GetFileTime` for tracking file read access
+8. **File Ownership (SID)** - Uses `GetNamedSecurityInfoW` with `OWNER_SECURITY_INFORMATION`
+9. **USN Journal Framework** - Placeholder for incremental scanning using NTFS change journal
+10. **NTFS MFT Framework** - Detection ready, parsing requires admin privileges for 46x speedup
+
+**FileInfo Enhanced Fields:**
+
+```rust
+#[cfg(windows)]
+struct FileInfo {
+    // ... base fields ...
+    created: Option<String>,         // File creation time (ISO 8601)
+    accessed: Option<String>,        // Last access time (ISO 8601)
+    has_ads: bool,                  // Has Alternate Data Streams
+    ads_count: u32,                   // Number of ADS streams
+    is_compressed: bool,              // NTFS compressed flag
+    compressed_size: Option<u64>,     // Actual bytes on disk
+    is_sparse: bool,                  // Sparse file flag
+    is_reparse_point: bool,           // Junction/symlink flag
+    reparse_tag: Option<u32>,         // Type of reparse point
+    owner: Option<String>,            // Security Identifier (SID)
+}
+```
+
+#### Frontend Components
+
+- **LargestFilesView.vue** - Top files analysis with filtering and selection
+- **OldFilesView.vue** - Age-based file analysis with recommendations
+- **EmptyFoldersView.vue** - Empty directory finder with cleanup simulation
+- **AutoOrganizeView.vue** - AI-powered organization suggestions
+- **ExportPanel.vue** - Multi-format export UI
+- **pdfExport.ts** - PDF generation service using jspdf
+
+#### Navigation & Routing
+
+- **15 Feature Views Total** organized into 4 sections:
+  - Main: Dashboard, Files, Scan
+  - Analysis (11 features): Largest, Old, Duplicates, Empty, Organize, Cleanup, Trends, Search, Treemap, Insights, Network
+  - Visualization: Timeline
+  - System: System Monitor, Settings
+
+### Technical Improvements
+
+- **Rust Scanner**: Parallel processing with Rayon, hard link tracking, Windows API integration
+- **Vue 3 Composition API**: All new components use `<script setup>` syntax
+- **Pinia Store**: Analysis data shared across all views
+- **Type Safety**: Full TypeScript support for all new features
+
+---
 
 ---
 
