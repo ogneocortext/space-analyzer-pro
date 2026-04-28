@@ -467,7 +467,7 @@ impl Cli {
         };
 
         // Detect hard links - platform specific
-        let (inode, nlink) = Self::get_hard_link_info(metadata);
+        let (inode, nlink) = Self::get_hard_link_info(path, metadata);
         let is_hard_link = nlink.map_or(false, |n| n > 1);
 
         Some(FileInfo {
@@ -486,21 +486,63 @@ impl Cli {
 
     /// Get hard link information - platform specific implementation
     #[cfg(unix)]
-    fn get_hard_link_info(metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
+    fn get_hard_link_info(_path: &Path, metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
         use std::os::unix::fs::MetadataExt;
         (Some(metadata.ino()), Some(metadata.nlink() as u32))
     }
 
     #[cfg(windows)]
-    fn get_hard_link_info(_metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
-        // Note: Windows hard link detection requires unstable features
-        // or the winapi crate. For now, we return None on Windows.
-        // TODO: Implement using winapi for production Windows builds
-        (None, None)
+    fn get_hard_link_info(path: &Path, _metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
+        use std::os::windows::ffi::OsStrExt;
+        use winapi::um::fileapi::{CreateFileW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, OPEN_EXISTING};
+        use winapi::um::handleapi::CloseHandle;
+        use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE};
+        use std::mem;
+
+        // Convert path to wide string
+        let wide_path: Vec<u16> = path
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect();
+
+        unsafe {
+            // Open file to get handle
+            let handle: HANDLE = CreateFileW(
+                wide_path.as_ptr(),
+                GENERIC_READ,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                std::ptr::null_mut(),
+                OPEN_EXISTING,
+                0,
+                std::ptr::null_mut(),
+            );
+
+            if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
+                return (None, None);
+            }
+
+            // Get file information using BY_HANDLE_FILE_INFORMATION
+            // This gives us the file ID (nFileIndex, similar to inode) and number of links
+            let mut file_info: BY_HANDLE_FILE_INFORMATION = mem::zeroed();
+            let result = GetFileInformationByHandle(handle, &mut file_info);
+
+            CloseHandle(handle);
+
+            if result != 0 {
+                // Combine nFileIndexHigh and nFileIndexLow for 64-bit file ID
+                let file_id = ((file_info.nFileIndexHigh as u64) << 32)
+                    | (file_info.nFileIndexLow as u64);
+                let num_links = file_info.nNumberOfLinks;
+                (Some(file_id), Some(num_links))
+            } else {
+                (None, None)
+            }
+        }
     }
 
     #[cfg(not(any(unix, windows)))]
-    fn get_hard_link_info(_metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
+    fn get_hard_link_info(_path: &Path, _metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
         (None, None)
     }
 
