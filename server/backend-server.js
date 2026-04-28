@@ -25,6 +25,7 @@ const WebSocket = require("ws");
 const SelfLearningSystem = require("./SelfLearningSystem");
 const KnowledgeDatabase = require("./KnowledgeDatabase");
 const dependencyScanner = require("./dependencyScanner");
+const DuplicateDetector = require("./modules/duplicate-detector");
 
 // Import modules
 const { setupSecurity, setupMiddleware } = require("./modules/security");
@@ -1425,6 +1426,31 @@ class SpaceAnalyzerAPIServer {
         });
       } catch (error) {
         console.error("Search error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Duplicate detection endpoint
+    this.app.post("/api/analysis/:analysisId/duplicates", async (req, res) => {
+      const { analysisId } = req.params;
+      const result = this.analysisResults.get(analysisId);
+
+      if (!result || !result.files) {
+        return res.status(404).json({ error: "Analysis not found or no files" });
+      }
+
+      try {
+        const detector = new DuplicateDetector();
+        const duplicates = await detector.findDuplicates(result.files);
+        const recommendations = detector.generateRecommendations(duplicates);
+
+        res.json({
+          success: true,
+          ...duplicates,
+          recommendations,
+        });
+      } catch (error) {
+        console.error("Duplicate detection error:", error);
         res.status(500).json({ error: error.message });
       }
     });

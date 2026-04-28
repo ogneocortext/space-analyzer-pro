@@ -17,6 +17,7 @@ struct FileInfo {
     extension: String,
     category: String,
     modified: String,
+    file_hash: Option<String>, // MD5 hash for duplicate detection
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -40,6 +41,24 @@ struct AnalysisResult {
     extension_stats: HashMap<String, ExtensionStats>,
     analysis_time_ms: u128,
     directory_path: String,
+    duplicate_groups: Vec<DuplicateGroup>, // Groups of duplicate files
+    duplicate_count: u64,                  // Total number of duplicate files
+    duplicate_size: u64,                   // Total size of duplicate files
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct DuplicateGroup {
+    hash: String,
+    size: u64,
+    files: Vec<DuplicateFileInfo>,
+    wasted_space: u64, // Size * (count - 1)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct DuplicateFileInfo {
+    path: String,
+    name: String,
+    modified: String,
 }
 
 #[derive(Parser)]
@@ -77,6 +96,14 @@ struct Cli {
     /// Use parallel processing for faster scanning
     #[arg(long, default_value = "true")]
     parallel: bool,
+
+    /// Detect duplicate files (slower but finds duplicates)
+    #[arg(long)]
+    duplicates: bool,
+
+    /// Skip hashing files larger than this size (MB) for performance
+    #[arg(long, default_value = "1000")]
+    max_hash_size: u64,
 }
 
 impl Cli {
@@ -212,6 +239,13 @@ impl Cli {
 
         let analysis_time = start_time.elapsed();
 
+        // Find duplicates if enabled
+        let (duplicate_groups, duplicate_count, duplicate_size) = if self.duplicates {
+            Self::find_duplicates(&files)
+        } else {
+            (Vec::new(), 0, 0)
+        };
+
         Ok(AnalysisResult {
             total_files,
             total_size,
@@ -220,6 +254,9 @@ impl Cli {
             extension_stats,
             analysis_time_ms: analysis_time.as_millis(),
             directory_path: self.path.to_string_lossy().to_string(),
+            duplicate_groups,
+            duplicate_count,
+            duplicate_size,
         })
     }
 
@@ -275,6 +312,13 @@ impl Cli {
 
         let analysis_time = start_time.elapsed();
 
+        // Find duplicates if enabled
+        let (duplicate_groups, duplicate_count, duplicate_size) = if self.duplicates {
+            Self::find_duplicates(&files)
+        } else {
+            (Vec::new(), 0, 0)
+        };
+
         Ok(AnalysisResult {
             total_files,
             total_size,
@@ -283,6 +327,9 @@ impl Cli {
             extension_stats,
             analysis_time_ms: analysis_time.as_millis(),
             directory_path: self.path.to_string_lossy().to_string(),
+            duplicate_groups,
+            duplicate_count,
+            duplicate_size,
         })
     }
 
@@ -332,6 +379,13 @@ impl Cli {
             .map(|d| DateTime::<Utc>::from(std::time::UNIX_EPOCH + d).to_rfc3339())
             .unwrap_or_else(|| DateTime::<Utc>::from(std::time::UNIX_EPOCH).to_rfc3339());
 
+        // Calculate hash only if duplicates mode is enabled and file size is under limit
+        let file_hash = if self.duplicates && metadata.len() <= self.max_hash_size * 1024 * 1024 {
+            Self::calculate_file_hash(path)
+        } else {
+            None
+        };
+
         Some(FileInfo {
             name: file_name,
             path: file_path_str,
@@ -339,7 +393,77 @@ impl Cli {
             extension,
             category: category.to_string(),
             modified,
+            file_hash,
         })
+    }
+
+    fn calculate_file_hash(path: &Path) -> Option<String> {
+        use md5::{Md5, Digest};
+        use std::io::Read;
+
+        let mut file = fs::File::open(path).ok()?;
+        let mut hasher = Md5::new();
+        let mut buffer = [0u8; 8192];
+
+        loop {
+            let bytes_read = file.read(&mut buffer).ok()?;
+            if bytes_read == 0 {
+                break;
+            }
+            hasher.update(&buffer[..bytes_read]);
+        }
+
+        let result = hasher.finalize();
+        Some(format!("{:x}", result))
+    }
+
+    fn find_duplicates(files: &[FileInfo]) -> (Vec<DuplicateGroup>, u64, u64) {
+        use std::collections::HashMap;
+
+        let mut hash_groups: HashMap<String, Vec<&FileInfo>> = HashMap::new();
+
+        // Group files by hash
+        for file in files {
+            if let Some(ref hash) = file.file_hash {
+                hash_groups.entry(hash.clone()).or_default().push(file);
+            }
+        }
+
+        // Create duplicate groups (only for hashes with more than 1 file)
+        let mut duplicate_groups = Vec::new();
+        let mut duplicate_count = 0u64;
+        let mut duplicate_size = 0u64;
+
+        for (hash, group_files) in hash_groups {
+            if group_files.len() > 1 {
+                let size = group_files[0].size;
+                let wasted = size * (group_files.len() as u64 - 1);
+
+                let dup_files: Vec<DuplicateFileInfo> = group_files
+                    .iter()
+                    .map(|f| DuplicateFileInfo {
+                        path: f.path.clone(),
+                        name: f.name.clone(),
+                        modified: f.modified.clone(),
+                    })
+                    .collect();
+
+                duplicate_groups.push(DuplicateGroup {
+                    hash: hash.clone(),
+                    size,
+                    files: dup_files,
+                    wasted_space: wasted,
+                });
+
+                duplicate_count += group_files.len() as u64;
+                duplicate_size += wasted;
+            }
+        }
+
+        // Sort by wasted space (largest first)
+        duplicate_groups.sort_by(|a, b| b.wasted_space.cmp(&a.wasted_space));
+
+        (duplicate_groups, duplicate_count, duplicate_size)
     }
 }
 
@@ -365,6 +489,14 @@ fn main() -> anyhow::Result<()> {
              result.total_files,
              result.total_size,
              result.analysis_time_ms);
+
+    // Print duplicate statistics if duplicates were detected
+    if result.duplicate_count > 0 {
+        println!("📋 Found {} duplicate files ({} groups), wasting {} bytes",
+                 result.duplicate_count,
+                 result.duplicate_groups.len(),
+                 result.duplicate_size);
+    }
 
     let json_output = serde_json::to_string_pretty(&result)?;
 

@@ -25,6 +25,31 @@ const router = createRouter({
       name: "settings",
       component: () => import("../features/settings/SettingsView.vue"),
     },
+    {
+      path: "/duplicates",
+      name: "duplicates",
+      component: () => import("../features/duplicates/DuplicateFinderView.vue"),
+    },
+    {
+      path: "/cleanup",
+      name: "cleanup",
+      component: () => import("../features/cleanup/CleanupRecommendationsView.vue"),
+    },
+    {
+      path: "/trends",
+      name: "trends",
+      component: () => import("../features/trends/TrendsView.vue"),
+    },
+    {
+      path: "/search",
+      name: "search",
+      component: () => import("../features/search/SemanticSearchView.vue"),
+    },
+    {
+      path: "/treemap",
+      name: "treemap",
+      component: () => import("../features/treemap/TreemapView.vue"),
+    },
   ],
 });
 
