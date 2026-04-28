@@ -85,6 +85,11 @@ const router = createRouter({
       name: "old",
       component: () => import("../features/old/OldFilesView.vue"),
     },
+    {
+      path: "/organize",
+      name: "organize",
+      component: () => import("../features/organize/AutoOrganizeView.vue"),
+    },
   ],
 });
 

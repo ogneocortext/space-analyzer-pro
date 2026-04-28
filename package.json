@@ -45,6 +45,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
+    "jspdf": "^4.2.1",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",
     "puppeteer": "^24.42.0",
