@@ -12,12 +12,8 @@
     <div class="flex-1 flex items-center justify-center p-6 md:p-12 relative z-10">
       <div class="max-w-7xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
         <!-- Left Side - Hero Content -->
-        <div
-          class="space-y-8 lg:space-y-12 text-center lg:text-left animate-in fade-in slide-in-from-left-12 duration-600"
-        >
-          <div
-            class="flex justify-center lg:justify-start animate-in zoom-in duration-500 delay-200"
-          >
+        <div class="space-y-8 lg:space-y-12 text-center lg:text-left">
+          <div class="flex justify-center lg:justify-start">
             <div class="relative">
               <div
                 class="absolute inset-0 bg-linear-to-r from-[#00B4D8] to-purple-500 blur-2xl opacity-20 rounded-full"
@@ -38,21 +34,17 @@
 
           <h1
             data-testid="app-title"
-            class="text-4xl lg:text-5xl text-transparent bg-linear-to-r from-[#00B4D8] to-purple-500 bg-clip-text leading-tight animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300"
+            class="text-4xl lg:text-5xl text-transparent bg-linear-to-r from-[#00B4D8] to-purple-500 bg-clip-text leading-tight"
           >
             Space Analyzer Pro
           </h1>
 
-          <p
-            class="text-sm lg:text-base text-slate-300 leading-relaxed font-normal animate-in fade-in slide-in-from-bottom-4 duration-500 delay-400"
-          >
+          <p class="text-sm lg:text-base text-slate-300 leading-relaxed font-normal">
             AI-Powered Intelligence for Your Digital Universe
           </p>
 
           <!-- Feature Highlights -->
-          <div
-            class="grid grid-cols-2 gap-3 lg:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-500"
-          >
+          <div class="grid grid-cols-2 gap-3 lg:gap-4">
             <div
               v-for="(feature, index) in features"
               :key="feature.text"
@@ -70,7 +62,7 @@
 
         <!-- Right Side - Input Card -->
         <div
-          class="w-full max-w-md mx-auto animate-in fade-in slide-in-from-right-12 duration-600 delay-300"
+          class="w-full max-w-md mx-auto"
           @dragover.prevent="isDragOver = true"
           @dragleave="isDragOver = false"
           @drop="handleDrop"
