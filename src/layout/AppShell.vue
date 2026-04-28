@@ -10,7 +10,9 @@ const navigation = [
 ];
 
 const analysisNav = [
+  { name: "Largest Files", path: "/largest", icon: "BarChart3" },
   { name: "Duplicates", path: "/duplicates", icon: "Copy" },
+  { name: "Empty Folders", path: "/empty", icon: "FolderOpen" },
   { name: "Cleanup", path: "/cleanup", icon: "Sparkles" },
   { name: "Trends", path: "/trends", icon: "TrendingUp" },
   { name: "Smart Search", path: "/search", icon: "Search" },

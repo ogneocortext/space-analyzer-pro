@@ -70,6 +70,16 @@ const router = createRouter({
       name: "timeline",
       component: () => import("../features/timeline/TimelineView.vue"),
     },
+    {
+      path: "/largest",
+      name: "largest",
+      component: () => import("../features/largest/LargestFilesView.vue"),
+    },
+    {
+      path: "/empty",
+      name: "empty",
+      component: () => import("../features/empty/EmptyFoldersView.vue"),
+    },
   ],
 });
 
