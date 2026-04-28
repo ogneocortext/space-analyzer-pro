@@ -9,6 +9,7 @@
 @import "./accessibility.css";
 @import "./enhanced-contrast.css";
 @import "./mobile-enhancements.css";
+@import "./gpu-acceleration.css";
 
 /* Google Fonts are loaded in index.html via <link> tags */
 

@@ -1,0 +1,194 @@
+/* ============================================
+   GPU ACCELERATION UTILITIES
+   ============================================ */
+
+/* Force GPU Layer Creation */
+.gpu-layer {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Enhanced GPU Promotion for Complex Animations */
+.gpu-layer-promote {
+  transform: translate3d(0, 0, 0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Content Visibility for Off-screen Content (Virtual Rendering) */
+.lazy-render {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+/* Optimized Scrolling Containers */
+.scroll-container {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Paint Containment (reduces paint area) */
+.paint-contain {
+  contain: paint;
+}
+
+/* Layout Isolation (prevents layout thrashing) */
+.layout-isolate {
+  contain: layout;
+}
+
+/* Strict Containment for Maximum Performance */
+.strict-contain {
+  contain: strict;
+}
+
+/* Composite Only Mode (fastest animations) */
+.composite-only {
+  will-change: transform, opacity;
+  contain: layout style paint;
+}
+
+/* ============================================
+   COMPONENT-SPECIFIC GPU OPTIMIZATIONS
+   ============================================ */
+
+/* Cards and Interactive Elements */
+.card-gpu {
+  transform: translateZ(0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  will-change: transform;
+  contain: layout paint;
+}
+
+.card-gpu:hover {
+  transform: translateY(-4px) translateZ(0);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Buttons with GPU Acceleration */
+.btn-gpu {
+  transform: translateZ(0);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+  will-change: transform;
+}
+
+.btn-gpu:active {
+  transform: scale(0.98) translateZ(0);
+}
+
+/* Scrollable Lists */
+.list-gpu {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  contain: layout;
+}
+
+/* Charts and Visualizations */
+.chart-gpu {
+  transform: translateZ(0);
+  contain: layout paint;
+  will-change: transform;
+}
+
+/* Neural Network Visualization */
+.neural-gpu {
+  transform: translate3d(0, 0, 0);
+  perspective: 1000px;
+  contain: strict;
+  will-change: transform;
+}
+
+/* Dashboard Grid */
+.dashboard-gpu {
+  transform: translateZ(0);
+  contain: layout;
+  content-visibility: auto;
+}
+
+/* Modal/Dialog Overlays */
+.modal-gpu {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  contain: layout paint;
+}
+
+/* ============================================
+   ANIMATION OPTIMIZATIONS
+   ============================================ */
+
+/* Use these classes instead of animating layout properties */
+@keyframes slideInGPU {
+  from {
+    transform: translate3d(-100%, 0, 0);
+    opacity: 0;
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInGPU {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleInGPU {
+  from {
+    transform: scale3d(0.9, 0.9, 1);
+    opacity: 0;
+  }
+  to {
+    transform: scale3d(1, 1, 1);
+    opacity: 1;
+  }
+}
+
+/* GPU-optimized animation classes */
+.animate-slide-in {
+  animation: slideInGPU 0.3s ease-out;
+  will-change: transform, opacity;
+}
+
+.animate-fade-in {
+  animation: fadeInGPU 0.2s ease-out;
+  will-change: opacity;
+}
+
+.animate-scale-in {
+  animation: scaleInGPU 0.25s ease-out;
+  will-change: transform, opacity;
+}
+
+/* ============================================
+   RESPONSIVE GPU SETTINGS
+   ============================================ */
+
+/* Reduce GPU strain on mobile/low-power devices */
+@media (prefers-reduced-motion: reduce) {
+  .gpu-layer,
+  .gpu-layer-promote,
+  .card-gpu,
+  .btn-gpu,
+  .chart-gpu,
+  .neural-gpu {
+    transform: none;
+    will-change: auto;
+    animation: none;
+  }
+}
+
+/* Battery-saver mode detection */
+@media (prefers-reduced-motion: reduce) and (prefers-color-scheme: dark) {
+  .lazy-render {
+    content-visibility: visible;
+  }
+}
