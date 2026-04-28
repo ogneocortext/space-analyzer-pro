@@ -14,6 +14,7 @@ const analysisNav = [
   { name: "Old Files", path: "/old", icon: "Clock" },
   { name: "Duplicates", path: "/duplicates", icon: "Copy" },
   { name: "Empty Folders", path: "/empty", icon: "FolderOpen" },
+  { name: "AI Organize", path: "/organize", icon: "Brain" },
   { name: "Cleanup", path: "/cleanup", icon: "Sparkles" },
   { name: "Trends", path: "/trends", icon: "TrendingUp" },
   { name: "Smart Search", path: "/search", icon: "Search" },
