@@ -373,21 +373,23 @@ export class AnalysisBridge {
             const progressData = await progressResponse.json();
             console.warn("📊 Progress data received:", progressData);
 
-            if (progressData.success && progressData.progress) {
-              const progress = progressData.progress;
+            // Handle both old and new progress data structures
+            const progress = progressData.progress || progressData;
+            if (progressData.success || progress.files !== undefined) {
               console.warn("📊 About to call progress callback with:", {
-                files: progress.filesProcessed || 0,
+                files: progress.filesProcessed || progress.files || 0,
                 percentage: progress.percentage || 0,
                 currentFile: progress.currentFile || "",
-                completed: progress.status === "complete",
+                completed: progress.status === "complete" || progress.completed,
+                totalSize: progress.totalSize || 0,
               });
 
               // Call the callback immediately
               onProgress({
-                files: progress.filesProcessed || 0,
+                files: progress.filesProcessed || progress.files || 0,
                 percentage: progress.percentage || 0,
                 currentFile: progress.currentFile || "",
-                completed: progress.status === "complete",
+                completed: progress.status === "complete" || progress.completed || false,
                 totalSize: progress.totalSize || 0,
               });
 
