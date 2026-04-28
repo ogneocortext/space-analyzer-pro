@@ -179,7 +179,7 @@ impl Cli {
                 // Report progress every 100 files
                 if show_progress && total_files % 100 == 0 && total_files != last_progress {
                     last_progress = total_files;
-                    eprintln!("Scanned: {} files", total_files);
+                    eprintln!("Scanned: {} files, Size: {}", total_files, total_size);
                 }
             }
 
@@ -266,7 +266,7 @@ impl Cli {
                         // Report progress every 100 files
                         if self.progress && total_files % 100 == 0 && total_files != last_progress {
                             last_progress = total_files;
-                            eprintln!("Scanned: {} files", total_files);
+                            eprintln!("Scanned: {} files, Size: {}", total_files, total_size);
                         }
                     }
                 }
