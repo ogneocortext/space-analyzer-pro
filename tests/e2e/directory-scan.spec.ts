@@ -3,14 +3,13 @@
  * Tests the core functionality of analyzing file system structure
  */
 
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 import TestLogger from '../utils/logger';
-import path from 'path';
 
 test.describe('Directory Scan', () => {
   let logger: TestLogger;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     logger = new TestLogger('directory-scan');
     logger.log('TEST_START', { testName: 'Directory Scan' });
   });
@@ -22,7 +21,7 @@ test.describe('Directory Scan', () => {
     // Look for directory input field
     const directoryInput = page.locator('[data-testid="directory-path-input"]').first();
     const inputVisible = await directoryInput.isVisible({ timeout: 5000 }).catch(() => false);
-    
+
     if (inputVisible) {
       logger.log('DIRECTORY_INPUT_FOUND', {});
       // Enter a test path
@@ -35,7 +34,7 @@ test.describe('Directory Scan', () => {
     // Look for start button
     const startButton = page.locator('[data-testid="start-analysis-button"]').first();
     const buttonVisible = await startButton.isVisible({ timeout: 5000 }).catch(() => false);
-    
+
     if (buttonVisible) {
       logger.log('START_BUTTON_FOUND', {});
     } else {
@@ -47,62 +46,44 @@ test.describe('Directory Scan', () => {
 
   test('should display scan results after directory selection', async ({ page }) => {
     await page.goto('http://localhost:3001', { waitUntil: 'networkidle' });
-    
+
     // Look for results area
-    const resultsSelectors = [
-      '[data-testid="scan-results"]',
-      '.scan-results',
-      '.results-container',
-      '.file-tree',
-      '.directory-tree',
-      '[role="tree"]'
-    ];
+    const results = page.locator('[data-testid="scan-results"]').first();
+    const resultsVisible = await results.isVisible({ timeout: 3000 }).catch(() => false);
 
-    let resultsFound = false;
-    for (const selector of resultsSelectors) {
-      const element = page.locator(selector).first();
-      if (await element.isVisible({ timeout: 3000 }).catch(() => false)) {
-        resultsFound = true;
-        logger.log('RESULTS_AREA_FOUND', { selector });
-        break;
-      }
+    if (resultsVisible) {
+      logger.log('RESULTS_AREA_FOUND', {});
+    } else {
+      logger.log('RESULTS_AREA_NOT_FOUND', {});
     }
 
-    if (!resultsFound) {
-      logger.log('RESULTS_AREA_NOT_FOUND', { selectors: resultsSelectors });
-    }
-
-    logger.log('TEST_COMPLETE', { resultsFound });
+    logger.log('TEST_COMPLETE', { resultsVisible });
   });
 
   test('should show file statistics', async ({ page }) => {
     await page.goto('http://localhost:3001', { waitUntil: 'networkidle' });
-    
+
     // Look for statistics display
-    const statsSelectors = [
-      '[data-testid="statistics"]',
-      '.statistics',
-      '.stats',
-      '.file-count',
-      '.total-size',
-      '[data-testid="file-count"]',
-      '[data-testid="total-size"]'
-    ];
+    const statistics = page.locator('[data-testid="statistics"]').first();
+    const statsVisible = await statistics.isVisible({ timeout: 3000 }).catch(() => false);
 
-    const foundStats: string[] = [];
-    for (const selector of statsSelectors) {
-      const element = page.locator(selector).first();
-      if (await element.isVisible({ timeout: 3000 }).catch(() => false)) {
-        foundStats.push(selector);
-        logger.log('STATS_ELEMENT_FOUND', { selector });
-      }
+    if (statsVisible) {
+      logger.log('STATISTICS_FOUND', {});
+
+      // Check for file count
+      const fileCount = page.locator('[data-testid="file-count"]').first();
+      const countVisible = await fileCount.isVisible().catch(() => false);
+      logger.log('FILE_COUNT_VISIBLE', { visible: countVisible });
+
+      // Check for total size
+      const totalSize = page.locator('[data-testid="total-size"]').first();
+      const sizeVisible = await totalSize.isVisible().catch(() => false);
+      logger.log('TOTAL_SIZE_VISIBLE', { visible: sizeVisible });
+    } else {
+      logger.log('STATISTICS_NOT_FOUND', {});
     }
 
-    if (foundStats.length === 0) {
-      logger.log('STATS_NOT_FOUND', { selectors: statsSelectors });
-    }
-
-    logger.log('TEST_COMPLETE', { foundStats: foundStats.length });
+    logger.log('TEST_COMPLETE', { statsVisible });
   });
 
   test('should handle scan errors gracefully', async ({ page }) => {

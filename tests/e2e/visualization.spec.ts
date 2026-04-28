@@ -3,112 +3,53 @@
  * Tests the visualization features for displaying file system data
  */
 
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
 import TestLogger from '../utils/logger';
 
 test.describe('Visualization', () => {
   let logger: TestLogger;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async () => {
     logger = new TestLogger('visualization');
     logger.log('TEST_START', { testName: 'Visualization' });
   });
 
   test('should display 3D visualization', async ({ page }) => {
     await page.goto('http://localhost:3001', { waitUntil: 'networkidle' });
-    
-    // Look for 3D visualization container
-    const vizSelectors = [
-      '[data-testid="3d-visualization"]',
-      '.force-graph-3d',
-      '#force-graph-3d',
-      '.visualization-3d',
-      '[data-testid="visualization"]',
-      '.graph-container'
-    ];
 
-    let vizFound = false;
-    for (const selector of vizSelectors) {
-      const element = page.locator(selector).first();
-      if (await element.isVisible({ timeout: 5000 }).catch(() => false)) {
-        vizFound = true;
-        logger.log('3D_VIZ_FOUND', { selector });
-        break;
-      }
-    }
+    // Look for visualization section
+    const visualization = page.locator('[data-testid="visualization"]').first();
+    const vizVisible = await visualization.isVisible({ timeout: 5000 }).catch(() => false);
 
-    if (!vizFound) {
-      logger.log('3D_VIZ_NOT_FOUND', { selectors: vizSelectors });
-    }
-
-    logger.log('TEST_COMPLETE', { vizFound });
+    logger.log('VISUALIZATION_VISIBLE', { visible: vizVisible });
+    logger.log('TEST_COMPLETE', { vizVisible });
   });
 
   test('should display charts/graphs', async ({ page }) => {
     await page.goto('http://localhost:3001', { waitUntil: 'networkidle' });
-    
-    // Look for chart elements
-    const chartSelectors = [
-      '[data-testid="chart"]',
-      '.chart',
-      '.graph',
-      'canvas',
-      'svg',
-      '[data-testid="file-size-chart"]',
-      '[data-testid="distribution-chart"]'
-    ];
 
-    const foundCharts: string[] = [];
-    for (const selector of chartSelectors) {
-      const elements = page.locator(selector);
-      const count = await elements.count();
-      if (count > 0) {
-        foundCharts.push(`${selector}: ${count} elements`);
-        logger.log('CHART_ELEMENTS_FOUND', { selector, count });
-      }
-    }
+    // Look for storage gauge (chart element)
+    const storageGauge = page.locator('[data-testid="storage-gauge"]').first();
+    const gaugeVisible = await storageGauge.isVisible({ timeout: 5000 }).catch(() => false);
 
-    if (foundCharts.length === 0) {
-      logger.log('CHARTS_NOT_FOUND', { selectors: chartSelectors });
-    }
-
-    logger.log('TEST_COMPLETE', { foundCharts: foundCharts.length });
+    logger.log('STORAGE_GAUGE_VISIBLE', { visible: gaugeVisible });
+    logger.log('TEST_COMPLETE', { gaugeVisible });
   });
 
   test('should have interactive visualization controls', async ({ page }) => {
     await page.goto('http://localhost:3001', { waitUntil: 'networkidle' });
-    
-    // Look for visualization controls
-    const controlSelectors = [
-      '[data-testid="viz-controls"]',
-      '.viz-controls',
-      '.visualization-controls',
-      'button:has-text("Zoom")',
-      'button:has-text("Rotate")',
-      'button:has-text("Reset")',
-      '[data-testid="zoom"]',
-      '[data-testid="rotate"]'
-    ];
 
-    const foundControls: string[] = [];
-    for (const selector of controlSelectors) {
-      const element = page.locator(selector).first();
-      if (await element.isVisible({ timeout: 3000 }).catch(() => false)) {
-        foundControls.push(selector);
-        logger.log('CONTROL_FOUND', { selector });
-      }
-    }
+    // Look for action buttons (Browse Files, View Dashboard, etc.)
+    const actionButtons = page.locator('button:has-text("Browse Files"), button:has-text("View Dashboard"), button:has-text("3D Visualization")').first();
+    const buttonsVisible = await actionButtons.isVisible({ timeout: 3000 }).catch(() => false);
 
-    if (foundControls.length === 0) {
-      logger.log('CONTROLS_NOT_FOUND', { selectors: controlSelectors });
-    }
-
-    logger.log('TEST_COMPLETE', { foundControls: foundControls.length });
+    logger.log('ACTION_BUTTONS_VISIBLE', { visible: buttonsVisible });
+    logger.log('TEST_COMPLETE', { buttonsVisible });
   });
 
   test('should handle visualization errors gracefully', async ({ page }) => {
     const consoleErrors: string[] = [];
-    
+
     page.on('console', msg => {
       if (msg.type() === 'error') {
         consoleErrors.push(msg.text());
@@ -119,8 +60,8 @@ test.describe('Visualization', () => {
     await page.goto('http://localhost:3001', { waitUntil: 'networkidle' });
 
     // Check for WebGL errors
-    const webglErrors = consoleErrors.filter(e => 
-      e.toLowerCase().includes('webgl') || 
+    const webglErrors = consoleErrors.filter(e =>
+      e.toLowerCase().includes('webgl') ||
       e.toLowerCase().includes('three') ||
       e.toLowerCase().includes('canvas')
     );

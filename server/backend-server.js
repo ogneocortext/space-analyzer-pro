@@ -34,16 +34,16 @@ const { setupWebSocketServer, broadcast, getClients, getServer } = require('./mo
 const wsClients = getClients();
 
 // Import independent utility functions
-const { 
-    formatBytes, 
-    convertToCSV, 
-    convertToTXT, 
-    convertCategoryDistribution, 
-    convertExtensionDistribution 
+const {
+    formatBytes,
+    convertToCSV,
+    convertToTXT,
+    convertCategoryDistribution,
+    convertExtensionDistribution
 } = require('./modules/data-conversion');
-const { 
-    findProjectRoot, 
-    isValidPath, 
+const {
+    findProjectRoot,
+    isValidPath,
     generateFileHash,
     getDirectoryFilesQuick
 } = require('./modules/file-utils');
@@ -91,7 +91,7 @@ class SpaceAnalyzerAPIServer {
         this.selfLearning = new SelfLearningSystem(path.join(__dirname, 'learning'));
         this.knowledgeDB = new KnowledgeDatabase(path.join(__dirname, 'knowledge.db'));
         this.ollamaAvailable = false;
-        
+
         // Configuration
         this.config = {
             port: parseInt(process.env.PORT) || 8080,
@@ -268,7 +268,7 @@ class SpaceAnalyzerAPIServer {
             // Fallback to known models based on our curl test
             this.ollamaModels = ['gemma3:latest', 'llava:latest', 'deepseek-coder:6.7b', 'codegemma:7b-instruct', 'qwen2.5-coder:7b-instruct'];
             console.log('🔄 Using fallback model list:', this.ollamaModels.join(', '));
-            
+
             // Initialize performance tracking for fallback models
             this.ollamaModels.forEach(model => {
                 if (!this.modelPerformance.has(model)) {
@@ -291,7 +291,7 @@ class SpaceAnalyzerAPIServer {
         // Classify query intent
         const queryType = this.classifyQuery(query);
         const complexity = this.calculateQueryComplexity(query, analysisData);
-        
+
         console.log(`🎯 Query type: ${queryType}, Complexity: ${complexity.toFixed(2)}`);
 
         // Model selection based on query type and complexity
@@ -315,7 +315,7 @@ class SpaceAnalyzerAPIServer {
                         score += 2;
                     }
                     break;
-                
+
                 case 'file_search':
                 case 'optimization':
                     // Prefer fast, general-purpose models
@@ -325,7 +325,7 @@ class SpaceAnalyzerAPIServer {
                         score += 2;
                     }
                     break;
-                
+
                 case 'general':
                 default:
                     // Prefer gemma3 for general questions
@@ -369,7 +369,7 @@ class SpaceAnalyzerAPIServer {
         const lowerQuery = query.toLowerCase();
 
         // Code/Technical Analysis
-        const codeTerms = ['function', 'class', 'method', 'code', 'import', 'dependency', 'dependencies', 
+        const codeTerms = ['function', 'class', 'method', 'code', 'import', 'dependency', 'dependencies',
                           'refactor', 'algorithm', 'complexity', 'performance', 'optimize'];
         if (codeTerms.some(term => lowerQuery.includes(term))) {
             return 'code_analysis';
@@ -589,8 +589,8 @@ class SpaceAnalyzerAPIServer {
     setupRoutes() {
         // Health check endpoint
         this.app.get('/api/health', (req, res) => {
-            res.json({ 
-                status: 'ok', 
+            res.json({
+                status: 'ok',
                 timestamp: new Date(),
                 backend: true,
                 websocket: wsClients.size > 0,
@@ -605,7 +605,7 @@ class SpaceAnalyzerAPIServer {
         this.app.get('/api/system/metrics', async (req, res) => {
             const os = require('os');
             const cpus = os.cpus();
-            
+
             // Calculate CPU usage
             const cpuUsage = cpus.reduce((acc, cpu) => {
                 const total = Object.values(cpu.times).reduce((a, b) => a + b, 0);
@@ -755,7 +755,7 @@ class SpaceAnalyzerAPIServer {
         // Server-Sent Events for real-time progress
         this.app.get('/api/progress/stream/:analysisId', (req, res) => {
             const { analysisId } = req.params;
-            
+
             res.writeHead(200, {
                 'Content-Type': 'text/event-stream',
                 'Cache-Control': 'no-cache',
@@ -775,7 +775,7 @@ class SpaceAnalyzerAPIServer {
             const progressListener = (progress) => {
                 if (progress.analysisId === analysisId) {
                     sendProgress(progress);
-                    
+
                     if (progress.percentage >= 100) {
                         res.end();
                         this.eventEmitter.removeListener('progress', progressListener);
@@ -814,7 +814,7 @@ class SpaceAnalyzerAPIServer {
                 } else if (directoryPath === '.' || directoryPath === '') {
                     actualPath = projectRoot;
                 }
-                
+
                 const resolvedPath = path.resolve(actualPath);
 
                 // Generate a more readable analysis ID based on directory name and timestamp
@@ -822,19 +822,19 @@ class SpaceAnalyzerAPIServer {
                 const now = new Date();
                 const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
                 const analysisId = options.analysisId || `${dirName}_${timestamp}`;
-                
+
                 if (!existsSync(resolvedPath)) {
                     return res.status(404).json({
                         success: false,
                         error: `Directory not found: ${actualPath}`
                     });
                 }
-                
+
                 const stats = statSync(resolvedPath);
                 if (!stats.isDirectory()) {
-                    return res.status(400).json({ 
-                        success: false, 
-                        error: `Path is not a directory: ${actualPath}` 
+                    return res.status(400).json({
+                        success: false,
+                        error: `Path is not a directory: ${actualPath}`
                     });
                 }
 
@@ -967,9 +967,9 @@ class SpaceAnalyzerAPIServer {
                         this.analysisResults.set(normalizedPath, result);
                         this.analysisResults.set(directoryPath, result);
                         this.analysisResults.set(analysisId, result); // Store by ID for frontend retrieval
-                        
+
                         console.log('Analysis completed successfully for:', actualPath);
-                        
+
                         // Store analysis in persistent database for incremental analysis
                         try {
                             await this.knowledgeDB.storeAnalysis(actualPath, result);
@@ -992,7 +992,7 @@ class SpaceAnalyzerAPIServer {
                             console.error('Failed to store in knowledge database:', dbError);
                             // Continue even if database storage fails
                         }
-                        
+
                         const finalProgress = {
                             analysisId,
                             files: result.totalFiles,
@@ -1001,10 +1001,10 @@ class SpaceAnalyzerAPIServer {
                             status: 'complete',
                             completed: true
                         };
-                        
+
                         this.activeAnalyses.set(analysisId, finalProgress);
                         this.eventEmitter.emit('progress', finalProgress);
-                        
+
                         // Broadcast completion to WebSocket clients
                         broadcast({
                             type: 'analysis_complete',
@@ -1016,14 +1016,14 @@ class SpaceAnalyzerAPIServer {
                             },
                             timestamp: new Date().toISOString()
                         });
-                        
+
                         setTimeout(() => {
                             this.activeAnalyses.delete(analysisId);
                         }, 5000);
                     })
                     .catch(error => {
                         console.error('Analysis failed for path:', actualPath, error);
-                        
+
                         this.eventEmitter.emit('progress', {
                             analysisId,
                             files: 0,
@@ -1033,7 +1033,7 @@ class SpaceAnalyzerAPIServer {
                             status: 'failed',
                             completed: true
                         });
-                        
+
                         // Broadcast error to WebSocket clients
                         broadcast({
                             type: 'analysis_error',
@@ -1041,14 +1041,14 @@ class SpaceAnalyzerAPIServer {
                             error: error.message,
                             timestamp: new Date().toISOString()
                         });
-                        
+
                         setTimeout(() => {
                             this.activeAnalyses.delete(analysisId);
                         }, 5000);
                     });
 
-                res.json({ 
-                    success: true, 
+                res.json({
+                    success: true,
                     analysisId,
                     serviceMetadata: { analysisId },
                     message: 'Analysis started'
@@ -1063,9 +1063,9 @@ class SpaceAnalyzerAPIServer {
         this.app.post('/api/export', async (req, res) => {
             try {
                 const { data, format = 'json', filename = 'analysis' } = req.body;
-                
+
                 let content, contentType, extension;
-                
+
                 switch (format.toLowerCase()) {
                     case 'csv':
                         content = this.convertToCSV(data);
@@ -1083,17 +1083,17 @@ class SpaceAnalyzerAPIServer {
                         contentType = 'application/json';
                         extension = 'json';
                 }
-                
+
                 const exportFilename = `${filename}_${Date.now()}.${extension}`;
                 const exportPath = path.join(__dirname, 'exports');
-                
+
                 if (!existsSync(exportPath)) {
                     await fsPromises.mkdir(exportPath, { recursive: true });
                 }
-                
+
                 const fullPath = path.join(exportPath, exportFilename);
                 await fsPromises.writeFile(fullPath, content);
-                
+
                 res.json({
                     success: true,
                     filename: exportFilename,
@@ -1164,16 +1164,16 @@ class SpaceAnalyzerAPIServer {
             try {
                 const { path: filePath } = req.body;
                 if (!filePath || !this.isValidPath(filePath)) return res.status(400).json({ error: 'Invalid path' });
-                
+
                 await fsPromises.unlink(filePath);
-                
+
                 // Broadcast deletion to WebSocket clients
                 broadcast({
                     type: 'file_deleted',
                     path: filePath,
                     timestamp: new Date().toISOString()
                 });
-                
+
                 res.json({ success: true, message: 'File deleted' });
             } catch (error) {
                 res.status(500).json({ success: false, error: error.message });
@@ -1184,12 +1184,12 @@ class SpaceAnalyzerAPIServer {
             try {
                 const { oldPath, newName } = req.body;
                 if (!oldPath || !newName || !this.isValidPath(oldPath)) return res.status(400).json({ error: 'Invalid path' });
-                
+
                 const newPath = path.join(path.dirname(oldPath), newName);
                 if (!this.isValidPath(newPath)) return res.status(400).json({ error: 'Invalid new name' });
-                
+
                 await fsPromises.rename(oldPath, newPath);
-                
+
                 // Broadcast rename to WebSocket clients
                 broadcast({
                     type: 'file_renamed',
@@ -1197,7 +1197,7 @@ class SpaceAnalyzerAPIServer {
                     newPath,
                     timestamp: new Date().toISOString()
                 });
-                
+
                 res.json({ success: true, newPath });
             } catch (error) {
                 res.status(500).json({ success: false, error: error.message });
@@ -1207,7 +1207,7 @@ class SpaceAnalyzerAPIServer {
         this.app.post('/api/files/reveal', async (req, res) => {
             const { path: filePath } = req.body;
             if (!filePath || !this.isValidPath(filePath)) return res.status(400).json({ error: 'Invalid path' });
-            
+
             const command = process.platform === 'win32' ? `explorer /select,"${filePath}"` : `open -R "${filePath}"`;
             spawn(command, { shell: true });
             res.json({ success: true });
@@ -1236,7 +1236,7 @@ class SpaceAnalyzerAPIServer {
         this.app.post('/api/files/search', async (req, res) => {
             try {
                 const { directory, query = '', page = 1, pageSize = 50, sortBy = 'name', sortOrder = 'asc', filterExtension = '' } = req.body;
-                
+
                 if (!directory || !this.isValidPath(directory)) {
                     return res.status(400).json({ error: 'Invalid directory path' });
                 }
@@ -1259,12 +1259,12 @@ class SpaceAnalyzerAPIServer {
                 filteredFiles.sort((a, b) => {
                     let aVal = a[sortBy] || a.name;
                     let bVal = b[sortBy] || b.name;
-                    
+
                     if (sortBy === 'size') {
                         aVal = a.size || 0;
                         bVal = b.size || 0;
                     }
-                    
+
                     if (sortOrder === 'desc') {
                         return aVal > bVal ? -1 : 1;
                     }
@@ -1281,7 +1281,7 @@ class SpaceAnalyzerAPIServer {
                     totalFiles: allFiles.length,
                     totalSize: allFiles.reduce((sum, file) => sum + (file.size || 0), 0),
                     uniqueExtensions: new Set(allFiles.map(f => f.name.split('.').pop())).size,
-                    largestFile: allFiles.reduce((largest, file) => 
+                    largestFile: allFiles.reduce((largest, file) =>
                         (file.size || 0) > (largest.size || 0) ? file : largest, allFiles[0])
                 };
 
@@ -1300,7 +1300,7 @@ class SpaceAnalyzerAPIServer {
         this.app.get('/api/progress/:analysisId', (req, res) => {
             const { analysisId } = req.params;
             const progress = this.activeAnalyses.get(analysisId);
-            
+
             if (progress) {
                 res.json(progress);
             } else {
@@ -1311,7 +1311,7 @@ class SpaceAnalyzerAPIServer {
         // Launch different interfaces
         this.app.get('/api/launch/:type', (req, res) => {
             const { type } = req.params;
-            
+
             const launchOptions = {
                 'gui': {
                     status: 'success',
@@ -1344,15 +1344,15 @@ class SpaceAnalyzerAPIServer {
                     note: 'Fast headless analysis with basic output'
                 }
             };
-            
+
             const option = launchOptions[type];
-            
+
             if (option) {
                 console.log(`🚀 Launch request for: ${type}`);
                 res.json(option);
             } else {
-                res.status(404).json({ 
-                    status: 'error', 
+                res.status(404).json({
+                    status: 'error',
                     message: `Unknown launch type: ${type}`,
                     availableTypes: Object.keys(launchOptions)
                 });
@@ -1362,7 +1362,7 @@ class SpaceAnalyzerAPIServer {
         // Analysis history endpoint
         this.app.get('/api/analysis/history', (req, res) => {
             const historyDir = path.join(__dirname, 'analysis_history');
-            
+
             if (!existsSync(historyDir)) {
                 return res.json({
                     success: true,
@@ -1370,7 +1370,7 @@ class SpaceAnalyzerAPIServer {
                     message: 'No analysis history yet'
                 });
             }
-            
+
             const analyses = [];
             try {
                 const files = fs.readdirSync(historyDir);
@@ -1388,10 +1388,10 @@ class SpaceAnalyzerAPIServer {
                         });
                     }
                 }
-                
+
                 // Sort by date descending
                 analyses.sort((a, b) => new Date(b.date) - new Date(a.date));
-                
+
                 res.json({
                     success: true,
                     analyses,
@@ -1407,10 +1407,10 @@ class SpaceAnalyzerAPIServer {
             try {
                 const { level, args } = req.body;
                 const timestamp = new Date().toISOString();
-                const message = args.map(arg => 
+                const message = args.map(arg =>
                     typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
                 ).join(' ');
-                
+
                 console.log(`[${timestamp}] [FRONTEND-${level.toUpperCase()}] ${message}`);
                 res.json({ success: true, timestamp });
             } catch (error) {
@@ -1418,9 +1418,9 @@ class SpaceAnalyzerAPIServer {
                 res.status(500).json({ error: 'Failed to log debug message' });
             }
         });
-        
+
         // --- OLLAMA PROXY ROUTES (Solves CSP/CORS) ---
-        
+
         // Proxy Tags (Models)
         this.app.get('/api/ollama/api/tags', async (req, res) => {
             try {
@@ -1472,11 +1472,11 @@ class SpaceAnalyzerAPIServer {
             const startTime = Date.now();
             try {
                 const { question, directory, analysisId } = req.body;
-                
+
                 // 1. Check Persistent Cache (KnowledgeDatabase)
                 const contextHash = this.knowledgeDB.generateHash(analysisId || directory || 'general');
                 const cached = await this.knowledgeDB.findSimilarResponse(question, contextHash);
-                
+
                 if (cached) {
                     return res.json({
                         success: true,
@@ -1497,14 +1497,14 @@ class SpaceAnalyzerAPIServer {
                     contextData = this.analysisResults.get(directory);
                 }
 
-                const prompt = contextData 
+                const prompt = contextData
                     ? this.buildOllamaPrompt(contextData, question)
                     : question;
 
                 // 3. Auto-select optimal model based on query
                 const model = this.selectOptimalModel(question, contextData);
                 console.log(`🤖 Auto-selected ${model} for: "${question.substring(0, 50)}..."`);
-                
+
                 // 4. Query Ollama
                 const ollamaResponse = await this.queryOllamaWithModel(prompt, model);
 
@@ -1543,7 +1543,7 @@ class SpaceAnalyzerAPIServer {
         this.app.post('/api/ai/insights', async (req, res) => {
             try {
                 const { analysisData, query } = req.body;
-                
+
                 // Check cache for generic insights request
                 const cacheKey = JSON.stringify(analysisData.files.slice(0, 5)); // Roughly hash based on top files
                 const cached = this.selfLearning.getCachedResponse('insights', cacheKey);
@@ -1553,11 +1553,11 @@ class SpaceAnalyzerAPIServer {
 
                 const prompt = this.buildOllamaPrompt(analysisData, query || "Provide comprehensive storage insights");
                 const ollamaResponse = await this.queryOllamaWithModel(prompt, this.config.defaultModel);
-                
+
                 this.selfLearning.addQA('insights', ollamaResponse.response, cacheKey, this.config.defaultModel);
-                
-                res.json({ 
-                    success: true, 
+
+                res.json({
+                    success: true,
                     insights: ollamaResponse.response,
                     thinking: ollamaResponse.thinking,
                     done_reason: ollamaResponse.done_reason,
@@ -1612,7 +1612,7 @@ class SpaceAnalyzerAPIServer {
                 // Handle multipart form data using multer
                 const multer = require('multer');
                 const upload = multer({ dest: 'uploads/' });
-                
+
                 // Use multer middleware
                 upload.single('file')(req, res, (err) => {
                     if (err) {
@@ -1627,7 +1627,7 @@ class SpaceAnalyzerAPIServer {
                     const fs = require('fs');
                     const path = require('path');
                     const stats = fs.statSync(req.file.path);
-                    
+
                     const result = {
                         name: req.file.originalname,
                         size: stats.size,
@@ -1653,7 +1653,7 @@ class SpaceAnalyzerAPIServer {
             try {
                 const { operations } = req.body;
                 const operationId = `batch-${Date.now()}`;
-                
+
                 // Store operation for progress tracking
                 this.batchOperations = this.batchOperations || new Map();
                 this.batchOperations.set(operationId, {
@@ -1678,7 +1678,7 @@ class SpaceAnalyzerAPIServer {
         this.app.get('/api/files/batch-progress/:operationId', (req, res) => {
             const { operationId } = req.params;
             const operation = this.batchOperations?.get(operationId);
-            
+
             if (!operation) {
                 return res.json({ success: false, error: 'Operation not found' });
             }
@@ -1697,7 +1697,7 @@ class SpaceAnalyzerAPIServer {
         this.app.post('/api/errors/report', async (req, res) => {
             try {
                 const { error, component, stack, userAgent, timestamp } = req.body;
-                
+
                 // Log error for monitoring
                 console.error('Error Report:', {
                     error,
@@ -1732,7 +1732,7 @@ class SpaceAnalyzerAPIServer {
         this.app.get('/api/models', async (req, res) => {
             try {
                 const models = [];
-                
+
                 // Only fetch models from local Ollama instance
                 if (this.ollamaAvailable) {
                     try {
@@ -1772,7 +1772,7 @@ class SpaceAnalyzerAPIServer {
     buildOllamaPrompt(analysisData, query) {
         // Extract semantic information from files for better AI context
         const semanticContext = this.extractSemanticContext(analysisData.files || []);
-        
+
         const summary = `
 Analysis Summary:
 - Total Files: ${analysisData.totalFiles || 0}
@@ -1786,7 +1786,7 @@ Semantic Context:
 - Platform Indicators: ${semanticContext.platforms.join(', ') || 'None'}
 
 Category Breakdown:
-${Object.entries(analysisData.categories || {}).slice(0, 10).map(([cat, data]) => 
+${Object.entries(analysisData.categories || {}).slice(0, 10).map(([cat, data]) =>
     `- ${cat}: ${data.count || data} files (${this.formatBytes(data.size || 0)})`
 ).join('\n') || 'None detected'}
 
@@ -1805,7 +1805,7 @@ User Query: ${query || 'Provide insights about this analysis'}
         const semanticTags = new Set();
         const subcategories = new Set();
         const categories = new Set();
-        
+
         files.forEach(file => {
             if (file.semantic_tags) {
                 file.semantic_tags.forEach(tag => semanticTags.add(tag));
@@ -1819,16 +1819,16 @@ User Query: ${query || 'Provide insights about this analysis'}
         });
 
         const allTags = Array.from(semanticTags);
-        
+
         return {
             primaryCategories: Array.from(categories).slice(0, 5),
-            technologies: allTags.filter(tag => 
+            technologies: allTags.filter(tag =>
                 ['javascript', 'typescript', 'python', 'rust', 'cpp', 'java', 'go', 'php', 'ruby', 'swift', 'kotlin', 'scala', 'csharp', 'haskell', 'dart', 'lua', 'r'].includes(tag)
             ).slice(0, 5),
-            developmentFocus: allTags.filter(tag => 
+            developmentFocus: allTags.filter(tag =>
                 ['web', 'mobile', 'systems', 'database', 'scripting', 'functional', 'concurrent', 'native', 'typed', 'data-science', 'statistics', 'embedded', 'automation'].includes(tag)
             ).slice(0, 5),
-            platforms: allTags.filter(tag => 
+            platforms: allTags.filter(tag =>
                 ['windows', 'linux', 'macos', 'ios', 'android', 'jvm', '.net', 'apple', 'microsoft', 'unix'].includes(tag)
             ).slice(0, 5)
         };
@@ -2000,7 +2000,7 @@ User Query: ${query || 'Provide insights about this analysis'}
 
         try {
             const response = await this.queryOllamaAPI('generate', data);
-            
+
             // Extract all relevant fields from Ollama response
             return {
                 response: response.response || response,
@@ -2024,16 +2024,16 @@ User Query: ${query || 'Provide insights about this analysis'}
     buildOllamaPrompt(contextData, question) {
         let context = `Context Analysis of Directory: ${contextData.analysisId || 'Current'}\n`;
         context += `Total Files: ${contextData.totalFiles}, Total Size: ${(contextData.totalSize / 1024 / 1024).toFixed(2)} MB\n`;
-        
+
         // Add File Structure Context
         if (contextData.dependencyGraph) {
             const nodes = contextData.dependencyGraph.nodes;
             const edges = contextData.dependencyGraph.edges;
-            
+
             context += `\nFile Structure & Dependencies:\n`;
             context += `- Tracked Files: ${nodes.length}\n`;
             context += `- Detected Relationships: ${edges.length}\n`;
-            
+
             // summarize top dependencies
             const imports = edges.filter(e => e.type === 'import');
             if (imports.length > 0) {
@@ -2045,14 +2045,14 @@ User Query: ${query || 'Provide insights about this analysis'}
                      if (from && to) context += `  * ${from} imports ${to}\n`;
                  });
             }
-            
+
             // summarize directory structure (top level)
             const rootDirs = nodes.filter(n => n.type === 'directory' && !n.path.includes('/', n.path.indexOf('/') + 1)); // approximate top level
             if (rootDirs.length > 0) {
                 context += `- Top Level Directories: ${rootDirs.map(n => n.name).join(', ')}\n`;
             }
         }
-        
+
         // Add existing insights
         if (contextData.ai_insights) {
              context += `\nAI Detected Insights:\n`;
@@ -2165,7 +2165,7 @@ Answer:`;
     async runAnalysisAsync(analysisId, directoryPath, options) {
         const cppPath = await this.findCppExecutable();
         let result;
-        
+
         if (cppPath) {
             console.log(`🚀 Using Rust CLI Backend: ${cppPath}`);
             result = await this.runCppAnalysis(analysisId, directoryPath, options);
@@ -2173,22 +2173,22 @@ Answer:`;
             console.log('⚠️ Falling back to JS Analysis');
             result = await this.runJsAnalysis(analysisId, directoryPath);
         }
-        
+
         return result;
     }
 
     async findCppExecutable() {
         const serverDir = __dirname;
         const searchPaths = new Set();
-        
+
         searchPaths.add(serverDir);
-        
+
         let currentDir = serverDir;
         for (let i = 0; i < 5; i++) {
             currentDir = path.dirname(currentDir);
             searchPaths.add(currentDir);
         }
-        
+
         const executableNames = [
             'space-analyzer.exe',
             'space-analyzer-rust.exe',
@@ -2197,7 +2197,7 @@ Answer:`;
             'space_analyzer_ai.exe',
             'space-analyzer-cli.exe'  // Last priority - uses C++ format
         ];
-        
+
         const searchSubdirs = [
             'bin',
             'cli/target/release',
@@ -2209,7 +2209,7 @@ Answer:`;
             'target/release',
             'target/debug'
         ];
-        
+
         for (const baseDir of searchPaths) {
             for (const subdir of searchSubdirs) {
                 const searchDir = path.join(baseDir, subdir);
@@ -2224,7 +2224,7 @@ Answer:`;
                 }
             }
         }
-        
+
         console.log('No analysis executable found');
         return null;
     }
@@ -2240,21 +2240,21 @@ Answer:`;
                 const isRustCLI = exePath.includes('space-analyzer.exe') || exePath.includes('space-analyzer-rust');
                 // space-analyzer-cli.exe uses C++ format
                 const tempFile = path.join(__dirname, `output_${analysisId}.json`);
-                
+
                 let args, commandName;
-                
+
                 // Use ML-optimized format for large directories (> 50,000 files)
                 const isLargeDirectory = options.estimatedFiles > 50000;
-                
+
                 if (isRustCLI) {
-                    // New Rust CLI format: space-analyzer.exe [directory] --format json --output [file] --progress
-                    args = [directoryPath, '--format', 'json', '--output', tempFile, '--progress'];
+                    // New Rust CLI format: space-analyzer.exe [directory] --format json --output [file] --progress --parallel
+                    args = [directoryPath, '--format', 'json', '--output', tempFile, '--progress', '--parallel'];
                     commandName = 'Rust CLI';
                 } else {
                     args = [directoryPath, '--json', tempFile];
                     commandName = 'C++';
                 }
-                
+
                 console.log(`🎬 Spawning ${commandName}: ${exePath} ${args.join(' ')}`);
                 const proc = spawn(exePath, args);
 
@@ -2271,7 +2271,7 @@ Answer:`;
                                 const content = await fsPromises.readFile(tempFile, 'utf8');
                                 const data = JSON.parse(content);
                                 await fsPromises.unlink(tempFile).catch(() => {});
-                                
+
                                 if (isRustCLI) {
                                     const convertedData = await this.convertRustOutputToWebFormat(data, analysisId, isLargeDirectory);
                                     resolve(convertedData);
@@ -2281,9 +2281,9 @@ Answer:`;
                             } else {
                                 reject(new Error('Output file not created'));
                             }
-                        } catch (e) { 
+                        } catch (e) {
                             console.error(`❌ Failed to parse ${commandName} output:`, e);
-                            reject(e); 
+                            reject(e);
                         }
                     } else {
                         reject(new Error(`${commandName} exit code ${code}`));
@@ -2294,14 +2294,14 @@ Answer:`;
                     proc.stdout.on('data', (data) => {
                         const output = data.toString();
                         console.log(`📊 Rust CLI Output: ${output.trim()}`);
-                        
+
                         // Try to parse [current/total]
                         const progressMatch = output.match(/\[(\d+)\/(\d+)\]/);
                         if (progressMatch) {
                             const current = parseInt(progressMatch[1]);
                             const total = parseInt(progressMatch[2]);
                             const percentage = Math.min((current / total) * 100, 95);
-                            
+
                             const progressData = {
                                 analysisId,
                                 files: current,
@@ -2309,7 +2309,7 @@ Answer:`;
                                 currentFile: `Processing ${current}/${total}`,
                                 startTime: Date.now()
                             };
-                            
+
                             this.activeAnalyses.set(analysisId, progressData);
                             this.eventEmitter.emit('progress', progressData);
                         }
@@ -2318,7 +2318,7 @@ Answer:`;
                     proc.stderr.on('data', (data) => {
                         const stderr = data.toString().trim();
                         console.error(`🔴 Rust CLI Stderr: ${stderr}`);
-                        
+
                         // Parse "Scanned: N files" format from stderr
                         const scannedMatch = stderr.match(/Scanned:\s*(\d+)\s*files/);
                         if (scannedMatch) {
@@ -2326,7 +2326,7 @@ Answer:`;
                             // Use a better estimate based on quick scan results
                             const estimatedTotal = options.estimatedFiles || 50000;
                             const percentage = Math.min((current / estimatedTotal) * 100, 95);
-                            
+
                             const progressData = {
                                 analysisId,
                                 files: current,
@@ -2334,7 +2334,7 @@ Answer:`;
                                 currentFile: `Scanned ${current} files`,
                                 startTime: Date.now()
                             };
-                            
+
                             this.activeAnalyses.set(analysisId, progressData);
                             this.eventEmitter.emit('progress', progressData);
                         }
@@ -2361,7 +2361,7 @@ Answer:`;
                 ai_insights: rustData.ml_summary?.insights || {}
             };
         }
-        
+
         // Standard format
         // Scan for dependencies
         let dependencyGraph = { nodes: [], edges: [] };
@@ -2370,7 +2370,7 @@ Answer:`;
         }
 
         const insights = this.generateAIInsights(rustData);
-        
+
         return {
             totalFiles: rustData.total_files || rustData.totalFiles || 0,
             totalSize: rustData.total_size || rustData.totalSize || 0,
@@ -2384,9 +2384,9 @@ Answer:`;
             // Inject Dependency Graph
             dependencyGraph: dependencyGraph,
             mlFeatures: {
-                category_distribution: rustData.categories ? 
+                category_distribution: rustData.categories ?
                     Object.fromEntries(Object.entries(rustData.categories).map(([k, v]) => [k, v.count])) : {},
-                extension_distribution: rustData.extension_stats || rustData.extensionStats ? 
+                extension_distribution: rustData.extension_stats || rustData.extensionStats ?
                     Object.fromEntries(Object.entries(rustData.extension_stats || rustData.extensionStats).map(([k, v]) => [k, v.count])) : {},
                 // Mock other mlFeatures if missing from Rust
                 size_distribution: { by_unit: [], unit_labels: [] },
@@ -2400,11 +2400,11 @@ Answer:`;
             }
         };
     }
-    
+
     convertCategoryDistribution(distribution) {
         return convertCategoryDistribution(distribution);
     }
-    
+
     convertExtensionDistribution(distribution) {
         return convertExtensionDistribution(distribution);
     }
@@ -2475,10 +2475,10 @@ Answer:`;
                             // Emit progress every 50 files or if estimated total is small
                             const progressInterval = estimatedTotal > 1000 ? 100 : 50;
                             if (totalFiles % progressInterval === 0) {
-                                const percentage = estimatedTotal > 0 
+                                const percentage = estimatedTotal > 0
                                     ? Math.min((totalFiles / estimatedTotal) * 100, 95)
                                     : Math.min((totalFiles / 1000) * 100, 95);
-                                
+
                                 this.eventEmitter.emit('progress', {
                                     analysisId,
                                     filesProcessed: totalFiles,
@@ -2499,7 +2499,7 @@ Answer:`;
         await walk(directoryPath);
         const duration = Date.now() - startTime;
         console.log(`✅ JS Analysis complete: ${totalFiles} files in ${duration}ms`);
-        
+
         // Generate categories from file extensions
         const categories = {};
         const getCategory = (ext) => {
@@ -2525,7 +2525,7 @@ Answer:`;
                 categories[category].files.push({ name: file.name, size: file.size, path: file.path });
             }
         });
-        
+
         // Emit final progress event
         this.eventEmitter.emit('progress', {
             analysisId,
@@ -2535,16 +2535,16 @@ Answer:`;
             status: 'complete',
             completed: true
         });
-        
+
         // Scan for dependencies
         let dependencyGraph = { nodes: [], edges: [] };
         if (files.length > 0) {
             dependencyGraph = await dependencyScanner.scan(files);
         }
-        
-        return { 
-            totalFiles, 
-            totalSize, 
+
+        return {
+            totalFiles,
+            totalSize,
             files,
             dependencyGraph,
             categories,
@@ -2561,7 +2561,7 @@ if (require.main === module && !process.env.TESTING) {
     (async () => {
         const { logConfig } = require('./config/dynamic-config');
         await logConfig();
-        
+
         const app = new SpaceAnalyzerAPIServer();
 
     // Create HTTP server from Express app
@@ -2573,25 +2573,25 @@ if (require.main === module && !process.env.TESTING) {
     // Graceful shutdown handling
     const gracefulShutdown = async (signal) => {
         console.log(`\n${signal} received. Starting graceful shutdown...`);
-        
+
         // Stop accepting new connections
         server.close(() => {
             console.log('HTTP server closed');
         });
-        
+
         // Close WebSocket server
         if (wss) {
             wss.close(() => {
                 console.log('WebSocket server closed');
             });
         }
-        
+
         // Kill Ollama process if running
         if (app.ollamaProcess) {
             app.ollamaProcess.kill();
             console.log('Ollama process terminated');
         }
-        
+
         // Force exit after timeout
         setTimeout(() => {
             console.log('Forcing shutdown after timeout');
@@ -2609,7 +2609,7 @@ if (require.main === module && !process.env.TESTING) {
         console.log(`⚙️  Hardware-optimized configuration active (${require('./config/dynamic-config').tier} tier)`);
         console.log('📡 WebSocket server active');
         console.log('🔌 Ollama AI: ' + (app.ollamaAvailable ? 'Available' : 'Not available'));
-        
+
         // Initialize async services after server starts
         app.initializeAsync().then(() => {
             console.log('✅ Async initialization complete');

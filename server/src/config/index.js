@@ -3,12 +3,12 @@
  * Centralized configuration management for the Space Analyzer backend
  */
 
-import fs from 'fs';
-import path from 'path';
-import Joi from 'joi';
+const fs = require('fs');
+const path = require('path');
+const Joi = require('joi');
 
 // Import centralized port configuration
-import ports from '../../../ports.config.js';
+const ports = require('../../../ports.config.js');
 
 class ConfigService {
     constructor() {
@@ -396,7 +396,7 @@ class ConfigService {
      */
     getDatabaseConnectionString() {
         const db = this.get('database');
-        
+
         switch (db.type) {
             case 'sqlite':
                 return `sqlite:${db.name}`;
@@ -449,7 +449,7 @@ class ConfigService {
      */
     getEnabledAIProviders() {
         const ai = this.get('ai');
-        return Object.keys(ai.providers).filter(provider => 
+        return Object.keys(ai.providers).filter(provider =>
             ai.providers[provider].enabled
         );
     }
