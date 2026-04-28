@@ -1,31 +1,29 @@
 import { createRouter, createWebHistory } from "vue-router";
-import LandingPage from "../components/vue/layout/LandingPage.vue";
-import DashboardView from "../components/vue/dashboard/DashboardView.vue";
-import BrowserView from "../components/vue/browser/BrowserView.vue";
-import VisualizationView from "../components/vue/visualization/VisualizationView.vue";
+import DashboardView from "../features/dashboard/DashboardView.vue";
+import ScanView from "../features/scanning/ScanView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: "/",
-      name: "home",
-      component: LandingPage,
-    },
-    {
-      path: "/dashboard",
       name: "dashboard",
       component: DashboardView,
     },
     {
-      path: "/browser",
-      name: "browser",
-      component: BrowserView,
+      path: "/scan",
+      name: "scan",
+      component: ScanView,
     },
     {
-      path: "/visualization",
-      name: "visualization",
-      component: VisualizationView,
+      path: "/browser",
+      name: "browser",
+      component: () => import("../features/browser/FileBrowserView.vue"),
+    },
+    {
+      path: "/settings",
+      name: "settings",
+      component: () => import("../features/settings/SettingsView.vue"),
     },
   ],
 });
