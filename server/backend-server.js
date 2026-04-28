@@ -1043,11 +1043,21 @@ class SpaceAnalyzerAPIServer {
         this.activeAnalyses.set(analysisId, {
           analysisId,
           files: 0,
+          filesProcessed: 0,
+          totalSize: 0,
           percentage: 0,
           currentFile: "Starting full analysis...",
           status: "starting",
           completed: false,
           startTime: Date.now(),
+          success: true,
+          progress: {
+            filesProcessed: 0,
+            totalSize: 0,
+            percentage: 0,
+            currentFile: "Starting...",
+            status: "starting",
+          },
         });
 
         // Pass quick scan file count for better progress estimation
@@ -1093,11 +1103,21 @@ class SpaceAnalyzerAPIServer {
 
             const finalProgress = {
               analysisId,
+              success: true,
               files: result.totalFiles,
+              filesProcessed: result.totalFiles,
+              totalSize: result.totalSize,
               percentage: 100,
               currentFile: "Analysis complete",
               status: "complete",
               completed: true,
+              progress: {
+                filesProcessed: result.totalFiles,
+                totalSize: result.totalSize,
+                percentage: 100,
+                currentFile: "Analysis complete",
+                status: "complete",
+              },
             };
 
             this.activeAnalyses.set(analysisId, finalProgress);
@@ -2583,6 +2603,9 @@ Answer:`;
           }
         });
 
+        // Track cumulative size for progress updates
+        let cumulativeSize = 0;
+
         if (isRustCLI) {
           proc.stdout.on("data", (data) => {
             const output = data.toString();
@@ -2597,10 +2620,22 @@ Answer:`;
 
               const progressData = {
                 analysisId,
+                success: true,
                 files: current,
+                filesProcessed: current,
+                totalSize: cumulativeSize,
                 percentage: Math.round(percentage),
                 currentFile: `Processing ${current}/${total}`,
+                status: "analyzing",
+                completed: false,
                 startTime: Date.now(),
+                progress: {
+                  filesProcessed: current,
+                  totalSize: cumulativeSize,
+                  percentage: Math.round(percentage),
+                  currentFile: `Processing ${current}/${total}`,
+                  status: "analyzing",
+                },
               };
 
               this.activeAnalyses.set(analysisId, progressData);
@@ -2612,20 +2647,37 @@ Answer:`;
             const stderr = data.toString().trim();
             console.error(`🔴 Rust CLI Stderr: ${stderr}`);
 
-            // Parse "Scanned: N files" format from stderr
-            const scannedMatch = stderr.match(/Scanned:\s*(\d+)\s*files/);
+            // Parse "Scanned: N files, Size: X bytes" format
+            const scannedMatch = stderr.match(/Scanned:\s*(\d+)\s*files/i);
+            const sizeMatch = stderr.match(/[Ss]ize:\s*(\d+)/);
+
             if (scannedMatch) {
               const current = parseInt(scannedMatch[1]);
+              if (sizeMatch) {
+                cumulativeSize = parseInt(sizeMatch[1]);
+              }
               // Use a better estimate based on quick scan results
               const estimatedTotal = options.estimatedFiles || 50000;
               const percentage = Math.min((current / estimatedTotal) * 100, 95);
 
               const progressData = {
                 analysisId,
+                success: true,
                 files: current,
+                filesProcessed: current,
+                totalSize: cumulativeSize,
                 percentage: Math.round(percentage),
                 currentFile: `Scanned ${current} files`,
+                status: "analyzing",
+                completed: false,
                 startTime: Date.now(),
+                progress: {
+                  filesProcessed: current,
+                  totalSize: cumulativeSize,
+                  percentage: Math.round(percentage),
+                  currentFile: `Scanned ${current} files`,
+                  status: "analyzing",
+                },
               };
 
               this.activeAnalyses.set(analysisId, progressData);
