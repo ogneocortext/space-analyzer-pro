@@ -16,7 +16,7 @@
           <option value="7d">Last 7 Days</option>
           <option value="30d">Last 30 Days</option>
         </select>
-        <button @click="refreshVisualization" class="refresh-btn">
+        <button aria-label @click="refreshVisualization" class="refresh-btn">
           🔄 Refresh
         </button>
       </div>
@@ -206,10 +206,10 @@
 
     <!-- Export Options -->
     <div class="export-section">
-      <button @click="exportChartData" class="export-btn">
+      <button aria-label @click="exportChartData" class="export-btn">
         📊 Export Chart Data
       </button>
-      <button @click="generateReport" class="export-btn">
+      <button aria-label @click="generateReport" class="export-btn">
         📄 Generate Report
       </button>
     </div>
@@ -302,7 +302,7 @@ const getDayLabel = (dayIndex: number): string => {
 }
 
 // Methods
-const refreshVisualization = async () => {
+const refreshVisualization = debounce(async () => {
   isLoading.value = true
   try {
     await loadVisualizationData()
@@ -1256,4 +1256,49 @@ onMounted(() => {
 .export-btn:hover {
   background: #2563eb;
 }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .analytics-data-visualization,
+  .learning-analytics-dashboard,
+  .ab-test-analysis-report,
+  .user-feedback-collection {
+    padding: 0.5rem;
+  }
+  
+  .metrics-grid,
+  .analytics-grid,
+  .summary-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .visualization-controls,
+  .header-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .chart-canvas {
+    height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .metric-card,
+  .summary-card,
+  .variant-metrics {
+    padding: 0.75rem;
+  }
+  
+  .action-buttons,
+  .export-section {
+    flex-direction: column;
+  }
+  
+  .btn {
+    width: 100%;
+  }
+}
+
 </style>

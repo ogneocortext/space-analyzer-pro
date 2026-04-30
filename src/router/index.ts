@@ -105,6 +105,27 @@ const router = createRouter({
       name: "complexity",
       component: () => import("../features/complexity/ComplexityView.vue"),
     },
+    // Advanced Self-Learning Features
+    {
+      path: "/self-learning",
+      name: "self-learning",
+      component: () => import("../features/self-learning/SelfLearningView.vue"),
+    },
+    {
+      path: "/learning-analytics",
+      name: "learning-analytics",
+      component: () => import("../features/self-learning/LearningAnalyticsView.vue"),
+    },
+    {
+      path: "/ab-testing",
+      name: "ab-testing",
+      component: () => import("../features/self-learning/ABTestingView.vue"),
+    },
+    {
+      path: "/3d-browser",
+      name: "3d-browser",
+      component: () => import("../features/3d/FileSystem3DView.vue"),
+    },
   ],
 });
 
