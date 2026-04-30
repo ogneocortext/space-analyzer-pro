@@ -379,10 +379,19 @@ class Agent extends EventEmitter {
 
         if (code === 0) {
           try {
-            const result = stdout.trim() ? JSON.parse(stdout) : { success: true };
-            resolve(result);
+            // Try to find JSON in the output (handles mixed text + JSON)
+            const jsonMatch = stdout.match(/\{[\s\S]*"total_files"[\s\S]*\}/);
+            if (jsonMatch) {
+              const result = JSON.parse(jsonMatch[0]);
+              resolve(result);
+            } else {
+              // Fallback: try to parse entire output
+              const result = stdout.trim() ? JSON.parse(stdout) : { success: true };
+              resolve(result);
+            }
           } catch {
-            resolve({ success: true, output: stdout });
+            // If all parsing fails, return the raw output
+            resolve({ success: true, output: stdout, total_files: 0, total_size: 0 });
           }
         } else {
           reject(new Error(`Process exited with code ${code}: ${stderr}`));
