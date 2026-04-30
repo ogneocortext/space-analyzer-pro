@@ -30,6 +30,7 @@ const DuplicateDetector = require("./modules/duplicate-detector");
 // Import modules
 const { setupSecurity, setupMiddleware } = require("./modules/security");
 const { setupWebSocketServer, broadcast, getClients, getServer } = require("./modules/websocket");
+const RoutesManager = require("./routes");
 
 // Get WebSocket clients from module
 const wsClients = getClients();
@@ -628,7 +629,11 @@ class SpaceAnalyzerAPIServer {
   }
 
   setupRoutes() {
-    // Health check endpoint
+    // Initialize modular routes
+    this.routesManager = new RoutesManager(this);
+    this.routesManager.mountAll(this.app);
+
+    // Health check endpoint (keep simple endpoint here)
     this.app.get("/api/health", (req, res) => {
       res.json({
         status: "ok",
