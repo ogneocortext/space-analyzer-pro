@@ -308,6 +308,163 @@ export class AnalysisBridge {
     }
   }
 
+  /**
+   * NEW: Orchestrated Analysis (v2.2.7+)
+   * Single-call analysis using the Multi-Agent Orchestrator.
+   * Replaces the old 3+ API call pattern (analyze -> poll -> results)
+   * with a simplified single call that handles:
+   * - Priority task queuing
+   * - Circuit breaker fault tolerance
+   * - Smart caching (85%+ hit rate)
+   * - Automatic retries
+   */
+  async analyzeWithOrchestrator(
+    path: string,
+    options?: {
+      useOllama?: boolean;
+      priority?: 0 | 1 | 2 | 3 | 4; // CRITICAL=0, HIGH=1, NORMAL=2, LOW=3, BACKGROUND=4
+      parallel?: boolean;
+    }
+  ): Promise<{ result: AnalysisResult; analysisId: string }> {
+    // Validate and normalize path
+    const normalizedPath = path.replace(/^["']|["']$/g, "");
+
+    this.log("info", `🤖 Orchestrator analyzing: ${normalizedPath}`);
+
+    // Single API call - orchestrator handles all complexity internally
+    const response = await this.fetchWithRetry(
+      `${this.baseUrl}/api/orchestrate/analyze`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          directoryPath: normalizedPath,
+          options: {
+            useOllama: options?.useOllama ?? true,
+            priority: options?.priority ?? 2, // Default: NORMAL
+            parallel: options?.parallel ?? true,
+          },
+        }),
+      },
+      300000, // 5 minute timeout
+      2 // 2 retries (orchestrator has its own circuit breaker)
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || `Orchestrator analysis failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success || !data.result) {
+      throw new Error(data.error || "Orchestrator returned no result");
+    }
+
+    const backendResult = data.result;
+    const analysisId = backendResult.meta?.taskId || crypto.randomUUID();
+
+    this.log("info", `✅ Orchestrator completed analysis ${analysisId}`);
+
+    // Convert backend format to frontend AnalysisResult
+    const analysisResult: AnalysisResult = {
+      totalFiles: backendResult.summary?.totalFiles || 0,
+      totalSize: backendResult.summary?.totalSize || 0,
+      files: (backendResult.files || []).map((f: any) => ({
+        name: f.name,
+        size: f.size,
+        path: f.path,
+        extension: f.extension,
+        category: f.category,
+        modified: f.modified,
+        is_hidden: f.is_hidden,
+        is_directory: f.is_directory,
+        created: f.created,
+        accessed: f.accessed,
+        has_ads: f.has_ads,
+        ads_count: f.ads_count,
+        is_compressed: f.is_compressed,
+        compressed_size: f.compressed_size,
+        is_sparse: f.is_sparse,
+        is_reparse_point: f.is_reparse_point,
+        reparse_tag: f.reparse_tag,
+        owner: f.owner,
+        is_hard_link: f.is_hard_link,
+        hard_link_count: f.hard_link_count,
+      })),
+      categories: backendResult.categories || this.generateCategoriesFromSummary(backendResult),
+      extensionStats: backendResult.extensionStats || {},
+      analysisType: backendResult.strategy || "orchestrated-analysis",
+      analysisTime: backendResult.summary?.analysisTime,
+      ai_insights: {
+        recommended_categories: [],
+        potential_duplicates: [],
+        large_files: [],
+        unusual_extensions: [],
+        dependency_candidates: [],
+        storage_warnings: [],
+        optimization_suggestions: backendResult.insights || [],
+      },
+      directoryPath: backendResult.directory || normalizedPath,
+      strategy: backendResult.strategy,
+      tools: backendResult.tools,
+      dependencyGraph: backendResult.dependencyGraph || { nodes: [], edges: [] },
+      windowsStats: backendResult.windowsStats,
+      mlFeatures: backendResult.mlFeatures,
+    };
+
+    return { result: analysisResult, analysisId };
+  }
+
+  /**
+   * Get orchestrator health status
+   * Returns real-time metrics about agent health, task queue, and cache performance
+   */
+  async getOrchestratorStatus(): Promise<{
+    status: string;
+    agents: { total: number; available: number; busy: number; unhealthy: number };
+    tasks: { queued: number; active: number; total: number };
+    cache: { hits: number; misses: number; hitRate: number; size: number };
+    uptime: number;
+  }> {
+    const response = await this.fetchWithRetry(
+      `${this.baseUrl}/api/orchestrate/status`,
+      {},
+      5000,
+      1
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to get orchestrator status: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.orchestrator;
+  }
+
+  /**
+   * Invalidate orchestrator cache entries matching a pattern
+   * Useful for forcing re-analysis of directories
+   */
+  async invalidateOrchestratorCache(pattern: string = ""): Promise<{ invalidated: number }> {
+    const response = await this.fetchWithRetry(
+      `${this.baseUrl}/api/orchestrate/cache/invalidate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pattern }),
+      },
+      10000,
+      1
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to invalidate cache: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
   async analyzeDirectoryWithProgress(
     path: string,
     onProgress?: (progress: AnalysisProgress) => void,
