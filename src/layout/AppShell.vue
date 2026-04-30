@@ -20,8 +20,10 @@ import {
   Settings,
   Menu,
   X,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-vue-next";
+import type { RouteLocationNormalized } from "vue-router";
 import NotificationCenter from "@/components/vue/other/NotificationCenter.vue";
 
 const sidebarOpen = ref(false);
@@ -81,6 +83,38 @@ function toggleSidebar() {
 
 function getIcon(name: string): LucideIcon {
   return iconMap[name] || LayoutDashboard;
+}
+
+function getBreadcrumbLabel(route: RouteLocationNormalized): string {
+  // Get the last segment of the path for nested routes
+  const path = route.path;
+  const lastSegment = path.split("/").pop() || "";
+
+  // Map common route segments to readable names
+  const labelMap: Record<string, string> = {
+    browser: "Files",
+    scan: "Scan",
+    largest: "Largest Files",
+    old: "Old Files",
+    duplicates: "Duplicates",
+    empty: "Empty Folders",
+    organize: "AI Organize",
+    cleanup: "Cleanup",
+    trends: "Trends",
+    search: "Smart Search",
+    treemap: "Treemap",
+    insights: "Insights",
+    network: "Network",
+    timeline: "Timeline",
+    system: "System Monitor",
+    settings: "Settings",
+    notifications: "Notifications",
+    reports: "Reports",
+    complexity: "Code Complexity",
+  };
+
+  // Return mapped label or format the segment
+  return labelMap[lastSegment] || lastSegment.replace(/-/g, " ");
 }
 </script>
 
@@ -233,13 +267,36 @@ function getIcon(name: string): LucideIcon {
           >
             <Menu class="w-5 h-5 text-slate-400" />
           </button>
-          <div class="hidden md:flex items-center gap-2 text-sm text-slate-500">
-            <span class="text-slate-400">Space Analyzer</span>
-            <span class="text-slate-600">/</span>
-            <span class="text-slate-300 capitalize">{{
-              $route.name?.toString().replace(/-/g, " ") || "Dashboard"
-            }}</span>
-          </div>
+          <!-- Breadcrumb Navigation -->
+          <nav class="hidden md:flex items-center gap-1 text-sm">
+            <router-link
+              to="/"
+              class="flex items-center gap-1.5 px-2 py-1 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-colors"
+            >
+              <LayoutDashboard class="w-4 h-4" />
+              <span>Dashboard</span>
+            </router-link>
+
+            <template v-if="$route.path !== '/'">
+              <ChevronRight class="w-4 h-4 text-slate-600" />
+
+              <!-- Parent route (e.g., Settings) -->
+              <template v-if="$route.path.includes('/settings/')">
+                <router-link
+                  to="/settings"
+                  class="px-2 py-1 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-colors"
+                >
+                  Settings
+                </router-link>
+                <ChevronRight class="w-4 h-4 text-slate-600" />
+              </template>
+
+              <!-- Current page -->
+              <span class="px-2 py-1 text-slate-200 font-medium capitalize">
+                {{ getBreadcrumbLabel($route) }}
+              </span>
+            </template>
+          </nav>
         </div>
 
         <div class="flex items-center gap-3">
