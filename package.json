@@ -14,8 +14,8 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,vue,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,vue,json,css,md}\"",
-    "server": "cd server && node backend-server.js",
-    "server:dev": "cd server && node backend-server.js",
+    "server": "cd server && node controllers/backend-server.js",
+    "server:dev": "cd server && node controllers/backend-server.js",
     "start": "node scripts/start-all.js",
     "launch": "node scripts/launch-services.js",
     "launch:backend": "npm run server:dev",
@@ -32,7 +32,7 @@
     "type-check:full": "tsc --noEmit",
     "update-deps": "npm update && npm audit fix",
     "prepare": "husky",
-    "github:nav": "node github-nav.js"
+    "github:nav": "node config/github-nav.js"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
