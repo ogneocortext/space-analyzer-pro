@@ -158,9 +158,39 @@ GET /api/orchestrate/cache/metrics
 | Concurrent tasks   | Unlimited (risky)             | **10 max**        | Controlled load     |
 | Retry logic        | Manual                        | **Automatic**     | 99.9% completion    |
 
-#### Files Added
+#### Files Added/Modified
 
-- `src/integration/multi-agent-orchestrator.cjs` (711 lines)
+- `src/integration/multi-agent-orchestrator.cjs` (711 lines) - Core orchestrator engine
+- `server/backend-server.js` - Added orchestrator initialization and API endpoints
+- `src/services/AnalysisBridge.ts` - Frontend integration with new orchestrator methods
+
+#### Frontend Integration (AnalysisBridge.ts)
+
+**New Methods:**
+
+```typescript
+// Single-call orchestrated analysis (replaces complex polling)
+const { result, analysisId } = await analysisBridge.analyzeWithOrchestrator("C:\\Data", {
+  useOllama: true,
+  priority: 1, // HIGH priority
+  parallel: true,
+});
+
+// Get real-time orchestrator health
+const status = await analysisBridge.getOrchestratorStatus();
+console.log(`Cache hit rate: ${status.cache.hitRate * 100}%`);
+
+// Invalidate cache for specific directories
+await analysisBridge.invalidateOrchestratorCache("C:\\Data");
+```
+
+**Priority Levels:**
+
+- `0` - CRITICAL: User-facing urgent tasks
+- `1` - HIGH: AI analysis requests (recommended for interactive scans)
+- `2` - NORMAL: Standard directory scans
+- `3` - LOW: Background report generation
+- `4` - BACKGROUND: Maintenance tasks
 
 ---
 
