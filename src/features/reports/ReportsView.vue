@@ -237,6 +237,13 @@
             </p>
           </div>
           <div class="report-actions">
+            <button
+              class="btn btn-sm btn-secondary preview-btn"
+              title="Preview"
+              @click.stop="openPreview(report)"
+            >
+              🔍
+            </button>
             <button class="btn btn-sm btn-secondary" title="View" @click.stop="viewReport(report)">
               👁️
             </button>
@@ -260,6 +267,227 @@
     <!-- Status Messages -->
     <div v-if="message" :class="['status-message', message.type]">
       {{ message.text }}
+    </div>
+
+    <!-- Template Editor Modal -->
+    <div v-if="showTemplateModal" class="modal-overlay" @click.self="closeTemplateModal">
+      <div class="modal-container modal-large">
+        <div class="modal-header">
+          <h3>{{ editingTemplate?.id ? "Edit Template" : "Create New Template" }}</h3>
+          <button class="btn btn-icon" @click="closeTemplateModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Template Name *</label>
+            <input
+              v-model="templateForm.templateName"
+              type="text"
+              class="form-input"
+              placeholder="e.g., Executive Summary"
+            />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Template Type *</label>
+              <select v-model="templateForm.templateType" class="form-input">
+                <option value="analysis">Analysis Report</option>
+                <option value="complexity">Complexity Report</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>File Limit</label>
+              <input
+                v-model.number="templateForm.fileLimit"
+                type="number"
+                class="form-input"
+                min="10"
+                max="1000"
+              />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea
+              v-model="templateForm.description"
+              class="form-input"
+              rows="2"
+              placeholder="Brief description of this template..."
+            />
+          </div>
+          <div class="form-group">
+            <label>Include Sections</label>
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input v-model="templateForm.includeSections" type="checkbox" value="summary" />
+                Summary Cards
+              </label>
+              <label class="checkbox-label">
+                <input v-model="templateForm.includeSections" type="checkbox" value="categories" />
+                Categories Table
+              </label>
+              <label class="checkbox-label">
+                <input v-model="templateForm.includeSections" type="checkbox" value="extensions" />
+                Extensions Table
+              </label>
+              <label class="checkbox-label">
+                <input v-model="templateForm.includeSections" type="checkbox" value="files" />
+                File Listings
+              </label>
+              <label class="checkbox-label">
+                <input v-model="templateForm.includeSections" type="checkbox" value="charts" />
+                Charts/Visuals
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Color Scheme</label>
+            <div class="color-picker-group">
+              <div class="color-picker-item">
+                <label>Primary</label>
+                <input v-model="templateForm.colorScheme.primary" type="color" />
+              </div>
+              <div class="color-picker-item">
+                <label>Secondary</label>
+                <input v-model="templateForm.colorScheme.secondary" type="color" />
+              </div>
+              <div class="color-picker-item">
+                <label>Accent</label>
+                <input v-model="templateForm.colorScheme.accent" type="color" />
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Custom CSS (Optional)</label>
+            <textarea
+              v-model="templateForm.cssStyles"
+              class="form-input code-input"
+              rows="4"
+              placeholder="/* Add custom CSS styles here */"
+            />
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input v-model="templateForm.isDefault" type="checkbox" />
+              Set as default template for this type
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="closeTemplateModal">Cancel</button>
+          <button
+            :disabled="!templateForm.templateName || !templateForm.templateType"
+            class="btn btn-primary"
+            @click="saveTemplate"
+          >
+            {{ editingTemplate?.id ? "Update Template" : "Create Template" }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch Job Modal -->
+    <div v-if="showBatchModal" class="modal-overlay" @click.self="closeBatchModal">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h3>Create Batch Export Job</h3>
+          <button class="btn btn-icon" @click="closeBatchModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Job Name</label>
+            <input
+              v-model="batchJobName"
+              type="text"
+              class="form-input"
+              placeholder="e.g., Q4 Analysis Reports"
+            />
+          </div>
+          <div class="form-group">
+            <label>Export Type</label>
+            <select v-model="batchJobType" class="form-input">
+              <option value="pdf">PDF Reports</option>
+              <option value="csv">CSV Data</option>
+              <option value="json">JSON Data</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Select Analyses * ({{ selectedAnalysesForBatch.length }} selected)</label>
+            <div class="analyses-list">
+              <div
+                v-for="analysis in analysisHistory"
+                :key="analysis.analysisId"
+                class="analysis-checkbox-item"
+              >
+                <label class="checkbox-label-row">
+                  <input
+                    v-model="selectedAnalysesForBatch"
+                    type="checkbox"
+                    :value="analysis.analysisId"
+                  />
+                  <div class="analysis-info-row">
+                    <span class="analysis-path">{{ analysis.directory || "Unknown" }}</span>
+                    <span class="analysis-meta">
+                      {{ formatBytes(analysis.totalSize) }} •
+                      {{ analysis.totalFiles?.toLocaleString() }} files
+                    </span>
+                  </div>
+                </label>
+              </div>
+              <div v-if="analysisHistory.length === 0" class="empty-state-small">
+                No analyses available. Run some analyses first.
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Template (Optional)</label>
+            <select v-model="batchTemplateId" class="form-input">
+              <option :value="null">Default Template</option>
+              <option v-for="t in templates" :key="t.id" :value="t.id">
+                {{ t.template_name }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="closeBatchModal">Cancel</button>
+          <button
+            :disabled="selectedAnalysesForBatch.length === 0"
+            class="btn btn-primary"
+            @click="createBatchJob"
+          >
+            Create Job ({{ selectedAnalysesForBatch.length }} items)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Report Preview Modal -->
+    <div v-if="showPreviewModal" class="modal-overlay" @click.self="closePreviewModal">
+      <div class="modal-container modal-large">
+        <div class="modal-header">
+          <h3>Report Preview</h3>
+          <button class="btn btn-icon" @click="closePreviewModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div v-if="previewLoading" class="preview-loading">
+            <div class="spinner large" />
+            <p>Generating preview...</p>
+          </div>
+          <div v-else-if="previewUrl" class="preview-container">
+            <iframe :src="previewUrl" class="preview-iframe" frameborder="0" />
+          </div>
+          <div v-else-if="previewError" class="preview-error">
+            <p>Failed to generate preview: {{ previewError }}</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="closePreviewModal">Close</button>
+          <a v-if="previewDownloadUrl" :href="previewDownloadUrl" download class="btn btn-primary">
+            ⬇️ Download PDF
+          </a>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -291,6 +519,27 @@ const analysisHistory = ref<any[]>([]);
 const showBatchModal = ref(false);
 const selectedAnalysesForBatch = ref<string[]>([]);
 const batchJobName = ref("");
+const batchJobType = ref("pdf");
+const batchTemplateId = ref<number | null>(null);
+
+// Template Form State
+const templateForm = ref({
+  templateName: "",
+  templateType: "analysis",
+  description: "",
+  fileLimit: 100,
+  includeSections: ["summary", "categories", "extensions", "files"],
+  colorScheme: { primary: "#3b82f6", secondary: "#8b5cf6", accent: "#10b981" },
+  cssStyles: "",
+  isDefault: false,
+});
+
+// Preview State
+const showPreviewModal = ref(false);
+const previewLoading = ref(false);
+const previewUrl = ref<string | null>(null);
+const previewDownloadUrl = ref<string | null>(null);
+const previewError = ref<string | null>(null);
 
 // API Base URL
 const API_BASE = "http://localhost:8080/api";
@@ -472,6 +721,123 @@ const showMessage = (text: string, type: "success" | "error") => {
 };
 
 // ============================================================
+// Modal Methods
+// ============================================================
+
+const closeTemplateModal = () => {
+  showTemplateModal.value = false;
+  editingTemplate.value = null;
+  resetTemplateForm();
+};
+
+const resetTemplateForm = () => {
+  templateForm.value = {
+    templateName: "",
+    templateType: "analysis",
+    description: "",
+    fileLimit: 100,
+    includeSections: ["summary", "categories", "extensions", "files"],
+    colorScheme: { primary: "#3b82f6", secondary: "#8b5cf6", accent: "#10b981" },
+    cssStyles: "",
+    isDefault: false,
+  };
+};
+
+const saveTemplate = async () => {
+  if (!templateForm.value.templateName || !templateForm.value.templateType) {
+    showMessage("Template name and type are required", "error");
+    return;
+  }
+
+  try {
+    const templateData = {
+      templateName: templateForm.value.templateName,
+      templateType: templateForm.value.templateType,
+      description: templateForm.value.description,
+      fileLimit: templateForm.value.fileLimit,
+      includeSections: templateForm.value.includeSections,
+      colorScheme: templateForm.value.colorScheme,
+      cssStyles: templateForm.value.cssStyles,
+      isDefault: templateForm.value.isDefault,
+    };
+
+    if (editingTemplate.value?.id) {
+      // Update existing template
+      const response = await fetch(`${API_BASE}/reports/templates/${editingTemplate.value.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(templateData),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showMessage("Template updated successfully!", "success");
+        await fetchTemplates();
+        closeTemplateModal();
+      } else {
+        showMessage(data.error || "Failed to update template", "error");
+      }
+    } else {
+      // Create new template
+      const response = await fetch(`${API_BASE}/reports/templates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(templateData),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        templates.value.unshift(data.template);
+        showMessage("Template created successfully!", "success");
+        closeTemplateModal();
+      } else {
+        showMessage(data.error || "Failed to create template", "error");
+      }
+    }
+  } catch (error) {
+    showMessage("Failed to save template", "error");
+  }
+};
+
+const closeBatchModal = () => {
+  showBatchModal.value = false;
+  selectedAnalysesForBatch.value = [];
+  batchJobName.value = "";
+  batchJobType.value = "pdf";
+  batchTemplateId.value = null;
+};
+
+const closePreviewModal = () => {
+  showPreviewModal.value = false;
+  previewUrl.value = null;
+  previewDownloadUrl.value = null;
+  previewError.value = null;
+  previewLoading.value = false;
+};
+
+const openPreview = async (report: any) => {
+  showPreviewModal.value = true;
+  previewLoading.value = true;
+  previewError.value = null;
+
+  try {
+    const response = await fetch(`${API_BASE}/reports/preview/${report.filename}`);
+    const data = await response.json();
+
+    if (data.success && data.viewUrl) {
+      previewUrl.value = data.viewUrl;
+      previewDownloadUrl.value = data.downloadUrl || report.downloadUrl;
+    } else {
+      previewError.value = data.error || "Failed to load preview";
+    }
+  } catch (err) {
+    previewError.value = "Failed to load preview";
+  } finally {
+    previewLoading.value = false;
+  }
+};
+
+// ============================================================
 // Templates Methods
 // ============================================================
 
@@ -498,6 +864,20 @@ const useTemplate = (template: any) => {
 
 const editTemplate = (template: any) => {
   editingTemplate.value = { ...template };
+  templateForm.value = {
+    templateName: template.template_name || "",
+    templateType: template.template_type || "analysis",
+    description: template.description || "",
+    fileLimit: template.file_limit || 100,
+    includeSections: template.include_sections || ["summary", "categories", "extensions", "files"],
+    colorScheme: template.color_scheme || {
+      primary: "#3b82f6",
+      secondary: "#8b5cf6",
+      accent: "#10b981",
+    },
+    cssStyles: template.css_styles || "",
+    isDefault: template.is_default || false,
+  };
   showTemplateModal.value = true;
 };
 
@@ -1212,5 +1592,243 @@ onMounted(() => {
 
 .template-select {
   margin-top: 12px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-container {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modal-container.modal-large {
+  max-width: 900px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.modal-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary, #1f2937);
+}
+
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-secondary, #f9fafb);
+}
+
+/* Form Styles */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #1f2937);
+  margin-bottom: 6px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  font-size: 14px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary-color, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-input.code-input {
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+}
+
+/* Checkbox Styles */
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-secondary, #4b5563);
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-color, #3b82f6);
+}
+
+.checkbox-label-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-secondary, #f9fafb);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.checkbox-label-row:hover {
+  background: var(--bg-tertiary, #f3f4f6);
+}
+
+/* Color Picker */
+.color-picker-group {
+  display: flex;
+  gap: 16px;
+}
+
+.color-picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.color-picker-item label {
+  font-size: 12px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.color-picker-item input[type="color"] {
+  width: 50px;
+  height: 40px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 2px;
+}
+
+/* Analyses List */
+.analyses-list {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+}
+
+.analysis-checkbox-item {
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.analysis-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.analysis-path {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #1f2937);
+}
+
+.analysis-meta {
+  font-size: 12px;
+  color: var(--text-secondary, #6b7280);
+}
+
+/* Preview Modal */
+.preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px;
+  gap: 16px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.preview-container {
+  height: 600px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.preview-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.preview-error {
+  padding: 48px;
+  text-align: center;
+  color: #dc2626;
+}
+
+/* Preview Button for Report Cards */
+.report-card .preview-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.report-card:hover .preview-btn {
+  opacity: 1;
 }
 </style>
