@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                    |
 | ------- | ---------- | ------------------------------------------------------------------------------------------ |
+| 2.2.6   | 2026-04-29 | Notification System with database persistence, Templates & Batch Export for Reports        |
 | 2.2.5   | 2026-04-29 | PDF Reports: Generate, view, and download professional analysis reports                    |
 | 2.2.4   | 2026-04-29 | Code Complexity Analysis: metrics, grades, refactoring recommendations                     |
 | 2.2.3   | 2026-04-29 | AI-powered features: Document Summarization, Natural Language Interface, Cleanup Assistant |
@@ -162,6 +163,93 @@ All notable changes to Space Analyzer will be documented in this file.
   - Sort by: complexity, maintainability, lines of code, grade
   - Detailed metrics table with color-coded values
   - "Run Analysis" button to trigger new analysis
+
+---
+
+## [2.2.6] - 2026-04-29
+
+### Notification System with Database Persistence
+
+**Backend:**
+
+- **Database** (`server/db/core.js`):
+  - New `user_settings` table for persistent settings storage
+  - JSON value support with automatic parsing/stringifying
+  - Methods: `getUserSetting()`, `setUserSetting()`, `deleteUserSetting()`, `getAllUserSettings()`
+
+- **API Endpoints** (`server/routes/settings.js`):
+  - `GET /api/settings` - Get all user settings
+  - `GET /api/settings/:key` - Get specific setting by key
+  - `POST /api/settings/:key` - Set/update a setting
+  - `POST /api/settings` - Batch update multiple settings
+  - `DELETE /api/settings/:key` - Delete a setting
+  - `GET /api/settings/notifications` - Get notification settings
+  - `POST /api/settings/notifications` - Save notification settings
+
+**Frontend:**
+
+- **Notification Store** (`src/stores/notificationStore.ts`):
+  - 5 notification types: success, error, warning, info, progress
+  - Rich content support: icons, HTML messages, images, links, action buttons
+  - Toast notifications with 4 position options
+  - Notification center with slide-out panel
+  - Persistent history (last 50 notifications)
+  - Progress tracking for long-running operations
+  - Settings now persisted to database via API
+
+- **NotificationCenter Component** (`src/components/vue/other/NotificationCenter.vue`):
+  - Bell icon with unread badge in top bar
+  - Slide-out panel with filter tabs (All, Unread, by Type)
+  - Toast notifications with animations
+  - Progress bars for active operations
+  - Mark all read / Clear all functionality
+  - Click to navigate to related features
+
+- **Notification Settings Page** (`src/features/settings/NotificationSettingsView.vue`):
+  - Enable/disable notifications toggle
+  - Position selector (4 options)
+  - Duration slider (1-10 seconds)
+  - Max visible notifications selector
+  - Per-type customization (each type can be configured independently)
+  - Test notification buttons for all types
+  - Statistics dashboard showing notification counts
+
+### PDF Reports Enhancement - Templates & Batch Export
+
+**Backend:**
+
+- **Database** (`server/db/core.js`):
+  - New `report_templates` table for custom report templates
+  - New `batch_export_jobs` table for tracking batch operations
+  - Template fields: name, type, description, color scheme, CSS styles, sections
+
+- **API Endpoints** (`server/routes/reports.js`):
+  - Template CRUD: `GET/POST/PUT/DELETE /api/reports/templates`
+  - Template operations: `POST /api/reports/templates/:id/default`, `POST /api/reports/templates/:id/duplicate`
+  - Batch export: `POST/GET/DELETE /api/reports/batch`
+  - Async batch job processing with progress tracking
+
+**Frontend:**
+
+- **Template Editor Modal** (`src/features/reports/ReportsView.vue`):
+  - Create and edit templates with visual form
+  - Color pickers for primary, secondary, accent colors
+  - Section checkboxes (summary, categories, extensions, files, charts)
+  - Custom CSS textarea for advanced styling
+  - Set as default checkbox
+
+- **Batch Job Modal** (`src/features/reports/ReportsView.vue`):
+  - Select analyses with checkboxes
+  - Job name and type selection (PDF, CSV, JSON)
+  - Template selection dropdown
+  - Real-time progress tracking
+  - Cancel pending jobs
+
+- **Report Preview** (`src/features/reports/ReportsView.vue`):
+  - Preview modal with inline iframe
+  - Preview button on each report card
+  - Loading state with spinner
+  - Download directly from preview
 
 ---
 
