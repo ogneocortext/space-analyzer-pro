@@ -21,6 +21,10 @@ import {
   Menu,
   X,
   ChevronRight,
+  Database,
+  BarChart,
+  TestTube,
+  Globe,
   type LucideIcon,
 } from "lucide-vue-next";
 import type { RouteLocationNormalized } from "vue-router";
@@ -46,6 +50,10 @@ const iconMap: Record<string, LucideIcon> = {
   Code2,
   Activity,
   Settings,
+  Database,
+  BarChart,
+  TestTube,
+  Globe,
 };
 
 const navigation = [
@@ -68,6 +76,13 @@ const analysisNav = [
   { name: "Network", path: "/network", icon: "Share2" },
   { name: "Reports", path: "/reports", icon: "FileText" },
   { name: "Code Complexity", path: "/complexity", icon: "Code2" },
+];
+
+const selfLearningNav = [
+  { name: "Self-Learning", path: "/self-learning", icon: "Database" },
+  { name: "Learning Analytics", path: "/learning-analytics", icon: "BarChart" },
+  { name: "A/B Testing", path: "/ab-testing", icon: "TestTube" },
+  { name: "3D Browser", path: "/3d-browser", icon: "Globe" },
 ];
 
 const visualizationNav = [{ name: "Timeline", path: "/timeline", icon: "Clock" }];
@@ -191,6 +206,35 @@ function getBreadcrumbLabel(route: RouteLocationNormalized): string {
               "
             />
             <span class="text-sm">{{ item.name }}</span>
+          </router-link>
+        </div>
+
+        <!-- Self-Learning Navigation -->
+        <div class="space-y-1">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 mb-2">
+            Self-Learning
+          </div>
+          <router-link
+            v-for="item in selfLearningNav"
+            :key="item.path"
+            :to="item.path"
+            :class="[
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
+              $route.path === item.path
+                ? 'bg-linear-to-r from-green-600/20 to-green-500/10 text-green-400 border-l-2 border-green-500'
+                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100 hover:translate-x-1',
+            ]"
+          >
+            <component
+              :is="getIcon(item.icon)"
+              class="w-5 h-5 shrink-0"
+              :class="
+                $route.path === item.path
+                  ? 'text-green-400'
+                  : 'text-slate-500 group-hover:text-slate-300'
+              "
+            />
+            <span class="text-sm font-medium">{{ item.name }}</span>
           </router-link>
         </div>
 

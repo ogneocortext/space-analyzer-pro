@@ -9,10 +9,10 @@
             {{ test.name }} ({{ test.status }})
           </option>
         </select>
-        <button @click="generateReport" :disabled="!selectedTestId" class="generate-btn">
+        <button aria-label @click="generateReport" :disabled="!selectedTestId" class="generate-btn">
           📊 Generate Report
         </button>
-        <button @click="exportReport" :disabled="!reportData" class="export-btn">
+        <button aria-label @click="exportReport" :disabled="!reportData" class="export-btn">
           📥 Export PDF
         </button>
       </div>
@@ -81,7 +81,7 @@
       <section class="detailed-results">
         <h4>📈 Detailed Results</h4>
         <div class="results-tabs">
-          <button
+          <button aria-label
             v-for="tab in resultTabs"
             :key="tab.id"
             :class="['tab-btn', { active: activeTab === tab.id }]"
@@ -705,7 +705,52 @@ const generateReportContent = (report: ReportData): string => {
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
-      </style>
+      
+/* Responsive Design */
+@media (max-width: 768px) {
+  .analytics-data-visualization,
+  .learning-analytics-dashboard,
+  .ab-test-analysis-report,
+  .user-feedback-collection {
+    padding: 0.5rem;
+  }
+  
+  .metrics-grid,
+  .analytics-grid,
+  .summary-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .visualization-controls,
+  .header-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .chart-canvas {
+    height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .metric-card,
+  .summary-card,
+  .variant-metrics {
+    padding: 0.75rem;
+  }
+  
+  .action-buttons,
+  .export-section {
+    flex-direction: column;
+  }
+  
+  .btn {
+    width: 100%;
+  }
+}
+
+</style>
     </head>
     <body>
       <div class="header">

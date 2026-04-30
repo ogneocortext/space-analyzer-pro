@@ -9,7 +9,7 @@
       <div class="rating-section">
         <label class="rating-label">How helpful was this recommendation?</label>
         <div class="rating-stars">
-          <button
+          <button aria-label
             v-for="star in 5"
             :key="star"
             :class="['star-btn', { active: star <= rating }]"
@@ -61,7 +61,7 @@
       <div class="categories-section" v-if="feedbackType === 'specific'">
         <label class="categories-label">What category best describes your feedback?</label>
         <div class="category-chips">
-          <button
+          <button aria-label
             v-for="category in feedbackCategories"
             :key="category.id"
             :class="['category-chip', { active: selectedCategories.includes(category.id) }]"
@@ -152,14 +152,14 @@
       </div>
 
       <div class="action-buttons">
-        <button
+        <button aria-label
           @click="submitFeedback"
           :disabled="!isValidFeedback"
           class="submit-btn"
         >
           📤 Submit Feedback
         </button>
-        <button
+        <button aria-label
           @click="skipFeedback"
           class="skip-btn"
         >
@@ -177,7 +177,7 @@
           <span class="impact-label">Your feedback impact:</span>
           <span class="impact-value">{{ feedbackImpact }}</span>
         </div>
-        <button @click="closeFeedback" class="close-btn">
+        <button aria-label @click="closeFeedback" class="close-btn">
           ✅ Got it
         </button>
       </div>
@@ -185,7 +185,7 @@
 
     <!-- Quick Feedback Buttons -->
     <div class="quick-feedback" v-if="!showThankYou && !showDetailedForm">
-      <button
+      <button aria-label
         v-for="quickFeedback in quickFeedbackOptions"
         :key="quickFeedback.type"
         :class="['quick-feedback-btn', quickFeedback.type]"
@@ -194,7 +194,7 @@
         <span class="quick-feedback-icon">{{ quickFeedback.icon }}</span>
         <span class="quick-feedback-text">{{ quickFeedback.label }}</span>
       </button>
-      <button
+      <button aria-label
         class="quick-feedback-btn detailed"
         @click="showDetailedForm = true"
       >
@@ -902,4 +902,49 @@ onMounted(() => {
 .quick-feedback-text {
   font-weight: 500;
 }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .analytics-data-visualization,
+  .learning-analytics-dashboard,
+  .ab-test-analysis-report,
+  .user-feedback-collection {
+    padding: 0.5rem;
+  }
+  
+  .metrics-grid,
+  .analytics-grid,
+  .summary-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .visualization-controls,
+  .header-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .chart-canvas {
+    height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .metric-card,
+  .summary-card,
+  .variant-metrics {
+    padding: 0.75rem;
+  }
+  
+  .action-buttons,
+  .export-section {
+    flex-direction: column;
+  }
+  
+  .btn {
+    width: 100%;
+  }
+}
+
 </style>

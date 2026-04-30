@@ -1,3 +1,24 @@
+
+export interface UserVector {
+  userId: string
+  preferences: Record<string, number>
+  patterns: string[]
+  lastActivity: Date
+}
+
+export interface ItemVector {
+  itemId: string
+  features: Record<string, number>
+  category: string
+  tags: string[]
+}
+
+export interface SimilarityScore {
+  itemId: string
+  score: number
+  reason: string
+}
+
 /**
  * Machine Learning Recommendation Engine
  * Provides intelligent recommendations based on user behavior patterns

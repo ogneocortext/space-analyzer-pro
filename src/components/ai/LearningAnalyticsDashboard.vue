@@ -1,5 +1,5 @@
 <template>
-  <div class="learning-analytics-dashboard">
+  <div class="learning-analytics-dashboard" role="main" aria-label="learning-analytics Dashboard">
     <div class="dashboard-header">
       <h3>📊 Learning Analytics Dashboard</h3>
       <div class="header-controls">
@@ -9,10 +9,10 @@
           <option value="7d">Last 7 Days</option>
           <option value="30d">Last 30 Days</option>
         </select>
-        <button @click="refreshData" class="btn btn-primary">
+        <button aria-label @click="refreshData" class="btn tabindex="0" btn-primary">
           🔄 Refresh
         </button>
-        <button @click="exportData" class="btn btn-outline">
+        <button aria-label @click="exportData" class="btn tabindex="0" btn-outline">
           📥 Export
         </button>
       </div>
@@ -1007,4 +1007,49 @@ watch(selectedTimeRange, () => {
   background: #f9fafb;
   border-color: #9ca3af;
 }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .analytics-data-visualization,
+  .learning-analytics-dashboard,
+  .ab-test-analysis-report,
+  .user-feedback-collection {
+    padding: 0.5rem;
+  }
+  
+  .metrics-grid,
+  .analytics-grid,
+  .summary-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .visualization-controls,
+  .header-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .chart-canvas {
+    height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .metric-card,
+  .summary-card,
+  .variant-metrics {
+    padding: 0.75rem;
+  }
+  
+  .action-buttons,
+  .export-section {
+    flex-direction: column;
+  }
+  
+  .btn {
+    width: 100%;
+  }
+}
+
 </style>
