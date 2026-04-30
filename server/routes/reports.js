@@ -174,15 +174,18 @@ class ReportsRoutes {
       }
     });
 
-    // List all generated reports
+    // List all generated reports with pagination
     this.router.get("/reports", async (req, res) => {
       try {
-        const reports = await this.pdfGenerator.getReportsList();
+        const { page = 1, limit = 50 } = req.query;
+        const result = await this.pdfGenerator.getReportsList({
+          page: parseInt(page),
+          limit: parseInt(limit),
+        });
 
         res.json({
           success: true,
-          reports,
-          count: reports.length,
+          ...result,
         });
       } catch (error) {
         console.error("List reports error:", error);
