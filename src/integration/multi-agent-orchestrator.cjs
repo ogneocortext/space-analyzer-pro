@@ -75,7 +75,7 @@ class CircuitBreaker {
     this.failureCount++;
     this.metrics.failures++;
     this.lastFailureTime = Date.now();
-    
+
     if (this.failureCount >= this.failureThreshold) {
       this.state = 'OPEN';
       console.error(`🚨 Circuit breaker OPENED after ${this.failureThreshold} failures`);
@@ -112,7 +112,7 @@ class SmartCache {
 
   get(key) {
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       this.metrics.misses++;
       return null;
@@ -129,7 +129,7 @@ class SmartCache {
     this.accessOrder = this.accessOrder.filter(k => k !== key);
     this.accessOrder.push(key);
     this.metrics.hits++;
-    
+
     return entry.value;
   }
 
@@ -243,7 +243,7 @@ class Agent extends EventEmitter {
     this.strengths = config.strengths || [];
     this.maxMemoryMB = config.maxMemoryMB || 2048;
     this.timeout = config.timeout || 300000;
-    
+
     this.state = AGENT_STATE.IDLE;
     this.metrics = {
       tasksCompleted: 0,
@@ -252,7 +252,7 @@ class Agent extends EventEmitter {
       averageExecutionTime: 0,
       lastUsed: null
     };
-    
+
     this.circuitBreaker = new CircuitBreaker(3, 60000);
     this.currentTask = null;
     this.worker = null;
@@ -270,7 +270,7 @@ class Agent extends EventEmitter {
 
       try {
         let result;
-        
+
         if (this.type === 'worker_thread') {
           result = await this.executeWorkerThread(task);
         } else {
@@ -301,14 +301,14 @@ class Agent extends EventEmitter {
     return new Promise((resolve, reject) => {
       const workerScript = `
         const { parentPort, workerData } = require('worker_threads');
-        
+
         // Simulate work
         const result = {
           taskId: workerData.taskId,
           completed: true,
           timestamp: Date.now()
         };
-        
+
         parentPort.postMessage(result);
       `;
 
@@ -339,8 +339,10 @@ class Agent extends EventEmitter {
 
   executeProcess(task) {
     return new Promise((resolve, reject) => {
-      const args = [task.data.directory];
-      
+      // Wrap directory path in quotes to handle spaces
+      const directoryPath = `"${task.data.directory}"`;
+      const args = [directoryPath];
+
       if (task.data.json) {
         args.push('--format', 'json');
       }
@@ -348,8 +350,11 @@ class Agent extends EventEmitter {
         args.push('--parallel');
       }
 
+      console.log(`🎬 Spawning ${this.name}: ${this.executable} ${args.join(' ')}`);
+
       const proc = spawn(this.executable, args, {
-        maxBuffer: 1024 * 1024 * 100 // 100MB buffer
+        maxBuffer: 1024 * 1024 * 100, // 100MB buffer
+        windowsVerbatimArguments: true // Important for paths with spaces on Windows
       });
 
       let stdout = '';
@@ -370,7 +375,7 @@ class Agent extends EventEmitter {
 
       proc.on('close', (code) => {
         clearTimeout(timeout);
-        
+
         if (code === 0) {
           try {
             const result = stdout.trim() ? JSON.parse(stdout) : { success: true };
@@ -416,19 +421,19 @@ class Agent extends EventEmitter {
 class MultiAgentOrchestrator extends EventEmitter {
   constructor(options = {}) {
     super();
-    
+
     this.agents = new Map();
     this.taskQueue = new PriorityTaskQueue();
     this.cache = new SmartCache({
       maxSize: options.cacheSize || 50,
       defaultTTL: options.cacheTTL || 600000 // 10 minutes
     });
-    
+
     this.maxConcurrentTasks = options.maxConcurrentTasks || 10;
     this.activeTasks = new Map();
     this.isRunning = false;
     this.processingInterval = null;
-    
+
     // Metrics
     this.metrics = {
       totalTasks: 0,
@@ -443,15 +448,16 @@ class MultiAgentOrchestrator extends EventEmitter {
 
   initializeDefaultAgents() {
     const serverDir = path.join(__dirname, '../../server');
-    
+
     // Rust agent (primary for file scanning)
+    // Timeout: 10 minutes (600,000ms) for very large directories
     this.registerAgent(new Agent({
       name: 'rust-scanner',
       type: 'process',
       executable: path.join(serverDir, 'scanner/space-analyzer.exe'),
       strengths: ['speed', 'large-directories', 'parallel-processing'],
       maxMemoryMB: 4096,
-      timeout: 300000
+      timeout: 600000 // 10 minutes for huge directories
     }));
 
     // Node.js agent (for AI-enhanced analysis)
@@ -466,7 +472,7 @@ class MultiAgentOrchestrator extends EventEmitter {
 
   registerAgent(agent) {
     this.agents.set(agent.id, agent);
-    
+
     agent.on('taskCompleted', ({ task, result, duration }) => {
       this.activeTasks.delete(task.id);
       this.cache.set(task.cacheKey, result);
@@ -485,7 +491,7 @@ class MultiAgentOrchestrator extends EventEmitter {
   async submitTask(taskData, options = {}) {
     const taskId = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const cacheKey = this.cache.generateKey(taskData);
-    
+
     // Check cache first
     const cached = this.cache.get(cacheKey);
     if (cached && !options.skipCache) {
@@ -534,7 +540,7 @@ class MultiAgentOrchestrator extends EventEmitter {
 
   start() {
     if (this.isRunning) return;
-    
+
     this.isRunning = true;
     this.processingInterval = setInterval(() => this.processQueue(), 100);
     console.log('🚀 Multi-Agent Orchestrator started');
@@ -545,12 +551,12 @@ class MultiAgentOrchestrator extends EventEmitter {
     if (this.processingInterval) {
       clearInterval(this.processingInterval);
     }
-    
+
     // Terminate all agents
     for (const agent of this.agents.values()) {
       agent.terminate();
     }
-    
+
     console.log('🛑 Multi-Agent Orchestrator stopped');
   }
 
@@ -575,7 +581,7 @@ class MultiAgentOrchestrator extends EventEmitter {
     }
 
     this.activeTasks.set(task.id, { task, agent, startedAt: Date.now() });
-    
+
     agent.execute(task).catch(error => {
       console.error(`Task ${task.id} failed:`, error.message);
     });
@@ -590,7 +596,7 @@ class MultiAgentOrchestrator extends EventEmitter {
     // Score agents based on task requirements and agent strengths
     const scoredAgents = availableAgents.map(agent => {
       let score = 0;
-      
+
       // Prefer agents with matching strengths
       if (task.data.requirements) {
         for (const req of task.data.requirements) {
@@ -626,15 +632,15 @@ class MultiAgentOrchestrator extends EventEmitter {
     };
 
     const priority = options.priority || (options.ai ? PRIORITY.HIGH : PRIORITY.NORMAL);
-    
+
     console.log(`🎯 Submitting analysis task for: ${directory}`);
     const startTime = Date.now();
-    
+
     const { result, fromCache } = await this.submitTask(taskData, { priority });
-    
+
     const duration = Date.now() - startTime;
     console.log(`✅ Analysis complete in ${duration}ms${fromCache ? ' (cached)' : ''}`);
-    
+
     return {
       ...result,
       meta: {
@@ -647,7 +653,7 @@ class MultiAgentOrchestrator extends EventEmitter {
 
   getHealth() {
     const agentHealth = Array.from(this.agents.values()).map(a => a.getHealth());
-    
+
     return {
       status: this.isRunning ? 'running' : 'stopped',
       agents: {
@@ -675,16 +681,16 @@ module.exports = { MultiAgentOrchestrator, Agent, CircuitBreaker, SmartCache, Pr
 // CLI interface
 if (require.main === module) {
   const orchestrator = new MultiAgentOrchestrator();
-  
+
   const command = process.argv[2];
-  
+
   if (command === 'analyze') {
     const directory = process.argv[3];
     if (!directory) {
       console.error('Usage: node multi-agent-orchestrator.cjs analyze <directory>');
       process.exit(1);
     }
-    
+
     orchestrator.analyzeDirectory(directory, { ai: process.argv.includes('--ai') })
       .then(result => {
         console.log(JSON.stringify(result, null, 2));
