@@ -824,6 +824,267 @@ class SpaceAnalyzerAPIServer {
       }
     });
 
+    // STEP 4: Circuit Breaker Status - Monitor agent health
+    this.app.get("/api/orchestrate/agents/health", (req, res) => {
+      try {
+        const agentHealth = Array.from(this.orchestrator.agents.values()).map((agent) => ({
+          id: agent.id,
+          name: agent.name,
+          type: agent.type,
+          state: agent.state,
+          circuitBreaker: agent.circuitBreaker.getHealth(),
+          metrics: agent.metrics,
+          isAvailable: agent.state === "IDLE" && agent.circuitBreaker.state !== "OPEN",
+          lastUsed: agent.metrics.lastUsed,
+        }));
+
+        const summary = {
+          total: agentHealth.length,
+          available: agentHealth.filter((a) => a.isAvailable).length,
+          busy: agentHealth.filter((a) => a.state === "BUSY").length,
+          unhealthy: agentHealth.filter((a) => a.circuitBreaker.state === "OPEN").length,
+          idle: agentHealth.filter((a) => a.state === "IDLE").length,
+        };
+
+        res.json({
+          success: true,
+          agents: agentHealth,
+          summary,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    // STEP 5: Task Queue Management - View and manage task queue
+    this.app.get("/api/orchestrate/tasks", (req, res) => {
+      try {
+        const { status = "all", limit = 50 } = req.query;
+
+        // Get tasks from orchestrator's task queue
+        const taskQueue = this.orchestrator.taskQueue || { tasks: [] };
+        const allTasks = Array.from(taskQueue.tasks || []);
+
+        // Filter by status if specified
+        let filteredTasks = allTasks;
+        if (status !== "all") {
+          filteredTasks = allTasks.filter((task) => task.status === status);
+        }
+
+        // Sort by priority (lower = higher priority) and creation time
+        filteredTasks.sort((a, b) => {
+          if (a.priority !== b.priority) return a.priority - b.priority;
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        });
+
+        // Apply limit
+        const limitedTasks = filteredTasks.slice(0, parseInt(limit));
+
+        // Get queue statistics
+        const stats = {
+          total: allTasks.length,
+          pending: allTasks.filter((t) => t.status === "pending").length,
+          active: allTasks.filter((t) => t.status === "active").length,
+          completed: allTasks.filter((t) => t.status === "completed").length,
+          failed: allTasks.filter((t) => t.status === "failed").length,
+          byPriority: {
+            critical: allTasks.filter((t) => t.priority === 0).length,
+            high: allTasks.filter((t) => t.priority === 1).length,
+            normal: allTasks.filter((t) => t.priority === 2).length,
+            low: allTasks.filter((t) => t.priority === 3).length,
+            background: allTasks.filter((t) => t.priority === 4).length,
+          },
+        };
+
+        res.json({
+          success: true,
+          tasks: limitedTasks.map((task) => ({
+            id: task.id,
+            status: task.status,
+            priority: task.priority,
+            priorityLabel:
+              ["CRITICAL", "HIGH", "NORMAL", "LOW", "BACKGROUND"][task.priority] || "UNKNOWN",
+            data: task.data,
+            createdAt: task.createdAt,
+            startedAt: task.startedAt,
+            completedAt: task.completedAt,
+            assignedAgent: task.assignedAgent,
+            result: task.result
+              ? {
+                  success: task.result.success,
+                  hasData: !!task.result.data,
+                }
+              : null,
+            error: task.error,
+          })),
+          stats,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    // Cancel a specific task
+    this.app.post("/api/orchestrate/tasks/:taskId/cancel", (req, res) => {
+      try {
+        const { taskId } = req.params;
+        const taskQueue = this.orchestrator.taskQueue;
+
+        if (!taskQueue) {
+          return res.status(400).json({
+            success: false,
+            error: "Task queue not available",
+          });
+        }
+
+        // Find and cancel the task
+        const taskIndex = taskQueue.tasks.findIndex((t) => t.id === taskId);
+        if (taskIndex === -1) {
+          return res.status(404).json({
+            success: false,
+            error: "Task not found",
+          });
+        }
+
+        const task = taskQueue.tasks[taskIndex];
+        if (task.status === "completed" || task.status === "failed") {
+          return res.status(400).json({
+            success: false,
+            error: `Cannot cancel task with status: ${task.status}`,
+          });
+        }
+
+        // Mark as cancelled
+        task.status = "cancelled";
+        task.cancelledAt = new Date().toISOString();
+
+        res.json({
+          success: true,
+          message: "Task cancelled successfully",
+          taskId,
+          status: task.status,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    // STEP 6: Batch Analysis - Analyze multiple directories at once
+    this.app.post("/api/orchestrate/batch", async (req, res) => {
+      try {
+        const { directories, options = {} } = req.body;
+
+        if (!Array.isArray(directories) || directories.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: "directories must be a non-empty array",
+          });
+        }
+
+        if (directories.length > 20) {
+          return res.status(400).json({
+            success: false,
+            error: "Maximum 20 directories allowed per batch",
+          });
+        }
+
+        console.log(`📦 Starting batch analysis of ${directories.length} directories`);
+
+        const results = [];
+        const errors = [];
+        const startTime = Date.now();
+
+        // Process directories with concurrency limit
+        const concurrency = options.concurrency || 3;
+        const priority = options.priority || PRIORITY.NORMAL;
+
+        // Process in chunks
+        for (let i = 0; i < directories.length; i += concurrency) {
+          const chunk = directories.slice(i, i + concurrency);
+
+          const chunkPromises = chunk.map(async (dir, index) => {
+            const dirStartTime = Date.now();
+            try {
+              const result = await this.orchestrator.analyzeDirectory(dir, {
+                ai: options.useOllama || false,
+                priority: Math.min(priority + Math.floor(index / 2), 4), // Slight priority increase for later tasks
+                parallel: options.parallel !== false,
+              });
+
+              return {
+                directory: dir,
+                success: true,
+                result,
+                duration: Date.now() - dirStartTime,
+              };
+            } catch (error) {
+              return {
+                directory: dir,
+                success: false,
+                error: error.message,
+                duration: Date.now() - dirStartTime,
+              };
+            }
+          });
+
+          const chunkResults = await Promise.all(chunkPromises);
+          results.push(...chunkResults.filter((r) => r.success));
+          errors.push(...chunkResults.filter((r) => !r.success));
+
+          // Small delay between chunks to prevent overwhelming
+          if (i + concurrency < directories.length) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+        }
+
+        const totalDuration = Date.now() - startTime;
+
+        // Calculate aggregate statistics
+        const totalFiles = results.reduce((sum, r) => sum + (r.result.total_files || 0), 0);
+        const totalSize = results.reduce((sum, r) => sum + (r.result.total_size || 0), 0);
+
+        res.json({
+          success: true,
+          batch: {
+            totalDirectories: directories.length,
+            successful: results.length,
+            failed: errors.length,
+            totalDuration,
+            aggregateStats: {
+              totalFiles,
+              totalSize,
+              avgFilesPerDirectory:
+                results.length > 0 ? Math.round(totalFiles / results.length) : 0,
+            },
+          },
+          results,
+          errors: errors.length > 0 ? errors : undefined,
+          timestamp: new Date().toISOString(),
+        });
+
+        console.log(
+          `✅ Batch analysis complete: ${results.length}/${directories.length} successful in ${totalDuration}ms`
+        );
+      } catch (error) {
+        console.error("Batch analysis failed:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
     // System metrics endpoint for real system monitoring
     this.app.get("/api/system/metrics", async (req, res) => {
       const os = require("os");
