@@ -9,6 +9,13 @@ use rayon::prelude::*;
 use crossbeam::channel::bounded;
 use num_cpus;
 
+// Include the new scanner modules
+#[cfg(windows)]
+pub mod ntfs_mft_scanner;
+
+#[cfg(windows)]
+pub mod usn_journal_scanner;
+
 // Re-use existing structures from main.rs
 #[derive(Debug, Serialize, Deserialize)]
 #[napi(object)]
