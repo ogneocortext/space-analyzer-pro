@@ -12,13 +12,13 @@ const path = require("path");
 const http = require("http");
 const { EventEmitter } = require("events");
 
-// Configuration
-const ports = require("../../ports.config.js");
+// Configuration - default port if ports.config.js not available
+const DEFAULT_PORT = 8080;
 
 class Server {
   constructor(options = {}) {
     this.app = express();
-    this.port = options.port || ports.API_SERVER_PORT || 8080;
+    this.port = options.port || DEFAULT_PORT;
     this.isDevelopment = process.env.NODE_ENV !== "production";
     this.eventEmitter = new EventEmitter();
     this.server = null;
@@ -51,34 +51,40 @@ class Server {
 
   setupSecurity() {
     // Basic security headers
-    this.app.use(helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", "data:", "blob:"],
-          connectSrc: ["'self'", "http:", "https:", "ws:", "wss:"],
+    this.app.use(
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "blob:"],
+            connectSrc: ["'self'", "http:", "https:", "ws:", "wss:"],
+          },
         },
-      },
-      crossOriginEmbedderPolicy: false,
-    }));
+        crossOriginEmbedderPolicy: false,
+      })
+    );
 
     // CORS
-    this.app.use(cors({
-      origin: true,
-      credentials: true,
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
-    }));
+    this.app.use(
+      cors({
+        origin: true,
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
+      })
+    );
   }
 
   setupMiddleware() {
     // Compression
-    this.app.use(compression({
-      level: 6,
-      threshold: 1024,
-    }));
+    this.app.use(
+      compression({
+        level: 6,
+        threshold: 1024,
+      })
+    );
 
     // Body parsing
     this.app.use(express.json({ limit: "50mb" }));
