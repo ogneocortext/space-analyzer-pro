@@ -1,14 +1,23 @@
+/**
+ * Knowledge Database - Re-export of modular database
+ * This file maintains backward compatibility while using the new modular structure
+ * @deprecated Use server/db/index.js directly for new code
+ */
+
+const KnowledgeDatabase = require("./db");
+
+module.exports = KnowledgeDatabase;
+
+// Original implementation preserved below for reference during migration
+// The following code is no longer active and will be removed in a future version
+/*
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const crypto = require("crypto");
 const fs = require("fs");
 const zlib = require("zlib");
 
-/**
- * Knowledge Database - Persistent storage for AI responses and file metadata
- * Enables incremental analysis and intelligent caching across server restarts
- */
-class KnowledgeDatabase {
+class KnowledgeDatabaseLegacy {
   constructor(dbPath) {
     this.dbPath = dbPath || path.join(__dirname, "knowledge.db");
     this.db = null;
