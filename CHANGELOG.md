@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                    |
 | ------- | ---------- | ------------------------------------------------------------------------------------------ |
+| 2.2.5   | 2026-04-29 | PDF Reports: Generate, view, and download professional analysis reports                    |
 | 2.2.4   | 2026-04-29 | Code Complexity Analysis: metrics, grades, refactoring recommendations                     |
 | 2.2.3   | 2026-04-29 | AI-powered features: Document Summarization, Natural Language Interface, Cleanup Assistant |
 | 2.2.2   | 2026-04-29 | Ollama API 0.22.0 integration, optimized context payload, trend tracking database          |
@@ -161,6 +162,58 @@ All notable changes to Space Analyzer will be documented in this file.
   - Sort by: complexity, maintainability, lines of code, grade
   - Detailed metrics table with color-coded values
   - "Run Analysis" button to trigger new analysis
+
+---
+
+## [2.2.5] - 2026-04-29
+
+### PDF Reports - Professional Analysis Reports
+
+**Backend:**
+
+- **PDF Generator Module** (`server/modules/pdf-generator.js`):
+  - Playwright-based HTML-to-PDF conversion
+  - Professional report templates with modern styling
+  - Analysis reports: Category distribution, file listings, summary cards
+  - Complexity reports: Code metrics, grade distribution, refactoring priority
+  - Report ID generation with timestamps
+  - Automatic cleanup of old reports (configurable retention)
+
+- **API Endpoints** (`server/routes/reports.js`):
+  - `POST /api/reports/analysis` - Generate analysis PDF report
+  - `POST /api/reports/complexity` - Generate complexity PDF report
+  - `GET /api/reports` - List all generated reports
+  - `GET /api/reports/download/:filename` - Download PDF file
+  - `GET /api/reports/view/:filename` - View PDF inline in browser
+  - `DELETE /api/reports/:filename` - Delete specific report
+  - `POST /api/reports/cleanup` - Cleanup old reports by age
+
+- **Storage:**
+  - Reports stored in `server/reports/` directory
+  - Automatic directory creation on first use
+  - File size tracking and metadata
+
+**Frontend:**
+
+- **Reports View** (`src/features/reports/ReportsView.vue`):
+  - Generate report cards for Analysis and Complexity reports
+  - Real-time PDF viewer with iframe integration
+  - Download reports directly from browser
+  - List all generated reports with metadata (size, date)
+  - Delete reports with confirmation
+  - Responsive grid layout for report cards
+  - Loading states and error handling
+  - Success/error toast notifications
+
+**Features:**
+
+- Professional PDF templates with:
+  - Colorful gradient summary cards
+  - Tables with category and extension breakdown
+  - File listings with size, path, and metadata
+  - Header/footer with page numbers
+  - Customizable report titles and subtitles
+  - A4 format optimized for printing
 
 ---
 

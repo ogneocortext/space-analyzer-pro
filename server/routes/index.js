@@ -8,6 +8,7 @@ const AIRoutes = require("./ai");
 const FileRoutes = require("./files");
 const ExportRoutes = require("./exports");
 const ComplexityRoutes = require("./complexity");
+const ReportsRoutes = require("./reports");
 
 class RoutesManager {
   constructor(server) {
@@ -23,6 +24,7 @@ class RoutesManager {
     this.routes.files = new FileRoutes(this.server);
     this.routes.exports = new ExportRoutes(this.server);
     this.routes.complexity = new ComplexityRoutes(this.server);
+    this.routes.reports = new ReportsRoutes(this.server);
   }
 
   mountAll(app) {
@@ -32,6 +34,7 @@ class RoutesManager {
     app.use("/api", this.routes.files.getRouter());
     app.use("/api", this.routes.exports.getRouter());
     app.use("/api", this.routes.complexity.getRouter());
+    app.use("/api", this.routes.reports.getRouter());
 
     console.log("✅ All API routes mounted successfully");
   }
@@ -55,6 +58,10 @@ class RoutesManager {
 
   getComplexityRoutes() {
     return this.routes.complexity;
+  }
+
+  getReportsRoutes() {
+    return this.routes.reports;
   }
 }
 
