@@ -369,7 +369,7 @@ function openSettings() {
 }
 
 .notification-bell:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .bell-icon {
@@ -445,12 +445,13 @@ function openSettings() {
 
 /* Toast Notification */
 .toast-notification {
-  background: white;
+  background: #1e293b;
   border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   pointer-events: auto;
   min-width: 320px;
+  border: 1px solid #334155;
 }
 
 .toast-success {
@@ -525,7 +526,7 @@ function openSettings() {
 .toast-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: #f1f5f9;
   margin: 0;
 }
 
@@ -542,13 +543,13 @@ function openSettings() {
 }
 
 .toast-close:hover {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: #334155;
+  color: #e2e8f0;
 }
 
 .toast-message {
   font-size: 13px;
-  color: #4b5563;
+  color: #94a3b8;
   margin: 0;
   line-height: 1.5;
 }
@@ -600,12 +601,12 @@ function openSettings() {
 }
 
 .action-secondary {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: #334155;
+  color: #e2e8f0;
 }
 
 .action-secondary:hover {
-  background: #e5e7eb;
+  background: #475569;
 }
 
 .action-danger {
@@ -649,10 +650,11 @@ function openSettings() {
   right: 0;
   width: 420px;
   height: 100vh;
-  background: white;
-  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.15);
+  background: #0f172a;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
+  border-left: 1px solid #1e293b;
 }
 
 /* Slide Transition */
@@ -677,14 +679,15 @@ function openSettings() {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #1e293b;
+  background: #0f172a;
 }
 
 .nc-header h3 {
   font-size: 18px;
   font-weight: 600;
   margin: 0;
-  color: #1f2937;
+  color: #f1f5f9;
 }
 
 .nc-actions {
@@ -699,15 +702,15 @@ function openSettings() {
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid #e5e7eb;
-  background: white;
-  color: #4b5563;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #cbd5e1;
   transition: all 0.2s;
 }
 
 .nc-btn:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: #d1d5db;
+  background: #334155;
+  border-color: #475569;
 }
 
 .nc-btn:disabled {
@@ -716,12 +719,12 @@ function openSettings() {
 }
 
 .nc-btn-danger {
-  color: #ef4444;
-  border-color: #fecaca;
+  color: #f87171;
+  border-color: #7f1d1d;
 }
 
 .nc-btn-danger:hover:not(:disabled) {
-  background: #fef2f2;
+  background: #7f1d1d;
   border-color: #ef4444;
 }
 
@@ -731,13 +734,13 @@ function openSettings() {
   padding: 8px;
   cursor: pointer;
   font-size: 18px;
-  color: #9ca3af;
+  color: #64748b;
   line-height: 1;
   margin-left: 8px;
 }
 
 .nc-close:hover {
-  color: #4b5563;
+  color: #e2e8f0;
 }
 
 /* NC Filters */
@@ -745,9 +748,10 @@ function openSettings() {
   display: flex;
   gap: 8px;
   padding: 12px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #1e293b;
   overflow-x: auto;
   scrollbar-width: none;
+  background: #0f172a;
 }
 
 .nc-filters::-webkit-scrollbar {
@@ -761,14 +765,14 @@ function openSettings() {
   font-weight: 500;
   cursor: pointer;
   border: none;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: #1e293b;
+  color: #94a3b8;
   white-space: nowrap;
   transition: all 0.2s;
 }
 
 .nc-filter:hover {
-  background: #e5e7eb;
+  background: #334155;
 }
 
 .nc-filter.active {
@@ -795,15 +799,15 @@ function openSettings() {
 }
 
 .nc-item:hover {
-  background: #f9fafb;
+  background: #1e293b;
 }
 
 .nc-item.unread {
-  background: #eff6ff;
+  background: #1e3a5f;
 }
 
 .nc-item.unread:hover {
-  background: #dbeafe;
+  background: #254770;
 }
 
 .nc-item-success {
@@ -847,19 +851,19 @@ function openSettings() {
 .nc-item-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: #f1f5f9;
   margin: 0;
 }
 
 .nc-item-time {
   font-size: 12px;
-  color: #9ca3af;
+  color: #64748b;
   white-space: nowrap;
 }
 
 .nc-item-message {
   font-size: 13px;
-  color: #4b5563;
+  color: #94a3b8;
   margin: 0;
   line-height: 1.5;
 }
@@ -874,7 +878,7 @@ function openSettings() {
 .nc-progress-bar {
   flex: 1;
   height: 4px;
-  background: #e5e7eb;
+  background: #334155;
   border-radius: 2px;
   overflow: hidden;
 }
@@ -888,7 +892,7 @@ function openSettings() {
 
 .nc-progress-text {
   font-size: 12px;
-  color: #8b5cf6;
+  color: #a78bfa;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -906,13 +910,13 @@ function openSettings() {
   font-weight: 500;
   cursor: pointer;
   border: none;
-  background: #f3f4f6;
-  color: #4b5563;
+  background: #334155;
+  color: #e2e8f0;
   transition: all 0.2s;
 }
 
 .nc-action-btn:hover {
-  background: #e5e7eb;
+  background: #475569;
 }
 
 .nc-item-link {
@@ -950,7 +954,7 @@ function openSettings() {
 }
 
 .nc-menu-btn:hover {
-  background: #f3f4f6;
+  background: #334155;
 }
 
 /* NC Empty */
@@ -960,7 +964,7 @@ function openSettings() {
   align-items: center;
   justify-content: center;
   padding: 64px 24px;
-  color: #9ca3af;
+  color: #64748b;
 }
 
 .nc-empty-icon {
@@ -977,8 +981,8 @@ function openSettings() {
 /* NC Footer */
 .nc-footer {
   padding: 16px 24px;
-  border-top: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border-top: 1px solid #1e293b;
+  background: #0f172a;
 }
 
 .nc-settings-link {
@@ -992,22 +996,22 @@ function openSettings() {
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid #e5e7eb;
-  background: white;
-  color: #4b5563;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #cbd5e1;
   transition: all 0.2s;
 }
 
 .nc-settings-link:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: #334155;
+  border-color: #475569;
 }
 
 /* Confirmation Modal */
 .nc-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   z-index: 10001;
   display: flex;
   align-items: center;
@@ -1015,24 +1019,26 @@ function openSettings() {
 }
 
 .nc-modal {
-  background: white;
+  background: #1e293b;
   padding: 24px;
   border-radius: 16px;
   max-width: 360px;
   text-align: center;
+  border: 1px solid #334155;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
 }
 
 .nc-modal h4 {
   margin: 0 0 12px;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: #f1f5f9;
 }
 
 .nc-modal p {
   margin: 0 0 20px;
   font-size: 14px;
-  color: #6b7280;
+  color: #94a3b8;
   line-height: 1.5;
 }
 
