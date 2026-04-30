@@ -15,7 +15,10 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 - **Old File Finder** - Find files not accessed in X years with cleanup suggestions
 - **Empty Folder Finder** - Detect and clean empty directories
 - **AI Auto-Organization** - Smart suggestions for organizing files by date, project, type, or size
-- **PDF Report Generation** - Export professional PDF reports with scan results
+- **PDF Report Generation** - Export professional PDF reports with customizable templates
+- **Report Templates** - Create custom templates with color schemes, sections, and CSS styling
+- **Batch Export** - Generate reports for multiple analyses at once with job tracking
+- **Report Preview** - Preview reports before downloading with inline viewer
 - **CSV/JSON/TXT Export** - Multiple export formats for data analysis
 
 ### AI-Powered Features ✅
@@ -31,6 +34,14 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 - **Dashboard** - Overview metrics with category breakdowns
 - **Timeline** - File modification history with optional 3D perspective view
 - **Network Graph** - Force-directed graph showing file relationships, folder structures, and duplicates
+
+### Code Analysis ✅
+
+- **Code Complexity Analysis** - Analyze code complexity for multiple languages (JS, TS, Python, Java, C#, Go, Rust, etc.)
+- **Complexity Metrics** - Cyclomatic complexity, cognitive complexity, maintainability index, nesting depth
+- **Complexity Grades** - A-F grading system with color-coded visualization
+- **Refactoring Priority** - Critical, high, medium, low priority indicators
+- **Function Analysis** - Function count, length metrics, and complexity per function
 
 ### System & Insights ✅
 
