@@ -1433,7 +1433,15 @@ class SpaceAnalyzerAPIServer {
     // Duplicate detection endpoint
     this.app.post("/api/analysis/:analysisId/duplicates", async (req, res) => {
       const { analysisId } = req.params;
-      const result = this.analysisResults.get(analysisId);
+      let result = this.analysisResults.get(analysisId);
+
+      // If not in memory, try to get from database using the path
+      if (!result && req.body.path) {
+        const dbResult = await this.knowledgeDB.getAnalysis(req.body.path);
+        if (dbResult && dbResult.analysis_data) {
+          result = dbResult.analysis_data;
+        }
+      }
 
       if (!result || !result.files) {
         return res.status(404).json({ error: "Analysis not found or no files" });
@@ -1464,6 +1472,131 @@ class SpaceAnalyzerAPIServer {
         res.json(progress);
       } else {
         res.status(404).json({ error: "Analysis not found" });
+      }
+    });
+
+    // Get current analysis by path from database
+    this.app.get("/api/analysis/current", async (req, res) => {
+      const { path: directoryPath } = req.query;
+
+      if (!directoryPath) {
+        return res.status(400).json({ error: "Path parameter required" });
+      }
+
+      try {
+        // First check in-memory cache
+        const cachedResult = this.analysisResults.get(directoryPath);
+        if (cachedResult) {
+          return res.json({
+            success: true,
+            source: "memory",
+            data: cachedResult,
+          });
+        }
+
+        // Then check database
+        const dbResult = await this.knowledgeDB.getAnalysis(directoryPath);
+        if (dbResult && dbResult.analysis_data) {
+          return res.json({
+            success: true,
+            source: "database",
+            data: dbResult.analysis_data,
+          });
+        }
+
+        res.status(404).json({ error: "No analysis found for this path" });
+      } catch (error) {
+        console.error("Error retrieving current analysis:", error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get analysis files with pagination and filtering
+    this.app.get("/api/analysis/:analysisId/files", async (req, res) => {
+      const { analysisId } = req.params;
+      const {
+        page = 1,
+        perPage = 100,
+        category,
+        extension,
+        minSize,
+        maxSize,
+        sortBy,
+        sortOrder,
+      } = req.query;
+
+      try {
+        // First get the analysis to find its ID in the database
+        // We need to look up by the analysisId which might be a string like "System32_20260429-1553"
+        let dbAnalysisId = null;
+
+        // Try to find in active analyses first to get the path
+        for (const [path, result] of this.analysisResults) {
+          if (result.analysisId === analysisId) {
+            const dbResult = await this.knowledgeDB.getAnalysis(path);
+            if (dbResult) {
+              dbAnalysisId = dbResult.id;
+              break;
+            }
+          }
+        }
+
+        if (!dbAnalysisId) {
+          return res.status(404).json({ error: "Analysis not found" });
+        }
+
+        const options = {
+          page: parseInt(page, 10),
+          perPage: parseInt(perPage, 10),
+          category: category || null,
+          extension: extension || null,
+          minSize: minSize ? parseInt(minSize, 10) : null,
+          maxSize: maxSize ? parseInt(maxSize, 10) : null,
+          sortBy: sortBy || "file_size",
+          sortOrder: sortOrder || "DESC",
+        };
+
+        const result = await this.knowledgeDB.getAnalysisFiles(dbAnalysisId, options);
+        res.json({
+          success: true,
+          ...result,
+        });
+      } catch (error) {
+        console.error("Error fetching analysis files:", error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get analysis statistics
+    this.app.get("/api/analysis/:analysisId/stats", async (req, res) => {
+      const { analysisId } = req.params;
+
+      try {
+        // Find database analysis ID
+        let dbAnalysisId = null;
+
+        for (const [path, result] of this.analysisResults) {
+          if (result.analysisId === analysisId) {
+            const dbResult = await this.knowledgeDB.getAnalysis(path);
+            if (dbResult) {
+              dbAnalysisId = dbResult.id;
+              break;
+            }
+          }
+        }
+
+        if (!dbAnalysisId) {
+          return res.status(404).json({ error: "Analysis not found" });
+        }
+
+        const stats = await this.knowledgeDB.getAnalysisStats(dbAnalysisId);
+        res.json({
+          success: true,
+          ...stats,
+        });
+      } catch (error) {
+        console.error("Error fetching analysis stats:", error);
+        res.status(500).json({ error: error.message });
       }
     });
 
@@ -1518,47 +1651,19 @@ class SpaceAnalyzerAPIServer {
       }
     });
 
-    // Analysis history endpoint
-    this.app.get("/api/analysis/history", (req, res) => {
-      const historyDir = path.join(__dirname, "analysis_history");
-
-      if (!existsSync(historyDir)) {
-        return res.json({
-          success: true,
-          analyses: [],
-          message: "No analysis history yet",
-        });
-      }
-
-      const analyses = [];
+    // Analysis history endpoint - now uses database instead of JSON files
+    this.app.get("/api/analysis/history", async (req, res) => {
       try {
-        const files = fs.readdirSync(historyDir);
-        for (const file of files) {
-          if (file.endsWith(".json")) {
-            const filePath = path.join(historyDir, file);
-            const content = fs.readFileSync(filePath, "utf8");
-            const data = JSON.parse(content);
-            analyses.push({
-              id: data.analysisId || file.replace(".json", ""),
-              path: data.path || "Unknown",
-              date:
-                data.timestamp ||
-                new Date(file.replace("analysis_", "").replace(".json", "")).toISOString(),
-              totalFiles: data.totalFiles || 0,
-              totalSize: data.totalSize || 0,
-            });
-          }
-        }
-
-        // Sort by date descending
-        analyses.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const analyses = await this.knowledgeDB.getAnalysisHistory();
 
         res.json({
           success: true,
           analyses,
           total: analyses.length,
+          source: "database",
         });
       } catch (error) {
+        console.error("Error fetching analysis history:", error);
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -1591,6 +1696,54 @@ class SpaceAnalyzerAPIServer {
       } catch (error) {
         console.error("Ollama Proxy Error (Tags):", error.message);
         res.status(502).json({ error: "Failed to connect to AI Service" });
+      }
+    });
+
+    // --- TREND TRACKING & AI CONTEXT API ---
+
+    // Get analysis trends for a directory
+    this.app.get("/api/trends", async (req, res) => {
+      try {
+        const { path: directoryPath, limit = 10 } = req.query;
+
+        if (!directoryPath) {
+          return res.status(400).json({ error: "Path parameter required" });
+        }
+
+        const trends = await this.knowledgeDB.getAnalysisTrends(directoryPath, parseInt(limit));
+        const summary = await this.knowledgeDB.getTrendSummary(directoryPath);
+
+        res.json({
+          success: true,
+          directory: directoryPath,
+          trends,
+          summary,
+        });
+      } catch (error) {
+        console.error("Error fetching trends:", error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get AI context for an analysis
+    this.app.get("/api/analysis/:analysisId/context", async (req, res) => {
+      try {
+        const { analysisId } = req.params;
+        const { type } = req.query;
+
+        const context = await this.knowledgeDB.getAIAnalysisContext(analysisId, type);
+
+        if (!context) {
+          return res.status(404).json({ error: "Context not found" });
+        }
+
+        res.json({
+          success: true,
+          context,
+        });
+      } catch (error) {
+        console.error("Error fetching AI context:", error);
+        res.status(500).json({ error: error.message });
       }
     });
 
@@ -1942,6 +2095,214 @@ class SpaceAnalyzerAPIServer {
     return isValidPath(p);
   }
 
+  /**
+   * Optimized context payload builder following LLM best practices:
+   * - Lost-in-the-middle: Critical info at beginning AND end
+   * - Context budget: Concise, high-relevance data only
+   * - Structured JSON: Better for Ollama 0.22.0 format
+   * - Temperature 0: Deterministic outputs
+   */
+  buildOptimizedContextPayload(analysisData, query, options = {}) {
+    const { includeHistory = true, maxTopFiles = 10, maxCategories = 8 } = options;
+
+    // Extract and rank categories by size impact
+    const rankedCategories = Object.entries(analysisData.categories || {})
+      .map(([name, data]) => ({
+        name,
+        count: typeof data === "object" ? data.count || 0 : data,
+        size: typeof data === "object" ? data.size || 0 : 0,
+        impact: (typeof data === "object" ? data.size || 0 : 0) / (analysisData.totalSize || 1),
+      }))
+      .sort((a, b) => b.size - a.size)
+      .slice(0, maxCategories);
+
+    // Get top files by size (critical for cleanup recommendations)
+    const topFiles = (analysisData.files || [])
+      .sort((a, b) => (b.size || 0) - (a.size || 0))
+      .slice(0, maxTopFiles)
+      .map((f) => ({
+        name: f.name || f.path?.split("/").pop() || "unknown",
+        path: f.path || "",
+        size: f.size || 0,
+        category: f.category || "Other",
+        extension: f.extension || "",
+      }));
+
+    // Calculate storage efficiency metrics
+    const totalSize = analysisData.totalSize || 0;
+    const totalFiles = analysisData.totalFiles || 0;
+    const avgFileSize = totalFiles > 0 ? totalSize / totalFiles : 0;
+
+    // Identify space hogs (>100MB or top 1% by size)
+    const spaceHogThreshold = Math.max(100 * 1024 * 1024, totalSize * 0.01);
+    const spaceHogs = topFiles.filter((f) => f.size > spaceHogThreshold);
+
+    // Build optimized payload with critical info at BEGINNING and END
+    const payload = {
+      // [BEGIN] Critical summary first (lost-in-the-middle fix)
+      _meta: {
+        version: "2.0",
+        format: "optimized",
+        contextBudget: "concise",
+        temperature: 0,
+        returnAsJson: true,
+      },
+
+      critical_summary: {
+        directory: analysisData.path || analysisData.analysisId || "Unknown",
+        total_files: totalFiles,
+        total_size_bytes: totalSize,
+        total_size_human: this.formatBytes(totalSize),
+        avg_file_size: Math.round(avgFileSize),
+        space_hogs_count: spaceHogs.length,
+        cleanup_potential: this.estimateCleanupPotential(analysisData, topFiles),
+      },
+
+      // [MIDDLE] Detailed breakdown
+      storage_breakdown: {
+        categories: rankedCategories.map((c) => ({
+          name: c.name,
+          file_count: c.count,
+          size_bytes: c.size,
+          size_human: this.formatBytes(c.size),
+          percentage: Math.round(c.impact * 100 * 10) / 10,
+          recommendation: this.getCategoryRecommendation(c.name, c.impact),
+        })),
+
+        top_space_consumers: topFiles.slice(0, 5).map((f) => ({
+          file: f.name,
+          size: this.formatBytes(f.size),
+          category: f.category,
+          action: f.size > spaceHogThreshold ? "REVIEW" : "MONITOR",
+        })),
+      },
+
+      patterns: {
+        largest_category: rankedCategories[0]?.name || "Unknown",
+        largest_category_size: this.formatBytes(rankedCategories[0]?.size || 0),
+        file_size_distribution: this.calculateSizeDistribution(analysisData.files || []),
+        potential_duplicates: this.detectDuplicatePatterns(analysisData.files || []),
+      },
+
+      // [END] Query and action items (lost-in-the-middle fix)
+      query: query || "Analyze storage and provide cleanup recommendations",
+
+      expected_output: {
+        format: "JSON",
+        sections: [
+          "immediate_actions",
+          "cleanup_recommendations",
+          "storage_optimization",
+          "security_concerns",
+        ],
+        priority: "High impact, low effort first",
+      },
+
+      _instructions: [
+        "Return response as JSON",
+        "Focus on actionable recommendations",
+        "Prioritize by size impact",
+        "Include specific file paths",
+        "Temperature 0 for consistency",
+      ],
+    };
+
+    return payload;
+  }
+
+  /**
+   * Estimate cleanup potential based on analysis
+   */
+  estimateCleanupPotential(analysisData, topFiles) {
+    let potentialBytes = 0;
+
+    // Estimate from node_modules and dependencies
+    const deps = Object.entries(analysisData.categories || {}).find(
+      ([name]) =>
+        name.toLowerCase().includes("depend") || name.toLowerCase().includes("node_module")
+    );
+    if (deps) {
+      potentialBytes += (typeof deps[1] === "object" ? deps[1].size : 0) * 0.3; // 30% can be cleaned
+    }
+
+    // Estimate from large duplicate-prone files
+    const largeFiles = topFiles.filter((f) => f.size > 100 * 1024 * 1024);
+    potentialBytes += largeFiles.reduce((sum, f) => sum + f.size * 0.2, 0);
+
+    return {
+      estimated_savings_bytes: Math.round(potentialBytes),
+      estimated_savings_human: this.formatBytes(potentialBytes),
+      percentage: Math.round((potentialBytes / (analysisData.totalSize || 1)) * 100 * 10) / 10,
+    };
+  }
+
+  /**
+   * Get category-specific recommendation
+   */
+  getCategoryRecommendation(categoryName, impact) {
+    const recs = {
+      Dependencies: impact > 0.3 ? "High priority: Audit unused packages" : "Monitor for bloat",
+      Media: impact > 0.2 ? "Compress or move to cold storage" : "Organize by project",
+      "Build Output": "Clean rebuild artifacts older than 30 days",
+      Cache: "Clear if > 1GB",
+      Logs: "Archive logs older than 90 days",
+    };
+    return recs[categoryName] || "Review for duplicates";
+  }
+
+  /**
+   * Calculate file size distribution
+   */
+  calculateSizeDistribution(files) {
+    const ranges = [
+      { name: "Tiny (< 1KB)", max: 1024, count: 0 },
+      { name: "Small (1KB - 1MB)", max: 1024 * 1024, count: 0 },
+      { name: "Medium (1MB - 100MB)", max: 100 * 1024 * 1024, count: 0 },
+      { name: "Large (100MB - 1GB)", max: 1024 * 1024 * 1024, count: 0 },
+      { name: "Huge (> 1GB)", max: Infinity, count: 0 },
+    ];
+
+    files.forEach((f) => {
+      const size = f.size || 0;
+      for (const range of ranges) {
+        if (size <= range.max) {
+          range.count++;
+          break;
+        }
+      }
+    });
+
+    return ranges.filter((r) => r.count > 0);
+  }
+
+  /**
+   * Detect potential duplicate patterns
+   */
+  detectDuplicatePatterns(files) {
+    // Group by name (excluding extension numbers)
+    const baseNames = {};
+    files.forEach((f) => {
+      const name = (f.name || "").replace(/\s*\(\d+\)\s*/, "").toLowerCase();
+      if (!baseNames[name]) baseNames[name] = [];
+      baseNames[name].push(f);
+    });
+
+    const duplicates = Object.entries(baseNames)
+      .filter(([_, group]) => group.length > 1)
+      .map(([name, group]) => ({
+        base_name: name,
+        occurrences: group.length,
+        total_size: this.formatBytes(group.reduce((s, f) => s + (f.size || 0), 0)),
+        locations: group
+          .slice(0, 3)
+          .map((f) => f.path || "")
+          .filter(Boolean),
+      }));
+
+    return duplicates.slice(0, 5); // Top 5 potential duplicates
+  }
+
+  // Legacy method kept for backward compatibility
   buildOllamaPrompt(analysisData, query) {
     // Extract semantic information from files for better AI context
     const semanticContext = this.extractSemanticContext(analysisData.files || []);
@@ -2608,10 +2969,12 @@ Answer:`;
                 await fsPromises.unlink(tempFile).catch(() => {});
 
                 if (isRustCLI) {
+                  // Rust CLI outputs standard format, not ML summary format
+                  // Pass false for isMlSummary to use standard format conversion
                   const convertedData = await this.convertRustOutputToWebFormat(
                     data,
                     analysisId,
-                    isLargeDirectory
+                    false
                   );
                   resolve(convertedData);
                 } else {
@@ -2673,9 +3036,10 @@ Answer:`;
             const stderr = data.toString().trim();
             console.error(`🔴 Rust CLI Stderr: ${stderr}`);
 
-            // Parse "Scanned: N files, Size: X bytes" format
+            // Parse "Scanned: N files, Size: X bytes - Current: path" format
             const scannedMatch = stderr.match(/Scanned:\s*(\d+)\s*files/i);
             const sizeMatch = stderr.match(/[Ss]ize:\s*(\d+)/);
+            const currentFileMatch = stderr.match(/Current:\s*(.+)/);
 
             if (scannedMatch) {
               const current = parseInt(scannedMatch[1]);
@@ -2686,6 +3050,12 @@ Answer:`;
               const estimatedTotal = options.estimatedFiles || 50000;
               const percentage = Math.min((current / estimatedTotal) * 100, 95);
 
+              // Extract current file path if available
+              let currentFilePath = `Scanned ${current} files`;
+              if (currentFileMatch) {
+                currentFilePath = currentFileMatch[1].trim();
+              }
+
               const progressData = {
                 analysisId,
                 success: true,
@@ -2693,7 +3063,7 @@ Answer:`;
                 filesProcessed: current,
                 totalSize: cumulativeSize,
                 percentage: Math.round(percentage),
-                currentFile: `Scanned ${current} files`,
+                currentFile: currentFilePath,
                 status: "analyzing",
                 completed: false,
                 startTime: Date.now(),
@@ -2701,7 +3071,7 @@ Answer:`;
                   filesProcessed: current,
                   totalSize: cumulativeSize,
                   percentage: Math.round(percentage),
-                  currentFile: `Scanned ${current} files`,
+                  currentFile: currentFilePath,
                   status: "analyzing",
                 },
               };
@@ -2746,6 +3116,39 @@ Answer:`;
 
     const insights = this.generateAIInsights(rustData);
 
+    // Calculate Windows API summary stats
+    const files = rustData.files || [];
+    let hardLinkCount = 0;
+    let hardLinkSavings = 0;
+    let adsCount = 0;
+    let compressedCount = 0;
+    let compressedSavings = 0;
+    let sparseCount = 0;
+    let reparsePointCount = 0;
+
+    files.forEach((file) => {
+      if (file.is_hard_link) hardLinkCount++;
+      if (file.has_ads) adsCount++;
+      if (file.is_compressed) {
+        compressedCount++;
+        if (file.compressed_size && file.size) {
+          compressedSavings += file.size - file.compressed_size;
+        }
+      }
+      if (file.is_sparse) sparseCount++;
+      if (file.is_reparse_point) reparsePointCount++;
+    });
+
+    const windowsStats = {
+      hardLinkCount,
+      hardLinkSavings: rustData.hard_link_savings || 0,
+      adsCount,
+      compressedCount,
+      compressedSavings,
+      sparseCount,
+      reparsePointCount,
+    };
+
     return {
       totalFiles: rustData.total_files || rustData.totalFiles || 0,
       totalSize: rustData.total_size || rustData.totalSize || 0,
@@ -2758,6 +3161,7 @@ Answer:`;
       ai_insights: insights,
       // Inject Dependency Graph
       dependencyGraph: dependencyGraph,
+      windowsStats,
       mlFeatures: {
         category_distribution: rustData.categories
           ? Object.fromEntries(Object.entries(rustData.categories).map(([k, v]) => [k, v.count]))

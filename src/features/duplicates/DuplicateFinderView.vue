@@ -44,7 +44,11 @@ async function analyzeDuplicates() {
 
     const response = await fetch(
       `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/analysis/${analysisId}/duplicates`,
-      { method: "POST" }
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: store.analysisResult.path }),
+      }
     );
 
     if (!response.ok) {
@@ -79,7 +83,9 @@ function formatDate(dateStr: string): string {
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-slate-100">Duplicate File Finder</h1>
-        <p class="text-slate-400 mt-1">Find and clean up duplicate files to free up storage space</p>
+        <p class="text-slate-400 mt-1">
+          Find and clean up duplicate files to free up storage space
+        </p>
       </div>
       <Button
         variant="primary"
@@ -99,9 +105,7 @@ function formatDate(dateStr: string): string {
     <!-- No Analysis Warning -->
     <div v-if="!store.analysisResult && !isAnalyzing" class="p-8 text-center">
       <p class="text-slate-400 mb-4">No scan data available. Please scan a directory first.</p>
-      <Button variant="secondary" @click="$router.push('/scan')">
-        Go to Scanner
-      </Button>
+      <Button variant="secondary" @click="$router.push('/scan')"> Go to Scanner </Button>
     </div>
 
     <!-- Stats Overview -->

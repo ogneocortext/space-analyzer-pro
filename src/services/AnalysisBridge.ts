@@ -1,9 +1,33 @@
 /* eslint-disable preserve-caught-error */
 
+export interface FileInfo {
+  name: string;
+  size: number;
+  path: string;
+  extension: string;
+  category: string;
+  modified?: string;
+  is_hidden?: boolean;
+  is_directory?: boolean;
+  // Windows API fields
+  created?: string;
+  accessed?: string;
+  has_ads?: boolean;
+  ads_count?: number;
+  is_compressed?: boolean;
+  compressed_size?: number;
+  is_sparse?: boolean;
+  is_reparse_point?: boolean;
+  reparse_tag?: number;
+  owner?: string;
+  is_hard_link?: boolean;
+  hard_link_count?: number;
+}
+
 export interface AnalysisResult {
   totalFiles: number;
   totalSize: number;
-  files: Array<{ name: string; size: number; path: string; extension: string; category: string }>;
+  files: FileInfo[];
   categories?: {
     [key: string]: {
       count: number;
@@ -15,6 +39,16 @@ export interface AnalysisResult {
   analysisType?: string;
   analysisTime?: number;
   directoryPath?: string;
+  // Windows API summary stats
+  windowsStats?: {
+    hardLinkCount: number;
+    hardLinkSavings: number;
+    adsCount: number;
+    compressedCount: number;
+    compressedSavings: number;
+    sparseCount: number;
+    reparsePointCount: number;
+  };
   ai_insights?: {
     recommended_categories: string[];
     potential_duplicates: string[];
@@ -83,7 +117,8 @@ export class AnalysisBridge {
         this.log("info", `🔗 AnalysisBridge initialized with env var baseUrl: ${this.baseUrl}`);
       } else if (typeof window !== "undefined") {
         // Use Vite proxy in development (simpler and more reliable)
-        this.baseUrl = `${window.location.origin}/api`;
+        // Don't include /api in baseUrl since Vite proxy already handles it
+        this.baseUrl = `${window.location.origin}`;
         this.log("info", `🔗 AnalysisBridge initialized with proxy baseUrl: ${this.baseUrl}`);
       } else {
         // Server-side - require BACKEND_API_URL environment variable in production
@@ -198,7 +233,7 @@ export class AnalysisBridge {
       this.log("info", `🚀🚀 Starting directory analysis for: ${cleanPath}`);
 
       // Use basic analysis endpoint for stability
-      const response = await this.fetchWithRetry(`${this.baseUrl}/analyze`, {
+      const response = await this.fetchWithRetry(`${this.baseUrl}/api/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -220,7 +255,29 @@ export class AnalysisBridge {
       const analysisResult: AnalysisResult = {
         totalFiles: backendResult.summary?.totalFiles || 0,
         totalSize: backendResult.summary?.totalSize || 0,
-        files: [], // Backend doesn't return individual files for large directories
+        files: (backendResult.files || []).map((f: any) => ({
+          name: f.name,
+          size: f.size,
+          path: f.path,
+          extension: f.extension,
+          category: f.category,
+          modified: f.modified,
+          is_hidden: f.is_hidden,
+          is_directory: f.is_directory,
+          // Windows API fields
+          created: f.created,
+          accessed: f.accessed,
+          has_ads: f.has_ads,
+          ads_count: f.ads_count,
+          is_compressed: f.is_compressed,
+          compressed_size: f.compressed_size,
+          is_sparse: f.is_sparse,
+          is_reparse_point: f.is_reparse_point,
+          reparse_tag: f.reparse_tag,
+          owner: f.owner,
+          is_hard_link: f.is_hard_link,
+          hard_link_count: f.hard_link_count,
+        })),
         categories: backendResult.categories || this.generateCategoriesFromSummary(backendResult),
         extensionStats: backendResult.extensionStats || {},
         analysisType: backendResult.strategy || "smart-analysis",
@@ -240,6 +297,8 @@ export class AnalysisBridge {
         tools: backendResult.tools,
         // Include dependency graph from backend
         dependencyGraph: backendResult.dependencyGraph || { nodes: [], edges: [] },
+        // Windows API stats
+        windowsStats: backendResult.windowsStats,
       };
 
       return analysisResult;
@@ -290,7 +349,7 @@ export class AnalysisBridge {
     // Start the analysis using analyze endpoint
     console.warn("🚀 Sending analysis request...");
     const analyzeResponse = await this.fetchWithRetry(
-      `${this.baseUrl}/analyze`,
+      `${this.baseUrl}/api/analyze`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -368,7 +427,9 @@ export class AnalysisBridge {
           pollAttempts++;
           console.warn(`🔄 Progress poll attempt ${pollAttempts}/${maxPollAttempts}`);
 
-          const progressResponse = await fetch(`${this.baseUrl}/progress/${immediateAnalysisId}`);
+          const progressResponse = await fetch(
+            `${this.baseUrl}/api/progress/${immediateAnalysisId}`
+          );
           if (progressResponse.ok) {
             const progressData = await progressResponse.json();
             console.warn("📊 Progress data received:", progressData);
@@ -458,9 +519,7 @@ export class AnalysisBridge {
         await new Promise((resolve) => setTimeout(resolve, pollDelay));
 
         // Poll for results
-        const resultsResponse = await fetch(
-          `${this.baseUrl}/api/analysis-results/${immediateAnalysisId}`
-        );
+        const resultsResponse = await fetch(`${this.baseUrl}/api/results/${immediateAnalysisId}`);
 
         if (!resultsResponse.ok) {
           console.error("❌ Results endpoint error:", resultsResponse.status);
@@ -1138,7 +1197,7 @@ export class AnalysisBridge {
   ): () => void {
     this.log("info", `Subscribing to progress for analysis: ${analysisId}`);
 
-    const url = `${this.baseUrl}/progress/stream/${analysisId}`;
+    const url = `${this.baseUrl}/api/progress/stream/${analysisId}`;
     console.warn(`[SSE Frontend] Connecting to: ${url}`);
     const eventSource = new EventSource(url);
 

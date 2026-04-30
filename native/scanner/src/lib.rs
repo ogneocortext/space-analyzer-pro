@@ -21,6 +21,19 @@ pub struct FileInfo {
     pub modified: String,
     pub is_hidden: bool,
     pub is_directory: bool,
+    // Windows API fields
+    pub created: Option<String>,
+    pub accessed: Option<String>,
+    pub is_hard_link: bool,
+    pub hard_link_count: Option<i32>,
+    pub has_ads: bool,
+    pub ads_count: Option<i32>,
+    pub is_compressed: bool,
+    pub compressed_size: Option<i64>,
+    pub is_sparse: bool,
+    pub is_reparse_point: bool,
+    pub reparse_tag: Option<String>,
+    pub owner: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -275,6 +288,25 @@ impl SpaceAnalyzer {
             .map(|d| d.as_secs().to_string())
             .unwrap_or_else(|| "0".to_string());
 
+        // Windows API fields (only populated on Windows)
+        #[cfg(windows)]
+        let (created, accessed, is_hard_link, hard_link_count, has_ads, ads_count, is_compressed, compressed_size, is_sparse, is_reparse_point, reparse_tag, owner) = {
+            use std::os::windows::fs::MetadataExt;
+
+            let nlink = metadata.file_attributes() as u32;
+            let is_hard_link = nlink > 1;
+            let hard_link_count = if is_hard_link { Some(nlink as i32) } else { None };
+
+            // For now, set other Windows fields to default values
+            // Full Windows API integration would require winapi calls
+            (None, None, is_hard_link, hard_link_count, false, None, false, None, false, false, None, None)
+        };
+
+        #[cfg(not(windows))]
+        let (created, accessed, is_hard_link, hard_link_count, has_ads, ads_count, is_compressed, compressed_size, is_sparse, is_reparse_point, reparse_tag, owner) = {
+            (None, None, false, None, false, None, false, None, false, false, None, None)
+        };
+
         Some(FileInfo {
             name: file_name,
             path: file_path_str,
@@ -284,6 +316,19 @@ impl SpaceAnalyzer {
             modified,
             is_hidden: entry.file_name().to_string_lossy().starts_with('.'),
             is_directory: metadata.is_dir(),
+            // Windows API fields
+            created,
+            accessed,
+            is_hard_link,
+            hard_link_count,
+            has_ads,
+            ads_count,
+            is_compressed,
+            compressed_size,
+            is_sparse,
+            is_reparse_point,
+            reparse_tag,
+            owner,
         })
     }
 }

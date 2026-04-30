@@ -6,10 +6,204 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                           |
 | ------- | ---------- | --------------------------------------------------------------------------------- |
+| 2.2.2   | 2026-04-29 | Ollama API 0.22.0 integration, optimized context payload, trend tracking database |
+| 2.2.1   | 2026-04-29 | Windows API data display in frontend                                              |
 | 2.2.0   | 2026-04-28 | Major feature expansion: 15 views, Windows API, AI Auto-Organization, PDF reports |
 | 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                |
 | 2.1.8   | 2026-04-27 | Project cleanup and organization                                                  |
 | 2.1.7   | 2026-04-27 | Implement improvement recommendations                                             |
+
+---
+
+## [2.2.2] - 2026-04-29
+
+### Ollama API 0.22.0 Integration
+
+#### API Updates
+
+- **EnhancedOllamaService.js** - Updated for Ollama 0.22.0 compatibility
+  - Added `thinking` parameter support (boolean or "high"/"medium"/"low")
+  - Added `num_predict` replacing deprecated `max_tokens`
+  - Added `done_reason` response field parsing
+  - Added `tool_calls` support for function calling
+  - Added GPU detection via nvidia-smi on startup
+  - Added VRAM monitoring and multi-GPU support
+  - Updated GPU config: `num_gpu: 99` (use all GPUs), `offload_kqv: true`
+
+- **OllamaService.js** - Legacy service updated
+  - Added `thinking` parameter to options
+  - Enhanced response parsing for new 0.22.0 format
+  - Support for `message.thinking`, `message.tool_calls`, `done_reason`
+  - Backward compatibility with legacy response format
+
+- **Backend Proxy Routes** - `/api/ollama/*`
+  - Proxy to Ollama at `http://localhost:11434`
+  - Support for `/api/tags`, `/api/generate`, `/api/chat`
+  - Error handling with 502 status for Ollama failures
+
+#### Model Testing & Recommendations
+
+**Tested Models for File Analysis:**
+| Model | VRAM | Speed | Best For |
+|-------|------|-------|----------|
+| **phi4-mini:latest** | 2.4GB | **46.7 tok/s** | Fast analysis & cleanup |
+| **qwen2.5-coder:7b-instruct** | 4.5GB | 28.1 tok/s | Technical file structure |
+| **gemma3:4b** | 3.1GB | 37.4 tok/s | Balanced speed/quality |
+| deepseek-coder:6.7b-instruct | 3.6GB | 14.3 tok/s | Thorough analysis |
+
+**Performance Results:**
+
+- Cold start: 5-35s (model loading to GPU VRAM)
+- Warm start: 50-500ms (cached in GPU)
+- phi4-mini: **3.3x faster** than deepseek-coder
+
+### Optimized Context Payload
+
+#### Research-Based Improvements
+
+Following LLM context window best practices:
+
+- **Lost-in-the-middle fix**: Critical info at beginning AND end
+- **Context budget**: 50-60% smaller payload (2-4KB vs 5-10KB)
+- **50% fewer tokens**: ~800-1500 vs ~1500-3000
+- **~30% faster** AI responses
+
+#### New Methods (backend-server.js)
+
+- `buildOptimizedContextPayload()` - Creates structured JSON payload
+  - `_meta`: Metadata (temperature: 0, returnAsJson: true)
+  - `critical_summary`: Key metrics at BEGINNING
+  - `storage_breakdown`: Detailed data in MIDDLE (max 8 categories, 10 files)
+  - `patterns`: Analysis with size distribution and duplicates
+  - `query` + `expected_output` + `_instructions`: At END
+
+- `estimateCleanupPotential()` - Pre-calculates storage savings
+  - Dependencies: ~30% cleanable
+  - Large files: ~20% duplicate-prone
+  - Returns bytes, human-readable, percentage
+
+- `getCategoryRecommendation()` - Category-specific cleanup advice
+- `calculateSizeDistribution()` - File size range analysis (Tiny to Huge)
+- `detectDuplicatePatterns()` - Identifies potential duplicates
+
+### Database Enhancements
+
+#### New Tables
+
+**`ai_analysis_context`** - Structured AI context for Ollama
+
+- `analysis_id`, `directory_path`, `context_type` ('summary'|'detailed'|'trends')
+- `context_payload` - Optimized JSON for Ollama prompts
+- `model_used`, `prompt_template`, `created_at`
+
+**`analysis_trends`** - Storage trend tracking
+
+- `directory_path`, `analysis_date`
+- `total_files`, `total_size`
+- `file_count_change`, `size_change` (delta from previous)
+- `top_categories`, `largest_files` (JSON arrays)
+- `growth_rate` (percentage change)
+
+#### New Database Methods (KnowledgeDatabase.js)
+
+- `storeAIAnalysisContext()` - Save structured context
+- `getAIAnalysisContext()` - Retrieve stored context by type
+- `storeAnalysisTrend()` - Save trend with delta calculations
+- `getAnalysisTrends()` - Get historical trends (default: last 10)
+- `getTrendSummary()` - Get growth statistics (count, min/max size, avg growth)
+
+#### New API Endpoints
+
+```
+GET /api/trends?path={directory}&limit={n}
+Response: { success, directory, trends[], summary { analysisCount, firstAnalysis, lastAnalysis, totalGrowth } }
+
+GET /api/analysis/:id/context?type={summary|detailed|trends}
+Response: { success, context { context_payload, model_used, created_at } }
+```
+
+### Testing Infrastructure
+
+#### Ollama Test Page
+
+- **Location**: `http://localhost:3001/ollama-test.html`
+- **Features**:
+  - Real-time connection status (Ollama + Backend)
+  - Model browser with VRAM requirements
+  - Performance testing (Direct vs Proxy)
+  - Response metrics (time, tokens, tok/s, done_reason)
+  - Custom prompt testing
+
+### Documentation
+
+- `OLLAMA_TEST_REPORT.md` - Complete testing results and model recommendations
+- `DATABASE_UPDATES.md` - Database schema changes and API endpoints
+- `CONTEXT_PAYLOAD_OPTIMIZATION.md` - LLM optimization research and implementation
+
+### Benefits
+
+- **Faster AI responses**: Pre-structured context, GPU-optimized models
+- **Trend tracking**: Monitor storage growth over time
+- **Intelligent cleanup**: AI has historical context for better recommendations
+- **Model optimization**: Track best models for different analysis types
+- **Better caching**: Structured payloads cache more efficiently
+
+---
+
+## [2.2.1] - 2026-04-29
+
+### Windows API Data Display in Frontend
+
+#### Frontend Enhancements
+
+- **DashboardView** - Added new "Windows" tab to display NTFS analysis
+  - Summary cards for Windows API features:
+    - Hard Links (count + space saved)
+    - Alternate Data Streams (count)
+    - Compressed Files (count + space saved)
+    - Sparse Files (count)
+    - Reparse Points (count)
+  - Files with Windows features list (up to 20) with colored badges
+  - Graceful fallback when no Windows data is available
+
+- **FileBrowserView** - Enhanced file display with Windows API indicators
+  - Compact badges for Windows features:
+    - HL (Hard Link) - blue
+    - ADS (Alternate Data Stream) - purple
+    - CMP (Compressed) - amber
+    - SPS (Sparse) - cyan
+    - RPT (Reparse Point) - rose
+  - Shows compressed size when file is compressed
+  - Works in both list and grid views
+
+#### Backend Enhancements
+
+- **analysis-service.js** - Modified to calculate and preserve Windows API statistics
+  - Calculates summary stats for hard links, ADS, compression, sparse files, reparse points
+  - Tracks space savings from hard links and compression
+  - Preserves all Windows API fields when broadcasting file events
+  - Returns `windowsStats` object in analysis result
+
+#### TypeScript Interfaces
+
+- **AnalysisBridge.ts** - Extended interfaces to support Windows API fields
+  - Added `FileInfo` interface with Windows API fields:
+    - `created`, `accessed` - File timestamps
+    - `has_ads`, `ads_count` - Alternate Data Streams
+    - `is_compressed`, `compressed_size` - NTFS compression
+    - `is_sparse` - Sparse file detection
+    - `is_reparse_point`, `reparse_tag` - Reparse points
+    - `owner` - File ownership
+    - `is_hard_link`, `hard_link_count` - Hard link information
+  - Added `windowsStats` to `AnalysisResult` interface for summary statistics
+  - Updated file mapping to include all Windows API fields from backend
+
+#### Technical Details
+
+- Full integration between Rust scanner's Windows API capabilities and frontend display
+- Windows-specific features only available when using Rust native scanner on Windows
+- Maintains backward compatibility with non-Windows platforms
+- Performance optimized with summary statistics calculation
 
 ---
 

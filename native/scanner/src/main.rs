@@ -513,14 +513,14 @@ impl Cli {
                     ext_stats.size += file_info.size;
                 }
 
-                files.push(file_info);
-
-                // Report progress every 100 files
+                // Report progress every 100 files with current file
                 if show_progress && total_files % 100 == 0 && total_files != last_progress {
                     last_progress = total_files;
-                    eprintln!("Scanned: {} files, Size: {} (hard link savings: {})",
-                        total_files, total_size, hard_link_savings);
+                    eprintln!("Scanned: {} files, Size: {} (hard link savings: {}) - Current: {}",
+                        total_files, total_size, hard_link_savings, file_info.path);
                 }
+
+                files.push(file_info);
             }
 
             (files, total_files, total_size, apparent_size, categories, extension_stats,

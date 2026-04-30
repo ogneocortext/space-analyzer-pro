@@ -3,30 +3,33 @@
  * Provides integration with local Ollama server for AI-powered features
  */
 
-const filesize = require('filesize');
+const filesize = require("filesize");
 
 class OllamaService {
-  constructor(baseUrl = 'http://localhost:11434') {
+  constructor(baseUrl = "http://localhost:11434") {
     this.baseUrl = baseUrl;
     this.models = [];
     // Ollama 0.21.2: Use Q4_K_M quantized model for best performance/quality balance
     // Updated to match actual installed model
-    this.currentModel = 'qwen2.5-coder:7b-instruct';
+    this.currentModel = "qwen2.5-coder:7b-instruct";
     this.responseCache = new Map(); // Cache for responses
     this.cacheExpiry = 5 * 60 * 1000; // 5 minutes cache expiry
     const envNumCtx = Number(process.env.OLLAMA_NUM_CTX || process.env.OLLAMA_CONTEXT_LENGTH);
-    const defaultNumCtx = Number.isFinite(envNumCtx) && envNumCtx >= 2048 ? Math.floor(envNumCtx) : 16384;
-    
-    // Ollama 0.21.2 optimized parameters
+    const defaultNumCtx =
+      Number.isFinite(envNumCtx) && envNumCtx >= 2048 ? Math.floor(envNumCtx) : 16384;
+
+    // Ollama 0.22.0 optimized parameters
     this.optimizedConfig = {
-      num_batch: 1024,      // Increased from 512 (60% throughput improvement)
+      num_batch: 1024, // Increased from 512 (60% throughput improvement)
       num_ctx: defaultNumCtx, // Use environment override when available
-      num_keep: 128,         // Preserve system prompt (Ollama 0.21.2)
-      num_gpu: -1,           // Use all available GPUs
-      num_thread: -1,        // Use all available threads
-      f16_kv: true,          // FP16 for KV cache (saves VRAM)
-      repeat_penalty: 1.1,   // Reduce repetition
-      repeat_last_n: 64,     // Control repetition context
+      num_keep: 128, // Preserve system prompt (Ollama 0.22.0)
+      num_gpu: -1, // Use all available GPUs
+      num_thread: -1, // Use all available threads
+      f16_kv: true, // FP16 for KV cache (saves VRAM)
+      repeat_penalty: 1.1, // Reduce repetition
+      repeat_last_n: 64, // Control repetition context
+      // New in 0.22.0: Enable thinking for reasoning models
+      thinking: false, // Can be boolean or "high" | "medium" | "low"
     };
   }
 
@@ -38,7 +41,7 @@ class OllamaService {
       const response = await fetch(`${this.baseUrl}/api/tags`);
       return response.ok;
     } catch (error) {
-      console.error('Ollama connection test failed:', error);
+      console.error("Ollama connection test failed:", error);
       return false;
     }
   }
@@ -56,11 +59,11 @@ class OllamaService {
       const data = await response.json();
       this.models = (data.models || []).map((model) => ({
         ...model,
-        vision_capable: this.isVisionModel(model.name)
+        vision_capable: this.isVisionModel(model.name),
       }));
       return this.models;
     } catch (error) {
-      console.error('Failed to fetch Ollama models:', error);
+      console.error("Failed to fetch Ollama models:", error);
       return [];
     }
   }
@@ -70,21 +73,21 @@ class OllamaService {
    */
   isVisionModel(modelName) {
     const visionModels = [
-      'llava',
-      'llava-next',
-      'moondream',
-      'cogvlm',
-      'vision',
-      'multimodal',
-      'claude-3',
-      'gpt-4-vision',
-      'qwen-vl',
-      'internvl',
-      'kosmos'
+      "llava",
+      "llava-next",
+      "moondream",
+      "cogvlm",
+      "vision",
+      "multimodal",
+      "claude-3",
+      "gpt-4-vision",
+      "qwen-vl",
+      "internvl",
+      "kosmos",
     ];
 
     const lowerModelName = modelName.toLowerCase();
-    return visionModels.some(visionModel => lowerModelName.includes(visionModel));
+    return visionModels.some((visionModel) => lowerModelName.includes(visionModel));
   }
 
   /**
@@ -100,32 +103,33 @@ class OllamaService {
   getModelsByTask(task) {
     // Ollama 0.21.2: Prioritize Q4_K_M quantized models
     // Updated to match actual installed models
-    const codeModels = ['deepseek-coder', 'qwen2.5-coder', 'codegemma', 'codellama'];
-    const generalModels = ['phi4-mini', 'gemma3', 'qwen2.5', 'qwen3.5', 'mistral', 'llama3'];
+    const codeModels = ["deepseek-coder", "qwen2.5-coder", "codegemma", "codellama"];
+    const generalModels = ["phi4-mini", "gemma3", "qwen2.5", "qwen3.5", "mistral", "llama3"];
 
     switch (task) {
-      case 'code':
+      case "code":
         // Match models that contain code-related keywords
-        return this.models.filter(m => 
-          codeModels.some(cm => m.name.includes(cm)) ||
-          m.name.includes('coder') ||
-          m.name.includes('code')
+        return this.models.filter(
+          (m) =>
+            codeModels.some((cm) => m.name.includes(cm)) ||
+            m.name.includes("coder") ||
+            m.name.includes("code")
         );
-      case 'vision':
-        return this.models.filter(m => m.vision_capable);
-      case 'analysis':
+      case "vision":
+        return this.models.filter((m) => m.vision_capable);
+      case "analysis":
         // Prioritize Q4_K_M quantized models for analysis
-        return this.models.filter(m => 
-          m.name.includes('q4_k_m') ||
-          m.details?.parameter_size?.includes('7') || 
-          m.details?.parameter_size?.includes('9') ||
-          m.details?.parameter_size?.includes('4')
+        return this.models.filter(
+          (m) =>
+            m.name.includes("q4_k_m") ||
+            m.details?.parameter_size?.includes("7") ||
+            m.details?.parameter_size?.includes("9") ||
+            m.details?.parameter_size?.includes("4")
         );
-      case 'general':
+      case "general":
       default:
-        return this.models.filter(m => 
-          generalModels.some(gm => m.name.includes(gm)) ||
-          m.name.includes('q4_k_m')
+        return this.models.filter(
+          (m) => generalModels.some((gm) => m.name.includes(gm)) || m.name.includes("q4_k_m")
         );
     }
   }
@@ -134,7 +138,7 @@ class OllamaService {
    * Set current model
    */
   setCurrentModel(modelName) {
-    if (this.models.some(m => m.name === modelName)) {
+    if (this.models.some((m) => m.name === modelName)) {
       this.currentModel = modelName;
     } else {
       throw new Error(`Model ${modelName} not available`);
@@ -155,13 +159,13 @@ class OllamaService {
     const selectedModel = model || this.currentModel;
 
     // OPTIMIZATION: Truncate very long prompts for file analysis
-    const optimizedPrompt = prompt.length > 4000 ? prompt.substring(0, 4000) + '...' : prompt;
+    const optimizedPrompt = prompt.length > 4000 ? prompt.substring(0, 4000) + "..." : prompt;
 
     try {
       const response = await fetch(`${this.baseUrl}/api/generate`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: selectedModel,
@@ -170,16 +174,18 @@ class OllamaService {
           options: {
             temperature: 0.3, // Lower temperature for more consistent analysis
             top_p: 0.8, // Slightly lower for focused responses
-            num_predict: 500, // Ollama 0.21.2 parameter (was max_tokens)
+            num_predict: 500, // Ollama 0.22.0 parameter (was max_tokens)
             num_ctx: this.optimizedConfig.num_ctx,
-            num_batch: this.optimizedConfig.num_batch, // Ollama 0.21.2 batch processing
-            num_keep: this.optimizedConfig.num_keep, // Ollama 0.21.2 system prompt preservation
+            num_batch: this.optimizedConfig.num_batch, // Ollama 0.22.0 batch processing
+            num_keep: this.optimizedConfig.num_keep, // Ollama 0.22.0 system prompt preservation
             num_thread: this.optimizedConfig.num_thread,
             num_gpu: this.optimizedConfig.num_gpu,
             f16_kv: this.optimizedConfig.f16_kv,
             repeat_penalty: this.optimizedConfig.repeat_penalty,
             repeat_last_n: this.optimizedConfig.repeat_last_n,
-          }
+            // New in 0.22.0: thinking parameter for reasoning models
+            thinking: this.optimizedConfig.thinking,
+          },
         }),
       });
 
@@ -189,7 +195,7 @@ class OllamaService {
 
       return await response.json();
     } catch (error) {
-      console.error('Ollama generation failed:', error);
+      console.error("Ollama generation failed:", error);
       throw error;
     }
   }
@@ -202,13 +208,16 @@ class OllamaService {
 
     // Auto-select model based on content and NLP analysis if model not specified
     if (!model && messages.length > 0) {
-      selectedModel = this.selectModelForContent(messages[messages.length - 1].content, context?.nlpAnalysis);
+      selectedModel = this.selectModelForContent(
+        messages[messages.length - 1].content,
+        context?.nlpAnalysis
+      );
     }
 
     try {
       // Check if any message contains images and model supports vision
-      const hasImages = messages.some(msg => msg.images && msg.images.length > 0);
-      const visionModels = this.getModelsByTask('vision');
+      const hasImages = messages.some((msg) => msg.images && msg.images.length > 0);
+      const visionModels = this.getModelsByTask("vision");
 
       if (hasImages && visionModels.length > 0) {
         // Switch to vision model if images are present
@@ -224,10 +233,10 @@ class OllamaService {
 
       const requestBody = {
         model: selectedModel,
-        messages: enhancedMessages.map(msg => {
+        messages: enhancedMessages.map((msg) => {
           const messageData = {
             role: msg.role,
-            content: msg.content
+            content: msg.content,
           };
 
           // Add images if present
@@ -243,13 +252,13 @@ class OllamaService {
           top_p: 0.9,
           max_tokens: hasImages ? 1500 : 1000, // More tokens for vision analysis
           num_ctx: this.optimizedConfig.num_ctx,
-        }
+        },
       };
 
       const response = await fetch(`${this.baseUrl}/api/chat`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
       });
@@ -259,43 +268,56 @@ class OllamaService {
       }
 
       const result = await response.json();
-      
-      // Handle different response formats from new Ollama API
+
+      // Handle different response formats from Ollama API 0.22.0
       let finalResponse = result;
-      
-      // Check if this is a structured response or tool call response
-      if (result.message && typeof result.message === 'object') {
-        // Structured output or tool call
-        console.log('🔧 Ollama structured/tool response detected');
+
+      // API 0.22.0: New response format with message object containing content, thinking, tool_calls
+      if (result.message && typeof result.message === "object") {
+        // API 0.22.0 format: message object with content, thinking, tool_calls
+        console.log("🔧 Ollama 0.22.0 message format detected");
         finalResponse = {
-          message: result.message.content || result.message,
-          tool_calls: result.message.tool_calls || [],
-          ...result
+          message: result.message.content || "",
+          thinking: result.message.thinking || null, // New in 0.22.0: reasoning output
+          tool_calls: result.message.tool_calls || [], // New in 0.22.0: tool calling
+          ...result,
         };
-      } else if (result.response && typeof result.response === 'string') {
-        // Standard chat response
-        console.log('💬 Ollama standard chat response detected');
+      } else if (result.response && typeof result.response === "string") {
+        // Legacy /api/generate format
+        console.log("💬 Ollama generate format detected");
         finalResponse = {
           message: result.response,
-          ...result
+          thinking: result.thinking || null, // New in 0.22.0
+          done_reason: result.done_reason || null, // New in 0.22.0
+          ...result,
         };
       } else if (result.content) {
         // Alternative format
-        console.log('📝 Ollama content response detected');
+        console.log("📝 Ollama content format detected");
         finalResponse = {
           message: result.content,
-          ...result
+          thinking: result.thinking || null,
+          ...result,
         };
       } else {
-        console.warn('⚠️ Unexpected Ollama response format:', typeof result, result);
-        finalResponse = result;
+        console.warn("⚠️ Unexpected Ollama response format:", typeof result, result);
+        finalResponse = {
+          ...result,
+          message: result.message || result.response || result.content || JSON.stringify(result),
+          thinking: result.thinking || null,
+        };
       }
-      
+
+      // Add done_reason if present (new in 0.22.0)
+      if (result.done_reason) {
+        finalResponse.done_reason = result.done_reason;
+      }
+
       // Add the actually used model to the response
       finalResponse.used_model = selectedModel;
       return finalResponse;
     } catch (error) {
-      console.error('Ollama chat failed:', error);
+      console.error("Ollama chat failed:", error);
       throw error;
     }
   }
@@ -304,33 +326,37 @@ class OllamaService {
    * Check if vision models are available
    */
   hasVisionModels() {
-    return this.getModelsByTask('vision').length > 0;
+    return this.getModelsByTask("vision").length > 0;
   }
 
   /**
    * Get available vision models
    */
   getVisionModels() {
-    return this.getModelsByTask('vision');
+    return this.getModelsByTask("vision");
   }
 
   /**
    * Analyze file structure
    */
   async analyzeFileStructure(analysisData) {
-    const codeModel = this.getModelsByTask('code')[0]?.name || this.currentModel;
+    const codeModel = this.getModelsByTask("code")[0]?.name || this.currentModel;
 
     const prompt = `As an expert file system analyst, analyze this directory structure and provide insights:
 
-Total Size: ${analysisData.totalSize || 'Unknown'}
-File Count: ${analysisData.fileCount || 'Unknown'}
-Directory Count: ${analysisData.directoryCount || 'Unknown'}
+Total Size: ${analysisData.totalSize || "Unknown"}
+File Count: ${analysisData.fileCount || "Unknown"}
+Directory Count: ${analysisData.directoryCount || "Unknown"}
 
 Largest Files:
-${analysisData.largestFiles?.map((f) => `- ${f.path}: ${f.size}`).join('\n') || 'No data'}
+${analysisData.largestFiles?.map((f) => `- ${f.path}: ${f.size}`).join("\n") || "No data"}
 
 File Extensions:
-${Object.entries(analysisData.extensions || {}).map(([ext, count]) => `- ${ext}: ${count}`).join('\n') || 'No data'}
+${
+  Object.entries(analysisData.extensions || {})
+    .map(([ext, count]) => `- ${ext}: ${count}`)
+    .join("\n") || "No data"
+}
 
 Please provide:
 1. Key findings and patterns
@@ -349,13 +375,13 @@ Keep the analysis concise but comprehensive.`;
    * Generate smart recommendations based on analysis
    */
   async generateRecommendations(analysisData) {
-    const analysisModel = this.getModelsByTask('analysis')[0]?.name || this.currentModel;
+    const analysisModel = this.getModelsByTask("analysis")[0]?.name || this.currentModel;
 
     const prompt = `Based on this file system analysis, generate 5 specific, actionable recommendations:
 
 Analysis Data:
-- Total Size: ${analysisData.totalSize || 'Unknown'}
-- File Count: ${analysisData.fileCount || 'Unknown'}
+- Total Size: ${analysisData.totalSize || "Unknown"}
+- File Count: ${analysisData.fileCount || "Unknown"}
 - Largest Files: ${analysisData.largestFiles?.length || 0}
 - Duplicate Files: ${analysisData.duplicates?.length || 0}
 - Old Files: ${analysisData.oldFiles?.length || 0}
@@ -363,7 +389,9 @@ Analysis Data:
 Provide recommendations as a numbered list, each starting with a verb (e.g., "Delete", "Archive", "Compress", "Organize", "Review"). Focus on practical space-saving actions.`;
 
     const response = await this.generate(prompt, analysisModel);
-    return response.response.split('\n').filter((line) => line.trim() && /^\d+\./.test(line.trim()));
+    return response.response
+      .split("\n")
+      .filter((line) => line.trim() && /^\d+\./.test(line.trim()));
   }
 
   /**
@@ -374,27 +402,38 @@ Provide recommendations as a numbered list, each starting with a verb (e.g., "De
     const lowerContent = content.toLowerCase();
 
     // Code-related queries
-    if (lowerContent.includes('code') || lowerContent.includes('programming') ||
-        lowerContent.includes('javascript') || lowerContent.includes('python') ||
-        lowerContent.includes('function') || lowerContent.includes('class') ||
-        lowerContent.includes('dependency') || lowerContent.includes('import')) {
-      const codeModels = this.getModelsByTask('code');
+    if (
+      lowerContent.includes("code") ||
+      lowerContent.includes("programming") ||
+      lowerContent.includes("javascript") ||
+      lowerContent.includes("python") ||
+      lowerContent.includes("function") ||
+      lowerContent.includes("class") ||
+      lowerContent.includes("dependency") ||
+      lowerContent.includes("import")
+    ) {
+      const codeModels = this.getModelsByTask("code");
       if (codeModels.length > 0) return codeModels[0].name;
     } else {
-      const modelsByTask = this.getModelsByTask('general');
-      return modelsByTask.length > 0 ? modelsByTask[0].name : 'qwen2.5-coder:7b-instruct';
+      const modelsByTask = this.getModelsByTask("general");
+      return modelsByTask.length > 0 ? modelsByTask[0].name : "qwen2.5-coder:7b-instruct";
     }
 
     // Analysis/data queries
-    if (lowerContent.includes('analysis') || lowerContent.includes('data') ||
-        lowerContent.includes('statistics') || lowerContent.includes('size') ||
-        lowerContent.includes('files') || lowerContent.includes('optimize')) {
-      const analysisModels = this.getModelsByTask('analysis');
+    if (
+      lowerContent.includes("analysis") ||
+      lowerContent.includes("data") ||
+      lowerContent.includes("statistics") ||
+      lowerContent.includes("size") ||
+      lowerContent.includes("files") ||
+      lowerContent.includes("optimize")
+    ) {
+      const analysisModels = this.getModelsByTask("analysis");
       if (analysisModels.length > 0) return analysisModels[0].name;
     }
 
     // Default to general model
-    const generalModels = this.getModelsByTask('general');
+    const generalModels = this.getModelsByTask("general");
     if (generalModels.length > 0) return generalModels[0].name;
 
     return this.currentModel;
@@ -407,21 +446,21 @@ Provide recommendations as a numbered list, each starting with a verb (e.g., "De
     if (!context.analysisData) return messages;
 
     const systemMessage = {
-      role: 'system',
+      role: "system",
       content: `You are an AI assistant with full context awareness of the user's analyzed file system.
 
 ANALYSIS CONTEXT:
-- Total Files: ${context.analysisData.totalFiles || 'Unknown'}
+- Total Files: ${context.analysisData.totalFiles || "Unknown"}
 - Total Size: ${this.formatFileSize(context.analysisData.totalSize || 0)}
-- Categories: ${Object.keys(context.analysisData.categories || {}).join(', ')}
-- Largest File: ${context.analysisData.largestFile || 'Unknown'}
-- Analysis Time: ${context.analysisData.analysisTime || 'Unknown'}
+- Categories: ${Object.keys(context.analysisData.categories || {}).join(", ")}
+- Largest File: ${context.analysisData.largestFile || "Unknown"}
+- Analysis Time: ${context.analysisData.analysisTime || "Unknown"}
 
 FILE SYSTEM INSIGHTS:
-${context.analysisData.ai_insights ? JSON.stringify(context.analysisData.ai_insights, null, 2) : 'No additional insights available'}
+${context.analysisData.ai_insights ? JSON.stringify(context.analysisData.ai_insights, null, 2) : "No additional insights available"}
 
 When answering questions, reference this analysis data to provide context-aware, specific responses about the user's file system.`,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     return [systemMessage, ...messages];
@@ -438,7 +477,7 @@ When answering questions, reference this analysis data to provide context-aware,
    * Answer user questions about their file system
    */
   async answerQuestion(question, context) {
-    const generalModel = this.getModelsByTask('general')[0]?.name || this.currentModel;
+    const generalModel = this.getModelsByTask("general")[0]?.name || this.currentModel;
 
     const prompt = `You are an AI assistant helping with file system analysis and optimization.
 

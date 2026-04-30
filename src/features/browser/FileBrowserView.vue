@@ -14,6 +14,19 @@ interface FileItem {
   path: string;
   size: number;
   category: string;
+  // Windows API fields
+  created?: string;
+  accessed?: string;
+  has_ads?: boolean;
+  ads_count?: number;
+  is_compressed?: boolean;
+  compressed_size?: number;
+  is_sparse?: boolean;
+  is_reparse_point?: boolean;
+  reparse_tag?: number;
+  owner?: string;
+  is_hard_link?: boolean;
+  hard_link_count?: number;
 }
 
 const categories = computed(() => {
@@ -140,9 +153,36 @@ function formatSize(bytes: number): string {
           <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center">
             <span class="text-lg">{{ file.category[0] }}</span>
           </div>
-          <div>
+          <div class="flex-1">
             <p class="font-medium text-slate-200">{{ file.name }}</p>
-            <p class="text-sm text-slate-500">{{ file.path }}</p>
+            <p class="text-sm text-slate-500 truncate">{{ file.path }}</p>
+            <div class="flex gap-1 mt-1 flex-wrap">
+              <span
+                v-if="file.is_hard_link"
+                class="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded text-xs"
+                >HL</span
+              >
+              <span
+                v-if="file.has_ads"
+                class="px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs"
+                >ADS</span
+              >
+              <span
+                v-if="file.is_compressed"
+                class="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded text-xs"
+                >CMP</span
+              >
+              <span
+                v-if="file.is_sparse"
+                class="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded text-xs"
+                >SPS</span
+              >
+              <span
+                v-if="file.is_reparse_point"
+                class="px-1.5 py-0.5 bg-rose-500/20 text-rose-300 rounded text-xs"
+                >RPT</span
+              >
+            </div>
           </div>
         </div>
         <div class="text-right">
@@ -150,6 +190,12 @@ function formatSize(bytes: number): string {
             file.category
           }}</span>
           <p class="text-sm text-slate-300 mt-1">{{ formatSize(file.size) }}</p>
+          <p
+            v-if="file.compressed_size && file.is_compressed"
+            class="text-xs text-emerald-400 mt-1"
+          >
+            {{ formatSize(file.compressed_size) }} compressed
+          </p>
         </div>
       </div>
     </div>
@@ -166,6 +212,33 @@ function formatSize(bytes: number): string {
         </div>
         <p class="font-medium text-slate-200 truncate">{{ file.name }}</p>
         <p class="text-sm text-slate-400">{{ formatSize(file.size) }}</p>
+        <div class="flex gap-1 mt-2 flex-wrap">
+          <span
+            v-if="file.is_hard_link"
+            class="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded text-xs"
+            >HL</span
+          >
+          <span
+            v-if="file.has_ads"
+            class="px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs"
+            >ADS</span
+          >
+          <span
+            v-if="file.is_compressed"
+            class="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded text-xs"
+            >CMP</span
+          >
+          <span
+            v-if="file.is_sparse"
+            class="px-1.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded text-xs"
+            >SPS</span
+          >
+          <span
+            v-if="file.is_reparse_point"
+            class="px-1.5 py-0.5 bg-rose-500/20 text-rose-300 rounded text-xs"
+            >RPT</span
+          >
+        </div>
         <span class="inline-block mt-2 px-2 py-0.5 bg-slate-800 rounded text-xs text-slate-500">{{
           file.category
         }}</span>
