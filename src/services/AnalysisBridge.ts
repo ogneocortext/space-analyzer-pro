@@ -465,6 +465,137 @@ export class AnalysisBridge {
     return response.json();
   }
 
+  /**
+   * STEP 1: Monitor cache hit rate
+   * Get detailed cache metrics for performance monitoring
+   */
+  async getCacheMetrics(): Promise<{
+    hits: number;
+    misses: number;
+    evictions: number;
+    size: number;
+    maxSize: number;
+    hitRate: number;
+  }> {
+    const response = await this.fetchWithRetry(
+      `${this.baseUrl}/api/orchestrate/cache/metrics`,
+      {},
+      5000,
+      1
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to get cache metrics: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.cache;
+  }
+
+  /**
+   * STEP 2: Tune cache TTL
+   * Configure cache time-to-live and maximum size
+   * @param ttl - Time in milliseconds (e.g., 600000 = 10 minutes)
+   * @param maxSize - Maximum number of cached entries
+   */
+  async configureCache(
+    ttl?: number,
+    maxSize?: number
+  ): Promise<{
+    success: boolean;
+    config: {
+      ttl: number;
+      maxSize: number;
+      currentSize: number;
+    };
+    updates: {
+      ttl?: number;
+      maxSize?: number;
+    };
+  }> {
+    const response = await this.fetchWithRetry(
+      `${this.baseUrl}/api/orchestrate/cache/config`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ttl, maxSize }),
+      },
+      10000,
+      1
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to configure cache: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * STEP 3: AI Insights
+   * Generate AI-powered insights for a directory
+   * Uses cached data if available, otherwise runs fresh analysis with AI
+   */
+  async getAIInsights(path: string): Promise<{
+    insights: {
+      summary: {
+        totalFiles: number;
+        totalSize: number;
+        topCategories: Array<[string, { count: number; size: number }]>;
+        largestFiles: string[];
+        duplicates: string[];
+      };
+      recommendations: string[];
+      storageOptimization: {
+        potentialSavings: number;
+        compressionCandidates: string[];
+        oldFiles: string[];
+      };
+      security: {
+        hiddenFiles: string[];
+        executableCount: number;
+        scriptFiles: string[];
+      };
+    };
+    source: "cache" | "fresh";
+    timestamp: string;
+  }> {
+    // Validate and normalize path
+    const normalizedPath = path.replace(/^["']|["']$/g, "");
+
+    this.log("info", `🧠 Generating AI insights for: ${normalizedPath}`);
+
+    const response = await this.fetchWithRetry(
+      `${this.baseUrl}/api/orchestrate/insights`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ directoryPath: normalizedPath }),
+      },
+      300000, // 5 minute timeout for AI analysis
+      1
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || `AI insights failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success || !data.insights) {
+      throw new Error(data.error || "AI insights returned no data");
+    }
+
+    this.log("info", `✅ AI insights generated (${data.source})`);
+
+    return {
+      insights: data.insights,
+      source: data.source,
+      timestamp: data.timestamp,
+    };
+  }
+
   async analyzeDirectoryWithProgress(
     path: string,
     onProgress?: (progress: AnalysisProgress) => void,
