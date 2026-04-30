@@ -46,6 +46,8 @@ export interface NotificationSettings {
   };
 }
 
+const API_BASE = "http://localhost:8080/api";
+
 const DEFAULT_SETTINGS: NotificationSettings = {
   enabled: true,
   position: "top-right",
@@ -73,8 +75,16 @@ const ICONS: Record<NotificationType, string> = {
 export const useNotificationStore = defineStore("notifications", () => {
   // State
   const notifications = ref<Notification[]>([]);
-  const settings = ref<NotificationSettings>(loadSettings());
+  const settings = ref<NotificationSettings>(DEFAULT_SETTINGS);
   const centerOpen = ref(false);
+  const isInitialized = ref(false);
+
+  // Initialize settings from server
+  async function initializeSettings() {
+    if (isInitialized.value) return;
+    settings.value = await loadSettings();
+    isInitialized.value = true;
+  }
 
   // Getters
   const unreadCount = computed(() => notifications.value.filter((n) => !n.read).length);
@@ -98,23 +108,28 @@ export const useNotificationStore = defineStore("notifications", () => {
     return `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  function loadSettings(): NotificationSettings {
+  async function loadSettings(): Promise<NotificationSettings> {
     try {
-      const saved = localStorage.getItem("notification-settings");
-      if (saved) {
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+      const response = await fetch(`${API_BASE}/settings/notifications`);
+      const data = await response.json();
+      if (data.success && data.settings) {
+        return { ...DEFAULT_SETTINGS, ...data.settings };
       }
-    } catch (e) {
-      console.error("Failed to load notification settings:", e);
+    } catch (error) {
+      console.error("Failed to load notification settings from server:", error);
     }
     return DEFAULT_SETTINGS;
   }
 
-  function saveSettings() {
+  async function saveSettings(): Promise<void> {
     try {
-      localStorage.setItem("notification-settings", JSON.stringify(settings.value));
-    } catch (e) {
-      console.error("Failed to save notification settings:", e);
+      await fetch(`${API_BASE}/settings/notifications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings.value),
+      });
+    } catch (error) {
+      console.error("Failed to save notification settings to server:", error);
     }
   }
 
@@ -131,7 +146,9 @@ export const useNotificationStore = defineStore("notifications", () => {
     saveSettings();
   }
 
-  function addNotification(notification: Omit<Notification, "id" | "createdAt" | "read" | "dismissed">): string {
+  function addNotification(
+    notification: Omit<Notification, "id" | "createdAt" | "read" | "dismissed">
+  ): string {
     if (!settings.value.enabled) return "";
     if (!settings.value.types[notification.type].enabled) return "";
 
@@ -226,7 +243,9 @@ export const useNotificationStore = defineStore("notifications", () => {
   function success(
     title: string,
     message: string,
-    options?: Partial<Omit<Notification, "id" | "createdAt" | "read" | "dismissed" | "type" | "title" | "message">>
+    options?: Partial<
+      Omit<Notification, "id" | "createdAt" | "read" | "dismissed" | "type" | "title" | "message">
+    >
   ) {
     return addNotification({ type: "success", title, message, ...options });
   }
@@ -234,7 +253,9 @@ export const useNotificationStore = defineStore("notifications", () => {
   function error(
     title: string,
     message: string,
-    options?: Partial<Omit<Notification, "id" | "createdAt" | "read" | "dismissed" | "type" | "title" | "message">>
+    options?: Partial<
+      Omit<Notification, "id" | "createdAt" | "read" | "dismissed" | "type" | "title" | "message">
+    >
   ) {
     return addNotification({ type: "error", title, message, ...options });
   }
@@ -242,7 +263,9 @@ export const useNotificationStore = defineStore("notifications", () => {
   function warning(
     title: string,
     message: string,
-    options?: Partial<Omit<Notification, "id" | "createdAt" | "read" | "dismissed" | "type" | "title" | "message">>
+    options?: Partial<
+      Omit<Notification, "id" | "createdAt" | "read" | "dismissed" | "type" | "title" | "message">
+    >
   ) {
     return addNotification({ type: "warning", title, message, ...options });
   }
@@ -250,7 +273,9 @@ export const useNotificationStore = defineStore("notifications", () => {
   function info(
     title: string,
     message: string,
-    options?: Partial<Omit<Notification, "id" | "createdAt" | "read" | "dismissed" | "type" | "title" | "message">>
+    options?: Partial<
+      Omit<Notification, "id" | "createdAt" | "read" | "dismissed" | "type" | "title" | "message">
+    >
   ) {
     return addNotification({ type: "info", title, message, ...options });
   }
@@ -259,7 +284,12 @@ export const useNotificationStore = defineStore("notifications", () => {
     title: string,
     message: string,
     initialProgress = 0,
-    options?: Partial<Omit<Notification, "id" | "createdAt" | "read" | "dismissed" | "type" | "title" | "message" | "progress">>
+    options?: Partial<
+      Omit<
+        Notification,
+        "id" | "createdAt" | "read" | "dismissed" | "type" | "title" | "message" | "progress"
+      >
+    >
   ) {
     return addNotification({
       type: "progress",
@@ -317,5 +347,11 @@ export const useNotificationStore = defineStore("notifications", () => {
     openCenter,
     closeCenter,
     toggleCenter,
+
+    // Settings
+    initializeSettings,
+    loadSettings,
+    saveSettings,
+    isInitialized,
   };
 });

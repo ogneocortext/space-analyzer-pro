@@ -231,6 +231,17 @@ class DatabaseCore {
       CREATE INDEX IF NOT EXISTS idx_templates_active ON report_templates(is_active);
       CREATE INDEX IF NOT EXISTS idx_batch_jobs_status ON batch_export_jobs(status);
       CREATE INDEX IF NOT EXISTS idx_batch_jobs_created ON batch_export_jobs(created_at);
+
+      -- User Settings
+      CREATE TABLE IF NOT EXISTS user_settings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        setting_key TEXT UNIQUE NOT NULL,
+        setting_value TEXT, -- JSON string
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Indexes for user_settings
+      CREATE INDEX IF NOT EXISTS idx_user_settings_key ON user_settings(setting_key);
     `;
 
     this.db.exec(tables, (err) => {
@@ -320,6 +331,83 @@ class DatabaseCore {
         }
 
         resolve({ size: sizeMB, threshold: thresholdMB });
+      });
+    });
+  }
+
+  /**
+   * Get user setting by key
+   */
+  getUserSetting(key) {
+    return new Promise((resolve, reject) => {
+      const sql = "SELECT setting_value FROM user_settings WHERE setting_key = ?";
+      this.db.get(sql, [key], (err, row) => {
+        if (err) {
+          reject(err);
+        } else {
+          try {
+            resolve(row ? JSON.parse(row.setting_value) : null);
+          } catch (e) {
+            resolve(row ? row.setting_value : null);
+          }
+        }
+      });
+    });
+  }
+
+  /**
+   * Set user setting
+   */
+  setUserSetting(key, value) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        INSERT INTO user_settings (setting_key, setting_value, updated_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(setting_key) DO UPDATE SET
+          setting_value = excluded.setting_value,
+          updated_at = CURRENT_TIMESTAMP
+      `;
+      const valueStr = typeof value === "string" ? value : JSON.stringify(value);
+      this.db.run(sql, [key, valueStr], (err) => {
+        if (err) reject(err);
+        else resolve(true);
+      });
+    });
+  }
+
+  /**
+   * Delete user setting
+   */
+  deleteUserSetting(key) {
+    return new Promise((resolve, reject) => {
+      const sql = "DELETE FROM user_settings WHERE setting_key = ?";
+      this.db.run(sql, [key], (err) => {
+        if (err) reject(err);
+        else resolve(true);
+      });
+    });
+  }
+
+  /**
+   * Get all user settings
+   */
+  getAllUserSettings() {
+    return new Promise((resolve, reject) => {
+      const sql = "SELECT setting_key, setting_value FROM user_settings";
+      this.db.all(sql, [], (err, rows) => {
+        if (err) {
+          reject(err);
+        } else {
+          const settings = {};
+          rows.forEach((row) => {
+            try {
+              settings[row.setting_key] = JSON.parse(row.setting_value);
+            } catch (e) {
+              settings[row.setting_key] = row.setting_value;
+            }
+          });
+          resolve(settings);
+        }
       });
     });
   }

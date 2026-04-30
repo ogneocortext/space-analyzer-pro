@@ -57,7 +57,11 @@
           <label class="setting-label">Max Visible</label>
           <p class="setting-description">Maximum notifications shown at once</p>
         </div>
-        <select v-model.number="store.settings.maxVisible" class="setting-select" @change="saveSettings">
+        <select
+          v-model.number="store.settings.maxVisible"
+          class="setting-select"
+          @change="saveSettings"
+        >
           <option :value="3">3 notifications</option>
           <option :value="5">5 notifications</option>
           <option :value="7">7 notifications</option>
@@ -89,7 +93,9 @@
         :class="`type-${type.key}`"
       >
         <div class="type-header">
-          <div class="type-icon">{{ type.icon }}</div>
+          <div class="type-icon">
+            {{ type.icon }}
+          </div>
           <div class="type-info">
             <h4>{{ type.label }}</h4>
             <p>{{ type.description }}</p>
@@ -155,9 +161,7 @@
         <button class="test-btn test-info" @click="sendTestNotification('info')">
           ℹ️ Test Info
         </button>
-        <button class="test-btn test-progress" @click="sendTestProgress()">
-          📊 Test Progress
-        </button>
+        <button class="test-btn test-progress" @click="sendTestProgress()">📊 Test Progress</button>
       </div>
     </section>
 
@@ -166,9 +170,7 @@
       <h3>Actions</h3>
 
       <div class="action-buttons">
-        <button class="action-btn secondary" @click="resetToDefaults">
-          ↺ Reset to Defaults
-        </button>
+        <button class="action-btn secondary" @click="resetToDefaults">↺ Reset to Defaults</button>
         <button class="action-btn danger" @click="clearAllNotifications">
           🗑️ Clear All Notifications
         </button>
@@ -181,16 +183,24 @@
 
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-value">{{ stats.total }}</div>
+          <div class="stat-value">
+            {{ stats.total }}
+          </div>
           <div class="stat-label">Total Notifications</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">{{ stats.unread }}</div>
+          <div class="stat-value">
+            {{ stats.unread }}
+          </div>
           <div class="stat-label">Unread</div>
         </div>
         <div v-for="type in notificationTypes" :key="type.key" class="stat-card">
-          <div class="stat-value">{{ stats.byType[type.key] || 0 }}</div>
-          <div class="stat-label">{{ type.label }}</div>
+          <div class="stat-value">
+            {{ stats.byType[type.key] || 0 }}
+          </div>
+          <div class="stat-label">
+            {{ type.label }}
+          </div>
         </div>
       </div>
     </section>
@@ -198,10 +208,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { useNotificationStore, type NotificationType } from "@/stores/notificationStore";
 
 const store = useNotificationStore();
+
+onMounted(() => {
+  store.initializeSettings();
+});
 
 const notificationTypes = [
   {
