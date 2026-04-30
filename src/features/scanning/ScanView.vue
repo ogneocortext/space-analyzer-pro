@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import { useRouter } from "vue-router";
+import {
+  FolderOpen,
+  Scan,
+  CheckCircle2,
+  FileText,
+  HardDrive,
+  Activity,
+  Loader2,
+} from "lucide-vue-next";
 import { useAnalysisStore } from "../../store/analysis";
 import { Card, Button } from "../../design-system/components";
 
@@ -81,6 +90,13 @@ function formatSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }
+
+function formatPath(path: string): string {
+  // Show only last 2 directories + filename for readability
+  const parts = path.split(/[\\/]/);
+  if (parts.length <= 3) return path;
+  return "..." + parts.slice(-3).join("/");
+}
 </script>
 
 <template>
@@ -88,108 +104,156 @@ function formatSize(bytes: number): string {
     <h1 class="text-2xl font-bold text-slate-100">Scan Directory</h1>
 
     <!-- Path Selection -->
-    <Card title="Select Directory">
-      <div class="space-y-4">
-        <div class="flex gap-2">
-          <input
-            v-model="selectedPath"
-            type="text"
-            placeholder="Enter directory path..."
-            class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-          />
-          <Button variant="secondary" @click="selectDirectory"> Browse </Button>
+    <div
+      class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700/50"
+    >
+      <div class="flex items-center gap-3 mb-4">
+        <div class="p-2 bg-blue-500/20 rounded-lg">
+          <FolderOpen class="w-5 h-5 text-blue-400" />
         </div>
-        <div class="text-sm text-slate-400 space-y-2">
-          <p>Select a directory for <strong class="text-slate-300">local analysis only</strong>.</p>
-          <ul class="list-disc list-inside space-y-1 text-slate-500">
-            <li>Files stay in place - nothing is moved or uploaded</li>
-            <li>Analysis runs locally on your machine</li>
-            <li>Results display in dashboard and feed AI insights</li>
-          </ul>
+        <h2 class="text-lg font-semibold text-slate-100">Select Directory</h2>
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex gap-3">
+          <div class="flex-1 relative">
+            <input
+              v-model="selectedPath"
+              type="text"
+              placeholder="Enter directory path..."
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+            />
+            <div v-if="selectedPath" class="absolute right-3 top-1/2 -translate-y-1/2">
+              <CheckCircle2 class="w-5 h-5 text-emerald-500" />
+            </div>
+          </div>
+          <Button variant="secondary" class="px-6" @click="selectDirectory"> Browse </Button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div class="flex items-center gap-2 text-sm text-slate-400">
+            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>Files stay in place</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-slate-400">
+            <div class="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            <span>Local analysis only</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm text-slate-400">
+            <div class="w-1.5 h-1.5 rounded-full bg-purple-500" />
+            <span>AI-powered insights</span>
+          </div>
         </div>
       </div>
-    </Card>
+    </div>
 
     <!-- Start Scan -->
     <div class="flex justify-center">
-      <Button
-        variant="primary"
-        size="lg"
-        :loading="store.isAnalysisRunning"
+      <button
         :disabled="!selectedPath || store.isAnalysisRunning"
+        class="group relative inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 disabled:from-slate-700 disabled:to-slate-600 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 disabled:shadow-none transition-all duration-300"
         @click="startScan"
       >
-        {{ store.isAnalysisRunning ? "Scanning..." : "Start Scan" }}
-      </Button>
+        <Loader2 v-if="store.isAnalysisRunning" class="w-5 h-5 animate-spin" />
+        <Scan v-else class="w-5 h-5 group-hover:scale-110 transition-transform" />
+        <span>{{ store.isAnalysisRunning ? "Scanning..." : "Start Scan" }}</span>
+      </button>
     </div>
 
     <!-- Progress -->
     <div v-if="store.isAnalysisRunning || store.status === 'complete'" class="space-y-4">
-      <Card :title="store.status === 'complete' ? 'Scan Complete!' : 'Scanning Progress'">
-        <div class="space-y-4">
-          <!-- Stats Grid -->
-          <div class="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div class="text-2xl font-bold text-blue-400">
-                {{ filesScanned }}
-              </div>
-              <div class="text-xs text-slate-500">Files</div>
+      <div
+        class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700/50"
+      >
+        <div class="flex items-center gap-3 mb-6">
+          <div class="p-2 bg-emerald-500/20 rounded-lg">
+            <Activity class="w-5 h-5 text-emerald-400" />
+          </div>
+          <h2 class="text-lg font-semibold text-slate-100">
+            {{ store.status === "complete" ? "Scan Complete!" : "Scanning Progress" }}
+          </h2>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-3 gap-4 mb-6">
+          <div class="bg-slate-950/50 rounded-xl p-4 border border-slate-800">
+            <div class="flex items-center gap-2 mb-2">
+              <FileText class="w-4 h-4 text-blue-400" />
+              <span class="text-xs text-slate-500 uppercase tracking-wider">Files</span>
             </div>
-            <div>
-              <div class="text-2xl font-bold text-emerald-400">
-                {{ formatSize(totalBytes) }}
-              </div>
-              <div class="text-xs text-slate-500">Scanned</div>
-            </div>
-            <div>
-              <div class="text-2xl font-bold text-purple-400">{{ progressPercent }}%</div>
-              <div class="text-xs text-slate-500">Complete</div>
+            <div class="text-3xl font-bold text-blue-400">
+              {{ filesScanned.toLocaleString() }}
             </div>
           </div>
 
-          <!-- Progress Bar -->
-          <div class="h-3 bg-slate-800 rounded-full overflow-hidden">
+          <div class="bg-slate-950/50 rounded-xl p-4 border border-slate-800">
+            <div class="flex items-center gap-2 mb-2">
+              <HardDrive class="w-4 h-4 text-emerald-400" />
+              <span class="text-xs text-slate-500 uppercase tracking-wider">Scanned</span>
+            </div>
+            <div class="text-3xl font-bold text-emerald-400">
+              {{ formatSize(totalBytes) }}
+            </div>
+          </div>
+
+          <div class="bg-slate-950/50 rounded-xl p-4 border border-slate-800">
+            <div class="flex items-center gap-2 mb-2">
+              <Activity class="w-4 h-4 text-purple-400" />
+              <span class="text-xs text-slate-500 uppercase tracking-wider">Progress</span>
+            </div>
+            <div class="text-3xl font-bold text-purple-400">{{ progressPercent }}%</div>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mb-6">
+          <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
             <div
               :class="[
                 'h-full rounded-full transition-all duration-500 ease-out',
-                store.status === 'complete' ? 'bg-emerald-500' : 'bg-blue-500 animate-pulse',
+                store.status === 'complete'
+                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+                  : 'bg-gradient-to-r from-blue-600 to-blue-400 animate-pulse',
               ]"
               :style="{ width: progressPercent + '%' }"
             />
           </div>
-
-          <!-- Current File -->
-          <div class="space-y-2">
-            <p class="text-sm text-slate-400 text-center">
-              {{
-                store.status === "complete"
-                  ? "Analysis finished successfully!"
-                  : "Recently scanned files:"
-              }}
-            </p>
-            <div
-              v-if="store.status !== 'complete' && store.recentlyScannedFiles.length > 0"
-              class="bg-slate-800/50 rounded-lg p-3 max-h-64 overflow-y-auto"
-            >
-              <ul class="space-y-2">
-                <li
-                  v-for="(file, index) in store.recentlyScannedFiles"
-                  :key="index"
-                  class="text-xs text-slate-300 break-all font-mono leading-relaxed"
-                >
-                  {{ file }}
-                </li>
-              </ul>
-            </div>
-            <p
-              v-else-if="store.status !== 'complete'"
-              class="text-sm text-slate-500 text-center break-all px-4"
-            >
-              {{ currentFile }}
-            </p>
-          </div>
         </div>
-      </Card>
+
+        <!-- Current File / Recent Files -->
+        <div class="space-y-3">
+          <p class="text-sm text-slate-400">
+            {{
+              store.status === "complete"
+                ? "✅ Analysis finished successfully!"
+                : "Recently scanned files:"
+            }}
+          </p>
+
+          <div
+            v-if="store.status !== 'complete' && store.recentlyScannedFiles.length > 0"
+            class="bg-slate-950/50 rounded-xl border border-slate-800/50 max-h-48 overflow-y-auto"
+          >
+            <ul class="divide-y divide-slate-800/50">
+              <li
+                v-for="(file, index) in [...store.recentlyScannedFiles].reverse()"
+                :key="index"
+                class="px-4 py-2 text-xs text-slate-400 font-mono hover:bg-slate-800/30 transition-colors flex items-center gap-2"
+              >
+                <div class="w-1.5 h-1.5 rounded-full bg-blue-500/50" />
+                <span class="truncate">{{ formatPath(file) }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <p
+            v-else-if="store.status !== 'complete'"
+            class="text-sm text-slate-500 text-center py-4 bg-slate-950/30 rounded-lg border border-slate-800/30"
+          >
+            {{ currentFile }}
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Results Summary -->
