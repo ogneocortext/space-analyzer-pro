@@ -95,6 +95,16 @@ const router = createRouter({
       name: "organize",
       component: () => import("../features/organize/AutoOrganizeView.vue"),
     },
+    {
+      path: "/reports",
+      name: "reports",
+      component: () => import("../features/reports/ReportsView.vue"),
+    },
+    {
+      path: "/complexity",
+      name: "complexity",
+      component: () => import("../features/complexity/ComplexityView.vue"),
+    },
   ],
 });
 
