@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                    |
 | ------- | ---------- | ------------------------------------------------------------------------------------------ |
+| 2.3.1   | 2026-04-30 | File Structure Organization: Cleaned root directory, organized server files, improved docs |
 | 2.3.0   | 2026-04-30 | Comprehensive Backend Enhancements: Progress, Caching, Profiles, Filters, Analytics        |
 | 2.2.8   | 2026-04-30 | Multi-Agent Orchestrator Steps 4-6: Circuit Breaker, Task Queue, Batch Analysis            |
 | 2.2.7   | 2026-04-29 | Multi-Agent Orchestrator v2.0 - Intelligent task distribution with circuit breakers        |
@@ -19,6 +20,68 @@ All notable changes to Space Analyzer will be documented in this file.
 | 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                         |
 | 2.1.8   | 2026-04-27 | Project cleanup and organization                                                           |
 | 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                      |
+
+---
+
+## [2.3.1] - 2026-04-30
+
+### File Structure Organization
+
+**Major cleanup and reorganization of project structure for improved maintainability and navigation.**
+
+#### 1. Root Directory Cleanup
+
+**Moved Files:**
+
+- **Documentation**: 11 loose markdown files moved to `docs/` directory
+  - `CONTRIBUTING.md`, `SECURITY.md`, `TODO.md`, `GPU_OPTIMIZATION_GUIDE.md`
+  - `NATIVE_BUILD_README.md`, `OLLAMA_TEST_REPORT.md`, `DATABASE_UPDATES.md`
+  - `CONTEXT_PAYLOAD_OPTIMIZATION.md`, `USER_DIRECTORY_TEST.md`
+  - `ORCHESTRATOR_FRONTEND_GUIDE.md`, `ORCHESTRATOR_STEPS_4-6.md`, `ORCHESTRATOR_TEST_REPORT.md`
+
+- **Log Files**: All log files consolidated in new `logs/` directory
+  - `backend.log`, `frontend.log`, `server/server.log`
+
+- **Configuration**: Config files moved to `config/` directory
+  - `github-nav.js`, `ports.config.js`, `ports.config.d.ts`
+
+#### 2. Server Directory Organization
+
+**Created Proper Structure:**
+
+- **Controllers**: `controllers/` directory for request handlers
+  - `backend-server.js`, `scan-controller.js`
+
+- **Services**: `services/` directory for business logic
+  - `OllamaService.js`, `EnhancedOllamaService.js`, `SpaceAnalyzerAIIntegration.js`
+  - `ai-integrated-scanner.js`, `polyglot-scanner.js`, `enhanced-polyglot-scanner.js`
+
+- **Utilities**: `utils/` directory for helper functions
+  - `config-manager.js`, `port-detector.js`, `dependencyScanner.js`
+
+#### 3. Documentation Cleanup
+
+**Consolidated README Files:**
+
+- `server/README.md` → `docs/SERVER_README.md`
+- `scripts/README.md` → `docs/SCRIPTS_README.md`
+- Maintained primary `README.md` at project root
+
+#### 4. Benefits
+
+**Improved Organization:**
+
+- **Clean Root Directory**: Reduced from 13 loose markdown files to 1 primary README
+- **Logical Server Structure**: 46 loose JS files organized into proper MVC-like pattern
+- **Centralized Logging**: All logs in one location for easier debugging
+- **Better Documentation**: All docs consolidated in `docs/` hierarchy
+
+**Developer Experience:**
+
+- Easier navigation and file discovery
+- Clear separation of concerns
+- Consistent naming conventions
+- Reduced cognitive load when working with codebase
 
 ---
 
