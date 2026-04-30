@@ -596,6 +596,240 @@ export class AnalysisBridge {
     };
   }
 
+  /**
+   * STEP 4: Circuit Breaker Status
+   * Get detailed health status of all agents including circuit breaker state
+   */
+  async getAgentHealth(): Promise<{
+    agents: Array<{
+      id: string;
+      name: string;
+      type: string;
+      state: string;
+      circuitBreaker: {
+        state: string;
+        failureCount: number;
+        lastFailure: string | null;
+        failureRate: number;
+      };
+      metrics: {
+        tasksCompleted: number;
+        tasksFailed: number;
+        avgExecutionTime: number;
+        lastUsed: string | null;
+      };
+      isAvailable: boolean;
+      lastUsed: string | null;
+    }>;
+    summary: {
+      total: number;
+      available: number;
+      busy: number;
+      unhealthy: number;
+      idle: number;
+    };
+  }> {
+    const response = await this.fetchWithRetry(
+      `${this.baseUrl}/api/orchestrate/agents/health`,
+      {},
+      10000,
+      1
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to get agent health: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || "Failed to get agent health");
+    }
+
+    return {
+      agents: data.agents,
+      summary: data.summary,
+    };
+  }
+
+  /**
+   * STEP 5: Task Queue Management
+   * Get and manage task queue
+   */
+  async getTaskQueue(
+    status: "all" | "pending" | "active" | "completed" | "failed" = "all",
+    limit: number = 50
+  ): Promise<{
+    tasks: Array<{
+      id: string;
+      status: string;
+      priority: number;
+      priorityLabel: string;
+      data: unknown;
+      createdAt: string;
+      startedAt: string | null;
+      completedAt: string | null;
+      assignedAgent: string | null;
+      result: { success: boolean; hasData: boolean } | null;
+      error: string | null;
+    }>;
+    stats: {
+      total: number;
+      pending: number;
+      active: number;
+      completed: number;
+      failed: number;
+      byPriority: {
+        critical: number;
+        high: number;
+        normal: number;
+        low: number;
+        background: number;
+      };
+    };
+  }> {
+    const response = await this.fetchWithRetry(
+      `${this.baseUrl}/api/orchestrate/tasks?status=${status}&limit=${limit}`,
+      {},
+      10000,
+      1
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to get task queue: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || "Failed to get task queue");
+    }
+
+    return {
+      tasks: data.tasks,
+      stats: data.stats,
+    };
+  }
+
+  /**
+   * Cancel a specific task
+   */
+  async cancelTask(taskId: string): Promise<{
+    success: boolean;
+    message: string;
+    taskId: string;
+    status: string;
+  }> {
+    const response = await this.fetchWithRetry(
+      `${this.baseUrl}/api/orchestrate/tasks/${encodeURIComponent(taskId)}/cancel`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      },
+      10000,
+      1
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || `Failed to cancel task: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * STEP 6: Batch Analysis
+   * Analyze multiple directories at once with concurrency control
+   */
+  async analyzeBatch(
+    directories: string[],
+    options?: {
+      useOllama?: boolean;
+      priority?: number;
+      concurrency?: number;
+      parallel?: boolean;
+    }
+  ): Promise<{
+    batch: {
+      totalDirectories: number;
+      successful: number;
+      failed: number;
+      totalDuration: number;
+      aggregateStats: {
+        totalFiles: number;
+        totalSize: number;
+        avgFilesPerDirectory: number;
+      };
+    };
+    results: Array<{
+      directory: string;
+      success: boolean;
+      result?: AnalysisResult;
+      error?: string;
+      duration: number;
+    }>;
+    errors?: Array<{
+      directory: string;
+      success: boolean;
+      error: string;
+      duration: number;
+    }>;
+    timestamp: string;
+  }> {
+    if (!Array.isArray(directories) || directories.length === 0) {
+      throw new Error("directories must be a non-empty array");
+    }
+
+    if (directories.length > 20) {
+      throw new Error("Maximum 20 directories allowed per batch");
+    }
+
+    this.log("info", `📦 Starting batch analysis of ${directories.length} directories`);
+
+    const response = await this.fetchWithRetry(
+      `${this.baseUrl}/api/orchestrate/batch`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          directories,
+          options: {
+            useOllama: options?.useOllama ?? false,
+            priority: options?.priority ?? 2, // NORMAL
+            concurrency: options?.concurrency ?? 3,
+            parallel: options?.parallel ?? true,
+          },
+        }),
+      },
+      600000, // 10 minute timeout for batch operations
+      1
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || `Batch analysis failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || "Batch analysis failed");
+    }
+
+    this.log(
+      "info",
+      `✅ Batch complete: ${data.batch.successful}/${data.batch.totalDirectories} successful in ${data.batch.totalDuration}ms`
+    );
+
+    return {
+      batch: data.batch,
+      results: data.results,
+      errors: data.errors,
+      timestamp: data.timestamp,
+    };
+  }
+
   async analyzeDirectoryWithProgress(
     path: string,
     onProgress?: (progress: AnalysisProgress) => void,
