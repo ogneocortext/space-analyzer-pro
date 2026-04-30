@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                    |
 | ------- | ---------- | ------------------------------------------------------------------------------------------ |
+| 2.2.4   | 2026-04-29 | Code Complexity Analysis: metrics, grades, refactoring recommendations                     |
 | 2.2.3   | 2026-04-29 | AI-powered features: Document Summarization, Natural Language Interface, Cleanup Assistant |
 | 2.2.2   | 2026-04-29 | Ollama API 0.22.0 integration, optimized context payload, trend tracking database          |
 | 2.2.1   | 2026-04-29 | Windows API data display in frontend                                                       |
@@ -99,6 +100,67 @@ All notable changes to Space Analyzer will be documented in this file.
 - `getCleanupRecommendations()` - Retrieve with filtering
 - `updateCleanupAction()` - Track user decisions
 - `getPotentialSavings()` - Calculate total savings
+
+---
+
+## [2.2.4] - 2026-04-29
+
+### Code Complexity Analysis
+
+**Backend:**
+
+- **Complexity Analyzer Module** (`server/modules/complexity-analyzer.js`):
+  - Calculates metrics for 12+ languages: JavaScript, TypeScript, Python, Java, C#, C/C++, Go, Rust, and more
+  - Metrics calculated:
+    - Cyclomatic Complexity (McCabe metric)
+    - Cognitive Complexity
+    - Lines of Code (total, logical, comments, blank)
+    - Function count and lengths
+    - Nesting depth
+    - Maintainability Index (Microsoft formula)
+  - Grade assignment (A-F scale):
+    - A: Excellent (0-10 CC)
+    - B: Good (11-20 CC)
+    - C: Fair (21-40 CC)
+    - D: Poor (41-60 CC)
+    - F: Critical (>60 CC)
+  - Refactoring priority:
+    - Critical: CC > 50 or MI < 30
+    - High: CC > 30 or MI < 50
+    - Medium: CC > 15 or MI < 70
+    - Low: Good code quality
+
+- **API Endpoints:**
+  - `POST /api/complexity/analyze` - Run complexity analysis on directory
+  - `GET /api/complexity/metrics` - Get detailed metrics with filtering
+  - `GET /api/complexity/summary` - Get summary statistics
+  - `GET /api/complexity/refactoring` - Get files needing refactoring
+
+- **Database** - `complexity_metrics` table:
+  - All complexity metrics per file
+  - Complexity grade (A-F)
+  - Refactoring priority (critical/high/medium/low)
+  - File hash for cache invalidation
+  - Indexes: file_path, directory_path, grade, priority
+
+- **Database Methods Added:**
+  - `storeComplexityMetrics()` - Save analysis results
+  - `getComplexityMetrics()` - Get metrics for single file
+  - `getDirectoryComplexity()` - Get all metrics for directory
+  - `getComplexitySummary()` - Get aggregate statistics
+  - `getFilesNeedingRefactoring()` - Get critical/high priority files
+
+**Frontend:**
+
+- **Complexity Analysis View** (`src/features/complexity/ComplexityView.vue`):
+  - Summary cards: files analyzed, avg complexity, maintainability, files needing refactoring
+  - Grade distribution visualization with progress bars
+  - Refactoring priority distribution
+  - "Files Needing Immediate Attention" section
+  - Filter by language and grade
+  - Sort by: complexity, maintainability, lines of code, grade
+  - Detailed metrics table with color-coded values
+  - "Run Analysis" button to trigger new analysis
 
 ---
 
