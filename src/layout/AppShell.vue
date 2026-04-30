@@ -1,8 +1,50 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import {
+  LayoutDashboard,
+  FolderOpen,
+  Scan,
+  BarChart3,
+  Clock,
+  Copy,
+  Brain,
+  Sparkles,
+  TrendingUp,
+  Search,
+  LayoutGrid,
+  Lightbulb,
+  Share2,
+  FileText,
+  Code2,
+  Activity,
+  Settings,
+  Menu,
+  X,
+  type LucideIcon,
+} from "lucide-vue-next";
 import NotificationCenter from "@/components/vue/other/NotificationCenter.vue";
 
 const sidebarOpen = ref(false);
+
+const iconMap: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  FolderOpen,
+  Scan,
+  BarChart3,
+  Clock,
+  Copy,
+  Brain,
+  Sparkles,
+  TrendingUp,
+  Search,
+  LayoutGrid,
+  Lightbulb,
+  Share2,
+  FileText,
+  Code2,
+  Activity,
+  Settings,
+};
 
 const navigation = [
   { name: "Dashboard", path: "/", icon: "LayoutDashboard" },
@@ -36,6 +78,10 @@ const systemNav = [
 function toggleSidebar() {
   sidebarOpen.value = !sidebarOpen.value;
 }
+
+function getIcon(name: string): LucideIcon {
+  return iconMap[name] || LayoutDashboard;
+}
 </script>
 
 <template>
@@ -50,31 +96,44 @@ function toggleSidebar() {
     >
       <div class="flex items-center justify-between p-4 border-b border-slate-800">
         <span class="text-xl font-bold text-blue-400">Space Analyzer</span>
-        <button class="lg:hidden p-2 hover:bg-slate-800 rounded" @click="toggleSidebar">✕</button>
+        <button class="lg:hidden p-2 hover:bg-slate-800 rounded" @click="toggleSidebar">
+          <X class="w-5 h-5" />
+        </button>
       </div>
 
       <nav class="p-4 space-y-6">
         <!-- Main Navigation -->
-        <div class="space-y-2">
-          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4">Main</div>
+        <div class="space-y-1">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 mb-2">
+            Main
+          </div>
           <router-link
             v-for="item in navigation"
             :key="item.path"
             :to="item.path"
             :class="[
-              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
               $route.path === item.path
-                ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100',
+                ? 'bg-linear-to-r from-blue-600/20 to-blue-500/10 text-blue-400 border-l-2 border-blue-500'
+                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100 hover:translate-x-1',
             ]"
           >
-            <span>{{ item.name }}</span>
+            <component
+              :is="getIcon(item.icon)"
+              class="w-5 h-5 shrink-0"
+              :class="
+                $route.path === item.path
+                  ? 'text-blue-400'
+                  : 'text-slate-500 group-hover:text-slate-300'
+              "
+            />
+            <span class="text-sm font-medium">{{ item.name }}</span>
           </router-link>
         </div>
 
         <!-- Analysis Navigation -->
-        <div class="space-y-2">
-          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4">
+        <div class="space-y-1">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 mb-2">
             Analysis
           </div>
           <router-link
@@ -82,19 +141,28 @@ function toggleSidebar() {
             :key="item.path"
             :to="item.path"
             :class="[
-              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+              'flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group',
               $route.path === item.path
-                ? 'bg-purple-600/20 text-purple-400 border border-purple-600/30'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100',
+                ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
+                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100 hover:translate-x-1',
             ]"
           >
-            <span>{{ item.name }}</span>
+            <component
+              :is="getIcon(item.icon)"
+              class="w-4 h-4 shrink-0"
+              :class="
+                $route.path === item.path
+                  ? 'text-purple-400'
+                  : 'text-slate-500 group-hover:text-slate-300'
+              "
+            />
+            <span class="text-sm">{{ item.name }}</span>
           </router-link>
         </div>
 
         <!-- Visualization Navigation -->
-        <div class="space-y-2">
-          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4">
+        <div class="space-y-1">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 mb-2">
             Visualization
           </div>
           <router-link
@@ -102,19 +170,28 @@ function toggleSidebar() {
             :key="item.path"
             :to="item.path"
             :class="[
-              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
               $route.path === item.path
-                ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-600/30'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100',
+                ? 'bg-linear-to-r from-emerald-600/20 to-emerald-500/10 text-emerald-400 border-l-2 border-emerald-500'
+                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100 hover:translate-x-1',
             ]"
           >
-            <span>{{ item.name }}</span>
+            <component
+              :is="getIcon(item.icon)"
+              class="w-5 h-5 shrink-0"
+              :class="
+                $route.path === item.path
+                  ? 'text-emerald-400'
+                  : 'text-slate-500 group-hover:text-slate-300'
+              "
+            />
+            <span class="text-sm font-medium">{{ item.name }}</span>
           </router-link>
         </div>
 
         <!-- System Navigation -->
-        <div class="space-y-2">
-          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4">
+        <div class="space-y-1">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 mb-2">
             System
           </div>
           <router-link
@@ -122,34 +199,57 @@ function toggleSidebar() {
             :key="item.path"
             :to="item.path"
             :class="[
-              'flex items-center gap-3 px-4 py-3 rounded-lg transition-colors',
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
               $route.path === item.path
-                ? 'bg-slate-600/30 text-slate-300 border border-slate-600/40'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100',
+                ? 'bg-linear-to-r from-slate-600/30 to-slate-500/20 text-slate-300 border-l-2 border-slate-500'
+                : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100 hover:translate-x-1',
             ]"
           >
-            <span>{{ item.name }}</span>
+            <component
+              :is="getIcon(item.icon)"
+              class="w-5 h-5 shrink-0"
+              :class="
+                $route.path === item.path
+                  ? 'text-slate-300'
+                  : 'text-slate-500 group-hover:text-slate-300'
+              "
+            />
+            <span class="text-sm font-medium">{{ item.name }}</span>
           </router-link>
         </div>
       </nav>
     </aside>
 
     <!-- Main Content -->
-    <div class="flex-1 flex flex-col min-w-0">
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
       <!-- Top Bar -->
       <header
-        class="h-16 bg-slate-900/50 backdrop-blur border-b border-slate-800 flex items-center justify-between px-4 lg:px-6"
+        class="h-16 bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 flex items-center justify-between px-4 lg:px-6 shrink-0"
       >
-        <button class="lg:hidden p-2 hover:bg-slate-800 rounded" @click="toggleSidebar">☰</button>
-
         <div class="flex items-center gap-4">
-          <NotificationCenter />
+          <button
+            class="lg:hidden p-2 hover:bg-slate-800 rounded-lg transition-colors"
+            @click="toggleSidebar"
+          >
+            <Menu class="w-5 h-5 text-slate-400" />
+          </button>
+          <div class="hidden md:flex items-center gap-2 text-sm text-slate-500">
+            <span class="text-slate-400">Space Analyzer</span>
+            <span class="text-slate-600">/</span>
+            <span class="text-slate-300 capitalize">{{
+              $route.name?.toString().replace(/-/g, " ") || "Dashboard"
+            }}</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
           <slot name="top-bar-actions" />
+          <NotificationCenter />
         </div>
       </header>
 
       <!-- Page Content -->
-      <main class="flex-1 overflow-auto p-4 lg:p-6">
+      <main class="flex-1 overflow-auto p-4 lg:p-8">
         <Transition
           enter-active-class="transition-all duration-300 ease-out"
           enter-from-class="opacity-0 translate-y-4"
@@ -159,7 +259,9 @@ function toggleSidebar() {
           leave-to-class="opacity-0 -translate-y-4"
           mode="out-in"
         >
-          <slot />
+          <div :key="$route.path" class="max-w-7xl mx-auto">
+            <slot />
+          </div>
         </Transition>
       </main>
     </div>
