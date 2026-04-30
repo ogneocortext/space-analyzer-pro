@@ -1,6 +1,6 @@
 {
   "name": "space-analyzer-pro",
-  "version": "2.2.8",
+  "version": "2.5.0",
   "description": "AI-Powered Space Analyzer with Vision Analysis and Feature Hub",
   "type": "module",
   "scripts": {
@@ -28,6 +28,11 @@
     "port:status": "node scripts/port-config.js status",
     "port:clear": "node scripts/port-config.js clear",
     "cleanup:results": "node scripts/cleanup-results.js",
+    "test:self-learning": "node scripts/test-self-learning.js",
+    "test:3d-browser": "node scripts/test-3d-browser.js",
+    "test:ntfs-mft": "node scripts/test-ntfs-mft.js",
+    "test:usn-journal": "node scripts/test-usn-journal.js",
+    "test:advanced-features": "npm run test:self-learning && npm run test:3d-browser && npm run test:ntfs-mft && npm run test:usn-journal",
     "type-check": "tsc -p tsconfig.node.json --noEmit",
     "type-check:full": "tsc --noEmit",
     "update-deps": "npm update && npm audit fix",
