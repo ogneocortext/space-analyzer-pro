@@ -24,14 +24,19 @@ const WebSocket = require("ws");
 // Import other required services
 const SelfLearningSystem = require("./SelfLearningSystem");
 const KnowledgeDatabase = require("./KnowledgeDatabase");
-const dependencyScanner = require("./dependencyScanner");
+const MultiAgentOrchestrator = require("./src/integration/multi-agent-orchestrator.cjs");
+const ollamaService = require("./src/integration/ollama-service.cjs");
+const dependencyScanner = require("./src/integration/dependency-scanner.cjs");
+const getServer = require("./src/integration/test-restoration.cjs");
+const { existsSync } = require("fs");
+const ScanCache = require("./scan-cache");
+const { ScanProfileManager } = require("./scan-profiles");
+const FilePreviewManager = require("./file-preview");
+const ScanController = require("./scan-controller");
+const ScanFilter = require("./scan-filter");
+const ConfigManager = require("./config-manager");
+const AnalyticsManager = require("./analytics");
 const DuplicateDetector = require("./modules/duplicate-detector");
-
-// Import Multi-Agent Orchestrator (v2.0 - Intelligent Task Distribution)
-const {
-  MultiAgentOrchestrator,
-  PRIORITY,
-} = require("../src/integration/multi-agent-orchestrator.cjs");
 
 // Import modules
 const { setupSecurity, setupMiddleware } = require("./modules/security");
@@ -100,16 +105,48 @@ class SpaceAnalyzerAPIServer {
     this.knowledgeDB = new KnowledgeDatabase(path.join(__dirname, "knowledge.db"));
     this.ollamaAvailable = false;
 
-    // Initialize Multi-Agent Orchestrator (v2.0)
-    this.orchestrator = new MultiAgentOrchestrator({
-      maxConcurrentTasks: 10,
-      cacheSize: 50,
-      cacheTTL: 600000, // 10 minutes
-    });
-    this.orchestrator.start();
-    console.log("🤖 Multi-Agent Orchestrator initialized");
+    // Initialize orchestrator
+    this.orchestrator = new MultiAgentOrchestrator();
 
-    // Configuration
+    // Initialize performance monitor
+    this.performanceMonitor = new PerformanceMonitor();
+
+    // Initialize Ollama service
+    this.ollamaService = new EnhancedOllamaService();
+
+    // Initialize scan cache
+    this.scanCache = new ScanCache();
+
+    // Initialize scan profile manager
+    this.scanProfileManager = new ScanProfileManager();
+
+    // Initialize file preview manager
+    this.filePreviewManager = new FilePreviewManager();
+
+    // Initialize scan controller
+    this.scanController = new ScanController();
+
+    // Initialize scan filter
+    this.scanFilter = new ScanFilter();
+
+    // Initialize configuration manager
+    this.configManager = new ConfigManager();
+
+    // Initialize analytics manager
+    this.analyticsManager = new AnalyticsManager();
+
+    // Initialize WebSocket server
+    this.setupWebSocketServer();
+
+    // Initialize active analyses map for progress tracking
+    this.activeAnalyses = new Map();
+
+    this.initDirectories();
+    this.setupSecurity();
+    this.setupMiddleware();
+    this.setupRoutes();
+    this.initializeSelfLearning();
+
     this.config = {
       port: parseInt(process.env.PORT) || 8080,
       ollamaHost: process.env.OLLAMA_HOST || "http://localhost:11434",
@@ -150,6 +187,22 @@ class SpaceAnalyzerAPIServer {
 
   setupMiddleware() {
     setupMiddleware(this.app);
+
+    // Add error handler for JSON parse errors
+    this.app.use((err, req, res, next) => {
+      if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+        console.error("❌ JSON Parse Error:", err.message);
+        console.error("   Request path:", req.path);
+        console.error("   Request method:", req.method);
+        console.error("   Content-Type:", req.get("Content-Type"));
+        return res.status(400).json({
+          success: false,
+          error: "Invalid JSON in request body",
+          details: err.message,
+        });
+      }
+      next(err);
+    });
   }
 
   // Ollama Server Management
@@ -669,26 +722,110 @@ class SpaceAnalyzerAPIServer {
     // Orchestrator analysis endpoint (simplified single-call analysis)
     this.app.post("/api/orchestrate/analyze", async (req, res) => {
       try {
+        // Log incoming request for debugging
+        console.log(`📥 Received analyze request`);
+        console.log(`   Body type: ${typeof req.body}`);
+        console.log(`   Body keys: ${req.body ? Object.keys(req.body).join(", ") : "null"}`);
+
         const { directoryPath, options = {} } = req.body;
 
         if (!directoryPath) {
+          console.error("❌ Missing directoryPath in request");
           return res.status(400).json({
             success: false,
             error: "directoryPath is required",
           });
         }
 
-        console.log(`🎯 Orchestrator analyzing: ${directoryPath}`);
+        // Generate analysis ID for progress tracking
+        const analysisId = `orchestrator-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-        const result = await this.orchestrator.analyzeDirectory(directoryPath, {
-          ai: options.useOllama || false,
-          priority: options.priority || PRIORITY.NORMAL,
-          parallel: options.parallel !== false,
+        console.log(`🎯 Orchestrator analyzing: ${directoryPath} (ID: ${analysisId})`);
+
+        // Set initial progress
+        this.activeAnalyses.set(analysisId, {
+          analysisId,
+          files: 0,
+          filesProcessed: 0,
+          totalSize: 0,
+          percentage: 0,
+          currentFile: "Starting orchestrator analysis...",
+          status: "starting",
+          completed: false,
+          startTime: Date.now(),
+          success: true,
+          progress: {
+            filesProcessed: 0,
+            totalSize: 0,
+            percentage: 0,
+            currentFile: "Starting...",
+            status: "starting",
+          },
         });
 
+        // Emit initial progress
+        this.eventEmitter.emit("progress", {
+          analysisId,
+          files: 0,
+          filesProcessed: 0,
+          totalSize: 0,
+          percentage: 0,
+          currentFile: "Starting orchestrator analysis...",
+          status: "starting",
+        });
+
+        // Run analysis in background with progress updates
+        this.orchestrator
+          .analyzeDirectory(directoryPath, {
+            ai: options.useOllama || false,
+            priority: options.priority || PRIORITY.NORMAL,
+            parallel: options.parallel !== false,
+          })
+          .then((result) => {
+            // Update progress to complete
+            const finalProgress = {
+              analysisId,
+              files: result.total_files || 0,
+              filesProcessed: result.total_files || 0,
+              totalSize: result.total_size || 0,
+              percentage: 100,
+              currentFile: "Analysis complete",
+              status: "complete",
+              completed: true,
+              progress: {
+                filesProcessed: result.total_files || 0,
+                totalSize: result.total_size || 0,
+                percentage: 100,
+                currentFile: "Analysis complete",
+                status: "complete",
+              },
+            };
+
+            this.activeAnalyses.set(analysisId, finalProgress);
+            this.eventEmitter.emit("progress", finalProgress);
+          })
+          .catch((error) => {
+            console.error("Orchestrator analysis error:", error);
+            const errorProgress = {
+              analysisId,
+              files: 0,
+              filesProcessed: 0,
+              totalSize: 0,
+              percentage: 0,
+              currentFile: `Error: ${error.message}`,
+              status: "failed",
+              completed: true,
+              error: error.message,
+            };
+            this.activeAnalyses.set(analysisId, errorProgress);
+            this.eventEmitter.emit("progress", errorProgress);
+          });
+
+        // Return immediately with analysis ID
         res.json({
           success: true,
-          result,
+          analysisId,
+          message: "Analysis started",
           meta: {
             orchestrated: true,
             timestamp: new Date().toISOString(),
@@ -696,9 +833,10 @@ class SpaceAnalyzerAPIServer {
         });
       } catch (error) {
         console.error("Orchestrator analysis failed:", error);
+        console.error("Error stack:", error.stack);
         res.status(500).json({
           success: false,
-          error: error.message,
+          error: error.message || "Analysis failed",
         });
       }
     });
@@ -3026,6 +3164,1057 @@ Summary:`,
         res.json({ success: false, error: error.message });
       }
     });
+
+    // Cache management endpoints
+
+    // Get cache metrics
+    this.app.get("/api/cache/metrics", async (req, res) => {
+      try {
+        const metrics = this.scanCache.getMetrics();
+
+        res.json({
+          success: true,
+          metrics,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Cache metrics error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Clear cache
+    this.app.post("/api/cache/clear", async (req, res) => {
+      try {
+        await this.scanCache.clear();
+
+        res.json({
+          success: true,
+          message: "Cache cleared successfully",
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Cache clear error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Invalidate cache for specific directory
+    this.app.post("/api/cache/invalidate", async (req, res) => {
+      try {
+        const { directoryPath } = req.body;
+
+        if (!directoryPath) {
+          return res.status(400).json({
+            success: false,
+            error: "directoryPath is required"
+          });
+        }
+
+        await this.scanCache.invalidate(directoryPath);
+
+        res.json({
+          success: true,
+          message: `Cache invalidated for ${directoryPath}`,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Cache invalidate error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Set cache TTL
+    this.app.post("/api/cache/ttl", async (req, res) => {
+      try {
+        const { ttl } = req.body; // TTL in milliseconds
+
+        if (!ttl || typeof ttl !== 'number' || ttl < 0) {
+          return res.status(400).json({
+            success: false,
+            error: "Valid TTL (number in milliseconds) is required"
+          });
+        }
+
+        this.scanCache.ttl = ttl;
+
+        res.json({
+          success: true,
+          message: `Cache TTL set to ${ttl}ms`,
+          ttl,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Cache TTL error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Scan profiles endpoints
+
+    // Get all available scan profiles
+    this.app.get("/api/profiles", (req, res) => {
+      try {
+        const profiles = this.scanProfileManager.getAllProfiles();
+
+        res.json({
+          success: true,
+          profiles,
+          defaultProfile: this.scanProfileManager.defaultProfile,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get profiles error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get specific scan profile
+    this.app.get("/api/profiles/:profileName", (req, res) => {
+      try {
+        const { profileName } = req.params;
+        const profile = this.scanProfileManager.getProfile(profileName);
+
+        res.json({
+          success: true,
+          profile,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get profile error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Create custom scan profile
+    this.app.post("/api/profiles/custom", (req, res) => {
+      try {
+        const { name, options } = req.body;
+
+        if (!name) {
+          return res.status(400).json({
+            success: false,
+            error: "Profile name is required"
+          });
+        }
+
+        const profile = this.scanProfileManager.createCustomProfile(name, options);
+        const validation = this.scanProfileManager.validateProfile(profile);
+
+        if (!validation.valid) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid profile configuration",
+            errors: validation.errors
+          });
+        }
+
+        res.json({
+          success: true,
+          profile,
+          message: `Custom profile '${name}' created successfully`,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Create custom profile error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get recommended profile for directory
+    this.app.post("/api/profiles/recommend", (req, res) => {
+      try {
+        const { directorySize, fileCount } = req.body;
+
+        if (!directorySize || !fileCount) {
+          return res.status(400).json({
+            success: false,
+            error: "directorySize and fileCount are required"
+          });
+        }
+
+        const recommendedProfile = this.scanProfileManager.getRecommendedProfile(directorySize, fileCount);
+        const estimatedTime = this.scanProfileManager.estimateScanTime(directorySize, recommendedProfile);
+
+        res.json({
+          success: true,
+          recommendedProfile,
+          estimatedTime,
+          estimatedTimeHuman: this.formatDuration(estimatedTime),
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get profile recommendation error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // File preview endpoints
+
+    // Get file preview
+    this.app.post("/api/file/preview", async (req, res) => {
+      try {
+        const { filePath, options } = req.body;
+
+        if (!filePath) {
+          return res.status(400).json({
+            success: false,
+            error: "filePath is required"
+          });
+        }
+
+        const preview = await this.filePreviewManager.getFilePreview(filePath, options);
+
+        res.json({
+          success: true,
+          preview,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("File preview error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get file preview cache metrics
+    this.app.get("/api/file/preview/metrics", (req, res) => {
+      try {
+        const metrics = this.filePreviewManager.getCacheMetrics();
+
+        res.json({
+          success: true,
+          metrics,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("File preview metrics error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Clear file preview cache
+    this.app.post("/api/file/preview/clear", (req, res) => {
+      try {
+        this.filePreviewManager.clearCache();
+
+        res.json({
+          success: true,
+          message: "File preview cache cleared successfully",
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Clear file preview cache error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Scan control endpoints
+
+    // Pause scan
+    this.app.post("/api/scan/pause", async (req, res) => {
+      try {
+        const { analysisId } = req.body;
+
+        if (!analysisId) {
+          return res.status(400).json({
+            success: false,
+            error: "analysisId is required"
+          });
+        }
+
+        // Find scan by analysisId
+        let scanId = null;
+        for (const [sid, scan] of this.scanController.activeScans.entries()) {
+          if (scan.analysisId === analysisId) {
+            scanId = sid;
+            break;
+          }
+        }
+
+        if (!scanId) {
+          return res.status(404).json({
+            success: false,
+            error: "No active scan found for this analysisId"
+          });
+        }
+
+        const pausedScan = await this.scanController.pauseScan(scanId);
+
+        // Update progress status
+        const progressData = {
+          analysisId,
+          success: true,
+          status: "paused",
+          completed: false,
+          currentFile: "Scan paused",
+          progress: {
+            status: "paused",
+            currentFile: "Scan paused"
+          }
+        };
+
+        this.activeAnalyses.set(analysisId, progressData);
+        this.eventEmitter.emit("progress", progressData);
+
+        res.json({
+          success: true,
+          scanId,
+          message: "Scan paused successfully",
+          scan: pausedScan,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Pause scan error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Resume scan
+    this.app.post("/api/scan/resume", async (req, res) => {
+      try {
+        const { analysisId } = req.body;
+
+        if (!analysisId) {
+          return res.status(400).json({
+            success: false,
+            error: "analysisId is required"
+          });
+        }
+
+        // Find paused scan by analysisId
+        let scanId = null;
+        for (const [sid, scan] of this.scanController.pausedScans.entries()) {
+          if (scan.analysisId === analysisId) {
+            scanId = sid;
+            break;
+          }
+        }
+
+        if (!scanId) {
+          return res.status(404).json({
+            success: false,
+            error: "No paused scan found for this analysisId"
+          });
+        }
+
+        const resumedScan = await this.scanController.resumeScan(scanId);
+
+        // Update progress status
+        const progressData = {
+          analysisId,
+          success: true,
+          status: "resuming",
+          completed: false,
+          currentFile: "Resuming scan...",
+          progress: {
+            status: "resuming",
+            currentFile: "Resuming scan..."
+          }
+        };
+
+        this.activeAnalyses.set(analysisId, progressData);
+        this.eventEmitter.emit("progress", progressData);
+
+        // Restart the scan with checkpoint data
+        this.restartAnalysisFromCheckpoint(analysisId, resumedScan);
+
+        res.json({
+          success: true,
+          scanId,
+          message: "Scan resumed successfully",
+          scan: resumedScan,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Resume scan error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Stop scan
+    this.app.post("/api/scan/stop", async (req, res) => {
+      try {
+        const { analysisId } = req.body;
+
+        if (!analysisId) {
+          return res.status(400).json({
+            success: false,
+            error: "analysisId is required"
+          });
+        }
+
+        // Find scan by analysisId
+        let scanId = null;
+        let scan = null;
+
+        // Check active scans
+        for (const [sid, s] of this.scanController.activeScans.entries()) {
+          if (s.analysisId === analysisId) {
+            scanId = sid;
+            scan = s;
+            break;
+          }
+        }
+
+        // Check paused scans
+        if (!scanId) {
+          for (const [sid, s] of this.scanController.pausedScans.entries()) {
+            if (s.analysisId === analysisId) {
+              scanId = sid;
+              scan = s;
+              break;
+            }
+          }
+        }
+
+        if (!scanId) {
+          return res.status(404).json({
+            success: false,
+            error: "No scan found for this analysisId"
+          });
+        }
+
+        const stoppedScan = await this.scanController.stopScan(scanId);
+
+        // Update progress status
+        const progressData = {
+          analysisId,
+          success: false,
+          status: "stopped",
+          completed: true,
+          currentFile: "Scan stopped",
+          error: "Scan stopped by user",
+          progress: {
+            status: "stopped",
+            currentFile: "Scan stopped",
+            error: "Scan stopped by user"
+          }
+        };
+
+        this.activeAnalyses.set(analysisId, progressData);
+        this.eventEmitter.emit("progress", progressData);
+
+        res.json({
+          success: true,
+          scanId,
+          message: "Scan stopped successfully",
+          scan: stoppedScan,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Stop scan error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get scan status
+    this.app.get("/api/scan/status/:analysisId", (req, res) => {
+      try {
+        const { analysisId } = req.params;
+
+        // Find scan by analysisId
+        let scan = null;
+        let scanId = null;
+
+        // Check active scans
+        for (const [sid, s] of this.scanController.activeScans.entries()) {
+          if (s.analysisId === analysisId) {
+            scanId = sid;
+            scan = s;
+            break;
+          }
+        }
+
+        // Check paused scans
+        if (!scan) {
+          for (const [sid, s] of this.scanController.pausedScans.entries()) {
+            if (s.analysisId === analysisId) {
+              scanId = sid;
+              scan = s;
+              break;
+            }
+          }
+        }
+
+        // Check scan history
+        if (!scan) {
+          for (const [sid, s] of this.scanController.scanHistory.entries()) {
+            if (s.analysisId === analysisId) {
+              scanId = sid;
+              scan = s;
+              break;
+            }
+          }
+        }
+
+        if (!scan) {
+          return res.status(404).json({
+            success: false,
+            error: "No scan found for this analysisId"
+          });
+        }
+
+        res.json({
+          success: true,
+          scanId,
+          scan: {
+            scanId: scan.scanId,
+            analysisId: scan.analysisId,
+            directoryPath: scan.directoryPath,
+            status: scan.status,
+            progress: scan.progress,
+            createdAt: scan.createdAt,
+            startedAt: scan.startedAt,
+            pausedAt: scan.pausedAt,
+            resumedAt: scan.resumedAt,
+            completedAt: scan.completedAt
+          },
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get scan status error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get all scans
+    this.app.get("/api/scans", (req, res) => {
+      try {
+        const metrics = this.scanController.getScanMetrics();
+        const activeScans = this.scanController.getActiveScans();
+        const pausedScans = this.scanController.getPausedScans();
+        const scanHistory = this.scanController.getScanHistory();
+
+        res.json({
+          success: true,
+          metrics,
+          activeScans: activeScans.map(s => ({
+            scanId: s.scanId,
+            analysisId: s.analysisId,
+            directoryPath: s.directoryPath,
+            status: s.status,
+            progress: s.progress,
+            createdAt: s.createdAt,
+            startedAt: s.startedAt
+          })),
+          pausedScans: pausedScans.map(s => ({
+            scanId: s.scanId,
+            analysisId: s.analysisId,
+            directoryPath: s.directoryPath,
+            status: s.status,
+            progress: s.progress,
+            createdAt: s.createdAt,
+            startedAt: s.startedAt,
+            pausedAt: s.pausedAt
+          })),
+          recentHistory: scanHistory.slice(-10).map(s => ({
+            scanId: s.scanId,
+            analysisId: s.analysisId,
+            directoryPath: s.directoryPath,
+            status: s.status,
+            progress: s.progress,
+            createdAt: s.createdAt,
+            completedAt: s.completedAt
+          })),
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get all scans error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Scan filter endpoints
+
+    // Get preset filters
+    this.app.get("/api/filters/presets", (req, res) => {
+      try {
+        const presets = this.scanFilter.getPresetFilters();
+
+        res.json({
+          success: true,
+          presets: Object.keys(presets).map(key => ({
+            key,
+            name: presets[key].name,
+            description: presets[key].description,
+            filter: presets[key].filter
+          })),
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get preset filters error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Create custom filter
+    this.app.post("/api/filters/create", (req, res) => {
+      try {
+        const filterOptions = req.body;
+
+        if (!filterOptions) {
+          return res.status(400).json({
+            success: false,
+            error: "Filter options are required"
+          });
+        }
+
+        const filter = this.scanFilter.createFilter(filterOptions);
+        const summary = this.scanFilter.getFilterSummary(filter);
+
+        res.json({
+          success: true,
+          filter,
+          summary,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Create filter error:", error);
+        res.status(400).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Apply filter to existing results
+    this.app.post("/api/filters/apply", async (req, res) => {
+      try {
+        const { results, filterOptions } = req.body;
+
+        if (!results || !filterOptions) {
+          return res.status(400).json({
+            success: false,
+            error: "Results and filter options are required"
+          });
+        }
+
+        const filter = this.scanFilter.createFilter(filterOptions);
+        const filteredResults = this.scanFilter.applyFilterToResults(results, filter);
+
+        res.json({
+          success: true,
+          originalCount: results.files?.length || 0,
+          filteredCount: filteredResults.files?.length || 0,
+          results: filteredResults,
+          filter: this.scanFilter.getFilterSummary(filter),
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Apply filter error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Validate filter
+    this.app.post("/api/filters/validate", (req, res) => {
+      try {
+        const filterOptions = req.body;
+
+        if (!filterOptions) {
+          return res.status(400).json({
+            success: false,
+            error: "Filter options are required"
+          });
+        }
+
+        const filter = this.scanFilter.createFilter(filterOptions);
+
+        res.json({
+          success: true,
+          valid: true,
+          summary: this.scanFilter.getFilterSummary(filter),
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(400).json({
+          success: false,
+          valid: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // Configuration management endpoints
+
+    // Get all configuration
+    this.app.get("/api/config", (req, res) => {
+      try {
+        const config = this.configManager.getMergedConfig();
+        const schema = this.configManager.getConfigSchema();
+
+        res.json({
+          success: true,
+          config,
+          schema,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get config error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get specific configuration value
+    this.app.get("/api/config/:key", (req, res) => {
+      try {
+        const { key } = req.params;
+        const value = this.configManager.get(key);
+
+        res.json({
+          success: true,
+          key,
+          value,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get config value error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Set configuration value
+    this.app.post("/api/config/:key", async (req, res) => {
+      try {
+        const { key } = req.params;
+        const { value, configType = 'user' } = req.body;
+
+        if (value === undefined) {
+          return res.status(400).json({
+            success: false,
+            error: "Value is required"
+          });
+        }
+
+        const saved = await this.configManager.set(key, value, configType);
+
+        if (saved) {
+          res.json({
+            success: true,
+            key,
+            value,
+            configType,
+            message: "Configuration updated successfully",
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            error: "Failed to save configuration"
+          });
+        }
+      } catch (error) {
+        console.error("Set config error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Reset configuration
+    this.app.post("/api/config/reset", async (req, res) => {
+      try {
+        const { key, configType = 'user' } = req.body;
+
+        const reset = await this.configManager.reset(key, configType);
+
+        if (reset) {
+          res.json({
+            success: true,
+            key: key || 'all',
+            configType,
+            message: key ? `Configuration '${key}' reset to default` : 'All configuration reset to defaults',
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            error: "Failed to reset configuration"
+          });
+        }
+      } catch (error) {
+        console.error("Reset config error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Export configuration
+    this.app.get("/api/config/export/:format", async (req, res) => {
+      try {
+        const { format } = req.params;
+        const exportedConfig = await this.configManager.exportConfig(format);
+
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="config.${format}"`);
+        res.send(exportedConfig);
+      } catch (error) {
+        console.error("Export config error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Import configuration
+    this.app.post("/api/config/import/:format", async (req, res) => {
+      try {
+        const { format } = req.params;
+        const configData = req.body;
+
+        if (!configData) {
+          return res.status(400).json({
+            success: false,
+            error: "Configuration data is required"
+          });
+        }
+
+        await this.configManager.importConfig(configData, format);
+
+        res.json({
+          success: true,
+          format,
+          message: "Configuration imported successfully",
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Import config error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Backup configuration
+    this.app.post("/api/config/backup", async (req, res) => {
+      try {
+        const backupFile = await this.configManager.backup();
+
+        res.json({
+          success: true,
+          backupFile,
+          message: "Configuration backed up successfully",
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Backup config error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Restore configuration
+    this.app.post("/api/config/restore", async (req, res) => {
+      try {
+        const { backupFile } = req.body;
+
+        if (!backupFile) {
+          return res.status(400).json({
+            success: false,
+            error: "Backup file path is required"
+          });
+        }
+
+        await this.configManager.restore(backupFile);
+
+        res.json({
+          success: true,
+          backupFile,
+          message: "Configuration restored successfully",
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Restore config error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get configuration schema
+    this.app.get("/api/config/schema", (req, res) => {
+      try {
+        const schema = this.configManager.getConfigSchema();
+
+        res.json({
+          success: true,
+          schema,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get config schema error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Analytics endpoints
+
+    // Get real-time metrics
+    this.app.get("/api/analytics/realtime", (req, res) => {
+      try {
+        const metrics = this.analyticsManager.realTimeMetrics;
+
+        res.json({
+          success: true,
+          metrics,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get realtime analytics error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get analytics summary
+    this.app.get("/api/analytics/summary", (req, res) => {
+      try {
+        const { timeRange = '24h' } = req.query;
+        const summary = this.analyticsManager.getAnalyticsSummary(timeRange);
+
+        res.json({
+          success: true,
+          summary,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get analytics summary error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get detailed metrics
+    this.app.get("/api/analytics/detailed", (req, res) => {
+      try {
+        const metrics = this.analyticsManager.getDetailedMetrics();
+
+        res.json({
+          success: true,
+          metrics,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Get detailed analytics error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Export analytics
+    this.app.get("/api/analytics/export/:format", async (req, res) => {
+      try {
+        const { format } = req.params;
+        const exportedData = await this.analyticsManager.exportAnalytics(format);
+
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="analytics.${format}"`);
+        res.send(exportedData);
+      } catch (error) {
+        console.error("Export analytics error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Clear analytics data
+    this.app.post("/api/analytics/clear", async (req, res) => {
+      try {
+        await this.analyticsManager.clearAnalytics();
+
+        res.json({
+          success: true,
+          message: "Analytics data cleared successfully",
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error("Clear analytics error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
   }
 
   findProjectRoot(startDir) {
@@ -4008,7 +5197,54 @@ Answer:`;
     return formatBytes(bytes);
   }
 
+  formatDuration(ms) {
+    if (ms < 1000) {
+      return `${ms}ms`;
+    } else if (ms < 60000) {
+      return `${(ms / 1000).toFixed(1)}s`;
+    } else if (ms < 3600000) {
+      return `${(ms / 60000).toFixed(1)}m`;
+    } else {
+      return `${(ms / 3600000).toFixed(1)}h`;
+    }
+  }
+
   async runAnalysisAsync(analysisId, directoryPath, options) {
+    // Check cache first for incremental scanning
+    if (options.incremental !== false) {
+      const cachedResult = await this.scanCache.get(directoryPath, options);
+      if (cachedResult) {
+        console.log(`🎯 Using cached result for ${directoryPath}`);
+
+        // Update progress with cached data
+        const progressData = {
+          analysisId,
+          success: true,
+          files: cachedResult.total_files || 0,
+          filesProcessed: cachedResult.total_files || 0,
+          totalSize: cachedResult.total_size || 0,
+          percentage: 100,
+          currentFile: "Loaded from cache",
+          status: "completed",
+          completed: true,
+          startTime: Date.now(),
+          cached: true,
+          progress: {
+            filesProcessed: cachedResult.total_files || 0,
+            totalSize: cachedResult.total_size || 0,
+            percentage: 100,
+            currentFile: "Loaded from cache",
+            status: "completed",
+          },
+        };
+
+        this.activeAnalyses.set(analysisId, progressData);
+        this.eventEmitter.emit("progress", progressData);
+
+        return cachedResult;
+      }
+    }
+
     const cppPath = await this.findCppExecutable();
     let result;
 
@@ -4018,6 +5254,11 @@ Answer:`;
     } else {
       console.log("⚠️ Falling back to JS Analysis");
       result = await this.runJsAnalysis(analysisId, directoryPath);
+    }
+
+    // Cache the result for future incremental scans
+    if (result && options.incremental !== false) {
+      await this.scanCache.set(directoryPath, result, options);
     }
 
     return result;
@@ -4078,6 +5319,22 @@ Answer:`;
   }
 
   async runCppAnalysis(analysisId, directoryPath, options) {
+    // Apply scan profile configuration
+    const profile = this.scanProfileManager.getProfileForOptions(options);
+    const mergedOptions = { ...options, ...profile.options };
+
+    // Apply scan filter if provided
+    let filter = null;
+    let filterArgs = [];
+    if (options.filter) {
+      filter = this.scanFilter.createFilter(options.filter);
+      filterArgs = this.scanFilter.buildRustArgs(filter);
+      console.log(`🔍 Applying scan filter:`, this.scanFilter.getFilterSummary(filter));
+    }
+
+    console.log(`🔧 Using scan profile: ${profile.options.profile}`);
+    console.log(`🔧 Profile options:`, JSON.stringify(profile.options, null, 2));
+
     return new Promise(async (resolve, reject) => {
       try {
         const exePath = await this.findCppExecutable();
@@ -4090,26 +5347,55 @@ Answer:`;
         // space-analyzer-cli.exe uses C++ format
         const tempFile = path.join(__dirname, `output_${analysisId}.json`);
 
-        let args, commandName;
+async runCppAnalysis(analysisId, directoryPath, options) {
+// Apply scan profile configuration
+const profile = this.scanProfileManager.getProfileForOptions(options);
+const mergedOptions = { ...options, ...profile.options };
 
-        // Use ML-optimized format for large directories (> 50,000 files)
-        const isLargeDirectory = options.estimatedFiles > 50000;
+// Apply scan filter if provided
+let filter = null;
+let filterArgs = [];
+if (options.filter) {
+  filter = this.scanFilter.createFilter(options.filter);
+  filterArgs = this.scanFilter.buildRustArgs(filter);
+  console.log(`🔍 Applying scan filter:`, this.scanFilter.getFilterSummary(filter));
+}
 
-        if (isRustCLI) {
-          // New Rust CLI format: space-analyzer.exe [directory] --format json --output [file] --progress --parallel
-          args = [
-            directoryPath,
-            "--format",
-            "json",
-            "--output",
-            tempFile,
-            "--progress",
-            "--parallel",
-          ];
-          commandName = "Rust CLI";
-        } else {
-          args = [directoryPath, "--json", tempFile];
-          commandName = "C++";
+console.log(`🔧 Using scan profile: ${profile.options.profile}`);
+console.log(`🔧 Profile options:`, JSON.stringify(profile.options, null, 2));
+
+return new Promise(async (resolve, reject) => {
+  try {
+    const exePath = await this.findCppExecutable();
+    if (!exePath) {
+      return reject(new Error("Analysis executable missing"));
+    }
+
+    const isRustCLI =
+      exePath.includes("space-analyzer.exe") || exePath.includes("space-analyzer-rust");
+    // space-analyzer-cli.exe uses C++ format
+    const tempFile = path.join(__dirname, `output_${analysisId}.json`);
+
+    let args, commandName;
+          args.push('--hidden');
+        }
+        if (mergedOptions.parallel && !args.includes('--parallel')) {
+          args.push('--parallel');
+        }
+        if (mergedOptions.duplicates && !args.includes('--duplicates')) {
+          args.push('--duplicates');
+        }
+        if (mergedOptions.maxHashSize && !args.includes('--max-hash-size')) {
+          args.push('--max-hash-size', mergedOptions.maxHashSize.toString());
+        }
+        if (mergedOptions.maxFiles && !args.includes('--max-files')) {
+          args.push('--max-files', mergedOptions.maxFiles.toString());
+        }
+        if (mergedOptions.usnIncremental && !args.includes('--usn-incremental')) {
+          args.push('--usn-incremental');
+        }
+        if (mergedOptions.mftFast && !args.includes('--mft-fast')) {
+          args.push('--mft-fast');
         }
 
         console.log(`🎬 Spawning ${commandName}: ${exePath} ${args.join(" ")}`);
@@ -4121,9 +5407,201 @@ Answer:`;
         });
 
         let stderrOutput = "";
+        let scannedFileCount = 0;
+
         proc.stderr.on("data", (data) => {
-          stderrOutput += data.toString();
-          console.error(`🔴 ${commandName} Stderr: ${data.toString().trim()}`);
+          const stderr = data.toString();
+          stderrOutput += stderr;
+          console.error(`🔴 ${commandName} Stderr: ${stderr.trim()}`);
+
+          // Parse progress from stderr - actual format from Rust CLI
+          // Format: "Scanned: NNNN files, Size: XXXXXXXXXX (hard link savings: YYYYY) - Current: C:\path\to\file"
+          const scannedMatch = stderr.match(/Scanned:\s*(\d+)\s*files,\s*Size:\s*(\d+)/i);
+          if (scannedMatch) {
+            scannedFileCount = parseInt(scannedMatch[1]);
+            cumulativeSize = parseInt(scannedMatch[2]);
+
+            // Extract current file path
+            const currentFileMatch = stderr.match(/Current:\s*(.+)/);
+            let currentFilePath = "Scanning...";
+            if (currentFileMatch) {
+              currentFilePath = currentFileMatch[1].trim();
+            }
+
+            const now = Date.now();
+
+            // Calculate scan speed (files per second)
+            const timeDelta = now - lastUpdateTime;
+            const fileDelta = scannedFileCount - lastFileCount;
+            let scanSpeed = 0;
+            if (timeDelta > 0 && fileDelta > 0) {
+              scanSpeed = (fileDelta / timeDelta) * 1000; // files per second
+              scanSpeedHistory.push(scanSpeed);
+              // Keep only last 10 measurements for moving average
+              if (scanSpeedHistory.length > 10) {
+                scanSpeedHistory.shift();
+              }
+            }
+
+            // Update tracking variables
+            lastFileCount = scannedFileCount;
+            lastUpdateTime = now;
+
+            // Enhanced estimation algorithm
+            if (now - lastProgressUpdate > PROGRESS_UPDATE_INTERVAL) {
+              lastProgressUpdate = now;
+
+              // Calculate average scan speed
+              let avgScanSpeed = 0;
+              if (scanSpeedHistory.length > 0) {
+                avgScanSpeed =
+                  scanSpeedHistory.reduce((a, b) => a + b, 0) / scanSpeedHistory.length;
+              }
+
+              // Dynamic total estimation based on scan speed and elapsed time
+              const elapsed = now - startTime;
+              if (avgScanSpeed > 0 && elapsed > 5000) {
+                // After 5 seconds of scanning
+                // Estimate total based on current speed and typical scan patterns
+                const speedBasedEstimate = (scannedFileCount / elapsed) * 60000; // Files per minute extrapolation
+                const depthMultiplier = 1 + directoryDepth * 0.1; // Account for directory depth
+
+                // Use weighted average of current estimate and speed-based estimate
+                const newEstimate = Math.ceil(
+                  estimatedTotal * 0.7 + speedBasedEstimate * depthMultiplier * 0.3
+                );
+                estimatedTotal = Math.max(estimatedTotal, newEstimate);
+              } else if (scannedFileCount > estimatedTotal) {
+                // Simple fallback: increase estimate if we exceed current estimate
+                estimatedTotal = Math.ceil(scannedFileCount * 1.2);
+              }
+
+              // Calculate time remaining estimate
+              let timeRemaining = 0;
+              if (avgScanSpeed > 0) {
+                const remainingFiles = estimatedTotal - scannedFileCount;
+                timeRemaining = Math.ceil(remainingFiles / avgScanSpeed);
+              }
+
+              const percentage = Math.min((scannedFileCount / estimatedTotal) * 100, 95);
+
+              // Get file preview for current file (async, non-blocking)
+              let filePreview = null;
+              if (currentFilePath && currentFilePath !== "Scanning..." && !currentFilePath.includes("files")) {
+                try {
+                  filePreview = await this.filePreviewManager.getFilePreview(currentFilePath, {
+                    includeHash: false,
+                    includeTextPreview: false,
+                    previewLines: 3
+                  });
+                } catch (previewError) {
+                  // Don't let preview errors break progress updates
+                  console.warn(`Preview error for ${currentFilePath}:`, previewError.message);
+                }
+              }
+
+              const progressData = {
+                analysisId,
+                success: true,
+                files: estimatedTotal,
+                filesProcessed: scannedFileCount,
+                totalSize: cumulativeSize,
+                percentage: Math.round(percentage),
+                currentFile: currentFilePath,
+                status: "analyzing",
+                completed: false,
+                startTime: startTime,
+                scanSpeed: Math.round(avgScanSpeed),
+                timeRemaining: timeRemaining,
+                filePreview: filePreview,
+                progress: {
+                  filesProcessed: scannedFileCount,
+                  totalSize: cumulativeSize,
+                  percentage: Math.round(percentage),
+                  currentFile: currentFilePath,
+                  status: "analyzing",
+                  scanSpeed: Math.round(avgScanSpeed),
+                  timeRemaining: timeRemaining,
+                  filePreview: filePreview,
+                },
+              };
+
+              this.activeAnalyses.set(analysisId, progressData);
+              this.eventEmitter.emit("progress", progressData);
+            }
+          }
+
+          // Format 2: "Processing file N" or similar
+          const processingMatch = stderr.match(/Processing\s+file\s+(\d+)/i);
+          if (processingMatch) {
+            const current = parseInt(processingMatch[1]);
+            scannedFileCount = Math.max(scannedFileCount, current);
+            const now = Date.now();
+
+            if (now - lastProgressUpdate > PROGRESS_UPDATE_INTERVAL) {
+              lastProgressUpdate = now;
+              const percentage = Math.min((current / estimatedTotal) * 100, 95);
+
+              let args = [...profile.rustArgs];
+
+        // Add directory path
+        args.push(directoryPath);
+
+        // Add any additional custom arguments that aren't already covered by the profile
+        if (mergedOptions.maxDepth && !args.includes('--max-depth')) {
+          args.push('--max-depth', mergedOptions.maxDepth.toString());
+        }
+        if (mergedOptions.includeHidden && !args.includes('--hidden')) {
+          args.push('--hidden');
+        }
+        if (mergedOptions.parallel && !args.includes('--parallel')) {
+          args.push('--parallel');
+        }
+        if (mergedOptions.duplicates && !args.includes('--duplicates')) {
+          args.push('--duplicates');
+        }
+        if (mergedOptions.maxHashSize && !args.includes('--max-hash-size')) {
+          args.push('--max-hash-size', mergedOptions.maxHashSize.toString());
+        }
+        if (mergedOptions.maxFiles && !args.includes('--max-files')) {
+          args.push('--max-files', mergedOptions.maxFiles.toString());
+        }
+        if (mergedOptions.usnIncremental && !args.includes('--usn-incremental')) {
+          args.push('--usn-incremental');
+        }
+        if (mergedOptions.mftFast && !args.includes('--mft-fast')) {
+          args.push('--mft-fast');
+        }
+
+        // For non-Rust CLI, just use directory path
+        if (!isRustCLI) {
+          args = [directoryPath];
+        }
+
+              const progressData = {
+                analysisId,
+                success: true,
+                files: estimatedTotal,
+                filesProcessed: current,
+                totalSize: cumulativeSize,
+                percentage: Math.round(percentage),
+                currentFile: `Processing file ${current}`,
+                status: "analyzing",
+                completed: false,
+                startTime: Date.now(),
+                progress: {
+                  filesProcessed: current,
+                  totalSize: cumulativeSize,
+                  percentage: Math.round(percentage),
+                  currentFile: `Processing file ${current}`,
+                  status: "analyzing",
+                },
+              };
+
+              this.activeAnalyses.set(analysisId, progressData);
+              this.eventEmitter.emit("progress", progressData);
+            }
+          }
         });
 
         proc.on("close", async (code) => {
@@ -4133,8 +5611,121 @@ Answer:`;
             console.error(`   Directory: ${directoryPath}`);
             console.error(`   Args: ${args.join(" ")}`);
             console.error(`   Stderr: ${stderrOutput}`);
+
+            // Enhanced error handling with retry logic
+            const retryCount = options.retryCount || 0;
+            const maxRetries = options.maxRetries || 2;
+
+            // Check for partial results
+            if (existsSync(tempFile)) {
+              try {
+                const partialContent = await fsPromises.readFile(tempFile, "utf8");
+                const partialData = JSON.parse(partialContent);
+
+                // Emit partial results if available
+                if (partialData.files && partialData.files.length > 0) {
+                  console.log(`📊 Partial results available: ${partialData.files.length} files`);
+
+                  const partialProgressData = {
+                    analysisId,
+                    success: true,
+                    files: partialData.total_files || scannedFileCount,
+                    filesProcessed: partialData.files.length,
+                    totalSize: partialData.total_size || cumulativeSize,
+                    percentage: Math.round((partialData.files.length / (partialData.total_files || scannedFileCount)) * 100),
+                    currentFile: "Scan failed - partial results",
+                    status: "partial",
+                    completed: true,
+                    startTime: startTime,
+                    error: `Scan failed with exit code ${code}`,
+                    partialResults: true,
+                    progress: {
+                      filesProcessed: partialData.files.length,
+                      totalSize: partialData.total_size || cumulativeSize,
+                      percentage: Math.round((partialData.files.length / (partialData.total_files || scannedFileCount)) * 100),
+                      currentFile: "Scan failed - partial results",
+                      status: "partial",
+                    },
+                  };
+
+                  this.activeAnalyses.set(analysisId, partialProgressData);
+                  this.eventEmitter.emit("progress", partialProgressData);
+
+                  // Convert partial results to expected format
+                  const convertedPartialData = isRustCLI
+                    ? await this.convertRustOutputToWebFormat(partialData, analysisId, false)
+                    : partialData;
+
+                  await fsPromises.unlink(tempFile).catch(() => {});
+                  resolve(convertedPartialData);
+                  return;
+                }
+              } catch (parseError) {
+                console.error(`⚠️ Could not parse partial results: ${parseError.message}`);
+              }
+            }
+
+            // Retry logic for common errors
+            if (retryCount < maxRetries) {
+              const retryableErrors = [
+                /Access Denied/i,
+                /Permission denied/i,
+                /The process cannot access/i,
+                /Device or resource busy/i,
+                /Network path not found/i,
+              ];
+
+              const isRetryable = retryableErrors.some(regex => regex.test(stderrOutput));
+
+              if (isRetryable) {
+                console.log(`🔄 Retrying scan (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+
+                // Wait before retry with exponential backoff
+                const delay = Math.pow(2, retryCount) * 1000;
+                await new Promise(resolve => setTimeout(resolve, delay));
+
+                // Retry the analysis
+                try {
+                  const retryOptions = { ...options, retryCount: retryCount + 1 };
+                  const retryResult = await this.runCppAnalysis(analysisId, directoryPath, retryOptions);
+                  resolve(retryResult);
+                  return;
+                } catch (retryError) {
+                  console.error(`❌ Retry attempt ${retryCount + 1} failed: ${retryError.message}`);
+                }
+              }
+            }
+
+            // Create error progress data
+            const errorProgressData = {
+              analysisId,
+              success: false,
+              files: 0,
+              filesProcessed: scannedFileCount,
+              totalSize: cumulativeSize,
+              percentage: 0,
+              currentFile: "Scan failed",
+              status: "error",
+              completed: true,
+              startTime: startTime,
+              error: `Scan failed with exit code ${code}: ${stderrOutput}`,
+              progress: {
+                filesProcessed: scannedFileCount,
+                totalSize: cumulativeSize,
+                percentage: 0,
+                currentFile: "Scan failed",
+                status: "error",
+              },
+            };
+
+            this.activeAnalyses.set(analysisId, errorProgressData);
+            this.eventEmitter.emit("progress", errorProgressData);
+
+            reject(new Error(`${commandName} failed with exit code ${code}: ${stderrOutput}`));
+            return;
           }
-          if (code === 0) {
+
+          // Success case
             try {
               if (existsSync(tempFile)) {
                 const content = await fsPromises.readFile(tempFile, "utf8");
@@ -4164,96 +5755,6 @@ Answer:`;
             reject(new Error(`${commandName} exit code ${code}`));
           }
         });
-
-        // Track cumulative size for progress updates
-        let cumulativeSize = 0;
-
-        if (isRustCLI) {
-          proc.stdout.on("data", (data) => {
-            const output = data.toString();
-            console.log(`📊 Rust CLI Output: ${output.trim()}`);
-
-            // Try to parse [current/total]
-            const progressMatch = output.match(/\[(\d+)\/(\d+)\]/);
-            if (progressMatch) {
-              const current = parseInt(progressMatch[1]);
-              const total = parseInt(progressMatch[2]);
-              const percentage = Math.min((current / total) * 100, 95);
-
-              const progressData = {
-                analysisId,
-                success: true,
-                files: current,
-                filesProcessed: current,
-                totalSize: cumulativeSize,
-                percentage: Math.round(percentage),
-                currentFile: `Processing ${current}/${total}`,
-                status: "analyzing",
-                completed: false,
-                startTime: Date.now(),
-                progress: {
-                  filesProcessed: current,
-                  totalSize: cumulativeSize,
-                  percentage: Math.round(percentage),
-                  currentFile: `Processing ${current}/${total}`,
-                  status: "analyzing",
-                },
-              };
-
-              this.activeAnalyses.set(analysisId, progressData);
-              this.eventEmitter.emit("progress", progressData);
-            }
-          });
-
-          proc.stderr.on("data", (data) => {
-            const stderr = data.toString().trim();
-            console.error(`🔴 Rust CLI Stderr: ${stderr}`);
-
-            // Parse "Scanned: N files, Size: X bytes - Current: path" format
-            const scannedMatch = stderr.match(/Scanned:\s*(\d+)\s*files/i);
-            const sizeMatch = stderr.match(/[Ss]ize:\s*(\d+)/);
-            const currentFileMatch = stderr.match(/Current:\s*(.+)/);
-
-            if (scannedMatch) {
-              const current = parseInt(scannedMatch[1]);
-              if (sizeMatch) {
-                cumulativeSize = parseInt(sizeMatch[1]);
-              }
-              // Use a better estimate based on quick scan results
-              const estimatedTotal = options.estimatedFiles || 50000;
-              const percentage = Math.min((current / estimatedTotal) * 100, 95);
-
-              // Extract current file path if available
-              let currentFilePath = `Scanned ${current} files`;
-              if (currentFileMatch) {
-                currentFilePath = currentFileMatch[1].trim();
-              }
-
-              const progressData = {
-                analysisId,
-                success: true,
-                files: current,
-                filesProcessed: current,
-                totalSize: cumulativeSize,
-                percentage: Math.round(percentage),
-                currentFile: currentFilePath,
-                status: "analyzing",
-                completed: false,
-                startTime: Date.now(),
-                progress: {
-                  filesProcessed: current,
-                  totalSize: cumulativeSize,
-                  percentage: Math.round(percentage),
-                  currentFile: currentFilePath,
-                  status: "analyzing",
-                },
-              };
-
-              this.activeAnalyses.set(analysisId, progressData);
-              this.eventEmitter.emit("progress", progressData);
-            }
-          });
-        }
       } catch (err) {
         reject(err);
       }
