@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import NotificationCenter from "@/components/vue/other/NotificationCenter.vue";
 
 const sidebarOpen = ref(false);
 
@@ -140,6 +141,7 @@ function toggleSidebar() {
         <button class="lg:hidden p-2 hover:bg-slate-800 rounded" @click="toggleSidebar">☰</button>
 
         <div class="flex items-center gap-4">
+          <NotificationCenter />
           <slot name="top-bar-actions" />
         </div>
       </header>

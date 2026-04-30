@@ -26,6 +26,11 @@ const router = createRouter({
       component: () => import("../features/settings/SettingsView.vue"),
     },
     {
+      path: "/settings/notifications",
+      name: "notification-settings",
+      component: () => import("../features/settings/NotificationSettingsView.vue"),
+    },
+    {
       path: "/duplicates",
       name: "duplicates",
       component: () => import("../features/duplicates/DuplicateFinderView.vue"),
