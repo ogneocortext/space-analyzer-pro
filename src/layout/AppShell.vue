@@ -22,6 +22,8 @@ const analysisNav = [
   { name: "Treemap", path: "/treemap", icon: "LayoutGrid" },
   { name: "Insights", path: "/insights", icon: "Lightbulb" },
   { name: "Network", path: "/network", icon: "Share2" },
+  { name: "Reports", path: "/reports", icon: "FileText" },
+  { name: "Code Complexity", path: "/complexity", icon: "Code2" },
 ];
 
 const visualizationNav = [{ name: "Timeline", path: "/timeline", icon: "Clock" }];
