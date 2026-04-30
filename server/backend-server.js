@@ -726,6 +726,104 @@ class SpaceAnalyzerAPIServer {
       });
     });
 
+    // Cache TTL configuration endpoint (Step 2: Tune cache TTL)
+    this.app.post("/api/orchestrate/cache/config", (req, res) => {
+      const { ttl, maxSize } = req.body;
+      const updates = {};
+
+      if (ttl && typeof ttl === "number" && ttl > 0) {
+        this.orchestrator.cache.defaultTTL = ttl;
+        updates.ttl = ttl;
+      }
+
+      if (maxSize && typeof maxSize === "number" && maxSize > 0) {
+        this.orchestrator.cache.maxSize = maxSize;
+        updates.maxSize = maxSize;
+      }
+
+      res.json({
+        success: true,
+        message: "Cache configuration updated",
+        config: {
+          ttl: this.orchestrator.cache.defaultTTL,
+          maxSize: this.orchestrator.cache.maxSize,
+          currentSize: this.orchestrator.cache.size,
+        },
+        updates,
+      });
+    });
+
+    // AI insights endpoint for analyzed directories (Step 3: AI Insights)
+    this.app.post("/api/orchestrate/insights", async (req, res) => {
+      try {
+        const { directoryPath } = req.body;
+
+        if (!directoryPath) {
+          return res.status(400).json({
+            success: false,
+            error: "directoryPath is required",
+          });
+        }
+
+        console.log(`🧠 Generating AI insights for: ${directoryPath}`);
+
+        // First check cache for existing analysis
+        const cachedResult = this.orchestrator.cache.get(directoryPath);
+
+        let analysisData;
+        if (cachedResult) {
+          analysisData = cachedResult;
+          console.log("📋 Using cached analysis for AI insights");
+        } else {
+          // Run new analysis with AI enabled
+          analysisData = await this.orchestrator.analyzeDirectory(directoryPath, {
+            ai: true,
+            priority: PRIORITY.HIGH,
+            parallel: true,
+          });
+        }
+
+        // Generate AI insights from the data
+        const insights = {
+          summary: {
+            totalFiles: analysisData.total_files || 0,
+            totalSize: analysisData.total_size || 0,
+            topCategories: analysisData.categories
+              ? Object.entries(analysisData.categories)
+                  .sort((a, b) => b[1].size - a[1].size)
+                  .slice(0, 5)
+              : [],
+            largestFiles: analysisData.large_files || [],
+            duplicates: analysisData.duplicate_groups || [],
+          },
+          recommendations: analysisData.insights || [],
+          storageOptimization: {
+            potentialSavings: analysisData.duplicate_size || 0,
+            compressionCandidates: analysisData.compression_candidates || [],
+            oldFiles: analysisData.old_files || [],
+          },
+          security: {
+            hiddenFiles: analysisData.hidden_files || [],
+            executableCount: analysisData.executable_count || 0,
+            scriptFiles: analysisData.script_files || [],
+          },
+        };
+
+        res.json({
+          success: true,
+          insights,
+          source: cachedResult ? "cache" : "fresh",
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error("AI insights generation failed:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
     // System metrics endpoint for real system monitoring
     this.app.get("/api/system/metrics", async (req, res) => {
       const os = require("os");
