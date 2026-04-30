@@ -1,0 +1,61 @@
+/**
+ * Routes Index
+ * Aggregates all route modules for the Space Analyzer API
+ */
+
+const AnalysisRoutes = require("./analysis");
+const AIRoutes = require("./ai");
+const FileRoutes = require("./files");
+const ExportRoutes = require("./exports");
+const ComplexityRoutes = require("./complexity");
+
+class RoutesManager {
+  constructor(server) {
+    this.server = server;
+    this.routes = {};
+    this.initializeRoutes();
+  }
+
+  initializeRoutes() {
+    // Initialize all route modules
+    this.routes.analysis = new AnalysisRoutes(this.server);
+    this.routes.ai = new AIRoutes(this.server);
+    this.routes.files = new FileRoutes(this.server);
+    this.routes.exports = new ExportRoutes(this.server);
+    this.routes.complexity = new ComplexityRoutes(this.server);
+  }
+
+  mountAll(app) {
+    // Mount all routes to the Express app
+    app.use("/api", this.routes.analysis.getRouter());
+    app.use("/api", this.routes.ai.getRouter());
+    app.use("/api", this.routes.files.getRouter());
+    app.use("/api", this.routes.exports.getRouter());
+    app.use("/api", this.routes.complexity.getRouter());
+
+    console.log("✅ All API routes mounted successfully");
+  }
+
+  // Access to individual route modules if needed
+  getAnalysisRoutes() {
+    return this.routes.analysis;
+  }
+
+  getAIRoutes() {
+    return this.routes.ai;
+  }
+
+  getFileRoutes() {
+    return this.routes.files;
+  }
+
+  getExportRoutes() {
+    return this.routes.exports;
+  }
+
+  getComplexityRoutes() {
+    return this.routes.complexity;
+  }
+}
+
+module.exports = RoutesManager;
