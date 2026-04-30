@@ -177,6 +177,43 @@ class DatabaseCore {
         file_hash TEXT -- For cache invalidation
       );
 
+      -- Report Templates for user-defined PDF styles
+      CREATE TABLE IF NOT EXISTS report_templates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        template_name TEXT NOT NULL,
+        template_type TEXT NOT NULL, -- 'analysis', 'complexity', 'custom'
+        description TEXT,
+        header_html TEXT, -- Custom HTML for header section
+        footer_html TEXT, -- Custom HTML for footer section
+        css_styles TEXT, -- Custom CSS styles
+        color_scheme TEXT, -- JSON: { primary, secondary, accent, background }
+        logo_url TEXT, -- Optional logo URL/path
+        include_sections TEXT, -- JSON array: ['summary', 'categories', 'extensions', 'files', 'charts']
+        file_limit INTEGER DEFAULT 100,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        is_default BOOLEAN DEFAULT 0,
+        is_active BOOLEAN DEFAULT 1,
+        UNIQUE(template_name, template_type)
+      );
+
+      -- Batch Export Jobs
+      CREATE TABLE IF NOT EXISTS batch_export_jobs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_name TEXT,
+        job_type TEXT NOT NULL, -- 'pdf', 'csv', 'json'
+        status TEXT DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
+        analysis_ids TEXT, -- JSON array of analysis IDs
+        export_options TEXT, -- JSON: { format, template, includeFiles, etc. }
+        output_files TEXT, -- JSON array of generated file paths
+        total_items INTEGER,
+        processed_items INTEGER DEFAULT 0,
+        error_message TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        started_at DATETIME,
+        completed_at DATETIME
+      );
+
       -- Indexes for AI context, trends, summaries, cleanup, and complexity
       CREATE INDEX IF NOT EXISTS idx_ai_context_analysis ON ai_analysis_context(analysis_id);
       CREATE INDEX IF NOT EXISTS idx_ai_context_type ON ai_analysis_context(context_type);
@@ -188,6 +225,12 @@ class DatabaseCore {
       CREATE INDEX IF NOT EXISTS idx_complexity_dir ON complexity_metrics(directory_path);
       CREATE INDEX IF NOT EXISTS idx_complexity_grade ON complexity_metrics(complexity_grade);
       CREATE INDEX IF NOT EXISTS idx_complexity_priority ON complexity_metrics(refactoring_priority);
+
+      -- Indexes for report_templates and batch_export_jobs
+      CREATE INDEX IF NOT EXISTS idx_templates_type ON report_templates(template_type);
+      CREATE INDEX IF NOT EXISTS idx_templates_active ON report_templates(is_active);
+      CREATE INDEX IF NOT EXISTS idx_batch_jobs_status ON batch_export_jobs(status);
+      CREATE INDEX IF NOT EXISTS idx_batch_jobs_created ON batch_export_jobs(created_at);
     `;
 
     this.db.exec(tables, (err) => {
@@ -271,7 +314,9 @@ class DatabaseCore {
 
         const sizeMB = stats.size / (1024 * 1024);
         if (sizeMB > thresholdMB) {
-          console.warn(`⚠️ Database size (${sizeMB.toFixed(2)} MB) exceeds ${thresholdMB} MB threshold`);
+          console.warn(
+            `⚠️ Database size (${sizeMB.toFixed(2)} MB) exceeds ${thresholdMB} MB threshold`
+          );
         }
 
         resolve({ size: sizeMB, threshold: thresholdMB });
