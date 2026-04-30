@@ -4,14 +4,101 @@ All notable changes to Space Analyzer will be documented in this file.
 
 ## Version Timeline
 
-| Version | Date       | Summary                                                                           |
-| ------- | ---------- | --------------------------------------------------------------------------------- |
-| 2.2.2   | 2026-04-29 | Ollama API 0.22.0 integration, optimized context payload, trend tracking database |
-| 2.2.1   | 2026-04-29 | Windows API data display in frontend                                              |
-| 2.2.0   | 2026-04-28 | Major feature expansion: 15 views, Windows API, AI Auto-Organization, PDF reports |
-| 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                |
-| 2.1.8   | 2026-04-27 | Project cleanup and organization                                                  |
-| 2.1.7   | 2026-04-27 | Implement improvement recommendations                                             |
+| Version | Date       | Summary                                                                                    |
+| ------- | ---------- | ------------------------------------------------------------------------------------------ |
+| 2.2.3   | 2026-04-29 | AI-powered features: Document Summarization, Natural Language Interface, Cleanup Assistant |
+| 2.2.2   | 2026-04-29 | Ollama API 0.22.0 integration, optimized context payload, trend tracking database          |
+| 2.2.1   | 2026-04-29 | Windows API data display in frontend                                                       |
+| 2.2.0   | 2026-04-28 | Major feature expansion: 15 views, Windows API, AI Auto-Organization, PDF reports          |
+| 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                         |
+| 2.1.8   | 2026-04-27 | Project cleanup and organization                                                           |
+| 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                      |
+
+---
+
+## [2.2.3] - 2026-04-29
+
+### AI-Powered Features
+
+#### 1. Document Summarization (AI Summary)
+
+**Backend:**
+
+- **Text Extractor** (`server/modules/text-extractor.js`) - Extracts text from:
+  - PDFs (with pdf-parse support)
+  - Word documents (.doc, .docx with mammoth)
+  - Code files (with comment removal)
+  - HTML (tag stripping)
+  - Plain text, Markdown, JSON, XML, CSV
+
+- **API Endpoint** - `POST /api/ai/summarize`
+  - Caches summaries by file hash (MD5 of path+size+mtime)
+  - Type-specific prompts (document, code, data, web)
+  - Returns: summary, file type, tokens used, response time
+
+- **Database** - `file_summaries` table:
+  - File hash for cache invalidation
+  - Hit count tracking for popular summaries
+  - Model and token usage tracking
+
+**Frontend:**
+
+- **AI Summary Button** in File Browser (List & Grid views)
+  - Purple/violet gradient styling with lightning icon
+  - Modal dialog with loading, error, and success states
+  - Shows: file info, summary, metadata (type, cached status, tokens, time)
+
+#### 2. Natural Language Interface
+
+**Backend:**
+
+- **API Endpoint** - `POST /api/ai/nl-query`
+  - Accepts natural language queries like:
+    - "Find videos from 2023 larger than 500MB"
+    - "Show old documents not opened in 2 years"
+    - "Big code files over 10MB"
+
+- **Query Parser** (`parseNaturalLanguageQuery`):
+  - Uses Ollama phi4-mini to parse queries
+  - Returns structured filters: extensions, categories, minSize, maxSize, dateFrom, dateTo
+
+- **Query Executor** (`executeFileQuery`):
+  - Filters files by parsed criteria
+  - Sorts results by size (largest first)
+  - Returns up to 100 matches
+
+#### 3. Intelligent Cleanup Assistant
+
+**Backend:**
+
+- **Database** - `cleanup_recommendations` table:
+  - recommendation_type: safe_to_delete, review, archive, duplicate
+  - confidence_score: 0.0-1.0
+  - reasoning: AI explanation
+  - user_action: pending, approved, rejected, completed
+  - potential_savings tracking
+
+- **API Endpoints:**
+  - `POST /api/ai/cleanup/analyze` - Generate recommendations
+  - `GET /api/ai/cleanup/recommendations` - Get stored recommendations
+  - `POST /api/ai/cleanup/action` - Approve/reject: { filePath, action }
+
+- **AI Recommendation Engine** (`generateCleanupRecommendations`):
+  - Heuristic pre-filtering: temp patterns (.tmp, .cache, .log), large files (>100MB), duplicates
+  - AI evaluates top 20 candidates with Ollama
+  - Returns confidence scores and reasoning
+
+- **Potential Savings Tracker** (`getPotentialSavings`):
+  - Total recommendations count
+  - Total potential savings in bytes
+  - Safe-to-delete savings only
+
+**Database Methods Added:**
+
+- `storeCleanupRecommendation()` - Save AI recommendations
+- `getCleanupRecommendations()` - Retrieve with filtering
+- `updateCleanupAction()` - Track user decisions
+- `getPotentialSavings()` - Calculate total savings
 
 ---
 
