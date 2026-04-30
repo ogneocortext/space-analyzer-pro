@@ -1,0 +1,16 @@
+KnowledgeDatabase FAIL: Unexpected token '{'
+Stack: E:\Self Built Web and Mobile Apps\Space Analyzer\server\KnowledgeDatabase.js:214
+  compressData(data) {
+                     ^
+
+SyntaxError: Unexpected token '{'
+    at wrapSafe (node:internal/modules/cjs/loader:1762:18)
+    at Module._compile (node:internal/modules/cjs/loader:1803:20)
+    at Object..js (node:internal/modules/cjs/loader:1969:10)
+    at Module.load (node:internal/modules/cjs/loader:1552:32)
+    at Module._load (node:internal/modules/cjs/loader:1354:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1575:12)
+    at require (node:internal/modules/helpers:191:16)
+    at Object.<anonymous> (E:\Self Built Web and Mobile Apps\Space Analyzer\server\test-kdb.js:2:29)
+    at Module._compile (node:internal/modules/cjs/loader:1829:14)
