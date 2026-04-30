@@ -19,10 +19,12 @@ export const useAnalysisStore = defineStore("analysis", () => {
   const status = ref("idle");
   const progress = ref(0);
   const isAnalysisRunning = ref(false);
+  // Data will be fetched from database - don't store in localStorage
   const data = ref<any>(null);
   const error = ref<string | null>(null);
   const useAI = ref(false);
   const scannedFiles = ref<any[]>([]);
+  const recentlyScannedFiles = ref<string[]>([]);
   const progressData = ref({
     files: 0,
     percentage: 0,
@@ -42,6 +44,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
       progress.value = 0;
       data.value = null;
       scannedFiles.value = [];
+      recentlyScannedFiles.value = [];
       useAI.value = enableAI;
 
       const { result } = await analysisBridge.analyzeDirectoryWithProgress(
@@ -57,6 +60,19 @@ export const useAnalysisStore = defineStore("analysis", () => {
             totalSize: progressInfo.totalSize || 0,
           };
           status.value = "analyzing";
+
+          // Add current file to recently scanned files list
+          if (
+            progressInfo.currentFile &&
+            progressInfo.currentFile !== "Starting scan..." &&
+            progressInfo.currentFile !== "Analysis complete"
+          ) {
+            recentlyScannedFiles.value.unshift(progressInfo.currentFile);
+            // Keep only the last 50 files
+            if (recentlyScannedFiles.value.length > 50) {
+              recentlyScannedFiles.value = recentlyScannedFiles.value.slice(0, 50);
+            }
+          }
         },
         { useOllama: enableAI }
       );
@@ -72,13 +88,46 @@ export const useAnalysisStore = defineStore("analysis", () => {
       progressData.value.completed = true;
       isAnalysisRunning.value = false;
 
-      // Save path for next time
+      // Save only the path for next time - data is stored in database
       localStorage.setItem("lastPath", path.value);
     } catch (err) {
       log("ERROR", err);
       error.value = err instanceof Error ? err.message : "Analysis failed";
       status.value = "error";
       isAnalysisRunning.value = false;
+    }
+  };
+
+  // Fetch analysis from database by path
+  const fetchAnalysisFromDB = async (directoryPath: string) => {
+    try {
+      log("FETCH_DB", "Fetching analysis from database", directoryPath);
+      const response = await fetch(
+        `/api/analysis/current?path=${encodeURIComponent(directoryPath)}`
+      );
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          data.value = result.data;
+          scannedFiles.value = result.data.files || [];
+          log("FETCH_DB_SUCCESS", "Loaded analysis from", result.source);
+          return result.data;
+        }
+      }
+      log("FETCH_DB_MISS", "No analysis found in database");
+      return null;
+    } catch (err) {
+      log("FETCH_DB_ERROR", err);
+      return null;
+    }
+  };
+
+  // Initialize: try to load previous analysis from database
+  const initialize = async () => {
+    const savedPath = localStorage.getItem("lastPath");
+    if (savedPath) {
+      path.value = savedPath;
+      await fetchAnalysisFromDB(savedPath);
     }
   };
 
@@ -89,6 +138,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
     data.value = null;
     error.value = null;
     scannedFiles.value = [];
+    recentlyScannedFiles.value = [];
     progressData.value = {
       files: 0,
       percentage: 0,
@@ -96,6 +146,8 @@ export const useAnalysisStore = defineStore("analysis", () => {
       completed: false,
       totalSize: 0,
     };
+    // Clear persisted data (path is kept for convenience)
+    // Analysis data is cleared from memory only, database keeps history
   };
 
   return {
@@ -108,8 +160,11 @@ export const useAnalysisStore = defineStore("analysis", () => {
     error,
     useAI,
     scannedFiles,
+    recentlyScannedFiles,
     progressData,
     handleAnalysis,
     reset,
+    initialize,
+    fetchAnalysisFromDB,
   };
 });

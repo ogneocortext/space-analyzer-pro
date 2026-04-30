@@ -39,13 +39,14 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 
 ### Windows API Features (Windows Only) 🪟
 
-- **Hard Link Detection** - Track hard links to avoid double-counting file sizes
+- **Hard Link Detection** - Track hard links to avoid double-counting file sizes with space savings calculation
 - **Alternate Data Streams (ADS)** - Detect hidden data streams in files
-- **NTFS Compression Status** - Show compressed files with real vs compressed size
+- **NTFS Compression Status** - Show compressed files with real vs compressed size and space savings
 - **Sparse File Detection** - Identify sparse files with unallocated regions
 - **Reparse Point Detection** - Handle junctions, symlinks, and mount points correctly
 - **File Ownership (SID)** - Display file owner security identifiers
 - **Creation & Access Time** - Track file creation and last access timestamps
+- **Frontend Display** - Dedicated Windows tab in Dashboard showing NTFS analysis summary and files with Windows features
 
 ### Coming Soon 🚧
 

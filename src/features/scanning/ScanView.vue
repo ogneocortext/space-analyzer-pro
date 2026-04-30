@@ -159,9 +159,35 @@ function formatSize(bytes: number): string {
           </div>
 
           <!-- Current File -->
-          <p class="text-sm text-slate-500 text-center truncate px-4">
-            {{ store.status === "complete" ? "Analysis finished successfully!" : currentFile }}
-          </p>
+          <div class="space-y-2">
+            <p class="text-sm text-slate-400 text-center">
+              {{
+                store.status === "complete"
+                  ? "Analysis finished successfully!"
+                  : "Recently scanned files:"
+              }}
+            </p>
+            <div
+              v-if="store.status !== 'complete' && store.recentlyScannedFiles.length > 0"
+              class="bg-slate-800/50 rounded-lg p-3 max-h-64 overflow-y-auto"
+            >
+              <ul class="space-y-2">
+                <li
+                  v-for="(file, index) in store.recentlyScannedFiles"
+                  :key="index"
+                  class="text-xs text-slate-300 break-all font-mono leading-relaxed"
+                >
+                  {{ file }}
+                </li>
+              </ul>
+            </div>
+            <p
+              v-else-if="store.status !== 'complete'"
+              class="text-sm text-slate-500 text-center break-all px-4"
+            >
+              {{ currentFile }}
+            </p>
+          </div>
         </div>
       </Card>
     </div>
