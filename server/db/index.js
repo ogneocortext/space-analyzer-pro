@@ -10,6 +10,7 @@ const TrendsDatabase = require("./trends");
 const SummariesDatabase = require("./summaries");
 const CleanupDatabase = require("./cleanup");
 const ComplexityDatabase = require("./complexity");
+const TemplatesDatabase = require("./templates");
 
 class KnowledgeDatabase {
   constructor(dbPath) {
@@ -24,6 +25,7 @@ class KnowledgeDatabase {
     this.summaries = new SummariesDatabase(this.core);
     this.cleanup = new CleanupDatabase(this.core);
     this.complexity = new ComplexityDatabase(this.core);
+    this.templates = new TemplatesDatabase(this.core);
 
     // Set database reference once initialized
     this.db = this.core.getDatabase();
@@ -38,6 +40,7 @@ class KnowledgeDatabase {
     this.summaries.setDatabase(this.db);
     this.cleanup.setDatabase(this.db);
     this.complexity.setDatabase(this.db);
+    this.templates.setDatabase(this.db);
   }
 
   // ============================================================
@@ -124,8 +127,22 @@ class KnowledgeDatabase {
     return this.ai.findSimilarResponse(question, contextHash);
   }
 
-  storeAIAnalysisContext(analysisId, directoryPath, contextType, contextPayload, modelUsed, promptTemplate) {
-    return this.ai.storeAIAnalysisContext(analysisId, directoryPath, contextType, contextPayload, modelUsed, promptTemplate);
+  storeAIAnalysisContext(
+    analysisId,
+    directoryPath,
+    contextType,
+    contextPayload,
+    modelUsed,
+    promptTemplate
+  ) {
+    return this.ai.storeAIAnalysisContext(
+      analysisId,
+      directoryPath,
+      contextType,
+      contextPayload,
+      modelUsed,
+      promptTemplate
+    );
   }
 
   getAIAnalysisContext(analysisId, contextType) {
@@ -152,8 +169,26 @@ class KnowledgeDatabase {
   // Summaries Methods (delegated to summaries module)
   // ============================================================
 
-  storeFileSummary(filePath, fileHash, fileSize, fileType, summaryText, extractedPreview, modelUsed, tokensUsed) {
-    return this.summaries.storeFileSummary(filePath, fileHash, fileSize, fileType, summaryText, extractedPreview, modelUsed, tokensUsed);
+  storeFileSummary(
+    filePath,
+    fileHash,
+    fileSize,
+    fileType,
+    summaryText,
+    extractedPreview,
+    modelUsed,
+    tokensUsed
+  ) {
+    return this.summaries.storeFileSummary(
+      filePath,
+      fileHash,
+      fileSize,
+      fileType,
+      summaryText,
+      extractedPreview,
+      modelUsed,
+      tokensUsed
+    );
   }
 
   getFileSummary(filePath, fileHash) {
@@ -172,8 +207,26 @@ class KnowledgeDatabase {
   // Cleanup Methods (delegated to cleanup module)
   // ============================================================
 
-  storeCleanupRecommendation(directoryPath, filePath, fileSize, recommendationType, confidenceScore, reasoning, potentialSavings, safeToDelete) {
-    return this.cleanup.storeCleanupRecommendation(directoryPath, filePath, fileSize, recommendationType, confidenceScore, reasoning, potentialSavings, safeToDelete);
+  storeCleanupRecommendation(
+    directoryPath,
+    filePath,
+    fileSize,
+    recommendationType,
+    confidenceScore,
+    reasoning,
+    potentialSavings,
+    safeToDelete
+  ) {
+    return this.cleanup.storeCleanupRecommendation(
+      directoryPath,
+      filePath,
+      fileSize,
+      recommendationType,
+      confidenceScore,
+      reasoning,
+      potentialSavings,
+      safeToDelete
+    );
   }
 
   getCleanupRecommendations(directoryPath, limit, type) {
@@ -226,6 +279,42 @@ class KnowledgeDatabase {
 
   getMostComplexFiles(limit) {
     return this.complexity.getMostComplexFiles(limit);
+  }
+
+  // ============================================================
+  // Templates Methods (delegated to templates module)
+  // ============================================================
+
+  createTemplate(template) {
+    return this.templates.createTemplate(template);
+  }
+
+  getTemplates(templateType, activeOnly) {
+    return this.templates.getTemplates(templateType, activeOnly);
+  }
+
+  getTemplateById(templateId) {
+    return this.templates.getTemplateById(templateId);
+  }
+
+  getDefaultTemplate(templateType) {
+    return this.templates.getDefaultTemplate(templateType);
+  }
+
+  updateTemplate(templateId, updates) {
+    return this.templates.updateTemplate(templateId, updates);
+  }
+
+  deleteTemplate(templateId) {
+    return this.templates.deleteTemplate(templateId);
+  }
+
+  setDefaultTemplate(templateId, templateType) {
+    return this.templates.setDefaultTemplate(templateId, templateType);
+  }
+
+  duplicateTemplate(templateId, newName) {
+    return this.templates.duplicateTemplate(templateId, newName);
   }
 }
 

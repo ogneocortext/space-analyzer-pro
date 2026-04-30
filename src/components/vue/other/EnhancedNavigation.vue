@@ -233,6 +233,7 @@ import {
   Network,
   Cpu,
   Sparkles,
+  FileType,
 } from "lucide-vue-next";
 
 interface NavigationItem {
@@ -326,6 +327,15 @@ const navigationItems: NavigationItem[] = [
   },
 
   // Analysis Tools
+  {
+    id: "reports",
+    label: "PDF Reports",
+    path: "/reports",
+    icon: FileType,
+    description: "Generate and view PDF analysis reports",
+    category: "analysis",
+    shortcut: "R",
+  },
   {
     id: "time-travel",
     label: "Time Travel",
