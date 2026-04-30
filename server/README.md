@@ -93,6 +93,48 @@ curl http://localhost:8080/api/orchestrate/status
 curl http://localhost:8080/api/orchestrate/cache/metrics
 ```
 
+### Frontend Usage (TypeScript/Vue)
+
+```typescript
+import { AnalysisBridge } from "@/services/AnalysisBridge";
+
+const analysisBridge = new AnalysisBridge();
+
+// Simple orchestrated analysis - single call replaces 3+ API calls!
+async function scanDirectory(path: string) {
+  try {
+    // HIGH priority (1) for user-facing scans
+    const { result, analysisId } = await analysisBridge.analyzeWithOrchestrator(path, {
+      useOllama: true, // Enable AI analysis
+      priority: 1, // HIGH priority
+      parallel: true, // Parallel processing
+    });
+
+    console.log(`Analyzed ${result.totalFiles} files (${result.totalSize} bytes)`);
+    return result;
+  } catch (error) {
+    console.error("Analysis failed:", error);
+  }
+}
+
+// Monitor orchestrator health
+async function checkHealth() {
+  const status = await analysisBridge.getOrchestratorStatus();
+
+  console.log(`Agents: ${status.agents.available}/${status.agents.total} available`);
+  console.log(`Tasks: ${status.tasks.active} active, ${status.tasks.queued} queued`);
+  console.log(`Cache: ${(status.cache.hitRate * 100).toFixed(1)}% hit rate`);
+
+  return status;
+}
+
+// Force re-analysis by invalidating cache
+async function refreshAnalysis(path: string) {
+  await analysisBridge.invalidateOrchestratorCache(path);
+  return scanDirectory(path); // Will re-scan, not use cache
+}
+```
+
 ### Performance
 
 | Metric           | Before    | After     | Improvement       |
