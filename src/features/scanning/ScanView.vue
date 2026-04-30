@@ -105,7 +105,7 @@ function formatPath(path: string): string {
 
     <!-- Path Selection -->
     <div
-      class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700/50"
+      class="bg-linear-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700/50"
     >
       <div class="flex items-center gap-3 mb-4">
         <div class="p-2 bg-blue-500/20 rounded-lg">
@@ -151,7 +151,7 @@ function formatPath(path: string): string {
     <div class="flex justify-center">
       <button
         :disabled="!selectedPath || store.isAnalysisRunning"
-        class="group relative inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 disabled:from-slate-700 disabled:to-slate-600 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 disabled:shadow-none transition-all duration-300"
+        class="group relative inline-flex items-center gap-3 px-8 py-4 bg-linear-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 disabled:from-slate-700 disabled:to-slate-600 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 disabled:shadow-none transition-all duration-300"
         @click="startScan"
       >
         <Loader2 v-if="store.isAnalysisRunning" class="w-5 h-5 animate-spin" />
@@ -163,7 +163,7 @@ function formatPath(path: string): string {
     <!-- Progress -->
     <div v-if="store.isAnalysisRunning || store.status === 'complete'" class="space-y-4">
       <div
-        class="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700/50"
+        class="bg-linear-to-br from-slate-800/50 to-slate-900/50 rounded-2xl p-6 border border-slate-700/50"
       >
         <div class="flex items-center gap-3 mb-6">
           <div class="p-2 bg-emerald-500/20 rounded-lg">
@@ -212,8 +212,8 @@ function formatPath(path: string): string {
               :class="[
                 'h-full rounded-full transition-all duration-500 ease-out',
                 store.status === 'complete'
-                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                  : 'bg-gradient-to-r from-blue-600 to-blue-400 animate-pulse',
+                  ? 'bg-linear-to-r from-emerald-500 to-emerald-400'
+                  : 'bg-linear-to-r from-blue-600 to-blue-400 animate-pulse',
               ]"
               :style="{ width: progressPercent + '%' }"
             />
