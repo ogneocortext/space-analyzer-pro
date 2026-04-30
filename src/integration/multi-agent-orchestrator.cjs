@@ -339,9 +339,8 @@ class Agent extends EventEmitter {
 
   executeProcess(task) {
     return new Promise((resolve, reject) => {
-      // Wrap directory path in quotes to handle spaces
-      const directoryPath = `"${task.data.directory}"`;
-      const args = [directoryPath];
+      // Pass directory path as-is - spawn handles spaces correctly with array args
+      const args = [task.data.directory];
 
       if (task.data.json) {
         args.push('--format', 'json');
@@ -350,11 +349,13 @@ class Agent extends EventEmitter {
         args.push('--parallel');
       }
 
-      console.log(`🎬 Spawning ${this.name}: ${this.executable} ${args.join(' ')}`);
+      console.log(`🎬 Spawning ${this.name}: ${this.executable}`);
+      console.log(`   Args: ${JSON.stringify(args)}`);
 
       const proc = spawn(this.executable, args, {
-        maxBuffer: 1024 * 1024 * 100, // 100MB buffer
-        windowsVerbatimArguments: true // Important for paths with spaces on Windows
+        maxBuffer: 1024 * 1024 * 100 // 100MB buffer
+        // Note: No shell:true or windowsVerbatimArguments needed
+        // Node.js spawn with array args handles spaces correctly
       });
 
       let stdout = '';
