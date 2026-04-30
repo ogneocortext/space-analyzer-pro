@@ -3,18 +3,22 @@
  * API endpoints for user settings management
  */
 
+const express = require("express");
+
 class SettingsRoutes {
   constructor(server) {
     this.server = server;
-    this.app = server.app;
+    this.router = express.Router();
     this.setupRoutes();
   }
 
   setupRoutes() {
     // Get all settings
-    this.app.get("/api/settings", async (req, res) => {
+    this.router.get("/api/settings", async (req, res) => {
       try {
         const settings = await this.server.knowledge.getAllUserSettings();
+        // Cache for 5 minutes since settings don't change often
+        res.setHeader("Cache-Control", "max-age=300");
         res.json({
           success: true,
           settings,
@@ -29,10 +33,12 @@ class SettingsRoutes {
     });
 
     // Get specific setting
-    this.app.get("/api/settings/:key", async (req, res) => {
+    this.router.get("/api/settings/:key", async (req, res) => {
       try {
         const { key } = req.params;
         const value = await this.server.knowledge.getUserSetting(key);
+        // Cache for 5 minutes since settings don't change often
+        res.setHeader("Cache-Control", "max-age=300");
         res.json({
           success: true,
           key,
@@ -48,7 +54,7 @@ class SettingsRoutes {
     });
 
     // Set specific setting
-    this.app.post("/api/settings/:key", async (req, res) => {
+    this.router.post("/api/settings/:key", async (req, res) => {
       try {
         const { key } = req.params;
         const { value } = req.body;
@@ -76,7 +82,7 @@ class SettingsRoutes {
     });
 
     // Set multiple settings at once
-    this.app.post("/api/settings", async (req, res) => {
+    this.router.post("/api/settings", async (req, res) => {
       try {
         const { settings } = req.body;
 
@@ -108,7 +114,7 @@ class SettingsRoutes {
     });
 
     // Delete specific setting
-    this.app.delete("/api/settings/:key", async (req, res) => {
+    this.router.delete("/api/settings/:key", async (req, res) => {
       try {
         const { key } = req.params;
         await this.server.knowledge.deleteUserSetting(key);
@@ -127,9 +133,11 @@ class SettingsRoutes {
     });
 
     // Get notification settings (convenience endpoint)
-    this.app.get("/api/settings/notifications", async (req, res) => {
+    this.router.get("/api/settings/notifications", async (req, res) => {
       try {
         const settings = await this.server.knowledge.getUserSetting("notifications");
+        // Cache for 1 minute since settings can change during user session
+        res.setHeader("Cache-Control", "max-age=60");
         res.json({
           success: true,
           settings: settings || this.getDefaultNotificationSettings(),
@@ -144,7 +152,7 @@ class SettingsRoutes {
     });
 
     // Save notification settings (convenience endpoint)
-    this.app.post("/api/settings/notifications", async (req, res) => {
+    this.router.post("/api/settings/notifications", async (req, res) => {
       try {
         const settings = req.body;
         await this.server.knowledge.setUserSetting("notifications", settings);
@@ -181,7 +189,7 @@ class SettingsRoutes {
   }
 
   getRouter() {
-    return this.app;
+    return this.router;
   }
 }
 

@@ -215,9 +215,7 @@ class AnalysisRoutes {
         }
 
         if (extension) {
-          files = files.filter((f) =>
-            f.name.toLowerCase().endsWith(extension.toLowerCase())
-          );
+          files = files.filter((f) => f.name.toLowerCase().endsWith(extension.toLowerCase()));
         }
 
         if (minSize) {
@@ -373,6 +371,31 @@ class AnalysisRoutes {
         });
       } else {
         res.status(400).json({ error: "Unknown launch type" });
+      }
+    });
+
+    // Health check endpoint
+    this.router.get("/health", async (req, res) => {
+      try {
+        const status = {
+          success: true,
+          timestamp: new Date().toISOString(),
+          uptime: process.uptime(),
+          memory: process.memoryUsage(),
+          analyses: {
+            active: this.server.activeAnalyses.size,
+            completed: this.server.analysisResults.size,
+          },
+          database: {
+            connected: !!this.server.knowledgeDB?.db,
+          },
+        };
+        res.json(status);
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
       }
     });
   }

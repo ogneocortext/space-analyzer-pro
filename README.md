@@ -2,6 +2,16 @@
 
 AI-Powered disk space analysis and optimization tool with machine learning capabilities.
 
+> **⚠️ Alpha Status & Design Intent**
+>
+> This application is currently in **alpha** and is designed to run on **localhost by a single user**.
+>
+> - **Local-First Architecture**: Built for personal use on your local machine
+> - **Single-User Design**: No multi-user support, authentication, or rate limiting (not needed for localhost)
+> - **GitHub Presence**: Repository exists primarily as a backup method and to establish foundations for future expansion
+> - **Future Roadmap**: Once all features are fully fleshed out and stabilized, the architecture may be extended to support multi-user scenarios
+> - **Current Focus**: Feature completeness and stability before any expansion
+
 ## Features
 
 ### Core Analysis ✅
