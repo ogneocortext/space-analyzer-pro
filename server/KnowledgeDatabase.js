@@ -154,13 +154,40 @@ class KnowledgeDatabase {
                 UNIQUE(directory_path, file_path)
             );
 
-            -- Indexes for AI context, trends, summaries, and cleanup
+            -- Code Complexity Metrics
+            CREATE TABLE IF NOT EXISTS complexity_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_path TEXT UNIQUE NOT NULL,
+                directory_path TEXT NOT NULL,
+                language TEXT,
+                lines_of_code INTEGER,
+                logical_lines INTEGER,
+                comment_lines INTEGER,
+                blank_lines INTEGER,
+                cyclomatic_complexity INTEGER,
+                cognitive_complexity INTEGER,
+                function_count INTEGER,
+                max_function_length INTEGER,
+                avg_function_length REAL,
+                nesting_depth INTEGER,
+                maintainability_index REAL,
+                complexity_grade TEXT, -- 'A', 'B', 'C', 'D', 'F'
+                refactoring_priority TEXT, -- 'critical', 'high', 'medium', 'low'
+                analyzed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                file_hash TEXT -- For cache invalidation
+            );
+
+            -- Indexes for AI context, trends, summaries, cleanup, and complexity
             CREATE INDEX IF NOT EXISTS idx_ai_context_analysis ON ai_analysis_context(analysis_id);
             CREATE INDEX IF NOT EXISTS idx_ai_context_type ON ai_analysis_context(context_type);
             CREATE INDEX IF NOT EXISTS idx_trends_path ON analysis_trends(directory_path);
             CREATE INDEX IF NOT EXISTS idx_trends_date ON analysis_trends(analysis_date);
             CREATE INDEX IF NOT EXISTS idx_summaries_path ON file_summaries(file_path);
             CREATE INDEX IF NOT EXISTS idx_summaries_type ON file_summaries(file_type);
+            CREATE INDEX IF NOT EXISTS idx_complexity_path ON complexity_metrics(file_path);
+            CREATE INDEX IF NOT EXISTS idx_complexity_dir ON complexity_metrics(directory_path);
+            CREATE INDEX IF NOT EXISTS idx_complexity_grade ON complexity_metrics(complexity_grade);
+            CREATE INDEX IF NOT EXISTS idx_complexity_priority ON complexity_metrics(refactoring_priority);
         `;
 
     this.db.exec(tables, (err) => {
@@ -1176,6 +1203,150 @@ class KnowledgeDatabase {
       this.db.get(sql, [directoryPath], (err, row) => {
         if (err) reject(err);
         else resolve(row || { recommendation_count: 0, total_savings: 0, safe_savings: 0 });
+      });
+    });
+  }
+
+  /**
+   * Store code complexity metrics
+   */
+  storeComplexityMetrics(metrics) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        INSERT OR REPLACE INTO complexity_metrics
+        (file_path, directory_path, language, lines_of_code, logical_lines, comment_lines, blank_lines,
+         cyclomatic_complexity, cognitive_complexity, function_count, max_function_length, avg_function_length,
+         nesting_depth, maintainability_index, complexity_grade, refactoring_priority, analyzed_at, file_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+      `;
+
+      this.db.run(
+        sql,
+        [
+          metrics.filePath,
+          metrics.directoryPath,
+          metrics.language,
+          metrics.linesOfCode,
+          metrics.logicalLines,
+          metrics.commentLines,
+          metrics.blankLines,
+          metrics.cyclomaticComplexity,
+          metrics.cognitiveComplexity,
+          metrics.functionCount,
+          metrics.maxFunctionLength,
+          metrics.averageFunctionLength,
+          metrics.nestingDepth,
+          metrics.maintainabilityIndex,
+          metrics.complexityGrade,
+          metrics.refactoringPriority,
+          metrics.fileHash,
+        ],
+        function (err) {
+          if (err) {
+            console.error("❌ Error storing complexity metrics:", err);
+            reject(err);
+          } else {
+            resolve(this.lastID);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Get complexity metrics for a file
+   */
+  getComplexityMetrics(filePath) {
+    return new Promise((resolve, reject) => {
+      const sql = `SELECT * FROM complexity_metrics WHERE file_path = ?`;
+      this.db.get(sql, [filePath], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+  }
+
+  /**
+   * Get complexity metrics for a directory
+   */
+  getDirectoryComplexity(directoryPath, minPriority = null) {
+    return new Promise((resolve, reject) => {
+      let sql = `SELECT * FROM complexity_metrics WHERE directory_path = ?`;
+      const params = [directoryPath];
+
+      if (minPriority) {
+        const priorityOrder = { critical: 1, high: 2, medium: 3, low: 4 };
+        sql += ` AND CASE refactoring_priority
+          WHEN 'critical' THEN 1
+          WHEN 'high' THEN 2
+          WHEN 'medium' THEN 3
+          WHEN 'low' THEN 4
+        END <= ?`;
+        params.push(priorityOrder[minPriority] || 4);
+      }
+
+      sql += ` ORDER BY cyclomatic_complexity DESC`;
+
+      this.db.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  }
+
+  /**
+   * Get complexity summary statistics for a directory
+   */
+  getComplexitySummary(directoryPath) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT
+          COUNT(*) as total_files,
+          AVG(lines_of_code) as avg_lines,
+          AVG(cyclomatic_complexity) as avg_complexity,
+          AVG(maintainability_index) as avg_maintainability,
+          MAX(cyclomatic_complexity) as max_complexity,
+          MIN(maintainability_index) as min_maintainability,
+          SUM(CASE WHEN complexity_grade = 'A' THEN 1 ELSE 0 END) as grade_a,
+          SUM(CASE WHEN complexity_grade = 'B' THEN 1 ELSE 0 END) as grade_b,
+          SUM(CASE WHEN complexity_grade = 'C' THEN 1 ELSE 0 END) as grade_c,
+          SUM(CASE WHEN complexity_grade = 'D' THEN 1 ELSE 0 END) as grade_d,
+          SUM(CASE WHEN complexity_grade = 'F' THEN 1 ELSE 0 END) as grade_f,
+          SUM(CASE WHEN refactoring_priority = 'critical' THEN 1 ELSE 0 END) as critical_count,
+          SUM(CASE WHEN refactoring_priority = 'high' THEN 1 ELSE 0 END) as high_count,
+          SUM(CASE WHEN refactoring_priority = 'medium' THEN 1 ELSE 0 END) as medium_count
+        FROM complexity_metrics
+        WHERE directory_path = ?
+      `;
+
+      this.db.get(sql, [directoryPath], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+  }
+
+  /**
+   * Get files needing refactoring by priority
+   */
+  getFilesNeedingRefactoring(directoryPath, limit = 20) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT * FROM complexity_metrics
+        WHERE directory_path = ?
+          AND refactoring_priority IN ('critical', 'high')
+        ORDER BY
+          CASE refactoring_priority
+            WHEN 'critical' THEN 1
+            WHEN 'high' THEN 2
+          END,
+          cyclomatic_complexity DESC
+        LIMIT ?
+      `;
+
+      this.db.all(sql, [directoryPath, limit], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
       });
     });
   }
