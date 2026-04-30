@@ -122,11 +122,45 @@ class KnowledgeDatabase {
                 FOREIGN KEY (directory_path) REFERENCES analyses(directory_path)
             );
 
-            -- Indexes for AI context and trends
+            -- File Summaries for AI document summarization
+            CREATE TABLE IF NOT EXISTS file_summaries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_path TEXT UNIQUE NOT NULL,
+                file_hash TEXT, -- For cache invalidation
+                file_size INTEGER,
+                file_type TEXT, -- 'document', 'code', 'data', etc.
+                summary_text TEXT, -- AI-generated summary
+                extracted_text_preview TEXT, -- First 500 chars of extracted text
+                model_used TEXT,
+                tokens_used INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                accessed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                hit_count INTEGER DEFAULT 1
+            );
+
+            -- Cleanup Recommendations for AI cleanup assistant
+            CREATE TABLE IF NOT EXISTS cleanup_recommendations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                directory_path TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                file_size INTEGER,
+                recommendation_type TEXT, -- 'safe_to_delete', 'review', 'archive', 'duplicate'
+                confidence_score REAL, -- 0.0 to 1.0
+                reasoning TEXT, -- AI explanation
+                potential_savings INTEGER, -- Size in bytes
+                safe_to_delete BOOLEAN DEFAULT 0,
+                user_action TEXT, -- 'pending', 'approved', 'rejected', 'completed'
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(directory_path, file_path)
+            );
+
+            -- Indexes for AI context, trends, summaries, and cleanup
             CREATE INDEX IF NOT EXISTS idx_ai_context_analysis ON ai_analysis_context(analysis_id);
             CREATE INDEX IF NOT EXISTS idx_ai_context_type ON ai_analysis_context(context_type);
             CREATE INDEX IF NOT EXISTS idx_trends_path ON analysis_trends(directory_path);
             CREATE INDEX IF NOT EXISTS idx_trends_date ON analysis_trends(analysis_date);
+            CREATE INDEX IF NOT EXISTS idx_summaries_path ON file_summaries(file_path);
+            CREATE INDEX IF NOT EXISTS idx_summaries_type ON file_summaries(file_type);
         `;
 
     this.db.exec(tables, (err) => {
@@ -919,6 +953,229 @@ class KnowledgeDatabase {
           avgGrowthRate: row.avg_growth_rate,
           totalGrowth: row.max_size && row.min_size ? row.max_size - row.min_size : 0,
         });
+      });
+    });
+  }
+
+  /**
+   * Store AI-generated file summary
+   */
+  storeFileSummary(
+    filePath,
+    fileHash,
+    fileSize,
+    fileType,
+    summaryText,
+    extractedPreview,
+    modelUsed,
+    tokensUsed
+  ) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        INSERT OR REPLACE INTO file_summaries
+        (file_path, file_hash, file_size, file_type, summary_text, extracted_text_preview, model_used, tokens_used, created_at, accessed_at, hit_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, COALESCE(
+          (SELECT hit_count + 1 FROM file_summaries WHERE file_path = ?), 1
+        ))
+      `;
+
+      this.db.run(
+        sql,
+        [
+          filePath,
+          fileHash,
+          fileSize,
+          fileType,
+          summaryText,
+          extractedPreview,
+          modelUsed,
+          tokensUsed,
+          filePath,
+        ],
+        (err) => {
+          if (err) {
+            console.error("❌ Error storing file summary:", err);
+            reject(err);
+          } else {
+            console.log(`📝 Stored summary for: ${path.basename(filePath)} (${fileType})`);
+            resolve();
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Get cached file summary
+   */
+  getFileSummary(filePath, fileHash = null) {
+    return new Promise((resolve, reject) => {
+      let sql = `SELECT * FROM file_summaries WHERE file_path = ?`;
+      const params = [filePath];
+
+      // If hash provided, check if summary is still valid
+      if (fileHash) {
+        sql += ` AND file_hash = ?`;
+        params.push(fileHash);
+      }
+
+      this.db.get(sql, params, (err, row) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        if (row) {
+          // Update access time
+          this.db.run(
+            `UPDATE file_summaries SET accessed_at = CURRENT_TIMESTAMP, hit_count = hit_count + 1 WHERE id = ?`,
+            [row.id]
+          );
+          resolve(row);
+        } else {
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  /**
+   * Get popular file summaries (for analytics)
+   */
+  getPopularSummaries(limit = 20) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT file_path, file_type, summary_text, hit_count, accessed_at
+        FROM file_summaries
+        ORDER BY hit_count DESC, accessed_at DESC
+        LIMIT ?
+      `;
+
+      this.db.all(sql, [limit], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  }
+
+  /**
+   * Clean up old summaries (files that no longer exist)
+   */
+  async cleanupStaleSummaries(existingFilePaths) {
+    return new Promise((resolve, reject) => {
+      const placeholders = existingFilePaths.map(() => "?").join(",");
+      const sql = `
+        DELETE FROM file_summaries
+        WHERE file_path NOT IN (${placeholders})
+      `;
+
+      this.db.run(sql, existingFilePaths, function (err) {
+        if (err) {
+          reject(err);
+        } else {
+          console.log(`🧹 Cleaned up ${this.changes} stale file summaries`);
+          resolve(this.changes);
+        }
+      });
+    });
+  }
+
+  /**
+   * Store AI cleanup recommendation
+   */
+  storeCleanupRecommendation(
+    directoryPath,
+    filePath,
+    fileSize,
+    recommendationType,
+    confidenceScore,
+    reasoning,
+    potentialSavings,
+    safeToDelete
+  ) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        INSERT OR REPLACE INTO cleanup_recommendations
+        (directory_path, file_path, file_size, recommendation_type, confidence_score, reasoning, potential_savings, safe_to_delete, user_action, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)
+      `;
+
+      this.db.run(
+        sql,
+        [
+          directoryPath,
+          filePath,
+          fileSize,
+          recommendationType,
+          confidenceScore,
+          reasoning,
+          potentialSavings,
+          safeToDelete ? 1 : 0,
+        ],
+        function (err) {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(this.lastID);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Get cleanup recommendations for a directory
+   */
+  getCleanupRecommendations(directoryPath, limit = 50, type = null) {
+    return new Promise((resolve, reject) => {
+      let sql = `SELECT * FROM cleanup_recommendations WHERE directory_path = ?`;
+      const params = [directoryPath];
+
+      if (type) {
+        sql += ` AND recommendation_type = ?`;
+        params.push(type);
+      }
+
+      sql += ` ORDER BY confidence_score DESC, potential_savings DESC LIMIT ?`;
+      params.push(limit);
+
+      this.db.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  }
+
+  /**
+   * Update user action on recommendation
+   */
+  updateCleanupAction(filePath, action) {
+    return new Promise((resolve, reject) => {
+      const sql = `UPDATE cleanup_recommendations SET user_action = ? WHERE file_path = ?`;
+      this.db.run(sql, [action, filePath], function (err) {
+        if (err) reject(err);
+        else resolve(this.changes);
+      });
+    });
+  }
+
+  /**
+   * Get total potential savings from pending recommendations
+   */
+  getPotentialSavings(directoryPath) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT
+          COUNT(*) as recommendation_count,
+          SUM(potential_savings) as total_savings,
+          SUM(CASE WHEN safe_to_delete = 1 THEN potential_savings ELSE 0 END) as safe_savings
+        FROM cleanup_recommendations
+        WHERE directory_path = ? AND user_action = 'pending'
+      `;
+
+      this.db.get(sql, [directoryPath], (err, row) => {
+        if (err) reject(err);
+        else resolve(row || { recommendation_count: 0, total_savings: 0, safe_savings: 0 });
       });
     });
   }

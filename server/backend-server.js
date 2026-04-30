@@ -1747,6 +1747,155 @@ class SpaceAnalyzerAPIServer {
       }
     });
 
+    // AI File Summarization
+    this.app.post("/api/ai/summarize", async (req, res) => {
+      const startTime = Date.now();
+      try {
+        const { filePath, maxChars = 5000, model = "phi4-mini:latest" } = req.body;
+
+        if (!filePath) {
+          return res.status(400).json({ error: "filePath is required" });
+        }
+
+        // Check path is valid
+        if (!this.isValidPath(filePath)) {
+          return res.status(400).json({ error: "Invalid file path" });
+        }
+
+        // Generate file hash for caching
+        const fs = require("fs").promises;
+        const crypto = require("crypto");
+        const stats = await fs.stat(filePath).catch(() => null);
+
+        if (!stats) {
+          return res.status(404).json({ error: "File not found" });
+        }
+
+        const fileHash = crypto
+          .createHash("md5")
+          .update(`${filePath}:${stats.size}:${stats.mtime}`)
+          .digest("hex");
+
+        // Check cache first
+        const cached = await this.knowledgeDB.getFileSummary(filePath, fileHash);
+        if (cached) {
+          return res.json({
+            success: true,
+            summary: cached.summary_text,
+            fileType: cached.file_type,
+            cached: true,
+            hitCount: cached.hit_count,
+            responseTime: Date.now() - startTime,
+          });
+        }
+
+        // Extract text from file
+        const TextExtractor = require("./modules/text-extractor");
+        const extractor = new TextExtractor();
+        const extractedText = await extractor.extractText(filePath, maxChars);
+
+        if (!extractedText || extractedText.startsWith("[")) {
+          return res.status(400).json({
+            error: "Unable to extract text from this file type",
+            extractedPreview: extractedText,
+          });
+        }
+
+        // Generate summary via Ollama
+        const fileType = extractor.getFileTypeCategory(filePath);
+        const prompt = this.buildSummaryPrompt(extractedText, fileType);
+
+        const ollamaResponse = await fetch(`${this.config.ollamaHost}/api/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: model,
+            prompt: prompt,
+            stream: false,
+            options: {
+              temperature: 0.3,
+              num_predict: 150,
+              num_ctx: 4096,
+            },
+          }),
+        });
+
+        if (!ollamaResponse.ok) {
+          throw new Error(`Ollama error: ${ollamaResponse.status}`);
+        }
+
+        const ollamaData = await ollamaResponse.json();
+        const summary =
+          ollamaData.response || ollamaData.message?.content || "No summary generated";
+
+        // Store in cache
+        await this.knowledgeDB.storeFileSummary(
+          filePath,
+          fileHash,
+          stats.size,
+          fileType,
+          summary,
+          extractedText.substring(0, 500),
+          model,
+          ollamaData.eval_count || 0
+        );
+
+        res.json({
+          success: true,
+          summary: summary,
+          fileType: fileType,
+          extractedPreview: extractedText.substring(0, 200) + "...",
+          cached: false,
+          model: model,
+          tokensUsed: ollamaData.eval_count || 0,
+          responseTime: Date.now() - startTime,
+        });
+      } catch (error) {
+        console.error("AI summarization error:", error);
+        res.status(500).json({
+          error: error.message,
+          responseTime: Date.now() - startTime,
+        });
+      }
+    });
+
+    // Build summary prompt based on file type
+    this.buildSummaryPrompt = (extractedText, fileType) => {
+      const prompts = {
+        document: `Summarize this document in 2-3 sentences. Focus on the main topic, key points, and purpose:
+
+${extractedText}
+
+Summary:`,
+
+        code: `Explain what this code does in 2-3 sentences. Focus on the main functionality, purpose, and any notable patterns:
+
+${extractedText}
+
+Explanation:`,
+
+        data: `Describe this data file in 2-3 sentences. What kind of data does it contain, and what might it be used for?
+
+${extractedText}
+
+Description:`,
+
+        web: `Summarize this web file (HTML/CSS) in 2-3 sentences. What is its purpose and main functionality?
+
+${extractedText}
+
+Summary:`,
+
+        other: `Summarize the content of this file in 2-3 sentences:
+
+${extractedText}
+
+Summary:`,
+      };
+
+      return prompts[fileType] || prompts.other;
+    };
+
     // Proxy Generate
     this.app.post("/api/ollama/api/generate", async (req, res) => {
       try {
@@ -1776,6 +1925,174 @@ class SpaceAnalyzerAPIServer {
       } catch (error) {
         console.error("Ollama Proxy Error (Chat):", error.message);
         res.status(502).json({ error: "AI Service Error" });
+      }
+    });
+
+    // --- NATURAL LANGUAGE QUERY ROUTE ---
+
+    // Natural Language File Search
+    this.app.post("/api/ai/nl-query", async (req, res) => {
+      const startTime = Date.now();
+      try {
+        const { query, analysisId } = req.body;
+
+        if (!query) {
+          return res.status(400).json({ error: "Query is required" });
+        }
+
+        // Get analysis data
+        const analysisData = analysisId
+          ? this.analysisResults.get(analysisId)
+          : Array.from(this.analysisResults.values())[0];
+
+        if (!analysisData || !analysisData.files) {
+          return res.status(400).json({
+            error: "No analysis data available. Please scan a directory first.",
+          });
+        }
+
+        // Parse natural language query with Ollama
+        const parsedQuery = await this.parseNaturalLanguageQuery(query);
+
+        // Execute query against file data
+        const results = this.executeFileQuery(analysisData.files, parsedQuery);
+
+        res.json({
+          success: true,
+          query: query,
+          parsedQuery: parsedQuery,
+          results: results.slice(0, 100), // Limit to 100 results
+          resultCount: results.length,
+          responseTime: Date.now() - startTime,
+        });
+      } catch (error) {
+        console.error("Natural language query error:", error);
+        res.status(500).json({
+          error: error.message,
+          responseTime: Date.now() - startTime,
+        });
+      }
+    });
+
+    // --- AI CLEANUP ASSISTANT ROUTES ---
+
+    // Generate AI cleanup recommendations
+    this.app.post("/api/ai/cleanup/analyze", async (req, res) => {
+      const startTime = Date.now();
+      try {
+        const { directory, analysisId, targetSavings } = req.body;
+
+        if (!directory && !analysisId) {
+          return res.status(400).json({ error: "Directory or analysisId is required" });
+        }
+
+        // Get analysis data
+        const analysisData = analysisId
+          ? this.analysisResults.get(analysisId)
+          : Array.from(this.analysisResults.values()).find((a) => a.directory === directory);
+
+        if (!analysisData || !analysisData.files) {
+          return res.status(400).json({ error: "No analysis data found" });
+        }
+
+        // Analyze files with Ollama for cleanup recommendations
+        const recommendations = await this.generateCleanupRecommendations(
+          analysisData,
+          targetSavings
+        );
+
+        // Store recommendations in database
+        for (const rec of recommendations) {
+          await this.knowledgeDB.storeCleanupRecommendation(
+            directory || analysisData.directory,
+            rec.filePath,
+            rec.fileSize,
+            rec.type,
+            rec.confidence,
+            rec.reasoning,
+            rec.potentialSavings,
+            rec.safeToDelete
+          );
+        }
+
+        // Get potential savings summary
+        const savings = await this.knowledgeDB.getPotentialSavings(
+          directory || analysisData.directory
+        );
+
+        res.json({
+          success: true,
+          directory: directory || analysisData.directory,
+          recommendationsGenerated: recommendations.length,
+          potentialSavings: savings,
+          topRecommendations: recommendations.slice(0, 10),
+          responseTime: Date.now() - startTime,
+        });
+      } catch (error) {
+        console.error("Cleanup analysis error:", error);
+        res.status(500).json({
+          error: error.message,
+          responseTime: Date.now() - startTime,
+        });
+      }
+    });
+
+    // Get cleanup recommendations
+    this.app.get("/api/ai/cleanup/recommendations", async (req, res) => {
+      try {
+        const { directory, type, limit = 50 } = req.query;
+
+        if (!directory) {
+          return res.status(400).json({ error: "Directory is required" });
+        }
+
+        const recommendations = await this.knowledgeDB.getCleanupRecommendations(
+          directory,
+          parseInt(limit),
+          type || null
+        );
+
+        const savings = await this.knowledgeDB.getPotentialSavings(directory);
+
+        res.json({
+          success: true,
+          directory,
+          recommendations,
+          potentialSavings: savings,
+          count: recommendations.length,
+        });
+      } catch (error) {
+        console.error("Get recommendations error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Update recommendation action (approve/reject)
+    this.app.post("/api/ai/cleanup/action", async (req, res) => {
+      try {
+        const { filePath, action } = req.body;
+
+        if (!filePath || !action) {
+          return res.status(400).json({ error: "filePath and action are required" });
+        }
+
+        if (!["approved", "rejected", "completed"].includes(action)) {
+          return res
+            .status(400)
+            .json({ error: "Invalid action. Use: approved, rejected, completed" });
+        }
+
+        const changes = await this.knowledgeDB.updateCleanupAction(filePath, action);
+
+        res.json({
+          success: true,
+          filePath,
+          action,
+          updated: changes > 0,
+        });
+      } catch (error) {
+        console.error("Update action error:", error);
+        res.status(500).json({ error: error.message });
       }
     });
 
@@ -2657,6 +2974,237 @@ User Query: ${query || "Provide insights about this analysis"}
       console.error(`Ollama query failed with model ${model}:`, error.message);
       throw error;
     }
+  }
+
+  // --- NATURAL LANGUAGE QUERY & CLEANUP METHODS ---
+
+  /**
+   * Generate AI cleanup recommendations for files
+   */
+  async generateCleanupRecommendations(analysisData, targetSavings = null) {
+    const recommendations = [];
+    const files = analysisData.files || [];
+
+    // Heuristic-based pre-filtering for efficiency
+    const candidateFiles = this.identifyCleanupCandidates(files, targetSavings);
+
+    // Batch analyze top candidates with Ollama
+    const topCandidates = candidateFiles.slice(0, 20); // Analyze top 20
+
+    for (const file of topCandidates) {
+      try {
+        const prompt = `Evaluate this file for safe deletion. Consider:
+1. Is it a temporary/cache file?
+2. Is it a duplicate or old version?
+3. Is it safe to delete without breaking anything?
+
+File: ${file.name}
+Path: ${file.path}
+Size: ${file.size} bytes
+Category: ${file.category}
+
+Respond with JSON:
+{
+  "safeToDelete": true/false,
+  "confidence": 0.0-1.0,
+  "type": "safe_to_delete|review|archive|duplicate",
+  "reasoning": "brief explanation",
+  "potentialSavings": ${file.size}
+}`;
+
+        const response = await fetch(`${this.config.ollamaHost}/api/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "phi4-mini:latest",
+            prompt: prompt,
+            stream: false,
+            options: {
+              temperature: 0.1,
+              num_predict: 200,
+            },
+          }),
+        });
+
+        if (!response.ok) continue;
+
+        const data = await response.json();
+        const text = data.response || data.message?.content || "";
+
+        // Extract JSON
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const result = JSON.parse(jsonMatch[0]);
+          recommendations.push({
+            filePath: file.path,
+            fileSize: file.size,
+            type: result.type || "review",
+            confidence: result.confidence || 0.5,
+            reasoning: result.reasoning || "No specific reasoning provided",
+            potentialSavings: result.potentialSavings || file.size,
+            safeToDelete: result.safeToDelete || false,
+          });
+        }
+      } catch (err) {
+        // Skip files that fail analysis
+        continue;
+      }
+    }
+
+    // Sort by confidence and potential savings
+    return recommendations.sort((a, b) => {
+      const scoreA = a.confidence * a.potentialSavings;
+      const scoreB = b.confidence * b.potentialSavings;
+      return scoreB - scoreA;
+    });
+  }
+
+  /**
+   * Identify cleanup candidate files using heuristics
+   */
+  identifyCleanupCandidates(files, targetSavings) {
+    const candidates = [];
+    const commonTempPatterns = [".tmp", ".temp", ".cache", ".log", ".bak", "~", ".old"];
+    const largeThreshold = 100 * 1024 * 1024; // 100MB
+
+    for (const file of files) {
+      let score = 0;
+
+      // Size factor (larger files = more savings)
+      if (file.size > largeThreshold) score += 3;
+      else if (file.size > 10 * 1024 * 1024) score += 2;
+      else if (file.size > 1024 * 1024) score += 1;
+
+      // Temp/cache patterns
+      const name = file.name?.toLowerCase() || "";
+      if (commonTempPatterns.some((p) => name.includes(p))) score += 2;
+
+      // Common temp directories
+      const path = file.path?.toLowerCase() || "";
+      if (path.includes("temp") || path.includes("cache") || path.includes("tmp")) score += 2;
+
+      // Duplicate indicators
+      if (name.match(/\(\d+\)/) || name.match(/copy/)) score += 1;
+
+      // Add if score > 0
+      if (score > 0) {
+        candidates.push({ ...file, cleanupScore: score });
+      }
+    }
+
+    // Sort by score and size
+    return candidates.sort((a, b) => {
+      if (b.cleanupScore !== a.cleanupScore) return b.cleanupScore - a.cleanupScore;
+      return b.size - a.size;
+    });
+  }
+
+  /**
+   * Parse natural language query using Ollama
+   * Converts user query to structured filter criteria
+   */
+  async parseNaturalLanguageQuery(userQuery) {
+    const prompt = `Parse this natural language file query into structured filters.
+Available file properties: name, path, size, extension, category, modified date
+
+Examples:
+"Find videos from 2023 larger than 500MB"
+→ {"extensions": ["mp4", "avi", "mov"], "dateFrom": "2023-01-01", "dateTo": "2023-12-31", "minSize": 524288000}
+
+"Show old documents not opened in 2 years"
+→ {"categories": ["Documents"], "lastAccessedBefore": "2 years ago"}
+
+"Big code files over 10MB"
+→ {"categories": ["Code"], "minSize": 10485760}
+
+Now parse this query: "${userQuery}"
+
+Respond ONLY with JSON object containing these optional fields:
+- extensions: array of file extensions
+- categories: array of categories
+- minSize: size in bytes
+- maxSize: size in bytes
+- dateFrom: YYYY-MM-DD
+- dateTo: YYYY-MM-DD
+- lastAccessedBefore: relative time like "6 months ago"
+- nameContains: substring to search in filename
+
+JSON response:`;
+
+    try {
+      const response = await fetch(`${this.config.ollamaHost}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "phi4-mini:latest",
+          prompt: prompt,
+          stream: false,
+          options: {
+            temperature: 0.1,
+            num_predict: 200,
+          },
+        }),
+      });
+
+      if (!response.ok) throw new Error("Ollama parse failed");
+
+      const data = await response.json();
+      const text = data.response || data.message?.content || "";
+
+      // Extract JSON from response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+
+      // Fallback: return basic search
+      return { nameContains: userQuery };
+    } catch (err) {
+      console.error("NL query parse error:", err);
+      return { nameContains: userQuery }; // Fallback
+    }
+  }
+
+  /**
+   * Execute parsed query against file list
+   */
+  executeFileQuery(files, query) {
+    return files
+      .filter((file) => {
+        // Extension filter
+        if (query.extensions && query.extensions.length > 0) {
+          const ext = file.name?.split(".").pop()?.toLowerCase();
+          if (!query.extensions.includes(ext)) return false;
+        }
+
+        // Category filter
+        if (query.categories && query.categories.length > 0) {
+          if (!query.categories.includes(file.category)) return false;
+        }
+
+        // Size filters
+        if (query.minSize && file.size < query.minSize) return false;
+        if (query.maxSize && file.size > query.maxSize) return false;
+
+        // Name contains
+        if (query.nameContains) {
+          const search = query.nameContains.toLowerCase();
+          if (
+            !file.name?.toLowerCase().includes(search) &&
+            !file.path?.toLowerCase().includes(search)
+          )
+            return false;
+        }
+
+        // Date filters (simplified)
+        if (query.dateFrom || query.dateTo) {
+          // Would need actual date parsing from file.mtime
+          // Simplified for now
+        }
+
+        return true;
+      })
+      .sort((a, b) => b.size - a.size); // Sort by size desc
   }
 
   buildOllamaPrompt(contextData, question) {
