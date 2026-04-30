@@ -27,6 +27,12 @@ const KnowledgeDatabase = require("./KnowledgeDatabase");
 const dependencyScanner = require("./dependencyScanner");
 const DuplicateDetector = require("./modules/duplicate-detector");
 
+// Import Multi-Agent Orchestrator (v2.0 - Intelligent Task Distribution)
+const {
+  MultiAgentOrchestrator,
+  PRIORITY,
+} = require("../src/integration/multi-agent-orchestrator.cjs");
+
 // Import modules
 const { setupSecurity, setupMiddleware } = require("./modules/security");
 const { setupWebSocketServer, broadcast, getClients, getServer } = require("./modules/websocket");
@@ -93,6 +99,15 @@ class SpaceAnalyzerAPIServer {
     this.selfLearning = new SelfLearningSystem(path.join(__dirname, "learning"));
     this.knowledgeDB = new KnowledgeDatabase(path.join(__dirname, "knowledge.db"));
     this.ollamaAvailable = false;
+
+    // Initialize Multi-Agent Orchestrator (v2.0)
+    this.orchestrator = new MultiAgentOrchestrator({
+      maxConcurrentTasks: 10,
+      cacheSize: 50,
+      cacheTTL: 600000, // 10 minutes
+    });
+    this.orchestrator.start();
+    console.log("🤖 Multi-Agent Orchestrator initialized");
 
     // Configuration
     this.config = {
@@ -644,6 +659,70 @@ class SpaceAnalyzerAPIServer {
         uptime: process.uptime(),
         requests: this.requestCount || 0,
         errors: this.errorCount || 0,
+      });
+    });
+
+    // ==========================================
+    // Multi-Agent Orchestrator API Endpoints
+    // ==========================================
+
+    // Orchestrator analysis endpoint (simplified single-call analysis)
+    this.app.post("/api/orchestrate/analyze", async (req, res) => {
+      try {
+        const { directoryPath, options = {} } = req.body;
+
+        if (!directoryPath) {
+          return res.status(400).json({
+            success: false,
+            error: "directoryPath is required",
+          });
+        }
+
+        console.log(`🎯 Orchestrator analyzing: ${directoryPath}`);
+
+        const result = await this.orchestrator.analyzeDirectory(directoryPath, {
+          ai: options.useOllama || false,
+          priority: options.priority || PRIORITY.NORMAL,
+          parallel: options.parallel !== false,
+        });
+
+        res.json({
+          success: true,
+          result,
+          meta: {
+            orchestrated: true,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (error) {
+        console.error("Orchestrator analysis failed:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    // Orchestrator health/status endpoint
+    this.app.get("/api/orchestrate/status", (req, res) => {
+      res.json({
+        success: true,
+        orchestrator: this.orchestrator.getHealth(),
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    // Cache management endpoints
+    this.app.post("/api/orchestrate/cache/invalidate", (req, res) => {
+      const { pattern } = req.body;
+      const count = this.orchestrator.cache.invalidate(pattern || "");
+      res.json({ success: true, invalidated: count });
+    });
+
+    this.app.get("/api/orchestrate/cache/metrics", (req, res) => {
+      res.json({
+        success: true,
+        cache: this.orchestrator.cache.getMetrics(),
       });
     });
 
@@ -3609,6 +3688,7 @@ Answer:`;
 
     const searchSubdirs = [
       "bin",
+      "scanner",
       "native/scanner/target/release",
       "native/scanner/target/debug",
       "cli/target/release",
