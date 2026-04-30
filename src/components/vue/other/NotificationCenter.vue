@@ -4,8 +4,8 @@
     <button
       class="notification-bell"
       :class="{ 'has-unread': store.unreadCount > 0 }"
-      @click="store.toggleCenter()"
       title="Notifications"
+      @click="store.toggleCenter()"
     >
       <span class="bell-icon">🔔</span>
       <span v-if="store.unreadCount > 0" class="unread-badge">
@@ -24,10 +24,7 @@
         v-for="notification in store.visibleNotifications"
         :key="notification.id"
         class="toast-notification"
-        :class="[
-          `toast-${notification.type}`,
-          { 'toast-persistent': !notification.duration },
-        ]"
+        :class="[`toast-${notification.type}`, { 'toast-persistent': !notification.duration }]"
         @mouseenter="pauseDismiss(notification.id)"
         @mouseleave="resumeDismiss(notification.id)"
       >
@@ -36,10 +33,7 @@
           v-if="notification.type === 'progress' && notification.progress !== undefined"
           class="toast-progress-bar"
         >
-          <div
-            class="toast-progress-fill"
-            :style="{ width: `${notification.progress}%` }"
-          />
+          <div class="toast-progress-fill" :style="{ width: `${notification.progress}%` }" />
         </div>
 
         <div class="toast-content">
@@ -56,27 +50,25 @@
           <!-- Text Content -->
           <div class="toast-text">
             <div class="toast-header">
-              <h4 class="toast-title">{{ notification.title }}</h4>
-              <button
-                class="toast-close"
-                @click="store.dismissNotification(notification.id)"
-              >
+              <h4 class="toast-title">
+                {{ notification.title }}
+              </h4>
+              <button class="toast-close" @click="store.dismissNotification(notification.id)">
                 ✕
               </button>
             </div>
             <p class="toast-message" v-html="notification.message" />
 
             <!-- Progress Text -->
-            <p v-if="notification.type === 'progress' && notification.progress !== undefined" class="toast-progress-text">
+            <p
+              v-if="notification.type === 'progress' && notification.progress !== undefined"
+              class="toast-progress-text"
+            >
               {{ notification.progress }}% complete
             </p>
 
             <!-- Link -->
-            <a
-              v-if="notification.link"
-              class="toast-link"
-              @click="handleLinkClick(notification)"
-            >
+            <a v-if="notification.link" class="toast-link" @click="handleLinkClick(notification)">
               {{ notification.link.text }} →
             </a>
 
@@ -157,19 +149,20 @@
               v-for="notification in filteredNotifications"
               :key="notification.id"
               class="nc-item"
-              :class="[
-                `nc-item-${notification.type}`,
-                { unread: !notification.read },
-              ]"
+              :class="[`nc-item-${notification.type}`, { unread: !notification.read }]"
               @click="handleNotificationClick(notification)"
             >
               <!-- Icon -->
-              <div class="nc-item-icon">{{ notification.icon }}</div>
+              <div class="nc-item-icon">
+                {{ notification.icon }}
+              </div>
 
               <!-- Content -->
               <div class="nc-item-content">
                 <div class="nc-item-header">
-                  <h4 class="nc-item-title">{{ notification.title }}</h4>
+                  <h4 class="nc-item-title">
+                    {{ notification.title }}
+                  </h4>
                   <span class="nc-item-time">{{ formatTime(notification.createdAt) }}</span>
                 </div>
                 <p class="nc-item-message" v-html="notification.message" />
@@ -180,10 +173,7 @@
                   class="nc-item-progress"
                 >
                   <div class="nc-progress-bar">
-                    <div
-                      class="nc-progress-fill"
-                      :style="{ width: `${notification.progress}%` }"
-                    />
+                    <div class="nc-progress-fill" :style="{ width: `${notification.progress}%` }" />
                   </div>
                   <span class="nc-progress-text">{{ notification.progress }}%</span>
                 </div>
@@ -253,7 +243,10 @@
     <div v-if="showClearConfirm" class="nc-modal-overlay" @click.self="showClearConfirm = false">
       <div class="nc-modal">
         <h4>Clear All Notifications?</h4>
-        <p>This will permanently delete all {{ store.recentNotifications.length }} notifications from your history.</p>
+        <p>
+          This will permanently delete all {{ store.recentNotifications.length }} notifications from
+          your history.
+        </p>
         <div class="nc-modal-actions">
           <button class="nc-btn" @click="showClearConfirm = false">Cancel</button>
           <button class="nc-btn nc-btn-danger" @click="clearAllConfirmed()">Clear All</button>
@@ -264,12 +257,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { useNotificationStore, type Notification, type NotificationAction, type NotificationType } from "@/stores/notificationStore";
+import {
+  useNotificationStore,
+  type Notification,
+  type NotificationAction,
+  type NotificationType,
+} from "@/stores/notificationStore";
 
 const store = useNotificationStore();
 const router = useRouter();
+
+onMounted(() => {
+  store.initializeSettings();
+});
 
 const activeFilter = ref<"all" | "unread" | NotificationType>("all");
 const showClearConfirm = ref(false);
@@ -393,9 +395,19 @@ function openSettings() {
 }
 
 @keyframes bell-ring {
-  0%, 100% { transform: rotate(0); }
-  10%, 30%, 50% { transform: rotate(10deg); }
-  20%, 40% { transform: rotate(-10deg); }
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  10%,
+  30%,
+  50% {
+    transform: rotate(10deg);
+  }
+  20%,
+  40% {
+    transform: rotate(-10deg);
+  }
 }
 
 /* Toast Container */
