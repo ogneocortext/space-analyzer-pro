@@ -226,8 +226,16 @@ export class AIService {
       const prompt = this.prepareGeminiPrompt(context);
 
       // Call Gemini API
+      const apiKey =
+        this.config.geminiApiKey || process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error(
+          "Gemini API key not configured. Set GOOGLE_API_KEY or GEMINI_API_KEY environment variable."
+        );
+      }
+
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.config.geminiApiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: {

@@ -68,9 +68,9 @@ export class GoogleAIService {
         );
       }
 
-      // Validate API key format
-      if (!apiKey.startsWith("AIza") && apiKey.length < 30) {
-        throw new Error("Invalid API key format. Please check your Google Gemini API key.");
+      // Validate API key exists (format validation removed for security)
+      if (!apiKey || apiKey.length < 10) {
+        throw new Error("Invalid API key. Please check your Google Gemini API key.");
       }
 
       // Initialize client
