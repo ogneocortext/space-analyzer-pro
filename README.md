@@ -314,22 +314,31 @@ To change ports, edit `config/ports.config.js` - all services will automatically
 
 ## Documentation
 
-For detailed documentation, see the [docs/](docs/) directory which is organized by topic:
+For detailed documentation, see the [docs/](docs/) directory:
 
-- **[docs/ai/](docs/ai/)** - AI/ML features and integration
-- **[docs/architecture/](docs/architecture/)** - System architecture and design
-- **[docs/development/](docs/development/)** - Development guides and testing
-- **[docs/guides/](docs/guides/)** - Deployment, security, and troubleshooting guides
+**📖 Quick Start:**
+
+- **[docs/QUICK_START.md](docs/QUICK_START.md)** - Get started in 5 minutes
+
+**📚 Key Guides:**
+
+- **[docs/guides/DEPLOYMENT.md](docs/guides/DEPLOYMENT.md)** - Complete deployment guide
+- **[docs/guides/SECURITY.md](docs/guides/SECURITY.md)** - Security best practices
+- **[docs/guides/TROUBLESHOOTING.md](docs/guides/TROUBLESHOOTING.md)** - Common issues & solutions
+
+**🔧 Documentation Structure:**
+
+- **[docs/ai/](docs/ai/)** - AI/ML features & integration
+- **[docs/architecture/](docs/architecture/)** - System architecture
+- **[docs/development/](docs/development/)** - Development resources
+- **[docs/guides/](docs/guides/)** - User & developer guides
 - **[docs/performance/](docs/performance/)** - Performance optimization
 
-Key documentation files:
+**📄 Reference:**
 
-- [docs/SECURITY.md](docs/SECURITY.md) - Security policies and best practices
-- [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - Contribution guidelines
-- [CHANGELOG.md](CHANGELOG.md) - Project changelog
+- [docs/README.md](docs/README.md) - Complete documentation overview
+- [CHANGELOG.md](CHANGELOG.md) - Version history
 - [LICENSE](LICENSE) - MIT License
-- [docs/SERVER_README.md](docs/SERVER_README.md) - Server documentation
-- [docs/SCRIPTS_README.md](docs/SCRIPTS_README.md) - Scripts documentation
 
 ## Project Structure
 
