@@ -17,8 +17,8 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 ### Core Analysis ✅
 
 - **Disk Scanning** - High-performance directory scanning with Rust native scanner
-- **File Browser** - Advanced file browser with filtering and sorting
-- **Duplicate Detection** - Hash-based duplicate file detection with cleanup recommendations
+- **File Browser** - Advanced file browser with filtering, sorting, and direct file management (Delete/Reveal)
+- **Duplicate Detection** - Hash-based duplicate detection with real-time cleanup tools
 - **Storage Trends** - Historical tracking with growth projections and category analysis
 - **Real-time Progress** - Live scanning progress with enhanced speed tracking and time estimates
 - **Largest Files Report** - Top 100 largest files with filtering and sorting

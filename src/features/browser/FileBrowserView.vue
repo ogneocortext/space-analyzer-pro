@@ -20,6 +20,8 @@ import {
   LayoutGrid,
   ArrowUpDown,
   Filter,
+  Trash2,
+  ExternalLink,
 } from "lucide-vue-next";
 
 const store = useAnalysisStore();
@@ -30,7 +32,9 @@ const viewMode = ref<"list" | "grid">("list");
 const errorMessage = ref("");
 const showError = ref(false);
 const isLoading = computed(() => store.isLoading || false);
+const isDeleting = ref<string | null>(null);
 const hasData = computed(() => store.analysisResult !== null);
+const successMessage = ref("");
 
 // Watch for store errors
 watch(
@@ -190,13 +194,68 @@ function closeSummaryModal() {
   summaryData.value = null;
   summaryError.value = null;
 }
+
+async function revealFile(filePath: string) {
+  try {
+    await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/files/reveal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: filePath }),
+    });
+  } catch (err) {
+    console.error("Failed to reveal file:", err);
+  }
+}
+
+async function deleteFile(filePath: string) {
+  if (!confirm(`Are you sure you want to permanently delete this file?\n\n${filePath}`)) {
+    return;
+  }
+
+  isDeleting.value = filePath;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/files/delete`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: filePath }),
+      }
+    );
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Failed to delete file");
+    }
+
+    // Success - remove from UI locally
+    if (store.analysisResult?.files) {
+      const fileIndex = store.analysisResult.files.findIndex((f: any) => f.path === filePath);
+      if (fileIndex !== -1) {
+        store.analysisResult.files.splice(fileIndex, 1);
+      }
+    }
+
+    successMessage.value = "File deleted successfully";
+    setTimeout(() => {
+      successMessage.value = "";
+    }, 3000);
+  } catch (err) {
+    errorMessage.value = err instanceof Error ? err.message : "Failed to delete file";
+    showError.value = true;
+  } finally {
+    isDeleting.value = null;
+  }
+}
 </script>
 
 <template>
   <div class="space-y-6">
     <h1 class="text-2xl font-bold text-slate-100">File Browser</h1>
 
-    <!-- Error Message -->
     <div
       v-if="showError"
       class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3"
@@ -208,6 +267,16 @@ function closeSummaryModal() {
       <button @click="clearError" class="text-red-400 hover:text-red-300 transition-colors">
         <X class="w-4 h-4" />
       </button>
+    </div>
+
+    <!-- Success Message -->
+    <div
+      v-if="successMessage"
+      class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3"
+    >
+      <div class="flex-1">
+        <p class="text-emerald-400 text-sm">{{ successMessage }}</p>
+      </div>
     </div>
 
     <!-- No Data State -->
@@ -386,13 +455,35 @@ function closeSummaryModal() {
           >
             {{ formatSize(file.compressed_size) }} compressed
           </p>
-          <button
-            class="mt-2 px-3 py-1 bg-linear-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs rounded-lg transition-all flex items-center gap-1"
-            @click="getAISummary(file)"
-          >
-            <Zap class="w-3 h-3" />
-            AI Summary
-          </button>
+          <div class="flex items-center gap-2 mt-2">
+            <button
+              class="px-3 py-1 bg-linear-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs rounded-lg transition-all flex items-center gap-1"
+              @click="getAISummary(file)"
+            >
+              <Zap class="w-3 h-3" />
+              AI Summary
+            </button>
+            <button
+              @click="revealFile(file.path)"
+              class="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded transition-colors"
+              title="Reveal in Explorer"
+            >
+              <ExternalLink class="w-4 h-4" />
+            </button>
+            <button
+              @click="deleteFile(file.path)"
+              :disabled="isDeleting === file.path"
+              class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
+              :class="{ 'opacity-50 cursor-not-allowed': isDeleting === file.path }"
+              title="Delete File"
+            >
+              <Trash2 v-if="isDeleting !== file.path" class="w-4 h-4" />
+              <div
+                v-else
+                class="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"
+              ></div>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -443,13 +534,37 @@ function closeSummaryModal() {
         <span class="inline-block mt-2 px-2 py-0.5 bg-slate-800 rounded text-xs text-slate-500">{{
           file.category
         }}</span>
-        <button
-          class="mt-2 w-full px-3 py-1.5 bg-linear-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs rounded-lg transition-all flex items-center justify-center gap-1"
-          @click="getAISummary(file)"
-        >
-          <Zap class="w-3 h-3" />
-          AI Summary
-        </button>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <button
+            class="px-3 py-1.5 bg-linear-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs rounded-lg transition-all flex items-center justify-center gap-1"
+            @click="getAISummary(file)"
+          >
+            <Zap class="w-3 h-3" />
+            AI
+          </button>
+          <div class="flex items-center justify-end gap-1">
+            <button
+              @click="revealFile(file.path)"
+              class="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded transition-colors"
+              title="Reveal in Explorer"
+            >
+              <ExternalLink class="w-4 h-4" />
+            </button>
+            <button
+              @click="deleteFile(file.path)"
+              :disabled="isDeleting === file.path"
+              class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
+              :class="{ 'opacity-50 cursor-not-allowed': isDeleting === file.path }"
+              title="Delete File"
+            >
+              <Trash2 v-if="isDeleting !== file.path" class="w-4 h-4" />
+              <div
+                v-else
+                class="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"
+              ></div>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
