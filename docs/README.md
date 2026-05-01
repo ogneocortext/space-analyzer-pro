@@ -2,49 +2,47 @@
 
 ## 🎯 Overview
 
-Welcome to the **Space Analyzer** documentation! The Space Analyzer is a **powerful, ML-powered code analysis and refactoring tool** that has been completely refactored into a **modular, maintainable architecture** with **self-learning capabilities**.
+Welcome to the **Space Analyzer** documentation! The Space Analyzer is a **powerful, ML-powered disk space analysis and optimization tool** with **AI-powered insights** and **advanced visualization capabilities**.
 
 ## 📋 Table of Contents
 
-### **📁 Documentation Structure**
+### **📁 Streamlined Documentation Structure**
 
-The documentation is organized by topic for easier navigation:
+The documentation is organized for clarity and quick access:
 
-- **[ai/](./ai/)** - AI/ML related documentation
-  - AI features and implementation
-  - ML integration guides
-  - Ollama production guide
+- **[ai/](./ai/)** - AI/ML Features & Integration
+  - AI features implementation
+  - Gemini & Ollama integration
+  - AI performance optimization
   - System prompts and configurations
 
-- **[architecture/](./architecture/)** - Architecture and structure
-  - System architecture
+- **[architecture/](./architecture/)** - System Architecture
+  - System design and structure
   - Component documentation
-  - Project structure
-  - Design documents
+  - Extended metadata extraction
 
-- **[development/](./development/)** - Development guides
-  - Development setup
+- **[development/](./development/)** - Development Resources
+  - Development setup and tools
   - Testing guidelines
-  - Developer features
-  - Tool improvements
+  - Build processes
 
-- **[guides/](./guides/)** - Various guides and tutorials
-  - Deployment guides
-  - Security guides
-  - API reference
-  - Troubleshooting
-  - Migration guides
-  - Build tools guides
+- **[guides/](./guides/)** - User & Developer Guides
+  - **[DEPLOYMENT.md](./guides/DEPLOYMENT.md)** - Complete deployment guide
+  - **[SECURITY.md](./guides/SECURITY.md)** - Security best practices
+  - **[TROUBLESHOOTING.md](./guides/TROUBLESHOOTING.md)** - Common issues & solutions
+  - **[ENHANCED_FEATURES_GUIDE.md](./guides/ENHANCED_FEATURES_GUIDE.md)** - Feature overview
+  - **[ENHANCED_API_REFERENCE.md](./guides/ENHANCED_API_REFERENCE.md)** - API documentation
+  - **[VUE3_MIGRATION_GUIDE.md](./guides/VUE3_MIGRATION_GUIDE.md)** - Vue 3 migration
+  - **[GPU_FIX_GUIDE.md](./guides/GPU_FIX_GUIDE.md)** - GPU optimization
+  - **[RUST_CLI_INTEGRATION.md](./guides/RUST_CLI_INTEGRATION.md)** - Native scanner integration
+  - **[AUTOMATIC_PORT_DETECTION_GUIDE.md](./guides/AUTOMATIC_PORT_DETECTION_GUIDE.md)** - Port management
 
-- **[performance/](./performance/)** - Performance optimization
-  - Performance guides
-  - CSS optimization
-  - Performance metrics
+- **[performance/](./performance/)** - Performance Optimization
+  - Performance guides and metrics
+  - CSS optimization strategies
 
-- **[archive/](./archive/)** - Archived documentation
-  - Historical documentation
-  - Temporary status files
-  - Legacy documentation
+- **[archive/](./archive/)** - Archived Documentation
+  - Historical documentation and legacy files
 
 ### **📄 Key Documentation Files**
 
@@ -72,6 +70,7 @@ The Space Analyzer is a **comprehensive code analysis and refactoring tool** tha
 ### **Key Features:**
 
 #### **🔍 Code Analysis**
+
 - **Dependency Graph Construction**: Build comprehensive dependency graphs
 - **Circular Dependency Detection**: Identify and report circular dependencies
 - **Layer Analysis**: Calculate hierarchical layers and violations
@@ -79,6 +78,7 @@ The Space Analyzer is a **comprehensive code analysis and refactoring tool** tha
 - **Optimization Suggestions**: Generate actionable improvement recommendations
 
 #### **🎨 3D Visualization**
+
 - **Interactive 3D Graphs**: Interactive 3D visualization of code dependencies
 - **Node Management**: Handle 3D node creation and manipulation
 - **Link Management**: Manage 3D link visualization
@@ -86,6 +86,7 @@ The Space Analyzer is a **comprehensive code analysis and refactoring tool** tha
 - **Animation Control**: Manage 3D animations and transitions
 
 #### **⚙️ Workflow Automation**
+
 - **Custom Workflows**: Create and execute custom analysis workflows
 - **Step Processing**: Handle various types of workflow steps
 - **Template Management**: Manage workflow templates and creation
@@ -93,6 +94,7 @@ The Space Analyzer is a **comprehensive code analysis and refactoring tool** tha
 - **Event Dispatching**: Handle workflow events and notifications
 
 #### **🧠 ML Integration**
+
 - **Pattern Recognition**: Identify code patterns and anti-patterns
 - **Refactoring Suggestions**: Generate ML-powered refactoring recommendations
 - **Performance Prediction**: Predict future complexity and performance issues
@@ -106,21 +108,25 @@ The Space Analyzer is a **comprehensive code analysis and refactoring tool** tha
 The Space Analyzer has been **completely refactored** from a monolithic architecture to a **modular, maintainable system** with **23 focused components** organized into **3 main services**:
 
 ### **📊 DependencyVisualizationService**
+
 - **Purpose**: Analyzes and visualizes code dependencies
 - **Components**: 7 focused classes
 - **Complexity Reduction**: 98.7% (925 → 12 lines in main file)
 
 ### **🎨 ThreeDVisualization**
+
 - **Purpose**: Provides interactive 3D visualization
 - **Components**: 5 focused classes
 - **Complexity Reduction**: 97.7% (532 → 12 lines in main file)
 
 ### **⚙️ CustomWorkflowService**
+
 - **Purpose**: Provides workflow automation capabilities
 - **Components**: 5 focused classes
 - **Complexity Reduction**: 83.4% (1,207 → 12 lines in main file)
 
 ### **📊 Overall Results:**
+
 - **Average Complexity Reduction**: 93.3%
 - **Total Modular Components**: 23
 - **ML Confidence Applied**: 89-93%
@@ -131,6 +137,7 @@ The Space Analyzer has been **completely refactored** from a monolithic architec
 ## 🚀 Getting Started
 
 ### **Prerequisites:**
+
 - **Node.js** 18+ for frontend and backend
 - **Python** 3.9+ for ML services
 - **Docker** for containerization
@@ -141,12 +148,14 @@ The Space Analyzer has been **completely refactored** from a monolithic architec
 ### **Installation:**
 
 #### **1. Clone the Repository:**
+
 ```bash
 git clone https://github.com/your-org/space-analyzer.git
 cd space-analyzer
 ```
 
 #### **2. Install Dependencies:**
+
 ```bash
 # Frontend
 cd frontend
@@ -162,6 +171,7 @@ pip install -r requirements.txt
 ```
 
 #### **3. Start Development:**
+
 ```bash
 # Start frontend
 cd frontend
@@ -177,6 +187,7 @@ python app.py
 ```
 
 #### **4. Access the Application:**
+
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:3001
 - **ML Services**: http://localhost:8000
@@ -186,15 +197,18 @@ python app.py
 ## 🧠 ML-Powered Features
 
 ### **Self-Learning Capabilities:**
+
 The Space Analyzer includes **self-learning ML models** that continuously improve with each refactoring cycle:
 
 #### **🔍 Pattern Recognition**
+
 - **Design Patterns**: Singleton, Factory, Observer, Strategy, Decorator
 - **Anti-Patterns**: God Class, Long Method, Large Class, Duplicate Code
 - **Code Smells**: High complexity, tight coupling, low cohesion
 - **Architectural Patterns**: MVC, MVP, MVVM, Microservices
 
 #### **🔍 Refactoring Recommendations**
+
 - **Extract Class**: Break down large classes into smaller, focused classes
 - **Split Large**: Split large files into manageable components
 - **Merge Modules**: Combine related modules for better organization
@@ -202,12 +216,14 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 - **Eliminate Circular**: Remove circular dependencies
 
 #### **📊 Performance Prediction**
+
 - **Complexity Growth**: Predict how complexity will change over time
 - **Maintainability Trends**: Forecast maintainability changes
 - **Performance Bottlenecks**: Identify potential performance issues
 - **Risk Assessment**: Evaluate overall code quality risk
 
 ### **ML Confidence Levels:**
+
 - **89-93%**: High confidence in extract-class pattern recommendations
 - **85-90%**: Medium confidence in optimization suggestions
 - **80-85%**: Lower confidence in complex architectural changes
@@ -217,24 +233,28 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 ## 🎯 Use Cases
 
 ### **🔍 Code Analysis**
+
 - **Code Quality Assessment**: Analyze code quality and identify issues
 - **Dependency Analysis**: Understand code dependencies and relationships
 - **Complexity Analysis**: Measure code complexity and identify hotspots
 - **Maintainability Assessment**: Evaluate code maintainability and technical debt
 
 ### **🔧 Refactoring**
+
 - **Automated Refactoring**: Get AI-powered refactoring suggestions
 - **Pattern-Based Refactoring**: Apply proven refactoring patterns
 - **Risk Assessment**: Understand the risk and impact of changes
 - **Implementation Guidance**: Get step-by-step implementation guidance
 
 ### **📊 Visualization**
+
 - **3D Dependency Graphs**: Visualize code dependencies in 3D
 - **Interactive Exploration**: Interactively explore code structure
 - **Layer Visualization**: Visualize architectural layers and violations
 - **Performance Metrics**: Visualize performance metrics and trends
 
 ### **⚙️ Automation**
+
 - **Custom Workflows**: Create custom analysis workflows
 - **Scheduled Analysis**: Automate regular code analysis
 - **Team Collaboration**: Share analysis results with team members
@@ -245,18 +265,21 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 ## 📊 Performance Metrics
 
 ### **Code Quality Metrics:**
+
 - **Complexity**: Cyclomatic complexity, cognitive complexity
 - **Coupling**: Afferent and efferent coupling metrics
 - **Cohesion**: Class and module cohesion metrics
 - **Maintainability**: Maintainability index and technical debt
 
 ### **Performance Metrics:**
+
 - **Analysis Speed**: Time to complete code analysis
 - **Memory Usage**: Memory consumption during analysis
 - **Scalability**: Performance with large codebases
 - **Accuracy**: Accuracy of ML predictions and recommendations
 
 ### **User Experience Metrics:**
+
 - **Response Time**: API response times
 - **Load Time**: Frontend load times
 - **Interaction Latency**: 3D visualization interaction latency
@@ -267,6 +290,7 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 ## 🔧 Development
 
 ### **Development Setup:**
+
 1. **Clone the repository**
 2. **Install dependencies**
 3. **Set up development environment**
@@ -274,12 +298,14 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 5. **Start development servers**
 
 ### **Code Style:**
+
 - **TypeScript**: Strong typing for better code quality
 - **ESLint**: Consistent code formatting and linting
 - **Prettier**: Code formatting and style
 - **Husky**: Git hooks for code quality
 
 ### **Testing:**
+
 - **Unit Tests**: Jest for unit testing
 - **Integration Tests**: Integration testing with real data
 - **E2E Tests**: End-to-end testing with Playwright
@@ -290,18 +316,21 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 ## 🚀 Deployment
 
 ### **Deployment Options:**
+
 1. **Docker**: Containerized deployment
 2. **Kubernetes**: Orchestrated deployment
 3. **Cloud Platforms**: AWS, GCP, Azure deployment
 4. **On-Premise**: On-premises deployment
 
 ### **Environment Management:**
+
 - **Development**: Local development environment
 - **Staging**: Testing environment for validation
 - **Production**: Production environment for users
 - **Testing**: Automated testing environment
 
 ### **CI/CD Pipeline:**
+
 - **Automated Testing**: Automated test execution
 - **Automated Deployment**: Automated deployment to staging/production
 - **Rollback**: Automated rollback on failure
@@ -312,6 +341,7 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 ## 🔒 Security
 
 ### **Security Measures:**
+
 - **Authentication**: Secure user authentication
 - **Authorization**: Role-based access control
 - **Encryption**: Data encryption at rest and in transit
@@ -319,6 +349,7 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 - **Security Scanning**: Regular security assessments
 
 ### **Compliance:**
+
 - **GDPR**: Data protection and privacy
 - **SOC 2**: Security compliance
 - **ISO 27001**: Information security management
@@ -329,12 +360,14 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 ## 📈 Performance
 
 ### **Optimization Strategies:**
+
 - **Caching**: Intelligent caching for better performance
 - **Lazy Loading**: Load components on-demand
 - **Batch Processing**: Process large datasets efficiently
 - **Resource Optimization**: Optimize memory and CPU usage
 
 ### **Monitoring:**
+
 - **Performance Metrics**: Track key performance indicators
 - **Alerting**: Alert on performance degradation
 - **Profiling**: Profile application performance
@@ -345,6 +378,7 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 ## 🤝 Contributing
 
 ### **How to Contribute:**
+
 1. **Fork the repository**
 2. **Create a feature branch**
 3. **Make your changes**
@@ -352,6 +386,7 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 5. **Submit a pull request**
 
 ### **Development Guidelines:**
+
 - **Code Style**: Follow the established code style
 - **Testing**: Add tests for new features
 - **Documentation**: Update documentation for changes
@@ -362,12 +397,14 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 ## 📞 Support
 
 ### **Getting Help:**
+
 - **Documentation**: Check the documentation first
 - **Issues**: Search existing issues
 - **Discussions**: Join community discussions
 - **Email**: Contact the support team
 
 ### **Community:**
+
 - **GitHub Issues**: Report bugs and request features
 - **Discussions**: Join community discussions
 - **Wiki**: Community-maintained documentation
@@ -378,18 +415,21 @@ The Space Analyzer includes **self-learning ML models** that continuously improv
 ## 🎯 Roadmap
 
 ### **Short-term (Next 3 months):**
+
 - **Enhanced ML Models**: Improve ML model accuracy and performance
 - **Additional Languages**: Support for more programming languages
 - **Performance Optimization**: Improve performance and scalability
 - **User Experience**: Enhance user interface and experience
 
 ### **Medium-term (Next 6 months):**
+
 - **Advanced Analytics**: More sophisticated analytics and insights
 - **Integration**: Integration with more development tools
 - **Mobile Apps**: Mobile applications for mobile access
 - **Enterprise Features**: Enterprise-grade features and support
 
 ### **Long-term (Next 12 months):**
+
 - **AI-Powered Development**: Advanced AI-powered development tools
 - **Real-time Collaboration**: Real-time collaborative features
 - **Cloud Platform**: Cloud-based platform for team collaboration
