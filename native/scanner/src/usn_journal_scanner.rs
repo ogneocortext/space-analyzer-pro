@@ -1,5 +1,5 @@
 //! USN Journal Scanner
-//! 
+//!
 //! Provides incremental scanning by monitoring NTFS USN (Update Sequence Number) Journal
 //! Tracks file system changes in real-time for ultra-fast incremental updates
 
@@ -12,15 +12,17 @@ use std::path::{Path, PathBuf};
 use std::ptr;
 use std::slice;
 use std::time::{SystemTime, UNIX_EPOCH};
-use winapi::um::fileapi::{CreateFileW, SetFilePointerEx, ReadFile, DeviceIoControl};
+use winapi::um::fileapi::{CreateFileW, SetFilePointerEx, ReadFile, OPEN_EXISTING};
 use winapi::um::handleapi::{INVALID_HANDLE_VALUE, CloseHandle};
+use winapi::um::ioapiset::DeviceIoControl;
 use winapi::um::winnt::{
-    FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, GENERIC_READ, HANDLE,
-    FILE_DEVICE_DISK, METHOD_BUFFERED, FILE_ANY_ACCESS,
+    FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE,
+    LARGE_INTEGER,
 };
+use winapi::um::winioctl::{FILE_DEVICE_DISK, METHOD_BUFFERED, FILE_ANY_ACCESS};
 use winapi::um::winioctl::{FSCTL_QUERY_USN_JOURNAL, FSCTL_READ_USN_JOURNAL};
 use winapi::um::errhandlingapi::GetLastError;
-use winapi::shared::minwindef::{DWORD, LPVOID, LARGE_INTEGER, BYTE, ULONG};
+use winapi::shared::minwindef::{DWORD, LPVOID, BYTE, ULONG};
 use winapi::shared::ntdef::NTSTATUS;
 use serde::{Deserialize, Serialize};
 
@@ -98,7 +100,7 @@ impl UsnJournalScanner {
     pub fn initialize_volume(&mut self, volume_path: &str) -> Result<(), String> {
         // Convert path to wide string for Windows API
         let wide_path: Vec<u16> = volume_path.encode_utf16().chain(std::iter::once(0)).collect();
-        
+
         // Open volume handle
         let handle = unsafe {
             CreateFileW(
@@ -133,7 +135,7 @@ impl UsnJournalScanner {
 
         // Prepare input buffer for FSCTL_QUERY_USN_JOURNAL
         let mut input_data: Vec<u8> = vec![0; 64];
-        
+
         // Set up USN_JOURNAL_DATA_V0 structure
         unsafe {
             let input_ptr = input_data.as_mut_ptr() as *mut USN_JOURNAL_DATA_V0;
@@ -145,9 +147,9 @@ impl UsnJournalScanner {
 
         // Prepare output buffer
         let mut output_data: Vec<u8> = vec![0; 80]; // Size of USN_JOURNAL_DATA_V0
-        
+
         let mut bytes_returned: DWORD = 0;
-        
+
         let success = unsafe {
             DeviceIoControl(
                 handle,
@@ -189,7 +191,7 @@ impl UsnJournalScanner {
         }
 
         let journal_info = self.journal_info.as_ref().ok_or("Journal not initialized")?;
-        
+
         self.last_processed_usn = Some(journal_info.next_usn);
         self.is_monitoring = true;
 
@@ -261,6 +263,7 @@ impl UsnJournalScanner {
                 .push(change.clone());
         }
 
+        let total_changes = changes.len();
         Ok(ChangeSet {
             volume_path: journal_info.volume_path.clone(),
             start_usn,
@@ -270,7 +273,7 @@ impl UsnJournalScanner {
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs(),
-            total_changes: changes.len(),
+            total_changes,
         })
     }
 
@@ -327,7 +330,7 @@ impl UsnJournalScanner {
                 file_attributes: record.FileAttributes,
                 file_name_length: record.FileNameLength,
                 file_name_offset: record.FileNameOffset,
-                file_name,
+                file_name: file_name.clone(),
                 file_path: PathBuf::from(&file_name), // Will be resolved later
                 change_type,
             };
@@ -379,11 +382,11 @@ impl UsnJournalScanner {
             ChangeType::ReparsePointChanged
         } else if reason & USN_REASON_STREAM_CHANGE != 0 {
             ChangeType::StreamChanged
-        } else if (reason & USN_REASON_DATA_OVERWRITE != 0) || 
-                  (reason & USN_REASON_DATA_EXTEND != 0) || 
+        } else if (reason & USN_REASON_DATA_OVERWRITE != 0) ||
+                  (reason & USN_REASON_DATA_EXTEND != 0) ||
                   (reason & USN_REASON_DATA_TRUNCATION != 0) {
             ChangeType::Modified
-        } else if (reason & USN_REASON_EA_CHANGE != 0) || 
+        } else if (reason & USN_REASON_EA_CHANGE != 0) ||
                   (reason & USN_REASON_BASIC_INFO_CHANGE != 0) {
             ChangeType::AttributeChanged
         } else {
@@ -415,17 +418,17 @@ impl UsnJournalScanner {
     /// Get monitoring statistics
     pub fn get_monitoring_stats(&self) -> HashMap<String, String> {
         let mut stats = HashMap::new();
-        
+
         stats.insert("is_monitoring".to_string(), self.is_monitoring.to_string());
         stats.insert("buffer_size".to_string(), self.change_buffer.len().to_string());
         stats.insert("cache_size".to_string(), self.change_cache.len().to_string());
-        
+
         if let Some(ref info) = self.journal_info {
             stats.insert("journal_id".to_string(), info.usn_journal_id.to_string());
             stats.insert("next_usn".to_string(), info.next_usn.to_string());
             stats.insert("journal_size".to_string(), info.journal_size.to_string());
         }
-        
+
         if let Some(last_usn) = self.last_processed_usn {
             stats.insert("last_processed_usn".to_string(), last_usn.to_string());
         }
@@ -438,13 +441,13 @@ impl UsnJournalScanner {
         // This is a simplified implementation
         // In practice, you'd need to traverse the parent references to build the full path
         let mut path = PathBuf::from(&record.file_name);
-        
+
         // For demonstration, we'll use a simple path resolution
         // In production, this would involve recursive parent lookup
         if let Some(ref info) = self.journal_info {
             path = PathBuf::from(&info.volume_path).join(path);
         }
-        
+
         path
     }
 }
@@ -490,13 +493,12 @@ struct USN_RECORD {
     FileName: [u16; 1], // Variable length
 }
 
-// IOCTL constants
-const FSCTL_QUERY_USN_JOURNAL: u32 = CTL_CODE(FILE_DEVICE_DISK, 0xc4, METHOD_BUFFERED, FILE_ANY_ACCESS);
-const FSCTL_READ_USN_JOURNAL: u32 = CTL_CODE(FILE_DEVICE_DISK, 0xc5, METHOD_BUFFERED, FILE_ANY_ACCESS);
-
-const fn CTL_CODE(device_type: u32, function: u32, method: u32, access: u32) -> u32 {
-    (device_type << 16) | (access << 14) | (function << 2) | method
-}
+// IOCTL constants - these are already imported from winapi::um::winioctl
+// const FSCTL_QUERY_USN_JOURNAL: u32 = CTL_CODE(FILE_DEVICE_DISK, 0xc4, METHOD_BUFFERED, FILE_ANY_ACCESS);
+// const FSCTL_READ_USN_JOURNAL: u32 = CTL_CODE(FILE_DEVICE_DISK, 0xc5, METHOD_BUFFERED, FILE_ANY_ACCESS);
+// const fn CTL_CODE(device_type: u32, function: u32, method: u32, access: u32) -> u32 {
+//     (device_type << 16) | (access << 14) | (function << 2) | method
+// }
 
 /// Utility functions for USN journal scanning
 pub mod utils {
@@ -505,25 +507,24 @@ pub mod utils {
     /// Get list of volumes with USN journal support
     pub fn get_usn_journal_volumes() -> Result<Vec<String>, String> {
         use std::fs;
-        
+
         let mut volumes = Vec::new();
-        
+
         // Check common drive letters
         for drive in b'C'..=b'Z' {
             let drive_path = format!("{}:\\", drive as char);
             let drive_letter = drive as char;
-            
+
             if fs::metadata(&drive_path).is_ok() {
                 // Try to open volume and query USN journal
                 let volume_path = format!("\\\\.\\{}", drive_letter);
-                if let Ok(mut scanner) = UsnJournalScanner::new() {
-                    if scanner.initialize_volume(&volume_path).is_ok() {
-                        volumes.push(format!("{}:", drive_letter));
-                    }
+                let mut scanner = UsnJournalScanner::new();
+                if scanner.initialize_volume(&volume_path).is_ok() {
+                    volumes.push(format!("{}:", drive_letter));
                 }
             }
         }
-        
+
         Ok(volumes)
     }
 
@@ -553,12 +554,12 @@ pub mod utils {
     /// Get change statistics
     pub fn get_change_statistics(changes: &[UsnRecord]) -> HashMap<String, usize> {
         let mut stats = HashMap::new();
-        
+
         for change in changes {
             let type_name = format_change_type(&change.change_type);
             *stats.entry(type_name.to_string()).or_insert(0) += 1;
         }
-        
+
         stats
     }
 }
@@ -577,15 +578,15 @@ mod tests {
     #[test]
     fn test_change_type_parsing() {
         let scanner = UsnJournalScanner::new();
-        
+
         // Test file creation
         let create_type = scanner.parse_reason_flags(0x00000100);
         assert_eq!(create_type, ChangeType::Created);
-        
+
         // Test file deletion
         let delete_type = scanner.parse_reason_flags(0x00000200);
         assert_eq!(delete_type, ChangeType::Deleted);
-        
+
         // Test rename
         let rename_type = scanner.parse_reason_flags(0x00001000);
         assert_eq!(rename_type, ChangeType::Renamed);
@@ -635,72 +636,43 @@ mod tests {
     }
 }
 
-// NAPI exports for Node.js integration
+// NAPI exports for Node.js integration - disabled (requires napi-rs build setup)
+// These exports are placeholders for when napi-rs is properly configured
 #[cfg(target_os = "windows")]
-#[napi::bindgen]
 pub mod napi_exports {
     use super::*;
-    use napi::bindgen_prelude::*;
-    use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 
-    #[napi]
-    pub fn create_usn_scanner() -> Result<UsnJournalScanner, Error> {
-        Ok(UsnJournalScanner::new())
+    pub fn create_usn_scanner() -> UsnJournalScanner {
+        UsnJournalScanner::new()
     }
 
-    #[napi]
-    pub async fn initialize_volume_async(
+    pub fn initialize_volume(
         scanner: &mut UsnJournalScanner,
-        volume_path: String,
-        callback: ThreadsafeFunction<Result<(), Error>, ErrorStrategy::CalleeHandled>,
-    ) -> Result<(), Error> {
-        let result = scanner.initialize_volume(&volume_path)
-            .map_err(|e| Error::new(Status::GenericFailure, e))?;
-
-        callback.call(
-            Ok(result),
-            ThreadsafeFunctionCallMode::Blocking,
-        ).map_err(|e| Error::new(Status::GenericFailure, format!("Callback error: {}", e)))?;
-
-        Ok(())
+        volume_path: &str,
+    ) -> std::result::Result<(), String> {
+        scanner.initialize_volume(volume_path)
     }
 
-    #[napi]
-    pub fn start_monitoring(scanner: &mut UsnJournalScanner) -> Result<(), Error> {
+    pub fn start_monitoring(scanner: &mut UsnJournalScanner) -> std::result::Result<(), String> {
         scanner.start_monitoring()
-            .map_err(|e| Error::new(Status::GenericFailure, e))
     }
 
-    #[napi]
     pub fn stop_monitoring(scanner: &mut UsnJournalScanner) {
         scanner.stop_monitoring();
     }
 
-    #[napi]
-    pub async fn read_changes_async(
+    pub fn read_changes(
         scanner: &mut UsnJournalScanner,
-        max_changes: Option<u32>,
-        callback: ThreadsafeFunction<Result<ChangeSet, Error>, ErrorStrategy::CalleeHandled>,
-    ) -> Result<(), Error> {
-        let changes = scanner.read_changes(max_changes.map(|v| v as usize))
-            .map_err(|e| Error::new(Status::GenericFailure, e))?;
-
-        callback.call(
-            Ok(changes),
-            ThreadsafeFunctionCallMode::Blocking,
-        ).map_err(|e| Error::new(Status::GenericFailure, format!("Callback error: {}", e)))?;
-
-        Ok(())
+        max_changes: Option<usize>,
+    ) -> std::result::Result<ChangeSet, String> {
+        scanner.read_changes(max_changes)
     }
 
-    #[napi]
-    pub fn get_usn_journal_volumes() -> Result<Vec<String>, Error> {
+    pub fn get_usn_journal_volumes() -> std::result::Result<Vec<String>, String> {
         utils::get_usn_journal_volumes()
-            .map_err(|e| Error::new(Status::GenericFailure, e))
     }
 
-    #[napi]
-    pub fn get_monitoring_stats(scanner: &UsnJournalScanner) -> Result<HashMap<String, String>, Error> {
-        Ok(scanner.get_monitoring_stats())
+    pub fn get_monitoring_stats(scanner: &UsnJournalScanner) -> HashMap<String, String> {
+        scanner.get_monitoring_stats()
     }
 }

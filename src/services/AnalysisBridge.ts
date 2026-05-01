@@ -116,10 +116,22 @@ export class AnalysisBridge {
         this.baseUrl = backendApiUrl;
         this.log("info", `🔗 AnalysisBridge initialized with env var baseUrl: ${this.baseUrl}`);
       } else if (typeof window !== "undefined") {
-        // Use Vite proxy in development (simpler and more reliable)
-        // Don't include /api in baseUrl since Vite proxy already handles it
-        this.baseUrl = `${window.location.origin}`;
-        this.log("info", `🔗 AnalysisBridge initialized with proxy baseUrl: ${this.baseUrl}`);
+        // Try multiple backend ports - backend runs on 8080, not Vite's port
+        const ports = [8080, 3000, 5000, 8000];
+        const origin = window.location.origin;
+        const isDev = origin.includes("localhost") || origin.includes("127.0.0.1");
+
+        if (isDev) {
+          // In dev, backend is on a separate port
+          const protocol = window.location.protocol;
+          const hostname = window.location.hostname;
+          this.baseUrl = `${protocol}//${hostname}:8080`;
+          this.log("info", `🔗 AnalysisBridge initialized with dev backend: ${this.baseUrl}`);
+        } else {
+          // Production - use same origin
+          this.baseUrl = origin;
+          this.log("info", `🔗 AnalysisBridge initialized with prod baseUrl: ${this.baseUrl}`);
+        }
       } else {
         // Server-side - require BACKEND_API_URL environment variable in production
         const serverBackendUrl = process.env.BACKEND_API_URL;
@@ -136,6 +148,25 @@ export class AnalysisBridge {
       throw new Error(
         `Failed to initialize AnalysisBridge: ${error instanceof Error ? error.message : "Unknown error"}`
       );
+    }
+  }
+
+  // Health check to verify backend is reachable
+  async checkBackendHealth(): Promise<{ ok: boolean; error?: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/health`, {
+        method: "GET",
+        signal: AbortSignal.timeout(5000),
+      });
+      if (response.ok) {
+        return { ok: true };
+      }
+      return { ok: false, error: `Backend returned ${response.status}` };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Cannot connect to backend server",
+      };
     }
   }
 

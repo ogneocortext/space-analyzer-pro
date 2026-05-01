@@ -45,6 +45,7 @@ winapi = { version = "0.3", features = [
     "std",              # Standard definitions
     "winioctl",         # I/O control codes (FSCTL_*)
     "ioapiset",         # DeviceIoControl
+    "errhandlingapi",   # GetLastError
 ] }
 
 # Remove Windows-specific dependencies

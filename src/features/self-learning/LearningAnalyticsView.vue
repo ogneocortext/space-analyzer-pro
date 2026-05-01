@@ -4,7 +4,7 @@
       <h1>📊 Learning Analytics Dashboard</h1>
       <p>Real-time analytics and insights for the Self-Learning system</p>
     </div>
-    
+
     <div class="analytics-content">
       <LearningAnalyticsDashboard />
       <div class="additional-features">
@@ -16,9 +16,9 @@
 </template>
 
 <script setup lang="ts">
-import LearningAnalyticsDashboard from '@/components/ai/LearningAnalyticsDashboard.vue'
-import AnalyticsDataVisualization from '@/components/ai/AnalyticsDataVisualization.vue'
-import UserFeedbackCollection from '@/components/ai/UserFeedbackCollection.vue'
+import LearningAnalyticsDashboard from "@/components/ai/LearningAnalyticsDashboard.vue";
+import AnalyticsDataVisualization from "@/components/ai/AnalyticsDataVisualization.vue";
+import UserFeedbackCollection from "@/components/ai/UserFeedbackCollection.vue";
 </script>
 
 <style scoped>
@@ -36,12 +36,12 @@ import UserFeedbackCollection from '@/components/ai/UserFeedbackCollection.vue'
 .view-header h1 {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
-  color: #2c3e50;
+  color: var(--text-primary, #ffffff);
 }
 
 .view-header p {
   font-size: 1.1rem;
-  color: #7f8c8d;
+  color: var(--text-secondary, #a1a1aa);
   max-width: 600px;
   margin: 0 auto;
 }
@@ -68,11 +68,11 @@ import UserFeedbackCollection from '@/components/ai/UserFeedbackCollection.vue'
   .learning-analytics-view {
     padding: 1rem;
   }
-  
+
   .view-header h1 {
     font-size: 2rem;
   }
-  
+
   .analytics-content {
     gap: 1rem;
   }

@@ -145,8 +145,12 @@ function getBreadcrumbLabel(route: RouteLocationNormalized): string {
     >
       <div class="flex items-center justify-between p-4 border-b border-slate-800">
         <span class="text-xl font-bold text-blue-400">Space Analyzer</span>
-        <button class="lg:hidden p-2 hover:bg-slate-800 rounded" @click="toggleSidebar">
-          <X class="w-5 h-5" />
+        <button
+          class="lg:hidden p-2 hover:bg-slate-800 rounded"
+          @click="toggleSidebar"
+          aria-label="Close sidebar menu"
+        >
+          <X class="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
 
@@ -161,12 +165,18 @@ function getBreadcrumbLabel(route: RouteLocationNormalized): string {
             :key="item.path"
             :to="item.path"
             :class="[
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative',
               $route.path === item.path
-                ? 'bg-linear-to-r from-blue-600/20 to-blue-500/10 text-blue-400 border-l-2 border-blue-500'
+                ? 'bg-blue-600/10 text-blue-400'
                 : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100 hover:translate-x-1',
             ]"
           >
+            <!-- Active indicator -->
+            <span
+              v-if="$route.path === item.path"
+              class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-blue-500 rounded-r-full"
+              aria-hidden="true"
+            />
             <component
               :is="getIcon(item.icon)"
               class="w-5 h-5 shrink-0"
@@ -190,12 +200,18 @@ function getBreadcrumbLabel(route: RouteLocationNormalized): string {
             :key="item.path"
             :to="item.path"
             :class="[
-              'flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group',
+              'flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group relative',
               $route.path === item.path
-                ? 'bg-purple-600/20 text-purple-400 border-l-2 border-purple-500'
+                ? 'bg-purple-600/10 text-purple-400'
                 : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100 hover:translate-x-1',
             ]"
           >
+            <!-- Active indicator -->
+            <span
+              v-if="$route.path === item.path"
+              class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-purple-500 rounded-r-full"
+              aria-hidden="true"
+            />
             <component
               :is="getIcon(item.icon)"
               class="w-4 h-4 shrink-0"
@@ -219,12 +235,18 @@ function getBreadcrumbLabel(route: RouteLocationNormalized): string {
             :key="item.path"
             :to="item.path"
             :class="[
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative',
               $route.path === item.path
-                ? 'bg-linear-to-r from-green-600/20 to-green-500/10 text-green-400 border-l-2 border-green-500'
+                ? 'bg-green-600/10 text-green-400'
                 : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-100 hover:translate-x-1',
             ]"
           >
+            <!-- Active indicator -->
+            <span
+              v-if="$route.path === item.path"
+              class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-green-500 rounded-r-full"
+              aria-hidden="true"
+            />
             <component
               :is="getIcon(item.icon)"
               class="w-5 h-5 shrink-0"
@@ -308,38 +330,85 @@ function getBreadcrumbLabel(route: RouteLocationNormalized): string {
           <button
             class="lg:hidden p-2 hover:bg-slate-800 rounded-lg transition-colors"
             @click="toggleSidebar"
+            aria-label="Toggle sidebar menu"
           >
-            <Menu class="w-5 h-5 text-slate-400" />
+            <Menu class="w-5 h-5 text-slate-400" aria-hidden="true" />
           </button>
           <!-- Breadcrumb Navigation -->
-          <nav class="hidden md:flex items-center gap-1 text-sm">
-            <router-link
-              to="/"
-              class="flex items-center gap-1.5 px-2 py-1 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-colors"
-            >
-              <LayoutDashboard class="w-4 h-4" />
-              <span>Dashboard</span>
-            </router-link>
-
-            <template v-if="$route.path !== '/'">
-              <ChevronRight class="w-4 h-4 text-slate-600" />
-
-              <!-- Parent route (e.g., Settings) -->
-              <template v-if="$route.path.includes('/settings/')">
+          <nav
+            aria-label="Breadcrumb"
+            class="hidden md:flex items-center text-sm"
+            itemscope
+            itemtype="https://schema.org/BreadcrumbList"
+          >
+            <ol class="flex items-center gap-1">
+              <!-- Home/Dashboard -->
+              <li
+                itemprop="itemListElement"
+                itemscope
+                itemtype="https://schema.org/ListItem"
+                class="flex items-center"
+              >
                 <router-link
-                  to="/settings"
-                  class="px-2 py-1 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-colors"
+                  to="/"
+                  itemprop="item"
+                  class="flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors"
+                  :class="
+                    $route.path === '/'
+                      ? 'text-slate-100 bg-slate-800/50'
+                      : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'
+                  "
                 >
-                  Settings
+                  <LayoutDashboard class="w-4 h-4" aria-hidden="true" />
+                  <span itemprop="name">Dashboard</span>
                 </router-link>
-                <ChevronRight class="w-4 h-4 text-slate-600" />
-              </template>
+                <meta itemprop="position" content="1" />
+              </li>
 
-              <!-- Current page -->
-              <span class="px-2 py-1 text-slate-200 font-medium capitalize">
-                {{ getBreadcrumbLabel($route) }}
-              </span>
-            </template>
+              <template v-if="$route.path !== '/' && $route.path !== '/#/dashboard'">
+                <li aria-hidden="true">
+                  <ChevronRight class="w-4 h-4 text-slate-600" />
+                </li>
+
+                <!-- Parent route (e.g., Settings) -->
+                <template v-if="$route.path.includes('/settings/')">
+                  <li
+                    itemprop="itemListElement"
+                    itemscope
+                    itemtype="https://schema.org/ListItem"
+                    class="flex items-center"
+                  >
+                    <router-link
+                      to="/settings"
+                      itemprop="item"
+                      class="px-2 py-1 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-800/50 transition-colors"
+                    >
+                      <span itemprop="name">Settings</span>
+                    </router-link>
+                    <meta itemprop="position" content="2" />
+                  </li>
+                  <li aria-hidden="true">
+                    <ChevronRight class="w-4 h-4 text-slate-600" />
+                  </li>
+                </template>
+
+                <!-- Current page -->
+                <li
+                  itemprop="itemListElement"
+                  itemscope
+                  itemtype="https://schema.org/ListItem"
+                  class="flex items-center"
+                >
+                  <span itemprop="name" class="px-2 py-1 text-slate-200 font-medium capitalize">
+                    {{ getBreadcrumbLabel($route) }}
+                  </span>
+                  <meta
+                    itemprop="position"
+                    :content="$route.path.includes('/settings/') ? '3' : '2'"
+                  />
+                </li>
+              </template>
+            </ol>
           </nav>
         </div>
 

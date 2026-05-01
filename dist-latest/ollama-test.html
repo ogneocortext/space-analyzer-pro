@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ollama 0.22.0 API Test</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(135deg, #1e3a5f 0%, #0d2137 100%);
+        color: #e2e8f0;
+        padding: 20px;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 10px;
+        color: #60a5fa;
+      }
+      .subtitle {
+        text-align: center;
+        color: #94a3b8;
+        margin-bottom: 30px;
+      }
+      .panel {
+        background: rgba(30, 41, 59, 0.8);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.1);
+      }
+      .panel h2 {
+        color: #60a5fa;
+        margin-bottom: 15px;
+        font-size: 1.1rem;
+      }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+      }
+      .status.online {
+        background: rgba(34, 197, 94, 0.2);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+      }
+      .status.offline {
+        background: rgba(239, 68, 68, 0.2);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+      }
+      .status-icon {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+      }
+      .online .status-icon {
+        background: #22c55e;
+        box-shadow: 0 0 10px #22c55e;
+      }
+      .offline .status-icon {
+        background: #ef4444;
+      }
+      select,
+      input,
+      textarea,
+      button {
+        width: 100%;
+        padding: 10px 15px;
+        border-radius: 8px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(15, 23, 42, 0.6);
+        color: #e2e8f0;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+      button {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+      }
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+      }
+      .results {
+        background: rgba(15, 23, 42, 0.6);
+        border-radius: 8px;
+        padding: 15px;
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+        max-height: 400px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .metric {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 12px;
+        background: rgba(59, 130, 246, 0.2);
+        border-radius: 20px;
+        font-size: 12px;
+        margin-right: 8px;
+        margin-bottom: 8px;
+      }
+      .metric-value {
+        color: #60a5fa;
+        font-weight: 600;
+      }
+      .error {
+        color: #ef4444;
+      }
+      .success {
+        color: #22c55e;
+      }
+      .warning {
+        color: #f59e0b;
+      }
+      .progress-bar {
+        width: 100%;
+        height: 4px;
+        background: rgba(148, 163, 184, 0.2);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 10px;
+      }
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        transition: width 0.3s;
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      .model-card {
+        background: rgba(15, 23, 42, 0.4);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 8px;
+        border: 1px solid rgba(148, 163, 184, 0.1);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .model-card:hover {
+        border-color: rgba(59, 130, 246, 0.5);
+        background: rgba(15, 23, 42, 0.6);
+      }
+      .model-card.selected {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.2);
+      }
+      .model-name {
+        font-weight: 600;
+        color: #60a5fa;
+      }
+      .model-info {
+        font-size: 12px;
+        color: #94a3b8;
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Ollama 0.22.0 API Test</h1>
+      <p class="subtitle">Test AI model performance and response times</p>
+
+      <!-- Connection Status -->
+      <div class="panel">
+        <h2>🔗 Connection Status</h2>
+        <div id="ollamaStatus" class="status offline">
+          <div class="status-icon"></div>
+          <span>Ollama Server: Checking...</span>
+        </div>
+        <div id="backendStatus" class="status offline">
+          <div class="status-icon"></div>
+          <span>Backend Proxy: Checking...</span>
+        </div>
+        <button onclick="checkConnection()">🔄 Refresh Status</button>
+      </div>
+
+      <!-- Available Models -->
+      <div class="panel">
+        <h2>🤖 Recommended Models for Space Analyzer</h2>
+        <div
+          style="
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+          "
+        >
+          <strong style="color: #22c55e">🏆 BEST: phi4-mini:latest</strong><br />
+          <small>2.4GB VRAM | 46+ tok/s | Fastest analysis & cleanup recommendations</small>
+        </div>
+        <div
+          style="
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+          "
+        >
+          <strong style="color: #3b82f6">📝 DETAILED: qwen2.5-coder:7b-instruct</strong><br />
+          <small>4.5GB VRAM | 28 tok/s | Best for technical file structure analysis</small>
+        </div>
+        <div
+          style="
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+          "
+        >
+          <strong style="color: #a855f7">⚖️ BALANCED: gemma3:4b</strong><br />
+          <small>3.1GB VRAM | 37 tok/s | Good speed/quality balance</small>
+        </div>
+        <p style="color: #ef4444; font-size: 12px">
+          ❌ Avoid: Music/llava models - not designed for file analysis
+        </p>
+        <div id="modelList">
+          <p style="color: #94a3b8">Click "Refresh Status" to see all installed models...</p>
+        </div>
+      </div>
+
+      <!-- Quick Test -->
+      <div class="panel">
+        <h2>⚡ Quick Performance Test</h2>
+        <div class="grid-2">
+          <div>
+            <label>Model</label>
+            <select id="testModel">
+              <option value="phi4-mini:latest">🏆 phi4-mini:latest (2.4GB - BEST: 46 tok/s)</option>
+              <option value="qwen2.5-coder:7b-instruct">
+                📝 qwen2.5-coder:7b (4.5GB - Technical)
+              </option>
+              <option value="gemma3:4b">⚖️ gemma3:4b (3.1GB - Balanced)</option>
+              <option value="deepseek-coder:6.7b-instruct">
+                💻 deepseek-coder:6.7b (3.6GB - Thorough)
+              </option>
+              <option value="qwen3.5:4b">🔍 qwen3.5:4b (3.2GB - General)</option>
+              <option value="gemma4:e2b">🧠 gemma4:e2b (6.8GB - Heavy tasks)</option>
+              <option value="llamusic/LLAMUsic2:1b">
+                🎵 llamusic/LLAMUsic2:1b (770MB - NOT for analysis)
+              </option>
+            </select>
+          </div>
+          <div>
+            <label>Timeout (seconds)</label>
+            <input type="number" id="timeout" value="60" min="10" max="120" />
+          </div>
+        </div>
+        <div class="grid-2">
+          <button onclick="runTest('direct')" id="btnDirect">🚀 Test Direct (11434)</button>
+          <button onclick="runTest('proxy')" id="btnProxy">🔗 Test via Proxy (8080)</button>
+        </div>
+        <div id="progressContainer" style="display: none">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 100%"></div>
+          </div>
+          <p style="text-align: center; margin-top: 8px; font-size: 12px; color: #94a3b8">
+            ⏱️ First request loads model into VRAM (5-35s)...
+          </p>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="panel">
+        <h2>📊 Results</h2>
+        <div id="metrics"></div>
+        <div class="results" id="results">
+          Click "Test Direct" or "Test via Proxy" to see results...
+        </div>
+      </div>
+
+      <!-- Custom Prompt Test -->
+      <div class="panel">
+        <h2>💬 Custom Prompt Test</h2>
+        <textarea id="customPrompt" rows="3" placeholder="Enter your prompt here...">
+Analyze this file structure: 1000 files, mostly .js and .ts, largest file is 50MB</textarea
+        >
+        <button onclick="runCustomTest()">🧠 Run Analysis</button>
+      </div>
+    </div>
+
+    <script>
+      let availableModels = [];
+
+      // Check connection on load
+      window.onload = checkConnection;
+
+      async function checkConnection() {
+        updateStatus("ollamaStatus", "checking", "Checking...");
+        updateStatus("backendStatus", "checking", "Checking...");
+
+        // Check Ollama directly
+        try {
+          const start = performance.now();
+          const response = await fetch("http://localhost:11434/api/tags");
+          const elapsed = Math.round(performance.now() - start);
+
+          if (response.ok) {
+            const data = await response.json();
+            availableModels = data.models || [];
+            updateStatus(
+              "ollamaStatus",
+              "online",
+              `Online (${elapsed}ms) - ${availableModels.length} models`
+            );
+            renderModelList();
+          } else {
+            updateStatus("ollamaStatus", "offline", "Error: " + response.status);
+          }
+        } catch (err) {
+          updateStatus("ollamaStatus", "offline", "Not reachable - Is Ollama running?");
+        }
+
+        // Check backend proxy
+        try {
+          const start = performance.now();
+          const response = await fetch("/api/ollama/api/tags");
+          const elapsed = Math.round(performance.now() - start);
+
+          if (response.ok) {
+            updateStatus("backendStatus", "online", `Online (${elapsed}ms)`);
+          } else {
+            updateStatus("backendStatus", "offline", "Error: " + response.status);
+          }
+        } catch (err) {
+          updateStatus("backendStatus", "offline", "Not reachable");
+        }
+      }
+
+      function updateStatus(id, state, text) {
+        const el = document.getElementById(id);
+        el.className = "status " + state;
+        el.querySelector("span").textContent = text;
+      }
+
+      function renderModelList() {
+        const container = document.getElementById("modelList");
+        if (availableModels.length === 0) {
+          container.innerHTML = '<p style="color: #ef4444;">No models found</p>';
+          return;
+        }
+
+        const quickModels = [
+          { name: "llamusic/LLAMUsic2:1b", desc: "770MB - Fastest loading" },
+          { name: "phi4-mini:latest", desc: "2.4GB - Best balance" },
+          { name: "gemma3:4b", desc: "3.2GB - Good for analysis" },
+          { name: "deepseek-coder:6.7b-instruct", desc: "3.7GB - Code specialist" },
+        ];
+
+        container.innerHTML = quickModels
+          .map((m) => {
+            const found = availableModels.find((am) => am.name === m.name);
+            const size = found ? formatBytes(found.size) : m.desc;
+            return `
+                    <div class="model-card ${found ? "selected" : ""}" onclick="selectModel('${m.name}')">
+                        <div class="model-name">${m.name}</div>
+                        <div class="model-info">${size}</div>
+                    </div>
+                `;
+          })
+          .join("");
+      }
+
+      function selectModel(model) {
+        document.getElementById("testModel").value = model;
+      }
+
+      async function runTest(type) {
+        const model = document.getElementById("testModel").value;
+        const timeout = parseInt(document.getElementById("timeout").value) * 1000;
+        const results = document.getElementById("results");
+        const metrics = document.getElementById("metrics");
+        const progress = document.getElementById("progressContainer");
+
+        // Disable buttons
+        document.getElementById("btnDirect").disabled = true;
+        document.getElementById("btnProxy").disabled = true;
+        progress.style.display = "block";
+        results.textContent =
+          "Loading model into VRAM... This may take 5-35 seconds for the first request.";
+        metrics.innerHTML = "";
+
+        const url =
+          type === "direct" ? "http://localhost:11434/api/generate" : "/api/ollama/api/generate";
+
+        const start = performance.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: model,
+              prompt: 'Say "Ollama 0.22.0 is working!" and nothing else.',
+              stream: false,
+              options: {
+                temperature: 0.1,
+                num_predict: 20,
+                thinking: false, // Ollama 0.22.0 feature
+              },
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          const totalTime = Math.round(performance.now() - start);
+
+          if (response.ok) {
+            const data = await response.json();
+
+            // Display metrics
+            metrics.innerHTML = `
+                        <span class="metric">⏱️ Total: <span class="metric-value">${totalTime}ms</span></span>
+                        <span class="metric">🤖 Model: <span class="metric-value">${data.model || model}</span></span>
+                        ${data.total_duration ? `<span class="metric">⚡ Gen Time: <span class="metric-value">${Math.round(data.total_duration / 1e6)}ms</span></span>` : ""}
+                        ${data.load_duration ? `<span class="metric">📥 Load: <span class="metric-value">${Math.round(data.load_duration / 1e6)}ms</span></span>` : ""}
+                        ${data.eval_count ? `<span class="metric">📝 Tokens: <span class="metric-value">${data.eval_count}</span></span>` : ""}
+                        ${data.done_reason ? `<span class="metric">🏁 Done: <span class="metric-value">${data.done_reason}</span></span>` : ""}
+                        ${data.thinking ? `<span class="metric">💭 Thinking: <span class="metric-value">Present</span></span>` : ""}
+                    `;
+
+            results.innerHTML = `<span class="success">✅ SUCCESS!</span>
+
+<span class="warning">Response:</span>
+${data.response || data.message?.content || "No response"}
+
+<span class="warning">Full Response Object:</span>
+${JSON.stringify(data, null, 2)}`;
+          } else {
+            results.innerHTML = `<span class="error">❌ HTTP Error: ${response.status}</span>`;
+          }
+        } catch (err) {
+          const totalTime = Math.round(performance.now() - start);
+          if (err.name === "AbortError") {
+            results.innerHTML = `<span class="error">⏱️ TIMEOUT after ${totalTime}ms\n\nModel may still be loading into VRAM. Try:\n1. Increasing timeout to 60s\n2. Using a smaller model (llamusic/LLAMUsic2:1b)\n3. Waiting 30s and trying again</span>`;
+          } else {
+            results.innerHTML = `<span class="error">❌ Error: ${err.message}</span>`;
+          }
+        } finally {
+          document.getElementById("btnDirect").disabled = false;
+          document.getElementById("btnProxy").disabled = false;
+          progress.style.display = "none";
+        }
+      }
+
+      async function runCustomTest() {
+        const model = document.getElementById("testModel").value;
+        const prompt = document.getElementById("customPrompt").value;
+        const results = document.getElementById("results");
+        const metrics = document.getElementById("metrics");
+
+        results.textContent = "Running analysis...";
+        metrics.innerHTML = "";
+
+        const start = performance.now();
+
+        try {
+          const response = await fetch("/api/ollama/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: model,
+              prompt: prompt,
+              stream: false,
+              options: {
+                temperature: 0.7,
+                num_predict: 500,
+                thinking: false,
+              },
+            }),
+          });
+
+          const totalTime = Math.round(performance.now() - start);
+
+          if (response.ok) {
+            const data = await response.json();
+
+            metrics.innerHTML = `
+                        <span class="metric">⏱️ Total: <span class="metric-value">${totalTime}ms</span></span>
+                        <span class="metric">🤖 Model: <span class="metric-value">${data.model || model}</span></span>
+                        ${data.eval_count ? `<span class="metric">⚡ Speed: <span class="metric-value">${Math.round(data.eval_count / (data.eval_duration / 1e9))} tok/s</span></span>` : ""}
+                    `;
+
+            results.innerHTML = `<span class="success">✅ Analysis Complete!</span>
+
+<span class="warning">Response:</span>
+${data.response || data.message?.content || "No response"}`;
+          } else {
+            results.innerHTML = `<span class="error">❌ HTTP Error: ${response.status}</span>`;
+          }
+        } catch (err) {
+          results.innerHTML = `<span class="error">❌ Error: ${err.message}</span>`;
+        }
+      }
+
+      function formatBytes(bytes) {
+        if (bytes === 0) return "0 B";
+        const k = 1024;
+        const sizes = ["B", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round((bytes / Math.pow(k, i)) * 10) / 10 + " " + sizes[i];
+      }
+    </script>
+  </body>
+</html>

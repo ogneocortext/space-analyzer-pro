@@ -9,10 +9,10 @@
           <option value="7d">Last 7 Days</option>
           <option value="30d">Last 30 Days</option>
         </select>
-        <button aria-label @click="refreshData" class="btn tabindex="0" btn-primary">
+        <button aria-label="Refresh" @click="refreshData" class="btn btn-primary" tabindex="0">
           🔄 Refresh
         </button>
-        <button aria-label @click="exportData" class="btn tabindex="0" btn-outline">
+        <button aria-label="Export" @click="exportData" class="btn btn-outline" tabindex="0">
           📥 Export
         </button>
       </div>
@@ -27,32 +27,27 @@
             <span :class="['status-indicator', learningStatus]"></span>
             {{ learningStatusText }}
           </div>
-          <div class="metric-detail">
-            Active for {{ formatDuration(activeLearningTime) }}
-          </div>
+          <div class="metric-detail">Active for {{ formatDuration(activeLearningTime) }}</div>
         </div>
 
         <div class="metric-card">
           <h4>📈 Patterns Detected</h4>
           <div class="metric-value">{{ totalPatterns }}</div>
-          <div class="metric-detail">
-            {{ highConfidencePatterns }} high confidence
-          </div>
+          <div class="metric-detail">{{ highConfidencePatterns }} high confidence</div>
         </div>
 
         <div class="metric-card">
           <h4>🎯 Model Accuracy</h4>
           <div class="metric-value">{{ Math.round(modelAccuracy * 100) }}%</div>
-          <div class="metric-detail">
-            {{ totalRecommendations }} recommendations tested
-          </div>
+          <div class="metric-detail">{{ totalRecommendations }} recommendations tested</div>
         </div>
 
         <div class="metric-card">
           <h4>⚡ Learning Rate</h4>
           <div class="metric-value">{{ currentLearningRate.toFixed(2) }}x</div>
           <div class="metric-detail">
-            {{ learningRateTrend > 0 ? '↑' : '↓' }} {{ Math.abs(learningRateTrend).toFixed(2) }}% from last period
+            {{ learningRateTrend > 0 ? "↑" : "↓" }} {{ Math.abs(learningRateTrend).toFixed(2) }}%
+            from last period
           </div>
         </div>
       </div>
@@ -80,7 +75,10 @@
             <span class="label">Dismissal Rate:</span>
             <span class="value">{{ Math.round(dismissalRate * 100) }}%</span>
             <div class="progress-bar">
-              <div class="progress-fill dismissal" :style="{ width: `${dismissalRate * 100}%` }"></div>
+              <div
+                class="progress-fill dismissal"
+                :style="{ width: `${dismissalRate * 100}%` }"
+              ></div>
             </div>
           </div>
           <div class="performance-item">
@@ -162,7 +160,9 @@
             <div class="rating-display">
               <span class="rating-value">{{ averageRating.toFixed(1) }}</span>
               <div class="rating-stars">
-                <span v-for="i in 5" :key="i" :class="['star', i <= averageRating ? 'filled' : '']">★</span>
+                <span v-for="i in 5" :key="i" :class="['star', i <= averageRating ? 'filled' : '']"
+                  >★</span
+                >
               </div>
             </div>
           </div>
@@ -187,59 +187,59 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { useSelfLearningStore } from '@/store/selfLearning'
-import { indexedDBPersistence } from '@/store/indexedDBPersistence'
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
+import { useSelfLearningStore } from "@/store/selfLearning";
+import { indexedDBPersistence } from "@/store/indexedDBPersistence";
 
 interface AnalyticsData {
-  totalPatterns: number
-  highConfidencePatterns: number
-  modelAccuracy: number
-  totalRecommendations: number
-  currentLearningRate: number
-  learningRateTrend: number
-  acceptanceRate: number
-  dismissalRate: number
-  avgResponseTime: number
-  patternTypes: PatternTypeData[]
-  recentLearningEvents: LearningEvent[]
-  abTestResults: ABTestResult[]
-  averageRating: number
-  totalFeedback: number
-  feedbackResponseRate: number
+  totalPatterns: number;
+  highConfidencePatterns: number;
+  modelAccuracy: number;
+  totalRecommendations: number;
+  currentLearningRate: number;
+  learningRateTrend: number;
+  acceptanceRate: number;
+  dismissalRate: number;
+  avgResponseTime: number;
+  patternTypes: PatternTypeData[];
+  recentLearningEvents: LearningEvent[];
+  abTestResults: ABTestResult[];
+  averageRating: number;
+  totalFeedback: number;
+  feedbackResponseRate: number;
 }
 
 interface PatternTypeData {
-  name: string
-  icon: string
-  count: number
-  percentage: number
-  avgConfidence: number
+  name: string;
+  icon: string;
+  count: number;
+  percentage: number;
+  avgConfidence: number;
 }
 
 interface LearningEvent {
-  id: string
-  timestamp: Date
-  type: string
-  description: string
+  id: string;
+  timestamp: Date;
+  type: string;
+  description: string;
 }
 
 interface ABTestResult {
-  id: string
-  name: string
-  status: 'running' | 'completed' | 'paused'
-  variantA: { conversion: number }
-  variantB: { conversion: number }
-  significance: string
+  id: string;
+  name: string;
+  status: "running" | "completed" | "paused";
+  variantA: { conversion: number };
+  variantB: { conversion: number };
+  significance: string;
 }
 
-const selfLearningStore = useSelfLearningStore()
+const selfLearningStore = useSelfLearningStore();
 
 // Reactive state
-const selectedTimeRange = ref('24h')
-const isRealTimeActive = ref(false)
-const activeLearningTime = ref(0)
-const learningStartTime = ref<Date | null>(null)
+const selectedTimeRange = ref("24h");
+const isRealTimeActive = ref(false);
+const activeLearningTime = ref(0);
+const learningStartTime = ref<Date | null>(null);
 
 // Analytics data
 const analyticsData = ref<AnalyticsData>({
@@ -257,73 +257,73 @@ const analyticsData = ref<AnalyticsData>({
   abTestResults: [],
   averageRating: 0,
   totalFeedback: 0,
-  feedbackResponseRate: 0
-})
+  feedbackResponseRate: 0,
+});
 
 // Chart references
-const patternChart = ref<HTMLCanvasElement>()
+const patternChart = ref<HTMLCanvasElement>();
 
 // Computed properties
 const learningStatus = computed(() => {
-  return selfLearningStore.isLearning ? 'active' : 'inactive'
-})
+  return selfLearningStore.isLearning ? "active" : "inactive";
+});
 
 const learningStatusText = computed(() => {
-  return learningStatus.value === 'active' ? 'Learning Active' : 'Learning Inactive'
-})
+  return learningStatus.value === "active" ? "Learning Active" : "Learning Inactive";
+});
 
-const totalPatterns = computed(() => selfLearningStore.patterns.length)
-const highConfidencePatterns = computed(() => 
-  selfLearningStore.patterns.filter(p => p.confidence > 0.8).length
-)
-const modelAccuracy = computed(() => selfLearningStore.getModelAccuracy())
+const totalPatterns = computed(() => selfLearningStore.patterns.length);
+const highConfidencePatterns = computed(
+  () => selfLearningStore.patterns.filter((p) => p.confidence > 0.8).length
+);
+const modelAccuracy = computed(() => selfLearningStore.getModelAccuracy());
 
 // Real-time updates
-let updateInterval: NodeJS.Timeout | null = null
+let updateInterval: NodeJS.Timeout | null = null;
 
 onMounted(async () => {
-  await refreshData()
-  startRealTimeUpdates()
-})
+  await refreshData();
+  startRealTimeUpdates();
+});
 
 onUnmounted(() => {
-  stopRealTimeUpdates()
-})
+  stopRealTimeUpdates();
+});
 
 const refreshData = async () => {
   try {
     // Load analytics data from IndexedDB
-    const analyticsRecords = await indexedDBPersistence.loadAnalyticsData('learning', 100)
-    
+    const analyticsRecords = await indexedDBPersistence.loadAnalyticsData("learning", 100);
+
     // Calculate metrics
-    await calculateAnalyticsMetrics(analyticsRecords)
-    
+    await calculateAnalyticsMetrics(analyticsRecords);
+
     // Update charts
-    updateCharts()
+    updateCharts();
   } catch (error) {
-    console.error('Failed to refresh analytics data:', error)
+    console.error("Failed to refresh analytics data:", error);
   }
-}
+};
 
 const calculateAnalyticsMetrics = async (records: any[]) => {
   // Calculate pattern types distribution
-  const patternTypes = await calculatePatternTypesDistribution()
-  
+  const patternTypes = await calculatePatternTypesDistribution();
+
   // Calculate learning events timeline
-  const recentEvents = await getRecentLearningEvents()
-  
+  const recentEvents = await getRecentLearningEvents();
+
   // Get A/B test results
-  const abTestResults = await getABTestResults()
-  
+  const abTestResults = await getABTestResults();
+
   // Get feedback analysis
-  const feedbackAnalysis = await getFeedbackAnalysis()
-  
+  const feedbackAnalysis = await getFeedbackAnalysis();
+
   // Update analytics data
   analyticsData.value = {
     totalPatterns: totalPatterns.value,
     highConfidencePatterns: highConfidencePatterns.value,
     modelAccuracy: modelAccuracy.value,
-    totalRecommendations: records.filter(r => r.type === 'recommendation').length,
+    totalRecommendations: records.filter((r) => r.type === "recommendation").length,
     currentLearningRate: calculateCurrentLearningRate(),
     learningRateTrend: calculateLearningRateTrend(records),
     acceptanceRate: calculateAcceptanceRate(records),
@@ -334,260 +334,270 @@ const calculateAnalyticsMetrics = async (records: any[]) => {
     abTestResults,
     averageRating: feedbackAnalysis.averageRating,
     totalFeedback: feedbackAnalysis.totalFeedback,
-    feedbackResponseRate: feedbackAnalysis.responseRate
-  }
-}
+    feedbackResponseRate: feedbackAnalysis.responseRate,
+  };
+};
 
 const calculatePatternTypesDistribution = async (): Promise<PatternTypeData[]> => {
-  const patterns = selfLearningStore.patterns
-  const typeGroups = patterns.reduce((groups, pattern) => {
-    if (!groups[pattern.type]) {
-      groups[pattern.type] = {
-        name: pattern.type,
-        icon: getPatternIcon(pattern.type),
-        count: 0,
-        totalConfidence: 0
+  const patterns = selfLearningStore.patterns;
+  const typeGroups = patterns.reduce(
+    (groups, pattern) => {
+      if (!groups[pattern.type]) {
+        groups[pattern.type] = {
+          name: pattern.type,
+          icon: getPatternIcon(pattern.type),
+          count: 0,
+          totalConfidence: 0,
+        };
       }
-    }
-    groups[pattern.type].count++
-    groups[pattern.type].totalConfidence += pattern.confidence
-    return groups
-  }, {} as Record<string, any>)
+      groups[pattern.type].count++;
+      groups[pattern.type].totalConfidence += pattern.confidence;
+      return groups;
+    },
+    {} as Record<string, any>
+  );
 
-  const total = patterns.length
+  const total = patterns.length;
   return Object.entries(typeGroups).map(([type, data]) => ({
     name: formatPatternName(type),
     icon: data.icon,
     count: data.count,
     percentage: total > 0 ? (data.count / total) * 100 : 0,
-    avgConfidence: data.count > 0 ? data.totalConfidence / data.count : 0
-  }))
-}
+    avgConfidence: data.count > 0 ? data.totalConfidence / data.count : 0,
+  }));
+};
 
 const getRecentLearningEvents = async (): Promise<LearningEvent[]> => {
-  const events = await indexedDBPersistence.loadUsageEvents(50)
-  return events.slice(0, 10).map(event => ({
+  const events = await indexedDBPersistence.loadUsageEvents(50);
+  return events.slice(0, 10).map((event) => ({
     id: event.id,
     timestamp: event.timestamp,
     type: event.type,
-    description: generateEventDescription(event)
-  }))
-}
+    description: generateEventDescription(event),
+  }));
+};
 
 const getABTestResults = async (): Promise<ABTestResult[]> => {
   // Mock A/B test results - would be loaded from actual A/B testing system
   return [
     {
-      id: '1',
-      name: 'Recommendation Algorithm A vs B',
-      status: 'completed',
+      id: "1",
+      name: "Recommendation Algorithm A vs B",
+      status: "completed",
       variantA: { conversion: 0.35 },
       variantB: { conversion: 0.42 },
-      significance: '95%'
+      significance: "95%",
     },
     {
-      id: '2',
-      name: 'UI Layout Test',
-      status: 'running',
+      id: "2",
+      name: "UI Layout Test",
+      status: "running",
       variantA: { conversion: 0.28 },
       variantB: { conversion: 0.31 },
-      significance: 'Insufficient data'
-    }
-  ]
-}
+      significance: "Insufficient data",
+    },
+  ];
+};
 
 const getFeedbackAnalysis = async () => {
   // Mock feedback analysis - would be loaded from actual feedback system
   return {
     averageRating: 4.2,
     totalFeedback: 156,
-    responseRate: 0.67
-  }
-}
+    responseRate: 0.67,
+  };
+};
 
 const calculateCurrentLearningRate = (): number => {
   // Calculate learning rate based on recent pattern detection
-  const recentPatterns = selfLearningStore.patterns.slice(-10)
-  if (recentPatterns.length === 0) return 1.0
-  
-  const avgConfidence = recentPatterns.reduce((sum, p) => sum + p.confidence, 0) / recentPatterns.length
-  return avgConfidence * 2 // Scale to 0-2 range
-}
+  const recentPatterns = selfLearningStore.patterns.slice(-10);
+  if (recentPatterns.length === 0) return 1.0;
+
+  const avgConfidence =
+    recentPatterns.reduce((sum, p) => sum + p.confidence, 0) / recentPatterns.length;
+  return avgConfidence * 2; // Scale to 0-2 range
+};
 
 const calculateLearningRateTrend = (records: any[]): number => {
   // Calculate trend based on historical data
-  if (records.length < 2) return 0
-  
-  const recent = records.slice(-10)
-  const older = records.slice(-20, -10)
-  
-  const recentAvg = recent.reduce((sum, r) => sum + (r.learningRate || 1), 0) / recent.length
-  const olderAvg = older.reduce((sum, r) => sum + (r.learningRate || 1), 0) / older.length
-  
-  return ((recentAvg - olderAvg) / olderAvg) * 100
-}
+  if (records.length < 2) return 0;
+
+  const recent = records.slice(-10);
+  const older = records.slice(-20, -10);
+
+  const recentAvg = recent.reduce((sum, r) => sum + (r.learningRate || 1), 0) / recent.length;
+  const olderAvg = older.reduce((sum, r) => sum + (r.learningRate || 1), 0) / older.length;
+
+  return ((recentAvg - olderAvg) / olderAvg) * 100;
+};
 
 const calculateAcceptanceRate = (records: any[]): number => {
-  const recommendationEvents = records.filter(r => r.type === 'recommendation-feedback')
-  if (recommendationEvents.length === 0) return 0
-  
-  const accepted = recommendationEvents.filter(r => r.action === 'accepted').length
-  return accepted / recommendationEvents.length
-}
+  const recommendationEvents = records.filter((r) => r.type === "recommendation-feedback");
+  if (recommendationEvents.length === 0) return 0;
+
+  const accepted = recommendationEvents.filter((r) => r.action === "accepted").length;
+  return accepted / recommendationEvents.length;
+};
 
 const calculateDismissalRate = (records: any[]): number => {
-  const recommendationEvents = records.filter(r => r.type === 'recommendation-feedback')
-  if (recommendationEvents.length === 0) return 0
-  
-  const dismissed = recommendationEvents.filter(r => r.action === 'dismissed').length
-  return dismissed / recommendationEvents.length
-}
+  const recommendationEvents = records.filter((r) => r.type === "recommendation-feedback");
+  if (recommendationEvents.length === 0) return 0;
+
+  const dismissed = recommendationEvents.filter((r) => r.action === "dismissed").length;
+  return dismissed / recommendationEvents.length;
+};
 
 const calculateAvgResponseTime = (records: any[]): number => {
-  const feedbackEvents = records.filter(r => r.responseTime)
-  if (feedbackEvents.length === 0) return 0
-  
-  const totalTime = feedbackEvents.reduce((sum, r) => sum + r.responseTime, 0)
-  return totalTime / feedbackEvents.length
-}
+  const feedbackEvents = records.filter((r) => r.responseTime);
+  if (feedbackEvents.length === 0) return 0;
+
+  const totalTime = feedbackEvents.reduce((sum, r) => sum + r.responseTime, 0);
+  return totalTime / feedbackEvents.length;
+};
 
 const startRealTimeUpdates = () => {
-  isRealTimeActive.value = true
-  learningStartTime.value = new Date()
-  
+  isRealTimeActive.value = true;
+  learningStartTime.value = new Date();
+
   updateInterval = setInterval(() => {
     if (learningStartTime.value) {
-      activeLearningTime.value = Date.now() - learningStartTime.value.getTime()
+      activeLearningTime.value = Date.now() - learningStartTime.value.getTime();
     }
-    refreshData()
-  }, 5000) // Update every 5 seconds
-}
+    refreshData();
+  }, 5000); // Update every 5 seconds
+};
 
 const stopRealTimeUpdates = () => {
-  isRealTimeActive.value = false
+  isRealTimeActive.value = false;
   if (updateInterval) {
-    clearInterval(updateInterval)
-    updateInterval = null
+    clearInterval(updateInterval);
+    updateInterval = null;
   }
-}
+};
 
 const updateCharts = () => {
   // Update pattern chart
   if (patternChart.value) {
-    updatePatternChart()
+    updatePatternChart();
   }
-}
+};
 
 const updatePatternChart = () => {
-  const canvas = patternChart.value
-  if (!canvas) return
-  
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  
-  // Clear canvas
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
-  
-  // Draw simple chart (would use Chart.js in production)
-  drawSimpleChart(ctx, canvas.width, canvas.height, analyticsData.value.patternTypes)
-}
+  const canvas = patternChart.value;
+  if (!canvas) return;
 
-const drawSimpleChart = (ctx: CanvasRenderingContext2D, width: number, height: number, data: PatternTypeData[]) => {
-  const barWidth = width / (data.length * 2)
-  const maxValue = Math.max(...data.map(d => d.count))
-  
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw simple chart (would use Chart.js in production)
+  drawSimpleChart(ctx, canvas.width, canvas.height, analyticsData.value.patternTypes);
+};
+
+const drawSimpleChart = (
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  data: PatternTypeData[]
+) => {
+  const barWidth = width / (data.length * 2);
+  const maxValue = Math.max(...data.map((d) => d.count));
+
   data.forEach((item, index) => {
-    const barHeight = (item.count / maxValue) * (height - 40)
-    const x = index * barWidth * 2 + barWidth / 2
-    const y = height - barHeight - 20
-    
+    const barHeight = (item.count / maxValue) * (height - 40);
+    const x = index * barWidth * 2 + barWidth / 2;
+    const y = height - barHeight - 20;
+
     // Draw bar
-    ctx.fillStyle = '#4a90e2'
-    ctx.fillRect(x, y, barWidth, barHeight)
-    
+    ctx.fillStyle = "#4a90e2";
+    ctx.fillRect(x, y, barWidth, barHeight);
+
     // Draw label
-    ctx.fillStyle = '#333'
-    ctx.font = '12px sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(item.icon, x + barWidth / 2, height - 5)
-  })
-}
+    ctx.fillStyle = "#333";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(item.icon, x + barWidth / 2, height - 5);
+  });
+};
 
 const exportData = async () => {
   try {
-    const data = await indexedDBPersistence.exportData()
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `learning-analytics-${new Date().toISOString().split('T')[0]}.json`
-    a.click()
-    
-    URL.revokeObjectURL(url)
+    const data = await indexedDBPersistence.exportData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `learning-analytics-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+
+    URL.revokeObjectURL(url);
   } catch (error) {
-    console.error('Failed to export analytics data:', error)
+    console.error("Failed to export analytics data:", error);
   }
-}
+};
 
 // Utility functions
 const getPatternIcon = (type: string): string => {
   const icons: Record<string, string> = {
-    'file-access': '📄',
-    'directory-preference': '📁',
-    'time-pattern': '⏰',
-    'cleanup-habit': '🧹'
-  }
-  return icons[type] || '📊'
-}
+    "file-access": "📄",
+    "directory-preference": "📁",
+    "time-pattern": "⏰",
+    "cleanup-habit": "🧹",
+  };
+  return icons[type] || "📊";
+};
 
 const formatPatternName = (type: string): string => {
   const names: Record<string, string> = {
-    'file-access': 'File Access',
-    'directory-preference': 'Directory Preference',
-    'time-pattern': 'Time Pattern',
-    'cleanup-habit': 'Cleanup Habit'
-  }
-  return names[type] || type
-}
+    "file-access": "File Access",
+    "directory-preference": "Directory Preference",
+    "time-pattern": "Time Pattern",
+    "cleanup-habit": "Cleanup Habit",
+  };
+  return names[type] || type;
+};
 
 const formatTime = (date: Date): string => {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
 
 const formatDuration = (ms: number): string => {
-  const seconds = Math.floor(ms / 1000)
-  const minutes = Math.floor(seconds / 60)
-  const hours = Math.floor(minutes / 60)
-  
-  if (hours > 0) return `${hours}h ${minutes % 60}m`
-  if (minutes > 0) return `${minutes}m ${seconds % 60}s`
-  return `${seconds}s`
-}
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (hours > 0) return `${hours}h ${minutes % 60}m`;
+  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+  return `${seconds}s`;
+};
 
 const generateEventDescription = (event: any): string => {
   switch (event.type) {
-    case 'file-access':
-      return `Accessed ${event.data.extension || 'file'}`
-    case 'directory-navigation':
-      return `Navigated to ${event.data.path || 'directory'}`
-    case 'cleanup-action':
-      return `Performed ${event.data.action || 'cleanup'}`
+    case "file-access":
+      return `Accessed ${event.data.extension || "file"}`;
+    case "directory-navigation":
+      return `Navigated to ${event.data.path || "directory"}`;
+    case "cleanup-action":
+      return `Performed ${event.data.action || "cleanup"}`;
     default:
-      return `${event.type} activity`
+      return `${event.type} activity`;
   }
-}
+};
 
 // Watch for time range changes
 watch(selectedTimeRange, () => {
-  refreshData()
-})
+  refreshData();
+});
 </script>
 
 <style scoped>
 .learning-analytics-dashboard {
   padding: 1rem;
-  background: #f8f9fa;
+  background: var(--bg-card, #16161a);
+  border: 1px solid var(--border-subtle, #2a2a2e);
   border-radius: 8px;
   margin: 1rem 0;
 }
@@ -607,9 +617,10 @@ watch(selectedTimeRange, () => {
 
 .time-range-select {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-subtle, #2a2a2e);
   border-radius: 4px;
-  background: white;
+  background: var(--bg-elevated, #1a1a1e);
+  color: var(--text-primary, #ffffff);
 }
 
 .analytics-grid {
@@ -624,16 +635,16 @@ watch(selectedTimeRange, () => {
 }
 
 .metric-card {
-  background: white;
+  background: var(--bg-elevated, #1a1a1e);
   padding: 1.5rem;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-subtle, #2a2a2e);
   text-align: center;
 }
 
 .metric-card h4 {
   margin: 0 0 0.5rem 0;
-  color: #6b7280;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.875rem;
   font-weight: 500;
 }
@@ -641,7 +652,7 @@ watch(selectedTimeRange, () => {
 .metric-value {
   font-size: 2rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-primary, #ffffff);
   margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
@@ -656,28 +667,28 @@ watch(selectedTimeRange, () => {
 }
 
 .status-indicator.active {
-  background: #10b981;
+  background: var(--accent-emerald, #32d583);
 }
 
 .status-indicator.inactive {
-  background: #6b7280;
+  background: var(--text-tertiary, #71717a);
 }
 
 .metric-detail {
-  color: #6b7280;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.875rem;
 }
 
 .chart-section {
-  background: white;
+  background: var(--bg-elevated, #1a1a1e);
   padding: 1.5rem;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-subtle, #2a2a2e);
 }
 
 .chart-section h4 {
   margin: 0 0 1rem 0;
-  color: #111827;
+  color: var(--text-primary, #111827);
   font-size: 1.125rem;
 }
 
@@ -701,24 +712,24 @@ watch(selectedTimeRange, () => {
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: #f9fafb;
+  background: var(--bg-elevated, #1a1a1e);
   border-radius: 4px;
 }
 
 .performance-item .label {
-  color: #6b7280;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.875rem;
 }
 
 .performance-item .value {
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary, #ffffff);
 }
 
 .progress-bar {
   flex: 1;
   height: 6px;
-  background: #e5e7eb;
+  background: var(--bg-elevated-hover, #222226);
   border-radius: 3px;
   margin: 0 1rem;
   overflow: hidden;
@@ -726,12 +737,12 @@ watch(selectedTimeRange, () => {
 
 .progress-fill {
   height: 100%;
-  background: #10b981;
+  background: var(--accent-emerald, #32d583);
   transition: width 0.3s ease;
 }
 
 .progress-fill.dismissal {
-  background: #ef4444;
+  background: var(--accent-coral, #e85a4f);
 }
 
 .pattern-types-grid {
@@ -741,9 +752,9 @@ watch(selectedTimeRange, () => {
 
 .pattern-type-item {
   padding: 1rem;
-  background: #f9fafb;
+  background: var(--bg-elevated, #1a1a1e);
   border-radius: 6px;
-  border-left: 4px solid #4a90e2;
+  border-left: 4px solid var(--accent-indigo, #6366f1);
 }
 
 .type-header {
@@ -759,7 +770,7 @@ watch(selectedTimeRange, () => {
 
 .type-name {
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary, #ffffff);
 }
 
 .type-stats {
@@ -770,24 +781,24 @@ watch(selectedTimeRange, () => {
 
 .type-stats .count {
   font-weight: 600;
-  color: #4a90e2;
+  color: var(--accent-indigo, #6366f1);
 }
 
 .type-stats .percentage {
-  color: #6b7280;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.875rem;
 }
 
 .confidence-bar {
   height: 4px;
-  background: #e5e7eb;
+  background: var(--bg-elevated-hover, #222226);
   border-radius: 2px;
   overflow: hidden;
 }
 
 .confidence-fill {
   height: 100%;
-  background: #10b981;
+  background: var(--accent-emerald, #32d583);
   transition: width 0.3s ease;
 }
 
@@ -806,12 +817,12 @@ watch(selectedTimeRange, () => {
   display: flex;
   gap: 1rem;
   padding: 0.75rem;
-  background: #f9fafb;
+  background: var(--bg-elevated, #1a1a1e);
   border-radius: 4px;
 }
 
 .event-time {
-  color: #6b7280;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.875rem;
   min-width: 60px;
 }
@@ -823,15 +834,15 @@ watch(selectedTimeRange, () => {
 .event-type {
   display: inline-block;
   padding: 0.25rem 0.5rem;
-  background: #4a90e2;
-  color: white;
+  background: var(--accent-indigo, #6366f1);
+  color: var(--text-inverse, #0b0b0e);
   border-radius: 3px;
   font-size: 0.75rem;
   margin-right: 0.5rem;
 }
 
 .event-description {
-  color: #374151;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.875rem;
 }
 
@@ -842,9 +853,9 @@ watch(selectedTimeRange, () => {
 
 .ab-test-item {
   padding: 1rem;
-  background: #f9fafb;
+  background: var(--bg-elevated, #1a1a1e);
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-subtle, #2a2a2e);
 }
 
 .test-header {
@@ -856,7 +867,7 @@ watch(selectedTimeRange, () => {
 
 .test-name {
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary, #ffffff);
 }
 
 .test-status {
@@ -867,18 +878,18 @@ watch(selectedTimeRange, () => {
 }
 
 .test-status.running {
-  background: #3b82f6;
-  color: white;
+  background: var(--accent-indigo, #6366f1);
+  color: var(--text-inverse, #0b0b0e);
 }
 
 .test-status.completed {
-  background: #10b981;
-  color: white;
+  background: var(--accent-emerald, #32d583);
+  color: var(--text-inverse, #0b0b0e);
 }
 
 .test-status.paused {
-  background: #f59e0b;
-  color: white;
+  background: var(--accent-amber, #ffb547);
+  color: var(--text-inverse, #0b0b0e);
 }
 
 .test-metrics {
@@ -893,13 +904,13 @@ watch(selectedTimeRange, () => {
 
 .test-metrics .label {
   display: block;
-  color: #6b7280;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.75rem;
 }
 
 .test-metrics .value {
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary, #ffffff);
 }
 
 .feedback-summary {
@@ -913,12 +924,12 @@ watch(selectedTimeRange, () => {
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: #f9fafb;
+  background: var(--bg-elevated, #1a1a1e);
   border-radius: 4px;
 }
 
 .feedback-metric .label {
-  color: #6b7280;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.875rem;
 }
 
@@ -930,7 +941,7 @@ watch(selectedTimeRange, () => {
 
 .rating-value {
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary, #ffffff);
 }
 
 .rating-stars {
@@ -939,12 +950,12 @@ watch(selectedTimeRange, () => {
 }
 
 .star {
-  color: #d1d5db;
+  color: var(--text-tertiary, #71717a);
   font-size: 1rem;
 }
 
 .star.filled {
-  color: #fbbf24;
+  color: var(--accent-amber, #ffb547);
 }
 
 .real-time-indicator {
@@ -955,23 +966,24 @@ watch(selectedTimeRange, () => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: #10b981;
-  color: white;
+  background: var(--accent-emerald, #32d583);
+  color: var(--text-inverse, #0b0b0e);
   border-radius: 20px;
   font-size: 0.875rem;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px rgba(50, 213, 131, 0.3);
 }
 
 .pulse {
   width: 8px;
   height: 8px;
-  background: white;
+  background: var(--text-primary, #ffffff);
   border-radius: 50%;
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -1016,20 +1028,20 @@ watch(selectedTimeRange, () => {
   .user-feedback-collection {
     padding: 0.5rem;
   }
-  
+
   .metrics-grid,
   .analytics-grid,
   .summary-grid {
     grid-template-columns: 1fr;
     gap: 0.5rem;
   }
-  
+
   .visualization-controls,
   .header-controls {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .chart-canvas {
     height: 200px;
   }
@@ -1041,15 +1053,14 @@ watch(selectedTimeRange, () => {
   .variant-metrics {
     padding: 0.75rem;
   }
-  
+
   .action-buttons,
   .export-section {
     flex-direction: column;
   }
-  
+
   .btn {
     width: 100%;
   }
 }
-
 </style>

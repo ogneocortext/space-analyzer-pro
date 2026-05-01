@@ -811,3 +811,390 @@
     font-size: var(--font-size-2xl);
   }
 }
+
+/* =============================================
+   STANDARDIZED COMPONENT LIBRARY
+   Using design-system.css variables
+   ============================================= */
+
+/* Standard Card */
+.sa-card {
+  background: var(--bg-card, #16161a);
+  border: 1px solid var(--border-subtle, #2a2a2e);
+  border-radius: 12px;
+  padding: 24px;
+  transition: all 0.2s ease;
+}
+
+.sa-card:hover {
+  border-color: var(--border-strong, #3a3a40);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.sa-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle, #2a2a2e);
+}
+
+.sa-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  margin: 0;
+}
+
+.sa-card-description {
+  font-size: 14px;
+  color: var(--text-secondary, #a1a1aa);
+  margin: 4px 0 0 0;
+}
+
+/* Standard Buttons */
+.sa-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 40px;
+  text-decoration: none;
+}
+
+.sa-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sa-btn-primary {
+  background: var(--accent-indigo, #6366f1);
+  color: white;
+  border-color: var(--accent-indigo, #6366f1);
+}
+
+.sa-btn-primary:hover:not(:disabled) {
+  background: var(--accent-indigo-dark, #4f46e5);
+  border-color: var(--accent-indigo-dark, #4f46e5);
+  transform: translateY(-1px);
+}
+
+.sa-btn-secondary {
+  background: var(--bg-elevated, #1a1a1e);
+  color: var(--text-primary, #ffffff);
+  border-color: var(--border-subtle, #2a2a2e);
+}
+
+.sa-btn-secondary:hover:not(:disabled) {
+  background: var(--bg-elevated-hover, #222226);
+  border-color: var(--border-strong, #3a3a40);
+}
+
+.sa-btn-ghost {
+  background: transparent;
+  color: var(--text-secondary, #a1a1aa);
+  border-color: transparent;
+}
+
+.sa-btn-ghost:hover:not(:disabled) {
+  background: var(--bg-elevated, #1a1a1e);
+  color: var(--text-primary, #ffffff);
+}
+
+.sa-btn-danger {
+  background: var(--accent-coral, #e85a4f);
+  color: white;
+  border-color: var(--accent-coral, #e85a4f);
+}
+
+.sa-btn-danger:hover:not(:disabled) {
+  background: var(--accent-coral-dark, #dc2626);
+  border-color: var(--accent-coral-dark, #dc2626);
+}
+
+.sa-btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+  min-height: 32px;
+}
+
+.sa-btn-lg {
+  padding: 14px 28px;
+  font-size: 16px;
+  min-height: 48px;
+}
+
+.sa-btn-icon {
+  padding: 8px;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+/* Standard Form Controls */
+.sa-input,
+.sa-select,
+.sa-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border-subtle, #2a2a2e);
+  border-radius: 8px;
+  background: var(--bg-elevated, #1a1a1e);
+  color: var(--text-primary, #ffffff);
+  font-size: 14px;
+  transition: all 0.2s ease;
+  min-height: 44px;
+}
+
+.sa-input:focus,
+.sa-select:focus,
+.sa-textarea:focus {
+  outline: none;
+  border-color: var(--accent-indigo, #6366f1);
+  box-shadow: 0 0 0 3px var(--accent-indigo-light, #6366f133);
+}
+
+.sa-input::placeholder,
+.sa-textarea::placeholder {
+  color: var(--text-muted, #52525b);
+}
+
+.sa-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a1a1aa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.sa-form-group {
+  margin-bottom: 20px;
+}
+
+.sa-form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary, #ffffff);
+  margin-bottom: 6px;
+}
+
+.sa-form-hint {
+  font-size: 13px;
+  color: var(--text-secondary, #a1a1aa);
+  margin-top: 4px;
+}
+
+/* Standard Status Badges */
+.sa-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sa-badge-success {
+  background: var(--accent-emerald-light, #32d58333);
+  color: var(--accent-emerald-dark, #059669);
+}
+
+.sa-badge-warning {
+  background: var(--accent-amber-light, #ffb54733);
+  color: var(--accent-amber-dark, #f59e0b);
+}
+
+.sa-badge-error {
+  background: var(--accent-coral-light, #e85a4f33);
+  color: var(--accent-coral-dark, #dc2626);
+}
+
+.sa-badge-info {
+  background: var(--accent-indigo-light, #6366f133);
+  color: var(--accent-indigo, #6366f1);
+}
+
+.sa-badge-neutral {
+  background: var(--bg-elevated, #1a1a1e);
+  color: var(--text-secondary, #a1a1aa);
+}
+
+/* Standard Empty State */
+.sa-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.sa-empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.sa-empty-state-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  margin: 0 0 8px 0;
+}
+
+.sa-empty-state-description {
+  font-size: 14px;
+  color: var(--text-secondary, #a1a1aa);
+  margin: 0;
+  max-width: 400px;
+}
+
+/* Standard Page Header */
+.sa-page-header {
+  margin-bottom: 32px;
+}
+
+.sa-page-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary, #ffffff);
+  margin: 0 0 8px 0;
+}
+
+.sa-page-header p {
+  font-size: 16px;
+  color: var(--text-secondary, #a1a1aa);
+  margin: 0;
+}
+
+/* Standard Section */
+.sa-section {
+  margin-bottom: 32px;
+}
+
+.sa-section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  margin: 0 0 16px 0;
+}
+
+/* Standard Toggle Switch */
+.sa-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 12px;
+}
+
+.sa-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.sa-toggle-slider {
+  position: relative;
+  width: 48px;
+  height: 24px;
+  background: var(--bg-elevated, #1a1a1e);
+  border-radius: 24px;
+  transition: background 0.2s ease;
+}
+
+.sa-toggle-slider::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+}
+
+.sa-toggle input:checked + .sa-toggle-slider {
+  background: var(--accent-indigo, #6366f1);
+}
+
+.sa-toggle input:checked + .sa-toggle-slider::before {
+  transform: translateX(24px);
+}
+
+.sa-toggle-label {
+  font-size: 14px;
+  color: var(--text-primary, #ffffff);
+}
+
+/* Standard Toast/Alert */
+.sa-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.sa-alert-success {
+  background: var(--accent-emerald-light, #32d58333);
+  border-color: var(--accent-emerald, #32d583);
+  color: var(--accent-emerald-dark, #059669);
+}
+
+.sa-alert-warning {
+  background: var(--accent-amber-light, #ffb54733);
+  border-color: var(--accent-amber, #ffb547);
+  color: var(--accent-amber-dark, #f59e0b);
+}
+
+.sa-alert-error {
+  background: var(--accent-coral-light, #e85a4f33);
+  border-color: var(--accent-coral, #e85a4f);
+  color: var(--accent-coral-dark, #dc2626);
+}
+
+.sa-alert-info {
+  background: var(--accent-indigo-light, #6366f133);
+  border-color: var(--accent-indigo, #6366f1);
+  color: var(--accent-indigo, #6366f1);
+}
+
+/* Standard Progress Bar */
+.sa-progress {
+  height: 8px;
+  background: var(--bg-elevated, #1a1a1e);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sa-progress-bar {
+  height: 100%;
+  background: var(--accent-indigo, #6366f1);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.sa-progress-bar-success {
+  background: var(--accent-emerald, #32d583);
+}
+
+.sa-progress-bar-warning {
+  background: var(--accent-amber, #ffb547);
+}
+
+.sa-progress-bar-error {
+  background: var(--accent-coral, #e85a4f);
+}

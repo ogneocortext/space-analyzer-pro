@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useAnalysisStore } from "../../store/analysis";
+import { useSelfLearningStore } from "../../store/selfLearning";
 import { Card, Button } from "../../design-system/components";
 
 const store = useAnalysisStore();
+const selfLearningStore = useSelfLearningStore();
 const selectedDepth = ref(2);
 const selectedCategory = ref<string | null>(null);
 const hoveredItem = ref<any>(null);
@@ -41,13 +43,13 @@ const treemapData = computed(() => {
 
   // Convert to array and calculate percentages
   const maxSize = Math.max(...Object.values(root.children).map((c: any) => c.size));
-  
+
   const processNode = (node: any): any => {
     const children = Object.values(node.children || {}).map(processNode);
     return {
       ...node,
       children,
-      percentage: node.size / (store.analysisResult?.totalSize || 1) * 100,
+      percentage: (node.size / (store.analysisResult?.totalSize || 1)) * 100,
       relativeSize: node.size / maxSize,
     };
   };
@@ -73,7 +75,7 @@ function getCategoryColor(category: string): string {
 function getBlockStyle(item: any, index: number, total: number): any {
   const width = Math.max(10, Math.sqrt(item.relativeSize) * 100);
   const height = Math.max(10, item.relativeSize * 100);
-  
+
   return {
     width: `${width}%`,
     height: `${height}px`,
@@ -89,6 +91,28 @@ function formatSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
+
+// Track folder navigation for self-learning
+const handleItemClick = (item: any) => {
+  if (selfLearningStore.isLearning) {
+    selfLearningStore.recordUsageEvent({
+      type: "directory-navigation",
+      timestamp: new Date(),
+      data: {
+        path: item.path,
+        name: item.name,
+        size: item.size,
+        fileCount: item.fileCount,
+        category: item.category,
+      },
+      context: {
+        view: "treemap",
+        depth: selectedDepth.value,
+      },
+    });
+  }
+  hoveredItem.value = item;
+};
 </script>
 
 <template>
@@ -154,6 +178,7 @@ function formatSize(bytes: number): string {
             :style="getBlockStyle(item, 0, treemapData?.length || 1)"
             @mouseenter="hoveredItem = item"
             @mouseleave="hoveredItem = null"
+            @click="handleItemClick(item)"
           >
             <div class="text-xs font-medium text-white truncate">{{ item.name }}</div>
             <div class="text-xs text-white/80">{{ formatSize(item.size) }}</div>
@@ -187,7 +212,10 @@ function formatSize(bytes: number): string {
           <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
             <div
               class="h-full rounded-full"
-              :style="{ width: hoveredItem.percentage + '%', background: getCategoryColor(hoveredItem.category) }"
+              :style="{
+                width: hoveredItem.percentage + '%',
+                background: getCategoryColor(hoveredItem.category),
+              }"
             />
           </div>
           <div class="text-sm text-slate-400 mt-1">{{ hoveredItem.percentage.toFixed(2) }}%</div>

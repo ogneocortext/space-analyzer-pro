@@ -1,11 +1,11 @@
-const path = require('path');
-const { existsSync, statSync } = require('fs');
-const crypto = require('crypto');
-const { exec } = require('child_process');
-const fg = require('fast-glob');
-const { fileTypeFromFile } = require('file-type');
-const diskusage = require('diskusage');
-const filesize = require('filesize');
+const path = require("path");
+const { existsSync, statSync } = require("fs");
+const crypto = require("crypto");
+const { exec } = require("child_process");
+const fg = require("fast-glob");
+const { fileTypeFromFile } = require("file-type");
+const diskusage = require("diskusage");
+const filesize = require("filesize");
 
 /**
  * Find project root directory
@@ -13,21 +13,21 @@ const filesize = require('filesize');
  * @returns {string} Project root directory
  */
 function findProjectRoot(startDir) {
-    let currentDir = startDir;
-    for (let i = 0; i < 10; i++) {
-        const packageJsonPath = path.join(currentDir, 'package.json');
-        const srcDir = path.join(currentDir, 'src');
-        const cliDir = path.join(currentDir, 'cli');
-        
-        if (existsSync(packageJsonPath) && existsSync(srcDir) && existsSync(cliDir)) {
-            return currentDir;
-        }
-        
-        const parentDir = path.dirname(currentDir);
-        if (parentDir === currentDir) break;
-        currentDir = parentDir;
+  let currentDir = startDir;
+  for (let i = 0; i < 10; i++) {
+    const packageJsonPath = path.join(currentDir, "package.json");
+    const srcDir = path.join(currentDir, "src");
+    const cliDir = path.join(currentDir, "cli");
+
+    if (existsSync(packageJsonPath) && existsSync(srcDir) && existsSync(cliDir)) {
+      return currentDir;
     }
-    return path.dirname(__dirname);
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) break;
+    currentDir = parentDir;
+  }
+  return path.dirname(__dirname);
 }
 
 /**
@@ -36,9 +36,9 @@ function findProjectRoot(startDir) {
  * @returns {boolean} Whether path is valid
  */
 function isValidPath(p) {
-    if (!p) return false;
-    const dangerousPatterns = [/\.\.\./];
-    return !dangerousPatterns.some(pattern => pattern.test(p));
+  if (!p) return false;
+  const dangerousPatterns = [/\.\.\./];
+  return !dangerousPatterns.some((pattern) => pattern.test(p));
 }
 
 /**
@@ -49,8 +49,15 @@ function isValidPath(p) {
  * @returns {string} File hash
  */
 function generateFileHash(filePath, size, mtime) {
-    const data = `${filePath}:${size}:${mtime}`;
-    return crypto.createHash('md5').update(data).digest('hex').substring(0, 16);
+  const data = `${filePath}:${size}:${mtime}`;
+  const hash = crypto.createHash("md5").update(data).digest();
+
+  // Use Node.js v25+ Uint8Array.toHex() if available
+  if (Uint8Array.prototype.toHex) {
+    return hash.toHex().substring(0, 16);
+  }
+  // Fallback for older Node.js versions
+  return hash.toString("hex").substring(0, 16);
 }
 
 /**
@@ -58,30 +65,30 @@ function generateFileHash(filePath, size, mtime) {
  * @returns {Promise<string|null>} Path to executable or null
  */
 async function findCppExecutable() {
-    const possiblePaths = [
-        path.join(__dirname, '..', 'bin', 'cpp-wrapper.exe'),
-        path.join(__dirname, '..', 'bin', 'cpp-wrapper'),
-        path.join(__dirname, '..', 'native', 'scanner', 'target', 'release', 'scanner.exe'),
-        path.join(__dirname, '..', 'native', 'scanner', 'target', 'release', 'scanner')
-    ];
+  const possiblePaths = [
+    path.join(__dirname, "..", "bin", "cpp-wrapper.exe"),
+    path.join(__dirname, "..", "bin", "cpp-wrapper"),
+    path.join(__dirname, "..", "native", "scanner", "target", "release", "scanner.exe"),
+    path.join(__dirname, "..", "native", "scanner", "target", "release", "scanner"),
+  ];
 
-    for (const execPath of possiblePaths) {
-        if (existsSync(execPath)) {
-            try {
-                await new Promise((resolve, reject) => {
-                    exec(`"${execPath}" --version`, (error) => {
-                        if (error) reject(error);
-                        else resolve(execPath);
-                    });
-                });
-                return execPath;
-            } catch (error) {
-                console.log(`⚠️ Executable test failed for ${execPath}:`, error.message);
-            }
-        }
+  for (const execPath of possiblePaths) {
+    if (existsSync(execPath)) {
+      try {
+        await new Promise((resolve, reject) => {
+          exec(`"${execPath}" --version`, (error) => {
+            if (error) reject(error);
+            else resolve(execPath);
+          });
+        });
+        return execPath;
+      } catch (error) {
+        console.log(`⚠️ Executable test failed for ${execPath}:`, error.message);
+      }
     }
+  }
 
-    return null;
+  return null;
 }
 
 /**
@@ -91,52 +98,52 @@ async function findCppExecutable() {
  * @returns {Promise<Array>} Array of file info
  */
 async function getDirectoryFilesQuick(directoryPath, generateFileHash) {
-    const { promises: fsPromises } = require('fs');
-    const startTime = Date.now();
+  const { promises: fsPromises } = require("fs");
+  const startTime = Date.now();
 
-    try {
-        // Use fast-glob for efficient file scanning
-        const patterns = [
-            '**/*',
-            '!**/node_modules/**',
-            '!**/.git/**',
-            '!**/__pycache__/**',
-            '!**/.next/**',
-            '!**/dist/**',
-            '!**/build/**',
-            '!**/target/**'
-        ];
+  try {
+    // Use fast-glob for efficient file scanning
+    const patterns = [
+      "**/*",
+      "!**/node_modules/**",
+      "!**/.git/**",
+      "!**/__pycache__/**",
+      "!**/.next/**",
+      "!**/dist/**",
+      "!**/build/**",
+      "!**/target/**",
+    ];
 
-        const filePaths = await fg(patterns, {
-            cwd: directoryPath,
-            absolute: true,
-            onlyFiles: true,
-            deep: 10
+    const filePaths = await fg(patterns, {
+      cwd: directoryPath,
+      absolute: true,
+      onlyFiles: true,
+      deep: 10,
+    });
+
+    const files = [];
+    for (const filePath of filePaths) {
+      try {
+        const stats = await fsPromises.stat(filePath);
+        files.push({
+          path: filePath,
+          size: stats.size,
+          hash: generateFileHash(filePath, stats.size, stats.mtime.getTime()),
+          lastModified: stats.mtime.toISOString(),
         });
-
-        const files = [];
-        for (const filePath of filePaths) {
-            try {
-                const stats = await fsPromises.stat(filePath);
-                files.push({
-                    path: filePath,
-                    size: stats.size,
-                    hash: generateFileHash(filePath, stats.size, stats.mtime.getTime()),
-                    lastModified: stats.mtime.toISOString()
-                });
-            } catch (e) {
-                // Skip files we can't access
-            }
-        }
-
-        const duration = Date.now() - startTime;
-        console.log(`⚡ Quick scan complete: ${files.length} files in ${duration}ms`);
-        return files;
-    } catch (error) {
-        console.error('❌ Fast-glob scan failed, falling back to manual scan:', error.message);
-        // Fallback to manual scan if fast-glob fails
-        return getDirectoryFilesManual(directoryPath, generateFileHash);
+      } catch (e) {
+        // Skip files we can't access
+      }
     }
+
+    const duration = Date.now() - startTime;
+    console.log(`⚡ Quick scan complete: ${files.length} files in ${duration}ms`);
+    return files;
+  } catch (error) {
+    console.error("❌ Fast-glob scan failed, falling back to manual scan:", error.message);
+    // Fallback to manual scan if fast-glob fails
+    return getDirectoryFilesManual(directoryPath, generateFileHash);
+  }
 }
 
 /**
@@ -146,48 +153,52 @@ async function getDirectoryFilesQuick(directoryPath, generateFileHash) {
  * @returns {Promise<Array>} Array of file info
  */
 async function getDirectoryFilesManual(directoryPath, generateFileHash) {
-    const { promises: fsPromises } = require('fs');
-    const files = [];
-    const startTime = Date.now();
+  const { promises: fsPromises } = require("fs");
+  const files = [];
+  const startTime = Date.now();
 
-    const walk = async (dir, maxDepth = 10, currentDepth = 0) => {
-        if (currentDepth >= maxDepth) return;
+  const walk = async (dir, maxDepth = 10, currentDepth = 0) => {
+    if (currentDepth >= maxDepth) return;
+
+    try {
+      const entries = await fsPromises.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
 
         try {
-            const entries = await fsPromises.readdir(dir, { withFileTypes: true });
-            for (const entry of entries) {
-                const fullPath = path.join(dir, entry.name);
-
-                try {
-                    if (entry.isDirectory()) {
-                        // Skip common exclusion directories
-                        if (!['node_modules', '.git', '__pycache__', '.next', 'dist', 'build', 'target'].includes(entry.name) &&
-                            !entry.name.startsWith('.') &&
-                            currentDepth < maxDepth - 1) {
-                            await walk(fullPath, maxDepth, currentDepth + 1);
-                        }
-                    } else {
-                        const stats = await fsPromises.stat(fullPath);
-                        files.push({
-                            path: fullPath,
-                            size: stats.size,
-                            hash: generateFileHash(fullPath, stats.size, stats.mtime.getTime()),
-                            lastModified: stats.mtime.toISOString()
-                        });
-                    }
-                } catch (e) {
-                    // Skip files we can't access
-                }
+          if (entry.isDirectory()) {
+            // Skip common exclusion directories
+            if (
+              !["node_modules", ".git", "__pycache__", ".next", "dist", "build", "target"].includes(
+                entry.name
+              ) &&
+              !entry.name.startsWith(".") &&
+              currentDepth < maxDepth - 1
+            ) {
+              await walk(fullPath, maxDepth, currentDepth + 1);
             }
+          } else {
+            const stats = await fsPromises.stat(fullPath);
+            files.push({
+              path: fullPath,
+              size: stats.size,
+              hash: generateFileHash(fullPath, stats.size, stats.mtime.getTime()),
+              lastModified: stats.mtime.toISOString(),
+            });
+          }
         } catch (e) {
-            console.error(`❌ Failed to read directory ${dir}:`, e.message);
+          // Skip files we can't access
         }
-    };
+      }
+    } catch (e) {
+      console.error(`❌ Failed to read directory ${dir}:`, e.message);
+    }
+  };
 
-    await walk(directoryPath);
-    const duration = Date.now() - startTime;
-    console.log(`⚡ Manual scan complete: ${files.length} files in ${duration}ms`);
-    return files;
+  await walk(directoryPath);
+  const duration = Date.now() - startTime;
+  console.log(`⚡ Manual scan complete: ${files.length} files in ${duration}ms`);
+  return files;
 }
 
 /**
@@ -196,12 +207,12 @@ async function getDirectoryFilesManual(directoryPath, generateFileHash) {
  * @returns {Promise<Object|null>} File type info or null
  */
 async function getFileType(filePath) {
-    try {
-        const type = await fileTypeFromFile(filePath);
-        return type;
-    } catch (error) {
-        return null;
-    }
+  try {
+    const type = await fileTypeFromFile(filePath);
+    return type;
+  } catch (error) {
+    return null;
+  }
 }
 
 /**
@@ -210,18 +221,18 @@ async function getFileType(filePath) {
  * @returns {Promise<Object>} Disk usage info
  */
 async function getDiskUsage(path) {
-    try {
-        const info = await diskusage.check(path);
-        return {
-            free: info.free,
-            total: info.total,
-            used: info.total - info.free,
-            percentage: ((info.total - info.free) / info.total) * 100
-        };
-    } catch (error) {
-        console.error('❌ Failed to get disk usage:', error.message);
-        return null;
-    }
+  try {
+    const info = await diskusage.check(path);
+    return {
+      free: info.free,
+      total: info.total,
+      used: info.total - info.free,
+      percentage: ((info.total - info.free) / info.total) * 100,
+    };
+  } catch (error) {
+    console.error("❌ Failed to get disk usage:", error.message);
+    return null;
+  }
 }
 
 /**
@@ -230,16 +241,16 @@ async function getDiskUsage(path) {
  * @returns {string} Formatted string
  */
 function formatBytes(bytes) {
-    return filesize(bytes, { round: 2 });
+  return filesize(bytes, { round: 2 });
 }
 
 module.exports = {
-    findProjectRoot,
-    isValidPath,
-    generateFileHash,
-    findCppExecutable,
-    getDirectoryFilesQuick,
-    getFileType,
-    getDiskUsage,
-    formatBytes
+  findProjectRoot,
+  isValidPath,
+  generateFileHash,
+  findCppExecutable,
+  getDirectoryFilesQuick,
+  getFileType,
+  getDiskUsage,
+  formatBytes,
 };

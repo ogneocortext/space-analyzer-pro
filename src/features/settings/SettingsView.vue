@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Card, Button } from '../../design-system/components'
+import { ref } from "vue";
+import { Card, Button } from "../../design-system/components";
 
-const scanDepth = ref(10)
-const includeHidden = ref(false)
-const useAI = ref(true)
-const theme = ref('dark')
+const scanDepth = ref(10);
+const includeHidden = ref(false);
+const useAI = ref(true);
+const theme = ref("dark");
 
 function saveSettings() {
-  localStorage.setItem('settings', JSON.stringify({
-    scanDepth: scanDepth.value,
-    includeHidden: includeHidden.value,
-    useAI: useAI.value,
-    theme: theme.value,
-  }))
-  alert('Settings saved!')
+  localStorage.setItem(
+    "settings",
+    JSON.stringify({
+      scanDepth: scanDepth.value,
+      includeHidden: includeHidden.value,
+      useAI: useAI.value,
+      theme: theme.value,
+    })
+  );
+  alert("Settings saved!");
 }
 </script>
 
@@ -26,25 +29,38 @@ function saveSettings() {
     <Card title="Scan Options">
       <div class="space-y-4">
         <div>
-          <label class="block text-sm text-slate-400 mb-2">Scan Depth (directory levels)</label>
+          <label for="scan-depth" class="block text-sm text-slate-300 mb-2"
+            >Scan Depth (directory levels)</label
+          >
           <input
+            id="scan-depth"
             v-model="scanDepth"
             type="range"
             min="1"
             max="20"
             class="w-full"
-          >
-          <p class="text-sm text-slate-500 mt-1">{{ scanDepth }} levels</p>
+            aria-describedby="scan-depth-value"
+          />
+          <p id="scan-depth-value" class="text-sm text-slate-400 mt-1">{{ scanDepth }} levels</p>
         </div>
 
         <div class="flex items-center justify-between">
-          <span class="text-slate-300">Include hidden files</span>
+          <span class="text-slate-200">Include hidden files</span>
           <button
-            :class="['w-12 h-6 rounded-full transition-colors relative', includeHidden ? 'bg-blue-600' : 'bg-slate-700']"
+            :class="[
+              'w-12 h-6 rounded-full transition-colors relative focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900',
+              includeHidden ? 'bg-blue-600' : 'bg-slate-500',
+            ]"
             @click="includeHidden = !includeHidden"
+            aria-label="Toggle include hidden files"
+            role="switch"
+            :aria-checked="includeHidden"
           >
             <span
-              :class="['absolute top-1 w-4 h-4 bg-white rounded-full transition-transform', includeHidden ? 'translate-x-7' : 'translate-x-1']"
+              :class="[
+                'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow-md border border-slate-300',
+                includeHidden ? 'translate-x-7' : 'translate-x-1',
+              ]"
             />
           </button>
         </div>
@@ -55,15 +71,24 @@ function saveSettings() {
     <Card title="AI Features">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-slate-300">Enable AI Analysis</p>
-          <p class="text-sm text-slate-500">Get insights and recommendations</p>
+          <p class="text-slate-200">Enable AI Analysis</p>
+          <p class="text-sm text-slate-400">Get insights and recommendations</p>
         </div>
         <button
-          :class="['w-12 h-6 rounded-full transition-colors relative', useAI ? 'bg-blue-600' : 'bg-slate-700']"
+          :class="[
+            'w-12 h-6 rounded-full transition-colors relative focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900',
+            useAI ? 'bg-blue-600' : 'bg-slate-500',
+          ]"
           @click="useAI = !useAI"
+          aria-label="Toggle AI analysis"
+          role="switch"
+          :aria-checked="useAI"
         >
           <span
-            :class="['absolute top-1 w-4 h-4 bg-white rounded-full transition-transform', useAI ? 'translate-x-7' : 'translate-x-1']"
+            :class="[
+              'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow-md border border-slate-300',
+              useAI ? 'translate-x-7' : 'translate-x-1',
+            ]"
           />
         </button>
       </div>
@@ -73,13 +98,19 @@ function saveSettings() {
     <Card title="Appearance">
       <div class="flex gap-2">
         <button
-          :class="['px-4 py-2 rounded-lg transition-colors', theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300']"
+          :class="[
+            'px-4 py-2 rounded-lg transition-colors',
+            theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300',
+          ]"
           @click="theme = 'dark'"
         >
           Dark
         </button>
         <button
-          :class="['px-4 py-2 rounded-lg transition-colors', theme === 'light' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300']"
+          :class="[
+            'px-4 py-2 rounded-lg transition-colors',
+            theme === 'light' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300',
+          ]"
           @click="theme = 'light'"
         >
           Light
@@ -89,9 +120,7 @@ function saveSettings() {
 
     <!-- Save -->
     <div class="flex justify-end">
-      <Button variant="primary" @click="saveSettings">
-        Save Settings
-      </Button>
+      <Button variant="primary" @click="saveSettings"> Save Settings </Button>
     </div>
   </div>
 </template>

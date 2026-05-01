@@ -1,5 +1,5 @@
 //! NTFS MFT Direct Scanner
-//! 
+//!
 //! Provides ultra-fast scanning by directly reading the NTFS Master File Table
 //! Achieves up to 46x faster scanning compared to traditional file system traversal
 
@@ -11,11 +11,11 @@ use std::mem;
 use std::path::{Path, PathBuf};
 use std::ptr;
 use std::slice;
-use winapi::um::fileapi::{CreateFileW, SetFilePointerEx, ReadFile};
+use winapi::um::fileapi::{CreateFileW, SetFilePointerEx, ReadFile, OPEN_EXISTING};
 use winapi::um::handleapi::{INVALID_HANDLE_VALUE, CloseHandle};
-use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING, GENERIC_READ, HANDLE};
+use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE, LARGE_INTEGER};
 use winapi::um::errhandlingapi::GetLastError;
-use winapi::shared::minwindef::{DWORD, LPVOID, LARGE_INTEGER};
+use winapi::shared::minwindef::{DWORD, LPVOID};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,7 +64,7 @@ impl NtfsMftScanner {
     pub fn initialize_volume(&mut self, volume_path: &str) -> Result<(), String> {
         // Convert path to wide string for Windows API
         let wide_path: Vec<u16> = volume_path.encode_utf16().chain(std::iter::once(0)).collect();
-        
+
         // Open volume handle with admin privileges required
         let handle = unsafe {
             CreateFileW(
@@ -98,7 +98,7 @@ impl NtfsMftScanner {
     /// Read volume boot sector to extract NTFS metadata
     fn read_volume_boot_sector(&self, volume_path: &str) -> Result<NtfsVolumeInfo, String> {
         let boot_sector_path = format!("\\\\.\\{}", volume_path.trim_end_matches('\\'));
-        
+
         let mut file = File::open(&boot_sector_path)
             .map_err(|e| format!("Failed to open boot sector: {}", e))?;
 
@@ -245,7 +245,7 @@ impl NtfsMftScanner {
         }
 
         // Check for MFT signature "FILE"
-        &entry_data[0..4] == b"FILE" && 
+        &entry_data[0..4] == b"FILE" &&
         entry_data[16] != 0 && // Update sequence
         entry_data[22] != 0 // In use flag
     }
@@ -296,7 +296,7 @@ impl NtfsMftScanner {
             modification_time,
             file_size,
             attributes,
-            file_name,
+            file_name: file_name.clone(),
             file_path: PathBuf::from(&file_name),
             is_directory,
             is_deleted,
@@ -321,7 +321,7 @@ impl NtfsMftScanner {
 
             // Attribute type (4 bytes)
             let attr_type = u32::from_le_bytes([
-                entry_data[offset], entry_data[offset + 1], 
+                entry_data[offset], entry_data[offset + 1],
                 entry_data[offset + 2], entry_data[offset + 3]
             ]);
 
@@ -469,10 +469,10 @@ impl NtfsMftScanner {
     /// Get performance metrics
     pub fn get_performance_metrics(&self) -> HashMap<String, String> {
         let mut metrics = HashMap::new();
-        
+
         metrics.insert("entries_cached".to_string(), self.cached_entries.len().to_string());
         metrics.insert("mft_size_bytes".to_string(), self.mft_data.len().to_string());
-        
+
         if let Some(ref info) = self.volume_info {
             metrics.insert("volume_path".to_string(), info.volume_path.clone());
             metrics.insert("bytes_per_cluster".to_string(), info.bytes_per_cluster.to_string());
@@ -500,14 +500,14 @@ pub mod utils {
     /// Get list of NTFS volumes on the system
     pub fn get_ntfs_volumes() -> Result<Vec<String>, String> {
         use std::fs;
-        
+
         let mut volumes = Vec::new();
-        
+
         // Check common drive letters
         for drive in b'C'..=b'Z' {
             let drive_path = format!("{}:\\", drive as char);
             let drive_letter = drive as char;
-            
+
             if fs::metadata(&drive_path).is_ok() {
                 // Check if it's NTFS (simplified check)
                 let boot_sector_path = format!("\\\\.\\{}", drive_letter);
@@ -522,7 +522,7 @@ pub mod utils {
                 }
             }
         }
-        
+
         Ok(volumes)
     }
 
@@ -585,61 +585,39 @@ mod tests {
         let mft_size = 100 * 1024 * 1024; // 100MB
         let estimated_time = utils::estimate_scan_time(mft_size);
         println!("Estimated scan time for 100MB MFT: {:.3} seconds", estimated_time);
-        
+
         // Should be very fast due to MFT direct reading
         assert!(estimated_time < 1.0);
     }
 }
 
-// NAPI exports for Node.js integration
+// NAPI exports for Node.js integration - disabled (requires napi-rs build setup)
+// These exports are placeholders for when napi-rs is properly configured
 #[cfg(target_os = "windows")]
-#[napi::bindgen]
 pub mod napi_exports {
     use super::*;
-    use napi::bindgen_prelude::*;
-    use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 
-    #[napi]
-    pub fn create_mft_scanner() -> Result<NtfsMftScanner, Error> {
-        Ok(NtfsMftScanner::new())
+    pub fn create_mft_scanner() -> NtfsMftScanner {
+        NtfsMftScanner::new()
     }
 
-    #[napi]
-    pub async fn scan_volume_async(
+    pub fn scan_volume(
         scanner: &mut NtfsMftScanner,
-        volume_path: String,
-        max_entries: Option<u32>,
-        callback: ThreadsafeFunction<Result<Vec<MftEntry>, Error>, ErrorStrategy::CalleeHandled>,
-    ) -> Result<(), Error> {
-        // Initialize volume
-        scanner.initialize_volume(&volume_path)
-            .map_err(|e| Error::new(Status::GenericFailure, e))?;
-
-        // Scan volume
-        let entries = scanner.scan_volume(max_entries.map(|v| v as usize))
-            .map_err(|e| Error::new(Status::GenericFailure, e))?;
-
-        // Call callback with results
-        callback.call(
-            Ok(entries),
-            ThreadsafeFunctionCallMode::Blocking,
-        ).map_err(|e| Error::new(Status::GenericFailure, format!("Callback error: {}", e)))?;
-
-        Ok(())
+        volume_path: &str,
+        max_entries: Option<usize>,
+    ) -> std::result::Result<Vec<MftEntry>, String> {
+        scanner.initialize_volume(volume_path)?;
+        scanner.scan_volume(max_entries)
     }
 
-    #[napi]
     pub fn check_admin_privileges() -> bool {
         NtfsMftScanner::check_admin_privileges()
     }
 
-    #[napi]
-    pub fn get_ntfs_volumes() -> Result<Vec<String>, Error> {
+    pub fn get_ntfs_volumes() -> std::result::Result<Vec<String>, String> {
         utils::get_ntfs_volumes()
-            .map_err(|e| Error::new(Status::GenericFailure, e))
     }
 
-    #[napi]
     pub fn estimate_scan_time(mft_size: u64) -> f64 {
         utils::estimate_scan_time(mft_size)
     }
