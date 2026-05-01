@@ -12,11 +12,11 @@
   --bg-input: #0b0b0e;
   --bg-overlay: rgba(0, 0, 0, 0.8);
 
-  /* Text Colors */
-  --text-primary: #fafaf9;
-  --text-secondary: #6b6b70;
-  --text-tertiary: #4a4a50;
-  --text-muted: #8e8e93;
+  /* Text Colors - Improved contrast for dark backgrounds */
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --text-muted: #52525b;
   --text-inverse: #0b0b0e;
 
   /* Accent Colors */
@@ -695,9 +695,13 @@ body {
   height: 100%;
 }
 .w-fit {
+  width: -moz-fit-content;
+  width: -webkit-fit-content;
   width: fit-content;
 }
 .h-fit {
+  height: -moz-fit-content;
+  height: -webkit-fit-content;
   height: fit-content;
 }
 

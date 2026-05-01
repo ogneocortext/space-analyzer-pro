@@ -1,12 +1,57 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useAnalysisStore } from "../../store/analysis";
 import { Card, Button } from "../../design-system/components";
+import SkeletonLoader from "../../components/shared/SkeletonLoader.vue";
+import {
+  RefreshCw,
+  FolderOpen,
+  HardDrive,
+  Layers,
+  FileWarning,
+  ArrowLeft,
+  Search,
+  Zap,
+  Database,
+} from "lucide-vue-next";
 
 const store = useAnalysisStore();
 const activeTab = ref<"overview" | "files" | "insights" | "windows">("overview");
 const selectedCategory = ref<string | null>(null);
+const errorMessage = ref("");
+const showError = ref(false);
+const isRefreshing = ref(false);
 
+// Watch for store errors
+watch(
+  () => store.error,
+  (newError) => {
+    if (newError) {
+      errorMessage.value = newError;
+      showError.value = true;
+    }
+  }
+);
+
+async function refreshData() {
+  if (!store.analysisResult) return;
+  isRefreshing.value = true;
+  try {
+    await store.handleAnalysis(false);
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : "Failed to refresh data";
+    showError.value = true;
+  } finally {
+    isRefreshing.value = false;
+  }
+}
+
+function clearError() {
+  showError.value = false;
+  errorMessage.value = "";
+}
+
+const isLoading = computed(() => store.isLoading || false);
 const hasData = computed(() => store.analysisResult !== null);
 const totalFiles = computed(() => store.analysisResult?.totalFiles || 0);
 const totalSize = computed(() => store.analysisResult?.totalSize || 0);
@@ -94,9 +139,19 @@ function getCategorizationReason(file: (typeof files.value)[0]): string {
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between flex-wrap gap-4">
       <h1 class="text-2xl font-bold text-slate-100">Dashboard</h1>
       <div class="flex gap-2">
+        <Button
+          v-if="hasData"
+          variant="secondary"
+          size="sm"
+          @click="refreshData"
+          :disabled="isRefreshing || isLoading"
+        >
+          <RefreshCw class="w-4 h-4 mr-1" :class="{ 'animate-spin': isRefreshing }" />
+          {{ isRefreshing ? "Refreshing..." : "Refresh" }}
+        </Button>
         <Button
           v-for="tab in ['overview', 'files', 'insights', 'windows']"
           :key="tab"
@@ -109,10 +164,52 @@ function getCategorizationReason(file: (typeof files.value)[0]): string {
       </div>
     </div>
 
+    <!-- Error Message -->
+    <div
+      v-if="showError"
+      class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3"
+    >
+      <FileWarning class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+      <div class="flex-1">
+        <p class="text-red-300 text-sm">{{ errorMessage }}</p>
+      </div>
+      <button @click="clearError" class="text-red-400 hover:text-red-300 transition-colors">
+        <span class="sr-only">Dismiss</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="isLoading" class="space-y-6">
+      <SkeletonLoader type="header" />
+      <SkeletonLoader type="card-grid" :count="4" />
+      <SkeletonLoader type="card" />
+    </div>
+
     <!-- No Data State -->
-    <div v-if="!hasData" class="text-center py-12">
-      <p class="text-slate-400 mb-4">No analysis data available</p>
-      <Button variant="primary" @click="$router.push('/scan')"> Start Scan </Button>
+    <div v-else-if="!hasData" class="text-center py-16 px-4">
+      <div class="mb-6">
+        <div
+          class="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4"
+        >
+          <FolderOpen class="w-12 h-12 text-slate-600" />
+        </div>
+        <h3 class="text-xl font-semibold text-slate-200 mb-2">No Analysis Data Available</h3>
+        <p class="text-slate-400 max-w-md mx-auto">
+          Start a scan to analyze your file system and view insights about your storage usage.
+        </p>
+      </div>
+      <Button variant="primary" size="lg" @click="$router.push('/scan')">
+        <Search class="w-5 h-5 mr-2" />
+        Start Scan
+      </Button>
     </div>
 
     <!-- Overview Tab -->
@@ -120,27 +217,47 @@ function getCategorizationReason(file: (typeof files.value)[0]): string {
       <!-- Key Metrics -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
+          <div class="flex items-center gap-3 mb-2">
+            <div class="p-2 bg-blue-500/20 rounded-lg">
+              <Database class="w-5 h-5 text-blue-400" />
+            </div>
+            <div class="text-sm text-slate-400">Total Files</div>
+          </div>
           <div class="text-3xl font-bold text-blue-400">{{ totalFiles.toLocaleString() }}</div>
-          <div class="text-sm text-slate-400">Total Files</div>
         </Card>
 
         <Card>
+          <div class="flex items-center gap-3 mb-2">
+            <div class="p-2 bg-emerald-500/20 rounded-lg">
+              <HardDrive class="w-5 h-5 text-emerald-400" />
+            </div>
+            <div class="text-sm text-slate-400">Total Size</div>
+          </div>
           <div class="text-3xl font-bold text-emerald-400">{{ formatSize(totalSize) }}</div>
-          <div class="text-sm text-slate-400">Total Size</div>
         </Card>
 
         <Card>
+          <div class="flex items-center gap-3 mb-2">
+            <div class="p-2 bg-purple-500/20 rounded-lg">
+              <Layers class="w-5 h-5 text-purple-400" />
+            </div>
+            <div class="text-sm text-slate-400">Categories</div>
+          </div>
           <div class="text-3xl font-bold text-purple-400">
             {{ Object.keys(fileCategories).length }}
           </div>
-          <div class="text-sm text-slate-400">Categories</div>
         </Card>
 
         <Card>
+          <div class="flex items-center gap-3 mb-2">
+            <div class="p-2 bg-amber-500/20 rounded-lg">
+              <FileWarning class="w-5 h-5 text-amber-400" />
+            </div>
+            <div class="text-sm text-slate-400">Large Files (100MB+)</div>
+          </div>
           <div class="text-3xl font-bold text-amber-400">
             {{ files.filter((f) => f.size > 1024 * 1024 * 100).length }}
           </div>
-          <div class="text-sm text-slate-400">Large Files (100MB+)</div>
         </Card>
       </div>
 
@@ -186,14 +303,7 @@ function getCategorizationReason(file: (typeof files.value)[0]): string {
           <!-- Back button and stats -->
           <div class="flex items-center justify-between pb-4 border-b border-slate-700">
             <Button variant="secondary" size="sm" @click="clearCategorySelection">
-              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
+              <ArrowLeft class="w-4 h-4 mr-1" />
               Back to Categories
             </Button>
             <div class="text-sm text-slate-400">
@@ -291,11 +401,28 @@ function getCategorizationReason(file: (typeof files.value)[0]): string {
         <div class="space-y-4">
           <div>
             <div class="flex justify-between text-sm mb-1">
-              <span class="text-slate-400">Storage Used</span>
+              <span class="text-slate-400">Total Scanned</span>
               <span class="text-slate-300">{{ formatSize(totalSize) }}</span>
             </div>
             <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
-              <div class="h-full bg-blue-500 rounded-full" style="width: 60%"></div>
+              <div
+                class="h-full bg-emerald-500 rounded-full transition-all duration-1000"
+                :style="{ width: '100%' }"
+              ></div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4 pt-2">
+            <div class="text-center">
+              <div class="text-2xl font-bold text-blue-400">
+                {{ files.length.toLocaleString() }}
+              </div>
+              <div class="text-xs text-slate-400">Files Scanned</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-emerald-400">
+                {{ formatSize(totalSize / (files.length || 1)) }}
+              </div>
+              <div class="text-xs text-slate-400">Avg File Size</div>
             </div>
           </div>
         </div>
@@ -305,9 +432,15 @@ function getCategorizationReason(file: (typeof files.value)[0]): string {
     <!-- Windows Tab -->
     <div v-else-if="activeTab === 'windows'" class="space-y-4">
       <div v-if="!hasWindowsData" class="text-center py-12">
-        <p class="text-slate-400 mb-4">No Windows API data available</p>
-        <p class="text-sm text-slate-500">
-          Windows-specific features require the Rust native scanner on Windows
+        <div
+          class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4"
+        >
+          <Zap class="w-8 h-8 text-slate-600" />
+        </div>
+        <p class="text-slate-400 mb-2">Windows NTFS Features Not Available</p>
+        <p class="text-sm text-slate-500 max-w-md mx-auto">
+          Advanced Windows features (hard links, alternate data streams, compression info) require
+          elevated permissions or native scanner integration.
         </p>
       </div>
 

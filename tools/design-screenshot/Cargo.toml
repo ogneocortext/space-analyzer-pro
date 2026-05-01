@@ -1,0 +1,17 @@
+[package]
+name = "design-screenshot"
+version = "0.1.0"
+edition = "2021"
+authors = ["Space Analyzer Team"]
+description = "Frontend design analysis screenshot tool for Space Analyzer Pro"
+license = "MIT"
+
+[[bin]]
+name = "design-screenshot"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+headless_chrome = { version = "1.0", default-features = false, features = ["fetch"] }
+anyhow = "1.0"
+serde_json = "1.0"

@@ -254,12 +254,19 @@ class DatabaseCore {
   }
 
   /**
-   * Compress JSON data using zlib
+   * Compress data to base64 zlib
+   * Uses Node.js v25+ Uint8Array.toBase64() for better performance
    */
   compressData(data) {
     try {
       const json = JSON.stringify(data);
       const compressed = zlib.deflateSync(json);
+
+      // Use Node.js v25+ Uint8Array.toBase64() if available
+      if (Uint8Array.prototype.toBase64) {
+        return compressed.toBase64();
+      }
+      // Fallback to Buffer for older Node.js versions
       return compressed.toString("base64");
     } catch (err) {
       console.error("❌ Compression error:", err);
@@ -269,10 +276,30 @@ class DatabaseCore {
 
   /**
    * Decompress data from base64 zlib
+   * Uses Node.js v25+ Uint8Array.from() with base64 for better performance
    */
   decompressData(compressed) {
     try {
-      const buffer = Buffer.from(compressed, "base64");
+      let buffer;
+
+      // Use Node.js v25+ Uint8Array.from() with base64 if available
+      if (Uint8Array.from && typeof Uint8Array.from === "function") {
+        try {
+          buffer = Uint8Array.from(compressed, (c) => c.charCodeAt(0));
+          // Convert base64 string to Uint8Array
+          const binaryString = atob(compressed);
+          buffer = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            buffer[i] = binaryString.charCodeAt(i);
+          }
+        } catch {
+          // Fallback to Buffer
+          buffer = Buffer.from(compressed, "base64");
+        }
+      } else {
+        buffer = Buffer.from(compressed, "base64");
+      }
+
       const decompressed = zlib.inflateSync(buffer);
       return JSON.parse(decompressed.toString());
     } catch (err) {

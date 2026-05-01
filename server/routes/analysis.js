@@ -377,6 +377,9 @@ class AnalysisRoutes {
     // Health check endpoint
     this.router.get("/health", async (req, res) => {
       try {
+        const os = require("os");
+        const dynamicConfig = require("../config/dynamic-config");
+
         const status = {
           success: true,
           timestamp: new Date().toISOString(),
@@ -388,6 +391,25 @@ class AnalysisRoutes {
           },
           database: {
             connected: !!this.server.knowledgeDB?.db,
+          },
+          system: {
+            cpu: os.cpus().length,
+            memory: {
+              total: os.totalmem(),
+              free: os.freemem(),
+              used: process.memoryUsage(),
+            },
+            platform: os.platform(),
+            nodeVersion: process.version,
+          },
+          workers: {
+            configured: dynamicConfig.workerCount,
+            memoryPerWorker: dynamicConfig.workerMemoryMB,
+            active: this.server.workerPool !== null,
+            stats: this.server.workerPool ? this.server.workerPool.getStats() : null,
+            message: this.server.workerPool
+              ? "Worker pool active - using parallel processing"
+              : "Worker pool not initialized - using main thread for processing",
           },
         };
         res.json(status);
@@ -405,17 +427,17 @@ class AnalysisRoutes {
     if (!analysis) return;
 
     try {
-      // Use the appropriate scanner based on options
-      let scannerPath;
-      if (options.useRust) {
-        scannerPath = path.join(__dirname, "..", "rust-scanner", "scanner.exe");
-      } else {
-        scannerPath = path.join(__dirname, "..", "scanner", "scanner.exe");
-      }
+      // Use Rust CLI (space-analyzer.exe) from bin/ directory
+      const scannerPath = path.join(__dirname, "..", "..", "bin", "space-analyzer.exe");
+      const tempFile = path.join(__dirname, "..", "controllers", `output_${analysisId}.json`);
 
-      const scanner = spawn(scannerPath, [directoryPath, "--json"], {
-        cwd: path.dirname(scannerPath),
-      });
+      const scanner = spawn(
+        scannerPath,
+        [directoryPath, "--format", "json", "--output", tempFile],
+        {
+          cwd: path.dirname(scannerPath),
+        }
+      );
 
       let output = "";
       let errorOutput = "";
@@ -437,7 +459,11 @@ class AnalysisRoutes {
         }
 
         try {
-          const results = JSON.parse(output);
+          // Read results from temp file (Rust CLI writes to file)
+          const results = JSON.parse(await fs.promises.readFile(tempFile, "utf8"));
+
+          // Clean up temp file
+          await fs.promises.unlink(tempFile).catch(() => {});
 
           // Store results
           this.server.analysisResults.set(analysisId, {

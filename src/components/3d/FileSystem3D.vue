@@ -131,6 +131,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
+import { useSelfLearningStore } from "@/store/selfLearning";
 
 interface FileNode {
   id: string;
@@ -155,6 +156,9 @@ const emit = defineEmits<{
   nodeSelected: [node: FileNode];
   nodeOpened: [node: FileNode];
 }>();
+
+// Self-learning store
+const selfLearningStore = useSelfLearningStore();
 
 // Reactive state
 const loading = ref(true);
@@ -206,73 +210,100 @@ onUnmounted(() => {
 const initThreeJS = async () => {
   if (!canvas.value || !viewport.value) return;
 
-  // Scene setup
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0a0a);
-  scene.fog = new THREE.Fog(0x0a0a0a, 10, 100);
-
-  // Camera setup
-  const aspect = viewport.value.clientWidth / viewport.value.clientHeight;
-  camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
-  camera.position.set(0, 10, 20);
-
-  // Renderer setup
-  renderer = new THREE.WebGLRenderer({
-    canvas: canvas.value,
-    antialias: true,
-    alpha: true,
-  });
-  renderer.setSize(viewport.value.clientWidth, viewport.value.clientHeight);
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-  // Controls setup
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.minDistance = 1;
-  controls.maxDistance = 100;
-  controls.maxPolarAngle = Math.PI;
-
-  // Lighting
-  const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
-  scene.add(ambientLight);
-
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  directionalLight.position.set(10, 20, 10);
-  directionalLight.castShadow = true;
-  directionalLight.shadow.camera.near = 0.1;
-  directionalLight.shadow.camera.far = 50;
-  directionalLight.shadow.camera.left = -20;
-  directionalLight.shadow.camera.right = 20;
-  directionalLight.shadow.camera.top = 20;
-  directionalLight.shadow.camera.bottom = -20;
-  scene.add(directionalLight);
-
-  // Load font for labels with fallback
-  const fontLoader = new FontLoader();
-  try {
-    font = await new Promise((resolve, reject) => {
-      fontLoader.load(
-        "https://threejs.org/examples/fonts/helvetiker_regular.typeface.json",
-        resolve,
-        undefined,
-        reject
-      );
-    });
-  } catch (error) {
-    console.warn("Failed to load font, using fallback:", error);
-    // Create a simple fallback font
-    font = null; // We'll handle null font in createLabel
+  // Check for WebGL support
+  const gl = canvas.value.getContext("webgl") || canvas.value.getContext("experimental-webgl");
+  if (!gl) {
+    console.warn("WebGL not supported, showing fallback UI");
+    loading.value = false;
+    return;
   }
 
-  // Handle window resize
-  window.addEventListener("resize", handleResize);
+  // Check viewport dimensions
+  if (viewport.value.clientWidth === 0 || viewport.value.clientHeight === 0) {
+    console.warn("Viewport has zero dimensions, deferring initialization");
+    // Try again after a short delay
+    setTimeout(initThreeJS, 100);
+    return;
+  }
 
-  // Handle mouse events
-  canvas.value.addEventListener("click", handleMouseClick);
-  canvas.value.addEventListener("mousemove", handleMouseMove);
+  try {
+    // Scene setup
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a0a);
+    scene.fog = new THREE.Fog(0x0a0a0a, 10, 100);
+
+    // Camera setup
+    const aspect = viewport.value.clientWidth / viewport.value.clientHeight;
+    if (!isFinite(aspect) || aspect <= 0) {
+      console.warn("Invalid aspect ratio, using default");
+      camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    } else {
+      camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+    }
+    camera.position.set(0, 10, 20);
+
+    // Renderer setup
+    renderer = new THREE.WebGLRenderer({
+      canvas: canvas.value,
+      antialias: true,
+      alpha: true,
+    });
+    renderer.setSize(viewport.value.clientWidth, viewport.value.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Controls setup
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 1;
+    controls.maxDistance = 100;
+    controls.maxPolarAngle = Math.PI;
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(10, 20, 10);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.camera.near = 0.1;
+    directionalLight.shadow.camera.far = 50;
+    directionalLight.shadow.camera.left = -20;
+    directionalLight.shadow.camera.right = 20;
+    directionalLight.shadow.camera.top = 20;
+    directionalLight.shadow.camera.bottom = -20;
+    scene.add(directionalLight);
+
+    // Load font for labels with fallback
+    const fontLoader = new FontLoader();
+    try {
+      font = await new Promise((resolve, reject) => {
+        fontLoader.load(
+          "https://threejs.org/examples/fonts/helvetiker_regular.typeface.json",
+          resolve,
+          undefined,
+          reject
+        );
+      });
+    } catch (error) {
+      console.warn("Failed to load font, using fallback:", error);
+      // Create a simple fallback font
+      font = null; // We'll handle null font in createLabel
+    }
+
+    // Handle window resize
+    window.addEventListener("resize", handleResize);
+
+    // Handle mouse events
+    canvas.value.addEventListener("click", handleMouseClick);
+    canvas.value.addEventListener("mousemove", handleMouseMove);
+  } catch (error) {
+    console.error("Failed to initialize Three.js:", error);
+    loading.value = false;
+    // Component will show a fallback UI
+  }
 };
 
 const loadFileSystemData = async () => {
@@ -742,6 +773,26 @@ const selectNode = (node: FileNode | null) => {
   selectedNode.value = node;
   emit("nodeSelected", node);
 
+  // Track usage for self-learning
+  if (node && selfLearningStore.isLearning) {
+    const eventType = node.type === "file" ? "file-access" : "directory-navigation";
+    selfLearningStore.recordUsageEvent({
+      type: eventType,
+      timestamp: new Date(),
+      data: {
+        path: node.path,
+        name: node.name,
+        size: node.size,
+        type: node.type,
+        extension: node.type === "file" ? node.name.split(".").pop() : null,
+      },
+      context: {
+        view: "3d-browser",
+        layout: layoutType.value,
+      },
+    });
+  }
+
   // Highlight selected node
   Array.from(nodeMap.values()).forEach((n) => {
     if (n.mesh) {
@@ -856,8 +907,12 @@ const startAnimationLoop = () => {
   const animate = () => {
     animationId = requestAnimationFrame(animate);
 
-    controls.update();
-    renderer.render(scene, camera);
+    if (controls) {
+      controls.update();
+    }
+    if (renderer && scene && camera) {
+      renderer.render(scene, camera);
+    }
   };
 
   animate();

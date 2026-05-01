@@ -19,6 +19,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
   const status = ref("idle");
   const progress = ref(0);
   const isAnalysisRunning = ref(false);
+  const isLoading = ref(false);
   // Data will be fetched from database - don't store in localStorage
   const data = ref<any>(null);
   const error = ref<string | null>(null);
@@ -32,8 +33,38 @@ export const useAnalysisStore = defineStore("analysis", () => {
     completed: false as boolean | undefined,
     totalSize: 0,
   });
+  const abortController = ref<AbortController | null>(null);
 
   const analysisBridge = new AnalysisBridge();
+
+  // Check if backend is available
+  async function checkBackend(): Promise<{ ok: boolean; error?: string }> {
+    return await analysisBridge.checkBackendHealth();
+  }
+
+  // Cancel ongoing analysis
+  function cancelAnalysis() {
+    log("CANCEL", "Cancelling analysis");
+    if (abortController.value) {
+      abortController.value.abort();
+      abortController.value = null;
+    }
+    // Also try to cancel via API
+    if (isAnalysisRunning.value) {
+      fetch(`${analysisBridge.baseUrl}/api/cancel`, { method: "POST" }).catch(() => {
+        // Ignore errors - backend might not support cancel
+      });
+    }
+    isAnalysisRunning.value = false;
+    isLoading.value = false;
+    status.value = "cancelled";
+
+    // Clean up any stored unsubscribe functions
+    if (typeof window !== "undefined" && (window as any).__analysisUnsubscribe) {
+      (window as any).__analysisUnsubscribe();
+      (window as any).__analysisUnsubscribe = null;
+    }
+  }
 
   const handleAnalysis = async (enableAI: boolean = false) => {
     try {
@@ -155,6 +186,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
     status,
     progress,
     isAnalysisRunning,
+    isLoading,
     data,
     analysisResult: data, // Alias for dashboard components
     error,
@@ -163,6 +195,8 @@ export const useAnalysisStore = defineStore("analysis", () => {
     recentlyScannedFiles,
     progressData,
     handleAnalysis,
+    cancelAnalysis,
+    checkBackend,
     reset,
     initialize,
     fetchAnalysisFromDB,

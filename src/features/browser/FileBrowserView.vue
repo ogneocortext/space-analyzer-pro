@@ -1,13 +1,70 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useAnalysisStore } from "../../store/analysis";
 import { Card, Button } from "../../design-system/components";
+import {
+  Search,
+  X,
+  FolderOpen,
+  FileText,
+  Image,
+  Video,
+  Music,
+  Code,
+  Archive,
+  FileQuestion,
+  Zap,
+  AlertCircle,
+  Loader2,
+  LayoutList,
+  LayoutGrid,
+  ArrowUpDown,
+  Filter,
+} from "lucide-vue-next";
 
 const store = useAnalysisStore();
 const searchQuery = ref("");
 const selectedCategory = ref<string>("all");
 const sortBy = ref<"name" | "size" | "category">("name");
 const viewMode = ref<"list" | "grid">("list");
+const errorMessage = ref("");
+const showError = ref(false);
+const isLoading = computed(() => store.isLoading || false);
+const hasData = computed(() => store.analysisResult !== null);
+
+// Watch for store errors
+watch(
+  () => store.error,
+  (newError) => {
+    if (newError) {
+      errorMessage.value = newError;
+      showError.value = true;
+    }
+  }
+);
+
+function clearError() {
+  showError.value = false;
+  errorMessage.value = "";
+}
+
+function clearSearch() {
+  searchQuery.value = "";
+}
+
+// Category icon mapping
+const categoryIcons: Record<string, any> = {
+  documents: FileText,
+  images: Image,
+  videos: Video,
+  audio: Music,
+  code: Code,
+  archives: Archive,
+};
+
+function getCategoryIcon(category: string) {
+  return categoryIcons[category] || FileQuestion;
+}
 
 // AI Summary Modal State
 const showSummaryModal = ref(false);
@@ -139,57 +196,123 @@ function closeSummaryModal() {
   <div class="space-y-6">
     <h1 class="text-2xl font-bold text-slate-100">File Browser</h1>
 
+    <!-- Error Message -->
+    <div
+      v-if="showError"
+      class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3"
+    >
+      <AlertCircle class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+      <div class="flex-1">
+        <p class="text-red-300 text-sm">{{ errorMessage }}</p>
+      </div>
+      <button @click="clearError" class="text-red-400 hover:text-red-300 transition-colors">
+        <X class="w-4 h-4" />
+      </button>
+    </div>
+
+    <!-- No Data State -->
+    <div v-if="!hasData && !isLoading" class="text-center py-16 px-4">
+      <div class="mb-6">
+        <div
+          class="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4"
+        >
+          <FolderOpen class="w-12 h-12 text-slate-600" />
+        </div>
+        <h3 class="text-xl font-semibold text-slate-200 mb-2">No Scan Data Available</h3>
+        <p class="text-slate-400 max-w-md mx-auto mb-6">
+          You need to scan a directory first before you can browse files.
+        </p>
+      </div>
+      <Button variant="primary" size="lg" @click="$router.push('/scan')">
+        <Search class="w-5 h-5 mr-2" />
+        Scan Directory
+      </Button>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="isLoading" class="space-y-4">
+      <div class="flex items-center justify-center py-12">
+        <div class="flex items-center gap-3 text-slate-400">
+          <Loader2 class="w-6 h-6 animate-spin" />
+          <span>Loading files...</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Filters -->
-    <Card padding="sm">
+    <Card v-if="hasData" padding="sm">
       <div class="flex flex-wrap gap-4 items-center">
         <!-- Search -->
-        <div class="flex-1 min-w-[200px]">
+        <div class="flex-1 min-w-[200px] relative">
+          <Search class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             v-model="searchQuery"
             type="text"
             placeholder="Search files..."
-            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+            class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-10 py-2 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
           />
+          <button
+            v-if="searchQuery"
+            @click="clearSearch"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            <X class="w-4 h-4" />
+          </button>
         </div>
 
         <!-- Category Filter -->
-        <select
-          v-model="selectedCategory"
-          class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 focus:outline-none focus:border-blue-500"
-        >
-          <option v-for="cat in categories" :key="cat" :value="cat">
-            {{ cat.charAt(0).toUpperCase() + cat.slice(1) }}
-          </option>
-        </select>
+        <div class="relative">
+          <Filter class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <select
+            v-model="selectedCategory"
+            class="bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-8 py-2 text-slate-100 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+          >
+            <option v-for="cat in categories" :key="cat" :value="cat">
+              {{ cat.charAt(0).toUpperCase() + cat.slice(1) }}
+            </option>
+          </select>
+          <ArrowUpDown
+            class="w-4 h-4 text-slate-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+          />
+        </div>
 
         <!-- Sort -->
-        <select
-          v-model="sortBy"
-          class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-100 focus:outline-none focus:border-blue-500"
-        >
-          <option value="name">Name</option>
-          <option value="size">Size</option>
-          <option value="category">Category</option>
-        </select>
+        <div class="relative">
+          <ArrowUpDown class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <select
+            v-model="sortBy"
+            class="bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-8 py-2 text-slate-100 focus:outline-none focus:border-blue-500 appearance-none cursor-pointer"
+          >
+            <option value="name">Name</option>
+            <option value="size">Size</option>
+            <option value="category">Category</option>
+          </select>
+        </div>
 
         <!-- View Toggle -->
         <div class="flex gap-1 bg-slate-800 rounded-lg p-1">
           <button
             :class="[
-              'px-3 py-1 rounded text-sm',
-              viewMode === 'list' ? 'bg-slate-700 text-slate-100' : 'text-slate-400',
+              'px-3 py-1.5 rounded text-sm flex items-center gap-1',
+              viewMode === 'list'
+                ? 'bg-slate-700 text-slate-100'
+                : 'text-slate-400 hover:text-slate-200',
             ]"
             @click="viewMode = 'list'"
           >
+            <LayoutList class="w-4 h-4" />
             List
           </button>
           <button
             :class="[
-              'px-3 py-1 rounded text-sm',
-              viewMode === 'grid' ? 'bg-slate-700 text-slate-100' : 'text-slate-400',
+              'px-3 py-1.5 rounded text-sm flex items-center gap-1',
+              viewMode === 'grid'
+                ? 'bg-slate-700 text-slate-100'
+                : 'text-slate-400 hover:text-slate-200',
             ]"
             @click="viewMode = 'grid'"
           >
+            <LayoutGrid class="w-4 h-4" />
             Grid
           </button>
         </div>
@@ -197,8 +320,10 @@ function closeSummaryModal() {
     </Card>
 
     <!-- Results Count -->
-    <p class="text-slate-400">
-      Showing {{ filteredFiles.length }} of {{ store.analysisResult?.files?.length || 0 }} files
+    <p v-if="hasData" class="text-slate-400">
+      Showing {{ filteredFiles.length.toLocaleString() }} of
+      {{ (store.analysisResult?.files?.length || 0).toLocaleString() }} files
+      <span v-if="searchQuery" class="text-slate-500">(filtered by "{{ searchQuery }}")</span>
     </p>
 
     <!-- List View -->
@@ -210,7 +335,7 @@ function closeSummaryModal() {
       >
         <div class="flex items-center gap-4">
           <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center">
-            <span class="text-lg">{{ file.category[0] }}</span>
+            <component :is="getCategoryIcon(file.category)" class="w-5 h-5 text-slate-400" />
           </div>
           <div class="flex-1">
             <p class="font-medium text-slate-200">
@@ -265,14 +390,7 @@ function closeSummaryModal() {
             class="mt-2 px-3 py-1 bg-linear-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs rounded-lg transition-all flex items-center gap-1"
             @click="getAISummary(file)"
           >
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
+            <Zap class="w-3 h-3" />
             AI Summary
           </button>
         </div>
@@ -287,7 +405,7 @@ function closeSummaryModal() {
         class="p-4 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700"
       >
         <div class="w-12 h-12 rounded-lg bg-slate-800 flex items-center justify-center mb-3">
-          <span class="text-2xl">{{ file.category[0] }}</span>
+          <component :is="getCategoryIcon(file.category)" class="w-6 h-6 text-slate-400" />
         </div>
         <p class="font-medium text-slate-200 truncate">
           {{ file.name }}
@@ -329,23 +447,32 @@ function closeSummaryModal() {
           class="mt-2 w-full px-3 py-1.5 bg-linear-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs rounded-lg transition-all flex items-center justify-center gap-1"
           @click="getAISummary(file)"
         >
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M13 10V3L4 14h7v7l9-11h-7z"
-            />
-          </svg>
+          <Zap class="w-3 h-3" />
           AI Summary
         </button>
       </div>
     </div>
 
-    <!-- No Data -->
-    <div v-if="filteredFiles.length === 0" class="text-center py-12">
-      <p class="text-slate-400 mb-4">No files found</p>
-      <Button variant="primary" @click="$router.push('/scan')"> Scan Directory </Button>
+    <!-- No Results (with data) -->
+    <div v-if="hasData && filteredFiles.length === 0 && !isLoading" class="text-center py-12">
+      <div
+        class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4"
+      >
+        <Search class="w-8 h-8 text-slate-600" />
+      </div>
+      <p class="text-slate-400 mb-2">No files match your search</p>
+      <p v-if="searchQuery" class="text-slate-500 text-sm mb-4">
+        Try adjusting your search or filters
+      </p>
+      <Button
+        variant="secondary"
+        @click="
+          searchQuery = '';
+          selectedCategory = 'all';
+        "
+      >
+        Clear Filters
+      </Button>
     </div>
 
     <!-- AI Summary Modal -->
@@ -361,33 +488,14 @@ function closeSummaryModal() {
         <!-- Header -->
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
-            <svg
-              class="w-5 h-5 text-violet-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              />
-            </svg>
+            <Zap class="w-5 h-5 text-violet-400" />
             AI Summary
           </h3>
           <button
             class="text-slate-400 hover:text-slate-200 transition-colors"
             @click="closeSummaryModal"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            <X class="w-5 h-5" />
           </button>
         </div>
 
@@ -404,14 +512,7 @@ function closeSummaryModal() {
         <!-- Error State -->
         <div v-else-if="summaryError" class="text-center py-6">
           <div class="text-red-400 mb-2">
-            <svg class="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+            <AlertCircle class="w-8 h-8 mx-auto" />
           </div>
           <p class="text-red-300">
             {{ summaryError }}

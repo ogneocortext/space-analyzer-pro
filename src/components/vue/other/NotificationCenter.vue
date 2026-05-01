@@ -5,9 +5,10 @@
       class="notification-bell"
       :class="{ 'has-unread': store.unreadCount > 0 }"
       title="Notifications"
+      aria-label="Open notifications"
       @click="store.toggleCenter()"
     >
-      <span class="bell-icon">🔔</span>
+      <span class="bell-icon" aria-hidden="true">🔔</span>
       <span v-if="store.unreadCount > 0" class="unread-badge">
         {{ store.unreadCount > 99 ? "99+" : store.unreadCount }}
       </span>

@@ -5,7 +5,7 @@
 
 const http = require("http");
 const { URL } = require("url");
-const dynamicConfig = require("./config/dynamic-config");
+const dynamicConfig = require("../config/dynamic-config");
 
 class EnhancedOllamaService {
   constructor(baseUrl = "http://localhost:11434") {

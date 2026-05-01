@@ -170,6 +170,32 @@ export const useSelfLearningStore = defineStore("selfLearning", () => {
     lastAnalysis.value = new Date();
   };
 
+  const generateRecommendations = async (): Promise<Recommendation[]> => {
+    const recs: Recommendation[] = [];
+
+    // Generate cleanup recommendations
+    const cleanupRecs = generateCleanupRecommendations();
+    recs.push(...cleanupRecs);
+
+    // Generate organization recommendations
+    const orgRecs = generateOrganizationRecommendations();
+    recs.push(...orgRecs);
+
+    // Generate access shortcut recommendations
+    const shortcutRecs = generateShortcutRecommendations();
+    recs.push(...shortcutRecs);
+
+    // Generate schedule recommendations
+    const scheduleRecs = generateScheduleRecommendations();
+    recs.push(...scheduleRecs);
+
+    // Sort by score and limit
+    recs.sort((a, b) => b.score - a.score);
+    recommendations.value = recs.slice(0, learningConfig.value.maxRecommendations);
+
+    return recommendations.value;
+  };
+
   const detectPatterns = async (): Promise<LearningPattern[]> => {
     const detected: LearningPattern[] = [];
 
@@ -635,14 +661,14 @@ export const useSelfLearningStore = defineStore("selfLearning", () => {
 
       // Save feedback to IndexedDB for analytics
       await indexedDBPersistence.saveAnalyticsData({
-        type: 'model-feedback',
+        type: "model-feedback",
         feedback: {
           recommendationId,
           action: "accepted",
           timestamp: new Date(),
           context: { recommendation },
         },
-        timestamp: new Date()
+        timestamp: new Date(),
         context: { recommendation },
       });
     }
@@ -717,6 +743,22 @@ export const useSelfLearningStore = defineStore("selfLearning", () => {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   };
 
+  const updateModel = async (feedback: any) => {
+    // Update ML model with user feedback
+    mlRecommendationEngine.updateModel(feedback);
+    await savePatterns();
+  };
+
+  const updateAdaptiveLearningRate = async (performance: number) => {
+    // Adjust learning rate based on performance metrics
+    adaptiveLearningRate.adjust(performance);
+  };
+
+  const evaluateABTestingOpportunity = (context: any) => {
+    // Evaluate if A/B testing would be beneficial
+    return abTestingFramework.evaluateOpportunity(context);
+  };
+
   return {
     // State
     patterns: getPatterns,
@@ -743,6 +785,6 @@ export const useSelfLearningStore = defineStore("selfLearning", () => {
     evaluateABTestingOpportunity,
     getCurrentLearningRate: () => adaptiveLearningRate.getCurrentRate(),
     getActiveABTests: () => abTestingFramework.getActiveTests(),
-    createABTest: (config: any) => abTestingFramework.createTest(config)
+    createABTest: (config: any) => abTestingFramework.createTest(config),
   };
 });

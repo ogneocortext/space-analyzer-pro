@@ -9,7 +9,8 @@
       <div class="rating-section">
         <label class="rating-label">How helpful was this recommendation?</label>
         <div class="rating-stars">
-          <button aria-label
+          <button
+            :aria-label="`Rate ${star} star${star > 1 ? 's' : ''}`"
             v-for="star in 5"
             :key="star"
             :class="['star-btn', { active: star <= rating }]"
@@ -17,7 +18,7 @@
             @mouseenter="hoverRating = star"
             @mouseleave="hoverRating = 0"
           >
-            <span class="star">{{ star <= (hoverRating || rating) ? '★' : '☆' }}</span>
+            <span class="star">{{ star <= (hoverRating || rating) ? "★" : "☆" }}</span>
           </button>
         </div>
         <div class="rating-text" v-if="rating > 0">
@@ -34,7 +35,7 @@
               v-model="feedbackType"
               value="general"
               class="feedback-type-radio"
-            >
+            />
             <span class="feedback-type-text">General Feedback</span>
           </label>
           <label class="feedback-type-option">
@@ -43,7 +44,7 @@
               v-model="feedbackType"
               value="specific"
               class="feedback-type-radio"
-            >
+            />
             <span class="feedback-type-text">Specific Issue</span>
           </label>
           <label class="feedback-type-option">
@@ -52,7 +53,7 @@
               v-model="feedbackType"
               value="suggestion"
               class="feedback-type-radio"
-            >
+            />
             <span class="feedback-type-text">Improvement Suggestion</span>
           </label>
         </div>
@@ -61,7 +62,8 @@
       <div class="categories-section" v-if="feedbackType === 'specific'">
         <label class="categories-label">What category best describes your feedback?</label>
         <div class="category-chips">
-          <button aria-label
+          <button
+            :aria-label="category.name"
             v-for="category in feedbackCategories"
             :key="category.id"
             :class="['category-chip', { active: selectedCategories.includes(category.id) }]"
@@ -84,44 +86,26 @@
           rows="4"
           maxlength="500"
         ></textarea>
-        <div class="character-count">
-          {{ comment.length }}/500 characters
-        </div>
+        <div class="character-count">{{ comment.length }}/500 characters</div>
       </div>
 
       <div class="context-section">
         <label class="context-label">Additional Context (Optional)</label>
         <div class="context-options">
           <label class="context-option">
-            <input
-              type="checkbox"
-              v-model="contextOptions.relevant"
-              class="context-checkbox"
-            >
+            <input type="checkbox" v-model="contextOptions.relevant" class="context-checkbox" />
             <span class="context-text">This recommendation was relevant to my current task</span>
           </label>
           <label class="context-option">
-            <input
-              type="checkbox"
-              v-model="contextOptions.timely"
-              class="context-checkbox"
-            >
+            <input type="checkbox" v-model="contextOptions.timely" class="context-checkbox" />
             <span class="context-text">This recommendation came at the right time</span>
           </label>
           <label class="context-option">
-            <input
-              type="checkbox"
-              v-model="contextOptions.actionable"
-              class="context-checkbox"
-            >
+            <input type="checkbox" v-model="contextOptions.actionable" class="context-checkbox" />
             <span class="context-text">I was able to act on this recommendation</span>
           </label>
           <label class="context-option">
-            <input
-              type="checkbox"
-              v-model="contextOptions.new"
-              class="context-checkbox"
-            >
+            <input type="checkbox" v-model="contextOptions.new" class="context-checkbox" />
             <span class="context-text">This recommendation showed me something new</span>
           </label>
         </div>
@@ -131,40 +115,26 @@
         <label class="follow-up-label">Would you like us to follow up on this feedback?</label>
         <div class="follow-up-options">
           <label class="follow-up-option">
-            <input
-              type="radio"
-              v-model="followUp"
-              value="yes"
-              class="follow-up-radio"
-            >
+            <input type="radio" v-model="followUp" value="yes" class="follow-up-radio" />
             <span class="follow-up-text">Yes, I'd like to hear about improvements</span>
           </label>
           <label class="follow-up-option">
-            <input
-              type="radio"
-              v-model="followUp"
-              value="no"
-              class="follow-up-radio"
-            >
+            <input type="radio" v-model="followUp" value="no" class="follow-up-radio" />
             <span class="follow-up-text">No, thank you</span>
           </label>
         </div>
       </div>
 
       <div class="action-buttons">
-        <button aria-label
+        <button
+          aria-label="Submit Feedback"
           @click="submitFeedback"
           :disabled="!isValidFeedback"
           class="submit-btn"
         >
           📤 Submit Feedback
         </button>
-        <button aria-label
-          @click="skipFeedback"
-          class="skip-btn"
-        >
-          ⏭️ Skip
-        </button>
+        <button aria-label="Skip" @click="skipFeedback" class="skip-btn">⏭️ Skip</button>
       </div>
     </div>
 
@@ -177,15 +147,14 @@
           <span class="impact-label">Your feedback impact:</span>
           <span class="impact-value">{{ feedbackImpact }}</span>
         </div>
-        <button aria-label @click="closeFeedback" class="close-btn">
-          ✅ Got it
-        </button>
+        <button aria-label="Close" @click="closeFeedback" class="close-btn">✅ Got it</button>
       </div>
     </div>
 
     <!-- Quick Feedback Buttons -->
     <div class="quick-feedback" v-if="!showThankYou && !showDetailedForm">
-      <button aria-label
+      <button
+        :aria-label="quickFeedback.label"
         v-for="quickFeedback in quickFeedbackOptions"
         :key="quickFeedback.type"
         :class="['quick-feedback-btn', quickFeedback.type]"
@@ -194,7 +163,8 @@
         <span class="quick-feedback-icon">{{ quickFeedback.icon }}</span>
         <span class="quick-feedback-text">{{ quickFeedback.label }}</span>
       </button>
-      <button aria-label
+      <button
+        aria-label="Detailed Feedback"
         class="quick-feedback-btn detailed"
         @click="showDetailedForm = true"
       >
@@ -206,179 +176,179 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useSelfLearningStore } from '@/store/selfLearning'
-import { indexedDBPersistence } from '@/store/indexedDBPersistence'
+import { ref, computed, onMounted } from "vue";
+import { useSelfLearningStore } from "@/store/selfLearning";
+import { indexedDBPersistence } from "@/store/indexedDBPersistence";
 
 interface FeedbackData {
-  recommendationId: string
-  rating: number
-  feedbackType: string
-  categories: string[]
-  comment: string
-  context: any
-  followUp: string
-  timestamp: Date
-  responseTime: number
-  userAgent: string
+  recommendationId: string;
+  rating: number;
+  feedbackType: string;
+  categories: string[];
+  comment: string;
+  context: any;
+  followUp: string;
+  timestamp: Date;
+  responseTime: number;
+  userAgent: string;
 }
 
 interface FeedbackCategory {
-  id: string
-  name: string
-  icon: string
+  id: string;
+  name: string;
+  icon: string;
 }
 
 interface QuickFeedbackOption {
-  type: string
-  icon: string
-  label: string
-  sentiment: 'positive' | 'negative' | 'neutral'
+  type: string;
+  icon: string;
+  label: string;
+  sentiment: "positive" | "negative" | "neutral";
 }
 
 const props = defineProps<{
-  recommendationId: string
-  recommendationType: string
-  autoShow?: boolean
-}>()
+  recommendationId: string;
+  recommendationType: string;
+  autoShow?: boolean;
+}>();
 
 const emit = defineEmits<{
-  feedbackSubmitted: [feedback: FeedbackData]
-  feedbackSkipped: []
-  closeFeedback: []
-}>()
+  feedbackSubmitted: [feedback: FeedbackData];
+  feedbackSkipped: [];
+  closeFeedback: [];
+}>();
 
-const selfLearningStore = useSelfLearningStore()
+const selfLearningStore = useSelfLearningStore();
 
 // Reactive state
-const rating = ref(0)
-const hoverRating = ref(0)
-const feedbackType = ref('general')
-const selectedCategories = ref<string[]>([])
-const comment = ref('')
+const rating = ref(0);
+const hoverRating = ref(0);
+const feedbackType = ref("general");
+const selectedCategories = ref<string[]>([]);
+const comment = ref("");
 const contextOptions = ref({
   relevant: false,
   timely: false,
   actionable: false,
-  new: false
-})
-const followUp = ref('no')
-const showThankYou = ref(false)
-const showDetailedForm = ref(false)
-const feedbackStartTime = ref(Date.now())
-const feedbackImpact = ref('')
+  new: false,
+});
+const followUp = ref("no");
+const showThankYou = ref(false);
+const showDetailedForm = ref(false);
+const feedbackStartTime = ref(Date.now());
+const feedbackImpact = ref("");
 
 // Feedback categories
 const feedbackCategories: FeedbackCategory[] = [
-  { id: 'accuracy', name: 'Accuracy', icon: '🎯' },
-  { id: 'relevance', name: 'Relevance', icon: '🔍' },
-  { id: 'timing', name: 'Timing', icon: '⏰' },
-  { id: 'clarity', name: 'Clarity', icon: '📝' },
-  { id: 'usefulness', name: 'Usefulness', icon: '💡' },
-  { id: 'technical', name: 'Technical Issue', icon: '⚙️' },
-  { id: 'ui', name: 'UI/UX', icon: '🎨' },
-  { id: 'performance', name: 'Performance', icon: '⚡' }
-]
+  { id: "accuracy", name: "Accuracy", icon: "🎯" },
+  { id: "relevance", name: "Relevance", icon: "🔍" },
+  { id: "timing", name: "Timing", icon: "⏰" },
+  { id: "clarity", name: "Clarity", icon: "📝" },
+  { id: "usefulness", name: "Usefulness", icon: "💡" },
+  { id: "technical", name: "Technical Issue", icon: "⚙️" },
+  { id: "ui", name: "UI/UX", icon: "🎨" },
+  { id: "performance", name: "Performance", icon: "⚡" },
+];
 
 // Quick feedback options
 const quickFeedbackOptions: QuickFeedbackOption[] = [
-  { type: 'helpful', icon: '👍', label: 'Helpful', sentiment: 'positive' },
-  { type: 'not-helpful', icon: '👎', label: 'Not Helpful', sentiment: 'negative' },
-  { type: 'confusing', icon: '😕', label: 'Confusing', sentiment: 'neutral' },
-  { type: 'irrelevant', icon: '❌', label: 'Irrelevant', sentiment: 'negative' }
-]
+  { type: "helpful", icon: "👍", label: "Helpful", sentiment: "positive" },
+  { type: "not-helpful", icon: "👎", label: "Not Helpful", sentiment: "negative" },
+  { type: "confusing", icon: "😕", label: "Confusing", sentiment: "neutral" },
+  { type: "irrelevant", icon: "❌", label: "Irrelevant", sentiment: "negative" },
+];
 
 // Computed properties
 const isValidFeedback = computed(() => {
-  return rating.value > 0 && (feedbackType.value === 'general' || comment.value.trim().length > 0)
-})
+  return rating.value > 0 && (feedbackType.value === "general" || comment.value.trim().length > 0);
+});
 
 const responseTime = computed(() => {
-  return Date.now() - feedbackStartTime.value
-})
+  return Date.now() - feedbackStartTime.value;
+});
 
 // Methods
 const setRating = (value: number) => {
-  rating.value = value
-  
+  rating.value = value;
+
   // Auto-show detailed form for low ratings
   if (value <= 2) {
-    showDetailedForm.value = true
+    showDetailedForm.value = true;
   }
-}
+};
 
 const toggleCategory = (categoryId: string) => {
-  const index = selectedCategories.value.indexOf(categoryId)
+  const index = selectedCategories.value.indexOf(categoryId);
   if (index > -1) {
-    selectedCategories.value.splice(index, 1)
+    selectedCategories.value.splice(index, 1);
   } else {
-    selectedCategories.value.push(categoryId)
+    selectedCategories.value.push(categoryId);
   }
-}
+};
 
 const getRatingText = (ratingValue: number): string => {
   const texts = {
-    1: 'Very Poor',
-    2: 'Poor',
-    3: 'Average',
-    4: 'Good',
-    5: 'Excellent'
-  }
-  return texts[ratingValue as keyof typeof texts] || ''
-}
+    1: "Very Poor",
+    2: "Poor",
+    3: "Average",
+    4: "Good",
+    5: "Excellent",
+  };
+  return texts[ratingValue as keyof typeof texts] || "";
+};
 
 const getCommentLabel = (): string => {
   switch (feedbackType.value) {
-    case 'specific':
-      return 'Please describe the specific issue:'
-    case 'suggestion':
-      return 'What improvement would you suggest?'
+    case "specific":
+      return "Please describe the specific issue:";
+    case "suggestion":
+      return "What improvement would you suggest?";
     default:
-      return 'Share your thoughts (optional):'
+      return "Share your thoughts (optional):";
   }
-}
+};
 
 const getCommentPlaceholder = (): string => {
   switch (feedbackType.value) {
-    case 'specific':
-      return 'e.g., "The recommendation was not relevant to my current task..."'
-    case 'suggestion':
-      return 'e.g., "I would prefer recommendations based on my recent activity..."'
+    case "specific":
+      return 'e.g., "The recommendation was not relevant to my current task..."';
+    case "suggestion":
+      return 'e.g., "I would prefer recommendations based on my recent activity..."';
     default:
-      return 'Tell us what you think about this recommendation...'
+      return "Tell us what you think about this recommendation...";
   }
-}
+};
 
 const handleQuickFeedback = (type: string) => {
-  const option = quickFeedbackOptions.find(opt => opt.type === type)
-  if (!option) return
+  const option = quickFeedbackOptions.find((opt) => opt.type === type);
+  if (!option) return;
 
   // Map quick feedback to rating
   const ratingMap: Record<string, number> = {
     helpful: 5,
-    'not-helpful': 2,
+    "not-helpful": 2,
     confusing: 3,
-    irrelevant: 1
-  }
+    irrelevant: 1,
+  };
 
-  rating.value = ratingMap[type] || 3
-  
+  rating.value = ratingMap[type] || 3;
+
   // Set appropriate feedback type
-  if (option.sentiment === 'negative') {
-    feedbackType.value = 'specific'
-    showDetailedForm.value = true
+  if (option.sentiment === "negative") {
+    feedbackType.value = "specific";
+    showDetailedForm.value = true;
   } else {
-    feedbackType.value = 'general'
+    feedbackType.value = "general";
   }
 
   // Auto-submit for positive quick feedback
-  if (option.sentiment === 'positive') {
-    submitFeedback()
+  if (option.sentiment === "positive") {
+    submitFeedback();
   }
-}
+};
 
 const submitFeedback = async () => {
-  if (!isValidFeedback.value) return
+  if (!isValidFeedback.value) return;
 
   try {
     const feedbackData: FeedbackData = {
@@ -391,104 +361,105 @@ const submitFeedback = async () => {
       followUp: followUp.value,
       timestamp: new Date(),
       responseTime: responseTime.value,
-      userAgent: navigator.userAgent
-    }
+      userAgent: navigator.userAgent,
+    };
 
     // Save to IndexedDB
     await indexedDBPersistence.saveAnalyticsData({
-      type: 'user-feedback',
+      type: "user-feedback",
       recommendationId: props.recommendationId,
-      feedback: feedbackData
-    })
+      feedback: feedbackData,
+    });
 
     // Update ML model with feedback
     selfLearningStore.updateModel({
       recommendationId: props.recommendationId,
-      action: rating.value >= 4 ? 'accepted' : rating.value <= 2 ? 'rejected' : 'neutral',
+      action: rating.value >= 4 ? "accepted" : rating.value <= 2 ? "rejected" : "neutral",
       timestamp: new Date(),
       context: {
         rating: rating.value,
         categories: selectedCategories.value,
-        comment: comment.value.trim()
-      }
-    })
+        comment: comment.value.trim(),
+      },
+    });
 
     // Calculate feedback impact
-    feedbackImpact.value = calculateFeedbackImpact(feedbackData)
+    feedbackImpact.value = calculateFeedbackImpact(feedbackData);
 
     // Show thank you message
-    showThankYou.value = true
+    showThankYou.value = true;
 
     // Emit event
-    emit('feedbackSubmitted', feedbackData)
+    emit("feedbackSubmitted", feedbackData);
 
     // Log analytics
-    await logFeedbackAnalytics(feedbackData)
+    await logFeedbackAnalytics(feedbackData);
   } catch (error) {
-    console.error('Failed to submit feedback:', error)
+    console.error("Failed to submit feedback:", error);
   }
-}
+};
 
 const skipFeedback = () => {
-  emit('feedbackSkipped')
-}
+  emit("feedbackSkipped");
+};
 
 const closeFeedback = () => {
-  emit('closeFeedback')
-}
+  emit("closeFeedback");
+};
 
 const calculateFeedbackImpact = (feedback: FeedbackData): string => {
-  const impacts = []
+  const impacts = [];
 
   if (feedback.rating >= 4) {
-    impacts.push('Validates current recommendation strategy')
+    impacts.push("Validates current recommendation strategy");
   } else if (feedback.rating <= 2) {
-    impacts.push('Helps identify areas for improvement')
+    impacts.push("Helps identify areas for improvement");
   }
 
-  if (feedback.categories.includes('accuracy')) {
-    impacts.push('Improves recommendation accuracy')
+  if (feedback.categories.includes("accuracy")) {
+    impacts.push("Improves recommendation accuracy");
   }
 
   if (feedback.comment.length > 100) {
-    impacts.push('Provides detailed insights for ML training')
+    impacts.push("Provides detailed insights for ML training");
   }
 
   if (feedback.context.relevant) {
-    impacts.push('Confirms contextual relevance')
+    impacts.push("Confirms contextual relevance");
   }
 
-  return impacts.join(', ') || 'Contributes to system improvement'
-}
+  return impacts.join(", ") || "Contributes to system improvement";
+};
 
 const logFeedbackAnalytics = async (feedback: FeedbackData) => {
   await indexedDBPersistence.saveAnalyticsData({
-    type: 'feedback-analytics',
+    type: "feedback-analytics",
     timestamp: new Date(),
     rating: feedback.rating,
     feedbackType: feedback.feedbackType,
     categories: feedback.categories,
     responseTime: feedback.responseTime,
-    recommendationType: props.recommendationType
-  })
-}
+    recommendationType: props.recommendationType,
+  });
+};
 
 onMounted(() => {
-  feedbackStartTime.value = Date.now()
-  
+  feedbackStartTime.value = Date.now();
+
   // Auto-show if requested
   if (props.autoShow) {
-    showDetailedForm.value = true
+    showDetailedForm.value = true;
   }
-})
+});
 </script>
 
 <style scoped>
 .user-feedback-collection {
-  background: white;
+  background: var(--bg-card, #16161a);
+  border: 1px solid var(--border-subtle, #2a2a2e);
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   max-width: 500px;
   margin: 1rem auto;
 }
@@ -500,12 +471,12 @@ onMounted(() => {
 
 .feedback-header h4 {
   margin: 0 0 0.5rem 0;
-  color: #111827;
+  color: var(--text-primary, #ffffff);
   font-size: 1.25rem;
 }
 
 .feedback-subtitle {
-  color: #6b7280;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.875rem;
   margin: 0;
 }
@@ -517,7 +488,7 @@ onMounted(() => {
 .rating-label {
   display: block;
   margin-bottom: 0.75rem;
-  color: #374151;
+  color: var(--text-primary, #ffffff);
   font-weight: 500;
 }
 
@@ -542,18 +513,18 @@ onMounted(() => {
 
 .star {
   font-size: 2rem;
-  color: #d1d5db;
+  color: var(--text-tertiary, #71717a);
   transition: color 0.2s;
 }
 
 .star-btn.active .star,
 .star-btn:hover .star {
-  color: #fbbf24;
+  color: var(--accent-amber, #ffb547);
 }
 
 .rating-text {
   text-align: center;
-  color: #6b7280;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.875rem;
 }
 
@@ -564,7 +535,7 @@ onMounted(() => {
 .feedback-type-label {
   display: block;
   margin-bottom: 0.75rem;
-  color: #374151;
+  color: var(--text-primary, #ffffff);
   font-weight: 500;
 }
 
@@ -585,15 +556,15 @@ onMounted(() => {
 }
 
 .feedback-type-option:hover {
-  background-color: #f9fafb;
+  background-color: var(--bg-elevated, #1a1a1e);
 }
 
 .feedback-type-radio {
-  accent-color: #3b82f6;
+  accent-color: var(--accent-indigo, #6366f1);
 }
 
 .feedback-type-text {
-  color: #374151;
+  color: var(--text-secondary, #a1a1aa);
 }
 
 .categories-section {
@@ -603,7 +574,7 @@ onMounted(() => {
 .categories-label {
   display: block;
   margin-bottom: 0.75rem;
-  color: #374151;
+  color: var(--text-primary, #ffffff);
   font-weight: 500;
 }
 
@@ -614,23 +585,25 @@ onMounted(() => {
 }
 
 .category-chip {
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-elevated, #1a1a1e);
+  border: 1px solid var(--border-subtle, #2a2a2e);
   border-radius: 20px;
   padding: 0.5rem 1rem;
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.875rem;
+  color: var(--text-secondary, #a1a1aa);
 }
 
 .category-chip:hover {
-  background: #e5e7eb;
+  background: var(--bg-elevated-hover, #222226);
+  color: var(--text-primary, #ffffff);
 }
 
 .category-chip.active {
-  background: #3b82f6;
+  background: var(--accent-indigo, #6366f1);
   color: white;
-  border-color: #3b82f6;
+  border-color: var(--accent-indigo, #6366f1);
 }
 
 .comment-section {
@@ -640,30 +613,32 @@ onMounted(() => {
 .comment-label {
   display: block;
   margin-bottom: 0.75rem;
-  color: #374151;
+  color: var(--text-primary, #ffffff);
   font-weight: 500;
 }
 
 .comment-textarea {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-subtle, #2a2a2e);
   border-radius: 6px;
   font-family: inherit;
   font-size: 0.875rem;
   resize: vertical;
   transition: border-color 0.2s;
+  background: var(--bg-elevated, #1a1a1e);
+  color: var(--text-primary, #ffffff);
 }
 
 .comment-textarea:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--accent-indigo, #6366f1);
+  box-shadow: 0 0 0 3px var(--accent-indigo-light, #6366f133);
 }
 
 .character-count {
   text-align: right;
-  color: #6b7280;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.75rem;
   margin-top: 0.25rem;
 }
@@ -675,7 +650,7 @@ onMounted(() => {
 .context-label {
   display: block;
   margin-bottom: 0.75rem;
-  color: #374151;
+  color: var(--text-primary, #ffffff);
   font-weight: 500;
 }
 
@@ -696,30 +671,30 @@ onMounted(() => {
 }
 
 .context-option:hover {
-  background-color: #f9fafb;
+  background-color: var(--bg-elevated, #1a1a1e);
 }
 
 .context-checkbox {
-  accent-color: #3b82f6;
+  accent-color: var(--accent-indigo, #6366f1);
 }
 
 .context-text {
-  color: #374151;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.875rem;
 }
 
 .follow-up-section {
   margin-bottom: 1.5rem;
   padding: 1rem;
-  background: #fef3c7;
+  background: var(--accent-amber-light, #ffb54733);
   border-radius: 6px;
-  border: 1px solid #fbbf24;
+  border: 1px solid var(--accent-amber, #ffb547);
 }
 
 .follow-up-label {
   display: block;
   margin-bottom: 0.75rem;
-  color: #92400e;
+  color: var(--accent-amber-dark, #f59e0b);
   font-weight: 500;
 }
 
@@ -737,11 +712,11 @@ onMounted(() => {
 }
 
 .follow-up-radio {
-  accent-color: #f59e0b;
+  accent-color: var(--accent-amber, #ffb547);
 }
 
 .follow-up-text {
-  color: #374151;
+  color: var(--text-secondary, #a1a1aa);
   font-size: 0.875rem;
 }
 
@@ -752,7 +727,7 @@ onMounted(() => {
 }
 
 .submit-btn {
-  background: #3b82f6;
+  background: var(--accent-indigo, #6366f1);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -763,18 +738,18 @@ onMounted(() => {
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--accent-indigo-dark, #4f46e5);
 }
 
 .submit-btn:disabled {
-  background: #9ca3af;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .skip-btn {
   background: transparent;
-  color: #6b7280;
-  border: 1px solid #d1d5db;
+  color: var(--text-secondary, #a1a1aa);
+  border: 1px solid var(--border-subtle, #2a2a2e);
   padding: 0.75rem 1.5rem;
   border-radius: 6px;
   cursor: pointer;
@@ -783,8 +758,9 @@ onMounted(() => {
 }
 
 .skip-btn:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--bg-elevated, #1a1a1e);
+  border-color: var(--border-strong, #3a3a40);
+  color: var(--text-primary, #ffffff);
 }
 
 .thank-you-section {
@@ -799,19 +775,19 @@ onMounted(() => {
 
 .thank-you-content h5 {
   margin: 0 0 0.5rem 0;
-  color: #111827;
+  color: var(--text-primary, #ffffff);
   font-size: 1.25rem;
 }
 
 .thank-you-content p {
-  color: #6b7280;
+  color: var(--text-secondary, #a1a1aa);
   margin: 0 0 1rem 0;
   line-height: 1.5;
 }
 
 .impact-info {
-  background: #f0fdf4;
-  border: 1px solid #86efac;
+  background: var(--accent-emerald-light, #32d58333);
+  border: 1px solid var(--accent-emerald, #32d583);
   border-radius: 6px;
   padding: 0.75rem;
   margin-bottom: 1rem;
@@ -819,18 +795,18 @@ onMounted(() => {
 
 .impact-label {
   display: block;
-  color: #166534;
+  color: var(--accent-emerald-dark, #059669);
   font-weight: 500;
   font-size: 0.875rem;
 }
 
 .impact-value {
-  color: #15803d;
+  color: var(--accent-emerald-dark, #059669);
   font-size: 0.875rem;
 }
 
 .close-btn {
-  background: #10b981;
+  background: var(--accent-emerald, #32d583);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -841,7 +817,7 @@ onMounted(() => {
 }
 
 .close-btn:hover {
-  background: #059669;
+  background: var(--accent-emerald-dark, #059669);
 }
 
 .quick-feedback {
@@ -857,42 +833,44 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-subtle, #2a2a2e);
   border-radius: 20px;
-  background: white;
+  background: var(--bg-elevated, #1a1a1e);
+  color: var(--text-secondary, #a1a1aa);
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.875rem;
 }
 
 .quick-feedback-btn:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--bg-elevated-hover, #222226);
+  border-color: var(--border-strong, #3a3a40);
+  color: var(--text-primary, #ffffff);
 }
 
 .quick-feedback-btn.positive:hover {
-  background: #f0fdf4;
-  border-color: #86efac;
+  background: var(--accent-emerald-light, #32d58333);
+  border-color: var(--accent-emerald, #32d583);
 }
 
 .quick-feedback-btn.negative:hover {
-  background: #fef2f2;
-  border-color: #fca5a5;
+  background: var(--accent-coral-light, #e85a4f33);
+  border-color: var(--accent-coral, #e85a4f);
 }
 
 .quick-feedback-btn.neutral:hover {
-  background: #fefce8;
-  border-color: #fde047;
+  background: var(--accent-amber-light, #ffb54733);
+  border-color: var(--accent-amber, #ffb547);
 }
 
 .quick-feedback-btn.detailed {
-  background: #3b82f6;
+  background: var(--accent-indigo, #6366f1);
   color: white;
-  border-color: #3b82f6;
+  border-color: var(--accent-indigo, #6366f1);
 }
 
 .quick-feedback-btn.detailed:hover {
-  background: #2563eb;
+  background: var(--accent-indigo-dark, #4f46e5);
 }
 
 .quick-feedback-icon {
@@ -911,20 +889,20 @@ onMounted(() => {
   .user-feedback-collection {
     padding: 0.5rem;
   }
-  
+
   .metrics-grid,
   .analytics-grid,
   .summary-grid {
     grid-template-columns: 1fr;
     gap: 0.5rem;
   }
-  
+
   .visualization-controls,
   .header-controls {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .chart-canvas {
     height: 200px;
   }
@@ -936,15 +914,14 @@ onMounted(() => {
   .variant-metrics {
     padding: 0.75rem;
   }
-  
+
   .action-buttons,
   .export-section {
     flex-direction: column;
   }
-  
+
   .btn {
     width: 100%;
   }
 }
-
 </style>

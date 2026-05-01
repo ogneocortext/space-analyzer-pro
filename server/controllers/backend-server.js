@@ -15,33 +15,31 @@ const compression = require("compression");
 const helmet = require("helmet");
 const diskusage = require("diskusage");
 const filesize = require("filesize");
-const { errorHandler, asyncHandler } = require("./utils/errorHandler");
-const PerformanceMonitor = require("./utils/performanceMonitor");
-const PortDetector = require("./port-detector");
-const EnhancedOllamaService = require("./EnhancedOllamaService");
+const { errorHandler, asyncHandler } = require("../utils/errorHandler");
+const PerformanceMonitor = require("../utils/performanceMonitor");
+const PortDetector = require("../utils/port-detector");
+const EnhancedOllamaService = require("../services/EnhancedOllamaService");
 const WebSocket = require("ws");
 
 // Import other required services
-const SelfLearningSystem = require("./SelfLearningSystem");
-const KnowledgeDatabase = require("./KnowledgeDatabase");
-const MultiAgentOrchestrator = require("./src/integration/multi-agent-orchestrator.cjs");
-const ollamaService = require("./src/integration/ollama-service.cjs");
-const dependencyScanner = require("./src/integration/dependency-scanner.cjs");
-const getServer = require("./src/integration/test-restoration.cjs");
-const { existsSync } = require("fs");
-const ScanCache = require("./scan-cache");
-const { ScanProfileManager } = require("./scan-profiles");
-const FilePreviewManager = require("./file-preview");
+const SelfLearningSystem = require("../SelfLearningSystem");
+const KnowledgeDatabase = require("../KnowledgeDatabase");
+// const MultiAgentOrchestrator = require("../src/integration/multi-agent-orchestrator.cjs"); // Not found
+// const ollamaService = require("../src/integration/ollama-service.cjs"); // Not found
+// const dependencyScanner = require("../src/integration/dependency-scanner.cjs"); // Not found
+const ScanCache = require("../scan-cache");
+const { ScanProfileManager } = require("../scan-profiles");
+const FilePreviewManager = require("../file-preview");
 const ScanController = require("./scan-controller");
-const ScanFilter = require("./scan-filter");
-const ConfigManager = require("./config-manager");
-const AnalyticsManager = require("./analytics");
-const DuplicateDetector = require("./modules/duplicate-detector");
+const ScanFilter = require("../scan-filter");
+const ConfigManager = require("../utils/config-manager");
+const AnalyticsManager = require("../analytics");
+const DuplicateDetector = require("../modules/duplicate-detector");
 
 // Import modules
-const { setupSecurity, setupMiddleware } = require("./modules/security");
-const { setupWebSocketServer, broadcast, getClients, getServer } = require("./modules/websocket");
-const RoutesManager = require("./routes");
+const { setupSecurity, setupMiddleware } = require("../modules/security");
+const { setupWebSocketServer, broadcast, getClients, getServer } = require("../modules/websocket");
+const RoutesManager = require("../routes");
 
 // Get WebSocket clients from module
 const wsClients = getClients();
@@ -53,13 +51,13 @@ const {
   convertToTXT,
   convertCategoryDistribution,
   convertExtensionDistribution,
-} = require("./modules/data-conversion");
+} = require("../modules/data-conversion");
 const {
   findProjectRoot,
   isValidPath,
   generateFileHash,
   getDirectoryFilesQuick,
-} = require("./modules/file-utils");
+} = require("../modules/file-utils");
 let wss = null;
 let server = null;
 
@@ -105,8 +103,8 @@ class SpaceAnalyzerAPIServer {
     this.knowledgeDB = new KnowledgeDatabase(path.join(__dirname, "knowledge.db"));
     this.ollamaAvailable = false;
 
-    // Initialize orchestrator
-    this.orchestrator = new MultiAgentOrchestrator();
+    // Initialize orchestrator (commented out - module not found)
+    // this.orchestrator = new MultiAgentOrchestrator();
 
     // Initialize performance monitor
     this.performanceMonitor = new PerformanceMonitor();
@@ -135,8 +133,21 @@ class SpaceAnalyzerAPIServer {
     // Initialize analytics manager
     this.analyticsManager = new AnalyticsManager();
 
-    // Initialize WebSocket server
-    this.setupWebSocketServer();
+    // Initialize worker pool for parallel processing
+    try {
+      const { WorkerPool } = require("../worker-pool");
+      this.workerPool = new WorkerPool({
+        numWorkers: require("../config/dynamic-config").workerCount,
+        workerScript: path.join(__dirname, "../worker.js"),
+      });
+      console.log(`✅ Worker pool initialized with ${this.workerPool.numWorkers} workers`);
+    } catch (error) {
+      console.log("⚠️  Worker pool initialization failed, using main thread:", error.message);
+      this.workerPool = null;
+    }
+
+    // WebSocket server (handled externally in startup code)
+    // this.setupWebSocketServer();
 
     // Initialize active analyses map for progress tracking
     this.activeAnalyses = new Map();
@@ -703,6 +714,7 @@ class SpaceAnalyzerAPIServer {
 
     // Health check endpoint (keep simple endpoint here)
     this.app.get("/api/health", (req, res) => {
+      const dynamicConfig = require("../config/dynamic-config");
       res.json({
         status: "ok",
         timestamp: new Date(),
@@ -712,6 +724,25 @@ class SpaceAnalyzerAPIServer {
         uptime: process.uptime(),
         requests: this.requestCount || 0,
         errors: this.errorCount || 0,
+        system: {
+          cpu: os.cpus().length,
+          memory: {
+            total: os.totalmem(),
+            free: os.freemem(),
+            used: process.memoryUsage(),
+          },
+          platform: os.platform(),
+          nodeVersion: process.version,
+        },
+        workers: {
+          configured: dynamicConfig.workerCount,
+          memoryPerWorker: dynamicConfig.workerMemoryMB,
+          active: this.workerPool !== null,
+          stats: this.workerPool ? this.workerPool.getStats() : null,
+          message: this.workerPool
+            ? "Worker pool active - using parallel processing"
+            : "Worker pool not initialized - using main thread for processing",
+        },
       });
     });
 
@@ -2371,7 +2402,7 @@ class SpaceAnalyzerAPIServer {
         }
 
         // Extract text from file
-        const TextExtractor = require("./modules/text-extractor");
+        const TextExtractor = require("../modules/text-extractor");
         const extractor = new TextExtractor();
         const extractedText = await extractor.extractText(filePath, maxChars);
 
@@ -2722,7 +2753,7 @@ Summary:`,
           .slice(0, maxFiles);
 
         // Import complexity analyzer
-        const ComplexityAnalyzer = require("./modules/complexity-analyzer");
+        const ComplexityAnalyzer = require("../modules/complexity-analyzer");
         const analyzer = new ComplexityAnalyzer();
 
         // Analyze files
@@ -3175,13 +3206,13 @@ Summary:`,
         res.json({
           success: true,
           metrics,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Cache metrics error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3194,13 +3225,13 @@ Summary:`,
         res.json({
           success: true,
           message: "Cache cleared successfully",
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Cache clear error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3213,7 +3244,7 @@ Summary:`,
         if (!directoryPath) {
           return res.status(400).json({
             success: false,
-            error: "directoryPath is required"
+            error: "directoryPath is required",
           });
         }
 
@@ -3222,13 +3253,13 @@ Summary:`,
         res.json({
           success: true,
           message: `Cache invalidated for ${directoryPath}`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Cache invalidate error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3238,10 +3269,10 @@ Summary:`,
       try {
         const { ttl } = req.body; // TTL in milliseconds
 
-        if (!ttl || typeof ttl !== 'number' || ttl < 0) {
+        if (!ttl || typeof ttl !== "number" || ttl < 0) {
           return res.status(400).json({
             success: false,
-            error: "Valid TTL (number in milliseconds) is required"
+            error: "Valid TTL (number in milliseconds) is required",
           });
         }
 
@@ -3251,13 +3282,13 @@ Summary:`,
           success: true,
           message: `Cache TTL set to ${ttl}ms`,
           ttl,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Cache TTL error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3273,13 +3304,13 @@ Summary:`,
           success: true,
           profiles,
           defaultProfile: this.scanProfileManager.defaultProfile,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get profiles error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3293,13 +3324,13 @@ Summary:`,
         res.json({
           success: true,
           profile,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get profile error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3312,7 +3343,7 @@ Summary:`,
         if (!name) {
           return res.status(400).json({
             success: false,
-            error: "Profile name is required"
+            error: "Profile name is required",
           });
         }
 
@@ -3323,7 +3354,7 @@ Summary:`,
           return res.status(400).json({
             success: false,
             error: "Invalid profile configuration",
-            errors: validation.errors
+            errors: validation.errors,
           });
         }
 
@@ -3331,13 +3362,13 @@ Summary:`,
           success: true,
           profile,
           message: `Custom profile '${name}' created successfully`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Create custom profile error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3350,25 +3381,31 @@ Summary:`,
         if (!directorySize || !fileCount) {
           return res.status(400).json({
             success: false,
-            error: "directorySize and fileCount are required"
+            error: "directorySize and fileCount are required",
           });
         }
 
-        const recommendedProfile = this.scanProfileManager.getRecommendedProfile(directorySize, fileCount);
-        const estimatedTime = this.scanProfileManager.estimateScanTime(directorySize, recommendedProfile);
+        const recommendedProfile = this.scanProfileManager.getRecommendedProfile(
+          directorySize,
+          fileCount
+        );
+        const estimatedTime = this.scanProfileManager.estimateScanTime(
+          directorySize,
+          recommendedProfile
+        );
 
         res.json({
           success: true,
           recommendedProfile,
           estimatedTime,
           estimatedTimeHuman: this.formatDuration(estimatedTime),
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get profile recommendation error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3383,7 +3420,7 @@ Summary:`,
         if (!filePath) {
           return res.status(400).json({
             success: false,
-            error: "filePath is required"
+            error: "filePath is required",
           });
         }
 
@@ -3392,13 +3429,13 @@ Summary:`,
         res.json({
           success: true,
           preview,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("File preview error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3411,13 +3448,13 @@ Summary:`,
         res.json({
           success: true,
           metrics,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("File preview metrics error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3430,13 +3467,13 @@ Summary:`,
         res.json({
           success: true,
           message: "File preview cache cleared successfully",
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Clear file preview cache error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3451,7 +3488,7 @@ Summary:`,
         if (!analysisId) {
           return res.status(400).json({
             success: false,
-            error: "analysisId is required"
+            error: "analysisId is required",
           });
         }
 
@@ -3467,7 +3504,7 @@ Summary:`,
         if (!scanId) {
           return res.status(404).json({
             success: false,
-            error: "No active scan found for this analysisId"
+            error: "No active scan found for this analysisId",
           });
         }
 
@@ -3482,8 +3519,8 @@ Summary:`,
           currentFile: "Scan paused",
           progress: {
             status: "paused",
-            currentFile: "Scan paused"
-          }
+            currentFile: "Scan paused",
+          },
         };
 
         this.activeAnalyses.set(analysisId, progressData);
@@ -3494,13 +3531,13 @@ Summary:`,
           scanId,
           message: "Scan paused successfully",
           scan: pausedScan,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Pause scan error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3513,7 +3550,7 @@ Summary:`,
         if (!analysisId) {
           return res.status(400).json({
             success: false,
-            error: "analysisId is required"
+            error: "analysisId is required",
           });
         }
 
@@ -3529,7 +3566,7 @@ Summary:`,
         if (!scanId) {
           return res.status(404).json({
             success: false,
-            error: "No paused scan found for this analysisId"
+            error: "No paused scan found for this analysisId",
           });
         }
 
@@ -3544,8 +3581,8 @@ Summary:`,
           currentFile: "Resuming scan...",
           progress: {
             status: "resuming",
-            currentFile: "Resuming scan..."
-          }
+            currentFile: "Resuming scan...",
+          },
         };
 
         this.activeAnalyses.set(analysisId, progressData);
@@ -3559,13 +3596,13 @@ Summary:`,
           scanId,
           message: "Scan resumed successfully",
           scan: resumedScan,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Resume scan error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3578,7 +3615,7 @@ Summary:`,
         if (!analysisId) {
           return res.status(400).json({
             success: false,
-            error: "analysisId is required"
+            error: "analysisId is required",
           });
         }
 
@@ -3609,7 +3646,7 @@ Summary:`,
         if (!scanId) {
           return res.status(404).json({
             success: false,
-            error: "No scan found for this analysisId"
+            error: "No scan found for this analysisId",
           });
         }
 
@@ -3626,8 +3663,8 @@ Summary:`,
           progress: {
             status: "stopped",
             currentFile: "Scan stopped",
-            error: "Scan stopped by user"
-          }
+            error: "Scan stopped by user",
+          },
         };
 
         this.activeAnalyses.set(analysisId, progressData);
@@ -3638,13 +3675,13 @@ Summary:`,
           scanId,
           message: "Scan stopped successfully",
           scan: stoppedScan,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Stop scan error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3692,7 +3729,7 @@ Summary:`,
         if (!scan) {
           return res.status(404).json({
             success: false,
-            error: "No scan found for this analysisId"
+            error: "No scan found for this analysisId",
           });
         }
 
@@ -3709,15 +3746,15 @@ Summary:`,
             startedAt: scan.startedAt,
             pausedAt: scan.pausedAt,
             resumedAt: scan.resumedAt,
-            completedAt: scan.completedAt
+            completedAt: scan.completedAt,
           },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get scan status error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3733,16 +3770,7 @@ Summary:`,
         res.json({
           success: true,
           metrics,
-          activeScans: activeScans.map(s => ({
-            scanId: s.scanId,
-            analysisId: s.analysisId,
-            directoryPath: s.directoryPath,
-            status: s.status,
-            progress: s.progress,
-            createdAt: s.createdAt,
-            startedAt: s.startedAt
-          })),
-          pausedScans: pausedScans.map(s => ({
+          activeScans: activeScans.map((s) => ({
             scanId: s.scanId,
             analysisId: s.analysisId,
             directoryPath: s.directoryPath,
@@ -3750,24 +3778,33 @@ Summary:`,
             progress: s.progress,
             createdAt: s.createdAt,
             startedAt: s.startedAt,
-            pausedAt: s.pausedAt
           })),
-          recentHistory: scanHistory.slice(-10).map(s => ({
+          pausedScans: pausedScans.map((s) => ({
             scanId: s.scanId,
             analysisId: s.analysisId,
             directoryPath: s.directoryPath,
             status: s.status,
             progress: s.progress,
             createdAt: s.createdAt,
-            completedAt: s.completedAt
+            startedAt: s.startedAt,
+            pausedAt: s.pausedAt,
           })),
-          timestamp: new Date().toISOString()
+          recentHistory: scanHistory.slice(-10).map((s) => ({
+            scanId: s.scanId,
+            analysisId: s.analysisId,
+            directoryPath: s.directoryPath,
+            status: s.status,
+            progress: s.progress,
+            createdAt: s.createdAt,
+            completedAt: s.completedAt,
+          })),
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get all scans error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3781,19 +3818,19 @@ Summary:`,
 
         res.json({
           success: true,
-          presets: Object.keys(presets).map(key => ({
+          presets: Object.keys(presets).map((key) => ({
             key,
             name: presets[key].name,
             description: presets[key].description,
-            filter: presets[key].filter
+            filter: presets[key].filter,
           })),
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get preset filters error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3806,7 +3843,7 @@ Summary:`,
         if (!filterOptions) {
           return res.status(400).json({
             success: false,
-            error: "Filter options are required"
+            error: "Filter options are required",
           });
         }
 
@@ -3817,13 +3854,13 @@ Summary:`,
           success: true,
           filter,
           summary,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Create filter error:", error);
         res.status(400).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3836,7 +3873,7 @@ Summary:`,
         if (!results || !filterOptions) {
           return res.status(400).json({
             success: false,
-            error: "Results and filter options are required"
+            error: "Results and filter options are required",
           });
         }
 
@@ -3849,13 +3886,13 @@ Summary:`,
           filteredCount: filteredResults.files?.length || 0,
           results: filteredResults,
           filter: this.scanFilter.getFilterSummary(filter),
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Apply filter error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3868,7 +3905,7 @@ Summary:`,
         if (!filterOptions) {
           return res.status(400).json({
             success: false,
-            error: "Filter options are required"
+            error: "Filter options are required",
           });
         }
 
@@ -3878,14 +3915,14 @@ Summary:`,
           success: true,
           valid: true,
           summary: this.scanFilter.getFilterSummary(filter),
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         res.status(400).json({
           success: false,
           valid: false,
           error: error.message,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
     });
@@ -3902,13 +3939,13 @@ Summary:`,
           success: true,
           config,
           schema,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get config error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3923,13 +3960,13 @@ Summary:`,
           success: true,
           key,
           value,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get config value error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3938,12 +3975,12 @@ Summary:`,
     this.app.post("/api/config/:key", async (req, res) => {
       try {
         const { key } = req.params;
-        const { value, configType = 'user' } = req.body;
+        const { value, configType = "user" } = req.body;
 
         if (value === undefined) {
           return res.status(400).json({
             success: false,
-            error: "Value is required"
+            error: "Value is required",
           });
         }
 
@@ -3956,19 +3993,19 @@ Summary:`,
             value,
             configType,
             message: "Configuration updated successfully",
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         } else {
           res.status(500).json({
             success: false,
-            error: "Failed to save configuration"
+            error: "Failed to save configuration",
           });
         }
       } catch (error) {
         console.error("Set config error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -3976,29 +4013,31 @@ Summary:`,
     // Reset configuration
     this.app.post("/api/config/reset", async (req, res) => {
       try {
-        const { key, configType = 'user' } = req.body;
+        const { key, configType = "user" } = req.body;
 
         const reset = await this.configManager.reset(key, configType);
 
         if (reset) {
           res.json({
             success: true,
-            key: key || 'all',
+            key: key || "all",
             configType,
-            message: key ? `Configuration '${key}' reset to default` : 'All configuration reset to defaults',
-            timestamp: new Date().toISOString()
+            message: key
+              ? `Configuration '${key}' reset to default`
+              : "All configuration reset to defaults",
+            timestamp: new Date().toISOString(),
           });
         } else {
           res.status(500).json({
             success: false,
-            error: "Failed to reset configuration"
+            error: "Failed to reset configuration",
           });
         }
       } catch (error) {
         console.error("Reset config error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -4009,14 +4048,14 @@ Summary:`,
         const { format } = req.params;
         const exportedConfig = await this.configManager.exportConfig(format);
 
-        res.setHeader('Content-Type', 'application/octet-stream');
-        res.setHeader('Content-Disposition', `attachment; filename="config.${format}"`);
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("Content-Disposition", `attachment; filename="config.${format}"`);
         res.send(exportedConfig);
       } catch (error) {
         console.error("Export config error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -4030,7 +4069,7 @@ Summary:`,
         if (!configData) {
           return res.status(400).json({
             success: false,
-            error: "Configuration data is required"
+            error: "Configuration data is required",
           });
         }
 
@@ -4040,13 +4079,13 @@ Summary:`,
           success: true,
           format,
           message: "Configuration imported successfully",
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Import config error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -4060,13 +4099,13 @@ Summary:`,
           success: true,
           backupFile,
           message: "Configuration backed up successfully",
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Backup config error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -4079,7 +4118,7 @@ Summary:`,
         if (!backupFile) {
           return res.status(400).json({
             success: false,
-            error: "Backup file path is required"
+            error: "Backup file path is required",
           });
         }
 
@@ -4089,13 +4128,13 @@ Summary:`,
           success: true,
           backupFile,
           message: "Configuration restored successfully",
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Restore config error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -4108,13 +4147,13 @@ Summary:`,
         res.json({
           success: true,
           schema,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get config schema error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -4129,13 +4168,13 @@ Summary:`,
         res.json({
           success: true,
           metrics,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get realtime analytics error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -4143,19 +4182,19 @@ Summary:`,
     // Get analytics summary
     this.app.get("/api/analytics/summary", (req, res) => {
       try {
-        const { timeRange = '24h' } = req.query;
+        const { timeRange = "24h" } = req.query;
         const summary = this.analyticsManager.getAnalyticsSummary(timeRange);
 
         res.json({
           success: true,
           summary,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get analytics summary error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -4168,13 +4207,13 @@ Summary:`,
         res.json({
           success: true,
           metrics,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Get detailed analytics error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -4185,14 +4224,14 @@ Summary:`,
         const { format } = req.params;
         const exportedData = await this.analyticsManager.exportAnalytics(format);
 
-        res.setHeader('Content-Type', 'application/octet-stream');
-        res.setHeader('Content-Disposition', `attachment; filename="analytics.${format}"`);
+        res.setHeader("Content-Type", "application/octet-stream");
+        res.setHeader("Content-Disposition", `attachment; filename="analytics.${format}"`);
         res.send(exportedData);
       } catch (error) {
         console.error("Export analytics error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -4205,13 +4244,13 @@ Summary:`,
         res.json({
           success: true,
           message: "Analytics data cleared successfully",
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       } catch (error) {
         console.error("Clear analytics error:", error);
         res.status(500).json({
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     });
@@ -5267,41 +5306,17 @@ Answer:`;
   async findCppExecutable() {
     const serverDir = __dirname;
     console.log(`🔍 findCppExecutable: serverDir = ${serverDir}`);
-    const searchPaths = new Set();
+    const searchPaths = [__dirname, path.join(__dirname, "..", "..")];
 
-    searchPaths.add(serverDir);
+    // Only search for Rust CLI executable
+    const executableNames = ["space-analyzer.exe"];
 
-    let currentDir = serverDir;
-    for (let i = 0; i < 5; i++) {
-      currentDir = path.dirname(currentDir);
-      searchPaths.add(currentDir);
-    }
-
-    const executableNames = [
-      "space-analyzer.exe",
-      "space-analyzer-rust.exe",
-      "space-analyzer-rust-gnu.exe",
-      "space_analyzer_ai_enhanced.exe",
-      "space_analyzer_ai.exe",
-      "space-analyzer-cli.exe", // Last priority - uses C++ format
-    ];
-
-    const searchSubdirs = [
-      "bin",
-      "scanner",
-      "native/scanner/target/release",
-      "native/scanner/target/debug",
-      "cli/target/release",
-      "cli/target/debug",
-      "bin/Release",
-      "bin/Debug",
-      "target/release",
-      "target/debug",
-    ];
+    const searchSubdirs = ["bin"];
 
     for (const baseDir of searchPaths) {
       for (const subdir of searchSubdirs) {
         const searchDir = path.join(baseDir, subdir);
+        console.log(`🔍 Searching in: ${searchDir}`);
         if (existsSync(searchDir)) {
           for (const execName of executableNames) {
             const execPath = path.join(searchDir, execName);
@@ -5342,60 +5357,40 @@ Answer:`;
           return reject(new Error("Analysis executable missing"));
         }
 
-        const isRustCLI =
-          exePath.includes("space-analyzer.exe") || exePath.includes("space-analyzer-rust");
-        // space-analyzer-cli.exe uses C++ format
+        console.log(`🔧 Using executable: ${exePath}`);
+
+        // Use Rust CLI format (--format json)
         const tempFile = path.join(__dirname, `output_${analysisId}.json`);
+        commandName = "Rust CLI";
+        args = [directoryPath, "--format", "json", "--output", tempFile];
+        console.log(`🔧 Using Rust CLI arguments: ${args.join(" ")}`);
 
-async runCppAnalysis(analysisId, directoryPath, options) {
-// Apply scan profile configuration
-const profile = this.scanProfileManager.getProfileForOptions(options);
-const mergedOptions = { ...options, ...profile.options };
+        // Add filter arguments if provided
+        if (filterArgs.length > 0) {
+          args.push(...filterArgs);
+        }
 
-// Apply scan filter if provided
-let filter = null;
-let filterArgs = [];
-if (options.filter) {
-  filter = this.scanFilter.createFilter(options.filter);
-  filterArgs = this.scanFilter.buildRustArgs(filter);
-  console.log(`🔍 Applying scan filter:`, this.scanFilter.getFilterSummary(filter));
-}
-
-console.log(`🔧 Using scan profile: ${profile.options.profile}`);
-console.log(`🔧 Profile options:`, JSON.stringify(profile.options, null, 2));
-
-return new Promise(async (resolve, reject) => {
-  try {
-    const exePath = await this.findCppExecutable();
-    if (!exePath) {
-      return reject(new Error("Analysis executable missing"));
-    }
-
-    const isRustCLI =
-      exePath.includes("space-analyzer.exe") || exePath.includes("space-analyzer-rust");
-    // space-analyzer-cli.exe uses C++ format
-    const tempFile = path.join(__dirname, `output_${analysisId}.json`);
-
-    let args, commandName;
-          args.push('--hidden');
+        // Add options
+        if (mergedOptions.hidden && !args.includes("--hidden")) {
+          args.push("--hidden");
         }
-        if (mergedOptions.parallel && !args.includes('--parallel')) {
-          args.push('--parallel');
+        if (mergedOptions.parallel && !args.includes("--parallel")) {
+          args.push("--parallel");
         }
-        if (mergedOptions.duplicates && !args.includes('--duplicates')) {
-          args.push('--duplicates');
+        if (mergedOptions.duplicates && !args.includes("--duplicates")) {
+          args.push("--duplicates");
         }
-        if (mergedOptions.maxHashSize && !args.includes('--max-hash-size')) {
-          args.push('--max-hash-size', mergedOptions.maxHashSize.toString());
+        if (mergedOptions.maxHashSize && !args.includes("--max-hash-size")) {
+          args.push("--max-hash-size", mergedOptions.maxHashSize.toString());
         }
-        if (mergedOptions.maxFiles && !args.includes('--max-files')) {
-          args.push('--max-files', mergedOptions.maxFiles.toString());
+        if (mergedOptions.maxFiles && !args.includes("--max-files")) {
+          args.push("--max-files", mergedOptions.maxFiles.toString());
         }
-        if (mergedOptions.usnIncremental && !args.includes('--usn-incremental')) {
-          args.push('--usn-incremental');
+        if (mergedOptions.usnIncremental && !args.includes("--usn-incremental")) {
+          args.push("--usn-incremental");
         }
-        if (mergedOptions.mftFast && !args.includes('--mft-fast')) {
-          args.push('--mft-fast');
+        if (mergedOptions.mftFast && !args.includes("--mft-fast")) {
+          args.push("--mft-fast");
         }
 
         console.log(`🎬 Spawning ${commandName}: ${exePath} ${args.join(" ")}`);
@@ -5485,19 +5480,26 @@ return new Promise(async (resolve, reject) => {
 
               const percentage = Math.min((scannedFileCount / estimatedTotal) * 100, 95);
 
-              // Get file preview for current file (async, non-blocking)
+              // Get file preview for current file (non-blocking)
               let filePreview = null;
-              if (currentFilePath && currentFilePath !== "Scanning..." && !currentFilePath.includes("files")) {
-                try {
-                  filePreview = await this.filePreviewManager.getFilePreview(currentFilePath, {
+              if (
+                currentFilePath &&
+                currentFilePath !== "Scanning..." &&
+                !currentFilePath.includes("files")
+              ) {
+                this.filePreviewManager
+                  .getFilePreview(currentFilePath, {
                     includeHash: false,
                     includeTextPreview: false,
-                    previewLines: 3
+                    previewLines: 3,
+                  })
+                  .then((preview) => {
+                    filePreview = preview;
+                  })
+                  .catch((previewError) => {
+                    // Don't let preview errors break progress updates
+                    console.warn(`Preview error for ${currentFilePath}:`, previewError.message);
                   });
-                } catch (previewError) {
-                  // Don't let preview errors break progress updates
-                  console.warn(`Preview error for ${currentFilePath}:`, previewError.message);
-                }
               }
 
               const progressData = {
@@ -5544,39 +5546,39 @@ return new Promise(async (resolve, reject) => {
 
               let args = [...profile.rustArgs];
 
-        // Add directory path
-        args.push(directoryPath);
+              // Add directory path
+              args.push(directoryPath);
 
-        // Add any additional custom arguments that aren't already covered by the profile
-        if (mergedOptions.maxDepth && !args.includes('--max-depth')) {
-          args.push('--max-depth', mergedOptions.maxDepth.toString());
-        }
-        if (mergedOptions.includeHidden && !args.includes('--hidden')) {
-          args.push('--hidden');
-        }
-        if (mergedOptions.parallel && !args.includes('--parallel')) {
-          args.push('--parallel');
-        }
-        if (mergedOptions.duplicates && !args.includes('--duplicates')) {
-          args.push('--duplicates');
-        }
-        if (mergedOptions.maxHashSize && !args.includes('--max-hash-size')) {
-          args.push('--max-hash-size', mergedOptions.maxHashSize.toString());
-        }
-        if (mergedOptions.maxFiles && !args.includes('--max-files')) {
-          args.push('--max-files', mergedOptions.maxFiles.toString());
-        }
-        if (mergedOptions.usnIncremental && !args.includes('--usn-incremental')) {
-          args.push('--usn-incremental');
-        }
-        if (mergedOptions.mftFast && !args.includes('--mft-fast')) {
-          args.push('--mft-fast');
-        }
+              // Add any additional custom arguments that aren't already covered by the profile
+              if (mergedOptions.maxDepth && !args.includes("--max-depth")) {
+                args.push("--max-depth", mergedOptions.maxDepth.toString());
+              }
+              if (mergedOptions.includeHidden && !args.includes("--hidden")) {
+                args.push("--hidden");
+              }
+              if (mergedOptions.parallel && !args.includes("--parallel")) {
+                args.push("--parallel");
+              }
+              if (mergedOptions.duplicates && !args.includes("--duplicates")) {
+                args.push("--duplicates");
+              }
+              if (mergedOptions.maxHashSize && !args.includes("--max-hash-size")) {
+                args.push("--max-hash-size", mergedOptions.maxHashSize.toString());
+              }
+              if (mergedOptions.maxFiles && !args.includes("--max-files")) {
+                args.push("--max-files", mergedOptions.maxFiles.toString());
+              }
+              if (mergedOptions.usnIncremental && !args.includes("--usn-incremental")) {
+                args.push("--usn-incremental");
+              }
+              if (mergedOptions.mftFast && !args.includes("--mft-fast")) {
+                args.push("--mft-fast");
+              }
 
-        // For non-Rust CLI, just use directory path
-        if (!isRustCLI) {
-          args = [directoryPath];
-        }
+              // For non-Rust CLI, just use directory path
+              if (!isRustCLI) {
+                args = [directoryPath];
+              }
 
               const progressData = {
                 analysisId,
@@ -5632,7 +5634,10 @@ return new Promise(async (resolve, reject) => {
                     files: partialData.total_files || scannedFileCount,
                     filesProcessed: partialData.files.length,
                     totalSize: partialData.total_size || cumulativeSize,
-                    percentage: Math.round((partialData.files.length / (partialData.total_files || scannedFileCount)) * 100),
+                    percentage: Math.round(
+                      (partialData.files.length / (partialData.total_files || scannedFileCount)) *
+                        100
+                    ),
                     currentFile: "Scan failed - partial results",
                     status: "partial",
                     completed: true,
@@ -5642,7 +5647,10 @@ return new Promise(async (resolve, reject) => {
                     progress: {
                       filesProcessed: partialData.files.length,
                       totalSize: partialData.total_size || cumulativeSize,
-                      percentage: Math.round((partialData.files.length / (partialData.total_files || scannedFileCount)) * 100),
+                      percentage: Math.round(
+                        (partialData.files.length / (partialData.total_files || scannedFileCount)) *
+                          100
+                      ),
                       currentFile: "Scan failed - partial results",
                       status: "partial",
                     },
@@ -5675,19 +5683,23 @@ return new Promise(async (resolve, reject) => {
                 /Network path not found/i,
               ];
 
-              const isRetryable = retryableErrors.some(regex => regex.test(stderrOutput));
+              const isRetryable = retryableErrors.some((regex) => regex.test(stderrOutput));
 
               if (isRetryable) {
                 console.log(`🔄 Retrying scan (attempt ${retryCount + 1}/${maxRetries + 1})...`);
 
                 // Wait before retry with exponential backoff
                 const delay = Math.pow(2, retryCount) * 1000;
-                await new Promise(resolve => setTimeout(resolve, delay));
+                await new Promise((resolve) => setTimeout(resolve, delay));
 
                 // Retry the analysis
                 try {
                   const retryOptions = { ...options, retryCount: retryCount + 1 };
-                  const retryResult = await this.runCppAnalysis(analysisId, directoryPath, retryOptions);
+                  const retryResult = await this.runCppAnalysis(
+                    analysisId,
+                    directoryPath,
+                    retryOptions
+                  );
                   resolve(retryResult);
                   return;
                 } catch (retryError) {
@@ -5726,33 +5738,25 @@ return new Promise(async (resolve, reject) => {
           }
 
           // Success case
-            try {
-              if (existsSync(tempFile)) {
-                const content = await fsPromises.readFile(tempFile, "utf8");
-                const data = JSON.parse(content);
-                await fsPromises.unlink(tempFile).catch(() => {});
+          try {
+            if (existsSync(tempFile)) {
+              const content = await fsPromises.readFile(tempFile, "utf8");
+              const data = JSON.parse(content);
+              await fsPromises.unlink(tempFile).catch(() => {});
 
-                if (isRustCLI) {
-                  // Rust CLI outputs standard format, not ML summary format
-                  // Pass false for isMlSummary to use standard format conversion
-                  const convertedData = await this.convertRustOutputToWebFormat(
-                    data,
-                    analysisId,
-                    false
-                  );
-                  resolve(convertedData);
-                } else {
-                  resolve(data);
-                }
-              } else {
-                reject(new Error("Output file not created"));
-              }
-            } catch (e) {
-              console.error(`❌ Failed to parse ${commandName} output:`, e);
-              reject(e);
+              // Rust CLI outputs standard format, convert to web format
+              const convertedData = await this.convertRustOutputToWebFormat(
+                data,
+                analysisId,
+                false
+              );
+              resolve(convertedData);
+            } else {
+              reject(new Error("Output file not created"));
             }
-          } else {
-            reject(new Error(`${commandName} exit code ${code}`));
+          } catch (e) {
+            console.error(`❌ Failed to parse ${commandName} output:`, e);
+            reject(e);
           }
         });
       } catch (err) {
@@ -5883,10 +5887,65 @@ return new Promise(async (resolve, reject) => {
 
   async runJsAnalysis(analysisId, directoryPath) {
     console.log(`🔍 Starting JS Analysis for: ${directoryPath}`);
+    const startTime = Date.now();
+
+    // Use worker pool if available for parallel scanning
+    if (this.workerPool) {
+      console.log(`🚀 Using worker pool for parallel scanning`);
+      try {
+        const result = await this.workerPool.executeTask(
+          {
+            type: "scanDirectory",
+            directoryPath,
+            taskId: analysisId,
+            maxDepth: 20,
+          },
+          {
+            timeout: 300000, // 5 minute timeout
+          }
+        );
+
+        const duration = Date.now() - startTime;
+        console.log(
+          `✅ Worker pool analysis complete: ${result.totalFiles} files in ${duration}ms`
+        );
+
+        // Emit final progress
+        this.eventEmitter.emit("progress", {
+          analysisId,
+          filesProcessed: result.totalFiles,
+          totalSize: result.totalSize,
+          percentage: 100,
+          currentFile: "Analysis complete",
+        });
+
+        return {
+          totalFiles: result.totalFiles,
+          totalSize: result.totalSize,
+          files: result.files.slice(0, 500), // Limit to 500 files for response
+          categories: result.categories,
+          analysisType: "js-worker-pool",
+          analysisTime: duration,
+        };
+      } catch (error) {
+        console.error(
+          `❌ Worker pool analysis failed, falling back to main thread:`,
+          error.message
+        );
+        console.error(`Worker error details:`, {
+          code: error.code,
+          path: error.path,
+          stack: error.stack?.substring(0, 500),
+        });
+        // Fall back to main thread scanning
+      }
+    }
+
+    // Fallback to main thread scanning
+    console.log(`⚠️ Using main thread for scanning`);
     let totalFiles = 0;
     let totalSize = 0;
     const files = [];
-    const startTime = Date.now();
 
     // First pass: count total files for accurate progress calculation
     let estimatedTotal = 0;
@@ -6050,7 +6109,7 @@ return new Promise(async (resolve, reject) => {
 if (require.main === module && !process.env.TESTING) {
   // Load and log hardware-optimized configuration (async to detect Ollama models)
   (async () => {
-    const { logConfig } = require("./config/dynamic-config");
+    const { logConfig } = require("../config/dynamic-config");
     await logConfig();
 
     const app = new SpaceAnalyzerAPIServer();
@@ -6098,7 +6157,7 @@ if (require.main === module && !process.env.TESTING) {
     server.listen(app.config.port, () => {
       console.log(`🚀 Enhanced Backend running on port ${app.config.port}`);
       console.log(
-        `⚙️  Hardware-optimized configuration active (${require("./config/dynamic-config").tier} tier)`
+        `⚙️  Hardware-optimized configuration active (${require("../config/dynamic-config").tier} tier)`
       );
       console.log("📡 WebSocket server active");
       console.log("🔌 Ollama AI: " + (app.ollamaAvailable ? "Available" : "Not available"));

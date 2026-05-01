@@ -4,7 +4,7 @@
       <h1>🧠 Self-Learning System</h1>
       <p>AI-powered usage pattern adaptation for personalized recommendations</p>
     </div>
-    
+
     <div class="self-learning-content">
       <SelfLearningEngine />
     </div>
@@ -12,7 +12,12 @@
 </template>
 
 <script setup lang="ts">
-import SelfLearningEngine from '@/components/ai/SelfLearningEngine.vue'
+import { onMounted } from "vue";
+import SelfLearningEngine from "@/components/ai/SelfLearningEngine.vue";
+
+onMounted(() => {
+  document.title = "🧠 Self-Learning System - Space Analyzer Pro";
+});
 </script>
 
 <style scoped>
@@ -30,20 +35,20 @@ import SelfLearningEngine from '@/components/ai/SelfLearningEngine.vue'
 .view-header h1 {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
-  color: #2c3e50;
+  color: var(--text-primary, #fafaf9);
 }
 
 .view-header p {
   font-size: 1.1rem;
-  color: #7f8c8d;
+  color: var(--text-secondary, #6b6b70);
   max-width: 600px;
   margin: 0 auto;
 }
 
 .self-learning-content {
-  background: white;
+  background: var(--bg-card, #16161a);
   border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-subtle, #2a2a2e);
   padding: 1.5rem;
 }
 
@@ -51,11 +56,11 @@ import SelfLearningEngine from '@/components/ai/SelfLearningEngine.vue'
   .self-learning-view {
     padding: 1rem;
   }
-  
+
   .view-header h1 {
     font-size: 2rem;
   }
-  
+
   .self-learning-content {
     padding: 1rem;
   }

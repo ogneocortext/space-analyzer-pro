@@ -4,44 +4,57 @@
       <h1>🌐 3D File System Browser</h1>
       <p>Immersive 3D file system navigation with multiple layout algorithms</p>
     </div>
-    
-    <div class="3d-content">
-      <FileSystem3D 
-        :root-path="rootPath"
-        :max-depth="maxDepth"
-        :max-nodes="maxNodes"
-        @node-selected="handleNodeSelected"
-        @node-opened="handleNodeOpened"
-      />
-      
+
+    <div class="three-d-content">
+      <ErrorBoundary title="3D visualization failed" :show-details="true">
+        <FileSystem3D
+          :root-path="rootPath"
+          :max-depth="maxDepth"
+          :max-nodes="maxNodes"
+          @node-selected="handleNodeSelected"
+          @node-opened="handleNodeOpened"
+        />
+      </ErrorBoundary>
+
       <div class="controls-panel">
         <div class="control-group">
           <h3>Layout Options</h3>
           <div class="layout-buttons">
-            <button @click="setLayout('tree')" :class="{ active: currentLayout === 'tree' }">Tree</button>
-            <button @click="setLayout('sphere')" :class="{ active: currentLayout === 'sphere' }">Sphere</button>
-            <button @click="setLayout('cylinder')" :class="{ active: currentLayout === 'cylinder' }">Cylinder</button>
-            <button @click="setLayout('spiral')" :class="{ active: currentLayout === 'spiral' }">Spiral</button>
+            <button @click="setLayout('tree')" :class="{ active: currentLayout === 'tree' }">
+              Tree
+            </button>
+            <button @click="setLayout('sphere')" :class="{ active: currentLayout === 'sphere' }">
+              Sphere
+            </button>
+            <button
+              @click="setLayout('cylinder')"
+              :class="{ active: currentLayout === 'cylinder' }"
+            >
+              Cylinder
+            </button>
+            <button @click="setLayout('spiral')" :class="{ active: currentLayout === 'spiral' }">
+              Spiral
+            </button>
           </div>
         </div>
-        
+
         <div class="control-group">
           <h3>View Options</h3>
           <div class="view-options">
             <label>
-              <input type="checkbox" v-model="showFileLabels">
+              <input type="checkbox" v-model="showFileLabels" />
               Show File Labels
             </label>
             <label>
-              <input type="checkbox" v-model="showDirectoryLabels">
+              <input type="checkbox" v-model="showDirectoryLabels" />
               Show Directory Labels
             </label>
             <label>
-              <input type="checkbox" v-model="autoRotate">
+              <input type="checkbox" v-model="autoRotate" />
               Auto Rotate
             </label>
             <label>
-              <input type="checkbox" v-model="wireframe">
+              <input type="checkbox" v-model="wireframe" />
               Wireframe Mode
             </label>
           </div>
@@ -52,32 +65,42 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import FileSystem3D from '@/components/3d/FileSystem3D.vue'
+import { ref } from "vue";
+import { defineAsyncComponent } from "vue";
+import ErrorBoundary from "@/components/shared/ErrorBoundary.vue";
+import SkeletonLoader from "@/components/shared/SkeletonLoader.vue";
+
+// Lazy load the 3D component
+const FileSystem3D = defineAsyncComponent({
+  loader: () => import("@/components/3d/FileSystem3D.vue"),
+  loadingComponent: SkeletonLoader,
+  delay: 200,
+  timeout: 30000,
+});
 
 // Props and state
-const rootPath = ref('C:\\')
-const maxDepth = ref(5)
-const maxNodes = ref(1000)
-const currentLayout = ref('tree')
-const showFileLabels = ref(true)
-const showDirectoryLabels = ref(true)
-const autoRotate = ref(false)
-const wireframe = ref(false)
+const rootPath = ref("C:\\");
+const maxDepth = ref(5);
+const maxNodes = ref(1000);
+const currentLayout = ref("tree");
+const showFileLabels = ref(true);
+const showDirectoryLabels = ref(true);
+const autoRotate = ref(false);
+const wireframe = ref(false);
 
 // Methods
 const setLayout = (layout: string) => {
-  currentLayout.value = layout
+  currentLayout.value = layout;
   // Emit layout change to FileSystem3D component
-}
+};
 
 const handleNodeSelected = (node: any) => {
-  console.log('Node selected:', node)
-}
+  console.log("Node selected:", node);
+};
 
 const handleNodeOpened = (node: any) => {
-  console.log('Node opened:', node)
-}
+  console.log("Node opened:", node);
+};
 </script>
 
 <style scoped>
@@ -95,17 +118,17 @@ const handleNodeOpened = (node: any) => {
 .view-header h1 {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
-  color: #2c3e50;
+  color: var(--text-primary, #fafaf9);
 }
 
 .view-header p {
   font-size: 1.1rem;
-  color: #7f8c8d;
+  color: var(--text-secondary, #6b6b70);
   max-width: 600px;
   margin: 0 auto;
 }
 
-.3d-content {
+.three-d-content {
   display: grid;
   grid-template-columns: 1fr 300px;
   gap: 2rem;
@@ -113,9 +136,9 @@ const handleNodeOpened = (node: any) => {
 }
 
 .controls-panel {
-  background: white;
+  background: var(--bg-card, #16161a);
   border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-subtle, #2a2a2e);
   padding: 1.5rem;
   overflow-y: auto;
 }
@@ -127,7 +150,7 @@ const handleNodeOpened = (node: any) => {
 .control-group h3 {
   font-size: 1.2rem;
   margin-bottom: 1rem;
-  color: #2c3e50;
+  color: var(--text-primary, #fafaf9);
 }
 
 .layout-buttons {
@@ -138,21 +161,22 @@ const handleNodeOpened = (node: any) => {
 
 .layout-buttons button {
   padding: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-subtle, #2a2a2e);
   border-radius: 6px;
-  background: white;
+  background: var(--bg-elevated, #1a1a1e);
+  color: var(--text-primary, #fafaf9);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .layout-buttons button:hover {
-  background: #f8f9fa;
+  background: var(--bg-elevated-hover, #222226);
 }
 
 .layout-buttons button.active {
-  background: #007bff;
+  background: var(--accent-indigo, #6366f1);
   color: white;
-  border-color: #007bff;
+  border-color: var(--accent-indigo, #6366f1);
 }
 
 .view-options {
@@ -166,6 +190,7 @@ const handleNodeOpened = (node: any) => {
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
+  color: var(--text-secondary, #6b6b70);
 }
 
 .view-options input[type="checkbox"] {
@@ -174,11 +199,11 @@ const handleNodeOpened = (node: any) => {
 }
 
 @media (max-width: 1200px) {
-  .3d-content {
+  .three-d-content {
     grid-template-columns: 1fr;
     height: auto;
   }
-  
+
   .controls-panel {
     order: -1;
     max-height: 300px;
@@ -189,11 +214,11 @@ const handleNodeOpened = (node: any) => {
   .filesystem-3d-view {
     padding: 1rem;
   }
-  
+
   .view-header h1 {
     font-size: 2rem;
   }
-  
+
   .layout-buttons {
     grid-template-columns: 1fr;
   }

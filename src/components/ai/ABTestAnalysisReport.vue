@@ -9,10 +9,20 @@
             {{ test.name }} ({{ test.status }})
           </option>
         </select>
-        <button aria-label @click="generateReport" :disabled="!selectedTestId" class="generate-btn">
+        <button
+          aria-label="Generate Report"
+          @click="generateReport"
+          :disabled="!selectedTestId"
+          class="generate-btn"
+        >
           📊 Generate Report
         </button>
-        <button aria-label @click="exportReport" :disabled="!reportData" class="export-btn">
+        <button
+          aria-label="Export PDF"
+          @click="exportReport"
+          :disabled="!reportData"
+          class="export-btn"
+        >
           📥 Export PDF
         </button>
       </div>
@@ -45,7 +55,7 @@
             <h5>Key Results</h5>
             <div class="summary-item">
               <span class="label">Winner:</span>
-              <span class="value winner">{{ reportData.results.winner || 'Inconclusive' }}</span>
+              <span class="value winner">{{ reportData.results.winner || "Inconclusive" }}</span>
             </div>
             <div class="summary-item">
               <span class="label">Confidence:</span>
@@ -62,7 +72,7 @@
             <div class="summary-item">
               <span class="label">Lift:</span>
               <span class="value" :class="getLiftClass(reportData.lift)">
-                {{ reportData.lift > 0 ? '+' : '' }}{{ reportData.lift.toFixed(1) }}%
+                {{ reportData.lift > 0 ? "+" : "" }}{{ reportData.lift.toFixed(1) }}%
               </span>
             </div>
             <div class="summary-item">
@@ -81,7 +91,8 @@
       <section class="detailed-results">
         <h4>📈 Detailed Results</h4>
         <div class="results-tabs">
-          <button aria-label
+          <button
+            aria-label
             v-for="tab in resultTabs"
             :key="tab.id"
             :class="['tab-btn', { active: activeTab === tab.id }]"
@@ -97,7 +108,11 @@
             <canvas ref="conversionChart" class="chart-canvas"></canvas>
           </div>
           <div class="conversion-metrics">
-            <div v-for="variant in reportData.results.variantResults" :key="variant.variantId" class="variant-metrics">
+            <div
+              v-for="variant in reportData.results.variantResults"
+              :key="variant.variantId"
+              class="variant-metrics"
+            >
               <h6>{{ getVariantName(variant.variantId) }}</h6>
               <div class="metric-row">
                 <span class="metric-label">Conversion Rate:</span>
@@ -105,7 +120,9 @@
               </div>
               <div class="metric-row">
                 <span class="metric-label">Conversions:</span>
-                <span class="metric-value">{{ variant.conversions }}/{{ variant.participants }}</span>
+                <span class="metric-value"
+                  >{{ variant.conversions }}/{{ variant.participants }}</span
+                >
               </div>
               <div class="metric-row">
                 <span class="metric-label">Confidence Interval:</span>
@@ -124,36 +141,60 @@
         <!-- Engagement Analysis -->
         <div v-if="activeTab === 'engagement'" class="tab-content">
           <div class="engagement-grid">
-            <div v-for="variant in reportData.results.variantResults" :key="variant.variantId" class="engagement-card">
+            <div
+              v-for="variant in reportData.results.variantResults"
+              :key="variant.variantId"
+              class="engagement-card"
+            >
               <h6>{{ getVariantName(variant.variantId) }}</h6>
               <div class="engagement-metrics">
                 <div class="engagement-metric">
                   <span class="metric-name">Click Rate</span>
                   <div class="metric-bar">
-                    <div class="bar-fill" :style="{ width: `${variant.engagement.clickRate * 100}%` }"></div>
+                    <div
+                      class="bar-fill"
+                      :style="{ width: `${variant.engagement.clickRate * 100}%` }"
+                    ></div>
                   </div>
-                  <span class="metric-value">{{ Math.round(variant.engagement.clickRate * 100) }}%</span>
+                  <span class="metric-value"
+                    >{{ Math.round(variant.engagement.clickRate * 100) }}%</span
+                  >
                 </div>
                 <div class="engagement-metric">
                   <span class="metric-name">Time to Action</span>
                   <div class="metric-bar">
-                    <div class="bar-fill secondary" :style="{ width: `${(variant.engagement.timeToAction / 30) * 100}%` }"></div>
+                    <div
+                      class="bar-fill secondary"
+                      :style="{ width: `${(variant.engagement.timeToAction / 30) * 100}%` }"
+                    ></div>
                   </div>
-                  <span class="metric-value">{{ variant.engagement.timeToAction.toFixed(1) }}s</span>
+                  <span class="metric-value"
+                    >{{ variant.engagement.timeToAction.toFixed(1) }}s</span
+                  >
                 </div>
                 <div class="engagement-metric">
                   <span class="metric-name">Interaction Depth</span>
                   <div class="metric-bar">
-                    <div class="bar-fill tertiary" :style="{ width: `${variant.engagement.interactionDepth * 100}%` }"></div>
+                    <div
+                      class="bar-fill tertiary"
+                      :style="{ width: `${variant.engagement.interactionDepth * 100}%` }"
+                    ></div>
                   </div>
-                  <span class="metric-value">{{ variant.engagement.interactionDepth.toFixed(1) }}</span>
+                  <span class="metric-value">{{
+                    variant.engagement.interactionDepth.toFixed(1)
+                  }}</span>
                 </div>
                 <div class="engagement-metric">
                   <span class="metric-name">Bounce Rate</span>
                   <div class="metric-bar">
-                    <div class="bar-fill danger" :style="{ width: `${variant.engagement.bounceRate * 100}%` }"></div>
+                    <div
+                      class="bar-fill danger"
+                      :style="{ width: `${variant.engagement.bounceRate * 100}%` }"
+                    ></div>
                   </div>
-                  <span class="metric-value">{{ Math.round(variant.engagement.bounceRate * 100) }}%</span>
+                  <span class="metric-value"
+                    >{{ Math.round(variant.engagement.bounceRate * 100) }}%</span
+                  >
                 </div>
               </div>
             </div>
@@ -167,13 +208,24 @@
               <canvas ref="satisfactionChart" class="chart-canvas"></canvas>
             </div>
             <div class="satisfaction-summary">
-              <div v-for="variant in reportData.results.variantResults" :key="variant.variantId" class="satisfaction-summary-item">
+              <div
+                v-for="variant in reportData.results.variantResults"
+                :key="variant.variantId"
+                class="satisfaction-summary-item"
+              >
                 <h6>{{ getVariantName(variant.variantId) }}</h6>
                 <div class="rating-display">
                   <div class="rating-stars">
-                    <span v-for="i in 5" :key="i" :class="['star', i <= variant.satisfaction.averageRating ? 'filled' : '']">★</span>
+                    <span
+                      v-for="i in 5"
+                      :key="i"
+                      :class="['star', i <= variant.satisfaction.averageRating ? 'filled' : '']"
+                      >★</span
+                    >
                   </div>
-                  <span class="rating-value">{{ variant.satisfaction.averageRating.toFixed(1) }}/5</span>
+                  <span class="rating-value"
+                    >{{ variant.satisfaction.averageRating.toFixed(1) }}/5</span
+                  >
                 </div>
                 <div class="feedback-stats">
                   <div class="feedback-stat">
@@ -182,11 +234,15 @@
                   </div>
                   <div class="feedback-stat">
                     <span class="stat-label">Response Rate:</span>
-                    <span class="stat-value">{{ Math.round(variant.satisfaction.responseRate * 100) }}%</span>
+                    <span class="stat-value"
+                      >{{ Math.round(variant.satisfaction.responseRate * 100) }}%</span
+                    >
                   </div>
                   <div class="feedback-stat">
                     <span class="stat-label">Positive Sentiment:</span>
-                    <span class="stat-value">{{ Math.round(variant.satisfaction.positiveSentiment * 100) }}%</span>
+                    <span class="stat-value"
+                      >{{ Math.round(variant.satisfaction.positiveSentiment * 100) }}%</span
+                    >
                   </div>
                 </div>
               </div>
@@ -219,7 +275,11 @@
                   <td>{{ (variant.performance.errorRate * 100).toFixed(2) }}</td>
                   <td>{{ (variant.performance.resourceUsage * 100).toFixed(1) }}%</td>
                   <td>
-                    <span :class="getPerformanceScoreClass(calculatePerformanceScore(variant.performance))">
+                    <span
+                      :class="
+                        getPerformanceScoreClass(calculatePerformanceScore(variant.performance))
+                      "
+                    >
                       {{ calculatePerformanceScore(variant.performance).toFixed(1) }}
                     </span>
                   </td>
@@ -239,7 +299,11 @@
             <div class="power-metrics">
               <div class="power-metric">
                 <span class="metric-label">Statistical Power:</span>
-                <span class="metric-value">{{ Math.round(reportData.results.variantResults[0].statisticalData.power * 100) }}%</span>
+                <span class="metric-value"
+                  >{{
+                    Math.round(reportData.results.variantResults[0].statisticalData.power * 100)
+                  }}%</span
+                >
               </div>
               <div class="power-metric">
                 <span class="metric-label">Sample Size:</span>
@@ -247,7 +311,9 @@
               </div>
               <div class="power-metric">
                 <span class="metric-label">Effect Size:</span>
-                <span class="metric-value">{{ calculateEffectSize(reportData.results).toFixed(3) }}</span>
+                <span class="metric-value">{{
+                  calculateEffectSize(reportData.results).toFixed(3)
+                }}</span>
               </div>
               <div class="power-metric">
                 <span class="metric-label">Minimum Detectable Effect:</span>
@@ -262,17 +328,25 @@
               <div class="significance-test">
                 <span class="test-name">Chi-Square Test:</span>
                 <span class="test-result">{{ reportData.significanceTests.chiSquare.result }}</span>
-                <span class="test-p-value">p = {{ reportData.significanceTests.chiSquare.pValue.toFixed(4) }}</span>
+                <span class="test-p-value"
+                  >p = {{ reportData.significanceTests.chiSquare.pValue.toFixed(4) }}</span
+                >
               </div>
               <div class="significance-test">
                 <span class="test-name">Z-Test:</span>
                 <span class="test-result">{{ reportData.significanceTests.zTest.result }}</span>
-                <span class="test-p-value">p = {{ reportData.significanceTests.zTest.pValue.toFixed(4) }}</span>
+                <span class="test-p-value"
+                  >p = {{ reportData.significanceTests.zTest.pValue.toFixed(4) }}</span
+                >
               </div>
               <div class="significance-test">
                 <span class="test-name">Fisher's Exact:</span>
-                <span class="test-result">{{ reportData.significanceTests.fisherExact.result }}</span>
-                <span class="test-p-value">p = {{ reportData.significanceTests.fisherExact.pValue.toFixed(4) }}</span>
+                <span class="test-result">{{
+                  reportData.significanceTests.fisherExact.result
+                }}</span>
+                <span class="test-p-value"
+                  >p = {{ reportData.significanceTests.fisherExact.pValue.toFixed(4) }}</span
+                >
               </div>
             </div>
           </div>
@@ -286,7 +360,11 @@
           <div class="insights-card">
             <h5>Key Insights</h5>
             <ul class="insights-list">
-              <li v-for="insight in reportData.results.insights" :key="insight" class="insight-item">
+              <li
+                v-for="insight in reportData.results.insights"
+                :key="insight"
+                class="insight-item"
+              >
                 {{ insight }}
               </li>
             </ul>
@@ -295,7 +373,11 @@
           <div class="recommendations-card">
             <h5>Recommendations</h5>
             <ul class="recommendations-list">
-              <li v-for="recommendation in reportData.results.recommendations" :key="recommendation" class="recommendation-item">
+              <li
+                v-for="recommendation in reportData.results.recommendations"
+                :key="recommendation"
+                class="recommendation-item"
+              >
                 {{ recommendation }}
               </li>
             </ul>
@@ -352,345 +434,351 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
-import { abTestingFramework, ABTest, ABTestResults } from '@/store/abTestingFramework'
+import { ref, onMounted, computed, watch, nextTick } from "vue";
+import { abTestingFramework, ABTest, ABTestResults } from "@/store/abTestingFramework";
 
 interface ReportData {
-  test: ABTest
-  results: ABTestResults
-  lift: number
+  test: ABTest;
+  results: ABTestResults;
+  lift: number;
   significanceTests: {
-    chiSquare: { result: string, pValue: number }
-    zTest: { result: string, pValue: number }
-    fisherExact: { result: string, pValue: number }
-  }
+    chiSquare: { result: string; pValue: number };
+    zTest: { result: string; pValue: number };
+    fisherExact: { result: string; pValue: number };
+  };
 }
 
 const emit = defineEmits<{
-  reportGenerated: [report: ReportData]
-}>()
+  reportGenerated: [report: ReportData];
+}>();
 
 // Reactive state
-const selectedTestId = ref('')
-const availableTests = ref<ABTest[]>([])
-const reportData = ref<ReportData | null>(null)
-const activeTab = ref('conversion')
-const isLoading = ref(false)
+const selectedTestId = ref("");
+const availableTests = ref<ABTest[]>([]);
+const reportData = ref<ReportData | null>(null);
+const activeTab = ref("conversion");
+const isLoading = ref(false);
 
 // Chart references
-const conversionChart = ref<HTMLCanvasElement>()
-const satisfactionChart = ref<HTMLCanvasElement>()
-const performanceChart = ref<HTMLCanvasElement>()
+const conversionChart = ref<HTMLCanvasElement>();
+const satisfactionChart = ref<HTMLCanvasElement>();
+const performanceChart = ref<HTMLCanvasElement>();
 
 // Tab definitions
 const resultTabs = [
-  { id: 'conversion', name: 'Conversion' },
-  { id: 'engagement', name: 'Engagement' },
-  { id: 'satisfaction', name: 'Satisfaction' },
-  { id: 'performance', name: 'Performance' }
-]
+  { id: "conversion", name: "Conversion" },
+  { id: "engagement", name: "Engagement" },
+  { id: "satisfaction", name: "Satisfaction" },
+  { id: "performance", name: "Performance" },
+];
 
 // Computed
 const getVariantName = (variantId: string): string => {
-  const variant = reportData.value?.test.variants.find(v => v.id === variantId)
-  return variant?.name || variantId
-}
+  const variant = reportData.value?.test.variants.find((v) => v.id === variantId);
+  return variant?.name || variantId;
+};
 
 // Methods
 const loadAvailableTests = async () => {
   try {
-    const tests = await abTestingFramework.getTestHistory()
-    availableTests.value = tests.filter(test => 
-      test.status === 'completed' || test.status === 'running'
-    )
+    const tests = await abTestingFramework.getTestHistory();
+    availableTests.value = tests.filter(
+      (test) => test.status === "completed" || test.status === "running"
+    );
   } catch (error) {
-    console.error('Failed to load available tests:', error)
+    console.error("Failed to load available tests:", error);
   }
-}
+};
 
 const loadTestReport = async () => {
-  if (!selectedTestId.value) return
+  if (!selectedTestId.value) return;
 
   try {
-    const test = availableTests.value.find(t => t.id === selectedTestId.value)
-    if (!test) return
+    const test = availableTests.value.find((t) => t.id === selectedTestId.value);
+    if (!test) return;
 
-    const results = await abTestingFramework.getTestResults(selectedTestId.value)
-    if (!results) return
+    const results = await abTestingFramework.getTestResults(selectedTestId.value);
+    if (!results) return;
 
     // Calculate lift
-    const lift = calculateLift(results)
+    const lift = calculateLift(results);
 
     // Generate significance tests
-    const significanceTests = generateSignificanceTests(results)
+    const significanceTests = generateSignificanceTests(results);
 
     reportData.value = {
       test,
       results,
       lift,
-      significanceTests
-    }
+      significanceTests,
+    };
 
-    await nextTick()
-    renderCharts()
+    await nextTick();
+    renderCharts();
   } catch (error) {
-    console.error('Failed to load test report:', error)
+    console.error("Failed to load test report:", error);
   }
-}
+};
 
 const generateReport = async () => {
-  if (!selectedTestId.value) return
+  if (!selectedTestId.value) return;
 
-  isLoading.value = true
+  isLoading.value = true;
   try {
-    await loadTestReport()
+    await loadTestReport();
     if (reportData.value) {
-      emit('reportGenerated', reportData.value)
+      emit("reportGenerated", reportData.value);
     }
   } catch (error) {
-    console.error('Failed to generate report:', error)
+    console.error("Failed to generate report:", error);
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
 const renderCharts = () => {
-  if (!reportData.value) return
+  if (!reportData.value) return;
 
   switch (activeTab.value) {
-    case 'conversion':
-      renderConversionChart()
-      break
-    case 'satisfaction':
-      renderSatisfactionChart()
-      break
-    case 'performance':
-      renderPerformanceChart()
-      break
+    case "conversion":
+      renderConversionChart();
+      break;
+    case "satisfaction":
+      renderSatisfactionChart();
+      break;
+    case "performance":
+      renderPerformanceChart();
+      break;
   }
-}
+};
 
 const renderConversionChart = () => {
-  const canvas = conversionChart.value
-  if (!canvas || !reportData.value) return
+  const canvas = conversionChart.value;
+  if (!canvas || !reportData.value) return;
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
 
   // Draw conversion comparison chart
   drawBarChart(ctx, canvas.width, canvas.height, {
-    labels: reportData.value.results.variantResults.map(v => getVariantName(v.variantId)),
-    datasets: [{
-      label: 'Conversion Rate',
-      data: reportData.value.results.variantResults.map(v => v.conversionRate * 100),
-      color: '#3b82f6'
-    }]
-  })
-}
+    labels: reportData.value.results.variantResults.map((v) => getVariantName(v.variantId)),
+    datasets: [
+      {
+        label: "Conversion Rate",
+        data: reportData.value.results.variantResults.map((v) => v.conversionRate * 100),
+        color: "#3b82f6",
+      },
+    ],
+  });
+};
 
 const renderSatisfactionChart = () => {
-  const canvas = satisfactionChart.value
-  if (!canvas || !reportData.value) return
+  const canvas = satisfactionChart.value;
+  if (!canvas || !reportData.value) return;
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
 
   // Draw satisfaction comparison chart
   drawBarChart(ctx, canvas.width, canvas.height, {
-    labels: reportData.value.results.variantResults.map(v => getVariantName(v.variantId)),
-    datasets: [{
-      label: 'Average Rating',
-      data: reportData.value.results.variantResults.map(v => v.satisfaction.averageRating),
-      color: '#10b981'
-    }]
-  })
-}
+    labels: reportData.value.results.variantResults.map((v) => getVariantName(v.variantId)),
+    datasets: [
+      {
+        label: "Average Rating",
+        data: reportData.value.results.variantResults.map((v) => v.satisfaction.averageRating),
+        color: "#10b981",
+      },
+    ],
+  });
+};
 
 const renderPerformanceChart = () => {
-  const canvas = performanceChart.value
-  if (!canvas || !reportData.value) return
+  const canvas = performanceChart.value;
+  if (!canvas || !reportData.value) return;
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
 
   // Draw performance comparison chart
   drawLineChart(ctx, canvas.width, canvas.height, {
-    labels: ['Load Time', 'Response Time', 'Error Rate', 'Resource Usage'],
+    labels: ["Load Time", "Response Time", "Error Rate", "Resource Usage"],
     datasets: reportData.value.results.variantResults.map((variant, index) => ({
       label: getVariantName(variant.variantId),
       data: [
         variant.performance.loadTime,
         variant.performance.responseTime,
         variant.performance.errorRate * 100,
-        variant.performance.resourceUsage * 100
+        variant.performance.resourceUsage * 100,
       ],
-      color: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index]
-    }))
-  })
-}
+      color: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"][index],
+    })),
+  });
+};
 
 // Utility functions
 const drawBarChart = (ctx: CanvasRenderingContext2D, width: number, height: number, data: any) => {
-  ctx.clearRect(0, 0, width, height)
+  ctx.clearRect(0, 0, width, height);
 
-  const padding = 40
-  const chartWidth = width - padding * 2
-  const chartHeight = height - padding * 2
+  const padding = 40;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
 
   data.datasets.forEach((dataset: any, datasetIndex: number) => {
-    const barWidth = chartWidth / data.labels.length * 0.8
-    const spacing = chartWidth / data.labels.length * 0.2
+    const barWidth = (chartWidth / data.labels.length) * 0.8;
+    const spacing = (chartWidth / data.labels.length) * 0.2;
 
     dataset.data.forEach((value: number, index: number) => {
-      const x = padding + index * (barWidth + spacing)
-      const barHeight = (value / Math.max(...dataset.data)) * chartHeight
-      const y = height - padding - barHeight
+      const x = padding + index * (barWidth + spacing);
+      const barHeight = (value / Math.max(...dataset.data)) * chartHeight;
+      const y = height - padding - barHeight;
 
-      ctx.fillStyle = dataset.color
-      ctx.fillRect(x, y, barWidth, barHeight)
-    })
-  })
-}
+      ctx.fillStyle = dataset.color;
+      ctx.fillRect(x, y, barWidth, barHeight);
+    });
+  });
+};
 
 const drawLineChart = (ctx: CanvasRenderingContext2D, width: number, height: number, data: any) => {
-  ctx.clearRect(0, 0, width, height)
+  ctx.clearRect(0, 0, width, height);
 
-  const padding = 40
-  const chartWidth = width - padding * 2
-  const chartHeight = height - padding * 2
+  const padding = 40;
+  const chartWidth = width - padding * 2;
+  const chartHeight = height - padding * 2;
 
   data.datasets.forEach((dataset: any) => {
-    ctx.strokeStyle = dataset.color
-    ctx.lineWidth = 2
-    ctx.beginPath()
+    ctx.strokeStyle = dataset.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
 
     dataset.data.forEach((value: number, index: number) => {
-      const x = padding + (index / (dataset.data.length - 1)) * chartWidth
-      const y = height - padding - (value / Math.max(...dataset.data)) * chartHeight
+      const x = padding + (index / (dataset.data.length - 1)) * chartWidth;
+      const y = height - padding - (value / Math.max(...dataset.data)) * chartHeight;
 
       if (index === 0) {
-        ctx.moveTo(x, y)
+        ctx.moveTo(x, y);
       } else {
-        ctx.lineTo(x, y)
+        ctx.lineTo(x, y);
       }
-    })
+    });
 
-    ctx.stroke()
-  })
-}
+    ctx.stroke();
+  });
+};
 
 const calculateLift = (results: ABTestResults): number => {
-  if (results.variantResults.length < 2) return 0
+  if (results.variantResults.length < 2) return 0;
 
-  const control = results.variantResults.find(r => r.variantId.includes('control'))
-  const treatment = results.variantResults.find(r => r.variantId.includes('treatment'))
+  const control = results.variantResults.find((r) => r.variantId.includes("control"));
+  const treatment = results.variantResults.find((r) => r.variantId.includes("treatment"));
 
-  if (!control || !treatment) return 0
+  if (!control || !treatment) return 0;
 
-  return ((treatment.conversionRate - control.conversionRate) / control.conversionRate) * 100
-}
+  return ((treatment.conversionRate - control.conversionRate) / control.conversionRate) * 100;
+};
 
 const calculateROI = (report: ReportData): number => {
   // Simplified ROI calculation
-  const lift = report.lift
-  const implementationCost = 1000 // Placeholder
-  const expectedRevenue = lift * 100 // Placeholder
-  
-  return ((expectedRevenue - implementationCost) / implementationCost) * 100
-}
+  const lift = report.lift;
+  const implementationCost = 1000; // Placeholder
+  const expectedRevenue = lift * 100; // Placeholder
+
+  return ((expectedRevenue - implementationCost) / implementationCost) * 100;
+};
 
 const calculateEffectSize = (results: ABTestResults): number => {
-  if (results.variantResults.length < 2) return 0
+  if (results.variantResults.length < 2) return 0;
 
-  const rates = results.variantResults.map(r => r.conversionRate)
-  const mean = rates.reduce((sum, rate) => sum + rate, 0) / rates.length
-  const variance = rates.reduce((sum, rate) => sum + Math.pow(rate - mean, 2), 0) / rates.length
-  const stdDev = Math.sqrt(variance)
+  const rates = results.variantResults.map((r) => r.conversionRate);
+  const mean = rates.reduce((sum, rate) => sum + rate, 0) / rates.length;
+  const variance = rates.reduce((sum, rate) => sum + Math.pow(rate - mean, 2), 0) / rates.length;
+  const stdDev = Math.sqrt(variance);
 
-  return mean / stdDev
-}
+  return mean / stdDev;
+};
 
 const calculateMDE = (results: ABTestResults): number => {
   // Minimum Detectable Effect calculation
-  const participants = results.totalParticipants
-  const baselineRate = results.variantResults[0].conversionRate
-  const power = results.variantResults[0].statisticalData.power
+  const participants = results.totalParticipants;
+  const baselineRate = results.variantResults[0].conversionRate;
+  const power = results.variantResults[0].statisticalData.power;
 
   // Simplified MDE calculation
-  return (1.96 * Math.sqrt(baselineRate * (1 - baselineRate) / participants) / baselineRate) * 100
-}
+  return (
+    ((1.96 * Math.sqrt((baselineRate * (1 - baselineRate)) / participants)) / baselineRate) * 100
+  );
+};
 
 const generateSignificanceTests = (results: ABTestResults) => {
   // Mock significance tests - would use actual statistical calculations
   return {
-    chiSquare: { result: 'Significant', pValue: 0.023 },
-    zTest: { result: 'Significant', pValue: 0.018 },
-    fisherExact: { result: 'Significant', pValue: 0.021 }
-  }
-}
+    chiSquare: { result: "Significant", pValue: 0.023 },
+    zTest: { result: "Significant", pValue: 0.018 },
+    fisherExact: { result: "Significant", pValue: 0.021 },
+  };
+};
 
 const getLiftClass = (lift: number): string => {
-  if (lift > 5) return 'positive'
-  if (lift < -5) return 'negative'
-  return 'neutral'
-}
+  if (lift > 5) return "positive";
+  if (lift < -5) return "negative";
+  return "neutral";
+};
 
 const getRecommendation = (report: ReportData): string => {
   if (report.results.confidence > 0.95) {
-    return 'Implement winner'
+    return "Implement winner";
   } else if (report.results.confidence > 0.8) {
-    return 'Consider implementation'
+    return "Consider implementation";
   } else {
-    return 'Continue testing'
+    return "Continue testing";
   }
-}
+};
 
 const getPerformanceScoreClass = (score: number): string => {
-  if (score > 0.8) return 'high'
-  if (score > 0.6) return 'medium'
-  return 'low'
-}
+  if (score > 0.8) return "high";
+  if (score > 0.6) return "medium";
+  return "low";
+};
 
 const calculatePerformanceScore = (performance: any): number => {
   const scores = [
-    1 - (performance.loadTime / 1000), // Lower is better
-    1 - (performance.responseTime / 500), // Lower is better
+    1 - performance.loadTime / 1000, // Lower is better
+    1 - performance.responseTime / 500, // Lower is better
     1 - performance.errorRate, // Lower is better
-    1 - performance.resourceUsage // Lower is better
-  ]
-  
-  return scores.reduce((sum, score) => sum + score, 0) / scores.length
-}
+    1 - performance.resourceUsage, // Lower is better
+  ];
+
+  return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+};
 
 const formatDuration = (duration: number): string => {
-  const hours = Math.floor(duration / 60)
-  const minutes = duration % 60
-  
+  const hours = Math.floor(duration / 60);
+  const minutes = duration % 60;
+
   if (hours > 0) {
-    return `${hours}h ${minutes}m`
+    return `${hours}h ${minutes}m`;
   }
-  return `${minutes}m`
-}
+  return `${minutes}m`;
+};
 
 const formatConfidenceInterval = (interval: [number, number]): string => {
-  return `[${(interval[0] * 100).toFixed(1)}%, ${(interval[1] * 100).toFixed(1)}%]`
-}
+  return `[${(interval[0] * 100).toFixed(1)}%, ${(interval[1] * 100).toFixed(1)}%]`;
+};
 
 const exportReport = () => {
-  if (!reportData.value) return
+  if (!reportData.value) return;
 
   // Generate PDF report (simplified - would use actual PDF library)
-  const reportContent = generateReportContent(reportData.value)
-  const blob = new Blob([reportContent], { type: 'text/html' })
-  const url = URL.createObjectURL(blob)
-  
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `ab-test-report-${reportData.value.test.name.replace(/\s+/g, '-')}.html`
-  a.click()
-  
-  URL.revokeObjectURL(url)
-}
+  const reportContent = generateReportContent(reportData.value);
+  const blob = new Blob([reportContent], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `ab-test-report-${reportData.value.test.name.replace(/\s+/g, "-")}.html`;
+  a.click();
+
+  URL.revokeObjectURL(url);
+};
 
 const generateReportContent = (report: ReportData): string => {
   return `
@@ -705,7 +793,7 @@ const generateReportContent = (report: ReportData): string => {
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
-      
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .analytics-data-visualization,
@@ -714,20 +802,20 @@ const generateReportContent = (report: ReportData): string => {
   .user-feedback-collection {
     padding: 0.5rem;
   }
-  
+
   .metrics-grid,
   .analytics-grid,
   .summary-grid {
     grid-template-columns: 1fr;
     gap: 0.5rem;
   }
-  
+
   .visualization-controls,
   .header-controls {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .chart-canvas {
     height: 200px;
   }
@@ -739,12 +827,12 @@ const generateReportContent = (report: ReportData): string => {
   .variant-metrics {
     padding: 0.75rem;
   }
-  
+
   .action-buttons,
   .export-section {
     flex-direction: column;
   }
-  
+
   .btn {
     width: 100%;
   }
@@ -757,14 +845,14 @@ const generateReportContent = (report: ReportData): string => {
         <h1>A/B Test Analysis Report</h1>
         <h2>${report.test.name}</h2>
       </div>
-      
+
       <div class="section">
         <h3>Executive Summary</h3>
-        <p><strong>Winner:</strong> ${report.results.winner || 'Inconclusive'}</p>
+        <p><strong>Winner:</strong> ${report.results.winner || "Inconclusive"}</p>
         <p><strong>Confidence:</strong> ${Math.round(report.results.confidence * 100)}%</p>
         <p><strong>Lift:</strong> ${report.lift.toFixed(1)}%</p>
       </div>
-      
+
       <div class="section">
         <h3>Detailed Results</h3>
         <table>
@@ -774,43 +862,47 @@ const generateReportContent = (report: ReportData): string => {
             <th>Participants</th>
             <th>Conversions</th>
           </tr>
-          ${report.results.variantResults.map(variant => `
+          ${report.results.variantResults
+            .map(
+              (variant) => `
             <tr>
               <td>${getVariantName(variant.variantId)}</td>
               <td>${Math.round(variant.conversionRate * 100)}%</td>
               <td>${variant.participants}</td>
               <td>${variant.conversions}</td>
             </tr>
-          `).join('')}
+          `
+            )
+            .join("")}
         </table>
       </div>
-      
+
       <div class="section">
         <h3>Insights</h3>
         <ul>
-          ${report.results.insights.map(insight => `<li>${insight}</li>`).join('')}
+          ${report.results.insights.map((insight) => `<li>${insight}</li>`).join("")}
         </ul>
       </div>
-      
+
       <div class="section">
         <h3>Recommendations</h3>
         <ul>
-          ${report.results.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+          ${report.results.recommendations.map((rec) => `<li>${rec}</li>`).join("")}
         </ul>
       </div>
     </body>
     </html>
-  `
-}
+  `;
+};
 
 // Watch for tab changes
 watch(activeTab, () => {
-  renderCharts()
-})
+  renderCharts();
+});
 
 onMounted(() => {
-  loadAvailableTests()
-})
+  loadAvailableTests();
+});
 </script>
 
 <style scoped>
