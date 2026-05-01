@@ -41,7 +41,9 @@ export const formatFileSize = (bytes: number): string => {
   if (formatters.fileSize.size >= 1000) {
     // Remove oldest entries when cache gets too large
     const firstKey = formatters.fileSize.keys().next().value;
-    formatters.fileSize.delete(firstKey);
+    if (firstKey !== undefined) {
+      formatters.fileSize.delete(firstKey);
+    }
   }
 
   formatters.fileSize.set(bytes, result);
@@ -74,7 +76,9 @@ export const formatDate = (date: Date | string | number): string => {
   // Cache result
   if (formatters.date.size >= 500) {
     const firstKey = formatters.date.keys().next().value;
-    formatters.date.delete(firstKey);
+    if (firstKey !== undefined) {
+      formatters.date.delete(firstKey);
+    }
   }
 
   formatters.date.set(cacheKey, result);

@@ -259,8 +259,8 @@ export const buildFileTree = (files: FileInfo[]): Record<string, FileNode> => {
       // Add to parent
       if (currentPath && tree[currentPath]) {
         tree[currentPath].children = tree[currentPath].children || [];
-        tree[currentPath].children.push(tree[fullPath]);
-        if (tree[currentPath].size !== undefined && file.size !== undefined) {
+        tree[currentPath].children?.push(tree[fullPath]);
+        if (tree[currentPath]?.size !== undefined && file.size !== undefined) {
           tree[currentPath].size += file.size;
         }
       }

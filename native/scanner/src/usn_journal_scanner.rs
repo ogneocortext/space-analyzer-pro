@@ -4,29 +4,23 @@
 //! Tracks file system changes in real-time for ultra-fast incremental updates
 
 use std::collections::{HashMap, VecDeque};
-use std::ffi::c_void;
-use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
 use std::mem;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::ptr;
-use std::slice;
 use std::time::{SystemTime, UNIX_EPOCH};
-use winapi::um::fileapi::{CreateFileW, SetFilePointerEx, ReadFile, OPEN_EXISTING};
+use winapi::um::fileapi::{CreateFileW, OPEN_EXISTING};
 use winapi::um::handleapi::{INVALID_HANDLE_VALUE, CloseHandle};
 use winapi::um::ioapiset::DeviceIoControl;
 use winapi::um::winnt::{
     FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE,
-    LARGE_INTEGER,
 };
-use winapi::um::winioctl::{FILE_DEVICE_DISK, METHOD_BUFFERED, FILE_ANY_ACCESS};
 use winapi::um::winioctl::{FSCTL_QUERY_USN_JOURNAL, FSCTL_READ_USN_JOURNAL};
 use winapi::um::errhandlingapi::GetLastError;
-use winapi::shared::minwindef::{DWORD, LPVOID, BYTE, ULONG};
-use winapi::shared::ntdef::NTSTATUS;
+use winapi::shared::minwindef::{DWORD, LPVOID};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct UsnRecord {
     pub file_reference: u64,
     pub parent_file_reference: u64,
@@ -42,6 +36,7 @@ pub struct UsnRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(dead_code)]
 pub enum ChangeType {
     Created,
     Deleted,
@@ -55,6 +50,7 @@ pub enum ChangeType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct UsnJournalInfo {
     pub volume_path: String,
     pub usn_journal_id: u64,
@@ -66,6 +62,7 @@ pub struct UsnJournalInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ChangeSet {
     pub volume_path: String,
     pub start_usn: i64,
@@ -75,6 +72,7 @@ pub struct ChangeSet {
     pub total_changes: usize,
 }
 
+#[allow(dead_code)]
 pub struct UsnJournalScanner {
     volume_handle: Option<HANDLE>,
     journal_info: Option<UsnJournalInfo>,
@@ -121,6 +119,17 @@ impl UsnJournalScanner {
 
         self.volume_handle = Some(handle);
 
+        // Store the volume path for later use before querying journal
+        self.journal_info = Some(UsnJournalInfo {
+            volume_path: volume_path.to_string(),
+            usn_journal_id: 0,
+            next_usn: 0,
+            lowest_usn: 0,
+            max_usn: 0,
+            journal_size: 0,
+            allocation_delta: 0,
+        });
+
         // Query USN journal information
         let journal_info = self.query_usn_journal_info()?;
         self.journal_info = Some(journal_info);
@@ -131,31 +140,17 @@ impl UsnJournalScanner {
     /// Query USN journal information from the volume
     fn query_usn_journal_info(&self) -> Result<UsnJournalInfo, String> {
         let handle = self.volume_handle.ok_or("Volume handle not available")?;
-        let volume_info = self.journal_info.as_ref();
 
-        // Prepare input buffer for FSCTL_QUERY_USN_JOURNAL
-        let mut input_data: Vec<u8> = vec![0; 64];
-
-        // Set up USN_JOURNAL_DATA_V0 structure
-        unsafe {
-            let input_ptr = input_data.as_mut_ptr() as *mut USN_JOURNAL_DATA_V0;
-            if let Some(ref info) = volume_info {
-                (*input_ptr).UsnJournalID = info.usn_journal_id;
-                (*input_ptr).FirstUsn = info.next_usn;
-            }
-        }
-
-        // Prepare output buffer
+        // FSCTL_QUERY_USN_JOURNAL is output-only: no input buffer needed
         let mut output_data: Vec<u8> = vec![0; 80]; // Size of USN_JOURNAL_DATA_V0
-
         let mut bytes_returned: DWORD = 0;
 
         let success = unsafe {
             DeviceIoControl(
                 handle,
                 FSCTL_QUERY_USN_JOURNAL,
-                input_data.as_ptr() as LPVOID,
-                input_data.len() as DWORD,
+                ptr::null_mut(),
+                0,
                 output_data.as_mut_ptr() as LPVOID,
                 output_data.len() as DWORD,
                 &mut bytes_returned,
@@ -171,10 +166,13 @@ impl UsnJournalScanner {
         // Parse USN journal data
         let journal_data = unsafe { &*(output_data.as_ptr() as *const USN_JOURNAL_DATA_V0) };
 
+        // Preserve volume_path from initialization
+        let volume_path = self.journal_info.as_ref()
+            .map(|info| info.volume_path.clone())
+            .unwrap_or_else(|| "Unknown".to_string());
+
         Ok(UsnJournalInfo {
-            volume_path: self.journal_info.as_ref()
-                .map(|info| info.volume_path.clone())
-                .unwrap_or_else(|| "Unknown".to_string()),
+            volume_path,
             usn_journal_id: journal_data.UsnJournalID,
             next_usn: journal_data.NextUsn,
             lowest_usn: journal_data.FirstUsn,
@@ -345,26 +343,47 @@ impl UsnJournalScanner {
     /// Parse USN reason flags to determine change type
     fn parse_reason_flags(&self, reason: u32) -> ChangeType {
         // USN_REASON_* flags (from Windows SDK)
+        #[allow(dead_code)]
         const USN_REASON_DATA_OVERWRITE: u32 = 0x00000001;
+        #[allow(dead_code)]
         const USN_REASON_DATA_EXTEND: u32 = 0x00000002;
+        #[allow(dead_code)]
         const USN_REASON_DATA_TRUNCATION: u32 = 0x00000004;
+        #[allow(dead_code)]
         const USN_REASON_NAMED_DATA_OVERWRITE: u32 = 0x00000008;
+        #[allow(dead_code)]
         const USN_REASON_NAMED_DATA_EXTEND: u32 = 0x00000010;
+        #[allow(dead_code)]
         const USN_REASON_NAMED_DATA_TRUNCATION: u32 = 0x00000020;
+        #[allow(dead_code)]
         const USN_REASON_FILE_CREATE: u32 = 0x00000100;
+        #[allow(dead_code)]
         const USN_REASON_FILE_DELETE: u32 = 0x00000200;
+        #[allow(dead_code)]
         const USN_REASON_EA_CHANGE: u32 = 0x00000400;
+        #[allow(dead_code)]
         const USN_REASON_SECURITY_CHANGE: u32 = 0x00000800;
+        #[allow(dead_code)]
         const USN_REASON_RENAME_OLD_NAME: u32 = 0x00001000;
+        #[allow(dead_code)]
         const USN_REASON_RENAME_NEW_NAME: u32 = 0x00002000;
+        #[allow(dead_code)]
         const USN_REASON_INDEXABLE_CHANGE: u32 = 0x00004000;
+        #[allow(dead_code)]
         const USN_REASON_BASIC_INFO_CHANGE: u32 = 0x00008000;
+        #[allow(dead_code)]
         const USN_REASON_HARD_LINK_CHANGE: u32 = 0x00010000;
+        #[allow(dead_code)]
         const USN_REASON_COMPRESSION_CHANGE: u32 = 0x00020000;
+        #[allow(dead_code)]
         const USN_REASON_ENCRYPTION_CHANGE: u32 = 0x00040000;
+        #[allow(dead_code)]
         const USN_REASON_OBJECT_ID_CHANGE: u32 = 0x00080000;
+        #[allow(dead_code)]
         const USN_REASON_REPARSE_POINT_CHANGE: u32 = 0x00100000;
+        #[allow(dead_code)]
         const USN_REASON_STREAM_CHANGE: u32 = 0x00200000;
+        #[allow(dead_code)]
         const USN_REASON_TRANSACTED_CHANGE: u32 = 0x00400000;
 
         // Determine primary change type based on flags
@@ -436,19 +455,62 @@ impl UsnJournalScanner {
         stats
     }
 
-    /// Resolve full file path from USN record (requires additional processing)
+    /// Resolve full file path from USN record by traversing parent references.
+    /// Uses the change_cache to look up parent directories and build a complete path.
     pub fn resolve_file_path(&self, record: &UsnRecord) -> PathBuf {
-        // This is a simplified implementation
-        // In practice, you'd need to traverse the parent references to build the full path
-        let mut path = PathBuf::from(&record.file_name);
+        let mut components: Vec<String> = vec![record.file_name.clone()];
 
-        // For demonstration, we'll use a simple path resolution
-        // In production, this would involve recursive parent lookup
-        if let Some(ref info) = self.journal_info {
-            path = PathBuf::from(&info.volume_path).join(path);
+        // Walk parent references up to the root using cached records
+        let mut current_parent = record.parent_file_reference;
+        let max_depth = 256; // Prevent infinite loops
+        let mut depth = 0;
+
+        while depth < max_depth {
+            // MFT root directory has file reference 5 (0x5)
+            if (current_parent & 0x0000FFFFFFFFFFFF) <= 5 {
+                break;
+            }
+
+            // Look for this parent in our change cache
+            if let Some(parent_records) = self.change_cache.get(&current_parent) {
+                if let Some(parent) = parent_records.last() {
+                    components.push(parent.file_name.clone());
+                    current_parent = parent.parent_file_reference;
+                } else {
+                    break;
+                }
+            } else {
+                // Parent not in cache — we can't resolve further
+                break;
+            }
+
+            depth += 1;
         }
 
-        path
+        // Reverse to get root-to-leaf order
+        components.reverse();
+
+        // Build the full path with the volume root
+        let relative_path: PathBuf = components.iter().collect();
+
+        if let Some(ref info) = self.journal_info {
+            // Volume path like "\\.\C:" -> extract drive letter for a usable path
+            let vol = &info.volume_path;
+            let drive_root = if vol.contains(':') {
+                // Extract drive letter from paths like "\\.\C:" or "C:"
+                if let Some(colon_pos) = vol.find(':') {
+                    let drive_char = vol[..colon_pos].chars().last().unwrap_or('C');
+                    format!("{}:\\", drive_char)
+                } else {
+                    format!("{}:\\", vol)
+                }
+            } else {
+                vol.clone()
+            };
+            PathBuf::from(drive_root).join(relative_path)
+        } else {
+            relative_path
+        }
     }
 }
 
@@ -465,6 +527,7 @@ impl Drop for UsnJournalScanner {
 
 // Windows API structures
 #[repr(C)]
+#[allow(non_snake_case)]
 struct USN_JOURNAL_DATA_V0 {
     UsnJournalID: u64,
     FirstUsn: i64,
@@ -476,6 +539,7 @@ struct USN_JOURNAL_DATA_V0 {
 }
 
 #[repr(C)]
+#[allow(non_snake_case)]
 struct USN_RECORD {
     RecordLength: u32,
     MajorVersion: u16,

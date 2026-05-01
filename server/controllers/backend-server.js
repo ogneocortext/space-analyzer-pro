@@ -40,6 +40,9 @@ const DuplicateDetector = require("../modules/duplicate-detector");
 const { setupSecurity, setupMiddleware } = require("../modules/security");
 const { setupWebSocketServer, broadcast, getClients, getServer } = require("../modules/websocket");
 const RoutesManager = require("../routes");
+const ScanTestController = require("./scan-test");
+const FixedScanController = require("./scan-fixed");
+const OptimizedScanController = require("./scan-optimized");
 
 // Get WebSocket clients from module
 const wsClients = getClients();
@@ -711,6 +714,26 @@ class SpaceAnalyzerAPIServer {
     // Initialize modular routes
     this.routesManager = new RoutesManager(this);
     this.routesManager.mountAll(this.app);
+
+    // Add scan test controller for direct testing
+    const scanTestController = new ScanTestController();
+    this.app.use("/api/scan-test", scanTestController.getRouter());
+
+    // Add fixed scan controller
+    const fixedScanController = new FixedScanController();
+    this.app.use("/api/scan-fixed", fixedScanController.getRouter());
+
+    // Add optimized scan controller
+    const optimizedScanController = new OptimizedScanController();
+    this.app.use("/api/scan-optimized", optimizedScanController.getRouter());
+
+    // Add debug route to verify API is working
+    this.app.get("/api/debug/routes", (req, res) => {
+      res.json({
+        routes: Object.keys(this.routesManager.routes),
+        message: "Routes loaded successfully",
+      });
+    });
 
     // Health check endpoint (keep simple endpoint here)
     this.app.get("/api/health", (req, res) => {

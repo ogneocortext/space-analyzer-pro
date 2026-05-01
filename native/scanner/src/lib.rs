@@ -11,6 +11,9 @@ use num_cpus;
 
 // Include the new scanner modules
 #[cfg(windows)]
+pub mod windows_advanced;
+
+#[cfg(windows)]
 pub mod ntfs_mft_scanner;
 
 #[cfg(windows)]
@@ -298,20 +301,68 @@ impl SpaceAnalyzer {
         // Windows API fields (only populated on Windows)
         #[cfg(windows)]
         let (created, accessed, is_hard_link, hard_link_count, has_ads, ads_count, is_compressed, compressed_size, is_sparse, is_reparse_point, reparse_tag, owner) = {
+            use std::os::windows::ffi::OsStrExt;
             use std::os::windows::fs::MetadataExt;
+            use winapi::um::fileapi::{CreateFileW, OPEN_EXISTING, BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle};
+            use winapi::um::handleapi::CloseHandle;
+            use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE,
+                                     FILE_ATTRIBUTE_COMPRESSED, FILE_ATTRIBUTE_SPARSE_FILE, FILE_ATTRIBUTE_REPARSE_POINT};
 
-            let nlink = metadata.file_attributes() as u32;
-            let is_hard_link = nlink > 1;
-            let hard_link_count = if is_hard_link { Some(nlink as i32) } else { None };
+            let attrs = metadata.file_attributes();
+            let is_compressed = (attrs & FILE_ATTRIBUTE_COMPRESSED) != 0;
+            let is_sparse = (attrs & FILE_ATTRIBUTE_SPARSE_FILE) != 0;
+            let is_reparse_point = (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 
-            // For now, set other Windows fields to default values
-            // Full Windows API integration would require winapi calls
-            (None, None, is_hard_link, hard_link_count, false, None, false, None, false, false, None, None)
+            // Get hard link count via GetFileInformationByHandle
+            let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+            let (nlinks, created_time, accessed_time) = unsafe {
+                let handle: HANDLE = CreateFileW(
+                    wide_path.as_ptr(),
+                    GENERIC_READ,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    std::ptr::null_mut(),
+                    OPEN_EXISTING,
+                    0,
+                    std::ptr::null_mut(),
+                );
+
+                if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
+                    (1u32, None, None)
+                } else {
+                    let mut file_info: BY_HANDLE_FILE_INFORMATION = std::mem::zeroed();
+                    let result = GetFileInformationByHandle(handle, &mut file_info);
+                    CloseHandle(handle);
+
+                    if result != 0 {
+                        // Convert FILETIME to seconds string for created/accessed
+                        let ft_to_secs = |ft: winapi::shared::minwindef::FILETIME| -> Option<String> {
+                            let ft_64 = ((ft.dwHighDateTime as u64) << 32) | (ft.dwLowDateTime as u64);
+                            if ft_64 == 0 { return None; }
+                            let secs_since_1601 = ft_64 / 10_000_000;
+                            let secs_since_unix = secs_since_1601 as i64 - 11_644_473_600i64;
+                            Some(secs_since_unix.to_string())
+                        };
+
+                        (
+                            file_info.nNumberOfLinks,
+                            ft_to_secs(file_info.ftCreationTime),
+                            ft_to_secs(file_info.ftLastAccessTime),
+                        )
+                    } else {
+                        (1u32, None, None)
+                    }
+                }
+            };
+
+            let is_hard_link = nlinks > 1;
+            let hard_link_count = if is_hard_link { Some(nlinks as i32) } else { None };
+
+            (created_time, accessed_time, is_hard_link, hard_link_count, false, None::<i32>, is_compressed, None::<i64>, is_sparse, is_reparse_point, None::<String>, None::<String>)
         };
 
         #[cfg(not(windows))]
         let (created, accessed, is_hard_link, hard_link_count, has_ads, ads_count, is_compressed, compressed_size, is_sparse, is_reparse_point, reparse_tag, owner) = {
-            (None, None, false, None, false, None, false, None, false, false, None, None)
+            (None::<String>, None::<String>, false, None::<i32>, false, None::<i32>, false, None::<i64>, false, false, None::<String>, None::<String>)
         };
 
         Some(FileInfo {

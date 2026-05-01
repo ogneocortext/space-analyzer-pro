@@ -86,7 +86,7 @@ export default defineConfig(({ mode }) => {
       },
       // Performance optimizations
       assetsInlineLimit: 4096,
-      chunkSizeWarningLimit: 500, // More strict warning limit
+      chunkSizeWarningLimit: 1000, // Increased limit for large 3D components
       // Target modern browsers for better performance
       target: ["es2020", "edge88", "firefox78", "chrome87", "safari14"],
       // Enable compressed size reporting for optimization

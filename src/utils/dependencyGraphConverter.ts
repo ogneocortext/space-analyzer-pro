@@ -82,7 +82,7 @@ export function convertDependencyGraphToNeuralData(dependencyGraph: DependencyGr
 
   // Update nodes with their connections
   convertedNodes.forEach((node) => {
-    node.connections = connectionMap.get(node.id) || [];
+    node.connections = (connectionMap.get(node.id) as string[]) || [];
   });
 
   // Convert edges to NeuralView connections format

@@ -195,30 +195,103 @@ pub mod advanced {
     }
 
     /// Check if file was created, modified, or deleted since last scan
+    /// by querying USN Journal records for the given file ID
     #[allow(dead_code)]
     pub fn has_file_changed(
-        _volume_path: &Path,
-        _file_id: u64,
-        _since_usn: i64,
+        volume_path: &Path,
+        file_id: u64,
+        since_usn: i64,
     ) -> bool {
-        // Simplified: In production, would query USN for specific file
-        // For now, return true to trigger full scan
-        true
+        // Read recent USN Journal changes
+        if let Some(journal) = query_usn_journal(volume_path) {
+            let changes = read_usn_journal_changes(
+                volume_path,
+                journal.usn_journal_id,
+                since_usn,
+            );
+
+            // Check if any change record matches this file's reference number
+            for (ref_number, _parent_ref, _usn, _reason, _name) in &changes {
+                // MFT file reference numbers use the lower 48 bits for the index
+                // and the upper 16 bits for the sequence number. Mask to compare.
+                if (*ref_number & 0x0000FFFFFFFFFFFF) == (file_id & 0x0000FFFFFFFFFFFF) {
+                    return true;
+                }
+            }
+            false
+        } else {
+            // If we can't query the journal, assume changed to be safe
+            true
+        }
     }
 
     // ============================================================================
     // HARD LINK ENUMERATION
     // ============================================================================
 
-    /// Find all paths (hard links) to a file by its file ID
+    /// Find all paths (hard links) to a file using FindFirstFileNameW/FindNextFileNameW
     #[allow(dead_code)]
     pub fn find_all_hard_links(
-        _file_id: u64,
-        _volume_path: &Path,
+        file_path: &Path,
     ) -> Vec<PathBuf> {
-        // Simplified - full implementation would enumerate MFT via FSCTL_ENUM_USN_DATA
-        // This requires complex NTFS parsing to build full paths from parent references
-        Vec::new()
+        use winapi::um::fileapi::{FindFirstFileNameW, FindNextFileNameW, FindClose};
+
+        let wide_path: Vec<u16> = file_path.as_os_str().encode_wide().chain(Some(0)).collect();
+        let mut links = Vec::new();
+
+        unsafe {
+            let mut name_buf: Vec<u16> = vec![0; 32768]; // MAX_PATH_UNICODE
+            let mut buf_len: u32 = name_buf.len() as u32;
+
+            let handle = FindFirstFileNameW(
+                wide_path.as_ptr(),
+                0, // flags - must be 0
+                &mut buf_len,
+                name_buf.as_mut_ptr(),
+            );
+
+            if handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
+                return links;
+            }
+
+            // Get the volume root for constructing full paths
+            let volume_root = get_volume_path(file_path)
+                .unwrap_or_else(|| {
+                    // Fallback: extract drive letter
+                    let path_str = file_path.to_string_lossy();
+                    if path_str.len() >= 3 && path_str.as_bytes()[1] == b':' {
+                        PathBuf::from(&path_str[..3])
+                    } else {
+                        PathBuf::from("C:\\")
+                    }
+                });
+
+            loop {
+                // Parse the wide string result (it's a relative path like \dir\file.txt)
+                let len = name_buf.iter().position(|&c| c == 0).unwrap_or(0);
+                if len > 0 {
+                    let link_name = String::from_utf16_lossy(&name_buf[..len]);
+                    // FindFirstFileNameW returns paths relative to volume root (e.g., \Users\...)
+                    // Prepend the volume root (e.g., C:\) but strip its trailing backslash
+                    let root_str = volume_root.to_string_lossy();
+                    let root_trimmed = root_str.trim_end_matches('\\');
+                    let full_path = format!("{}{}", root_trimmed, link_name);
+                    links.push(PathBuf::from(full_path));
+                }
+
+                // Reset buffer for next call
+                buf_len = name_buf.len() as u32;
+                name_buf.fill(0);
+
+                if FindNextFileNameW(handle, &mut buf_len, name_buf.as_mut_ptr()) == 0 {
+                    break;
+                }
+            }
+
+            FindClose(handle);
+        }
+
+        links
     }
 
     // ============================================================================
