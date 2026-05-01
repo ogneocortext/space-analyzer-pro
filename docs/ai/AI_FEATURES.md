@@ -67,12 +67,39 @@ Ask questions about your file system in plain English:
 ### **Code Analysis (Developer Features)**
 
 **Deep Project Analysis**
-When scanning development projects, AI can analyze code structure and provide insights:
+When scanning development projects, the system provides comprehensive code analysis:
 
-- **Code Complexity**: Identify complex files that may need refactoring
-- **Pattern Recognition**: Find code patterns and anti-patterns
+- **Code Complexity**: Cyclomatic complexity, cognitive complexity, maintainability index
+- **Pattern Recognition**: Identify code patterns and anti-patterns
 - **Dependency Analysis**: Understand project dependencies and relationships
 - **File Organization**: Suggest better code organization
+
+**Implemented Features:**
+
+- **Complexity Analyzer** (`server/modules/complexity-analyzer.js`)
+  - Supports: JavaScript, TypeScript, Python, Java, C/C++, C#, Go, Rust
+  - Metrics: Lines of code, logical lines, comment lines, blank lines
+  - Complexity: Cyclomatic complexity, cognitive complexity, nesting depth
+  - Quality: Maintainability index, Halstead metrics, complexity grading
+  - Refactoring: Priority-based refactoring recommendations
+
+- **Code Analysis Service** (`src/services/CodeAnalysisService.ts`)
+  - Health analysis with scoring (0-100)
+  - Dependency health analysis (missing deps, unused imports, unused variables)
+  - Language-specific analysis (JavaScript, TypeScript, Python, React)
+  - Issue detection (dead code, potential bugs, undefined variables)
+
+- **AI Refactoring Service** (`src/services/AIRefactoringService.ts`)
+  - Pattern-based refactoring (10 patterns: extract method, reduce nesting, etc.)
+  - ML-powered refactoring suggestions
+  - Impact calculation (complexity reduction, maintainability improvement)
+  - Automated and manual refactoring support
+
+- **Dependency Checker** (`src/services/DependencyCheckerService.ts`)
+  - Import/export analysis
+  - Circular dependency detection
+  - Dead code detection
+  - Neural dependency graph visualization
 
 **Developer-Focused Queries**
 Ask questions about code in scanned projects:
