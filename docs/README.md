@@ -11,9 +11,9 @@ Welcome to the **Space Analyzer** documentation! The Space Analyzer is a **power
 The documentation is organized for clarity and quick access:
 
 - **[ai/](./ai/)** - AI/ML Features & Integration
-  - AI features implementation
+  - AI features for disk space and code analysis
   - Gemini & Ollama integration
-  - AI performance optimization
+  - ML integration for dual-purpose analysis
   - System prompts and configurations
 
 - **[architecture/](./architecture/)** - System Architecture

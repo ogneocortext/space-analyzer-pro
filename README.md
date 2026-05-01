@@ -1,6 +1,6 @@
 # Space Analyzer Pro 2026
 
-AI-Powered disk space analysis and optimization tool with machine learning capabilities.
+AI-Powered disk space analysis and optimization tool with machine learning capabilities. Features dual-purpose analysis for both storage optimization and code analysis for developers.
 
 > **⚠️ Alpha Status & Design Intent**
 >
