@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                    |
 | ------- | ---------- | ------------------------------------------------------------------------------------------ |
+| 2.8.1   | 2026-05-01 | Interactive File Management: Delete & Reveal functionality in UI                          |
 | 2.8.0   | 2026-05-01 | Native Windows Scanner Optimization: Production-Grade APIs & Large Dataset Support         |
 | 2.7.0   | 2026-05-01 | Node.js v25+ Performance Optimizations & Worker Pool Integration                           |
 | 2.6.0   | 2026-04-30 | Revolutionary 3D File System Browser: Professional-Grade Visualization & Analysis          |
@@ -26,6 +27,27 @@ All notable changes to Space Analyzer will be documented in this file.
 | 2.1.8   | 2026-04-27 | Project cleanup and organization                                                           |
 | 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                      |
 | 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                      |
+
+---
+
+## [2.8.1] - 2026-05-01
+
+### Interactive File Management: Delete & Reveal Functionality
+
+**Added direct file management capabilities to the frontend, allowing users to take action on scan results.**
+
+#### ✨ UI/UX Enhancements
+
+- **Direct File Deletion**: Added a "Delete" button (trash icon) to the Duplicate Finder and File Browser views.
+    - Includes safety confirmation dialog.
+    - Real-time UI updates after deletion (automatic group recalculation).
+- **Reveal in Explorer**: Added a "Reveal" button (external link icon) to quickly open the file location in Windows Explorer/macOS Finder.
+- **Improved Feedback**: Added success/error toast notifications and loading states for file operations.
+
+#### 🔧 Technical Fixes
+
+- **Analysis Results Sync**: Fixed a state sync issue where deleted files would remain in the duplicate group calculations until a full rescan.
+- **Icon Integration**: Standardized Lucide icon usage across all analysis views.
 
 ---
 
