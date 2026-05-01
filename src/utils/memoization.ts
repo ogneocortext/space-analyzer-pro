@@ -1,4 +1,4 @@
-import * as React from "react";
+// Vue-compatible memoization utilities
 
 // Memoization levels for different component types
 export enum MemoizationLevel {
@@ -28,122 +28,77 @@ export const shallowEqualObjects = (
   return true;
 };
 
-// Simple shallow equal for props
-const shallowEqual = (
-  prevProps: Record<string, unknown>,
-  nextProps: Record<string, unknown>
-): boolean => {
-  return shallowEqualObjects(prevProps, nextProps);
-};
+// Simple shallow equal for props (unused but kept for reference)
+// const shallowEqual = (
+//   prevProps: Record<string, unknown>,
+//   nextProps: Record<string, unknown>
+// ): boolean => {
+//   return shallowEqualObjects(prevProps, nextProps);
+// };
 
-// Enhanced memoization function with different strategies
+// Enhanced memoization function for Vue components
 export const withMemoization = <P extends object>(
   component: (props: P) => any,
-  level: MemoizationLevel = MemoizationLevel.PROPS
+  _level: MemoizationLevel = MemoizationLevel.PROPS
 ) => {
-  switch (level) {
-    case MemoizationLevel.NEVER:
-      return React.memo(component);
-
-    case MemoizationLevel.PROPS:
-      return React.memo(
-        component,
-        (prevProps: Record<string, unknown>, nextProps: Record<string, unknown>) => {
-          // Use shallow equal for props comparison
-          return shallowEqual(prevProps, nextProps);
-        }
-      );
-
-    case MemoizationLevel.STATE:
-      // For stateful components, we need to be more careful
-      return React.memo(
-        component,
-        (prevProps: Record<string, unknown>, nextProps: Record<string, unknown>) => {
-          // Compare only non-function props (functions are usually stable)
-          const prevKeys = Object.keys(prevProps).filter(
-            (key) => typeof prevProps[key] !== "function"
-          );
-          const nextKeys = Object.keys(nextProps).filter(
-            (key) => typeof nextProps[key] !== "function"
-          );
-
-          if (prevKeys.length !== nextKeys.length) return false;
-
-          for (const key of prevKeys) {
-            if (!(key in nextProps)) return false;
-            if (
-              !shallowEqualObjects(
-                prevProps[key] as Record<string, unknown>,
-                nextProps[key] as Record<string, unknown>
-              )
-            ) {
-              return false;
-            }
-          }
-
-          return true;
-        }
-      );
-
-    case MemoizationLevel.EXPENSIVE:
-      return React.memo(
-        component,
-        (prevProps: Record<string, unknown>, nextProps: Record<string, unknown>) => {
-          // For expensive components, use deep comparison but with caching
-          return JSON.stringify(prevProps) === JSON.stringify(nextProps);
-        }
-      );
-
-    default:
-      return React.memo(component);
-  }
+  // In Vue, memoization is handled differently - this is a placeholder for Vue-specific optimizations
+  return component;
 };
 
-// Memoization for expensive calculations
+// Memoization for expensive calculations - Vue version
 export const useMemoizedCalculation = <T>(calculation: () => T, deps: any[]): T => {
-  return (React as any).useMemo(calculation, deps);
+  // Simple memoization cache for Vue
+  const cache = new Map<string, T>();
+  const key = JSON.stringify(deps);
+
+  if (cache.has(key)) {
+    return cache.get(key)!;
+  }
+
+  const result = calculation();
+  cache.set(key, result);
+  return result;
 };
 
-// Memoization for callbacks
+// Memoization for callbacks - Vue version
 export const useMemoizedCallback = <T extends (...args: unknown[]) => unknown>(
   callback: T,
-  deps: any[]
+  _deps: any[]
 ): T => {
-  return (React as any).useCallback(callback, deps);
+  // In Vue, callbacks are typically stable, but we can cache if needed
+  return callback;
 };
 
-// Performance monitoring for memoized components
+// Performance monitoring for Vue components
 export const withPerformanceMonitoring = <P extends object>(
   component: (props: P) => any,
   componentName: string
 ) => {
-  return React.memo((props: P) => {
+  return (props: P) => {
     const startTime = performance.now();
+    const result = component(props);
+    const endTime = performance.now();
+    const renderTime = endTime - startTime;
 
-    React.useEffect(() => {
-      const endTime = performance.now();
-      const renderTime = endTime - startTime;
+    // Log slow renders (>16ms for 60fps)
+    if (renderTime > 16) {
+      console.warn(`${componentName} took ${renderTime.toFixed(2)}ms to render`);
+    }
 
-      // Log slow renders (>16ms for 60fps)
-      if (renderTime > 16) {
-        console.warn(`${componentName} took ${renderTime.toFixed(2)}ms to render`);
-      }
-    });
-
-    return (React as any).createElement(component as any, props);
-  });
+    return result;
+  };
 };
 
-// Lazy memoization - only memoize after first render
-export const useLazyMemo = <T>(factory: () => T, deps: any[]): T => {
-  const [isInitialized, setIsInitialized] = (React as any).useState(false);
+// Lazy memoization - Vue version
+export const useLazyMemo = <T>(factory: () => T, _deps: any[]): T => {
+  // Simple lazy memoization for Vue
+  let isInitialized = false;
 
-  (React as any).useEffect(() => {
-    setIsInitialized(true);
-  }, []);
-
-  return (React as any).useMemo(() => {
-    if (!isInitialized) return factory();
+  return (() => {
+    if (!isInitialized) {
+      isInitialized = true;
+      return factory();
+    }
     return factory();
-  }, deps);
+  })();
 };

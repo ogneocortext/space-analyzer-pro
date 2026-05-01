@@ -3,60 +3,64 @@
  * Implements code splitting and lazy loading for better performance
  */
 
-import * as React from "react";
-import { lazy } from "react";
-import type { ComponentType } from "react";
+// Vue-compatible lazy loading utilities
 
-// Lazy component wrapper with loading state
-export const LazyComponent = <T extends ComponentType<any>>(
-  loaderFunc: () => Promise<{ default: T }>,
-  fallback: any = () => (React as any).createElement("div", null, "Loading...")
-) => {
-  const LazyComponent = lazy(loaderFunc);
-
-  return LazyComponent;
+// Lazy component wrapper for Vue
+export const LazyComponent = <T extends any>(loaderFunc: () => Promise<{ default: T }>) => {
+  // In Vue, we use defineAsyncComponent instead of React.lazy
+  return loaderFunc;
 };
 
 // Preload important components
 export const preloadComponents = async () => {
-  // Preload dashboard components
-  const { default: DashboardView } = await import("../components/SpaceAnalyzerDashboard");
-  const { default: AnalysisResults } = await import("../components/AnalysisResults");
-  const { default: FileExplorer } = await import("../components/FileExplorer");
+  try {
+    // Preload dashboard components with correct paths
+    const { default: DashboardView } = await import("../components/vue/SpaceAnalyzerDashboard.vue");
+    const { default: AnalysisResults } =
+      await import("../components/vue/analysis/AnalysisResults.vue");
+    const { default: FileExplorer } = await import("../components/vue/browser/FileExplorer.vue");
 
-  return {
-    DashboardView,
-    AnalysisResults,
-    FileExplorer,
-  };
+    return {
+      DashboardView,
+      AnalysisResults,
+      FileExplorer,
+    };
+  } catch (error) {
+    console.warn("Some components could not be preloaded:", error);
+    return {
+      DashboardView: null,
+      AnalysisResults: null,
+      FileExplorer: null,
+    };
+  }
 };
 
-// Intersection Observer for lazy loading
+// Intersection Observer for lazy loading - Vue version
 export const useIntersectionObserver = (
-  ref: any,
+  element: HTMLElement,
   onIntersect: () => void,
   options?: IntersectionObserverInit
 ) => {
-  React.useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          onIntersect();
-        }
-      });
-    }, options);
-
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-
-    return () => {
-      if (ref.current) {
-        observer.unobserve(ref.current);
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        onIntersect();
       }
-      observer.disconnect();
-    };
-  }, [ref, onIntersect, options]);
+    });
+  }, options);
+
+  if (element) {
+    observer.observe(element);
+  }
+
+  const cleanup = () => {
+    if (element) {
+      observer.unobserve(element);
+    }
+    observer.disconnect();
+  };
+
+  return cleanup;
 };
 
 // Dynamic import helper

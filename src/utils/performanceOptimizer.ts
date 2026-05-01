@@ -3,7 +3,7 @@
  * Implements performance improvements recommended by the MoE analysis
  */
 
-import { useCallback, useRef, useEffect, useState } from "react";
+// Vue-compatible performance optimization utilities
 
 // Performance monitoring
 export class PerformanceMonitor {
@@ -61,32 +61,35 @@ export class PerformanceMonitor {
   }
 }
 
-// Lazy loading hook
+// Lazy loading utility for Vue
 export const useLazyLoad = (threshold = 0.1) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isIntersecting, setIsIntersecting] = useState(false);
-  const elementRef = useRef<HTMLElement>(null);
+  let isLoaded = false;
+  let isIntersecting = false;
+  let elementRef: HTMLElement | null = null;
+  let observer: IntersectionObserver | null = null;
 
-  useEffect(() => {
-    const element = elementRef.current;
-    if (!element) return;
-
-    const observer = new IntersectionObserver(
+  const setupObserver = (element: HTMLElement) => {
+    elementRef = element;
+    observer = new IntersectionObserver(
       ([entry]) => {
-        setIsIntersecting(entry.isIntersecting);
+        isIntersecting = entry.isIntersecting;
         if (entry.isIntersecting && !isLoaded) {
-          setIsLoaded(true);
+          isLoaded = true;
         }
       },
       { threshold }
     );
-
     observer.observe(element);
+  };
 
-    return () => observer.disconnect();
-  }, [threshold, isLoaded]);
+  const cleanup = () => {
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+  };
 
-  return { elementRef, isLoaded, isIntersecting };
+  return { elementRef, isLoaded, isIntersecting, setupObserver, cleanup };
 };
 
 // Image optimization
@@ -147,29 +150,24 @@ export const throttle = <T extends (...args: unknown[]) => unknown>(
   };
 };
 
-// Memoization hook
-export const useMemoWithCache = <T>(
-  factory: () => T,
-  deps: React.DependencyList,
-  cacheKey?: string
-): T => {
-  const cache = useRef<Map<string, T>>(new Map());
-
+// Memoization utility for Vue
+export const useMemoWithCache = <T>(factory: () => T, deps: any[], cacheKey?: string): T => {
+  const cache = new Map<string, T>();
   const key = cacheKey || JSON.stringify(deps);
 
-  if (cache.current.has(key)) {
-    return cache.current.get(key)!;
+  if (cache.has(key)) {
+    return cache.get(key)!;
   }
 
   const value = factory();
-  cache.current.set(key, value);
+  cache.set(key, value);
 
   return value;
 };
 
-// Virtual scrolling for large lists
+// Virtual scrolling for large lists - Vue version
 export const useVirtualScroll = <T>(items: T[], itemHeight: number, containerHeight: number) => {
-  const [scrollTop, setScrollTop] = useState(0);
+  let scrollTop = 0;
 
   const visibleStart = Math.floor(scrollTop / itemHeight);
   const visibleEnd = Math.min(
@@ -180,12 +178,9 @@ export const useVirtualScroll = <T>(items: T[], itemHeight: number, containerHei
   const visibleItems = items.slice(visibleStart, visibleEnd);
   const offsetY = visibleStart * itemHeight;
 
-  const handleScroll = useCallback(
-    throttle((e: any) => {
-      setScrollTop(e.currentTarget.scrollTop);
-    }, 16) as any,
-    []
-  );
+  const handleScroll = throttle((e: any) => {
+    scrollTop = e.currentTarget.scrollTop;
+  }, 16) as any;
 
   return {
     visibleItems,

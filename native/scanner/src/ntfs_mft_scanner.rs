@@ -4,13 +4,11 @@
 //! Achieves up to 46x faster scanning compared to traditional file system traversal
 
 use std::collections::HashMap;
-use std::ffi::c_void;
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Seek, SeekFrom};
+use std::fs::File;
+use std::io::Read;
 use std::mem;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::ptr;
-use std::slice;
 use winapi::um::fileapi::{CreateFileW, SetFilePointerEx, ReadFile, OPEN_EXISTING};
 use winapi::um::handleapi::{INVALID_HANDLE_VALUE, CloseHandle};
 use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE, LARGE_INTEGER};
@@ -30,6 +28,7 @@ pub struct MftEntry {
     pub file_path: PathBuf,
     pub is_directory: bool,
     pub is_deleted: bool,
+    pub hard_links: u16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +49,7 @@ pub struct NtfsMftScanner {
     cached_entries: HashMap<u64, MftEntry>,
 }
 
+#[allow(dead_code)]
 impl NtfsMftScanner {
     pub fn new() -> Self {
         Self {
@@ -157,7 +157,7 @@ impl NtfsMftScanner {
             let mut bytes_read_this_chunk = 0u32;
 
             let success = unsafe {
-                let mut large_offset: LARGE_INTEGER = mem::transmute(offset);
+                let large_offset: LARGE_INTEGER = mem::transmute(offset);
                 SetFilePointerEx(
                     handle,
                     large_offset,
@@ -230,12 +230,53 @@ impl NtfsMftScanner {
             }
         }
 
-        // Cache entries for fast lookup
+        // Cache entries for path resolution
+        self.cached_entries.clear();
         for entry in &entries {
             self.cached_entries.insert(entry.file_reference, entry.clone());
         }
 
+        // Resolve all paths
+        self.resolve_all_paths(&mut entries);
+
         Ok(entries)
+    }
+
+    /// Resolve full paths for all entries using parent references
+    fn resolve_all_paths(&self, entries: &mut Vec<MftEntry>) {
+        let volume_path = self.volume_info.as_ref().map(|v| v.volume_path.clone()).unwrap_or_else(|| "C:".to_string());
+        let drive_root = format!("{}\\", volume_path.trim_end_matches('\\'));
+
+        for entry in entries {
+            let mut components = Vec::new();
+            components.push(entry.file_name.clone());
+
+            let mut current_parent = entry.parent_reference;
+            let mut depth = 0;
+
+            // Resolve path by walking up parent references
+            while depth < 256 {
+                // MFT index 5 is the root directory
+                if (current_parent & 0x0000FFFFFFFFFFFF) <= 5 {
+                    break;
+                }
+
+                if let Some(parent) = self.cached_entries.get(&current_parent) {
+                    components.push(parent.file_name.clone());
+                    current_parent = parent.parent_reference;
+                } else {
+                    break;
+                }
+                depth += 1;
+            }
+
+            components.reverse();
+            let mut full_path = PathBuf::from(&drive_root);
+            for comp in components {
+                full_path.push(comp);
+            }
+            entry.file_path = full_path;
+        }
     }
 
     /// Check if MFT entry is valid
@@ -251,7 +292,7 @@ impl NtfsMftScanner {
     }
 
     /// Parse a single MFT entry
-    fn parse_mft_entry(&self, entry_data: &[u8], volume_info: &NtfsVolumeInfo) -> Option<MftEntry> {
+    fn parse_mft_entry(&self, entry_data: &[u8], _volume_info: &NtfsVolumeInfo) -> Option<MftEntry> {
         if entry_data.len() < 1024 {
             return None;
         }
@@ -289,6 +330,9 @@ impl NtfsMftScanner {
 
         let is_deleted = (attributes & 0x40000000) != 0; // FILE_ATTRIBUTE_OFFLINE
 
+        // Extract hard link count (offset 0x12, 2 bytes)
+        let hard_links = u16::from_le_bytes([entry_data[0x12], entry_data[0x13]]);
+
         Some(MftEntry {
             file_reference,
             parent_reference,
@@ -297,9 +341,10 @@ impl NtfsMftScanner {
             file_size,
             attributes,
             file_name: file_name.clone(),
-            file_path: PathBuf::from(&file_name),
+            file_path: PathBuf::new(), // To be resolved later
             is_directory,
             is_deleted,
+            hard_links,
         })
     }
 
@@ -445,24 +490,33 @@ impl NtfsMftScanner {
 
     /// Check if running with admin privileges (required for MFT access)
     pub fn check_admin_privileges() -> bool {
+        use winapi::um::processthreadsapi::{GetCurrentProcess, OpenProcessToken};
         use winapi::um::securitybaseapi::GetTokenInformation;
-        use winapi::um::processthreadsapi::GetCurrentProcess;
-        use winapi::um::winnt::{TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY, HANDLE, TOKEN_READ};
+        use winapi::um::winnt::{TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY, HANDLE};
         use winapi::um::handleapi::CloseHandle;
-        use winapi::shared::ntdef::VOID;
 
         unsafe {
             let mut token_handle: HANDLE = ptr::null_mut();
-            let mut elevation = TOKEN_ELEVATION { TokenIsElevated: 0 };
 
-            // Get current process token
-            if GetCurrentProcess() == ptr::null_mut() {
+            // Open the access token of the current process
+            if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token_handle) == 0 {
                 return false;
             }
 
-            // This is a simplified check - in production, you'd want proper token handling
-            elevation.TokenIsElevated = 1; // Assume admin for demo
-            elevation.TokenIsElevated != 0
+            let mut elevation = TOKEN_ELEVATION { TokenIsElevated: 0 };
+            let mut return_length: u32 = 0;
+
+            let success = GetTokenInformation(
+                token_handle,
+                TokenElevation,
+                &mut elevation as *mut TOKEN_ELEVATION as *mut _,
+                mem::size_of::<TOKEN_ELEVATION>() as u32,
+                &mut return_length,
+            );
+
+            CloseHandle(token_handle);
+
+            success != 0 && elevation.TokenIsElevated != 0
         }
     }
 
@@ -480,6 +534,28 @@ impl NtfsMftScanner {
         }
 
         metrics
+    }
+
+    /// Get current USN Journal ID for this volume
+    pub fn get_journal_id(&self) -> Option<u64> {
+        if let Some(ref info) = self.volume_info {
+             use std::path::Path;
+             crate::windows_advanced::advanced::query_usn_journal(Path::new(&info.volume_path))
+                 .map(|j| j.usn_journal_id)
+        } else {
+            None
+        }
+    }
+
+    /// Get last USN from the journal
+    pub fn get_last_usn(&self) -> Option<i64> {
+        if let Some(ref info) = self.volume_info {
+             use std::path::Path;
+             crate::windows_advanced::advanced::query_usn_journal(Path::new(&info.volume_path))
+                 .map(|j| j.next_usn)
+        } else {
+            None
+        }
     }
 }
 
@@ -514,8 +590,8 @@ pub mod utils {
                 if let Ok(mut file) = File::open(&boot_sector_path) {
                     let mut boot_sector = [0u8; 512];
                     if file.read_exact(&mut boot_sector).is_ok() {
-                        // Check for NTFS signature "NTFS    "
-                        if &boot_sector[3..8] == b"NTFS    " {
+                        // Check for NTFS signature "NTFS    " at offset 3 (8 bytes)
+                        if &boot_sector[3..11] == b"NTFS    " {
                             volumes.push(format!("{}:", drive_letter));
                         }
                     }
@@ -597,7 +673,8 @@ mod tests {
 pub mod napi_exports {
     use super::*;
 
-    pub fn create_mft_scanner() -> NtfsMftScanner {
+    #[allow(dead_code)]
+pub fn create_mft_scanner() -> NtfsMftScanner {
         NtfsMftScanner::new()
     }
 

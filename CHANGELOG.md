@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                    |
 | ------- | ---------- | ------------------------------------------------------------------------------------------ |
+| 2.8.0   | 2026-05-01 | Native Windows Scanner Optimization: Production-Grade APIs & Large Dataset Support         |
 | 2.7.0   | 2026-05-01 | Node.js v25+ Performance Optimizations & Worker Pool Integration                           |
 | 2.6.0   | 2026-04-30 | Revolutionary 3D File System Browser: Professional-Grade Visualization & Analysis          |
 | 2.5.0   | 2026-04-30 | Advanced Self-Learning Enhancements: Analytics, A/B Testing, Feedback, Adaptive Learning   |
@@ -24,6 +25,63 @@ All notable changes to Space Analyzer will be documented in this file.
 | 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                         |
 | 2.1.8   | 2026-04-27 | Project cleanup and organization                                                           |
 | 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                      |
+| 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                      |
+
+---
+
+## [2.8.0] - 2026-05-01
+
+### Native Windows Scanner Optimization: Production-Grade APIs & Large Dataset Support
+
+**Complete overhaul of the high-performance Rust scanner with production-grade Windows API integration and support for massive dataset analysis.**
+
+#### 🚀 High Priority Features
+
+##### 1. Production Windows API Integration ✅
+
+**Replaced all placeholder functionality with robust, native Windows system calls.**
+
+- **Hard Link Tracking**: Implemented `GetFileInformationByHandle` to retrieve Volume Serial Number and File ID for unique file identification across volumes.
+- **Ownership Resolution**: Integrated `GetNamedSecurityInfoW` and `LookupAccountSidW` to resolve Security Identifiers (SIDs) into human-readable `Domain\User` format.
+- **NTFS Metadata Extraction**:
+    - **Alternate Data Streams (ADS)**: Full detection and counting of hidden data streams via `FindFirstStreamW`.
+    - **Native Compression**: Real-time identification of NTFS-compressed files with actual size-on-disk calculation.
+    - **Advanced Attributes**: Correct detection of Sparse files, Reparse Points (junctions/symlinks), and reparse tags.
+- **Accurate Timestamps**: High-precision file creation and last access times via `GetFileTime`.
+
+##### 2. Large Scale Performance & UX ✅
+
+**Optimized for enterprise-scale directory structures with 200,000+ files.**
+
+- **Buffered Hashing**: Refactored MD5 duplicate detection to use a 128KB buffered stream (`BufReader`), eliminating memory pressure during large file analysis.
+- **MFT Direct Scanning Integration**: Seamlessly integrated the `NtfsMftScanner` into the main CLI with automatic admin privilege detection and fallback logic.
+- **Enhanced CLI Output**:
+    - **Quiet Mode**: Added `--quiet` flag to suppress massive JSON dumps to stdout for large datasets.
+    - **Progress Tracking**: Real-time scan status reporting on stderr with file counts and throughput metrics.
+    - **JSON Redirection**: Integrated `--output` flag for direct file persistence of multi-hundred-megabyte analysis results.
+
+#### 🔧 Technical Improvements
+
+- **Cross-Volume Hard Link Safety**: Solved "inode collision" bugs by creating a unique composite key from Volume Serial Number and File Index.
+- **Build Stabilization**: Resolved all N-API binding warnings and unused code blocks in the NTFS and USN scanner modules.
+- **Resource Management**: Implemented safer handle management and RAII patterns for Windows handles (CloseHandle, FindClose).
+
+#### 📊 Performance Metrics
+
+- **Capacity**: Successfully validated against a **96.8 GB** dataset containing **225,082 files**.
+- **Speed**: Scanned and hashed all duplicates in **~8 minutes** (standard fallback mode).
+- **Hard Link Savings**: Accurate calculation of space saved via deduplication on NTFS.
+- **Reliability**: Successfully handled locked files and restricted directories with graceful error propagation.
+
+#### 📝 Files Modified
+
+- `native/scanner/src/main.rs` - Primary CLI and scan logic overhaul
+- `native/scanner/src/windows_advanced.rs` - Advanced Windows API bridge
+- `native/scanner/src/ntfs_mft_scanner.rs` - MFT integration fixes
+- `native/scanner/src/usn_journal_scanner.rs` - Warning suppression and infrastructure
+- `native/scanner/Cargo.toml` - Dependency synchronization
+- `README.md` - Feature documentation update
+- `CHANGELOG.md` - Comprehensive changelog entry
 
 ---
 

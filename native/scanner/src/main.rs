@@ -11,6 +11,8 @@ use crossbeam::channel::bounded;
 
 mod windows_advanced;
 use windows_advanced::advanced as win_adv;
+mod ntfs_mft_scanner;
+mod usn_journal_scanner;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct FileInfo {
@@ -27,6 +29,8 @@ struct FileInfo {
     inode: Option<u64>,       // File identifier for hard link detection
     #[serde(skip)]
     nlink: Option<u32>,        // Number of hard links
+    #[serde(skip)]
+    device: Option<u64>,       // Volume identifier for hard link safety
     is_hard_link: bool,       // True if this is a hard link (nlink > 1)
 
     // Windows NTFS-specific fields
@@ -150,21 +154,25 @@ struct Cli {
     #[arg(long)]
     hidden: bool,
 
-    /// Maximum directory depth
-    #[arg(long, default_value = "10")]
-    max_depth: usize,
-
-    /// Output file path
+    /// Output results to a JSON file
     #[arg(short, long)]
-    output: Option<PathBuf>,
+    output: Option<String>,
 
-    /// Output format (json)
-    #[arg(long, default_value = "json")]
-    format: String,
+    /// Use high-speed NTFS MFT scanner (requires admin, Windows only)
+    #[arg(long)]
+    mft: bool,
+
+    /// Max depth for scanning
+    #[arg(long, default_value = "100")]
+    max_depth: usize,
 
     /// Show progress output
     #[arg(long)]
     progress: bool,
+
+    /// Suppress JSON output to stdout
+    #[arg(short, long)]
+    quiet: bool,
 
     /// Use parallel processing for faster scanning
     #[arg(long, default_value = "true")]
@@ -232,7 +240,7 @@ impl Cli {
 
         // Try MFT fast reading first if requested (Windows only, requires admin)
         #[cfg(windows)]
-        if self.mft_fast {
+        if self.mft {
             eprintln!("Attempting MFT fast reading (requires admin privileges)...");
             match self.analyze_mft_fast(start_time) {
                 Ok(result) => {
@@ -268,7 +276,18 @@ impl Cli {
         #[cfg(windows)]
         if self.enumerate_links {
             eprintln!("Enumerating all hard links (this may take a while)...");
-            // This would require additional processing
+            let mut link_map: std::collections::HashMap<u64, Vec<String>> = std::collections::HashMap::new();
+            for file in result.files.iter().filter(|f| f.is_hard_link) {
+                if let Some(inode) = file.inode {
+                    let links = Self::find_hard_links_by_path(std::path::Path::new(&file.path));
+                    if links.len() > 1 {
+                        link_map.insert(inode, links.iter().map(|p| p.to_string_lossy().to_string()).collect());
+                    }
+                }
+            }
+            if !link_map.is_empty() {
+                eprintln!("Found {} unique hard-linked file groups", link_map.len());
+            }
         }
 
         Ok(result)
@@ -277,104 +296,101 @@ impl Cli {
     /// Fast NTFS MFT reading for 46x speedup (Windows only, requires admin)
     #[cfg(windows)]
     fn analyze_mft_fast(&self, start_time: Instant) -> anyhow::Result<AnalysisResult> {
+        use crate::ntfs_mft_scanner::NtfsMftScanner;
 
+        // Check for admin privileges
+        if !NtfsMftScanner::check_admin_privileges() {
+            return Err(anyhow::anyhow!("Admin privileges required for MFT scanning"));
+        }
 
         // Get drive letter from path
         let drive_letter = self.path.to_string_lossy().chars().next()
             .ok_or_else(|| anyhow::anyhow!("Invalid path"))?;
 
-        let mft_files = win_adv::read_mft_direct(drive_letter, self.max_files);
-
-        if mft_files.is_empty() {
-            return Err(anyhow::anyhow!("MFT read failed - requires administrator privileges"));
+        if !drive_letter.is_alphabetic() {
+             return Err(anyhow::anyhow!("Path must start with a drive letter (e.g., C:\\)"));
         }
 
-        let total_files = mft_files.len() as u64;
+        let mut scanner = NtfsMftScanner::new();
+        let volume = format!("{}:", drive_letter.to_uppercase());
+        scanner.initialize_volume(&volume).map_err(|e: String| anyhow::anyhow!(e))?;
+
+        // Scan the volume (pass None for max_entries to get all)
+        let scanner_results = scanner.scan_volume(None).map_err(|e: String| anyhow::anyhow!(e))?;
+
+        // Convert scanner results to AnalysisResult format
+        let mut total_files = 0u64;
         let mut total_size = 0u64;
-        let mut categories: HashMap<String, CategoryStats> = HashMap::new();
-        let mut extension_stats: HashMap<String, ExtensionStats> = HashMap::new();
-        let mut files: Vec<FileInfo> = Vec::new();
+        let mut categories = HashMap::new();
+        let mut extension_stats = HashMap::new();
+        let mut files = Vec::new();
 
-        // Build path prefix from drive
-        let path_prefix = format!("{}:\\", drive_letter);
+        // Filter results by the requested sub-path if it's not the volume root
+        let root_str = self.path.to_string_lossy().to_string();
+        let is_root = root_str.len() <= 3; // e.g. "C:\"
 
-        for mft_file in mft_files {
-            // Skip system files and directories
-            if mft_file.is_system || mft_file.is_directory {
+        // Get volume serial for device ID
+        let device_id = scanner.get_volume_info().map(|v| v.volume_serial as u64);
+
+        for entry in scanner_results {
+            let entry_path_str = entry.file_path.to_string_lossy().to_string();
+
+            // Check if file is within the requested sub-directory
+            if !is_root && !entry_path_str.starts_with(&root_str) {
                 continue;
             }
 
-            // Skip if max files reached
-            if self.max_files > 0 && files.len() >= self.max_files {
-                break;
+            if !entry.is_directory {
+                total_files += 1;
+                total_size += entry.file_size;
+
+                let extension = entry.file_path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+
+                let category = Self::categorize_file(&extension);
+
+                let cat_stats = categories
+                    .entry(category.to_string())
+                    .or_insert(CategoryStats { count: 0, size: 0 });
+                cat_stats.count += 1;
+                cat_stats.size += entry.file_size;
+
+                let ext_stats = extension_stats
+                    .entry(extension.clone())
+                    .or_insert(ExtensionStats { count: 0, size: 0 });
+                ext_stats.count += 1;
+                ext_stats.size += entry.file_size;
+
+                files.push(FileInfo {
+                    name: entry.file_name,
+                    path: entry_path_str,
+                    size: entry.file_size,
+                    extension,
+                    category: category.to_string(),
+                    modified: "".to_string(),
+                    created: None,
+                    accessed: None,
+                    file_hash: None,
+                    inode: Some(entry.file_reference),
+                    nlink: Some(entry.hard_links as u32),
+                    device: device_id,
+                    is_hard_link: entry.hard_links > 1,
+                    has_ads: false,
+                    ads_count: 0,
+                    is_compressed: false,
+                    compressed_size: None,
+                    is_sparse: false,
+                    is_reparse_point: false,
+                    reparse_tag: None,
+                    owner: None,
+                });
             }
-
-            let file_path = format!("{}{}", path_prefix, mft_file.name);
-            let extension = std::path::Path::new(&mft_file.name)
-                .extension()
-                .and_then(|e| e.to_str())
-                .unwrap_or("")
-                .to_lowercase();
-            let category = Self::categorize_file(&extension);
-
-            // Update stats
-            total_size += mft_file.size;
-
-            categories.entry(category.to_string())
-                .or_insert(CategoryStats { count: 0, size: 0 })
-                .count += 1;
-            categories.get_mut(category).unwrap().size += mft_file.size;
-
-            if !extension.is_empty() {
-                extension_stats.entry(extension.clone())
-                    .or_insert(ExtensionStats { count: 0, size: 0 })
-                    .count += 1;
-                extension_stats.get_mut(&extension).unwrap().size += mft_file.size;
-            }
-
-            // Create FileInfo (simplified - many Windows fields not available from MFT)
-            files.push(FileInfo {
-                name: mft_file.name,
-                path: file_path,
-                size: mft_file.size,
-                extension,
-                category: category.to_string(),
-                modified: chrono::DateTime::from_timestamp(mft_file.modified, 0)
-                    .map(|dt| dt.to_rfc3339())
-                    .unwrap_or_default(),
-                created: chrono::DateTime::from_timestamp(mft_file.created, 0)
-                    .map(|dt| dt.to_rfc3339()),
-                accessed: None,
-                file_hash: None,
-                inode: Some(mft_file.file_id),
-                nlink: Some(mft_file.hard_link_count),
-                is_hard_link: mft_file.hard_link_count > 1,
-                has_ads: false,
-                ads_count: 0,
-                is_compressed: false,
-                compressed_size: None,
-                is_sparse: false,
-                is_reparse_point: false,
-                reparse_tag: None,
-                owner: None,
-            });
         }
 
         let analysis_time = start_time.elapsed();
-
-        // Find duplicates if enabled
-        let (duplicate_groups, duplicate_count, duplicate_size) = if self.duplicates {
-            Self::find_duplicates(&files)
-        } else {
-            (Vec::new(), 0, 0)
-        };
-
-        // Get USN Journal info for incremental tracking
-        let volume_path = win_adv::get_volume_path(&self.path)
-            .unwrap_or_else(|| PathBuf::from(format!("{}:\\", drive_letter)));
-        let usn_info = win_adv::query_usn_journal(&volume_path);
-        let last_usn = usn_info.as_ref().map(|j| j.next_usn);
-        let journal_id = usn_info.map(|j| j.usn_journal_id);
 
         Ok(AnalysisResult {
             total_files,
@@ -384,14 +400,14 @@ impl Cli {
             extension_stats,
             analysis_time_ms: analysis_time.as_millis(),
             directory_path: self.path.to_string_lossy().to_string(),
-            duplicate_groups,
-            duplicate_count,
-            duplicate_size,
+            duplicate_groups: Vec::new(),
+            duplicate_count: 0,
+            duplicate_size: 0,
             hard_link_count: 0,
             hard_link_savings: 0,
             apparent_size: total_size,
-            usn_journal_id: journal_id,
-            last_usn,
+            usn_journal_id: scanner.get_journal_id(),
+            last_usn: scanner.get_last_usn(),
             mft_scanned: true,
             hard_links_enumerated: false,
         })
@@ -470,9 +486,9 @@ impl Cli {
             let mut hard_link_savings = 0u64;
 
             for file_info in receiver {
-                let is_new_hard_link = if let (Some(inode), _) = (file_info.inode, file_info.nlink) {
-                    // Create a unique key from inode and device (to handle cross-device)
-                    let key = (inode, 0u64); // device not available without extra syscall
+                let is_new_hard_link = if let (Some(inode), device) = (file_info.inode, file_info.device) {
+                    // Create a unique key from inode and device
+                    let key = (inode, device.unwrap_or(0));
 
                     if file_info.is_hard_link {
                         if let Some(first_size) = seen_inodes.get(&key) {
@@ -616,8 +632,8 @@ impl Cli {
                         apparent_size += file_info.size;
 
                         // Check for hard links
-                        let is_new = if let (Some(inode), _) = (file_info.inode, file_info.nlink) {
-                            let key = (inode, 0u64);
+                        let is_new = if let (Some(inode), device) = (file_info.inode, file_info.device) {
+                            let key = (inode, device.unwrap_or(0));
                             if file_info.is_hard_link {
                                 if let Some(first_size) = seen_inodes.get(&key) {
                                     hard_link_count += 1;
@@ -753,7 +769,7 @@ impl Cli {
         };
 
         // Detect hard links - platform specific
-        let (inode, nlink) = Self::get_hard_link_info(path, metadata);
+        let (inode, nlink, device) = Self::get_hard_link_info(path, metadata);
         let is_hard_link = nlink.map_or(false, |n| n > 1);
 
         // Get Windows-specific file info
@@ -789,6 +805,7 @@ impl Cli {
             file_hash,
             inode,
             nlink,
+            device,
             is_hard_link,
             #[cfg(windows)]
             has_ads,
@@ -810,29 +827,17 @@ impl Cli {
     }
 
     /// Get hard link information - platform specific implementation
-    #[cfg(unix)]
-    fn get_hard_link_info(_path: &Path, metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
-        use std::os::unix::fs::MetadataExt;
-        (Some(metadata.ino()), Some(metadata.nlink() as u32))
-    }
-
     #[cfg(windows)]
-    fn get_hard_link_info(path: &Path, _metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
+    fn get_hard_link_info(path: &Path, _metadata: &fs::Metadata) -> (Option<u64>, Option<u32>, Option<u64>) {
         use std::os::windows::ffi::OsStrExt;
-        use winapi::um::fileapi::{CreateFileW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, OPEN_EXISTING};
+        use winapi::um::fileapi::{CreateFileW, GetFileInformationByHandle, OPEN_EXISTING, BY_HANDLE_FILE_INFORMATION};
         use winapi::um::handleapi::CloseHandle;
         use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE};
         use std::mem;
 
-        // Convert path to wide string
-        let wide_path: Vec<u16> = path
-            .as_os_str()
-            .encode_wide()
-            .chain(Some(0))
-            .collect();
+        let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
 
         unsafe {
-            // Open file to get handle
             let handle: HANDLE = CreateFileW(
                 wide_path.as_ptr(),
                 GENERIC_READ,
@@ -843,43 +848,53 @@ impl Cli {
                 std::ptr::null_mut(),
             );
 
-            if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
-                return (None, None);
+            if handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
+                return (None, None, None);
             }
 
-            // Get file information using BY_HANDLE_FILE_INFORMATION
-            // This gives us the file ID (nFileIndex, similar to inode) and number of links
             let mut file_info: BY_HANDLE_FILE_INFORMATION = mem::zeroed();
             let result = GetFileInformationByHandle(handle, &mut file_info);
 
             CloseHandle(handle);
 
             if result != 0 {
-                // Combine nFileIndexHigh and nFileIndexLow for 64-bit file ID
                 let file_id = ((file_info.nFileIndexHigh as u64) << 32)
                     | (file_info.nFileIndexLow as u64);
                 let num_links = file_info.nNumberOfLinks;
-                (Some(file_id), Some(num_links))
+                let volume_serial = file_info.dwVolumeSerialNumber as u64;
+                (Some(file_id), Some(num_links), Some(volume_serial))
             } else {
-                (None, None)
+                (None, None, None)
             }
         }
     }
 
+    #[cfg(unix)]
+    fn get_hard_link_info(_path: &Path, metadata: &fs::Metadata) -> (Option<u64>, Option<u32>, Option<u64>) {
+        use std::os::unix::fs::MetadataExt;
+        (Some(metadata.ino()), Some(metadata.nlink() as u32), Some(metadata.dev()))
+    }
+
     #[cfg(not(any(unix, windows)))]
-    fn get_hard_link_info(_path: &Path, _metadata: &fs::Metadata) -> (Option<u64>, Option<u32>) {
-        (None, None)
+    fn get_hard_link_info(_path: &Path, _metadata: &fs::Metadata) -> (Option<u64>, Option<u32>, Option<u64>) {
+        (None, None, None)
     }
 
     fn calculate_file_hash(path: &Path) -> Option<String> {
-        use std::io::Read;
+        use std::io::{BufReader, Read};
 
-        let mut file = fs::File::open(path).ok()?;
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).ok()?;
+        let file = fs::File::open(path).ok()?;
+        let mut reader = BufReader::new(file);
+        let mut context = md5::Context::new();
+        let mut buffer = [0u8; 128 * 1024]; // 128KB chunks
 
-        let hash = md5::compute(&buffer);
-        Some(format!("{:x}", hash))
+        loop {
+            let count = reader.read(&mut buffer).ok()?;
+            if count == 0 { break; }
+            context.consume(&buffer[..count]);
+        }
+
+        Some(format!("{:x}", context.compute()))
     }
 
     // ============================================================================
@@ -1040,12 +1055,13 @@ impl Cli {
         }
     }
 
-    /// Get file owner SID (security identifier)
+    /// Get file owner (resolves SID to username)
     #[cfg(windows)]
     fn get_file_owner(path: &Path) -> Option<String> {
         use std::os::windows::ffi::OsStrExt;
         use winapi::um::aclapi::GetNamedSecurityInfoW;
         use winapi::um::winnt::{OWNER_SECURITY_INFORMATION, PSID};
+        use winapi::um::winbase::LookupAccountSidW;
 
         // SE_FILE_OBJECT = 1
         const SE_FILE_OBJECT: u32 = 1;
@@ -1068,23 +1084,78 @@ impl Cli {
                 &mut sd,
             );
 
-            if result == ERROR_SUCCESS && !sid.is_null() {
-                // SID is a binary structure - for now return placeholder
-                // Full implementation would use ConvertSidToStringSidW (sddl feature)
-                // or LookupAccountSidW to get username
-                Some(format!("SID@{:p}", sid))
+            if result != ERROR_SUCCESS || sid.is_null() {
+                return None;
+            }
+
+            // Try to resolve SID to domain\username via LookupAccountSidW
+            let mut name_buf: Vec<u16> = vec![0; 256];
+            let mut domain_buf: Vec<u16> = vec![0; 256];
+            let mut name_len: u32 = name_buf.len() as u32;
+            let mut domain_len: u32 = domain_buf.len() as u32;
+            let mut sid_use: u32 = 0;
+
+            let lookup_result = LookupAccountSidW(
+                std::ptr::null(),  // local system
+                sid,
+                name_buf.as_mut_ptr(),
+                &mut name_len,
+                domain_buf.as_mut_ptr(),
+                &mut domain_len,
+                &mut sid_use as *mut u32 as *mut _,
+            );
+
+            // Free the security descriptor allocated by GetNamedSecurityInfoW
+            if !sd.is_null() {
+                winapi::um::winbase::LocalFree(sd as *mut _);
+            }
+
+            if lookup_result != 0 {
+                // Successfully resolved to username
+                let name = String::from_utf16_lossy(
+                    &name_buf[..name_len as usize],
+                );
+                let domain = String::from_utf16_lossy(
+                    &domain_buf[..domain_len as usize],
+                );
+
+                if domain.is_empty() {
+                    Some(name)
+                } else {
+                    Some(format!("{}\\{}", domain, name))
+                }
             } else {
-                None
+                // Fallback: convert SID to string representation (S-1-5-...)
+                use winapi::shared::sddl::ConvertSidToStringSidW;
+
+                let mut sid_string: *mut u16 = std::ptr::null_mut();
+                if ConvertSidToStringSidW(sid, &mut sid_string) != 0 && !sid_string.is_null() {
+                    let len = (0..).take_while(|&i| *sid_string.add(i) != 0).count();
+                    let sid_str = String::from_utf16_lossy(
+                        std::slice::from_raw_parts(sid_string, len),
+                    );
+                    winapi::um::winbase::LocalFree(sid_string as *mut _);
+                    Some(sid_str)
+                } else {
+                    None
+                }
             }
         }
     }
 
-    /// Find all hard links to a file
+    /// Find all hard links to a file using FindFirstFileNameW/FindNextFileNameW
+    #[cfg(windows)]
+    #[allow(dead_code)]
+    fn find_hard_links_by_path(path: &Path) -> Vec<PathBuf> {
+        win_adv::find_all_hard_links(path)
+    }
+
+    /// Find all hard links to a file (legacy interface by file ID)
     #[cfg(windows)]
     #[allow(dead_code)]
     fn find_hard_links(_file_id: u64, _volume_path: &Path) -> Vec<String> {
-        // This requires complex NTFS parsing - simplified version
-        // Full implementation would use FSCTL_ENUM_USN_DATA or NTFS MFT parsing
+        // For file-ID based lookup, we'd need to open the file by ID first.
+        // Use find_hard_links_by_path with a file path instead for full functionality.
         Vec::new()
     }
 
@@ -1173,9 +1244,14 @@ fn main() -> anyhow::Result<()> {
 
     if let Some(output_path) = cli.output {
         fs::write(&output_path, &json_output)?;
-        println!("💾 Results saved to: {}", output_path.display());
-    } else {
-        println!("{}", json_output);
+        println!("💾 Results saved to: {}", output_path);
+    } else if !cli.quiet {
+        // Only print JSON if it's not too massive or quiet mode is off
+        if result.total_files < 1000 {
+            println!("{}", json_output);
+        } else {
+            println!("💡 Large result set ({} files). Use --output <file> to save the full JSON.", result.total_files);
+        }
     }
 
     Ok(())

@@ -13,13 +13,6 @@ export interface PortInfo {
 }
 
 export class PortDetector {
-  private static readonly DEFAULT_PORTS = {
-    frontend: 5173,
-    backend: 8090,
-    ollama: 11434,
-    fallback: 3000,
-  };
-
   /**
    * Check if a port is available
    */
@@ -28,7 +21,7 @@ export class PortDetector {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 1000);
 
-      const response = await fetch(`http://localhost:${port}`, {
+      await fetch(`http://localhost:${port}`, {
         method: "HEAD",
         signal: controller.signal,
       });

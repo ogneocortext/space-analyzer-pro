@@ -35,13 +35,14 @@ num_cpus = "1.16"
 winapi = { version = "0.3", features = [
     "fileapi",          # File operations, streams, compression
     "handleapi",        # Handle management
-    "winbase",          # File information, times
+    "winbase",          # File information, times, FindFirstFileNameW
     "winnt",            # NT definitions, security
     "minwindef",        # Basic types
     "aclapi",           # Security descriptors, ownership
     "accctrl",          # Access control
-    "securitybaseapi",  # Security constants
-    "sddl",             # SID conversion
+    "securitybaseapi",  # Security constants, GetTokenInformation
+    "processthreadsapi", # GetCurrentProcess, OpenProcessToken
+    "sddl",             # SID conversion (ConvertSidToStringSidW)
     "std",              # Standard definitions
     "winioctl",         # I/O control codes (FSCTL_*)
     "ioapiset",         # DeviceIoControl
