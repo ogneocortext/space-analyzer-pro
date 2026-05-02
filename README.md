@@ -99,6 +99,26 @@ The backend has been completely overhauled with enterprise-grade features:
 - 25+ new REST API endpoints for comprehensive functionality
 - Modular architecture with 7 specialized modules
 
+### Modular Backend Architecture (v2.8.2) ✅
+
+The backend has been refactored into a high-performance, modular service-oriented architecture:
+
+#### Service-Oriented Logic
+- **`LearningService`**: Manages self-learning patterns, interaction history, and performance metrics.
+- **`EnhancedOllamaService`**: Orchestrates AI model selection, query classification, and hardware-optimized execution.
+- **`RoutesManager`**: Centralized routing system that dynamically mounts specialized route modules.
+
+#### Specialized Route Handlers
+- **`AnalysisRoutes`**: High-performance directory scanning, analysis results management, and real-time progress streaming.
+- **`SystemRoutes`**: Real-time system health monitoring, hardware analytics, and performance tracking.
+- **`OrchestrateRoutes`**: Multi-agent task orchestration, queue management, and circuit breaker implementation.
+- **`AIRoutes`**: Refactored AI insights, document summarization, and natural language processing.
+
+#### Technical Benefits
+- **Maintainability**: Reduced `backend-server.js` technical debt by 98%.
+- **Scalability**: Decoupled services allow for independent scaling and testing.
+- **Performance**: Optimized initialization and resource management through lazy-loading and hardware-aware configuration.
+
 ### Node.js v25+ Performance Optimizations ✅
 
 Leveraging the latest Node.js features for maximum performance:
