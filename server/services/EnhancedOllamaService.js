@@ -10,6 +10,7 @@ const dynamicConfig = require("../config/dynamic-config");
 class EnhancedOllamaService {
   constructor(baseUrl = "http://localhost:11434") {
     this.baseUrl = baseUrl;
+    this.learningService = null;
     this.models = [];
     // Use hardware-optimized model from dynamic config
     this.currentModel = dynamicConfig.aiModel;
@@ -84,6 +85,10 @@ class EnhancedOllamaService {
 
     // Initialize health monitoring
     this.initializeHealthMonitoring();
+  }
+
+  setLearningService(service) {
+    this.learningService = service;
   }
 
   /**
@@ -888,6 +893,123 @@ class EnhancedOllamaService {
     this.requestQueue = [];
 
     console.log("✅ Enhanced Ollama Service shutdown complete");
+  }
+  /**
+   * Enhanced Model Selection with Query Classification
+   */
+  selectOptimalModel(query, analysisData) {
+    if (!this.models.length) return this.currentModel;
+
+    // Classify query intent
+    const queryType = this.classifyQuery(query);
+    const complexity = this.calculateQueryComplexity(query, analysisData);
+
+    console.log(`🎯 Query type: ${queryType}, Complexity: ${complexity.toFixed(2)}`);
+
+    // Model selection based on query type and complexity
+    let bestModel = this.currentModel;
+    let bestScore = -1;
+
+    for (const modelInfo of this.models) {
+      const model = modelInfo.name;
+      const perf = this.learningService ? this.learningService.getPerformance(model) : null;
+      
+      let score = 0;
+
+      // Query type matching
+      switch (queryType) {
+        case "code_analysis":
+        case "technical":
+          if (model.includes("coder") || model.includes("codegemma") || model.includes("qwen")) {
+            score += 5;
+          } else if (model.includes("gemma3")) {
+            score += 2;
+          }
+          break;
+
+        case "file_search":
+        case "optimization":
+          if (model.includes("gemma3")) {
+            score += 4;
+          } else if (model.includes("coder")) {
+            score += 2;
+          }
+          break;
+
+        case "general":
+        default:
+          if (model.includes("gemma3")) {
+            score += 4;
+          } else {
+            score += 1;
+          }
+          break;
+      }
+
+      // Complexity bonus
+      if (complexity > 0.7 && (model.includes("coder") || model.includes("qwen"))) {
+        score += 2;
+      }
+
+      // Performance bonus
+      if (perf && perf.successfulQueries > 0) {
+        const successRate = perf.successfulQueries / perf.totalQueries;
+        score += successRate * 2;
+        if (perf.averageResponseTime < 5000) score += 1;
+      }
+
+      // Hardware wear reduction
+      const timeSinceLastUse = perf?.lastUsed ? Date.now() - perf.lastUsed : Infinity;
+      if (timeSinceLastUse > 300000) score += 1;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestModel = model;
+      }
+    }
+
+    console.log(`🤖 Auto-selected model: ${bestModel} (score: ${bestScore.toFixed(2)})`);
+    return bestModel;
+  }
+
+  classifyQuery(query) {
+    const lowerQuery = query.toLowerCase();
+    
+    const codeTerms = ["function", "class", "method", "code", "import", "dependency", "refactor", "algorithm", "complexity", "performance", "optimize"];
+    if (codeTerms.some(term => lowerQuery.includes(term))) return "code_analysis";
+
+    const searchTerms = ["find", "search", "locate", "where", "which files", "show me"];
+    if (searchTerms.some(term => lowerQuery.includes(term))) return "file_search";
+
+    const optimizeTerms = ["reduce", "save", "free up", "delete", "remove", "clean", "optimize"];
+    if (optimizeTerms.some(term => lowerQuery.includes(term))) return "optimization";
+
+    const techTerms = ["why", "how", "explain", "what is", "memory", "storage", "disk"];
+    if (techTerms.some(term => lowerQuery.includes(term))) return "technical";
+
+    return "general";
+  }
+
+  calculateQueryComplexity(query, analysisData) {
+    let complexity = 0;
+    const technicalTerms = ["optimize", "refactor", "performance", "memory", "storage", "dependencies", "complexity", "algorithm"];
+    
+    const words = query.toLowerCase().split(" ");
+    complexity += words.length * 0.1;
+    complexity += technicalTerms.filter(term => query.toLowerCase().includes(term)).length * 0.2;
+
+    if (analysisData) {
+      const fileCount = analysisData.totalFiles || 0;
+      const sizeGB = (analysisData.totalSize || 0) / (1024 * 1024 * 1024);
+
+      if (fileCount > 10000) complexity += 0.3;
+      else if (fileCount > 1000) complexity += 0.2;
+      
+      if (sizeGB > 10) complexity += 0.3;
+      else if (sizeGB > 1) complexity += 0.2;
+    }
+
+    return Math.min(complexity, 1.0);
   }
 }
 

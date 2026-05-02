@@ -10,6 +10,8 @@ const ExportRoutes = require("./exports");
 const ComplexityRoutes = require("./complexity");
 const ReportsRoutes = require("./reports");
 const SettingsRoutes = require("./settings");
+const OrchestrateRoutes = require("./orchestrate");
+const SystemRoutes = require("./system");
 
 class RoutesManager {
   constructor(server) {
@@ -27,6 +29,8 @@ class RoutesManager {
     this.routes.complexity = new ComplexityRoutes(this.server);
     this.routes.reports = new ReportsRoutes(this.server);
     this.routes.settings = new SettingsRoutes(this.server);
+    this.routes.orchestrate = new OrchestrateRoutes(this.server);
+    this.routes.system = new SystemRoutes(this.server);
   }
 
   mountAll(app) {
@@ -38,6 +42,8 @@ class RoutesManager {
     app.use("/api", this.routes.complexity.getRouter());
     app.use("/api", this.routes.reports.getRouter());
     app.use("/api", this.routes.settings.getRouter());
+    app.use("/api", this.routes.orchestrate.getRouter());
+    app.use("/api", this.routes.system.getRouter());
 
     console.log("✅ All API routes mounted successfully");
   }
