@@ -12,6 +12,8 @@ const ReportsRoutes = require("./reports");
 const SettingsRoutes = require("./settings");
 const OrchestrateRoutes = require("./orchestrate");
 const SystemRoutes = require("./system");
+const ErrorRoutes = require("./errors");
+console.log("📦 ErrorRoutes module loaded:", typeof ErrorRoutes);
 
 class RoutesManager {
   constructor(server) {
@@ -22,15 +24,22 @@ class RoutesManager {
 
   initializeRoutes() {
     // Initialize all route modules
+    console.log("🔄 Initializing route modules...");
     this.routes.analysis = new AnalysisRoutes(this.server);
+    console.log("  ✅ AnalysisRoutes loaded");
     this.routes.ai = new AIRoutes(this.server);
+    console.log("  ✅ AIRoutes loaded");
     this.routes.files = new FileRoutes(this.server);
+    console.log("  ✅ FileRoutes loaded");
     this.routes.exports = new ExportRoutes(this.server);
     this.routes.complexity = new ComplexityRoutes(this.server);
     this.routes.reports = new ReportsRoutes(this.server);
     this.routes.settings = new SettingsRoutes(this.server);
     this.routes.orchestrate = new OrchestrateRoutes(this.server);
     this.routes.system = new SystemRoutes(this.server);
+    console.log("  ✅ SystemRoutes loaded");
+    this.routes.errors = new ErrorRoutes(this.server);
+    console.log("  ✅ ErrorRoutes loaded");
   }
 
   mountAll(app) {
@@ -44,8 +53,10 @@ class RoutesManager {
     app.use("/api", this.routes.settings.getRouter());
     app.use("/api", this.routes.orchestrate.getRouter());
     app.use("/api", this.routes.system.getRouter());
+    app.use("/api", this.routes.errors.getRouter());
 
     console.log("✅ All API routes mounted successfully");
+    console.log("📍 Error routes available at: /api/errors/*");
   }
 
   // Access to individual route modules if needed

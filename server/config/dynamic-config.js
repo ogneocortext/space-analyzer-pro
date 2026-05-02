@@ -134,7 +134,30 @@ module.exports = {
     if (process.env.SA_QUIET && !force) return;
     global.__SA_CONFIG_LOGGED__ = true;
 
-    const config = await loadConfig(force);
+    let config;
+    try {
+      config = await loadConfig(force);
+    } catch (error) {
+      console.warn("⚠️ Hardware config failed to load, using defaults for logging");
+      // Use safe defaults for logging
+      config = {
+        tier: "mid-range",
+        powerProfile: "balanced",
+        specs: {
+          cpu: { cores: 4, model: "Unknown" },
+          memory: { totalGB: 16 },
+          gpu: { primaryGPU: null },
+          isLaptop: false,
+        },
+        config: {
+          workerCount: 4,
+          workerMemoryMB: 1024,
+          maxConcurrentAIRequests: 5,
+          aiModel: "phi4-mini:latest",
+          bodyParserLimit: "100mb",
+        },
+      };
+    }
     const hasOverride =
       process.env.SA_CPU_CORES ||
       process.env.SA_MEMORY_GB ||
@@ -147,24 +170,28 @@ module.exports = {
       console.log("⚠️  MANUAL OVERRIDE ACTIVE (env vars set)");
     }
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log(`Tier: ${config.tier.toUpperCase()}`);
-    console.log(`Power Profile: ${config.powerProfile}`);
-    console.log(`CPU: ${config.specs.cpu.cores} cores (${config.specs.cpu.model})`);
-    console.log(`Memory: ${config.specs.memory.totalGB} GB`);
-    console.log(`GPU: ${config.specs.gpu.primaryGPU?.name || "None detected"}`);
+    console.log(`Tier: ${config?.tier?.toUpperCase?.() || "MID-RANGE"}`);
+    console.log(`Power Profile: ${config?.powerProfile || "balanced"}`);
     console.log(
-      `Device: ${config.specs.isLaptop ? "Laptop (conservative)" : "Desktop (maximum performance)"}`
+      `CPU: ${config?.specs?.cpu?.cores || 4} cores (${config?.specs?.cpu?.model || "Unknown"})`
     );
-    if (config.specs.ollamaModels && config.specs.ollamaModels.length > 0) {
+    console.log(`Memory: ${config?.specs?.memory?.totalGB || 16} GB`);
+    console.log(`GPU: ${config?.specs?.gpu?.primaryGPU?.name || "None detected"}`);
+    console.log(
+      `Device: ${config?.specs?.isLaptop ? "Laptop (conservative)" : "Desktop (maximum performance)"}`
+    );
+    if (config?.specs?.ollamaModels && config.specs.ollamaModels.length > 0) {
       console.log(`🦙 Ollama Models: ${config.specs.ollamaModels.join(", ")}`);
     }
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    console.log(`Workers: ${config.config.workerCount} (${config.config.workerMemoryMB}MB each)`);
+    console.log(
+      `Workers: ${config?.config?.workerCount || 4} (${config?.config?.workerMemoryMB || 1024}MB each)`
+    );
     console.log(`  ↳ Purpose: Parallel file scanning, AI analysis, and CPU-intensive tasks`);
     console.log(`  ↳ Status: Active - worker pool initialized and ready`);
-    console.log(`Max Concurrent AI: ${config.config.maxConcurrentAIRequests}`);
-    console.log(`AI Model: ${config.config.aiModel}`);
-    console.log(`Body Parser Limit: ${config.config.bodyParserLimit}`);
+    console.log(`Max Concurrent AI: ${config?.config?.maxConcurrentAIRequests || 5}`);
+    console.log(`AI Model: ${config?.config?.aiModel || "phi4-mini:latest"}`);
+    console.log(`Body Parser Limit: ${config?.config?.bodyParserLimit || "100mb"}`);
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
     if (!hasOverride) {

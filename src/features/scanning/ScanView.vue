@@ -58,6 +58,10 @@ watch(selectedPath, (newPath) => {
 watch(
   () => store.status,
   (newStatus) => {
+    console.log("🔄 Store status changed to:", newStatus);
+    console.log("🔄 isAnalysisRunning:", store.isAnalysisRunning);
+    console.log("🔄 progressData:", store.progressData);
+
     if (newStatus === "complete" && store.analysisResult) {
       // Wait 3 seconds so user can see completion, then redirect
       setTimeout(() => {
@@ -67,11 +71,20 @@ watch(
   }
 );
 
+// Watch for isAnalysisRunning changes
+watch(
+  () => store.isAnalysisRunning,
+  (newRunning, oldRunning) => {
+    console.log("🔄 isAnalysisRunning changed:", { from: oldRunning, to: newRunning });
+  }
+);
+
 // Watch for store errors
 watch(
   () => store.error,
   (newError) => {
     if (newError) {
+      console.log("❌ Store error:", newError);
       errorMessage.value = newError;
       showError.value = true;
     }
@@ -80,20 +93,41 @@ watch(
 
 // Computed for reactive progress
 const progressPercent = computed(() => {
-  return store.progressData.percentage || 0;
+  const value = store.progressData.percentage || 0;
+  console.log("📊 Progress percent computed:", value, "from progressData:", store.progressData);
+  return value;
 });
 
 const filesScanned = computed(() => {
-  return store.progressData.files || 0;
+  const value = store.progressData.files || 0;
+  console.log("📊 Files scanned computed:", value, "from progressData:", store.progressData);
+  return value;
 });
 
 const totalBytes = computed(() => {
-  return store.progressData.totalSize || 0;
+  const value = store.progressData.totalSize || 0;
+  console.log("📊 Total bytes computed:", value, "from progressData:", store.progressData);
+  return value;
 });
 
 const currentFile = computed(() => {
-  return store.progressData.currentFile || "Starting scan...";
+  const value = store.progressData.currentFile || "Starting scan...";
+  console.log("📊 Current file computed:", value, "from progressData:", store.progressData);
+  return value;
 });
+
+// Watch for progress data changes
+watch(
+  () => store.progressData,
+  (newProgressData, oldProgressData) => {
+    console.log("🔄 Progress data changed:", {
+      from: oldProgressData,
+      to: newProgressData,
+      timestamp: new Date().toISOString(),
+    });
+  },
+  { deep: true }
+);
 
 // Estimated time remaining
 const estimatedTimeRemaining = computed(() => {
@@ -106,8 +140,30 @@ const estimatedTimeRemaining = computed(() => {
 });
 
 async function startScan() {
+  console.log("🚀 Start scan button clicked");
+  console.log("📂 Selected path:", selectedPath.value);
+  console.log("🔧 Store state before:", {
+    isAnalysisRunning: store.isAnalysisRunning,
+    status: store.status,
+    path: store.path,
+  });
+  console.log("🔧 Backend status:", backendStatus.value);
+  console.log("🔧 Button disabled state check:", {
+    hasSelectedPath: !!selectedPath.value,
+    backendOk: !backendStatus.value || backendStatus.value.ok,
+    isDisabled: !selectedPath.value || (backendStatus.value && !backendStatus.value.ok),
+  });
+
   if (!selectedPath.value) {
+    console.log("❌ No path selected, showing error");
     errorMessage.value = "Please select a directory to scan";
+    showError.value = true;
+    return;
+  }
+
+  if (backendStatus.value && !backendStatus.value.ok) {
+    console.log("❌ Backend is offline, cannot start scan");
+    errorMessage.value = "Backend is offline. Please check server connection.";
     showError.value = true;
     return;
   }
@@ -116,8 +172,11 @@ async function startScan() {
   errorMessage.value = "";
 
   try {
+    console.log("✅ Starting analysis...");
     await store.handleAnalysis(false);
+    console.log("✅ Analysis completed");
   } catch (error) {
+    console.error("❌ Analysis failed:", error);
     errorMessage.value = error instanceof Error ? error.message : "Scan failed. Please try again.";
     showError.value = true;
   }

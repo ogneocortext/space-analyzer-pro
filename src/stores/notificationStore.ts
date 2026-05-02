@@ -46,7 +46,7 @@ export interface NotificationSettings {
   };
 }
 
-const API_BASE = "http://localhost:8080/api";
+const API_BASE = "/api";
 
 const DEFAULT_SETTINGS: NotificationSettings = {
   enabled: true,

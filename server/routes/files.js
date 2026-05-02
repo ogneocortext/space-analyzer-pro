@@ -92,16 +92,19 @@ class FileRoutes {
       }
 
       try {
-        let command;
+        let command, args;
         if (process.platform === "win32") {
-          command = `explorer /select,"${filePath}"`;
+          command = "explorer";
+          args = ["/select", filePath];
         } else if (process.platform === "darwin") {
-          command = `open -R "${filePath}"`;
+          command = "open";
+          args = ["-R", filePath];
         } else {
-          command = `xdg-open "${path.dirname(filePath)}"`;
+          command = "xdg-open";
+          args = [path.dirname(filePath)];
         }
 
-        spawn(command, { shell: true });
+        spawn(command, args, { shell: false });
 
         res.json({ success: true });
       } catch (error) {
@@ -167,7 +170,8 @@ class FileRoutes {
         if (query) {
           const queryLower = query.toLowerCase();
           results = results.filter(
-            (f) => f.name.toLowerCase().includes(queryLower) || f.path.toLowerCase().includes(queryLower)
+            (f) =>
+              f.name.toLowerCase().includes(queryLower) || f.path.toLowerCase().includes(queryLower)
           );
         }
 

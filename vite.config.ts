@@ -3,12 +3,10 @@ import vue from "@vitejs/plugin-vue";
 import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "path";
 
-// Load hardware-optimized configuration
-try {
-  const { logConfig } = require("./server/config/dynamic-config");
-  logConfig();
-} catch (e) {
-  // Config not available during initial install
+// Skip hardware config loading in Vite build to prevent errors
+// Hardware config is only needed for the backend server, not the frontend build
+if (process.env.NODE_ENV !== "production") {
+  console.warn("⚠️ Skipping hardware config loading in Vite development build");
 }
 
 // Centralized port configuration

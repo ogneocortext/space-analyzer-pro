@@ -16,6 +16,11 @@ const router = createRouter({
       component: ScanView,
     },
     {
+      path: "/scan-history",
+      name: "scan-history",
+      component: () => import("../features/scanning/ScanHistoryView.vue"),
+    },
+    {
       path: "/browser",
       name: "browser",
       component: () => import("../features/browser/FileBrowserView.vue"),
@@ -125,6 +130,12 @@ const router = createRouter({
       path: "/3d-browser",
       name: "3d-browser",
       component: () => import("../features/3d/FileSystem3DView.vue"),
+    },
+    // Admin/Debug Routes
+    {
+      path: "/admin/errors",
+      name: "error-logs",
+      component: () => import("../views/admin/ErrorLogView.vue"),
     },
   ],
 });

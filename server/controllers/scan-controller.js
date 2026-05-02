@@ -1,6 +1,7 @@
-const fs = require('fs').promises;
-const path = require('path');
-const crypto = require('crypto');
+const fs = require("fs").promises;
+const path = require("path");
+const crypto = require("crypto");
+const { getErrorLogger } = require("../utils/error-logger");
 
 class ScanController {
   constructor() {
@@ -8,21 +9,38 @@ class ScanController {
     this.pausedScans = new Map(); // Map of scanId -> paused scan state
     this.resumableScans = new Map(); // Map of scanId -> resumable scan data
     this.scanHistory = new Map(); // Map of scanId -> scan history
+    this.errorLogger = getErrorLogger();
+  }
+
+  /**
+   * Log a scan error to the error logger
+   */
+  async logScanError(scanId, error, context = {}) {
+    await this.errorLogger.logError({
+      type: error.name || "ScanError",
+      message: error.message,
+      stack: error.stack,
+      source: "backend",
+      component: "ScanController",
+      action: context.action || "scan_operation",
+      scanId: scanId,
+      ...context,
+    });
   }
 
   generateScanId() {
-    return `scan_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    return `scan_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
   }
 
   async createScan(analysisId, directoryPath, options = {}) {
     const scanId = this.generateScanId();
-    
+
     const scanState = {
       scanId,
       analysisId,
       directoryPath,
       options,
-      status: 'created',
+      status: "created",
       createdAt: Date.now(),
       startedAt: null,
       pausedAt: null,
@@ -34,11 +52,11 @@ class ScanController {
         percentage: 0,
         currentFile: null,
         scanSpeed: 0,
-        timeRemaining: 0
+        timeRemaining: 0,
       },
       process: null,
       tempFile: null,
-      checkpointData: null
+      checkpointData: null,
     };
 
     this.activeScans.set(scanId, scanState);
@@ -51,7 +69,7 @@ class ScanController {
       throw new Error(`Scan ${scanId} not found`);
     }
 
-    scan.status = 'running';
+    scan.status = "running";
     scan.startedAt = Date.now();
     scan.process = process;
     scan.tempFile = tempFile;
@@ -65,25 +83,25 @@ class ScanController {
       throw new Error(`Scan ${scanId} not found`);
     }
 
-    if (scan.status !== 'running') {
+    if (scan.status !== "running") {
       throw new Error(`Cannot pause scan ${scanId}: current status is ${scan.status}`);
     }
 
     // Create checkpoint data
     const checkpointData = await this.createCheckpoint(scan);
-    
+
     // Pause the process
     if (scan.process && !scan.process.killed) {
       try {
         // On Windows, we can't easily pause a process, so we'll terminate it
         // and save the state for resumption
-        scan.process.kill('SIGTERM');
-        
+        scan.process.kill("SIGTERM");
+
         // Wait a bit for graceful termination
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
         if (!scan.process.killed) {
-          scan.process.kill('SIGKILL');
+          scan.process.kill("SIGKILL");
         }
       } catch (error) {
         console.warn(`Error pausing scan process: ${error.message}`);
@@ -91,7 +109,7 @@ class ScanController {
     }
 
     // Update scan state
-    scan.status = 'paused';
+    scan.status = "paused";
     scan.pausedAt = Date.now();
     scan.checkpointData = checkpointData;
 
@@ -113,15 +131,15 @@ class ScanController {
 
     // Load checkpoint data
     const checkpointData = await this.loadCheckpoint(scanId);
-    
+
     // Create new scan state
     const resumedScan = {
       ...pausedScan,
-      status: 'resuming',
+      status: "resuming",
       resumedAt: Date.now(),
       process: null,
       tempFile: path.join(__dirname, `output_${pausedScan.analysisId}_resumed.json`),
-      checkpointData
+      checkpointData,
     };
 
     // Move back to active scans
@@ -140,13 +158,13 @@ class ScanController {
     // Terminate process if running
     if (scan.process && !scan.process.killed) {
       try {
-        scan.process.kill('SIGTERM');
-        
+        scan.process.kill("SIGTERM");
+
         // Wait for graceful termination
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
         if (!scan.process.killed) {
-          scan.process.kill('SIGKILL');
+          scan.process.kill("SIGKILL");
         }
       } catch (error) {
         console.warn(`Error stopping scan process: ${error.message}`);
@@ -154,7 +172,7 @@ class ScanController {
     }
 
     // Update scan state
-    scan.status = 'stopped';
+    scan.status = "stopped";
     scan.completedAt = Date.now();
 
     // Move to history
@@ -175,7 +193,7 @@ class ScanController {
     }
 
     // Update scan state
-    scan.status = 'completed';
+    scan.status = "completed";
     scan.completedAt = Date.now();
     scan.result = result;
 
@@ -198,11 +216,12 @@ class ScanController {
     // Update progress
     scan.progress = {
       ...scan.progress,
-      ...progressData
+      ...progressData,
     };
 
     // Create periodic checkpoints for long-running scans
-    if (scan.status === 'running' && Date.now() - (scan.lastCheckpoint || 0) > 30000) { // Every 30 seconds
+    if (scan.status === "running" && Date.now() - (scan.lastCheckpoint || 0) > 30000) {
+      // Every 30 seconds
       const checkpointData = await this.createCheckpoint(scan);
       scan.checkpointData = checkpointData;
       scan.lastCheckpoint = Date.now();
@@ -225,15 +244,18 @@ class ScanController {
       pausedAt: Date.now(),
       tempFile: scan.tempFile,
       // Save partial results if available
-      partialResults: null
+      partialResults: null,
     };
 
     // Try to read partial results from temp file
     if (scan.tempFile) {
       try {
-        const exists = await fs.access(scan.tempFile).then(() => true).catch(() => false);
+        const exists = await fs
+          .access(scan.tempFile)
+          .then(() => true)
+          .catch(() => false);
         if (exists) {
-          const content = await fs.readFile(scan.tempFile, 'utf8');
+          const content = await fs.readFile(scan.tempFile, "utf8");
           checkpoint.partialResults = JSON.parse(content);
         }
       } catch (error) {
@@ -241,37 +263,37 @@ class ScanController {
       }
     }
 
-    return checkpoint;
-  }
+// Move to history
+this.scanHistory.set(scanId, scan);
+this.activeScans.delete(scanId);
 
-  async saveCheckpoint(scanId, checkpointData) {
-    try {
-      const checkpointDir = path.join(__dirname, '.checkpoints');
-      await fs.mkdir(checkpointDir, { recursive: true });
-      
-      const checkpointFile = path.join(checkpointDir, `${scanId}.json`);
-      await fs.writeFile(checkpointFile, JSON.stringify(checkpointData, null, 2));
-      
-      console.log(`💾 Saved checkpoint for scan ${scanId}`);
-    } catch (error) {
-      console.error(`Failed to save checkpoint for scan ${scanId}:`, error);
-    }
-  }
+// Clean up checkpoint
+await this.deleteCheckpoint(scanId);
 
-  async loadCheckpoint(scanId) {
-    try {
-      const checkpointFile = path.join(__dirname, '.checkpoints', `${scanId}.json`);
-      const content = await fs.readFile(checkpointFile, 'utf8');
-      return JSON.parse(content);
-    } catch (error) {
-      console.error(`Failed to load checkpoint for scan ${scanId}:`, error);
-      return null;
-    }
-  }
+return scan;
+}
 
-  async deleteCheckpoint(scanId) {
-    try {
-      const checkpointFile = path.join(__dirname, '.checkpoints', `${scanId}.json`);
+async updateProgress(scanId, progressData) {
+const scan = this.activeScans.get(scanId);
+if (!scan) {
+  return; // Scan might have been paused or stopped
+}
+
+// Update progress
+scan.progress = {
+  ...scan.progress,
+  ...progressData,
+};
+
+// Create periodic checkpoints for long-running scans
+if (scan.status === "running" && Date.now() - (scan.lastCheckpoint || 0) > 30000) {
+  // Every 30 seconds
+  const checkpointData = await this.createCheckpoint(scan);
+  scan.checkpointData = checkpointData;
+  scan.lastCheckpoint = Date.now();
+  await this.saveCheckpoint(scanId, checkpointData);
+}
+      const checkpointFile = path.join(__dirname, ".checkpoints", `${scanId}.json`);
       await fs.unlink(checkpointFile);
     } catch (error) {
       // Checkpoint might not exist, ignore
@@ -279,9 +301,9 @@ class ScanController {
   }
 
   getScan(scanId) {
-    return this.activeScans.get(scanId) || 
-           this.pausedScans.get(scanId) || 
-           this.scanHistory.get(scanId);
+    return (
+      this.activeScans.get(scanId) || this.pausedScans.get(scanId) || this.scanHistory.get(scanId)
+    );
   }
 
   getActiveScans() {
@@ -298,31 +320,34 @@ class ScanController {
 
   getScanMetrics() {
     const now = Date.now();
-    
+
     return {
       active: this.activeScans.size,
       paused: this.pausedScans.size,
       completed: this.scanHistory.size,
       total: this.activeScans.size + this.pausedScans.size + this.scanHistory.size,
-      uptime: now - (this.startTime || now)
+      uptime: now - (this.startTime || now),
     };
   }
 
   async cleanup() {
     // Clean up old checkpoints
     try {
-      const checkpointDir = path.join(__dirname, '.checkpoints');
-      const exists = await fs.access(checkpointDir).then(() => true).catch(() => false);
-      
+      const checkpointDir = path.join(__dirname, ".checkpoints");
+      const exists = await fs
+        .access(checkpointDir)
+        .then(() => true)
+        .catch(() => false);
+
       if (exists) {
         const files = await fs.readdir(checkpointDir);
         const now = Date.now();
-        
+
         for (const file of files) {
-          if (file.endsWith('.json')) {
+          if (file.endsWith(".json")) {
             const filePath = path.join(checkpointDir, file);
             const stats = await fs.stat(filePath);
-            
+
             // Delete checkpoints older than 24 hours
             if (now - stats.mtime.getTime() > 24 * 60 * 60 * 1000) {
               await fs.unlink(filePath);
@@ -332,14 +357,14 @@ class ScanController {
         }
       }
     } catch (error) {
-      console.error('Error cleaning up checkpoints:', error);
+      console.error("Error cleaning up checkpoints:", error);
     }
 
     // Clean up old scan history (keep last 100 scans)
     if (this.scanHistory.size > 100) {
       const scans = Array.from(this.scanHistory.entries());
       scans.sort((a, b) => b[1].completedAt - a[1].completedAt);
-      
+
       const toDelete = scans.slice(100);
       for (const [scanId] of toDelete) {
         this.scanHistory.delete(scanId);
@@ -365,19 +390,22 @@ class ScanController {
 
     // Clean up checkpoints
     try {
-      const checkpointDir = path.join(__dirname, '.checkpoints');
-      const exists = await fs.access(checkpointDir).then(() => true).catch(() => false);
-      
+      const checkpointDir = path.join(__dirname, ".checkpoints");
+      const exists = await fs
+        .access(checkpointDir)
+        .then(() => true)
+        .catch(() => false);
+
       if (exists) {
         const files = await fs.readdir(checkpointDir);
         for (const file of files) {
-          if (file.endsWith('.json')) {
+          if (file.endsWith(".json")) {
             await fs.unlink(path.join(checkpointDir, file));
           }
         }
       }
     } catch (error) {
-      console.error('Error clearing checkpoints:', error);
+      console.error("Error clearing checkpoints:", error);
     }
   }
 }

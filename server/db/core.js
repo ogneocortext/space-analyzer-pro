@@ -27,19 +27,177 @@ class DatabaseCore {
   }
 
   initialize() {
-    // Ensure directory exists
-    const dir = path.dirname(this.dbPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    this.db = new sqlite3.Database(this.dbPath, (err) => {
-      if (err) {
-        console.error("❌ Failed to open knowledge database:", err);
-      } else {
-        console.log("📚 Knowledge database initialized:", this.dbPath);
-        this.createTables();
+    try {
+      // Ensure directory exists with proper permissions
+      const dir = path.dirname(this.dbPath);
+      if (!fs.existsSync(dir)) {
+        console.log(`📁 Creating database directory: ${dir}`);
+        fs.mkdirSync(dir, { recursive: true });
       }
+
+      // Check if directory is writable
+      try {
+        fs.accessSync(dir, fs.constants.W_OK);
+      } catch (accessErr) {
+        console.error(`❌ Database directory not writable: ${dir}`, accessErr);
+        throw new Error(`Database directory not writable: ${dir}`);
+      }
+
+      // Check database file size and backup if needed
+      if (fs.existsSync(this.dbPath)) {
+        const stats = fs.statSync(this.dbPath);
+        const fileSizeMB = stats.size / (1024 * 1024);
+        console.log(`📊 Database file size: ${fileSizeMB.toFixed(2)} MB`);
+
+        // Create backup if database is large
+        if (fileSizeMB > 100) {
+          const backupPath = this.dbPath + ".backup";
+          if (!fs.existsSync(backupPath)) {
+            console.log(`💾 Creating database backup: ${backupPath}`);
+            fs.copyFileSync(this.dbPath, backupPath);
+          }
+        }
+      }
+
+      // Open database with better error handling
+      this.db = new sqlite3.Database(
+        this.dbPath,
+        sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
+        (err) => {
+          if (err) {
+            console.error("❌ Failed to open knowledge database:", err);
+            console.error("Database path:", this.dbPath);
+            this.db = null;
+            throw err;
+          } else {
+            console.log("📚 Knowledge database initialized successfully:", this.dbPath);
+
+            // Configure database for better performance
+            this.configureDatabase();
+
+            // Create tables and run migrations
+            this.createTables();
+            this.runMigrations();
+          }
+        }
+      );
+    } catch (error) {
+      console.error("❌ Database initialization failed:", error);
+      this.db = null;
+      throw error;
+    }
+  }
+
+  configureDatabase() {
+    if (!this.db) return;
+
+    // Configure SQLite for better performance
+    const pragmas = [
+      "PRAGMA journal_mode = WAL",
+      "PRAGMA synchronous = NORMAL",
+      "PRAGMA cache_size = 10000",
+      "PRAGMA temp_store = MEMORY",
+      "PRAGMA mmap_size = 268435456", // 256MB
+      "PRAGMA optimize",
+    ];
+
+    // Execute pragmas sequentially to ensure proper order
+    pragmas
+      .reduce((promise, pragma, index) => {
+        return promise.then(() => {
+          return new Promise((resolve, reject) => {
+            this.db.run(pragma, (err) => {
+              if (err) {
+                console.error(`❌ Failed to set pragma ${pragma}:`, err);
+                reject(err);
+              } else {
+                console.log(`✅ Database optimization ${index + 1}/${pragmas.length} applied`);
+                resolve();
+              }
+            });
+          });
+        });
+      }, Promise.resolve())
+      .catch((err) => {
+        console.error("❌ Database optimization failed:", err);
+      });
+  }
+
+  runMigrations() {
+    if (!this.db) return;
+
+    // Create migrations table if not exists
+    this.db.run(
+      `
+      CREATE TABLE IF NOT EXISTS migrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        version TEXT UNIQUE NOT NULL,
+        applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `,
+      (err) => {
+        if (err) {
+          console.error("❌ Failed to create migrations table:", err);
+          return;
+        }
+
+        // Check and apply migrations
+        this.applyMigrations();
+      }
+    );
+  }
+
+  applyMigrations() {
+    if (!this.db) return;
+
+    const migrations = [
+      {
+        version: "1.0.0",
+        description: "Initial database setup",
+        sql: `
+          -- Add analysis_id column to analyses table if not exists
+          ALTER TABLE analyses ADD COLUMN analysis_id TEXT;
+
+          -- Create index for analysis_id
+          CREATE INDEX IF NOT EXISTS idx_analyses_analysis_id ON analyses(analysis_id);
+        `,
+      },
+      {
+        version: "1.1.0",
+        description: "Add performance improvements",
+        sql: `
+          -- Add created_at column to analyses if not exists
+          ALTER TABLE analyses ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP;
+
+          -- Add index for last_analyzed
+          CREATE INDEX IF NOT EXISTS idx_analyses_last_analyzed ON analyses(last_analyzed);
+        `,
+      },
+    ];
+
+    migrations.forEach((migration) => {
+      this.db.get(
+        "SELECT version FROM migrations WHERE version = ?",
+        [migration.version],
+        (err, row) => {
+          if (err) {
+            console.error(`❌ Failed to check migration ${migration.version}:`, err);
+            return;
+          }
+
+          if (!row) {
+            console.log(`🔄 Applying migration ${migration.version}: ${migration.description}`);
+            this.db.run(migration.sql, (err) => {
+              if (err) {
+                console.error(`❌ Failed to apply migration ${migration.version}:`, err);
+              } else {
+                console.log(`✅ Migration ${migration.version} applied successfully`);
+                this.db.run("INSERT INTO migrations (version) VALUES (?)", [migration.version]);
+              }
+            });
+          }
+        }
+      );
     });
   }
 
@@ -290,6 +448,11 @@ class DatabaseCore {
    * Uses Node.js v25+ Uint8Array.from() with base64 for better performance
    */
   decompressData(compressed) {
+    // Handle null, undefined, or empty input
+    if (!compressed || typeof compressed !== "string") {
+      return null;
+    }
+
     try {
       let buffer;
 
