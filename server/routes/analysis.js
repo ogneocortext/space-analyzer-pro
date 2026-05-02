@@ -8,12 +8,14 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const { spawn } = require("child_process");
+const AnalysisController = require("../controllers/AnalysisController");
 
 class AnalysisRoutes {
   constructor(server) {
     this.server = server;
     this.router = express.Router();
-    console.log("🚀 AnalysisRoutes initialized [v2.8.1-fixed]");
+    this.analysisController = new AnalysisController(server);
+    console.log("🚀 AnalysisRoutes initialized [v2.8.2-code-quality]");
     this.setupRoutes();
   }
 
@@ -24,36 +26,92 @@ class AnalysisRoutes {
         const { path } = req.query;
 
         if (!path) {
-          return res.status(400).json({ error: "Path parameter is required" });
+          return res.status(400).json({
+            success: false,
+            error: "Path parameter is required",
+          });
         }
+
+        // Normalize the path for consistent comparison
+        const normalizedPath = this.server.normalizePath ? this.server.normalizePath(path) : path;
+
+        console.log(`🔍 Looking for current analysis for path: ${normalizedPath}`);
 
         // Find any active analysis for this path
         let activeAnalysis = null;
         if (this.server?.activeAnalyses) {
           for (const [id, analysis] of this.server.activeAnalyses.entries()) {
-            if (analysis.directoryPath === path) {
-              activeAnalysis = { id, ...analysis };
+            const analysisPath = this.server.normalizePath
+              ? this.server.normalizePath(analysis.directoryPath)
+              : analysis.directoryPath;
+
+            if (analysisPath === normalizedPath) {
+              activeAnalysis = {
+                id,
+                ...analysis,
+                // Add computed fields
+                progress: analysis.progress || 0,
+                status: analysis.status || "unknown",
+                startTime: analysis.startTime,
+                currentFile: analysis.currentFile || "",
+                filesScanned: analysis.filesScanned || 0,
+                bytesScanned: analysis.bytesScanned || 0,
+              };
+              console.log(`✅ Found active analysis: ${id}`);
               break;
             }
           }
         }
 
+        // Also check completed analyses
+        let completedAnalysis = null;
+        if (!activeAnalysis && this.server?.analysisResults) {
+          for (const [id, result] of this.server.analysisResults.entries()) {
+            const resultPath = result.directory || result.path || "";
+            const normalizedResultPath = this.server.normalizePath
+              ? this.server.normalizePath(resultPath)
+              : resultPath;
+
+            if (normalizedResultPath === normalizedPath) {
+              completedAnalysis = {
+                id,
+                status: "complete",
+                directoryPath: resultPath,
+                completedAt: result.completedAt || Date.now(),
+                result: result,
+              };
+              console.log(`✅ Found completed analysis: ${id}`);
+              break;
+            }
+          }
+        }
+
+        // Return the found analysis
         if (activeAnalysis) {
           res.json({
             success: true,
             analysis: activeAnalysis,
+            type: "active",
+          });
+        } else if (completedAnalysis) {
+          res.json({
+            success: true,
+            analysis: completedAnalysis,
+            type: "completed",
           });
         } else {
+          console.log(`ℹ️ No analysis found for path: ${normalizedPath}`);
           res.json({
             success: true,
             analysis: null,
+            message: `No analysis found for path: ${normalizedPath}`,
           });
         }
       } catch (error) {
-        console.error("Error fetching current analysis:", error);
+        console.error("❌ Get current analysis error:", error);
         res.status(500).json({
           success: false,
-          error: "Failed to fetch current analysis",
+          error: error.message || "Failed to get current analysis",
         });
       }
     });
@@ -73,10 +131,12 @@ class AnalysisRoutes {
         }
 
         // Normalize and validate path
-        directoryPath = this.server.normalizePath(directoryPath);
+        directoryPath = this.server.normalizePath
+          ? this.server.normalizePath(directoryPath)
+          : directoryPath;
         console.log(`📂 Analyzing directory: ${directoryPath}`);
 
-        if (!this.server.isValidPath(directoryPath)) {
+        if (this.server.isValidPath && !this.server.isValidPath(directoryPath)) {
           return res.status(400).json({
             success: false,
             error: "Invalid directory path or path does not exist",
@@ -84,15 +144,17 @@ class AnalysisRoutes {
         }
 
         // Check if analysis is already running for this path
-        for (const [id, analysis] of this.server.activeAnalyses.entries()) {
-          if (analysis.directoryPath === directoryPath && analysis.status === "running") {
-            return res.json({
-              success: true,
-              analysisId: id,
-              status: "running",
-              message: "Analysis already in progress for this directory",
-              existing: true,
-            });
+        if (this.server?.activeAnalyses) {
+          for (const [id, analysis] of this.server.activeAnalyses.entries()) {
+            if (analysis.directoryPath === directoryPath && analysis.status === "running") {
+              return res.json({
+                success: true,
+                analysisId: id,
+                status: "running",
+                message: "Analysis already in progress for this directory",
+                existing: true,
+              });
+            }
           }
         }
 
@@ -118,17 +180,27 @@ class AnalysisRoutes {
           error: null,
         };
 
-        this.server.activeAnalyses.set(analysisId, analysisState);
-        console.log(`📊 Stored initial analysis state for ${analysisId}`);
+        if (this.server?.activeAnalyses) {
+          this.server.activeAnalyses.set(analysisId, analysisState);
+          console.log(`📊 Stored initial analysis state for ${analysisId}`);
+        } else {
+          console.error("❌ activeAnalyses not available on server");
+          return res.status(500).json({
+            success: false,
+            error: "Server analysis storage not available",
+          });
+        }
 
         // Start analysis process asynchronously
         this.runAnalysis(analysisId, directoryPath, options).catch((error) => {
           console.error(`❌ Analysis failed to start for ${analysisId}:`, error);
-          const analysis = this.server.activeAnalyses.get(analysisId);
-          if (analysis) {
-            analysis.status = "error";
-            analysis.error = error.message;
-            this.server.activeAnalyses.set(analysisId, analysis);
+          if (this.server?.activeAnalyses) {
+            const analysis = this.server.activeAnalyses.get(analysisId);
+            if (analysis) {
+              analysis.status = "error";
+              analysis.error = error.message;
+              this.server.activeAnalyses.set(analysisId, analysis);
+            }
           }
         });
 
@@ -160,6 +232,14 @@ class AnalysisRoutes {
           return res.status(400).json({
             success: false,
             error: "Valid analysis ID is required",
+          });
+        }
+
+        // Check if activeAnalyses is available
+        if (!this.server?.activeAnalyses) {
+          return res.status(500).json({
+            success: false,
+            error: "Analysis tracking not available",
           });
         }
 
@@ -216,6 +296,14 @@ class AnalysisRoutes {
           return res.status(400).json({
             success: false,
             error: "Valid analysis ID is required",
+          });
+        }
+
+        // Check if activeAnalyses is available
+        if (!this.server?.activeAnalyses) {
+          return res.status(500).json({
+            success: false,
+            error: "Analysis tracking not available",
           });
         }
 
@@ -334,14 +422,22 @@ class AnalysisRoutes {
         }
 
         console.log(`📊 Fetching results for analysis ID: ${analysisId}`);
-        console.log(
-          `🔍 Available analysis results:`,
-          Array.from(this.server.analysisResults.keys())
-        );
-        console.log(`🔍 Available active analyses:`, Array.from(this.server.activeAnalyses.keys()));
+
+        // Check if analysisResults is available
+        if (this.server?.analysisResults) {
+          console.log(
+            `🔍 Available analysis results:`,
+            Array.from(this.server.analysisResults.keys())
+          );
+        }
+
+        // Check if activeAnalyses is available
+        if (this.server?.activeAnalyses) {
+          console.log(`🔍 Available active analyses:`, Array.from(this.server.activeAnalyses.keys()));
+        }
 
         // First check completed results in memory
-        let result = this.server.analysisResults.get(analysisId);
+        let result = this.server?.analysisResults?.get(analysisId);
         if (result) {
           console.log(`✅ Found completed results in memory for ${analysisId}`);
           return res.json({
@@ -350,24 +446,23 @@ class AnalysisRoutes {
             status: "complete",
             data: result,
             completedAt: result.completedAt,
-            directory: result.directory,
-            totalFiles: result.total_files,
-            totalSize: result.total_size,
-            ...result,
           });
         }
 
         // Then check active analyses
-        const active = this.server.activeAnalyses.get(analysisId);
+        const active = this.server?.activeAnalyses?.get(analysisId);
         if (active) {
           console.log(`⏳ Analysis ${analysisId} still active, status: ${active.status}`);
 
           // Include estimated time remaining for active analyses
           let estimatedTimeRemaining = null;
-          if (active.progress > 0 && active.progress < 100 && active.startTime) {
+          if (active.startTime && active.status === "running") {
             const elapsed = Date.now() - active.startTime;
-            const estimatedTotal = (elapsed / active.progress) * 100;
-            estimatedTimeRemaining = Math.max(0, estimatedTotal - elapsed);
+            // Rough estimate based on current progress
+            if (active.progress > 0) {
+              const totalTime = (elapsed / active.progress) * 100;
+              estimatedTimeRemaining = Math.max(0, totalTime - elapsed);
+            }
           }
 
           return res.json({
@@ -377,11 +472,9 @@ class AnalysisRoutes {
             progress: active.progress || 0,
             currentFile: active.currentFile || "",
             filesScanned: active.filesScanned || 0,
+            bytesScanned: active.bytesScanned || 0,
             startTime: active.startTime,
             estimatedTimeRemaining,
-            directoryPath: active.directoryPath,
-            message: `Analysis ${active.status}`,
-            data: null,
           });
         }
 
@@ -415,20 +508,18 @@ class AnalysisRoutes {
         return res.status(404).json({
           success: false,
           error: "Analysis not found in memory or database",
-          id: analysisId,
-          suggestions: [
-            "Check if the analysis ID is correct",
-            "Verify the analysis has completed",
-            "Try running a new analysis",
-          ],
+          analysisId,
+          availableResults: this.server?.analysisResults ?
+            Array.from(this.server.analysisResults.keys()) : [],
+          activeAnalyses: this.server?.activeAnalyses ?
+            Array.from(this.server.activeAnalyses.keys()) : [],
         });
       } catch (error) {
-        console.error("❌ Get results by ID error:", error);
+        console.error("❌ Results endpoint error:", error);
         res.status(500).json({
           success: false,
-          error: error.message || "Failed to fetch results",
-          id: req.params.id,
-          timestamp: Date.now(),
+          error: error.message || "Failed to fetch analysis results",
+          analysisId: req.params.id,
         });
       }
     });
@@ -438,28 +529,572 @@ class AnalysisRoutes {
       try {
         const directoryPath = req.query.path;
         if (!directoryPath) {
-          return res.status(400).json({ error: "Path parameter is required" });
+          return res.status(400).json({
+            success: false,
+            error: "Directory path is required",
+          });
         }
+
+        console.log(`🔍 Looking for analysis results for path: ${directoryPath}`);
 
         // Try to find analysis by directory path
         let result = null;
-        for (const [id, data] of this.server.analysisResults) {
-          if (data.directory === directoryPath || data.directoryPath === directoryPath) {
-            result = { id, ...data };
-            break;
+        if (this.server?.analysisResults) {
+          for (const [id, data] of this.server.analysisResults) {
+            if (data.directory === directoryPath || data.directoryPath === directoryPath) {
+              result = { id, ...data };
+              break;
+            }
           }
         }
 
+        if (result) {
+          return res.json({
+            success: true,
+            analysisId: result.id,
+            status: "complete",
+            data: result,
+            completedAt: result.completedAt,
+          });
+        } else {
+          return res.status(404).json({
+            success: false,
+            error: "No analysis found for this directory path",
+            path: directoryPath,
+          });
+        }
+      } catch (error) {
+        console.error("❌ Get results by path error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message || "Failed to fetch analysis results",
+        });
+      }
+    });
+
+    // Cancel analysis
+    this.router.post("/cancel", async (req, res) => {
+      try {
+        const { analysisId } = req.body;
+
+        console.log(`🛑 Cancel request received for analysis: ${analysisId}`);
+
+        // If no ID provided, cancel all active scans
+        if (!analysisId) {
+          if (this.server?.activeAnalyses) {
+            // Cancel all active scans
+            for (const [id, analysis] of this.server.activeAnalyses) {
+              if (analysis.process) {
+                analysis.process.kill();
+                console.log(`🛑 Killed scanner process for analysis ${id}`);
+              }
+            }
+            this.server.activeAnalyses.clear();
+            return res.json({ success: true, message: "All analyses cancelled" });
+          } else {
+            return res.status(500).json({
+              success: false,
+              error: "Unable to cancel analyses - server not available",
+            });
+          }
+        }
+
+        // Cancel specific analysis
+        if (this.server?.activeAnalyses) {
+          const analysis = this.server.activeAnalyses.get(analysisId);
+          if (analysis) {
+            if (analysis.process) {
+              analysis.process.kill();
+              console.log(`🛑 Killed scanner process for analysis ${analysisId}`);
+            }
+            this.server.activeAnalyses.delete(analysisId);
+            return res.json({ success: true, message: `Analysis ${analysisId} cancelled` });
+          }
+        }
+
+        res.status(404).json({ error: "Analysis not found or already completed" });
+      } catch (error) {
+        console.error("❌ Cancel analysis error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get analysis files with pagination and filtering
+    this.router.get("/analysis/:analysisId/files", async (req, res) => {
+      const { analysisId } = req.params;
+      const {
+        page = 1,
+        limit = 100,
+        sortBy = "size",
+        sortOrder = "desc",
+        category,
+        extension,
+        search,
+      } = req.query;
+
+      try {
+        // Validate analysis ID
+        if (!analysisId || typeof analysisId !== "string") {
+          return res.status(400).json({
+            success: false,
+            error: "Valid analysis ID is required",
+          });
+        }
+
+        // Parse pagination parameters
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 100;
+        const offset = (pageNum - 1) * limitNum;
+
+        // Get analysis result
+        const result = this.server?.analysisResults?.get(analysisId);
+        if (!result || !result.files) {
+          return res.status(404).json({
+            success: false,
+            error: "Analysis not found or has no file data"
+          });
+        }
+
+        let files = [...result.files];
+
+        // Apply filters
+        if (category) {
+          files = files.filter(file => file.category === category);
+        }
+
+        if (extension) {
+          files = files.filter(file => file.extension === extension);
+        }
+
+        if (search) {
+          const searchLower = search.toLowerCase();
+          files = files.filter(file =>
+            file.name.toLowerCase().includes(searchLower) ||
+            file.path.toLowerCase().includes(searchLower)
+          );
+        }
+
+        // Apply sorting
+        files.sort((a, b) => {
+          let aValue, bValue;
+
+          switch (sortBy) {
+            case "name":
+              aValue = a.name.toLowerCase();
+              bValue = b.name.toLowerCase();
+              break;
+            case "size":
+              aValue = a.size.bytes || 0;
+              bValue = b.size.bytes || 0;
+              break;
+            case "extension":
+              aValue = a.extension.toLowerCase();
+              bValue = b.extension.toLowerCase();
+              break;
+            case "category":
+              aValue = a.category.toLowerCase();
+              bValue = b.category.toLowerCase();
+              break;
+            default:
+              aValue = a.size.bytes || 0;
+              bValue = b.size.bytes || 0;
+          }
+
+          if (sortOrder === "asc") {
+            return aValue > bValue ? 1 : -1;
+          } else {
+            return aValue < bValue ? 1 : -1;
+          }
+        });
+
+        // Apply pagination
+        const paginatedFiles = files.slice(offset, offset + limitNum);
+        const totalPages = Math.ceil(files.length / limitNum);
+
+        res.json({
+          success: true,
+          files: paginatedFiles,
+          pagination: {
+            page: pageNum,
+            limit: limitNum,
+            total: files.length,
+            totalPages,
+            hasNext: pageNum < totalPages,
+            hasPrev: pageNum > 1,
+          },
+          filters: {
+            category,
+            extension,
+            search,
+            sortBy,
+            sortOrder,
+          },
+        });
+      } catch (error) {
+        console.error("❌ Get analysis files error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message || "Failed to fetch analysis files",
+        });
+      }
+    });
+
+    // Get analysis statistics
+    this.router.get("/analysis/:analysisId/stats", async (req, res) => {
+      const { analysisId } = req.params;
+
+      try {
+        // Validate analysis ID
+        if (!analysisId || typeof analysisId !== "string") {
+          return res.status(400).json({
+            success: false,
+            error: "Valid analysis ID is required",
+          });
+        }
+
+        const result = this.server?.analysisResults?.get(analysisId);
+
         if (!result) {
-          return res.status(404).json({ error: "No analysis results found for this path" });
+          return res.status(404).json({
+            success: false,
+            error: "Analysis not found"
+          });
+        }
+
+        // Calculate statistics
+        const stats = {
+          totalFiles: result.files?.length || 0,
+          totalSize: result.totalSize || 0,
+          categories: {},
+          extensions: {},
+          largestFiles: [],
+          duplicates: {
+            count: result.duplicateCount || 0,
+            size: result.duplicateSize || 0,
+          },
+          hardLinks: {
+            count: result.hardLinkCount || 0,
+            savings: result.hardLinkSavings || 0,
+          },
+        };
+
+        // Calculate category and extension stats
+        if (result.files) {
+          result.files.forEach(file => {
+            // Category stats
+            const category = file.category || 'Unknown';
+            stats.categories[category] = (stats.categories[category] || 0) + 1;
+
+            // Extension stats
+            const ext = file.extension || 'No extension';
+            if (!stats.extensions[ext]) {
+              stats.extensions[ext] = { count: 0, size: 0 };
+            }
+            stats.extensions[ext].count++;
+            stats.extensions[ext].size += file.size?.bytes || 0;
+          });
+
+          // Get largest files
+          stats.largestFiles = result.files
+            .sort((a, b) => (b.size?.bytes || 0) - (a.size?.bytes || 0))
+            .slice(0, 10)
+            .map(file => ({
+              name: file.name,
+              path: file.path,
+              size: file.size,
+              category: file.category,
+            }));
         }
 
         res.json({
           success: true,
-          ...result,
+          analysisId,
+          stats,
         });
       } catch (error) {
-        console.error("Get results error:", error);
+        console.error("❌ Get analysis stats error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message || "Failed to fetch analysis statistics",
+        });
+      }
+    });
+
+    // Health check endpoint
+    this.router.get("/health", async (req, res) => {
+      try {
+        const os = require("os");
+        const dynamicConfig = require("../config/dynamic-config");
+
+        const systemInfo = {
+          platform: os.platform(),
+          arch: os.arch(),
+          uptime: os.uptime(),
+          memory: {
+            total: os.totalmem(),
+            free: os.freemem(),
+            used: os.totalmem() - os.freemem(),
+          },
+          cpu: {
+            model: os.cpus()[0]?.model || "Unknown",
+            cores: os.cpus().length,
+          },
+        };
+
+        const analysisInfo = {
+          active: this.server?.activeAnalyses?.size || 0,
+          completed: this.server?.analysisResults?.size || 0,
+          availableResults: this.server?.analysisResults ?
+            Array.from(this.server.analysisResults.keys()) : [],
+        };
+
+        const dbInfo = {
+          connected: !!(this.server?.knowledgeDB?.db),
+          initialized: !!this.server?.dbInitializationPromise,
+        };
+
+        res.json({
+          success: true,
+          status: "healthy",
+          timestamp: new Date().toISOString(),
+          system: systemInfo,
+          analysis: analysisInfo,
+          database: dbInfo,
+          config: {
+            maxFiles: dynamicConfig?.maxFiles || 100000,
+            timeout: dynamicConfig?.timeout || 120000,
+          },
+        });
+      } catch (error) {
+        console.error("❌ Health check error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message || "Health check failed",
+        });
+      }
+    });
+
+    // Setup code quality analysis routes
+    this.setupCodeQualityRoutes();
+  }
+
+  /**
+   * Run analysis with enhanced error handling and progress tracking
+   */
+  async runAnalysis(analysisId, directoryPath, options = {}) {
+    console.log(`🚀 Starting analysis run for ${analysisId} in ${directoryPath}`);
+
+    try {
+      // Update analysis state
+      if (this.server?.activeAnalyses) {
+        const analysis = this.server.activeAnalyses.get(analysisId);
+        if (analysis) {
+          analysis.status = "running";
+          analysis.startTime = Date.now();
+          this.server.activeAnalyses.set(analysisId, analysis);
+        }
+      }
+
+      // Check for cached results first
+      if (this.server?.knowledgeDB?.db) {
+        try {
+          const cachedResult = await this.server.knowledgeDB.getAnalysisByPath(directoryPath);
+          if (cachedResult && !options.forceRescan) {
+            console.log(`♻️ Found cached analysis for unchanged directory: ${directoryPath}`);
+
+            // Store cached result
+            if (this.server?.analysisResults) {
+              this.server.analysisResults.set(analysisId, cachedResult);
+            }
+
+            // Update analysis status
+            if (this.server?.activeAnalyses) {
+              const analysis = this.server.activeAnalyses.get(analysisId);
+              if (analysis) {
+                analysis.status = "complete";
+                analysis.progress = 100;
+                analysis.filesScanned = cachedResult.total_files || cachedResult.totalFiles || 0;
+                analysis.bytesScanned = cachedResult.total_size || cachedResult.totalSize || 0;
+                analysis.currentFile = "";
+                analysis.cacheHit = true;
+                analysis.endTime = Date.now();
+                analysis.statusMessage = "Reused unchanged historical scan";
+                this.server.activeAnalyses.set(analysisId, analysis);
+              }
+            }
+
+            console.log(`📊 Analysis ${analysisId} completed from cache`);
+            return;
+          }
+        } catch (cacheError) {
+          console.warn("⚠️ Cache check failed, proceeding with fresh scan:", cacheError);
+        }
+      }
+
+      // Run fresh scan
+      await this.runFreshScan(analysisId, directoryPath, options);
+
+    } catch (error) {
+      console.error(`❌ Analysis failed for ${analysisId}:`, error);
+
+      // Update analysis state with error
+      if (this.server?.activeAnalyses) {
+        const analysis = this.server.activeAnalyses.get(analysisId);
+        if (analysis) {
+          analysis.status = "error";
+          analysis.error = error.message;
+          analysis.endTime = Date.now();
+          this.server.activeAnalyses.set(analysisId, analysis);
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Run fresh scan with native binary
+   */
+  async runFreshScan(analysisId, directoryPath, options = {}) {
+    console.log(`🔍 Starting fresh scan for ${analysisId}`);
+
+    return new Promise((resolve, reject) => {
+      const scannerPath = path.join(__dirname, "..", "native", "scanner", "target", "release", "space_scanner.exe");
+
+      if (!fs.existsSync(scannerPath)) {
+        reject(new Error(`Scanner binary not found at ${scannerPath}`));
+        return;
+      }
+
+      const args = [
+        directoryPath,
+        "--json",
+        "--max-files", (options.maxFiles || 100000).toString(),
+        "--include-hidden", options.includeHidden ? "true" : "false",
+        "--follow-symlinks", options.followSymlinks ? "true" : "false",
+      ];
+
+      console.log(`🔧 Running scanner: ${scannerPath} ${args.join(" ")}`);
+
+      const scanner = spawn(scannerPath, args, {
+        stdio: ["pipe", "pipe", "pipe"],
+        cwd: path.dirname(scannerPath),
+      });
+
+      // Store process reference for cancellation
+      if (this.server?.activeAnalyses) {
+        const analysis = this.server.activeAnalyses.get(analysisId);
+        if (analysis) {
+          analysis.process = scanner;
+          this.server.activeAnalyses.set(analysisId, analysis);
+        }
+      }
+
+      let output = "";
+      let errorOutput = "";
+
+      scanner.stdout.on("data", (data) => {
+        const chunk = data.toString();
+        output += chunk;
+
+        // Try to parse progress updates
+        try {
+          const lines = chunk.split("\n").filter(line => line.trim());
+          lines.forEach(line => {
+            if (line.startsWith("{") && line.endsWith("}")) {
+              const progress = JSON.parse(line);
+              this.updateProgress(analysisId, progress);
+            }
+          });
+        } catch (parseError) {
+          // Ignore parse errors for non-JSON output
+        }
+      });
+
+      scanner.stderr.on("data", (data) => {
+        errorOutput += data.toString();
+        console.warn(`⚠️ Scanner stderr: ${data.toString()}`);
+      });
+
+      scanner.on("close", (code) => {
+        console.log(`🔚 Scanner process finished with code: ${code}`);
+
+        if (code === 0) {
+          try {
+            const result = JSON.parse(output);
+            this.handleScanComplete(analysisId, result);
+            resolve(result);
+          } catch (parseError) {
+            console.error("❌ Failed to parse scanner output:", parseError);
+            reject(new Error("Failed to parse scanner output"));
+          }
+        } else {
+          const error = new Error(`Scanner failed with code ${code}: ${errorOutput}`);
+          reject(error);
+        }
+      });
+
+      scanner.on("error", (error) => {
+        console.error("❌ Scanner process error:", error);
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * Update analysis progress
+   */
+  updateProgress(analysisId, progress) {
+    if (!this.server?.activeAnalyses) return;
+
+    const analysis = this.server.activeAnalyses.get(analysisId);
+    if (analysis) {
+      analysis.progress = progress.percentage || progress.progress || 0;
+      analysis.filesScanned = progress.files || progress.filesScanned || 0;
+      analysis.bytesScanned = progress.totalSize || progress.bytesScanned || 0;
+      analysis.currentFile = progress.currentFile || "";
+      this.server.activeAnalyses.set(analysisId, analysis);
+    }
+  }
+
+  /**
+   * Handle scan completion
+   */
+  handleScanComplete(analysisId, result) {
+    console.log(`✅ Scan completed for ${analysisId}`);
+
+    // Store result
+    if (this.server?.analysisResults) {
+      this.server.analysisResults.set(analysisId, {
+        ...result,
+        completedAt: Date.now(),
+        directoryPath: result.directory || result.path,
+      });
+    }
+
+    // Update analysis state
+    if (this.server?.activeAnalyses) {
+      const analysis = this.server.activeAnalyses.get(analysisId);
+      if (analysis) {
+        analysis.status = "complete";
+        analysis.progress = 100;
+        analysis.endTime = Date.now();
+        this.server.activeAnalyses.set(analysisId, analysis);
+
+        // Schedule cleanup of completed analysis after 5 minutes
+        setTimeout(() => {
+          const analysis = this.server.activeAnalyses.get(analysisId);
+          if (analysis && analysis.status === "complete") {
+            console.log(`🧹 Cleaning up completed analysis ${analysisId} from activeAnalyses`);
+            this.server.activeAnalyses.delete(analysisId);
+          }
+        }, 5 * 60 * 1000); // 5 minutes
+      }
+    }
+  }
+}
+
+module.exports = AnalysisRoutes;
         res.status(500).json({ error: error.message });
       }
     });
@@ -495,37 +1130,6 @@ class AnalysisRoutes {
         res.status(404).json({ error: "Analysis not found or already completed" });
       } catch (error) {
         console.error("Cancel analysis error:", error);
-        res.status(500).json({ error: error.message });
-      }
-    });
-
-    // Get current analysis by path from database
-    this.router.get("/analysis/current", async (req, res) => {
-      let { path: directoryPath } = req.query;
-      directoryPath = this.server.normalizePath(directoryPath);
-
-      if (!directoryPath) {
-        return res.status(400).json({ error: "Path parameter is required" });
-      }
-
-      try {
-        const analysis = await this.server.knowledgeDB.getCurrentAnalysis(directoryPath);
-
-        if (!analysis) {
-          return res.status(404).json({
-            error: "No analysis found for this path",
-            path: directoryPath,
-          });
-        }
-
-        res.json({
-          success: true,
-          data: analysis.analysis_data,
-          source: "database",
-          lastAnalyzed: analysis.last_analyzed,
-        });
-      } catch (error) {
-        console.error("Get current analysis error:", error);
         res.status(500).json({ error: error.message });
       }
     });
@@ -946,7 +1550,25 @@ class AnalysisRoutes {
             analysis.statusMessage = "Reused unchanged historical scan";
             this.server.activeAnalyses.set(analysisId, analysis);
             console.log(`♻️ Reused cached analysis for unchanged directory: ${normalizedPath}`);
-            return;
+            console.log(
+              `📊 Analysis ${analysisId} completed and stored in both activeAnalyses and analysisResults`
+            );
+            // Don't return here - let the analysis remain in activeAnalyses for progress polling
+            // return;
+
+            // Schedule cleanup of completed analysis after 5 minutes
+            setTimeout(
+              () => {
+                const analysis = this.server.activeAnalyses.get(analysisId);
+                if (analysis && analysis.status === "complete") {
+                  console.log(
+                    `🧹 Cleaning up completed analysis ${analysisId} from activeAnalyses`
+                  );
+                  this.server.activeAnalyses.delete(analysisId);
+                }
+              },
+              5 * 60 * 1000
+            ); // 5 minutes
           }
         } catch (cacheError) {
           console.warn(`⚠️ Cache check failed, running fresh scan: ${cacheError.message}`);
@@ -1139,6 +1761,18 @@ class AnalysisRoutes {
 
           console.log(`✅ Analysis status updated to complete for ${analysisId}`);
 
+          // Schedule cleanup of completed analysis after 5 minutes
+          setTimeout(
+            () => {
+              const analysis = this.server.activeAnalyses.get(analysisId);
+              if (analysis && analysis.status === "complete") {
+                console.log(`🧹 Cleaning up completed analysis ${analysisId} from activeAnalyses`);
+                this.server.activeAnalyses.delete(analysisId);
+              }
+            },
+            5 * 60 * 1000
+          ); // 5 minutes
+
           // Store in database
           const normalizedPath = this.server.normalizePath(directoryPath);
           console.log(`💾 Storing analysis results in database for: ${normalizedPath}`);
@@ -1177,6 +1811,112 @@ class AnalysisRoutes {
       analysis.error = error.message;
       this.server.activeAnalyses.set(analysisId, analysis);
     }
+  }
+
+  // ==================== CODE QUALITY ANALYSIS ENDPOINTS ====================
+
+  /**
+   * POST /analysis/code-quality
+   * Run comprehensive code quality analysis on a project
+   */
+  setupCodeQualityRoutes() {
+    // Analyze entire project
+    this.router.post("/analysis/code-quality", async (req, res) => {
+      try {
+        const { projectPath } = req.body;
+
+        if (!projectPath) {
+          return res.status(400).json({
+            success: false,
+            error: "projectPath is required",
+          });
+        }
+
+        // Validate path
+        if (!this.server.isValidPath || this.server.isValidPath(projectPath)) {
+          const results = await this.analysisController.analyzeCodeQuality(projectPath);
+          res.json(results);
+        } else {
+          res.status(400).json({
+            success: false,
+            error: "Invalid project path",
+          });
+        }
+      } catch (error) {
+        console.error("Code quality analysis error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    // Analyze single file
+    this.router.get("/analysis/file", async (req, res) => {
+      try {
+        const { path: filePath } = req.query;
+
+        if (!filePath) {
+          return res.status(400).json({
+            success: false,
+            error: "path query parameter is required",
+          });
+        }
+
+        const results = await this.analysisController.analyzeSingleFile(filePath);
+        res.json(results);
+      } catch (error) {
+        console.error("Single file analysis error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    // Get available analysis tools status
+    this.router.get("/analysis/tools-status", async (req, res) => {
+      try {
+        const status = await this.analysisController.getToolStatus();
+        res.json(status);
+      } catch (error) {
+        console.error("Tools status error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    // Install analysis tools (returns install commands)
+    this.router.post("/analysis/install-tools", async (req, res) => {
+      try {
+        const { tools } = req.body || {};
+
+        // Return installation commands
+        const installCommands = {
+          eslint: "npm install --save-dev eslint",
+          typescript: "npm install --save-dev typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin",
+          security: "npm install --save-dev eslint-plugin-security",
+          sonarjs: "npm install --save-dev eslint-plugin-sonarjs",
+          complexity: "npm install --save-dev complexity-report",
+        };
+
+        res.json({
+          success: true,
+          message: "Run these commands in your project directory to install tools",
+          commands: tools ? tools.map((t) => installCommands[t]).filter(Boolean) : Object.values(installCommands),
+          allTools: installCommands,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    console.log("  ✅ Code quality analysis routes added");
   }
 
   getRouter() {
