@@ -356,7 +356,7 @@ class SpaceAnalyzerServer {
     });
 
     // Catch-all for undefined /api/* routes
-    this.app.all("/api/*", (req, res) => {
+    this.app.use("/api", (req, res) => {
       res.status(404).json({
         success: false,
         error: "API endpoint not found",
@@ -375,7 +375,7 @@ class SpaceAnalyzerServer {
     }
 
     // Serve frontend (catch-all for non-API routes - SPA fallback)
-    this.app.get("*", (req, res) => {
+    this.app.get("/{*path}", (req, res) => {
       // Skip API routes
       if (req.path.startsWith("/api/")) {
         return res.status(404).json({
@@ -444,7 +444,7 @@ class SpaceAnalyzerServer {
     });
 
     // CORS preflight handler for all API routes
-    this.app.options("/api/*", (req, res) => {
+    this.app.options("/api/{*path}", (req, res) => {
       res.header("Access-Control-Allow-Origin", "*");
       res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
       res.header(
