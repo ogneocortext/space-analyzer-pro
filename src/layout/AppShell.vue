@@ -25,6 +25,7 @@ import {
   BarChart,
   TestTube,
   Globe,
+  AlertTriangle,
   type LucideIcon,
 } from "lucide-vue-next";
 import type { RouteLocationNormalized } from "vue-router";
@@ -54,12 +55,14 @@ const iconMap: Record<string, LucideIcon> = {
   BarChart,
   TestTube,
   Globe,
+  AlertTriangle,
 };
 
 const navigation = [
   { name: "Dashboard", path: "/", icon: "LayoutDashboard" },
   { name: "Files", path: "/browser", icon: "FolderOpen" },
   { name: "Scan", path: "/scan", icon: "Scan" },
+  { name: "Scan History", path: "/scan-history", icon: "Clock" },
 ];
 
 const analysisNav = [
@@ -90,6 +93,7 @@ const visualizationNav = [{ name: "Timeline", path: "/timeline", icon: "Clock" }
 const systemNav = [
   { name: "System Monitor", path: "/system", icon: "Activity" },
   { name: "Settings", path: "/settings", icon: "Settings" },
+  { name: "Error Logs", path: "/admin/errors", icon: "AlertTriangle" },
 ];
 
 function toggleSidebar() {

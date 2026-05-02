@@ -150,6 +150,15 @@ function formatSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 }
 
+function getOwnerShortName(owner: string): string {
+  if (!owner) return "";
+  // Extract username from DOMAIN\username format
+  const parts = owner.split("\\");
+  const username = parts[parts.length - 1];
+  // Return first 8 characters to keep it short
+  return username.length > 8 ? username.substring(0, 8) : username;
+}
+
 // AI Summary Function
 async function getAISummary(file: FileItem) {
   summaryLoading.value = true;
@@ -414,6 +423,12 @@ async function deleteFile(filePath: string) {
               {{ file.path }}
             </p>
             <div class="flex gap-1 mt-1 flex-wrap">
+              <span
+                v-if="file.owner"
+                class="px-1.5 py-0.5 bg-green-500/20 text-green-300 rounded text-xs"
+                :title="file.owner"
+                >{{ getOwnerShortName(file.owner) }}</span
+              >
               <span
                 v-if="file.is_hard_link"
                 class="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded text-xs"

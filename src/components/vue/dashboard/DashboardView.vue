@@ -108,11 +108,85 @@
             <span class="text-slate-400 text-sm">Analysis Time</span>
           </div>
           <div class="text-3xl font-bold text-white">
-            {{ analysisStore.data.analysisTime || "N/A" }}
+            {{ formatAnalysisTime(analysisStore.data.analysis_time_ms) }}
           </div>
           <div class="text-xs text-slate-500 mt-1">Click for info</div>
         </div>
       </div>
+
+      <!-- Enhanced File Attributes Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div
+          class="bg-slate-800/50 rounded-xl p-6 border border-slate-700 cursor-pointer hover:border-cyan-500 hover:bg-slate-700/50 transition-all"
+          @click="showEnhancedFileDetails = true"
+        >
+          <div class="flex items-center gap-3 mb-2">
+            <File class="text-blue-400" :size="24" aria-hidden="true" />
+            <span class="text-slate-400 text-sm">File Attributes</span>
+          </div>
+          <div class="text-3xl font-bold text-white">
+            {{ getFileAttributesCount() }}
+          </div>
+          <div class="text-xs text-slate-500 mt-1">Click for details</div>
+        </div>
+
+        <div
+          class="bg-slate-800/50 rounded-xl p-6 border border-slate-700 cursor-pointer hover:border-emerald-500 hover:bg-slate-700/50 transition-all"
+          @click="showEnhancedFileDetails = true"
+        >
+          <div class="flex items-center gap-3 mb-2">
+            <HardDrive class="text-emerald-400" :size="24" aria-hidden="true" />
+            <span class="text-slate-400 text-sm">Compressed Files</span>
+          </div>
+          <div class="text-3xl font-bold text-white">
+            {{ getCompressedFilesCount() }}
+          </div>
+          <div class="text-xs text-slate-500 mt-1">{{ getCompressedSizeSavings() }}</div>
+        </div>
+
+        <div
+          class="bg-slate-800/50 rounded-xl p-6 border border-slate-700 cursor-pointer hover:border-amber-500 hover:bg-slate-700/50 transition-all"
+          @click="showEnhancedFileDetails = true"
+        >
+          <div class="flex items-center gap-3 mb-2">
+            <FolderTree class="text-amber-400" :size="24" aria-hidden="true" />
+            <span class="text-slate-400 text-sm">Hard Links</span>
+          </div>
+          <div class="text-3xl font-bold text-white">
+            {{ analysisStore.data.hard_link_count || 0 }}
+          </div>
+          <div class="text-xs text-slate-500 mt-1">
+            {{ formatBytes(analysisStore.data.hard_link_savings || 0) }}
+          </div>
+        </div>
+
+        <div
+          class="bg-slate-800/50 rounded-xl p-6 border border-slate-700 cursor-pointer hover:border-purple-500 hover:bg-slate-700/50 transition-all"
+          @click="showEnhancedFileDetails = true"
+        >
+          <div class="flex items-center gap-3 mb-2">
+            <File class="text-purple-400" :size="24" aria-hidden="true" />
+            <span class="text-slate-400 text-sm">Special Files</span>
+          </div>
+          <div class="text-3xl font-bold text-white">
+            {{ getSpecialFilesCount() }}
+          </div>
+          <div class="text-xs text-slate-500 mt-1">Sparse/Reparse/ADS</div>
+        </div>
+      </div>
+
+      <!-- File Attributes Visualization -->
+      <FileAttributesVisualization :files="analysisStore.data?.files || []" />
+
+      <!-- Timestamp Analysis -->
+      <TimestampAnalysis :files="analysisStore.data?.files || []" />
+
+      <!-- Hard Links Analysis -->
+      <HardLinksAnalysis
+        :files="analysisStore.data?.files || []"
+        :hard-link-count="analysisStore.data?.hard_link_count"
+        :hard-link-savings="analysisStore.data?.hard_link_savings"
+      />
 
       <!-- Storage Gauge -->
       <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
@@ -430,10 +504,66 @@
                   {{ analysisStore.data.dependencyGraph.edges?.length || 0 }} edges
                 </div>
               </div>
+
+              <!-- USN Journal Status -->
+              <div class="bg-slate-700/30 rounded-lg p-4">
+                <div class="text-slate-400 text-sm mb-1">USN Journal</div>
+                <div class="text-sm text-white">
+                  <div class="flex items-center gap-2 mb-1">
+                    <div
+                      class="w-2 h-2 rounded-full"
+                      :class="analysisStore.data.usn_journal_id ? 'bg-emerald-500' : 'bg-slate-500'"
+                    ></div>
+                    {{ analysisStore.data.usn_journal_id ? "Available" : "Not Used" }}
+                  </div>
+                  <div v-if="analysisStore.data.usn_journal_id" class="text-xs text-slate-400">
+                    Journal ID: {{ analysisStore.data.usn_journal_id }}
+                  </div>
+                  <div v-if="analysisStore.data.last_usn" class="text-xs text-slate-400">
+                    Last USN: {{ analysisStore.data.last_usn }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- MFT Scanning Status -->
+              <div class="bg-slate-700/30 rounded-lg p-4">
+                <div class="text-slate-400 text-sm mb-1">MFT Scanning</div>
+                <div class="text-sm text-white">
+                  <div class="flex items-center gap-2 mb-1">
+                    <div
+                      class="w-2 h-2 rounded-full"
+                      :class="analysisStore.data.mft_scanned ? 'bg-emerald-500' : 'bg-slate-500'"
+                    ></div>
+                    {{ analysisStore.data.mft_scanned ? "Enabled" : "Disabled" }}
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <div
+                      class="w-2 h-2 rounded-full"
+                      :class="
+                        analysisStore.data.hard_links_enumerated ? 'bg-emerald-500' : 'bg-slate-500'
+                      "
+                    ></div>
+                    {{
+                      analysisStore.data.hard_links_enumerated
+                        ? "Hard Links Enumerated"
+                        : "Hard Links Not Enumerated"
+                    }}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </Transition>
+
+      <!-- Enhanced File Details Modal -->
+      <EnhancedFileDetailsModal
+        :show="showEnhancedFileDetails"
+        :files="analysisStore.data?.files || []"
+        :selected-file="selectedFileForDetails"
+        @close="showEnhancedFileDetails = false"
+        @file-selected="selectedFileForDetails = $event"
+      />
     </div>
   </div>
 </template>
@@ -454,6 +584,10 @@ import {
   File,
 } from "lucide-vue-next";
 import StorageGauge from "../StorageGauge.vue";
+import EnhancedFileDetailsModal from "../analysis/EnhancedFileDetailsModal.vue";
+import FileAttributesVisualization from "../analysis/FileAttributesVisualization.vue";
+import TimestampAnalysis from "../analysis/TimestampAnalysis.vue";
+import HardLinksAnalysis from "../analysis/HardLinksAnalysis.vue";
 import { analysisStoreKey, getCategoryColorKey } from "../../../types/injection";
 
 interface CategoryData {
@@ -470,6 +604,8 @@ const selectedCategory = ref<string | null>(null);
 const showFileDetails = ref(false);
 const showSizeDetails = ref(false);
 const showAnalysisInfo = ref(false);
+const showEnhancedFileDetails = ref(false);
+const selectedFileForDetails = ref<any>(null);
 
 const navigateToBrowser = () => {
   router.push("/browser");
@@ -563,6 +699,50 @@ const formatBytes = (bytes: number) => {
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
+};
+
+const formatAnalysisTime = (ms: number | null | undefined): string => {
+  if (!ms || isNaN(ms)) return "N/A";
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${(ms / 60000).toFixed(1)}m`;
+};
+
+const getFileAttributesCount = (): number => {
+  if (!analysisStore.data?.files) return 0;
+  return analysisStore.data.files.filter(
+    (file: any) =>
+      file.is_compressed ||
+      file.is_sparse ||
+      file.is_reparse_point ||
+      file.has_ads ||
+      file.is_hard_link ||
+      file.file_hash
+  ).length;
+};
+
+const getCompressedFilesCount = (): number => {
+  if (!analysisStore.data?.files) return 0;
+  return analysisStore.data.files.filter((file: any) => file.is_compressed).length;
+};
+
+const getCompressedSizeSavings = (): string => {
+  if (!analysisStore.data?.files) return "0 B";
+  const compressedFiles = analysisStore.data.files.filter(
+    (file: any) => file.is_compressed && file.compressed_size && file.size
+  );
+  const totalSavings = compressedFiles.reduce(
+    (acc: number, file: any) => acc + (file.size - file.compressed_size),
+    0
+  );
+  return formatBytes(totalSavings);
+};
+
+const getSpecialFilesCount = (): number => {
+  if (!analysisStore.data?.files) return 0;
+  return analysisStore.data.files.filter(
+    (file: any) => file.is_sparse || file.is_reparse_point || file.has_ads
+  ).length;
 };
 </script>
 

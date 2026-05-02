@@ -52,11 +52,13 @@ export const useAnalysisStore = defineStore("analysis", () => {
     }
     // Also try to cancel via API
     if (isAnalysisRunning.value) {
-      const body = currentAnalysisId.value ? JSON.stringify({ analysisId: currentAnalysisId.value }) : "{}";
-      fetch(`${analysisBridge.baseUrl}/api/cancel`, { 
+      const body = currentAnalysisId.value
+        ? JSON.stringify({ analysisId: currentAnalysisId.value })
+        : "{}";
+      fetch(`${analysisBridge.baseUrl}/api/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body
+        body,
       }).catch(() => {
         // Ignore errors - backend might not support cancel
       });
@@ -75,6 +77,8 @@ export const useAnalysisStore = defineStore("analysis", () => {
 
   const handleAnalysis = async (enableAI: boolean = false) => {
     try {
+      console.log("🚀 handleAnalysis called with enableAI:", enableAI);
+      console.log("📂 Path to analyze:", path.value);
       log("ANALYSIS_START", "Starting analysis");
       status.value = "starting";
       isAnalysisRunning.value = true;
@@ -85,9 +89,16 @@ export const useAnalysisStore = defineStore("analysis", () => {
       recentlyScannedFiles.value = [];
       useAI.value = enableAI;
 
+      console.log("🔧 Store state set:", {
+        status: status.value,
+        isAnalysisRunning: isAnalysisRunning.value,
+        path: path.value,
+      });
+
       const { result, analysisId } = await analysisBridge.analyzeDirectoryWithProgress(
         path.value,
         (progressInfo) => {
+          console.log("📊 Progress callback received:", progressInfo);
           log("PROGRESS", progressInfo);
           progress.value = progressInfo.percentage;
           progressData.value = {
@@ -98,6 +109,8 @@ export const useAnalysisStore = defineStore("analysis", () => {
             totalSize: progressInfo.totalSize || 0,
           };
           status.value = "analyzing";
+
+          console.log("🔧 Updated progressData:", progressData.value);
 
           // Add current file to recently scanned files list
           if (
@@ -114,7 +127,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
         },
         { useOllama: enableAI }
       );
-      
+
       currentAnalysisId.value = analysisId;
 
       log("RESULT", result);
@@ -159,6 +172,30 @@ export const useAnalysisStore = defineStore("analysis", () => {
     } catch (err) {
       log("FETCH_DB_ERROR", err);
       return null;
+    }
+  };
+
+  // Get analysis history from backend
+  const getAnalysisHistory = async () => {
+    try {
+      log("FETCH_HISTORY", "Fetching analysis history from backend");
+      const response = await fetch("/api/analysis/history");
+      const data = await response.json();
+
+      if (data.success) {
+        log(
+          "FETCH_HISTORY_SUCCESS",
+          "Analysis history fetched successfully",
+          data.analyses?.length || 0
+        );
+        return data.analyses || [];
+      } else {
+        log("FETCH_HISTORY_ERROR", "Failed to fetch analysis history", data.error);
+        throw new Error(data.error || "Failed to fetch analysis history");
+      }
+    } catch (error) {
+      log("FETCH_HISTORY_ERROR", "Error fetching analysis history", error);
+      throw error;
     }
   };
 
@@ -210,5 +247,6 @@ export const useAnalysisStore = defineStore("analysis", () => {
     reset,
     initialize,
     fetchAnalysisFromDB,
+    getAnalysisHistory,
   };
 });

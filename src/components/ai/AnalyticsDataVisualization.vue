@@ -246,7 +246,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
-import { debounce } from "perfect-debounce";
+import { debounce } from "@/utils/performanceEnhancements";
 import { indexedDBPersistence } from "@/store/indexedDBPersistence";
 import { adaptiveLearningRate } from "@/store/adaptiveLearningRate";
 
@@ -341,7 +341,7 @@ const refreshVisualization = debounce(async () => {
   } finally {
     isLoading.value = false;
   }
-});
+}, 300);
 
 const loadVisualizationData = async () => {
   // Load pattern data

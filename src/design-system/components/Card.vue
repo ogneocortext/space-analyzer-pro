@@ -1,30 +1,30 @@
 <script setup lang="ts">
+import { computed } from "vue";
+
 interface Props {
-  title?: string
-  subtitle?: string
-  padding?: 'none' | 'sm' | 'md' | 'lg'
-  hover?: boolean
+  title?: string;
+  subtitle?: string;
+  padding?: "none" | "sm" | "md" | "lg";
+  hover?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  padding: 'md',
+  padding: "md",
   hover: false,
-})
+});
 
 const classes = computed(() => {
-  const base = 'bg-slate-900 border border-slate-800 rounded-lg'
+  const base = "bg-slate-900 border border-slate-800 rounded-lg";
   const padding = {
-    none: '',
-    sm: 'p-3',
-    md: 'p-4',
-    lg: 'p-6',
-  }
-  const hoverClass = props.hover ? 'hover:border-slate-700 transition-colors' : ''
-  
-  return `${base} ${padding[props.padding]} ${hoverClass}`
-})
+    none: "",
+    sm: "p-3",
+    md: "p-4",
+    lg: "p-6",
+  };
+  const hoverClass = props.hover ? "hover:border-slate-700 transition-colors" : "";
 
-import { computed } from 'vue'
+  return `${base} ${padding[props.padding]} ${hoverClass}`;
+});
 </script>
 
 <template>

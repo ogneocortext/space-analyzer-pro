@@ -116,8 +116,8 @@ export class AnalysisBridge {
         this.baseUrl = backendApiUrl;
         this.log("info", `🔗 AnalysisBridge initialized with env var baseUrl: ${this.baseUrl}`);
       } else if (typeof window !== "undefined") {
-        // Try multiple backend ports - backend runs on 8080, not Vite's port
-        const ports = [8080, 3000, 5000, 8000];
+        // Try multiple backend ports - backend runs on 8081, not Vite's port
+        const ports = [8081, 8080, 3000, 5000, 8000];
         const origin = window.location.origin;
         const isDev = origin.includes("localhost") || origin.includes("127.0.0.1");
 
@@ -899,6 +899,12 @@ export class AnalysisBridge {
 
     // Start the analysis using analyze endpoint
     console.warn("🚀 Sending analysis request...");
+    console.warn("📡 Request URL:", `${this.baseUrl}/api/analyze`);
+    console.warn("📡 Request body:", {
+      directoryPath: normalizedPath,
+      options: { ai: true, media: true, useOllama: options?.useOllama !== false },
+    });
+
     const analyzeResponse = await this.fetchWithRetry(
       `${this.baseUrl}/api/analyze`,
       {
@@ -914,6 +920,7 @@ export class AnalysisBridge {
     ); // 5 minute timeout, 5 retries for analysis
 
     console.warn("📡 Analysis request response status:", analyzeResponse.status);
+    console.warn("📡 Response headers:", Object.fromEntries(analyzeResponse.headers.entries()));
 
     if (!analyzeResponse.ok) {
       const error = await analyzeResponse.json();
@@ -1008,16 +1015,25 @@ export class AnalysisBridge {
               console.warn("✅ Progress callback called successfully");
             }
 
-            // Continue polling if not complete (reduced from 1s to 2s for better performance)
-            if (
-              progressData.progress &&
-              progressData.progress.status !== "complete" &&
-              pollAttempts < maxPollAttempts
-            ) {
+            // Continue polling if not complete
+            const progressInfo = progressData.progress || progressData;
+            const isComplete = progressInfo.status === "complete" || progressInfo.completed;
+
+            if (!isComplete && pollAttempts < maxPollAttempts) {
               console.warn("🔄 Scheduling next poll in 2 seconds...");
               setTimeout(pollProgress, 2000);
-            } else if (progressData.progress && progressData.progress.status === "complete") {
+            } else if (isComplete) {
               console.warn("✅ Analysis complete, stopping polling");
+              // Call final progress callback to ensure completion is handled
+              onProgress({
+                files: progressInfo.files || 0,
+                percentage: 100,
+                currentFile: "Analysis complete",
+                completed: true,
+                totalSize: progressInfo.totalSize || 0,
+              });
+            } else {
+              console.warn("⏱️ Max polling attempts reached, stopping");
             }
           } else {
             console.warn("⚠️ Progress endpoint not OK:", progressResponse.status);
@@ -1035,9 +1051,13 @@ export class AnalysisBridge {
 
       // Start SSE subscription for real-time progress (preferred) with polling fallback
       console.warn("🚀 Starting SSE subscription for progress...");
+      let sseConnected = false;
+
       const unsubscribe = this.subscribeToProgress(
         immediateAnalysisId,
         (progressUpdate) => {
+          sseConnected = true;
+          console.warn("📊 SSE progress update received:", progressUpdate);
           onProgress({
             files: progressUpdate.files || 0,
             percentage: progressUpdate.percentage || 0,
@@ -1048,9 +1068,18 @@ export class AnalysisBridge {
         },
         (error) => {
           console.warn("⚠️ SSE failed, falling back to polling:", error);
+          sseConnected = false;
           pollProgress(); // Fallback to polling
         }
       );
+
+      // Start polling as backup immediately, but let SSE take priority if it works
+      setTimeout(() => {
+        if (!sseConnected) {
+          console.warn("⏰ SSE not connected after 3 seconds, starting polling fallback");
+          pollProgress();
+        }
+      }, 3000);
 
       // Store unsubscribe function for cleanup
       (window as any).__analysisUnsubscribe = unsubscribe;
@@ -1068,30 +1097,66 @@ export class AnalysisBridge {
     while (!isComplete && attempts < maxAttempts) {
       try {
         await new Promise((resolve) => setTimeout(resolve, pollDelay));
+        attempts++;
 
         // Poll for results
         const resultsResponse = await fetch(`${this.baseUrl}/api/results/${immediateAnalysisId}`);
 
         if (!resultsResponse.ok) {
-          console.error("❌ Results endpoint error:", resultsResponse.status);
-          throw new Error("Results endpoint error");
+          const errorText = await resultsResponse.text();
+          console.error("❌ Results endpoint error:", {
+            status: resultsResponse.status,
+            statusText: resultsResponse.statusText,
+            error: errorText,
+            analysisId: immediateAnalysisId,
+            url: `/api/results/${immediateAnalysisId}`,
+            attempt: `${attempts}/${maxAttempts}`,
+          });
+
+          // If results not found (404), continue polling (analysis still running)
+          if (resultsResponse.status === 404) {
+            console.warn(
+              `⏳ Analysis still running (attempt ${attempts}/${maxAttempts}), continuing to poll...`
+            );
+            continue;
+          } else {
+            throw new Error(`Results endpoint error: ${resultsResponse.status} - ${errorText}`);
+          }
         }
 
         const results = await resultsResponse.json();
+        console.warn("📊 Results response:", results);
 
-        if (results.status === "complete" || results.data) {
+        // Check if analysis is complete and has results
+        if (
+          results.success &&
+          results.status === "complete" &&
+          (results.data || results.totalFiles > 0)
+        ) {
           isComplete = true;
           return {
-            result: this.convertToFrontendFormat(results.data || results),
+            result: results.data || results,
             analysisId: immediateAnalysisId,
           };
         }
+
+        // If analysis is still running, continue polling
+        if (
+          results.status === "scanning" ||
+          results.status === "running" ||
+          results.progress !== undefined
+        ) {
+          console.log(
+            `⏳ Analysis still in progress: ${results.status || "unknown"} (${results.progress || 0}%)`
+          );
+          continue;
+        }
       } catch (error) {
-        console.error("❌ Results polling error:", error);
-        attempts++;
+        console.error("❌ Error polling results:", error);
         if (attempts >= maxAttempts) {
           throw error;
         }
+        // Continue polling on error unless max attempts reached
       }
     }
 
@@ -1682,7 +1747,7 @@ export class AnalysisBridge {
       this.log("debug", "Performing health check");
 
       const response = await this.fetchWithRetry(
-        `${this.baseUrl}/health`,
+        `${this.baseUrl}/api/health`,
         {
           method: "GET",
         },
@@ -1691,11 +1756,18 @@ export class AnalysisBridge {
 
       const data = await response.json();
 
-      if (!data.status || data.status !== "ok") {
-        throw new Error("Backend health check returned unhealthy status");
+      // Handle new health response format with scoring
+      const healthStatus = data.status;
+      const healthScore = data.score || 0;
+
+      // Consider backend healthy if status is "healthy" or "ok" and score >= 60
+      const isHealthy = (healthStatus === "healthy" || healthStatus === "ok") && healthScore >= 60;
+
+      if (!isHealthy) {
+        throw new Error(`Backend health check returned: ${healthStatus} (score: ${healthScore})`);
       }
 
-      this.log("debug", "Health check passed");
+      this.log("debug", `Health check passed: ${healthStatus} (score: ${healthScore})`);
       return data;
     } catch (error) {
       this.log("error", `Health check failed: ${(error as Error).message}`);
@@ -1779,11 +1851,13 @@ export class AnalysisBridge {
 
     eventSource.onerror = (error) => {
       console.error("[SSE Frontend] SSE error:", error);
-      onError?.(error);
       this.log("error", `SSE error for analysis ${analysisId}:`, error);
+
+      // Always call onError to trigger polling fallback
       if (onError) {
-        onError("Connection lost");
+        onError("SSE connection failed - falling back to polling");
       }
+
       eventSource.close();
     };
 
