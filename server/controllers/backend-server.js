@@ -6165,8 +6165,8 @@ if (require.main === module && !process.env.TESTING) {
     process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
     // Start listening
-    server.listen(app.config.port, () => {
-      console.log(`🚀 Enhanced Backend running on port ${app.config.port}`);
+    server.listen(app.port, () => {
+      console.log(`🚀 Enhanced Backend running on port ${app.port}`);
       console.log(
         `⚙️  Hardware-optimized configuration active (${require("../config/dynamic-config").tier} tier)`
       );

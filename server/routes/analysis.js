@@ -11,6 +11,7 @@ class AnalysisRoutes {
   constructor(server) {
     this.server = server;
     this.router = express.Router();
+    console.log("🚀 AnalysisRoutes initialized [v2.8.1-fixed]");
     this.setupRoutes();
   }
 
@@ -89,7 +90,7 @@ class AnalysisRoutes {
           res.write(`data: ${JSON.stringify(progress)}\n\n`);
         }
 
-        if (progress?.status === "completed" || progress?.status === "error") {
+        if (progress?.status === "complete" || progress?.status === "error") {
           clearInterval(interval);
           res.end();
         }
@@ -101,37 +102,6 @@ class AnalysisRoutes {
       req.on("close", () => {
         clearInterval(interval);
       });
-    });
-
-    // Get analysis results
-    this.router.get("/results", async (req, res) => {
-      try {
-        const directoryPath = req.query.path;
-        if (!directoryPath) {
-          return res.status(400).json({ error: "Path parameter is required" });
-        }
-
-        // Try to find analysis by directory path
-        let result = null;
-        for (const [id, data] of this.server.analysisResults) {
-          if (data.directory === directoryPath || data.directoryPath === directoryPath) {
-            result = { id, ...data };
-            break;
-          }
-        }
-
-        if (!result) {
-          return res.status(404).json({ error: "No analysis results found for this path" });
-        }
-
-        res.json({
-          success: true,
-          ...result,
-        });
-      } catch (error) {
-        console.error("Get results error:", error);
-        res.status(500).json({ error: error.message });
-      }
     });
 
     // Get results by ID
@@ -167,6 +137,37 @@ class AnalysisRoutes {
         });
       } catch (error) {
         console.error("Get results by ID error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Get analysis results by path
+    this.router.get("/results", async (req, res) => {
+      try {
+        const directoryPath = req.query.path;
+        if (!directoryPath) {
+          return res.status(400).json({ error: "Path parameter is required" });
+        }
+
+        // Try to find analysis by directory path
+        let result = null;
+        for (const [id, data] of this.server.analysisResults) {
+          if (data.directory === directoryPath || data.directoryPath === directoryPath) {
+            result = { id, ...data };
+            break;
+          }
+        }
+
+        if (!result) {
+          return res.status(404).json({ error: "No analysis results found for this path" });
+        }
+
+        res.json({
+          success: true,
+          ...result,
+        });
+      } catch (error) {
+        console.error("Get results error:", error);
         res.status(500).json({ error: error.message });
       }
     });
