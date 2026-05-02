@@ -4,32 +4,68 @@ All notable changes to Space Analyzer will be documented in this file.
 
 ## Version Timeline
 
-| Version | Date       | Summary                                                                                    |
-| ------- | ---------- | ------------------------------------------------------------------------------------------ |
-| 2.8.4   | 2026-05-02 | Scanner Output Contract: JSONL progress, clean result files, and unchanged-directory reuse |
-| 2.8.3   | 2026-05-02 | Performance Optimization: Lazy Hardware Detection, Persistent Caching & Log Consolidation  |
-| 2.8.2   | 2026-05-02 | Backend Architecture Refactoring: Modularization, Dedicated Services & Route Handlers     |
-| 2.8.1   | 2026-05-01 | Interactive File Management: Delete & Reveal functionality in UI                          |
-| 2.8.0   | 2026-05-01 | Native Windows Scanner Optimization: Production-Grade APIs & Large Dataset Support         |
-| 2.7.0   | 2026-05-01 | Node.js v25+ Performance Optimizations & Worker Pool Integration                           |
-| 2.6.0   | 2026-04-30 | Revolutionary 3D File System Browser: Professional-Grade Visualization & Analysis          |
-| 2.5.0   | 2026-04-30 | Advanced Self-Learning Enhancements: Analytics, A/B Testing, Feedback, Adaptive Learning   |
-| 2.4.0   | 2026-04-30 | Advanced Features: Self-Learning, 3D Browser, NTFS MFT, USN Journal Integration            |
-| 2.3.1   | 2026-04-30 | File Structure Organization: Cleaned root directory, organized server files, improved docs |
-| 2.3.0   | 2026-04-30 | Comprehensive Backend Enhancements: Progress, Caching, Profiles, Filters, Analytics        |
-| 2.2.8   | 2026-04-30 | Multi-Agent Orchestrator Steps 4-6: Circuit Breaker, Task Queue, Batch Analysis            |
-| 2.2.7   | 2026-04-29 | Multi-Agent Orchestrator v2.0 - Intelligent task distribution with circuit breakers        |
-| 2.2.6   | 2026-04-29 | Notification System with database persistence, Templates & Batch Export for Reports        |
-| 2.2.5   | 2026-04-29 | PDF Reports: Generate, view, and download professional analysis reports                    |
-| 2.2.4   | 2026-04-29 | Code Complexity Analysis: metrics, grades, refactoring recommendations                     |
-| 2.2.3   | 2026-04-29 | AI-powered features: Document Summarization, Natural Language Interface, Cleanup Assistant |
-| 2.2.2   | 2026-04-29 | Ollama API 0.22.0 integration, optimized context payload, trend tracking database          |
-| 2.2.1   | 2026-04-29 | Windows API data display in frontend                                                       |
-| 2.2.0   | 2026-04-28 | Major feature expansion: 15 views, Windows API, AI Auto-Organization, PDF reports          |
-| 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                         |
-| 2.1.8   | 2026-04-27 | Project cleanup and organization                                                           |
-| 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                      |
-| 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                      |
+| Version | Date       | Summary                                                                                     |
+| ------- | ---------- | ------------------------------------------------------------------------------------------- |
+| 2.8.5   | 2026-05-02 | Error Tracking & Analysis Components: Enhanced file details, error logging, and build fixes |
+| 2.8.4   | 2026-05-02 | Scanner Output Contract: JSONL progress, clean result files, and unchanged-directory reuse  |
+| 2.8.3   | 2026-05-02 | Performance Optimization: Lazy Hardware Detection, Persistent Caching & Log Consolidation   |
+| 2.8.2   | 2026-05-02 | Backend Architecture Refactoring: Modularization, Dedicated Services & Route Handlers       |
+| 2.8.1   | 2026-05-01 | Interactive File Management: Delete & Reveal functionality in UI                            |
+| 2.8.0   | 2026-05-01 | Native Windows Scanner Optimization: Production-Grade APIs & Large Dataset Support          |
+| 2.7.0   | 2026-05-01 | Node.js v25+ Performance Optimizations & Worker Pool Integration                            |
+| 2.6.0   | 2026-04-30 | Revolutionary 3D File System Browser: Professional-Grade Visualization & Analysis           |
+| 2.5.0   | 2026-04-30 | Advanced Self-Learning Enhancements: Analytics, A/B Testing, Feedback, Adaptive Learning    |
+| 2.4.0   | 2026-04-30 | Advanced Features: Self-Learning, 3D Browser, NTFS MFT, USN Journal Integration             |
+| 2.3.1   | 2026-04-30 | File Structure Organization: Cleaned root directory, organized server files, improved docs  |
+| 2.3.0   | 2026-04-30 | Comprehensive Backend Enhancements: Progress, Caching, Profiles, Filters, Analytics         |
+| 2.2.8   | 2026-04-30 | Multi-Agent Orchestrator Steps 4-6: Circuit Breaker, Task Queue, Batch Analysis             |
+| 2.2.7   | 2026-04-29 | Multi-Agent Orchestrator v2.0 - Intelligent task distribution with circuit breakers         |
+| 2.2.6   | 2026-04-29 | Notification System with database persistence, Templates & Batch Export for Reports         |
+| 2.2.5   | 2026-04-29 | PDF Reports: Generate, view, and download professional analysis reports                     |
+| 2.2.4   | 2026-04-29 | Code Complexity Analysis: metrics, grades, refactoring recommendations                      |
+| 2.2.3   | 2026-04-29 | AI-powered features: Document Summarization, Natural Language Interface, Cleanup Assistant  |
+| 2.2.2   | 2026-04-29 | Ollama API 0.22.0 integration, optimized context payload, trend tracking database           |
+| 2.2.1   | 2026-04-29 | Windows API data display in frontend                                                        |
+| 2.2.0   | 2026-04-28 | Major feature expansion: 15 views, Windows API, AI Auto-Organization, PDF reports           |
+| 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                          |
+| 2.1.8   | 2026-04-27 | Project cleanup and organization                                                            |
+| 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                       |
+| 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                       |
+
+## [2.8.5] - 2026-05-02
+
+### Error Tracking & Analysis Components
+
+**Added comprehensive error tracking system and enhanced file analysis components for better debugging and user experience.**
+
+#### New Analysis Components
+
+- Added `EnhancedFileDetailsModal.vue` for detailed file information display
+- Added `FileAttributesVisualization.vue` for visual file attribute analysis
+- Added `HardLinksAnalysis.vue` for hard link relationship analysis
+- Added `TimestampAnalysis.vue` for file timestamp analysis
+- Added `ScanHistoryView.vue` for scan history tracking and management
+
+#### Error Tracking System
+
+- Added `errorTracking.ts` service for centralized error logging and tracking
+- Added `error-logger.js` utility for server-side error logging
+- Added `errors.js` route for error API endpoints
+- Added test files for error API and route testing
+
+#### Build Configuration Fixes
+
+- Fixed `vite.config.ts` to skip hardware config loading in development builds
+- Updated `notificationStore.ts` to use relative API paths (`/api` instead of `http://localhost:8080/api`)
+- Added `installHook.js` for development setup
+- Added new admin views for error log management
+
+#### Server Enhancements
+
+- Added standalone `server.js` for alternative server deployment
+- Enhanced database with temporary files (`.db-shm`, `.db-wal`)
+- Added multiple analysis output JSON files for testing
+- Improved error handling and logging throughout the server
 
 ## [2.8.4] - 2026-05-02
 
@@ -69,13 +105,13 @@ All notable changes to Space Analyzer will be documented in this file.
 
 - **Decomposed Monolith**: Reduced `backend-server.js` from 6,000+ lines to a lean ~130-line bootstrapper.
 - **Dedicated Service Layer**:
-    - **`LearningService`**: Encapsulates self-learning, caching, and model performance metrics logic.
-    - **`EnhancedOllamaService`**: Centralized AI orchestration, query classification, and hardware-optimized model selection.
+  - **`LearningService`**: Encapsulates self-learning, caching, and model performance metrics logic.
+  - **`EnhancedOllamaService`**: Centralized AI orchestration, query classification, and hardware-optimized model selection.
 - **Decentralized Routing**:
-    - **`OrchestrateRoutes`**: Handles task queue management and multi-agent coordination.
-    - **`SystemRoutes`**: Manages health checks, performance metrics, and system status.
-    - **`AnalysisRoutes`**: Encapsulates core directory scanning and analysis logic.
-    - **`AIRoutes`**: Refactored to consume modular services for insights and summarization.
+  - **`OrchestrateRoutes`**: Handles task queue management and multi-agent coordination.
+  - **`SystemRoutes`**: Manages health checks, performance metrics, and system status.
+  - **`AnalysisRoutes`**: Encapsulates core directory scanning and analysis logic.
+  - **`AIRoutes`**: Refactored to consume modular services for insights and summarization.
 - **Automatic Port Management**: Enhanced `PortDetector` integration for seamless local development.
 
 #### 🔧 Technical Fixes
@@ -95,8 +131,8 @@ All notable changes to Space Analyzer will be documented in this file.
 #### ✨ UI/UX Enhancements
 
 - **Direct File Deletion**: Added a "Delete" button (trash icon) to the Duplicate Finder and File Browser views.
-    - Includes safety confirmation dialog.
-    - Real-time UI updates after deletion (automatic group recalculation).
+  - Includes safety confirmation dialog.
+  - Real-time UI updates after deletion (automatic group recalculation).
 - **Reveal in Explorer**: Added a "Reveal" button (external link icon) to quickly open the file location in Windows Explorer/macOS Finder.
 - **Improved Feedback**: Added success/error toast notifications and loading states for file operations.
 
@@ -122,9 +158,9 @@ All notable changes to Space Analyzer will be documented in this file.
 - **Hard Link Tracking**: Implemented `GetFileInformationByHandle` to retrieve Volume Serial Number and File ID for unique file identification across volumes.
 - **Ownership Resolution**: Integrated `GetNamedSecurityInfoW` and `LookupAccountSidW` to resolve Security Identifiers (SIDs) into human-readable `Domain\User` format.
 - **NTFS Metadata Extraction**:
-    - **Alternate Data Streams (ADS)**: Full detection and counting of hidden data streams via `FindFirstStreamW`.
-    - **Native Compression**: Real-time identification of NTFS-compressed files with actual size-on-disk calculation.
-    - **Advanced Attributes**: Correct detection of Sparse files, Reparse Points (junctions/symlinks), and reparse tags.
+  - **Alternate Data Streams (ADS)**: Full detection and counting of hidden data streams via `FindFirstStreamW`.
+  - **Native Compression**: Real-time identification of NTFS-compressed files with actual size-on-disk calculation.
+  - **Advanced Attributes**: Correct detection of Sparse files, Reparse Points (junctions/symlinks), and reparse tags.
 - **Accurate Timestamps**: High-precision file creation and last access times via `GetFileTime`.
 
 ##### 2. Large Scale Performance & UX ✅
@@ -134,9 +170,9 @@ All notable changes to Space Analyzer will be documented in this file.
 - **Buffered Hashing**: Refactored MD5 duplicate detection to use a 128KB buffered stream (`BufReader`), eliminating memory pressure during large file analysis.
 - **MFT Direct Scanning Integration**: Seamlessly integrated the `NtfsMftScanner` into the main CLI with automatic admin privilege detection and fallback logic.
 - **Enhanced CLI Output**:
-    - **Quiet Mode**: Added `--quiet` flag to suppress massive JSON dumps to stdout for large datasets.
-    - **Progress Tracking**: Real-time scan status reporting on stderr with file counts and throughput metrics.
-    - **JSON Redirection**: Integrated `--output` flag for direct file persistence of multi-hundred-megabyte analysis results.
+  - **Quiet Mode**: Added `--quiet` flag to suppress massive JSON dumps to stdout for large datasets.
+  - **Progress Tracking**: Real-time scan status reporting on stderr with file counts and throughput metrics.
+  - **JSON Redirection**: Integrated `--output` flag for direct file persistence of multi-hundred-megabyte analysis results.
 
 #### 🔧 Technical Improvements
 
