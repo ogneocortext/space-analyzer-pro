@@ -254,7 +254,6 @@ class HardwareDetector {
               try {
                 const parsed = JSON.parse(data);
                 const models = parsed.models?.map(m => m.name) || [];
-                console.log(`🦙 Detected ${models.length} Ollama models: ${models.join(', ')}`);
                 resolve(models);
               } catch (e) {
                 resolve([]);

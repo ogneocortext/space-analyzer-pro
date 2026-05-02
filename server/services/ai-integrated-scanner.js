@@ -49,10 +49,7 @@ class AIIntegratedScanner {
             const modelsAvailable = await this.ollamaService.testConnection();
             if (modelsAvailable) {
                 const models = await this.ollamaService.fetchModels();
-                console.log(`🦙 Ollama Models Available: ${models.length}`);
-                models.forEach(model => {
-                    console.log(`  - ${model.name} (${model.details.parameter_size})`);
-                });
+                // Redundant log removed to prevent terminal spam
             } else {
                 console.warn('⚠️ Ollama not available, using fallback ML');
             }
