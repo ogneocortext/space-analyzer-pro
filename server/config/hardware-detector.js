@@ -12,25 +12,72 @@ class HardwareDetector {
   constructor() {
     this.specs = null;
     this.manualOverride = this.checkManualOverride();
-    this.detectPromise = this.detect();
+    this.detectPromise = null;
+    this.cacheFile = path.join(__dirname, '..', '.hardware-cache.json');
+    this.cacheTTL = 24 * 60 * 60 * 1000; // 24 hours
   }
 
-  async detect() {
-    this.specs = {
-      cpu: this.detectCPU(),
-      memory: this.detectMemory(),
-      gpu: this.detectGPU(),
-      disk: this.detectDisk(),
-      os: this.detectOS(),
-      isLaptop: this.detectIfLaptop(),
-      powerProfile: this.detectPowerProfile(),
-      ollamaModels: await this.detectOllamaModels()
-    };
-    
-    this.specs.tier = this.calculateTier();
-    this.specs.recommendations = this.generateRecommendations();
-    
-    return this.specs;
+  async detect(force = false) {
+    if (this.detectPromise && !force) return this.detectPromise;
+
+    this.detectPromise = (async () => {
+      // Try to load from cache first
+      if (!force && fs.existsSync(this.cacheFile)) {
+        try {
+          const cacheData = JSON.parse(fs.readFileSync(this.cacheFile, 'utf8'));
+          const isFresh = Date.now() - cacheData.timestamp < this.cacheTTL;
+          
+          if (isFresh && !process.env.SA_FORCE_CONFIG_SCAN) {
+            this.specs = cacheData.specs;
+            return this.specs;
+          }
+        } catch (e) {
+          // Cache corrupted, proceed to detect
+        }
+      }
+
+      // Perform actual detection
+      const cpu = this.detectCPU();
+      const memory = this.detectMemory();
+      const gpu = this.detectGPU();
+      const disk = this.detectDisk();
+      const os = this.detectOS();
+      const isLaptop = this.detectIfLaptop();
+      
+      const partialSpecs = { cpu, memory, gpu, isLaptop };
+      const powerProfile = this.detectPowerProfile(partialSpecs);
+      const ollamaModels = await this.detectOllamaModels();
+
+      const specs = {
+        cpu,
+        memory,
+        gpu,
+        disk,
+        os,
+        isLaptop,
+        powerProfile,
+        ollamaModels
+      };
+      
+      specs.tier = this.calculateTier(specs);
+      specs.recommendations = this.generateRecommendations(specs);
+      
+      this.specs = specs;
+
+      // Save to cache
+      try {
+        fs.writeFileSync(this.cacheFile, JSON.stringify({
+          timestamp: Date.now(),
+          specs: this.specs
+        }, null, 2));
+      } catch (e) {
+        // Failed to save cache, not critical
+      }
+
+      return this.specs;
+    })();
+
+    return this.detectPromise;
   }
 
   /**
@@ -337,28 +384,28 @@ class HardwareDetector {
     return false;
   }
 
-  detectPowerProfile() {
-    if (this.specs?.isLaptop) {
+  detectPowerProfile(specs) {
+    if (specs?.isLaptop) {
       // Conservative for laptops on battery
       return 'balanced';
     }
-    if (this.specs?.cpu?.isHighEnd && this.specs?.memory?.isHighEnd) {
+    if (specs?.cpu?.isHighEnd && specs?.memory?.isHighEnd) {
       return 'performance';
     }
-    if (this.specs?.cpu?.isLowEnd || this.specs?.memory?.isLowEnd) {
+    if (specs?.cpu?.isLowEnd || specs?.memory?.isLowEnd) {
       return 'efficiency';
     }
     return 'balanced';
   }
 
-  calculateTier() {
+  calculateTier(specs) {
     // Check for manual tier override
     if (this.manualOverride.tier) {
       console.log(`   Hardware tier manually set to '${this.manualOverride.tier}'`);
       return this.manualOverride.tier;
     }
     
-    const { cpu, memory, gpu } = this.specs;
+    const { cpu, memory, gpu } = specs;
     let score = 0;
     
     // CPU scoring based on core count and tier
@@ -381,8 +428,8 @@ class HardwareDetector {
     return 'entry-level';
   }
 
-  generateRecommendations() {
-    const { cpu, memory, gpu, tier, powerProfile, ollamaModels } = this.specs;
+  generateRecommendations(specs) {
+    const { cpu, memory, gpu, tier, powerProfile, ollamaModels } = specs;
     
     // Select best model from actual installed Ollama models
     let selectedModel = this.manualOverride.aiModel;
@@ -510,8 +557,8 @@ function getHardwareDetector() {
   return detector;
 }
 
-async function getHardwareConfig() {
-  return await getHardwareDetector().getConfig();
+async function getHardwareConfig(force = false) {
+  return await getHardwareDetector().getConfig(force);
 }
 
 module.exports = {
