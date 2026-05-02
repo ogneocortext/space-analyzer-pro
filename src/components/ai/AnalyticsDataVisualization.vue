@@ -331,7 +331,7 @@ const getDayLabel = (dayIndex: number): string => {
 };
 
 // Methods
-const refreshVisualization = debounce(async () => {
+const refreshVisualizationFn = async () => {
   isLoading.value = true;
   try {
     await loadVisualizationData();
@@ -341,7 +341,9 @@ const refreshVisualization = debounce(async () => {
   } finally {
     isLoading.value = false;
   }
-}, 300);
+};
+
+const refreshVisualization = debounce(refreshVisualizationFn, 300);
 
 const loadVisualizationData = async () => {
   // Load pattern data

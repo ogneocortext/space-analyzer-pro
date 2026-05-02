@@ -3,20 +3,20 @@
  * Logs unexpected errors with context for debugging
  */
 
-const fs = require('fs').promises;
-const path = require('path');
-const crypto = require('crypto');
+const fs = require("fs").promises;
+const path = require("path");
+const crypto = require("crypto");
 
 class ErrorLogger {
   constructor(options = {}) {
-    this.logDir = options.logDir || path.join(__dirname, '..', 'logs', 'errors');
+    this.logDir = options.logDir || path.join(__dirname, "..", "logs", "errors");
     this.maxFileSize = options.maxFileSize || 5 * 1024 * 1024; // 5MB
     this.maxFiles = options.maxFiles || 10;
     this.maxAgeDays = options.maxAgeDays || 30;
     this.inMemoryBuffer = [];
     this.bufferSize = options.bufferSize || 100;
     this.flushInterval = options.flushInterval || 5000; // 5 seconds
-    
+
     this.init();
   }
 
@@ -26,7 +26,7 @@ class ErrorLogger {
       this.startFlushInterval();
       console.log(`✅ Error logger initialized: ${this.logDir}`);
     } catch (err) {
-      console.error('❌ Failed to initialize error logger:', err);
+      console.error("❌ Failed to initialize error logger:", err);
     }
   }
 
@@ -38,19 +38,22 @@ class ErrorLogger {
    * Log an error with full context
    */
   async logError(error, context = {}) {
+    // Handle undefined/null error parameter
+    const safeError = error || new Error("Unknown error occurred");
+
     const errorEntry = {
       id: this.generateId(),
       timestamp: new Date().toISOString(),
-      type: error?.name || 'UnknownError',
-      message: error?.message || String(error),
-      stack: error?.stack || null,
-      code: error?.code || null,
+      type: safeError?.name || "UnknownError",
+      message: safeError?.message || String(safeError),
+      stack: safeError?.stack || null,
+      code: safeError?.code || null,
       ...context,
     };
 
     // Add to in-memory buffer
     this.inMemoryBuffer.push(errorEntry);
-    
+
     // Keep only recent errors in memory
     if (this.inMemoryBuffer.length > this.bufferSize) {
       this.inMemoryBuffer.shift();
@@ -58,7 +61,7 @@ class ErrorLogger {
 
     // Log to console immediately for visibility
     console.error(`[ERROR ${errorEntry.id}] ${errorEntry.type}: ${errorEntry.message}`);
-    
+
     // Try to flush immediately for critical errors
     if (this.isCriticalError(error)) {
       await this.flushBuffer();
@@ -72,13 +75,13 @@ class ErrorLogger {
    */
   async logRequestError(error, req, res, context = {}) {
     return this.logError(error, {
-      source: 'express',
+      source: "express",
       method: req?.method,
       url: req?.originalUrl || req?.url,
       path: req?.path,
       query: req?.query,
       headers: this.sanitizeHeaders(req?.headers),
-      userAgent: req?.headers?.['user-agent'],
+      userAgent: req?.headers?.["user-agent"],
       ip: req?.ip || req?.connection?.remoteAddress,
       statusCode: res?.statusCode,
       ...context,
@@ -89,9 +92,15 @@ class ErrorLogger {
    * Log frontend-reported error
    */
   async logFrontendError(errorData, clientInfo = {}) {
-    return this.logError(new Error(errorData.message), {
-      source: 'frontend',
-      type: errorData.type || 'FrontendError',
+    // Validate errorData to prevent undefined errors
+    if (!errorData || typeof errorData !== "object") {
+      errorData = { message: "Unknown frontend error" };
+    }
+
+    const errorMessage = errorData.message || "Unknown frontend error";
+    return this.logError(new Error(errorMessage), {
+      source: "frontend",
+      type: errorData.type || "FrontendError",
       component: errorData.component,
       action: errorData.action,
       url: errorData.url,
@@ -106,7 +115,7 @@ class ErrorLogger {
    */
   async logUnhandledRejection(reason, promise) {
     return this.logError(reason instanceof Error ? reason : new Error(String(reason)), {
-      source: 'unhandledRejection',
+      source: "unhandledRejection",
       promiseId: this.generateId(),
     });
   }
@@ -116,7 +125,7 @@ class ErrorLogger {
    */
   async logUncaughtException(error) {
     return this.logError(error, {
-      source: 'uncaughtException',
+      source: "uncaughtException",
       fatal: true,
     });
   }
@@ -125,29 +134,39 @@ class ErrorLogger {
    * Check if error is critical and needs immediate flushing
    */
   isCriticalError(error) {
-    const criticalTypes = ['uncaughtException', 'UnhandledPromiseRejection', 'SyntaxError', 'ReferenceError'];
-    return criticalTypes.includes(error?.name) || 
-           error?.message?.includes('database') ||
-           error?.message?.includes('connection') ||
-           error?.code === 'ECONNREFUSED';
+    // Handle undefined/null error parameter
+    if (!error) return false;
+
+    const criticalTypes = [
+      "uncaughtException",
+      "UnhandledPromiseRejection",
+      "SyntaxError",
+      "ReferenceError",
+    ];
+    return (
+      criticalTypes.includes(error?.name) ||
+      error?.message?.includes("database") ||
+      error?.message?.includes("connection") ||
+      error?.code === "ECONNREFUSED"
+    );
   }
 
   /**
    * Sanitize headers to remove sensitive info
    */
   sanitizeHeaders(headers = {}) {
-    const sensitive = ['authorization', 'cookie', 'x-api-key', 'password', 'token'];
+    const sensitive = ["authorization", "cookie", "x-api-key", "password", "token"];
     const sanitized = {};
-    
+
     for (const [key, value] of Object.entries(headers)) {
       const lowerKey = key.toLowerCase();
-      if (sensitive.some(s => lowerKey.includes(s))) {
-        sanitized[key] = '[REDACTED]';
+      if (sensitive.some((s) => lowerKey.includes(s))) {
+        sanitized[key] = "[REDACTED]";
       } else {
         sanitized[key] = value;
       }
     }
-    
+
     return sanitized;
   }
 
@@ -162,12 +181,12 @@ class ErrorLogger {
 
     try {
       const logFile = await this.getCurrentLogFile();
-      const lines = entries.map(e => JSON.stringify(e)).join('\n') + '\n';
-      await fs.appendFile(logFile, lines, 'utf8');
+      const lines = entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
+      await fs.appendFile(logFile, lines, "utf8");
     } catch (err) {
       // Put entries back if failed
       this.inMemoryBuffer.unshift(...entries);
-      console.error('❌ Failed to write error log:', err);
+      console.error("❌ Failed to write error log:", err);
     }
   }
 
@@ -175,9 +194,9 @@ class ErrorLogger {
    * Get current log file path (rotate if needed)
    */
   async getCurrentLogFile() {
-    const date = new Date().toISOString().split('T')[0];
+    const date = new Date().toISOString().split("T")[0];
     const baseFile = path.join(this.logDir, `errors-${date}.log`);
-    
+
     try {
       const stats = await fs.stat(baseFile);
       if (stats.size > this.maxFileSize) {
@@ -189,7 +208,7 @@ class ErrorLogger {
     } catch {
       // File doesn't exist yet
     }
-    
+
     return baseFile;
   }
 
@@ -200,17 +219,22 @@ class ErrorLogger {
     try {
       const files = await fs.readdir(this.logDir);
       const logFiles = files
-        .filter(f => f.startsWith('errors-') && f.endsWith('.log'))
-        .map(f => ({
+        .filter((f) => f.startsWith("errors-") && f.endsWith(".log"))
+        .map((f) => ({
           name: f,
           path: path.join(this.logDir, f),
-          time: fs.stat(path.join(this.logDir, f)).then(s => s.mtime).catch(() => new Date(0)),
+          time: fs
+            .stat(path.join(this.logDir, f))
+            .then((s) => s.mtime)
+            .catch(() => new Date(0)),
         }));
 
-      const fileInfos = await Promise.all(logFiles.map(async f => ({
-        ...f,
-        mtime: await f.time,
-      })));
+      const fileInfos = await Promise.all(
+        logFiles.map(async (f) => ({
+          ...f,
+          mtime: await f.time,
+        }))
+      );
 
       // Sort by modification time (newest first)
       fileInfos.sort((a, b) => b.mtime - a.mtime);
@@ -229,7 +253,7 @@ class ErrorLogger {
       // Delete files older than maxAgeDays
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - this.maxAgeDays);
-      
+
       for (const file of fileInfos) {
         if (file.mtime < cutoff) {
           try {
@@ -241,7 +265,7 @@ class ErrorLogger {
         }
       }
     } catch (err) {
-      console.error('❌ Error during log cleanup:', err);
+      console.error("❌ Error during log cleanup:", err);
     }
   }
 
@@ -255,19 +279,19 @@ class ErrorLogger {
     try {
       const files = await fs.readdir(this.logDir);
       const logFiles = files
-        .filter(f => f.startsWith('errors-') && f.endsWith('.log'))
+        .filter((f) => f.startsWith("errors-") && f.endsWith(".log"))
         .sort()
         .reverse();
 
       const errors = [];
-      
+
       for (const file of logFiles) {
         if (errors.length >= limit) break;
-        
+
         try {
-          const content = await fs.readFile(path.join(this.logDir, file), 'utf8');
-          const lines = content.trim().split('\n').filter(Boolean);
-          
+          const content = await fs.readFile(path.join(this.logDir, file), "utf8");
+          const lines = content.trim().split("\n").filter(Boolean);
+
           for (const line of lines.reverse()) {
             try {
               const entry = JSON.parse(line);
@@ -286,7 +310,7 @@ class ErrorLogger {
 
       return errors.slice(0, limit);
     } catch (err) {
-      console.error('❌ Failed to read error logs:', err);
+      console.error("❌ Failed to read error logs:", err);
       return [];
     }
   }
@@ -297,27 +321,28 @@ class ErrorLogger {
   async getErrorStats(days = 7) {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    
+
     const errors = await this.getRecentErrors(1000);
-    const recentErrors = errors.filter(e => new Date(e.timestamp) >= cutoff);
-    
+    const recentErrors = errors.filter((e) => new Date(e.timestamp) >= cutoff);
+
     const stats = {
       total: recentErrors.length,
       byType: {},
       bySource: {},
       byDay: {},
-      critical: recentErrors.filter(e => e.fatal || e.source === 'uncaughtException').length,
+      critical: recentErrors.filter((e) => e.fatal || e.source === "uncaughtException").length,
     };
 
     for (const error of recentErrors) {
       // By type
       stats.byType[error.type] = (stats.byType[error.type] || 0) + 1;
-      
+
       // By source
-      stats.bySource[error.source || 'unknown'] = (stats.bySource[error.source || 'unknown'] || 0) + 1;
-      
+      stats.bySource[error.source || "unknown"] =
+        (stats.bySource[error.source || "unknown"] || 0) + 1;
+
       // By day
-      const day = error.timestamp.split('T')[0];
+      const day = error.timestamp.split("T")[0];
       stats.byDay[day] = (stats.byDay[day] || 0) + 1;
     }
 
@@ -334,8 +359,8 @@ class ErrorLogger {
       count: errors.length,
       errors,
     };
-    
-    await fs.writeFile(outputPath, JSON.stringify(exportData, null, 2), 'utf8');
+
+    await fs.writeFile(outputPath, JSON.stringify(exportData, null, 2), "utf8");
     return outputPath;
   }
 
@@ -346,19 +371,19 @@ class ErrorLogger {
     try {
       const files = await fs.readdir(this.logDir);
       for (const file of files) {
-        if (file.startsWith('errors-') && file.endsWith('.log')) {
+        if (file.startsWith("errors-") && file.endsWith(".log")) {
           await fs.unlink(path.join(this.logDir, file));
         }
       }
       this.inMemoryBuffer = [];
-      console.log('🧹 All error logs cleared');
+      console.log("🧹 All error logs cleared");
     } catch (err) {
-      console.error('❌ Failed to clear error logs:', err);
+      console.error("❌ Failed to clear error logs:", err);
     }
   }
 
   generateId() {
-    return `err_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    return `err_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
   }
 }
 

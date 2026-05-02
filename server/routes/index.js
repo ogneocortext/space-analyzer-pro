@@ -13,6 +13,9 @@ const SettingsRoutes = require("./settings");
 const OrchestrateRoutes = require("./orchestrate");
 const SystemRoutes = require("./system");
 const ErrorRoutes = require("./errors");
+const LearningRoutes = require("./learning");
+const NLPRoutes = require("./nlp");
+const AIModelsRoutes = require("./ai-models");
 console.log("📦 ErrorRoutes module loaded:", typeof ErrorRoutes);
 
 class RoutesManager {
@@ -40,6 +43,12 @@ class RoutesManager {
     console.log("  ✅ SystemRoutes loaded");
     this.routes.errors = new ErrorRoutes(this.server);
     console.log("  ✅ ErrorRoutes loaded");
+    this.routes.learning = new LearningRoutes(this.server);
+    console.log("  ✅ LearningRoutes loaded");
+    this.routes.nlp = new NLPRoutes(this.server);
+    console.log("  ✅ NLPRoutes loaded");
+    this.routes.aiModels = new AIModelsRoutes(this.server);
+    console.log("  ✅ AIModelsRoutes loaded");
   }
 
   mountAll(app) {
@@ -54,9 +63,15 @@ class RoutesManager {
     app.use("/api", this.routes.orchestrate.getRouter());
     app.use("/api", this.routes.system.getRouter());
     app.use("/api", this.routes.errors.getRouter());
+    app.use("/api", this.routes.learning.getRouter());
+    app.use("/api", this.routes.nlp.getRouter());
+    app.use("/api", this.routes.aiModels.getRouter());
 
     console.log("✅ All API routes mounted successfully");
     console.log("📍 Error routes available at: /api/errors/*");
+    console.log("📍 Learning routes available at: /api/learning/*");
+    console.log("📍 NLP routes available at: /api/nlp/*");
+    console.log("📍 AI Models routes available at: /api/ai-models/*");
   }
 
   // Access to individual route modules if needed

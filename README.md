@@ -109,8 +109,11 @@ The backend has been completely overhauled with enterprise-grade features:
 
 #### API Enhancements
 
-- 25+ new REST API endpoints for comprehensive functionality
-- Modular architecture with 7 specialized modules
+- 40+ REST API endpoints for comprehensive functionality
+- Modular architecture with 10+ specialized route modules
+- Natural Language Processing (NLP) search interface
+- Machine Learning pattern recognition and predictions
+- AI Model detection and management for ML workflows
 
 ### Modular Backend Architecture (v2.8.2) ✅
 
@@ -127,7 +130,10 @@ The backend has been refactored into a high-performance, modular service-oriente
 - **`AnalysisRoutes`**: High-performance directory scanning, analysis results management, and real-time progress streaming.
 - **`SystemRoutes`**: Real-time system health monitoring, hardware analytics, and performance tracking.
 - **`OrchestrateRoutes`**: Multi-agent task orchestration, queue management, and circuit breaker implementation.
-- **`AIRoutes`**: Refactored AI insights, document summarization, and natural language processing.
+- **`AIRoutes`**: AI insights, document summarization, and chat functionality.
+- **`LearningRoutes`**: ML learning statistics, storage trends, change tracking, and AI predictions.
+- **`NLPRoutes`**: Natural language file search, query suggestions, and search history.
+- **`AIModelsRoutes`**: AI/ML model file detection, Q&A interface, and model management.
 
 #### Technical Benefits
 

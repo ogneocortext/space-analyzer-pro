@@ -230,6 +230,46 @@ class FileRoutes {
         res.status(500).json({ error: error.message });
       }
     });
+
+    // Browse for folder (folder selection dialog)
+    this.router.post("/files/browse", async (req, res) => {
+      try {
+        // Since we can't actually open a file dialog from the server,
+        // we return common directories as suggestions
+        const os = require("os");
+        const homeDir = os.homedir();
+        const path = require("path");
+        const fs = require("fs");
+
+        const commonPaths = [
+          { name: "Home", path: homeDir },
+          { name: "Documents", path: path.join(homeDir, "Documents") },
+          { name: "Downloads", path: path.join(homeDir, "Downloads") },
+          { name: "Desktop", path: path.join(homeDir, "Desktop") },
+          { name: "Pictures", path: path.join(homeDir, "Pictures") },
+          { name: "Music", path: path.join(homeDir, "Music") },
+          { name: "Videos", path: path.join(homeDir, "Videos") },
+        ].filter((p) => fs.existsSync(p.path));
+
+        // Add root drives on Windows
+        if (process.platform === "win32") {
+          const drives = ["C:", "D:", "E:"].filter((d) => fs.existsSync(d + "\\"));
+          drives.forEach((drive) => {
+            commonPaths.unshift({ name: `${drive} Drive`, path: drive + "\\" });
+          });
+        }
+
+        res.json({
+          success: true,
+          message: "Select a directory path from the suggestions or provide your own",
+          suggestions: commonPaths,
+          platform: process.platform,
+        });
+      } catch (error) {
+        console.error("Browse error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    });
   }
 
   getRouter() {
