@@ -25,17 +25,40 @@ pub mod usn_journal_scanner;
 pub struct FileInfo {
     pub name: String,
     pub path: String,
-    pub size: i64,
+    pub size: FileSize,
     pub extension: String,
     pub category: String,
-    pub modified: String,
+    pub timestamps: FileTimestamps,
     pub is_hidden: bool,
     pub is_directory: bool,
-    // Windows API fields
-    pub created: Option<String>,
-    pub accessed: Option<String>,
     pub is_hard_link: bool,
     pub hard_link_count: Option<i32>,
+    pub attributes: FileAttributes,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[napi(object)]
+pub struct FileSize {
+    pub bytes: i64,
+    pub formatted: String,
+    pub on_disk: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[napi(object)]
+pub struct FileTimestamps {
+    pub created: Option<String>,
+    pub modified: String,
+    pub accessed: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[napi(object)]
+pub struct FileAttributes {
+    pub is_readonly: bool,
+    pub is_hidden: bool,
+    pub is_system: bool,
+    // Windows API fields
     pub has_ads: bool,
     pub ads_count: Option<i32>,
     pub is_compressed: bool,
@@ -171,19 +194,19 @@ impl SpaceAnalyzer {
 
             for file_info in receiver {
                 collected_total += 1;
-                collected_size += file_info.size;
+                collected_size += file_info.size.bytes;
 
                 let cat_info = collected_categories
                     .entry(file_info.category.clone())
                     .or_insert(CategoryStats { count: 0, size: 0 });
                 cat_info.count += 1;
-                cat_info.size += file_info.size;
+                cat_info.size += file_info.size.bytes;
 
                 let ext_info = collected_extensions
                     .entry(file_info.extension.clone())
                     .or_insert(ExtensionStats { count: 0, size: 0 });
                 ext_info.count += 1;
-                ext_info.size += file_info.size;
+                ext_info.size += file_info.size.bytes;
 
                 collected_files.push(file_info);
             }
@@ -272,6 +295,24 @@ impl SpaceAnalyzer {
         }
 
         true
+    }
+
+    // Helper function to format file size
+    fn format_size(&self, bytes: u64) -> String {
+        const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB", "PB"];
+        let mut size = bytes as f64;
+        let mut unit_index = 0;
+
+        while size >= 1024.0 && unit_index < UNITS.len() - 1 {
+            size /= 1024.0;
+            unit_index += 1;
+        }
+
+        if unit_index == 0 {
+            format!("{} {}", bytes, UNITS[unit_index])
+        } else {
+            format!("{:.1} {}", size, UNITS[unit_index])
+        }
     }
 
     fn create_file_info(&self, entry: &walkdir::DirEntry, metadata: &fs::Metadata) -> Option<FileInfo> {
@@ -368,25 +409,35 @@ impl SpaceAnalyzer {
         Some(FileInfo {
             name: file_name,
             path: file_path_str,
-            size: metadata.len() as i64,
+            size: FileSize {
+                bytes: metadata.len() as i64,
+                formatted: self.format_size(metadata.len() as u64),
+                on_disk: compressed_size,
+            },
             extension,
             category,
-            modified,
+            timestamps: FileTimestamps {
+                created,
+                modified,
+                accessed,
+            },
             is_hidden: entry.file_name().to_string_lossy().starts_with('.'),
             is_directory: metadata.is_dir(),
-            // Windows API fields
-            created,
-            accessed,
             is_hard_link,
             hard_link_count,
-            has_ads,
-            ads_count,
-            is_compressed,
-            compressed_size,
-            is_sparse,
-            is_reparse_point,
-            reparse_tag,
-            owner,
+            attributes: FileAttributes {
+                is_readonly: metadata.permissions().readonly(),
+                is_hidden: entry.file_name().to_string_lossy().starts_with('.'),
+                is_system: false,
+                has_ads,
+                ads_count,
+                is_compressed,
+                compressed_size,
+                is_sparse,
+                is_reparse_point,
+                reparse_tag,
+                owner,
+            },
         })
     }
 }

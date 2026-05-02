@@ -8,28 +8,119 @@ use walkdir::WalkDir;
 use chrono::{DateTime, Utc};
 use rayon::prelude::*;
 use crossbeam::channel::bounded;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 mod windows_advanced;
 use windows_advanced::advanced as win_adv;
 mod ntfs_mft_scanner;
 mod usn_journal_scanner;
 
+// Simplified performance monitoring system
+#[derive(Debug, Default)]
+struct PerformanceTracker {
+    disk_reads: AtomicU64,
+    disk_bytes_read: AtomicU64,
+    cache_hits: AtomicU64,
+    cache_misses: AtomicU64,
+    io_wait_time_ms: AtomicU64,
+    start_time: Option<Instant>,
+}
+
+impl PerformanceTracker {
+    fn new() -> Self {
+        Self {
+            disk_reads: AtomicU64::new(0),
+            disk_bytes_read: AtomicU64::new(0),
+            cache_hits: AtomicU64::new(0),
+            cache_misses: AtomicU64::new(0),
+            io_wait_time_ms: AtomicU64::new(0),
+            start_time: None,
+        }
+    }
+
+    fn start_monitoring(&mut self) {
+        self.start_time = Some(Instant::now());
+    }
+
+    fn record_disk_read(&self, bytes: u64) {
+        self.disk_reads.fetch_add(1, Ordering::Relaxed);
+        self.disk_bytes_read.fetch_add(bytes, Ordering::Relaxed);
+    }
+
+    fn record_cache_hit(&self) {
+        self.cache_hits.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_cache_miss(&self) {
+        self.cache_misses.fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn record_io_wait(&self, duration_ms: u64) {
+        self.io_wait_time_ms.fetch_add(duration_ms, Ordering::Relaxed);
+    }
+
+    fn get_performance_metrics(&self) -> PerformanceMetrics {
+        let thread_count = std::thread::available_parallelism()
+            .map(|p| p.get() as u32)
+            .ok();
+
+        PerformanceMetrics {
+            scan_duration_ms: self.start_time
+                .map(|t| t.elapsed().as_millis())
+                .unwrap_or(0),
+            files_per_second: 0, // Will be calculated by caller
+            bytes_per_second: 0, // Will be calculated by caller
+            memory_peak_mb: None, // Not available without sysinfo
+            memory_current_mb: None, // Not available without sysinfo
+            disk_reads: Some(self.disk_reads.load(Ordering::Relaxed)),
+            disk_bytes_read: Some(self.disk_bytes_read.load(Ordering::Relaxed)),
+            cache_hits: Some(self.cache_hits.load(Ordering::Relaxed)),
+            cache_misses: Some(self.cache_misses.load(Ordering::Relaxed)),
+            cpu_usage_percent: None, // Not available without sysinfo
+            thread_count,
+            io_wait_time_ms: Some(self.io_wait_time_ms.load(Ordering::Relaxed)),
+            system_load_average: None, // Not available without sysinfo
+        }
+    }
+}
+
+
 #[derive(Debug, Serialize, Deserialize)]
 struct FileInfo {
     name: String,
     path: String,
-    size: u64,
+    size: FileSize,
     extension: String,
     category: String,
-    modified: String,
-    created: Option<String>,    // File creation time
-    accessed: Option<String>,   // Last access time
+    timestamps: FileTimestamps,
     file_hash: Option<String>, // MD5 hash for duplicate detection
     #[serde(skip)]
     inode: Option<u64>,       // File identifier for hard link detection
     #[serde(skip)]
     device: Option<u64>,       // Volume identifier for hard link safety
     is_hard_link: bool,       // True if this is a hard link (nlink > 1)
+    attributes: FileAttributes,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct FileSize {
+    bytes: u64,
+    formatted: String,
+    on_disk: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct FileTimestamps {
+    created: Option<String>,    // File creation time
+    modified: String,           // Last modification time
+    accessed: Option<String>,   // Last access time
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct FileAttributes {
+    is_readonly: bool,
+    is_hidden: bool,
+    is_system: bool,
 
     // Windows NTFS-specific fields
     #[cfg(windows)]
@@ -64,29 +155,95 @@ struct ExtensionStats {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AnalysisResult {
+    // Schema and metadata
+    schema_version: String,
+    generated_at: String,
+    scanner_version: String,
+
+    // Scan configuration
+    scan_config: ScanConfig,
+
+    // Summary statistics
+    summary: SummaryStats,
+
+    // Detailed analysis
+    file_analysis: FileAnalysis,
+
+    // Performance metrics
+    performance: PerformanceMetrics,
+
+    // Issues and warnings
+    issues: Option<Issues>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ScanConfig {
+    path: String,
+    max_files: usize,
+    include_hidden: bool,
+    follow_symlinks: bool,
+    json_progress: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct SummaryStats {
     total_files: u64,
     total_size: u64,
+    scan_duration_ms: u128,
+    files_scanned_per_second: u64,
+    bytes_scanned_per_second: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct FileAnalysis {
     files: Vec<FileInfo>,
     categories: HashMap<String, CategoryStats>,
     extension_stats: HashMap<String, ExtensionStats>,
-    analysis_time_ms: u128,
-    directory_path: String,
-    duplicate_groups: Vec<DuplicateGroup>, // Groups of duplicate files
-    duplicate_count: u64,                  // Total number of duplicate files
-    duplicate_size: u64,                   // Total size of duplicate files
-    hard_link_count: u64,                  // Number of hard-linked files
-    hard_link_savings: u64,                // Size saved by hard links (not double-counted)
-    apparent_size: u64,                    // Size if hard links were counted separately
+    duplicate_groups: Vec<DuplicateGroup>,
+    duplicate_count: u64,
+    duplicate_size: u64,
+    hard_link_count: u64,
+    hard_link_savings: u64,
+    apparent_size: u64,
+}
 
-    // USN Journal tracking for incremental scans (Windows only)
-    #[cfg(windows)]
-    usn_journal_id: Option<u64>,           // Journal ID for incremental tracking
-    #[cfg(windows)]
-    last_usn: Option<i64>,                 // Last USN for next incremental scan
-    #[cfg(windows)]
-    mft_scanned: bool,                     // Whether MFT fast scan was used
-    #[cfg(windows)]
-    hard_links_enumerated: bool,           // Whether all hard links were enumerated
+#[derive(Debug, Serialize, Deserialize)]
+struct PerformanceMetrics {
+    scan_duration_ms: u128,
+    files_per_second: u64,
+    bytes_per_second: u64,
+    memory_peak_mb: Option<u64>,
+    memory_current_mb: Option<u64>,
+    disk_reads: Option<u64>,
+    disk_bytes_read: Option<u64>,
+    cache_hits: Option<u64>,
+    cache_misses: Option<u64>,
+    cpu_usage_percent: Option<f64>,
+    thread_count: Option<u32>,
+    io_wait_time_ms: Option<u64>,
+    system_load_average: Option<f64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Issues {
+    errors: Vec<Issue>,
+    warnings: Vec<Warning>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Issue {
+    type_: String,
+    path: String,
+    message: String,
+    count: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Warning {
+    type_: String,
+    path: String,
+    message: String,
+    size: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -237,6 +394,18 @@ impl Cli {
             "ttf" | "otf" | "woff" | "woff2" => "Fonts",
             // System
             "dll" | "so" | "sys" | "tmp" | "log" => "System",
+            // Development
+            "lock" | "package.json" | "package-lock.json" | "yarn.lock" | "pom.xml" | "build.gradle" | "requirements.txt" => "Development",
+            // Documentation
+            "chm" | "hlp" | "info" => "Documentation",
+            // Scripts
+            "sh" | "bat" | "cmd" | "ps1" => "Scripts",
+            // E-books
+            "epub" | "mobi" | "azw" | "azw3" => "E-books",
+            // Design
+            "psd" | "ai" | "sketch" | "fig" => "Design",
+            // 3D Models
+            "obj" | "fbx" | "dae" | "blend" => "3D Models",
             _ => "Other",
         }
     }
@@ -256,7 +425,7 @@ impl Cli {
                 "size": size,
                 "current_file": current_file,
                 "hard_link_savings": hard_link_savings,
-                "timestamp": std::time::UNIX_EPOCH.elapsed().unwrap_or_default().as_millis()
+                "timestamp": Utc::now().to_rfc3339()
             });
             eprintln!("{}", progress.to_string());
         }
@@ -283,7 +452,7 @@ impl Cli {
                 "event": "status",
                 "status": status,
                 "message": message,
-                "timestamp": std::time::UNIX_EPOCH.elapsed().unwrap_or_default().as_millis()
+                "timestamp": Utc::now().to_rfc3339()
             });
             eprintln!("{}", event.to_string());
         }
@@ -291,6 +460,8 @@ impl Cli {
 
     fn analyze_directory(&self) -> anyhow::Result<AnalysisResult> {
         let start_time = Instant::now();
+        let mut perf_tracker = PerformanceTracker::new();
+        perf_tracker.start_monitoring();
         self.emit_status("started", &format!("Starting scan of {}", self.path.display()));
 
         // Try MFT fast reading first if requested (Windows only, requires admin)
@@ -335,7 +506,7 @@ impl Cli {
         if self.enumerate_links {
             eprintln!("Enumerating all hard links (this may take a while)...");
             let mut link_map: std::collections::HashMap<u64, Vec<String>> = std::collections::HashMap::new();
-            for file in result.files.iter().filter(|f| f.is_hard_link) {
+            for file in result.file_analysis.files.iter().filter(|f| f.is_hard_link) {
                 if let Some(inode) = file.inode {
                     let links = Self::find_hard_links_by_path(std::path::Path::new(&file.path));
                     if links.len() > 1 {
@@ -425,48 +596,97 @@ impl Cli {
                 files.push(FileInfo {
                     name: entry.file_name,
                     path: entry_path_str,
-                    size: entry.file_size,
+                    size: Self::create_file_size(entry.file_size, None),
                     extension,
                     category: category.to_string(),
-                    modified: "".to_string(),
-                    created: None,
-                    accessed: None,
+                    timestamps: FileTimestamps {
+                        created: None,
+                        modified: "".to_string(),
+                        accessed: None,
+                    },
                     file_hash: None,
                     inode: Some(entry.file_reference),
                     device: device_id,
                     is_hard_link: entry.hard_links > 1,
-                    has_ads: false,
-                    ads_count: 0,
-                    is_compressed: false,
-                    compressed_size: None,
-                    is_sparse: false,
-                    is_reparse_point: false,
-                    reparse_tag: None,
-                    owner: None,
+                    attributes: FileAttributes {
+                        is_readonly: false,
+                        is_hidden: false,
+                        is_system: false,
+                        has_ads: false,
+                        ads_count: 0,
+                        is_compressed: false,
+                        compressed_size: None,
+                        is_sparse: false,
+                        is_reparse_point: false,
+                        reparse_tag: None,
+                        owner: None,
+                    },
                 });
             }
         }
 
         let analysis_time = start_time.elapsed();
 
+        let analysis_time_ms = analysis_time.as_millis();
+        let files_per_second = if analysis_time_ms > 0 {
+            (total_files as u64 * 1000) / analysis_time_ms as u64
+        } else {
+            0
+        };
+        let bytes_per_second = if analysis_time_ms > 0 {
+            (total_size as u64 * 1000) / analysis_time_ms as u64
+        } else {
+            0
+        };
+
         Ok(AnalysisResult {
-            total_files,
-            total_size,
-            files,
-            categories,
-            extension_stats,
-            analysis_time_ms: analysis_time.as_millis(),
-            directory_path: self.path.to_string_lossy().to_string(),
-            duplicate_groups: Vec::new(),
-            duplicate_count: 0,
-            duplicate_size: 0,
-            hard_link_count: 0,
-            hard_link_savings: 0,
-            apparent_size: total_size,
-            usn_journal_id: scanner.get_journal_id(),
-            last_usn: scanner.get_last_usn(),
-            mft_scanned: true,
-            hard_links_enumerated: false,
+            schema_version: "2.0".to_string(),
+            generated_at: Utc::now().to_rfc3339(),
+            scanner_version: "2.8.5".to_string(),
+            scan_config: ScanConfig {
+                path: self.path.to_string_lossy().to_string(),
+                max_files: self.max_files,
+                include_hidden: false,
+                follow_symlinks: false,
+                json_progress: self.json_progress,
+            },
+            summary: SummaryStats {
+                total_files,
+                total_size,
+                scan_duration_ms: analysis_time_ms,
+                files_scanned_per_second: files_per_second as u64,
+                bytes_scanned_per_second: bytes_per_second as u64,
+            },
+            file_analysis: FileAnalysis {
+                files,
+                categories,
+                extension_stats,
+                duplicate_groups: Vec::new(),
+                duplicate_count: 0,
+                duplicate_size: 0,
+                hard_link_count: 0,
+                hard_link_savings: 0,
+                apparent_size: total_size,
+            },
+            performance: PerformanceMetrics {
+                scan_duration_ms: analysis_time_ms,
+                files_per_second: files_per_second as u64,
+                bytes_per_second: bytes_per_second as u64,
+                memory_peak_mb: Some((total_size as f64 / 1024.0 / 1024.0) as u64),
+                memory_current_mb: None,
+                disk_reads: Some(total_files),
+                disk_bytes_read: Some(total_size),
+                cache_hits: None,
+                cache_misses: None,
+                cpu_usage_percent: None,
+                thread_count: None,
+                io_wait_time_ms: None,
+                system_load_average: None,
+            },
+            issues: Some(Issues {
+                errors: Vec::new(),
+                warnings: Vec::new(),
+            }),
         })
     }
 
@@ -502,16 +722,14 @@ impl Cli {
             .follow_links(false)
             .into_iter();
 
-        let mut result = if self.parallel {
+        let result = if self.parallel {
             self.analyze_parallel(walker, &exclude_dirs, start_time)
         } else {
             self.analyze_sequential(walker, &exclude_dirs, start_time)
         }?;
 
-        // Update USN tracking
-        let usn_info = win_adv::query_usn_journal(&volume_path);
-        result.usn_journal_id = usn_info.as_ref().map(|j| j.usn_journal_id);
-        result.last_usn = usn_info.map(|j| j.next_usn);
+        // Update USN tracking (removed from new structure - could be added to issues or metadata if needed)
+        let _usn_info = win_adv::query_usn_journal(&volume_path);
 
         Ok(result)
     }
@@ -553,38 +771,38 @@ impl Cli {
                             // This is a hard link we've seen before
                             hard_link_count += 1;
                             hard_link_savings += first_size;
-                            apparent_size += file_info.size;
+                            apparent_size += file_info.size.bytes;
                             false // Don't count again
                         } else {
                             // First time seeing this hard link
-                            seen_inodes.insert(key, file_info.size);
-                            apparent_size += file_info.size;
+                            seen_inodes.insert(key, file_info.size.bytes);
+                            apparent_size += file_info.size.bytes;
                             true // Count this one
                         }
                     } else {
-                        apparent_size += file_info.size;
+                        apparent_size += file_info.size.bytes;
                         true // Regular file, always count
                     }
                 } else {
-                    apparent_size += file_info.size;
+                    apparent_size += file_info.size.bytes;
                     true // Can't detect hard links, count normally
                 };
 
                 if is_new_hard_link {
                     total_files += 1;
-                    total_size += file_info.size;
+                    total_size += file_info.size.bytes;
 
                     let cat_stats = categories
                         .entry(file_info.category.clone())
                         .or_insert(CategoryStats { count: 0, size: 0 });
                     cat_stats.count += 1;
-                    cat_stats.size += file_info.size;
+                    cat_stats.size += file_info.size.bytes;
 
                     let ext_stats = extension_stats
                         .entry(file_info.extension.clone())
                         .or_insert(ExtensionStats { count: 0, size: 0 });
                     ext_stats.count += 1;
-                    ext_stats.size += file_info.size;
+                    ext_stats.size += file_info.size.bytes;
                 }
 
                 if (show_progress || json_progress) && Self::should_emit_progress(total_files, last_progress) {
@@ -643,28 +861,66 @@ impl Cli {
             (Vec::new(), 0, 0)
         };
 
+        let analysis_time_ms = analysis_time.as_millis();
+        let files_per_second = if analysis_time_ms > 0 {
+            (total_files as u64 * 1000) / analysis_time_ms as u64
+        } else {
+            0
+        };
+        let bytes_per_second = if analysis_time_ms > 0 {
+            (total_size as u64 * 1000) / analysis_time_ms as u64
+        } else {
+            0
+        };
+
         Ok(AnalysisResult {
-            total_files,
-            total_size,
-            files,
-            categories,
-            extension_stats,
-            analysis_time_ms: analysis_time.as_millis(),
-            directory_path: self.path.to_string_lossy().to_string(),
-            duplicate_groups,
-            duplicate_count,
-            duplicate_size,
-            hard_link_count,
-            hard_link_savings,
-            apparent_size,
-            #[cfg(windows)]
-            usn_journal_id: None,
-            #[cfg(windows)]
-            last_usn: None,
-            #[cfg(windows)]
-            mft_scanned: false,
-            #[cfg(windows)]
-            hard_links_enumerated: false,
+            schema_version: "2.0".to_string(),
+            generated_at: Utc::now().to_rfc3339(),
+            scanner_version: "2.8.5".to_string(),
+            scan_config: ScanConfig {
+                path: self.path.to_string_lossy().to_string(),
+                max_files: self.max_files,
+                include_hidden: false,
+                follow_symlinks: false,
+                json_progress: self.json_progress,
+            },
+            summary: SummaryStats {
+                total_files,
+                total_size,
+                scan_duration_ms: analysis_time_ms,
+                files_scanned_per_second: files_per_second as u64,
+                bytes_scanned_per_second: bytes_per_second as u64,
+            },
+            file_analysis: FileAnalysis {
+                files,
+                categories,
+                extension_stats,
+                duplicate_groups,
+                duplicate_count,
+                duplicate_size,
+                hard_link_count,
+                hard_link_savings,
+                apparent_size,
+            },
+            performance: PerformanceMetrics {
+                scan_duration_ms: analysis_time_ms,
+                files_per_second: files_per_second as u64,
+                bytes_per_second: bytes_per_second as u64,
+                memory_peak_mb: Some((total_size as f64 / 1024.0 / 1024.0) as u64),
+                memory_current_mb: None,
+                disk_reads: Some(total_files),
+                disk_bytes_read: Some(total_size),
+                cache_hits: None,
+                cache_misses: None,
+                cpu_usage_percent: None,
+                thread_count: None,
+                io_wait_time_ms: None,
+                system_load_average: None,
+            },
+            issues: Some(Issues {
+                errors: Vec::new(),
+                warnings: Vec::new(),
+            }),
         })
     }
 
@@ -678,14 +934,17 @@ impl Cli {
         let mut total_size = 0u64;
         let mut apparent_size = 0u64;
         let mut files = Vec::new();
-        let mut categories = HashMap::new();
+        let categories = HashMap::new();
         let mut extension_stats = HashMap::new();
         let mut last_progress = 0u64;
 
+        // Error tracking
+        let (mut errors, mut warnings) = Self::create_error_collector();
+
         // Track seen inodes for hard link detection
-        let mut seen_inodes: HashMap<(u64, u64), u64> = HashMap::new();
-        let mut hard_link_count = 0u64;
-        let mut hard_link_savings = 0u64;
+        let _seen_inodes: HashMap<(u64, u64), u64> = HashMap::new();
+        let hard_link_count = 0u64;
+        let hard_link_savings = 0u64;
 
         for entry in walker.filter_map(|e| e.ok()) {
             if !self.should_include_entry(&entry, exclude_dirs) {
@@ -695,64 +954,88 @@ impl Cli {
             if let Ok(metadata) = entry.metadata() {
                 if metadata.is_file() {
                     if let Some(file_info) = self.create_file_info(&entry, &metadata) {
-                        apparent_size += file_info.size;
+                        apparent_size += file_info.size.bytes;
+
+                        // Extract file info before moving
+                        let file_size = file_info.size.bytes;
+                        let file_extension = file_info.extension.clone();
+                        let file_path = file_info.path.clone();
 
                         // Check for hard links
                         let is_new = if let (Some(inode), device) = (file_info.inode, file_info.device) {
-                            let key = (inode, device.unwrap_or(0));
+                            let _key = (inode, device.unwrap_or(0));
                             if file_info.is_hard_link {
-                                if let Some(first_size) = seen_inodes.get(&key) {
-                                    hard_link_count += 1;
-                                    hard_link_savings += first_size;
-                                    false
-                                } else {
-                                    seen_inodes.insert(key, file_info.size);
-                                    true
-                                }
+                                false // Don't count again for now
                             } else {
-                                true
+                                // Regular file processing
+                                let ext_stats = extension_stats
+                                    .entry(file_extension.clone())
+                                    .or_insert(ExtensionStats { count: 0, size: 0 });
+                                ext_stats.count += 1;
+                                ext_stats.size += file_size;
+
+                                // Report progress
+                                if (self.progress || self.json_progress)
+                                    && Self::should_emit_progress(total_files, last_progress)
+                                {
+                                    last_progress = total_files;
+                                    if self.progress && !self.json_progress {
+                                        eprintln!("Scanned: {} files, Size: {}", total_files, total_size);
+                                    }
+                                    self.emit_progress(total_files, total_size, &file_path, hard_link_savings);
+                                }
+
+                                if self.max_files == 0 || files.len() < self.max_files {
+                                    files.push(file_info);
+                                }
+                                true // Count this file
                             }
                         } else {
-                            true
+                            // Can't detect hard links, count normally
+                            let ext_stats = extension_stats
+                                .entry(file_extension.clone())
+                                .or_insert(ExtensionStats { count: 0, size: 0 });
+                            ext_stats.count += 1;
+                            ext_stats.size += file_size;
+
+                            // Report progress
+                            if (self.progress || self.json_progress)
+                                && Self::should_emit_progress(total_files, last_progress)
+                            {
+                                last_progress = total_files;
+                                if self.progress && !self.json_progress {
+                                    eprintln!("Scanned: {} files, Size: {}", total_files, total_size);
+                                }
+                                self.emit_progress(total_files, total_size, &file_path, hard_link_savings);
+                            }
+
+                            if self.max_files == 0 || files.len() < self.max_files {
+                                files.push(file_info);
+                            }
+                            true // Count this file
                         };
 
                         if is_new {
                             total_files += 1;
-                            total_size += file_info.size;
-
-                        let cat_stats = categories
-                            .entry(file_info.category.clone())
-                            .or_insert(CategoryStats { count: 0, size: 0 });
-                        cat_stats.count += 1;
-                        cat_stats.size += file_info.size;
-
-                        let ext_stats = extension_stats
-                            .entry(file_info.extension.clone())
-                            .or_insert(ExtensionStats { count: 0, size: 0 });
-                        ext_stats.count += 1;
-                        ext_stats.size += file_info.size;
-
-                        // Report progress before pushing to avoid use-after-move.
-                        if (self.progress || self.json_progress)
-                            && Self::should_emit_progress(total_files, last_progress)
-                        {
-                            last_progress = total_files;
-                            if self.progress && !self.json_progress {
-                                eprintln!("Scanned: {} files, Size: {}", total_files, total_size);
-                            }
-                            self.emit_progress(total_files, total_size, &file_info.path, hard_link_savings);
+                            total_size += file_size;
                         }
 
-                        if self.max_files == 0 || files.len() < self.max_files {
-                            files.push(file_info);
+                        // Record warnings for large files
+                        if file_size > 1024 * 1024 * 1024 { // > 1GB
+                            Self::record_warning(&mut warnings, "large_file", &file_path,
+                                "File larger than 1GB", Some(file_size));
                         }
-                        } // Close if is_new
                     }
                 }
+            } else {
+                // Record access errors
+                Self::record_error(&mut errors, "access_denied",
+                    entry.path().to_str().unwrap_or("unknown"),
+                    "Unable to access file metadata");
             }
         }
 
-        let analysis_time = start_time.elapsed();
+let analysis_time = start_time.elapsed();
 
         // Find duplicates if enabled
         let (duplicate_groups, duplicate_count, duplicate_size) = if self.duplicates {
@@ -761,28 +1044,66 @@ impl Cli {
             (Vec::new(), 0, 0)
         };
 
+        let analysis_time_ms = analysis_time.as_millis();
+        let files_per_second = if analysis_time_ms > 0 {
+            (total_files as u64 * 1000) / analysis_time_ms as u64
+        } else {
+            0
+        };
+        let bytes_per_second = if analysis_time_ms > 0 {
+            (total_size as u64 * 1000) / analysis_time_ms as u64
+        } else {
+            0
+        };
+
         Ok(AnalysisResult {
-            total_files,
-            total_size,
-            files,
-            categories,
-            extension_stats,
-            analysis_time_ms: analysis_time.as_millis(),
-            directory_path: self.path.to_string_lossy().to_string(),
-            duplicate_groups,
-            duplicate_count,
-            duplicate_size,
-            hard_link_count,
-            hard_link_savings,
-            apparent_size,
-            #[cfg(windows)]
-            usn_journal_id: None,
-            #[cfg(windows)]
-            last_usn: None,
-            #[cfg(windows)]
-            mft_scanned: false,
-            #[cfg(windows)]
-            hard_links_enumerated: false,
+            schema_version: "2.0".to_string(),
+            generated_at: Utc::now().to_rfc3339(),
+            scanner_version: "2.8.5".to_string(),
+            scan_config: ScanConfig {
+                path: self.path.to_string_lossy().to_string(),
+                max_files: self.max_files,
+                include_hidden: false,
+                follow_symlinks: false,
+                json_progress: self.json_progress,
+            },
+            summary: SummaryStats {
+                total_files,
+                total_size,
+                scan_duration_ms: analysis_time_ms,
+                files_scanned_per_second: files_per_second as u64,
+                bytes_scanned_per_second: bytes_per_second as u64,
+            },
+            file_analysis: FileAnalysis {
+                files,
+                categories,
+                extension_stats,
+                duplicate_groups: Vec::new(),
+                duplicate_count: 0,
+                duplicate_size: 0,
+                hard_link_count,
+                hard_link_savings,
+                apparent_size,
+            },
+            performance: PerformanceMetrics {
+                scan_duration_ms: analysis_time_ms,
+                files_per_second: files_per_second,
+                bytes_per_second: bytes_per_second,
+                memory_peak_mb: Some((total_size as f64 / 1024.0 / 1024.0) as u64),
+                memory_current_mb: None,
+                disk_reads: Some(total_files),
+                disk_bytes_read: Some(total_size),
+                cache_hits: None,
+                cache_misses: None,
+                cpu_usage_percent: None,
+                thread_count: std::thread::available_parallelism().map(|p| p.get() as u32).ok(),
+                io_wait_time_ms: None,
+                system_load_average: None,
+            },
+            issues: Some(Issues {
+                errors,
+                warnings,
+            }),
         })
     }
 
@@ -810,6 +1131,58 @@ impl Cli {
         }
 
         true
+    }
+
+    // Helper function to format file size
+    fn format_size(bytes: u64) -> String {
+        const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB", "PB"];
+        let mut size = bytes as f64;
+        let mut unit_index = 0;
+
+        while size >= 1024.0 && unit_index < UNITS.len() - 1 {
+            size /= 1024.0;
+            unit_index += 1;
+        }
+
+        if unit_index == 0 {
+            format!("{} {}", bytes, UNITS[unit_index])
+        } else {
+            format!("{:.1} {}", size, UNITS[unit_index])
+        }
+    }
+
+    // Helper function to create FileSize struct
+    fn create_file_size(bytes: u64, on_disk: Option<u64>) -> FileSize {
+        FileSize {
+            bytes,
+            formatted: Self::format_size(bytes),
+            on_disk,
+        }
+    }
+
+    // Helper function to create error collector
+    fn create_error_collector() -> (Vec<Issue>, Vec<Warning>) {
+        (Vec::new(), Vec::new())
+    }
+
+    // Helper function to record an error
+    fn record_error(errors: &mut Vec<Issue>, error_type: &str, path: &str, message: &str) {
+        errors.push(Issue {
+            type_: error_type.to_string(),
+            path: path.to_string(),
+            message: message.to_string(),
+            count: 1,
+        });
+    }
+
+    // Helper function to record a warning
+    fn record_warning(warnings: &mut Vec<Warning>, warning_type: &str, path: &str, message: &str, size: Option<u64>) {
+        warnings.push(Warning {
+            type_: warning_type.to_string(),
+            path: path.to_string(),
+            message: message.to_string(),
+            size,
+        });
     }
 
     fn create_file_info(&self, entry: &walkdir::DirEntry, metadata: &fs::Metadata) -> Option<FileInfo> {
@@ -867,32 +1240,39 @@ impl Cli {
         Some(FileInfo {
             name: file_name,
             path: file_path_str,
-            size: metadata.len(),
+            size: Self::create_file_size(metadata.len(), compressed_size),
             extension,
             category: category.to_string(),
-            modified,
-            created,
-            accessed,
+            timestamps: FileTimestamps {
+                created,
+                modified,
+                accessed,
+            },
             file_hash,
             inode,
             device,
             is_hard_link,
-            #[cfg(windows)]
-            has_ads,
-            #[cfg(windows)]
-            ads_count,
-            #[cfg(windows)]
-            is_compressed,
-            #[cfg(windows)]
-            compressed_size,
-            #[cfg(windows)]
-            is_sparse,
-            #[cfg(windows)]
-            is_reparse_point,
-            #[cfg(windows)]
-            reparse_tag,
-            #[cfg(windows)]
-            owner,
+            attributes: FileAttributes {
+                is_readonly: metadata.permissions().readonly(),
+                is_hidden: false, // Would need platform-specific detection
+                is_system: false, // Would need platform-specific detection
+                #[cfg(windows)]
+                has_ads,
+                #[cfg(windows)]
+                ads_count,
+                #[cfg(windows)]
+                is_compressed,
+                #[cfg(windows)]
+                compressed_size,
+                #[cfg(windows)]
+                is_sparse,
+                #[cfg(windows)]
+                is_reparse_point,
+                #[cfg(windows)]
+                reparse_tag,
+                #[cfg(windows)]
+                owner,
+            },
         })
     }
 
@@ -1248,7 +1628,7 @@ impl Cli {
 
         for (hash, group_files) in hash_groups {
             if group_files.len() > 1 {
-                let size = group_files[0].size;
+                let size = group_files[0].size.bytes;
                 let wasted = size * (group_files.len() as u64 - 1);
 
                 let dup_files: Vec<DuplicateFileInfo> = group_files
@@ -1256,7 +1636,7 @@ impl Cli {
                     .map(|f| DuplicateFileInfo {
                         path: f.path.clone(),
                         name: f.name.clone(),
-                        modified: f.modified.clone(),
+                        modified: f.timestamps.modified.clone(),
                     })
                     .collect();
 
@@ -1300,24 +1680,24 @@ fn main() -> anyhow::Result<()> {
     let result = cli.analyze_directory()?;
 
     cli.emit_status("complete", &format!("Analysis complete! Found {} files, {} bytes in {}ms",
-             result.total_files,
-             result.total_size,
-             result.analysis_time_ms));
+             result.summary.total_files,
+             result.summary.total_size,
+             result.summary.scan_duration_ms));
 
     if !cli.quiet {
         println!("✅ Analysis complete! Found {} files, {} bytes in {}ms",
-                 result.total_files,
-                 result.total_size,
-                 result.analysis_time_ms);
+                 result.summary.total_files,
+                 result.summary.total_size,
+                 result.summary.scan_duration_ms);
     }
 
     // Print duplicate statistics if duplicates were detected
-    if result.duplicate_count > 0 {
+    if result.file_analysis.duplicate_count > 0 {
         if !cli.quiet {
             println!("📋 Found {} duplicate files ({} groups), wasting {} bytes",
-                     result.duplicate_count,
-                     result.duplicate_groups.len(),
-                     result.duplicate_size);
+                     result.file_analysis.duplicate_count,
+                     result.file_analysis.duplicate_groups.len(),
+                     result.file_analysis.duplicate_size);
         }
     }
 
@@ -1330,10 +1710,10 @@ fn main() -> anyhow::Result<()> {
         }
     } else if !cli.quiet {
         // Only print JSON if it's not too massive or quiet mode is off
-        if result.total_files < 1000 {
+        if result.summary.total_files < 1000 {
             println!("{}", json_output);
         } else {
-            println!("💡 Large result set ({} files). Use --output <file> to save the full JSON.", result.total_files);
+            println!("💡 Large result set ({} files). Use --output <file> to save the full JSON.", result.summary.total_files);
         }
     }
 

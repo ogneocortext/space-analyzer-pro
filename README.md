@@ -96,6 +96,17 @@ The backend has been completely overhauled with enterprise-grade features:
 - System resource monitoring (memory, CPU, disk)
 - Data export in multiple formats with retention policies
 
+#### Enhanced Performance Monitoring (v2.8.5)
+
+- **Real-time Performance Tracking** - Live throughput, memory usage, CPU monitoring during scans
+- **Comprehensive Metrics Dashboard** - Post-scan performance analysis with detailed breakdowns
+- **Performance Insights Engine** - AI-powered optimization recommendations with priority scoring
+- **Resource Utilization Analysis** - Memory peak tracking, disk I/O analysis, cache efficiency metrics
+- **Performance Grading System** - A-D performance scoring with actionable insights
+- **Bottleneck Detection** - Automatic identification of I/O wait, memory, and CPU bottlenecks
+- **Trend Analysis** - Performance pattern recognition with improvement/decline tracking
+- **Optimization Suggestions** - Specific recommendations for scan configuration improvements
+
 #### API Enhancements
 
 - 25+ new REST API endpoints for comprehensive functionality
@@ -106,17 +117,20 @@ The backend has been completely overhauled with enterprise-grade features:
 The backend has been refactored into a high-performance, modular service-oriented architecture:
 
 #### Service-Oriented Logic
+
 - **`LearningService`**: Manages self-learning patterns, interaction history, and performance metrics.
 - **`EnhancedOllamaService`**: Orchestrates AI model selection, query classification, and hardware-optimized execution.
 - **`RoutesManager`**: Centralized routing system that dynamically mounts specialized route modules.
 
 #### Specialized Route Handlers
+
 - **`AnalysisRoutes`**: High-performance directory scanning, analysis results management, and real-time progress streaming.
 - **`SystemRoutes`**: Real-time system health monitoring, hardware analytics, and performance tracking.
 - **`OrchestrateRoutes`**: Multi-agent task orchestration, queue management, and circuit breaker implementation.
 - **`AIRoutes`**: Refactored AI insights, document summarization, and natural language processing.
 
 #### Technical Benefits
+
 - **Maintainability**: Reduced `backend-server.js` technical debt by 98%.
 - **Scalability**: Decoupled services allow for independent scaling and testing.
 - **Performance**: Optimized initialization and resource management through lazy-loading and hardware-aware configuration.

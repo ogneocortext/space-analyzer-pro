@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import { AnalysisBridge } from "@/services/AnalysisBridge";
 
 // Simple logger that saves to window object for inspection
@@ -35,6 +35,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
     totalSize: 0,
   });
   const abortController = ref<AbortController | null>(null);
+  const analysisStartTime = ref<number | null>(null);
 
   const analysisBridge = new AnalysisBridge();
 
@@ -76,6 +77,9 @@ export const useAnalysisStore = defineStore("analysis", () => {
   }
 
   const handleAnalysis = async (enableAI: boolean = false) => {
+    // Record analysis start time
+    analysisStartTime.value = Date.now();
+
     try {
       console.log("🚀 handleAnalysis called with enableAI:", enableAI);
       console.log("📂 Path to analyze:", path.value);
@@ -133,8 +137,8 @@ export const useAnalysisStore = defineStore("analysis", () => {
       log("RESULT", result);
       data.value = result;
       // Populate scannedFiles from result for RealTimeFileScanner
-      if (result?.files && Array.isArray(result.files)) {
-        scannedFiles.value = result.files;
+      if (result?.file_analysis?.files && Array.isArray(result.file_analysis.files)) {
+        scannedFiles.value = result.file_analysis.files;
       }
       status.value = "complete";
       progress.value = 100;
