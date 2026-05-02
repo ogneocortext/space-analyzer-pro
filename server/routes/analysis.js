@@ -138,22 +138,70 @@ class AnalysisRoutes {
     this.router.get("/results/:id", async (req, res) => {
       try {
         const analysisId = req.params.id;
-        const result = this.server.analysisResults.get(analysisId);
-
-        if (!result) {
-          return res.status(404).json({
-            error: "Analysis not found",
+        
+        // First check completed results
+        let result = this.server.analysisResults.get(analysisId);
+        if (result) {
+          return res.json({
+            success: true,
             id: analysisId,
+            ...result,
           });
         }
 
-        res.json({
-          success: true,
+        // Then check active analyses
+        const active = this.server.activeAnalyses.get(analysisId);
+        if (active) {
+          return res.json({
+            success: true,
+            id: analysisId,
+            status: active.status || "scanning",
+            progress: active.progress || 0,
+            message: "Analysis still in progress",
+          });
+        }
+
+        return res.status(404).json({
+          error: "Analysis not found",
           id: analysisId,
-          ...result,
         });
       } catch (error) {
         console.error("Get results by ID error:", error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Cancel analysis
+    this.router.post("/cancel", async (req, res) => {
+      try {
+        const { analysisId } = req.body;
+        
+        // If no ID provided, cancel all for now or the most recent one
+        if (!analysisId) {
+          // Cancel all active scans
+          for (const [id, analysis] of this.server.activeAnalyses) {
+            if (analysis.process) {
+              analysis.process.kill();
+              console.log(`🛑 Killed scanner process for analysis ${id}`);
+            }
+          }
+          this.server.activeAnalyses.clear();
+          return res.json({ success: true, message: "All analyses cancelled" });
+        }
+
+        const analysis = this.server.activeAnalyses.get(analysisId);
+        if (analysis) {
+          if (analysis.process) {
+            analysis.process.kill();
+            console.log(`🛑 Killed scanner process for analysis ${analysisId}`);
+          }
+          this.server.activeAnalyses.delete(analysisId);
+          return res.json({ success: true, message: `Analysis ${analysisId} cancelled` });
+        }
+
+        res.status(404).json({ error: "Analysis not found or already completed" });
+      } catch (error) {
+        console.error("Cancel analysis error:", error);
         res.status(500).json({ error: error.message });
       }
     });
@@ -446,6 +494,9 @@ class AnalysisRoutes {
           cwd: path.dirname(scannerPath),
         }
       );
+      
+      analysis.process = scanner;
+      analysis.status = "scanning";
 
       let output = "";
       let errorOutput = "";
@@ -485,7 +536,7 @@ class AnalysisRoutes {
           });
 
           // Update analysis status
-          analysis.status = "completed";
+          analysis.status = "complete";
           analysis.progress = 100;
           analysis.endTime = Date.now();
           this.server.activeAnalyses.set(analysisId, analysis);
