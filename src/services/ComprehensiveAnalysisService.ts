@@ -26,98 +26,403 @@ export interface AnalysisConfig {
   saveResults?: string;
   progress: boolean;
   verbose: boolean;
+  allowSimulation?: boolean; // Allow fallback to simulated data if real analysis unavailable
+}
+
+export interface CodeQualityResult {
+  success: boolean;
+  projectPath: string;
+  timestamp: string;
+  dataSource: "real" | "simulated";
+  toolsUsed: string[];
+  summary: {
+    totalFiles: number;
+    totalIssues: number;
+    errors: number;
+    warnings: number;
+    fixable: number;
+    score: number;
+  };
+  analysis: {
+    eslint?: {
+      status: string;
+      summary: {
+        total: number;
+        errors: number;
+        warnings: number;
+        fixable: number;
+        filesAnalyzed: number;
+      };
+      issues: Array<{
+        file: string;
+        line: number;
+        column: number;
+        rule: string;
+        message: string;
+        severity: "error" | "warning";
+        category: string;
+        fixable: boolean;
+      }>;
+      score: number;
+    };
+    complexity?: {
+      status: string;
+      summary: {
+        totalFunctions: number;
+        averageComplexity: number;
+        highComplexity: number;
+        veryHighComplexity: number;
+      };
+    };
+  };
+  duration: number;
+  error?: string;
+}
+
+export interface ToolsStatus {
+  success: boolean;
+  tools: {
+    eslint: boolean;
+    typescript: boolean;
+    security: boolean;
+    complexity: boolean;
+  };
+  installCommands: Record<string, string>;
 }
 
 class ComprehensiveAnalysisService {
   private logger = DebugLogger.getInstance();
   private baseUrl = "/api";
+  private lastResult: CodeQualityResult | null = null;
 
+  /**
+   * Check if analysis tools are available
+   */
+  async checkToolsStatus(): Promise<ToolsStatus> {
+    try {
+      const response = await fetch(`${this.baseUrl}/analysis/tools-status`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      this.logger.error("ComprehensiveAnalysisService", "Failed to check tools status", error);
+      return {
+        success: false,
+        tools: { eslint: false, typescript: false, security: false, complexity: false },
+        installCommands: {},
+      };
+    }
+  }
+
+  /**
+   * Install analysis tools (returns install commands)
+   */
+  async getInstallCommands(tools?: string[]): Promise<string[]> {
+    try {
+      const response = await fetch(`${this.baseUrl}/analysis/install-tools`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tools }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const result = await response.json();
+      return result.commands || [];
+    } catch (error) {
+      this.logger.error("ComprehensiveAnalysisService", "Failed to get install commands", error);
+      return [
+        "npm install --save-dev eslint",
+        "npm install --save-dev typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin",
+      ];
+    }
+  }
+
+  /**
+   * Start comprehensive analysis - tries real API first, falls back to simulation if allowed
+   */
   async startAnalysis(
     config: AnalysisConfig,
     onProgress?: (progress: any) => void
-  ): Promise<ComprehensiveAnalysisResult> {
+  ): Promise<CodeQualityResult> {
     this.logger.info("ComprehensiveAnalysisService", "Starting comprehensive analysis", config);
 
+    // Try real code quality analysis first
     try {
-      // For now, we'll simulate the analysis since the comprehensive CLI isn't fully integrated with the backend yet
-      // In a real implementation, this would call the backend which would execute the CLI
+      const realResult = await this.runRealAnalysis(config, onProgress);
+      if (realResult.success) {
+        this.lastResult = realResult;
+        (stateManager as any).set("comprehensiveAnalysisResult", realResult);
+        return realResult;
+      }
+    } catch (error) {
+      this.logger.warn(
+        "ComprehensiveAnalysisService",
+        "Real analysis failed, checking fallback options",
+        error
+      );
+    }
 
-      const response = await fetch(`${this.baseUrl}/comprehensive-analysis`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(config),
-      });
+    // Only simulate if explicitly allowed
+    if (config.allowSimulation) {
+      this.logger.info("ComprehensiveAnalysisService", "Falling back to simulated analysis");
+      const simulatedResult = await this.simulateAnalysis(config, onProgress);
+      this.lastResult = simulatedResult;
+      (stateManager as any).set("comprehensiveAnalysisResult", simulatedResult);
+      return simulatedResult;
+    }
 
+    // Return error state with tools status
+    const toolsStatus = await this.checkToolsStatus();
+    const errorResult: CodeQualityResult = {
+      success: false,
+      projectPath: config.projectPath,
+      timestamp: new Date().toISOString(),
+      dataSource: "real",
+      toolsUsed: [],
+      summary: {
+        totalFiles: 0,
+        totalIssues: 0,
+        errors: 0,
+        warnings: 0,
+        fixable: 0,
+        score: 0,
+      },
+      analysis: {},
+      duration: 0,
+      error: toolsStatus.tools.eslint
+        ? "Analysis failed - check server logs"
+        : "ESLint not installed. Run: npm install --save-dev eslint",
+    };
+
+    this.lastResult = errorResult;
+    return errorResult;
+  }
+
+  /**
+   * Run real code quality analysis via API
+   */
+  private async runRealAnalysis(
+    config: AnalysisConfig,
+    onProgress?: (progress: any) => void
+  ): Promise<CodeQualityResult> {
+    this.logger.info("ComprehensiveAnalysisService", "Running real code quality analysis");
+
+    if (onProgress) {
+      onProgress({ step: "Initializing analysis tools...", percentage: 10 });
+    }
+
+    const response = await fetch(`${this.baseUrl}/analysis/code-quality`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectPath: config.projectPath }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const apiResult = await response.json();
+
+    if (onProgress) {
+      onProgress({ step: "Processing results...", percentage: 100 });
+    }
+
+    // Transform API result to CodeQualityResult format
+    return {
+      success: apiResult.success,
+      projectPath: apiResult.projectPath,
+      timestamp: apiResult.timestamp,
+      dataSource: "real",
+      toolsUsed: apiResult.toolsUsed || [],
+      summary: apiResult.summary || {
+        totalFiles: 0,
+        totalIssues: 0,
+        errors: 0,
+        warnings: 0,
+        fixable: 0,
+        score: apiResult.analysis?.eslint?.score || 0,
+      },
+      analysis: apiResult.analysis || {},
+      duration: apiResult.duration || 0,
+      error: apiResult.error,
+    };
+  }
+
+  /**
+   * Analyze a single file
+   */
+  async analyzeFile(filePath: string): Promise<CodeQualityResult> {
+    this.logger.info("ComprehensiveAnalysisService", "Analyzing single file", { filePath });
+
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/analysis/file?path=${encodeURIComponent(filePath)}`
+      );
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(`HTTP ${response.status}`);
       }
 
       const result = await response.json();
-
-      // Store result in state manager
-      (stateManager as any).set("comprehensiveAnalysisResult", result);
-
-      this.logger.info("ComprehensiveAnalysisService", "Analysis completed successfully", {
-        analyzersRun: result.metadata.analyzers_run,
-        totalFiles: result.metadata.total_files,
-      });
-
-      return result;
+      return {
+        success: result.success,
+        projectPath: filePath,
+        timestamp: new Date().toISOString(),
+        dataSource: "real",
+        toolsUsed: result.eslint ? ["eslint"] : [],
+        summary: {
+          totalFiles: 1,
+          totalIssues: result.eslint?.summary?.total || 0,
+          errors: result.eslint?.summary?.errors || 0,
+          warnings: result.eslint?.summary?.warnings || 0,
+          fixable: result.eslint?.summary?.fixable || 0,
+          score: result.eslint?.score || 0,
+        },
+        analysis: {
+          eslint: result.eslint,
+          complexity: result.complexity,
+        },
+        duration: 0,
+      };
     } catch (error) {
-      this.logger.error("ComprehensiveAnalysisService", "Analysis failed", error);
-
-      // Fallback: simulate analysis for demo purposes
-      return this.simulateAnalysis(config, onProgress);
+      this.logger.error("ComprehensiveAnalysisService", "Single file analysis failed", error);
+      return {
+        success: false,
+        projectPath: filePath,
+        timestamp: new Date().toISOString(),
+        dataSource: "real",
+        toolsUsed: [],
+        summary: { totalFiles: 0, totalIssues: 0, errors: 0, warnings: 0, fixable: 0, score: 0 },
+        analysis: {},
+        duration: 0,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
     }
   }
 
   private async simulateAnalysis(
     config: AnalysisConfig,
     onProgress?: (progress: any) => void
-  ): Promise<ComprehensiveAnalysisResult> {
-    this.logger.info("ComprehensiveAnalysisService", "Simulating analysis for demo", config);
+  ): Promise<CodeQualityResult> {
+    this.logger.warn("ComprehensiveAnalysisService", "⚠️ Using SIMULATED analysis data", config);
 
     // Simulate progress
     const steps = [
-      "Initializing analyzers...",
-      "Scanning files...",
-      "Running analysis...",
-      "Generating results...",
+      { step: "Initializing analyzers...", percentage: 10 },
+      { step: "Scanning files...", percentage: 30 },
+      { step: "Running ESLint...", percentage: 60 },
+      { step: "Analyzing complexity...", percentage: 80 },
+      { step: "Generating results...", percentage: 100 },
     ];
 
-    for (let i = 0; i < steps.length; i++) {
+    for (const progress of steps) {
       if (onProgress) {
         onProgress({
-          step: steps[i],
-          percentage: ((i + 1) / steps.length) * 100,
-          currentAnalyzer: config.selectedAnalyzers[i] || "Processing...",
+          step: progress.step,
+          percentage: progress.percentage,
+          currentAnalyzer: "Simulated",
+          dataSource: "simulated",
         });
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
-    // Generate mock results based on selected analyzers
-    const mockResults: ComprehensiveAnalysisResult = {
-      metadata: {
-        timestamp: new Date().toISOString(),
-        analyzers_run: config.selectedAnalyzers,
-        project_path: config.projectPath,
-        total_files: Math.floor(Math.random() * 1000) + 100,
+    // Generate simulated results with realistic patterns (NOT random)
+    const totalFiles = 150;
+    const errorRate = 0.05; // 5% error rate
+    const warningRate = 0.15; // 15% warning rate
+
+    const totalIssues = Math.floor(totalFiles * (errorRate + warningRate));
+    const errors = Math.floor(totalFiles * errorRate);
+    const warnings = totalIssues - errors;
+    const fixable = Math.floor(warnings * 0.7); // 70% of warnings are auto-fixable
+
+    // Generate simulated issues with realistic patterns
+    const simulatedIssues = [];
+    const commonIssues = [
+      { rule: "semi", message: "Missing semicolon", category: "style", severity: "error" },
+      {
+        rule: "quotes",
+        message: "Strings must use doublequote",
+        category: "style",
+        severity: "error",
       },
-      results: {},
+      {
+        rule: "no-unused-vars",
+        message: "'foo' is assigned but never used",
+        category: "best-practices",
+        severity: "warning",
+      },
+      {
+        rule: "no-console",
+        message: "Unexpected console statement",
+        category: "best-practices",
+        severity: "warning",
+      },
+      {
+        rule: "indent",
+        message: "Expected indentation of 2 spaces",
+        category: "style",
+        severity: "error",
+      },
+    ];
+
+    for (let i = 0; i < totalIssues; i++) {
+      const issueTemplate = commonIssues[i % commonIssues.length];
+      simulatedIssues.push({
+        file: `/src/components/${i % 20}/File${i}.js`,
+        line: 10 + (i % 50),
+        column: 1 + (i % 10),
+        rule: issueTemplate.rule,
+        message: issueTemplate.message,
+        severity: i < errors ? "error" : "warning",
+        category: issueTemplate.category,
+        fixable: i >= errors && i < errors + fixable,
+      });
+    }
+
+    const mockResult: CodeQualityResult = {
+      success: true,
+      projectPath: config.projectPath,
+      timestamp: new Date().toISOString(),
+      dataSource: "simulated", // ⚠️ Clearly marked as simulated
+      toolsUsed: ["simulated-eslint"],
+      summary: {
+        totalFiles,
+        totalIssues,
+        errors,
+        warnings,
+        fixable,
+        score: Math.max(0, 100 - errors * 5 - warnings),
+      },
+      analysis: {
+        eslint: {
+          status: "completed",
+          summary: {
+            total: totalIssues,
+            errors,
+            warnings,
+            fixable,
+            filesAnalyzed: totalFiles,
+          },
+          issues: simulatedIssues,
+          score: Math.max(0, 100 - errors * 5 - warnings),
+        },
+        complexity: {
+          status: "completed",
+          summary: {
+            totalFunctions: 45,
+            averageComplexity: 4.2,
+            highComplexity: 3,
+            veryHighComplexity: 0,
+          },
+        },
+      },
+      duration: 2500, // 2.5 seconds
     };
 
-    // Generate mock results for each selected analyzer
-    config.selectedAnalyzers.forEach((analyzerId) => {
-      mockResults.results[`${analyzerId}_analysis`] = this.generateMockAnalyzerResult(analyzerId);
-    });
-
-    // Store in state manager
-    (stateManager as any).set("comprehensiveAnalysisResult", mockResults);
-
-    return mockResults;
+    return mockResult;
   }
 
   private generateMockAnalyzerResult(analyzerId: string): any {
