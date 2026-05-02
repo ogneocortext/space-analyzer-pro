@@ -541,6 +541,104 @@ class LearningRoutes {
         });
       }
     });
+
+    // Store analysis patterns from ML service
+    this.router.post("/learning/patterns", async (req, res) => {
+      try {
+        const { patterns } = req.body;
+
+        if (!patterns || !Array.isArray(patterns)) {
+          return res.status(400).json({
+            success: false,
+            error: "patterns array is required",
+          });
+        }
+
+        // Store patterns in database or memory
+        const storedPatterns = [];
+
+        for (const pattern of patterns) {
+          const patternData = {
+            id: pattern.id || `pattern-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            type: pattern.type || "code-smell",
+            name: pattern.name,
+            description: pattern.description,
+            frequency: pattern.frequency || 1,
+            files: pattern.files || [],
+            firstSeen: pattern.firstSeen || Date.now(),
+            lastSeen: pattern.lastSeen || Date.now(),
+            confidence: pattern.confidence || 0.8,
+            examples: pattern.examples || [],
+            severity: pattern.severity || "medium",
+            storedAt: new Date().toISOString(),
+          };
+
+          // Store in knowledgeDB if available
+          if (this.server?.knowledgeDB?.storePattern) {
+            await this.server.knowledgeDB.storePattern(patternData);
+          }
+
+          // Also store in memory for quick access
+          if (!this.server.analysisPatterns) {
+            this.server.analysisPatterns = new Map();
+          }
+          this.server.analysisPatterns.set(patternData.id, patternData);
+
+          storedPatterns.push(patternData);
+        }
+
+        console.log(`💾 Stored ${storedPatterns.length} analysis patterns`);
+
+        res.json({
+          success: true,
+          message: `Stored ${storedPatterns.length} patterns`,
+          patterns: storedPatterns,
+        });
+      } catch (error) {
+        console.error("Learning patterns store error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    // Get stored patterns
+    this.router.get("/learning/patterns", async (req, res) => {
+      try {
+        const { type, limit = 100 } = req.query;
+
+        let patterns = [];
+
+        // Get from memory
+        if (this.server?.analysisPatterns) {
+          patterns = Array.from(this.server.analysisPatterns.values());
+        }
+
+        // Filter by type if specified
+        if (type) {
+          patterns = patterns.filter((p) => p.type === type);
+        }
+
+        // Sort by frequency (most common first)
+        patterns.sort((a, b) => b.frequency - a.frequency);
+
+        // Limit results
+        patterns = patterns.slice(0, parseInt(limit));
+
+        res.json({
+          success: true,
+          count: patterns.length,
+          patterns,
+        });
+      } catch (error) {
+        console.error("Learning patterns get error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
   }
 
   getRouter() {
