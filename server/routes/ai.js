@@ -24,16 +24,16 @@ class AIRoutes {
           return res.status(400).json({ error: "Analysis data is required" });
         }
 
-        // Get analysis context
-        const context = await this.buildAnalysisContext(analysisData);
-
-        // Query Ollama for insights
-        const prompt = this.buildInsightsPrompt(context, query);
-        const response = await this.queryOllama(prompt);
+        // Use EnhancedOllamaService for insights
+        const response = await this.server.ollamaService.generate(
+          this.buildInsightsPrompt(await this.buildAnalysisContext(analysisData), query),
+          null, // auto-select model
+          { temperature: 0.3 }
+        );
 
         res.json({
           success: true,
-          insights: response,
+          insights: response.response,
           query,
           responseTime: Date.now() - startTime,
         });
@@ -104,27 +104,14 @@ class AIRoutes {
         // Build prompt based on file type
         const prompt = this.buildSummaryPrompt(extracted.text, extracted.type);
 
-        // Query Ollama
-        const ollamaResponse = await fetch(`${this.server.config.ollamaHost}/api/generate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            prompt,
-            stream: false,
-            options: {
-              temperature: 0.3,
-              num_predict: 500,
-            },
-          }),
-        });
+        // Query Ollama using EnhancedOllamaService
+        const result = await this.server.ollamaService.generate(
+          prompt,
+          model,
+          { temperature: 0.3, num_predict: 500 }
+        );
 
-        if (!ollamaResponse.ok) {
-          throw new Error("Ollama API request failed");
-        }
-
-        const result = await ollamaResponse.json();
-        const summary = result.response || result.message?.content || "";
+        const summary = result.response || "";
 
         // Cache the summary
         await this.server.knowledgeDB.storeFileSummary(
@@ -426,27 +413,9 @@ Summary:`,
     return prompts[fileType] || prompts.document;
   }
 
-  async queryOllama(prompt, model = "phi4-mini:latest") {
-    const response = await fetch(`${this.server.config.ollamaHost}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        prompt,
-        stream: false,
-        options: {
-          temperature: 0.3,
-          num_predict: 1024,
-        },
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Ollama API request failed");
-    }
-
-    const data = await response.json();
-    return data.response || data.message?.content || "";
+  async queryOllama(prompt, model) {
+    const result = await this.server.ollamaService.generate(prompt, model);
+    return result.response || "";
   }
 
   async parseNaturalLanguageQuery(userQuery) {
@@ -478,24 +447,13 @@ Respond ONLY with JSON object containing these optional fields:
 JSON response:`;
 
     try {
-      const response = await fetch(`${this.server.config.ollamaHost}/api/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "phi4-mini:latest",
-          prompt,
-          stream: false,
-          options: {
-            temperature: 0.1,
-            num_predict: 200,
-          },
-        }),
-      });
+      const result = await this.server.ollamaService.generate(
+        prompt,
+        "phi4-mini:latest",
+        { temperature: 0.1, num_predict: 200 }
+      );
 
-      if (!response.ok) throw new Error("Ollama parse failed");
-
-      const data = await response.json();
-      const text = data.response || data.message?.content || "";
+      const text = result.response || "";
 
       // Extract JSON from response
       const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -568,24 +526,13 @@ Respond with JSON:
   "potentialSavings": ${file.size}
 }`;
 
-        const response = await fetch(`${this.server.config.ollamaHost}/api/generate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "phi4-mini:latest",
-            prompt,
-            stream: false,
-            options: {
-              temperature: 0.1,
-              num_predict: 200,
-            },
-          }),
-        });
+        const result = await this.server.ollamaService.generate(
+          prompt,
+          "phi4-mini:latest",
+          { temperature: 0.1, num_predict: 200 }
+        );
 
-        if (!response.ok) continue;
-
-        const data = await response.json();
-        const text = data.response || data.message?.content || "";
+        const text = result.response || "";
 
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
