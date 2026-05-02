@@ -119,6 +119,15 @@ The backend has been refactored into a high-performance, modular service-oriente
 - **Scalability**: Decoupled services allow for independent scaling and testing.
 - **Performance**: Optimized initialization and resource management through lazy-loading and hardware-aware configuration.
 
+### Hardware Caching & Optimized Startup (v2.8.3) ✅
+
+**Drastically reduced startup latency and terminal noise through intelligent resource management.**
+
+- **Persistent Hardware Cache**: System specifications and Ollama model lists are cached locally (`.hardware-cache.json`), eliminating redundant system calls on every start.
+- **Lazy Initialization**: Resource-intensive hardware detection is deferred until required, speeding up initial application bootstrap.
+- **Unified Logging**: Coordinated process management ensures that hardware specs are reported exactly once, even when running frontend and backend services concurrently.
+- **Manual Force-Scan**: Users can bypass the cache and force a fresh hardware scan by setting `SA_FORCE_CONFIG_SCAN=true`.
+
 ### Node.js v25+ Performance Optimizations ✅
 
 Leveraging the latest Node.js features for maximum performance:

@@ -9,9 +9,9 @@ const { getHardwareConfig } = require("./hardware-detector");
 let hardwareConfig = null;
 let configPromise = null;
 
-async function loadConfig() {
-  if (!configPromise) {
-    configPromise = getHardwareConfig()
+async function loadConfig(force = false) {
+  if (!configPromise || force) {
+    configPromise = getHardwareConfig(force)
       .then((config) => {
         hardwareConfig = config;
         return config;
@@ -125,15 +125,16 @@ module.exports = {
   },
 
   // Async getter for when you need to ensure config is loaded
-  getConfig: () => loadConfig(),
+  getConfig: (force = false) => loadConfig(force),
 
-// Utility function to log current config
-  logConfig: async () => {
-    // Only log once per process
-    if (global.__SA_CONFIG_LOGGED__) return;
+  // Utility function to log current config
+  logConfig: async (force = false) => {
+    // Only log once per process, and skip if SA_QUIET is set
+    if (global.__SA_CONFIG_LOGGED__ && !force) return;
+    if (process.env.SA_QUIET && !force) return;
     global.__SA_CONFIG_LOGGED__ = true;
 
-    const config = await loadConfig();
+    const config = await loadConfig(force);
     const hasOverride =
       process.env.SA_CPU_CORES ||
       process.env.SA_MEMORY_GB ||

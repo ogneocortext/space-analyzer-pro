@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                    |
 | ------- | ---------- | ------------------------------------------------------------------------------------------ |
+| 2.8.3   | 2026-05-02 | Performance Optimization: Lazy Hardware Detection, Persistent Caching & Log Consolidation  |
 | 2.8.2   | 2026-05-02 | Backend Architecture Refactoring: Modularization, Dedicated Services & Route Handlers     |
 | 2.8.1   | 2026-05-01 | Interactive File Management: Delete & Reveal functionality in UI                          |
 | 2.8.0   | 2026-05-01 | Native Windows Scanner Optimization: Production-Grade APIs & Large Dataset Support         |
