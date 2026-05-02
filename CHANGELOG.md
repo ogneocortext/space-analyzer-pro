@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                    |
 | ------- | ---------- | ------------------------------------------------------------------------------------------ |
+| 2.8.2   | 2026-05-02 | Backend Architecture Refactoring: Modularization, Dedicated Services & Route Handlers     |
 | 2.8.1   | 2026-05-01 | Interactive File Management: Delete & Reveal functionality in UI                          |
 | 2.8.0   | 2026-05-01 | Native Windows Scanner Optimization: Production-Grade APIs & Large Dataset Support         |
 | 2.7.0   | 2026-05-01 | Node.js v25+ Performance Optimizations & Worker Pool Integration                           |
@@ -27,6 +28,31 @@ All notable changes to Space Analyzer will be documented in this file.
 | 2.1.8   | 2026-04-27 | Project cleanup and organization                                                           |
 | 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                      |
 | 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                      |
+
+## [2.8.2] - 2026-05-02
+
+### Backend Architecture Refactoring: Modularization & Performance
+
+**Successfully transformed the monolithic `backend-server.js` into a clean, service-oriented architecture, improving maintainability, scalability, and startup performance.**
+
+#### 🚀 Architectural Improvements
+
+- **Decomposed Monolith**: Reduced `backend-server.js` from 6,000+ lines to a lean ~130-line bootstrapper.
+- **Dedicated Service Layer**:
+    - **`LearningService`**: Encapsulates self-learning, caching, and model performance metrics logic.
+    - **`EnhancedOllamaService`**: Centralized AI orchestration, query classification, and hardware-optimized model selection.
+- **Decentralized Routing**:
+    - **`OrchestrateRoutes`**: Handles task queue management and multi-agent coordination.
+    - **`SystemRoutes`**: Manages health checks, performance metrics, and system status.
+    - **`AnalysisRoutes`**: Encapsulates core directory scanning and analysis logic.
+    - **`AIRoutes`**: Refactored to consume modular services for insights and summarization.
+- **Automatic Port Management**: Enhanced `PortDetector` integration for seamless local development.
+
+#### 🔧 Technical Fixes
+
+- **Dependency Injection**: Services now use proper dependency injection for better testability.
+- **Reduced Technical Debt**: Removed thousands of lines of redundant, deprecated, and orphaned code.
+- **Improved Startup**: Faster initialization by parallelizing service setup and optimizing hardware detection.
 
 ---
 
