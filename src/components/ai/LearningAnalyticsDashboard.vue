@@ -282,6 +282,14 @@ const modelAccuracy = computed(() => selfLearningStore.getModelAccuracy());
 let updateInterval: NodeJS.Timeout | null = null;
 
 onMounted(async () => {
+  // Ensure self-learning system is started
+  if (!selfLearningStore.isLearning) {
+    selfLearningStore.startLearning();
+  }
+
+  // Seed demo data if no data exists
+  await seedDemoDataIfEmpty();
+
   await refreshData();
   startRealTimeUpdates();
 });
@@ -302,6 +310,108 @@ const refreshData = async () => {
     updateCharts();
   } catch (error) {
     console.error("Failed to refresh analytics data:", error);
+  }
+};
+
+const seedDemoDataIfEmpty = async () => {
+  // Check if we have any patterns or analytics data
+  const existingPatterns = selfLearningStore.patterns.length;
+  const analyticsRecords = await indexedDBPersistence.loadAnalyticsData("learning", 1);
+  const feedbackRecords = await indexedDBPersistence.loadAnalyticsData("user-feedback", 1);
+
+  if (existingPatterns === 0 && analyticsRecords.length === 0 && feedbackRecords.length === 0) {
+    console.log("🌱 Seeding demo learning analytics data...");
+
+    // Generate demo patterns based on scan activity
+    const demoPatterns = [
+      {
+        id: "demo-pattern-1",
+        type: "file-access",
+        description: "Frequent access to documents folder",
+        confidence: 0.85,
+        frequency: 12,
+        data: { extension: "pdf", directory: "Documents" },
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        lastUsed: new Date(),
+      },
+      {
+        id: "demo-pattern-2",
+        type: "directory-preference",
+        description: "Preference for project directories",
+        confidence: 0.78,
+        frequency: 8,
+        data: { path: "/projects", depth: 2 },
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        lastUsed: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: "demo-pattern-3",
+        type: "cleanup-habit",
+        description: "Regular cleanup of temp files",
+        confidence: 0.92,
+        frequency: 6,
+        data: { action: "delete_temp", threshold: "7days" },
+        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+        lastUsed: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: "demo-pattern-4",
+        type: "time-pattern",
+        description: "Peak activity during afternoon hours",
+        confidence: 0.73,
+        frequency: 15,
+        data: { hour: 14, dayOfWeek: "weekday" },
+        createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+        lastUsed: new Date(),
+      },
+    ];
+
+    // Add patterns to store
+    for (const pattern of demoPatterns) {
+      selfLearningStore.patterns.push(pattern);
+    }
+    await selfLearningStore.savePatterns();
+
+    // Generate demo feedback records
+    const demoFeedback = [
+      { rating: 5, type: "acceptance", timestamp: Date.now() - 2 * 24 * 60 * 60 * 1000 },
+      { rating: 4, type: "acceptance", timestamp: Date.now() - 3 * 24 * 60 * 60 * 1000 },
+      { rating: 5, type: "acceptance", timestamp: Date.now() - 5 * 24 * 60 * 60 * 1000 },
+      { rating: 3, type: "dismissal", timestamp: Date.now() - 6 * 24 * 60 * 60 * 1000 },
+      { rating: 4, type: "acceptance", timestamp: Date.now() - 8 * 24 * 60 * 60 * 1000 },
+      { rating: 5, type: "acceptance", timestamp: Date.now() - 10 * 24 * 60 * 60 * 1000 },
+    ];
+
+    for (const feedback of demoFeedback) {
+      await indexedDBPersistence.saveAnalyticsData({
+        type: "user-feedback",
+        feedback,
+        timestamp: feedback.timestamp,
+      });
+    }
+
+    // Generate demo learning analytics records
+    for (let i = 0; i < 20; i++) {
+      await indexedDBPersistence.saveAnalyticsData({
+        type: "learning",
+        pattern: demoPatterns[i % demoPatterns.length],
+        learningRate: 1.0 + Math.random() * 0.5,
+        timestamp: Date.now() - i * 24 * 60 * 60 * 1000,
+      });
+    }
+
+    // Generate demo usage events
+    const eventTypes = ["file-access", "directory-navigation", "cleanup-action"];
+    for (let i = 0; i < 50; i++) {
+      await indexedDBPersistence.saveUsageEvent({
+        type: eventTypes[i % eventTypes.length],
+        timestamp: new Date(Date.now() - i * 2 * 60 * 60 * 1000),
+        data: { demo: true, index: i },
+        context: { source: "demo-seed" },
+      });
+    }
+
+    console.log("✅ Demo data seeded successfully");
   }
 };
 
