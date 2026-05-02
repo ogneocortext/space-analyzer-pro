@@ -14,7 +14,7 @@ class SettingsRoutes {
 
   setupRoutes() {
     // Get all settings
-    this.router.get("/api/settings", async (req, res) => {
+    this.router.get("/settings", async (req, res) => {
       try {
         // Check if knowledge service is available
         if (!this.server.knowledge || !this.server.knowledge.getAllUserSettings) {
@@ -79,7 +79,7 @@ class SettingsRoutes {
     });
 
     // Get specific setting
-    this.router.get("/api/settings/:key", async (req, res) => {
+    this.router.get("/settings/:key", async (req, res) => {
       try {
         const { key } = req.params;
 
@@ -122,7 +122,7 @@ class SettingsRoutes {
     });
 
     // Set specific setting
-    this.router.post("/api/settings/:key", async (req, res) => {
+    this.router.post("/settings/:key", async (req, res) => {
       try {
         const { key } = req.params;
         const { value } = req.body;
@@ -172,7 +172,7 @@ class SettingsRoutes {
     });
 
     // Set multiple settings at once
-    this.router.post("/api/settings", async (req, res) => {
+    this.router.post("/settings", async (req, res) => {
       try {
         const { settings } = req.body;
 
@@ -204,7 +204,7 @@ class SettingsRoutes {
     });
 
     // Delete specific setting
-    this.router.delete("/api/settings/:key", async (req, res) => {
+    this.router.delete("/settings/:key", async (req, res) => {
       try {
         const { key } = req.params;
         await this.server.knowledge.deleteUserSetting(key);

@@ -41,15 +41,10 @@ class AnalysisDatabase {
         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       `;
 
+      const self = this;
       this.db.run(
         sql,
-        [
-          normalizedPath,
-          totalFiles,
-          totalSize,
-          metadataHash,
-          compressedData,
-        ],
+        [normalizedPath, totalFiles, totalSize, metadataHash, compressedData],
         function (err) {
           if (err) {
             reject(err);
@@ -61,13 +56,14 @@ class AnalysisDatabase {
 
           // Store files separately if they exist
           if (analysisData.files && analysisData.files.length > 0) {
-            this.storeAnalysisFiles(analysisId, analysisData.files)
+            self
+              .storeAnalysisFiles(analysisId, analysisData.files)
               .then(() => resolve(analysisId))
               .catch(reject);
           } else {
             resolve(analysisId);
           }
-        }.bind(this)
+        }
       );
     });
   }
@@ -463,18 +459,27 @@ class AnalysisDatabase {
 
       let processed = 0;
       let errors = 0;
+      let pending = files.length;
+
+      if (pending === 0) {
+        stmt.finalize();
+        resolve({ processed: 0, errors: 0 });
+        return;
+      }
 
       files.forEach((file) => {
         const hash = this.core.generateHash(`${file.path}:${file.size}:${file.modified}`);
         stmt.run([directoryPath, file.path, file.size, hash, file.modified], (err) => {
           if (err) errors++;
           else processed++;
+          pending--;
+          if (pending === 0) {
+            stmt.finalize();
+            console.log(`💾 Stored metadata for ${processed} files (${errors} errors)`);
+            resolve({ processed, errors });
+          }
         });
       });
-
-      stmt.finalize();
-      console.log(`💾 Stored metadata for ${processed} files (${errors} errors)`);
-      resolve({ processed, errors });
     });
   }
 

@@ -4,33 +4,87 @@ All notable changes to Space Analyzer will be documented in this file.
 
 ## Version Timeline
 
-| Version | Date       | Summary                                                                                     |
-| ------- | ---------- | ------------------------------------------------------------------------------------------- |
-| 2.8.5   | 2026-05-02 | Error Tracking & Analysis Components: Enhanced file details, error logging, and build fixes |
-| 2.8.4   | 2026-05-02 | Scanner Output Contract: JSONL progress, clean result files, and unchanged-directory reuse  |
-| 2.8.3   | 2026-05-02 | Performance Optimization: Lazy Hardware Detection, Persistent Caching & Log Consolidation   |
-| 2.8.2   | 2026-05-02 | Backend Architecture Refactoring: Modularization, Dedicated Services & Route Handlers       |
-| 2.8.1   | 2026-05-01 | Interactive File Management: Delete & Reveal functionality in UI                            |
-| 2.8.0   | 2026-05-01 | Native Windows Scanner Optimization: Production-Grade APIs & Large Dataset Support          |
-| 2.7.0   | 2026-05-01 | Node.js v25+ Performance Optimizations & Worker Pool Integration                            |
-| 2.6.0   | 2026-04-30 | Revolutionary 3D File System Browser: Professional-Grade Visualization & Analysis           |
-| 2.5.0   | 2026-04-30 | Advanced Self-Learning Enhancements: Analytics, A/B Testing, Feedback, Adaptive Learning    |
-| 2.4.0   | 2026-04-30 | Advanced Features: Self-Learning, 3D Browser, NTFS MFT, USN Journal Integration             |
-| 2.3.1   | 2026-04-30 | File Structure Organization: Cleaned root directory, organized server files, improved docs  |
-| 2.3.0   | 2026-04-30 | Comprehensive Backend Enhancements: Progress, Caching, Profiles, Filters, Analytics         |
-| 2.2.8   | 2026-04-30 | Multi-Agent Orchestrator Steps 4-6: Circuit Breaker, Task Queue, Batch Analysis             |
-| 2.2.7   | 2026-04-29 | Multi-Agent Orchestrator v2.0 - Intelligent task distribution with circuit breakers         |
-| 2.2.6   | 2026-04-29 | Notification System with database persistence, Templates & Batch Export for Reports         |
-| 2.2.5   | 2026-04-29 | PDF Reports: Generate, view, and download professional analysis reports                     |
-| 2.2.4   | 2026-04-29 | Code Complexity Analysis: metrics, grades, refactoring recommendations                      |
-| 2.2.3   | 2026-04-29 | AI-powered features: Document Summarization, Natural Language Interface, Cleanup Assistant  |
-| 2.2.2   | 2026-04-29 | Ollama API 0.22.0 integration, optimized context payload, trend tracking database           |
-| 2.2.1   | 2026-04-29 | Windows API data display in frontend                                                        |
-| 2.2.0   | 2026-04-28 | Major feature expansion: 15 views, Windows API, AI Auto-Organization, PDF reports           |
-| 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                          |
-| 2.1.8   | 2026-04-27 | Project cleanup and organization                                                            |
-| 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                       |
-| 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                       |
+| Version | Date       | Summary                                                                                                        |
+| ------- | ---------- | -------------------------------------------------------------------------------------------------------------- |
+| 2.8.6   | 2026-05-02 | Bug Fixes & Missing Routes: Fixed 404 errors, corrected settings routes, added Learning/NLP/AI Model endpoints |
+| 2.8.5   | 2026-05-02 | Error Tracking & Analysis Components: Enhanced file details, error logging, and build fixes                    |
+| 2.8.4   | 2026-05-02 | Scanner Output Contract: JSONL progress, clean result files, and unchanged-directory reuse                     |
+| 2.8.3   | 2026-05-02 | Performance Optimization: Lazy Hardware Detection, Persistent Caching & Log Consolidation                      |
+| 2.8.2   | 2026-05-02 | Backend Architecture Refactoring: Modularization, Dedicated Services & Route Handlers                          |
+| 2.8.1   | 2026-05-01 | Interactive File Management: Delete & Reveal functionality in UI                                               |
+| 2.8.0   | 2026-05-01 | Native Windows Scanner Optimization: Production-Grade APIs & Large Dataset Support                             |
+| 2.7.0   | 2026-05-01 | Node.js v25+ Performance Optimizations & Worker Pool Integration                                               |
+| 2.6.0   | 2026-04-30 | Revolutionary 3D File System Browser: Professional-Grade Visualization & Analysis                              |
+| 2.5.0   | 2026-04-30 | Advanced Self-Learning Enhancements: Analytics, A/B Testing, Feedback, Adaptive Learning                       |
+| 2.4.0   | 2026-04-30 | Advanced Features: Self-Learning, 3D Browser, NTFS MFT, USN Journal Integration                                |
+| 2.3.1   | 2026-04-30 | File Structure Organization: Cleaned root directory, organized server files, improved docs                     |
+| 2.3.0   | 2026-04-30 | Comprehensive Backend Enhancements: Progress, Caching, Profiles, Filters, Analytics                            |
+| 2.2.8   | 2026-04-30 | Multi-Agent Orchestrator Steps 4-6: Circuit Breaker, Task Queue, Batch Analysis                                |
+| 2.2.7   | 2026-04-29 | Multi-Agent Orchestrator v2.0 - Intelligent task distribution with circuit breakers                            |
+| 2.2.6   | 2026-04-29 | Notification System with database persistence, Templates & Batch Export for Reports                            |
+| 2.2.5   | 2026-04-29 | PDF Reports: Generate, view, and download professional analysis reports                                        |
+| 2.2.4   | 2026-04-29 | Code Complexity Analysis: metrics, grades, refactoring recommendations                                         |
+| 2.2.3   | 2026-04-29 | AI-powered features: Document Summarization, Natural Language Interface, Cleanup Assistant                     |
+| 2.2.2   | 2026-04-29 | Ollama API 0.22.0 integration, optimized context payload, trend tracking database                              |
+| 2.2.1   | 2026-04-29 | Windows API data display in frontend                                                                           |
+| 2.2.0   | 2026-04-28 | Major feature expansion: 15 views, Windows API, AI Auto-Organization, PDF reports                              |
+| 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                                             |
+| 2.1.8   | 2026-04-27 | Project cleanup and organization                                                                               |
+| 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                                          |
+| 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                                          |
+
+## [2.8.6] - 2026-05-02
+
+### Bug Fixes & Missing Routes
+
+**Fixed critical bugs and added missing API routes to prevent 404 errors.**
+
+#### Bug Fixes
+
+- **Fixed TypeError in `server/server.js`** - Added optional chaining for error handling to prevent `Cannot read properties of undefined (reading 'stack')`
+- **Fixed ReferenceError in `server/utils/error-logger.js`** - Added validation for errorData to prevent undefined errors
+- **Fixed Vue syntax error in `AnalyticsDataVisualization.vue`** - Separated debounce function to resolve compiler error
+- **Fixed context issue in `server/db/analysis.js`** - Captured correct `this` context in SQLite callbacks
+- **Fixed async race condition in `server/db/analysis.js`** - Added pending counter to wait for async operations before finalizing
+- **Fixed double `/api` prefix in `server/routes/settings.js`** - Removed redundant `/api` prefix from route paths
+
+#### New API Routes
+
+**Learning Routes (`/api/learning/*`)**
+
+- `GET /api/learning/stats` - ML learning statistics
+- `GET /api/learning/trends/:directory` - Storage trends over time
+- `GET /api/learning/changes/:directory` - File change tracking
+- `GET /api/learning/predict/:directory` - AI-powered storage predictions
+- `POST /api/learning/train` - Trigger model training
+
+**NLP Routes (`/api/nlp/*`)**
+
+- `POST /api/nlp/search` - Natural language file search
+- `GET /api/nlp/suggestions/:prefix` - Query autocomplete
+- `GET /api/nlp/popular` - Popular search queries
+- `GET /api/nlp/history` - User query history
+
+**AI Models Routes (`/api/ai-models/*`)**
+
+- `GET /api/ai-models/:analysisId` - Detect AI/ML model files
+- `POST /api/ai-models/qa` - AI model Q&A interface
+- `GET /api/ai-models/manage/:analysisId` - Model management recommendations
+- `GET /api/ai-models/purpose/:analysisId` - Identify model purposes
+
+**Additional Routes**
+
+- `POST /api/files/browse` - Folder selection dialog (returns common paths)
+- `GET /api/status` - Detailed service status with system info
+- `GET /api/version` - API version information
+- `GET /api/info` - API documentation endpoint
+- `OPTIONS /api/*` - CORS preflight handler
+
+#### Infrastructure Improvements
+
+- Added catch-all handlers for undefined `/api` routes with helpful error messages
+- Added static file serving for frontend with SPA fallback
+- Added comprehensive API endpoint documentation
 
 ## [2.8.5] - 2026-05-02
 
