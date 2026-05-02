@@ -58,6 +58,7 @@ const {
 const {
   findProjectRoot,
   isValidPath,
+  normalizePath,
   generateFileHash,
   getDirectoryFilesQuick,
 } = require("../modules/file-utils");
@@ -155,21 +156,8 @@ class SpaceAnalyzerAPIServer {
     // Initialize active analyses map for progress tracking
     this.activeAnalyses = new Map();
 
-    this.initDirectories();
-    this.setupSecurity();
-    this.setupMiddleware();
-    this.setupRoutes();
-    this.initializeSelfLearning();
-
-    this.config = {
-      port: parseInt(process.env.PORT) || 8080,
-      ollamaHost: process.env.OLLAMA_HOST || "http://localhost:11434",
-      defaultModel: "gemma3:latest", // Updated default
-      // Allow port to be overridden after initialization
-      setPort(newPort) {
-        this.port = newPort;
-      },
-    };
+    this.isValidPath = isValidPath;
+    this.normalizePath = normalizePath;
 
     this.initDirectories();
     this.setupSecurity();

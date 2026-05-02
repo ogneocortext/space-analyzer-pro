@@ -158,6 +158,10 @@ struct Cli {
     #[arg(short, long)]
     output: Option<String>,
 
+    /// Output format (json)
+    #[arg(long, default_value = "json")]
+    format: String,
+
     /// Use high-speed NTFS MFT scanner (requires admin, Windows only)
     #[arg(long)]
     mft: bool,
@@ -170,7 +174,7 @@ struct Cli {
     #[arg(long)]
     progress: bool,
 
-    /// Suppress JSON output to stdout
+    /// Suppress output to stdout
     #[arg(short, long)]
     quiet: bool,
 

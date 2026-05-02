@@ -122,11 +122,9 @@ export class AnalysisBridge {
         const isDev = origin.includes("localhost") || origin.includes("127.0.0.1");
 
         if (isDev) {
-          // In dev, backend is on a separate port
-          const protocol = window.location.protocol;
-          const hostname = window.location.hostname;
-          this.baseUrl = `${protocol}//${hostname}:8080`;
-          this.log("info", `🔗 AnalysisBridge initialized with dev backend: ${this.baseUrl}`);
+          // In dev, use the Vite proxy (relative paths)
+          this.baseUrl = "";
+          this.log("info", `🔗 AnalysisBridge using Vite proxy (relative paths)`);
         } else {
           // Production - use same origin
           this.baseUrl = origin;

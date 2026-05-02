@@ -18,7 +18,8 @@ class AnalysisRoutes {
     // Main Analysis Endpoint
     this.router.post("/analyze", async (req, res) => {
       try {
-        const { directoryPath, options = {} } = req.body;
+        let { directoryPath, options = {} } = req.body;
+        directoryPath = this.server.normalizePath(directoryPath);
 
         if (!directoryPath) {
           return res.status(400).json({ error: "Directory path is required" });
@@ -159,7 +160,8 @@ class AnalysisRoutes {
 
     // Get current analysis by path from database
     this.router.get("/analysis/current", async (req, res) => {
-      const { path: directoryPath } = req.query;
+      let { path: directoryPath } = req.query;
+      directoryPath = this.server.normalizePath(directoryPath);
 
       if (!directoryPath) {
         return res.status(400).json({ error: "Path parameter is required" });
@@ -177,7 +179,9 @@ class AnalysisRoutes {
 
         res.json({
           success: true,
-          analysis,
+          data: analysis.analysis_data,
+          source: "database",
+          lastAnalyzed: analysis.last_analyzed,
         });
       } catch (error) {
         console.error("Get current analysis error:", error);
@@ -431,6 +435,10 @@ class AnalysisRoutes {
       const scannerPath = path.join(__dirname, "..", "..", "bin", "space-analyzer.exe");
       const tempFile = path.join(__dirname, "..", "controllers", `output_${analysisId}.json`);
 
+      console.log(`🚀 Starting scanner: ${scannerPath}`);
+      console.log(`   Directory: ${directoryPath}`);
+      console.log(`   Temp file: ${tempFile}`);
+
       const scanner = spawn(
         scannerPath,
         [directoryPath, "--format", "json", "--output", tempFile],
@@ -451,7 +459,9 @@ class AnalysisRoutes {
       });
 
       scanner.on("close", async (code) => {
+        console.log(`🏁 Scanner exited with code ${code}`);
         if (code !== 0) {
+          console.error(`❌ Scanner error output: ${errorOutput}`);
           analysis.status = "error";
           analysis.error = errorOutput || "Scanner failed";
           this.server.activeAnalyses.set(analysisId, analysis);
@@ -459,8 +469,9 @@ class AnalysisRoutes {
         }
 
         try {
-          // Read results from temp file (Rust CLI writes to file)
+          console.log(`📄 Reading results from ${tempFile}...`);
           const results = JSON.parse(await fs.promises.readFile(tempFile, "utf8"));
+          console.log(`✅ Successfully parsed ${results.total_files || 0} files from scanner results`);
 
           // Clean up temp file
           await fs.promises.unlink(tempFile).catch(() => {});
@@ -480,7 +491,8 @@ class AnalysisRoutes {
           this.server.activeAnalyses.set(analysisId, analysis);
 
           // Store in database
-          await this.server.knowledgeDB.storeAnalysis(analysisId, directoryPath, results);
+          const normalizedPath = this.server.normalizePath(directoryPath);
+          await this.server.knowledgeDB.storeAnalysis(normalizedPath, results);
         } catch (parseError) {
           analysis.status = "error";
           analysis.error = "Failed to parse scanner output";
