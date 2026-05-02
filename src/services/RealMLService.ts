@@ -211,9 +211,32 @@ export class RealMLService {
     const inputs: number[][] = [];
     const outputs: number[][] = [];
 
-    // Generate synthetic training data
+    // Generate realistic synthetic training data with proper category distribution
+    // Based on common file system patterns (Documents and Images are most common)
+    const categoryDistribution = [
+      "Documents",
+      "Documents",
+      "Documents",
+      "Documents", // 20%
+      "Images",
+      "Images",
+      "Images",
+      "Images", // 20%
+      "Code",
+      "Code", // 10%
+      "Videos", // 5%
+      "Audio", // 5%
+      "Archives", // 5%
+      "Temp", // 5%
+      "Other", // 5%
+      "Executables", // 2.5%
+      "System", // 2.5%
+    ];
+
     for (let i = 0; i < 500; i++) {
-      const features = this.generateRandomFileFeatures();
+      // Select category based on realistic distribution
+      const category = categoryDistribution[i % categoryDistribution.length];
+      const features = this.generateSyntheticFileFeatures(category);
       inputs.push(this.featuresToArray(features));
 
       // One-hot encode category
@@ -230,17 +253,32 @@ export class RealMLService {
     const inputs: number[][] = [];
     const outputs: number[][] = [];
 
+    // Generate realistic risk training data
+    const riskCategories = [
+      { cat: "Documents", baseRisk: 0.1 },
+      { cat: "Images", baseRisk: 0.05 },
+      { cat: "Videos", baseRisk: 0.15 },
+      { cat: "Audio", baseRisk: 0.08 },
+      { cat: "Code", baseRisk: 0.12 },
+      { cat: "Executables", baseRisk: 0.6 },
+      { cat: "System", baseRisk: 0.7 },
+      { cat: "Temp", baseRisk: 0.35 },
+      { cat: "Archives", baseRisk: 0.18 },
+      { cat: "Other", baseRisk: 0.25 },
+    ];
+
     for (let i = 0; i < 300; i++) {
-      const features = this.generateRandomFileFeatures();
+      const riskProfile = riskCategories[i % riskCategories.length];
+      const features = this.generateSyntheticFileFeatures(riskProfile.cat);
       inputs.push(this.featuresToArray(features));
 
-      // Calculate risk based on features
-      let risk = 0;
-      if (features.size > 1024 * 1024 * 50) risk += 0.3; // Large files
-      if (features.category === "Executables") risk += 0.4;
-      if (features.category === "System") risk += 0.2;
-      if (features.hasSpecialChars > 2) risk += 0.1;
-      if (features.pathDepth > 10) risk += 0.1;
+      // Calculate realistic risk based on category and features
+      let risk = riskProfile.baseRisk;
+      if (features.size > 1024 * 1024 * 100) risk += 0.15; // >100MB
+      if (features.size > 1024 * 1024 * 1024) risk += 0.2; // >1GB
+      if (features.hasSpecialChars > 3) risk += 0.05;
+      if (features.pathDepth > 8) risk += 0.03;
+      if (features.age > 90) risk += 0.1; // Old temp files
 
       outputs.push([Math.min(risk, 1)]);
     }
@@ -306,16 +344,22 @@ export class RealMLService {
     const inputs: number[][] = [];
     const outputs: number[][] = [];
 
+    // Generate pattern recognition training data
+    const patternCategories = ["Documents", "Images", "Code", "Audio", "Videos"];
+
     for (let i = 0; i < 200; i++) {
-      const features = this.generateRandomFileFeatures();
+      const category = patternCategories[i % patternCategories.length];
+      const features = this.generateSyntheticFileFeatures(category);
       inputs.push(this.featuresToArray(features));
 
-      // Pattern: 1 if file follows common patterns, 0 otherwise
-      let pattern = 0;
-      if (features.nameLength < 50 && features.hasSpecialChars < 2) pattern = 1;
-      if (features.extension > 0 && features.category !== "Other") pattern = 1;
+      // Pattern compliance: well-organized files score higher
+      let pattern = 0.6; // Base score
+      if (features.nameLength >= 5 && features.nameLength <= 50) pattern += 0.2; // Good name length
+      if (features.hasSpecialChars <= 2) pattern += 0.1; // Clean names
+      if (features.pathDepth >= 2 && features.pathDepth <= 6) pattern += 0.1; // Reasonable depth
+      if (features.category !== "Other" && features.category !== "Temp") pattern += 0.1; // Known type
 
-      outputs.push([pattern]);
+      outputs.push([Math.min(pattern, 1)]);
     }
 
     return {
@@ -421,7 +465,114 @@ export class RealMLService {
     return { inputs, outputs };
   }
 
-  private generateRandomFileFeatures(): FileFeatures {
+  private generateSyntheticFileFeatures(category: string, realistic: boolean = true): FileFeatures {
+    // Generate realistic synthetic data based on actual file patterns
+    const categoryProfiles: Record<
+      string,
+      { avgSize: number; extensions: string[]; risk: number }
+    > = {
+      Documents: {
+        avgSize: 2 * 1024 * 1024,
+        extensions: ["pdf", "doc", "docx", "txt", "rtf"],
+        risk: 0.1,
+      },
+      Images: {
+        avgSize: 5 * 1024 * 1024,
+        extensions: ["jpg", "png", "gif", "bmp", "svg"],
+        risk: 0.05,
+      },
+      Videos: { avgSize: 100 * 1024 * 1024, extensions: ["mp4", "avi", "mkv", "mov"], risk: 0.2 },
+      Audio: { avgSize: 10 * 1024 * 1024, extensions: ["mp3", "wav", "flac", "aac"], risk: 0.1 },
+      Code: { avgSize: 50 * 1024, extensions: ["js", "ts", "py", "java", "cpp"], risk: 0.3 },
+      Executables: {
+        avgSize: 10 * 1024 * 1024,
+        extensions: ["exe", "dll", "so", "dylib"],
+        risk: 0.6,
+      },
+      System: { avgSize: 1 * 1024 * 1024, extensions: ["sys", "drv", "cfg", "ini"], risk: 0.8 },
+      Temp: { avgSize: 500 * 1024, extensions: ["tmp", "temp", "cache", "log"], risk: 0.4 },
+      Archives: { avgSize: 50 * 1024 * 1024, extensions: ["zip", "rar", "7z", "tar"], risk: 0.15 },
+      Other: { avgSize: 5 * 1024 * 1024, extensions: ["dat", "bin", "unknown"], risk: 0.25 },
+    };
+
+    const profile = categoryProfiles[category] || categoryProfiles.Other;
+
+    // Generate realistic size with log-normal distribution
+    const sizeVariation = Math.exp((Math.random() - 0.5) * 2); // 0.37x to 2.72x
+    const size = Math.round(profile.avgSize * sizeVariation);
+
+    return {
+      size,
+      extension: this.extensionToNumber(
+        profile.extensions[Math.floor(Math.random() * profile.extensions.length)]
+      ),
+      pathDepth: Math.floor(Math.random() * 10) + 2,
+      nameLength: Math.floor(Math.random() * 40) + 10,
+      hasNumbers: Math.random() > 0.7 ? 1 : 0,
+      hasSpecialChars: Math.floor(Math.random() * 3),
+      category,
+      age: Math.floor(Math.random() * 90), // 0-90 days realistic
+      riskFactors: profile.risk + (Math.random() - 0.5) * 0.2,
+    };
+  }
+
+  // Train models using actual analysis results
+  async trainWithAnalysisResults(analysisResults: any[]): Promise<void> {
+    if (!analysisResults || analysisResults.length === 0) {
+      console.warn("⚠️ No analysis results available for training");
+      return;
+    }
+
+    console.log(`🧠 Training models with ${analysisResults.length} analysis results...`);
+
+    const fileInputs: number[][] = [];
+    const fileOutputs: number[][] = [];
+    const riskInputs: number[][] = [];
+    const riskOutputs: number[][] = [];
+
+    // Extract features from all files in analyses
+    for (const result of analysisResults) {
+      const files = result.files || [];
+
+      for (const file of files) {
+        const features = this.extractFileFeatures(file);
+        const input = this.featuresToArray(features);
+
+        // Training target: actual category
+        const output = new Array(10).fill(0);
+        const categoryIndex = this.getCategoryIndex(features.category);
+        output[categoryIndex] = 1;
+
+        fileInputs.push(input);
+        fileOutputs.push(output);
+
+        // Risk training: large old files = higher risk
+        const riskScore = this.calculateRealRiskScore(file);
+        riskInputs.push(input);
+        riskOutputs.push([riskScore]);
+      }
+    }
+
+    if (fileInputs.length === 0) {
+      console.warn("⚠️ No files found in analysis results");
+      return;
+    }
+
+    // Train classifiers
+    if (this.fileClassifier) {
+      console.log(`📊 Training file classifier with ${fileInputs.length} samples...`);
+      this.fileClassifier.train(fileInputs, fileOutputs, 500);
+    }
+
+    if (this.riskAssessor) {
+      console.log(`⚠️ Training risk assessor with ${riskInputs.length} samples...`);
+      this.riskAssessor.train(riskInputs, riskOutputs, 300);
+    }
+
+    console.log(`✅ Models trained on ${fileInputs.length} real files`);
+  }
+
+  private getCategoryIndex(category: string): number {
     const categories = [
       "Documents",
       "Images",
@@ -434,19 +585,31 @@ export class RealMLService {
       "Archives",
       "Other",
     ];
-    const extensions = ["txt", "pdf", "jpg", "mp4", "mp3", "js", "exe", "dll", "tmp", "zip"];
+    return categories.indexOf(category) >= 0 ? categories.indexOf(category) : 9;
+  }
 
-    return {
-      size: Math.random() * 1024 * 1024 * 100, // 0-100MB
-      extension: Math.floor(Math.random() * extensions.length),
-      pathDepth: Math.floor(Math.random() * 15) + 1,
-      nameLength: Math.floor(Math.random() * 100) + 1,
-      hasNumbers: Math.random() > 0.5 ? 1 : 0,
-      hasSpecialChars: Math.floor(Math.random() * 5),
-      category: categories[Math.floor(Math.random() * categories.length)] as string,
-      age: Math.random() * 365, // days
-      riskFactors: Math.random(),
-    };
+  private calculateRealRiskScore(file: any): number {
+    let risk = 0.1; // Base risk
+
+    // Size risk: very large files
+    const size = file.size || 0;
+    if (size > 1024 * 1024 * 1024)
+      risk += 0.2; // >1GB
+    else if (size > 100 * 1024 * 1024) risk += 0.1; // >100MB
+
+    // Extension risk
+    const ext = (file.extension || "").toLowerCase();
+    const riskyExts = ["exe", "dll", "sys", "bat", "cmd", "sh", "tmp"];
+    if (riskyExts.includes(ext)) risk += 0.2;
+
+    // Age risk: very old files (if timestamp available)
+    if (file.modified || file.lastModified) {
+      const age = Date.now() - new Date(file.modified || file.lastModified).getTime();
+      const ageDays = age / (1000 * 60 * 60 * 24);
+      if (ageDays > 365) risk += 0.15; // >1 year old
+    }
+
+    return Math.min(1, risk);
   }
 
   private featuresToArray(features: FileFeatures): number[] {
@@ -591,17 +754,146 @@ export class RealMLService {
   }
 
   private extractFileFeatures(file: any): FileFeatures {
+    const path = file.path || file.file_path || "";
+    const name = file.name || path.split("/").pop() || "";
+    const extension = file.extension || name.split(".").pop() || "";
+
+    // Calculate file age from timestamp
+    let age = 0;
+    if (file.modified || file.lastModified || file.modified_at) {
+      const modified = new Date(file.modified || file.lastModified || file.modified_at);
+      age = Math.max(0, (Date.now() - modified.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    // Detect category from extension or existing category
+    let category = file.category || this.detectCategoryFromExtension(extension);
+
+    // Calculate risk factors
+    const riskFactors = this.calculateFeatureRiskFactors(file, age, extension);
+
     return {
-      size: file.size || 0,
-      extension: this.extensionToNumber(file.extension || ""),
-      pathDepth: (file.path || "").split("/").length,
-      nameLength: (file.name || "").length,
-      hasNumbers: /\d/.test(file.name || "") ? 1 : 0,
-      hasSpecialChars: (file.name || "").match(/[^a-zA-Z0-9.]/g)?.length || 0,
-      category: file.category || "Other",
-      age: 0, // Would be calculated from file timestamps
-      riskFactors: 0,
+      size: file.size || file.file_size || 0,
+      extension: this.extensionToNumber(extension),
+      pathDepth: path.split("/").filter(Boolean).length,
+      nameLength: name.length,
+      hasNumbers: /\d/.test(name) ? 1 : 0,
+      hasSpecialChars: (name.match(/[^a-zA-Z0-9._-]/g) || []).length,
+      category,
+      age,
+      riskFactors,
     };
+  }
+
+  private detectCategoryFromExtension(ext: string): string {
+    const extMap: Record<string, string> = {
+      // Documents
+      pdf: "Documents",
+      doc: "Documents",
+      docx: "Documents",
+      txt: "Documents",
+      rtf: "Documents",
+      odt: "Documents",
+      xls: "Documents",
+      xlsx: "Documents",
+      ppt: "Documents",
+      pptx: "Documents",
+      // Images
+      jpg: "Images",
+      jpeg: "Images",
+      png: "Images",
+      gif: "Images",
+      bmp: "Images",
+      svg: "Images",
+      webp: "Images",
+      ico: "Images",
+      // Videos
+      mp4: "Videos",
+      avi: "Videos",
+      mkv: "Videos",
+      mov: "Videos",
+      wmv: "Videos",
+      flv: "Videos",
+      webm: "Videos",
+      // Audio
+      mp3: "Audio",
+      wav: "Audio",
+      flac: "Audio",
+      aac: "Audio",
+      ogg: "Audio",
+      wma: "Audio",
+      m4a: "Audio",
+      // Code
+      js: "Code",
+      ts: "Code",
+      jsx: "Code",
+      tsx: "Code",
+      py: "Code",
+      java: "Code",
+      cpp: "Code",
+      c: "Code",
+      h: "Code",
+      cs: "Code",
+      php: "Code",
+      rb: "Code",
+      go: "Code",
+      rs: "Code",
+      swift: "Code",
+      kt: "Code",
+      // Executables
+      exe: "Executables",
+      dll: "Executables",
+      so: "Executables",
+      dylib: "Executables",
+      bin: "Executables",
+      app: "Executables",
+      // Archives
+      zip: "Archives",
+      rar: "Archives",
+      "7z": "Archives",
+      tar: "Archives",
+      gz: "Archives",
+      bz2: "Archives",
+      // System
+      sys: "System",
+      drv: "System",
+      cfg: "System",
+      ini: "System",
+      log: "System",
+      tmp: "Temp",
+      temp: "Temp",
+      cache: "Temp",
+    };
+
+    return extMap[ext.toLowerCase()] || "Other";
+  }
+
+  private calculateFeatureRiskFactors(file: any, age: number, ext: string): number {
+    let risk = 0.1;
+
+    // Size-based risk
+    const size = file.size || file.file_size || 0;
+    if (size > 10 * 1024 * 1024 * 1024)
+      risk += 0.3; // >10GB
+    else if (size > 1024 * 1024 * 1024)
+      risk += 0.2; // >1GB
+    else if (size > 100 * 1024 * 1024) risk += 0.1; // >100MB
+
+    // Age-based risk (old temp files)
+    if (age > 180) risk += 0.15; // >6 months
+    if (age > 365) risk += 0.1; // >1 year
+
+    // Extension-based risk
+    const highRiskExts = ["exe", "dll", "sys", "drv", "bat", "cmd", "sh", "bin"];
+    const mediumRiskExts = ["tmp", "temp", "cache", "log", "old", "bak"];
+
+    if (highRiskExts.includes(ext.toLowerCase())) risk += 0.25;
+    else if (mediumRiskExts.includes(ext.toLowerCase())) risk += 0.15;
+
+    // Hidden files (starting with .)
+    const name = file.name || "";
+    if (name.startsWith(".")) risk += 0.05;
+
+    return Math.min(1, risk);
   }
 
   private extensionToNumber(ext: string): number {
