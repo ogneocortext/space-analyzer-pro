@@ -82,6 +82,7 @@ pub struct UsnJournalScanner {
     change_cache: HashMap<u64, Vec<UsnRecord>>,
 }
 
+#[allow(dead_code)]
 impl UsnJournalScanner {
     pub fn new() -> Self {
         Self {
@@ -527,7 +528,7 @@ impl Drop for UsnJournalScanner {
 
 // Windows API structures
 #[repr(C)]
-#[allow(non_snake_case)]
+#[allow(dead_code, non_snake_case)]
 struct USN_JOURNAL_DATA_V0 {
     UsnJournalID: u64,
     FirstUsn: i64,
@@ -539,7 +540,7 @@ struct USN_JOURNAL_DATA_V0 {
 }
 
 #[repr(C)]
-#[allow(non_snake_case)]
+#[allow(dead_code, non_snake_case)]
 struct USN_RECORD {
     RecordLength: u32,
     MajorVersion: u16,
@@ -565,6 +566,7 @@ struct USN_RECORD {
 // }
 
 /// Utility functions for USN journal scanning
+#[allow(dead_code)]
 pub mod utils {
     use super::*;
 
@@ -703,6 +705,7 @@ mod tests {
 // NAPI exports for Node.js integration - disabled (requires napi-rs build setup)
 // These exports are placeholders for when napi-rs is properly configured
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 pub mod napi_exports {
     use super::*;
 

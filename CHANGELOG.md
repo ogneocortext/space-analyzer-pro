@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                    |
 | ------- | ---------- | ------------------------------------------------------------------------------------------ |
+| 2.8.4   | 2026-05-02 | Scanner Output Contract: JSONL progress, clean result files, and unchanged-directory reuse |
 | 2.8.3   | 2026-05-02 | Performance Optimization: Lazy Hardware Detection, Persistent Caching & Log Consolidation  |
 | 2.8.2   | 2026-05-02 | Backend Architecture Refactoring: Modularization, Dedicated Services & Route Handlers     |
 | 2.8.1   | 2026-05-01 | Interactive File Management: Delete & Reveal functionality in UI                          |
@@ -29,6 +30,34 @@ All notable changes to Space Analyzer will be documented in this file.
 | 2.1.8   | 2026-04-27 | Project cleanup and organization                                                           |
 | 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                      |
 | 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                      |
+
+## [2.8.4] - 2026-05-02
+
+### Scanner Output Contract & Historical Result Reuse
+
+**Stabilized the Rust scanner/backend handoff so the frontend can display real-time progress reliably and the database can reuse previous results when a target directory has not changed.**
+
+#### Scanner & Progress Fixes
+
+- Added machine-readable `--json-progress` JSONL events for scanner status and progress.
+- Kept backend scanner runs quiet on stdout with `--quiet`, so final JSON files are the single source for result data.
+- Emitted progress immediately for small directories, then every 100 files for larger scans.
+- Updated the backend to parse stderr JSONL with a line buffer so chunked process output does not drop progress events.
+- Refreshed `bin/space-analyzer.exe` from the current Rust release build.
+
+#### Historical Cache Reuse
+
+- Added a directory fingerprint based on relative file paths, sizes, and modification times before launching a scan.
+- Reuses the latest stored database result when the directory fingerprint is unchanged.
+- Stores scan fingerprints with completed analysis results for future cache checks.
+- Fixed database analysis storage to accept Rust snake_case totals (`total_files`, `total_size`) as well as frontend camelCase totals.
+
+#### Validation
+
+- Verified a controlled 3-file fixture produced clean JSONL progress, no stdout noise, and a valid JSON result file.
+- Verified Rust release build and backend route syntax checks.
+
+---
 
 ## [2.8.2] - 2026-05-02
 

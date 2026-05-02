@@ -16,11 +16,11 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 
 ### Core Analysis ✅
 
-- **Disk Scanning** - High-performance directory scanning with Rust native scanner
+- **Disk Scanning** - High-performance directory scanning with Rust native scanner and reusable historical results
 - **File Browser** - Advanced file browser with filtering, sorting, and direct file management (Delete/Reveal)
 - **Duplicate Detection** - Hash-based duplicate detection with real-time cleanup tools
 - **Storage Trends** - Historical tracking with growth projections and category analysis
-- **Real-time Progress** - Live scanning progress with enhanced speed tracking and time estimates
+- **Real-time Progress** - Live JSONL scanner progress with enhanced speed tracking and time estimates
 - **Largest Files Report** - Top 100 largest files with filtering and sorting
 - **Old File Finder** - Find files not accessed in X years with cleanup suggestions
 - **Empty Folder Finder** - Detect and clean empty directories
@@ -40,6 +40,7 @@ The backend has been completely overhauled with enterprise-grade features:
 - Real-time scan speed calculation with moving averages
 - Dynamic file count estimation and time remaining predictions
 - Enhanced progress data with file preview information
+- Rust backend scans emit newline-delimited JSON progress/status events on stderr while writing final results to a dedicated JSON file
 
 #### Intelligent Caching System
 
@@ -47,6 +48,7 @@ The backend has been completely overhauled with enterprise-grade features:
 - TTL-based expiration with LRU eviction
 - Smart cache invalidation based on directory changes
 - Cache metrics and management API
+- Directory scan reuse is backed by a fingerprint of relative paths, file sizes, and modification times, allowing unchanged targets to load from the historical database without launching a fresh scanner process
 
 #### Scan Profiles
 
@@ -658,6 +660,8 @@ docker-compose -f docker-compose.ollama.yml up
 - Windows Features: Production-grade integration (HardLinks, ADS, Compression, Owners)
 - Status: ✅ Production-ready, validated against 96GB/225k+ file datasets
 - Build: `cd native/scanner && cargo build --release`
+- Backend mode: `space-analyzer.exe <path> --output <file> --progress --json-progress --quiet`
+- Output contract: stdout remains quiet for backend runs, stderr emits JSONL progress/status events, and the result file contains the full JSON payload for frontend and database storage
 
 **C++ Scanner (Archived)**
 
