@@ -570,6 +570,7 @@ impl Drop for NtfsMftScanner {
 }
 
 /// Utility functions for MFT scanning
+#[allow(dead_code)]
 pub mod utils {
     use super::*;
 
@@ -670,6 +671,7 @@ mod tests {
 // NAPI exports for Node.js integration - disabled (requires napi-rs build setup)
 // These exports are placeholders for when napi-rs is properly configured
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 pub mod napi_exports {
     use super::*;
 

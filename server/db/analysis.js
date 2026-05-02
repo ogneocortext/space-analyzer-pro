@@ -18,14 +18,20 @@ class AnalysisDatabase {
    */
   storeAnalysis(directoryPath, analysisData) {
     const normalizedPath = this.core.normalizePath(directoryPath);
-    return new Promise((resolve, reject) => {
-      const metadataHash = this.core.generateHash(
+    const totalFiles = analysisData.totalFiles ?? analysisData.total_files ?? 0;
+    const totalSize = analysisData.totalSize ?? analysisData.total_size ?? 0;
+    const metadataHash =
+      analysisData.directory_fingerprint ||
+      analysisData.metadataHash ||
+      analysisData.metadata_hash ||
+      this.core.generateHash(
         JSON.stringify({
-          totalFiles: analysisData.totalFiles,
-          totalSize: analysisData.totalSize,
+          totalFiles,
+          totalSize,
         })
       );
 
+    return new Promise((resolve, reject) => {
       // Compress the full analysis data
       const compressedData = this.core.compressData(analysisData);
 
@@ -39,8 +45,8 @@ class AnalysisDatabase {
         sql,
         [
           normalizedPath,
-          analysisData.totalFiles,
-          analysisData.totalSize,
+          totalFiles,
+          totalSize,
           metadataHash,
           compressedData,
         ],
@@ -301,6 +307,14 @@ class AnalysisDatabase {
    */
   getAnalysisHistory() {
     return new Promise((resolve, reject) => {
+      console.log("📊 Fetching analysis history from database...");
+
+      if (!this.db) {
+        console.error("❌ Database connection not available");
+        reject(new Error("Database connection not available"));
+        return;
+      }
+
       const sql = `
         SELECT
           a.*,
@@ -312,18 +326,98 @@ class AnalysisDatabase {
 
       this.db.all(sql, [], (err, rows) => {
         if (err) {
+          console.error("❌ Database error fetching analysis history:", err);
           reject(err);
           return;
         }
 
-        // Decompress analysis data for each row
-        rows.forEach((row) => {
+        console.log(`📋 Found ${rows.length} analyses in database`);
+
+        // Decompress analysis data for each row and format for frontend
+        const formattedRows = rows.map((row) => {
+          let analysisData = {};
+
           if (row.analysis_data_compressed) {
-            row.analysis_data = this.core.decompressData(row.analysis_data_compressed);
+            try {
+              analysisData = this.core.decompressData(row.analysis_data_compressed);
+            } catch (decompressErr) {
+              console.error("❌ Failed to decompress analysis data:", decompressErr);
+            }
           }
+
+          // Format data for frontend consumption
+          return {
+            id: row.id,
+            analysisId: row.id.toString(), // Frontend expects string
+            directory: row.directory_path,
+            directoryPath: row.directory_path,
+            totalFiles: row.total_files || analysisData.total_files || row.file_count || 0,
+            totalSize: row.total_size || analysisData.total_size || 0,
+            lastAnalyzed: row.last_analyzed,
+            created_at: row.created_at || row.last_analyzed,
+            startTime: row.created_at || row.last_analyzed,
+            endTime: row.last_analyzed,
+            status: "completed",
+            file_count: row.file_count,
+            // Include full analysis data for detailed views
+            files: analysisData.files || [],
+            categories: analysisData.categories || {},
+            extensions: analysisData.extensions || {},
+            largestFiles: analysisData.largest_files || [],
+            // Raw data for debugging
+            _raw: row,
+          };
         });
 
-        resolve(rows);
+        console.log(`✅ Formatted ${formattedRows.length} analyses for frontend`);
+        resolve(formattedRows);
+      });
+    });
+  }
+
+  /**
+   * Simple fallback method to get basic analysis history
+   */
+  getBasicAnalysisHistory() {
+    return new Promise((resolve, reject) => {
+      console.log("📊 Fetching basic analysis history (fallback)...");
+
+      if (!this.db) {
+        console.error("❌ Database connection not available for basic query");
+        resolve([]);
+        return;
+      }
+
+      // Simple query without joins or decompression
+      const sql = `
+        SELECT
+          id,
+          directory_path as directory,
+          total_files as totalFiles,
+          total_size as totalSize,
+          last_analyzed as lastAnalyzed,
+          created_at
+        FROM analyses
+        ORDER BY last_analyzed DESC
+        LIMIT 10
+      `;
+
+      this.db.all(sql, [], (err, rows) => {
+        if (err) {
+          console.error("❌ Basic query failed:", err);
+          resolve([]);
+          return;
+        }
+
+        console.log(`📋 Basic query found ${rows.length} analyses`);
+
+        const basicRows = rows.map((row) => ({
+          ...row,
+          analysisId: row.id.toString(),
+          status: "completed",
+        }));
+
+        resolve(basicRows);
       });
     });
   }
@@ -372,13 +466,10 @@ class AnalysisDatabase {
 
       files.forEach((file) => {
         const hash = this.core.generateHash(`${file.path}:${file.size}:${file.modified}`);
-        stmt.run(
-          [directoryPath, file.path, file.size, hash, file.modified],
-          (err) => {
-            if (err) errors++;
-            else processed++;
-          }
-        );
+        stmt.run([directoryPath, file.path, file.size, hash, file.modified], (err) => {
+          if (err) errors++;
+          else processed++;
+        });
       });
 
       stmt.finalize();

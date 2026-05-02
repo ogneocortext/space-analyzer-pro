@@ -28,8 +28,6 @@ struct FileInfo {
     #[serde(skip)]
     inode: Option<u64>,       // File identifier for hard link detection
     #[serde(skip)]
-    nlink: Option<u32>,        // Number of hard links
-    #[serde(skip)]
     device: Option<u64>,       // Volume identifier for hard link safety
     is_hard_link: bool,       // True if this is a hard link (nlink > 1)
 
@@ -174,6 +172,10 @@ struct Cli {
     #[arg(long)]
     progress: bool,
 
+    /// Output progress as JSON lines for machine parsing
+    #[arg(long)]
+    json_progress: bool,
+
     /// Suppress output to stdout
     #[arg(short, long)]
     quiet: bool,
@@ -239,20 +241,72 @@ impl Cli {
         }
     }
 
+    /// Emit progress event as JSON to stderr for machine parsing
+    fn emit_progress_event(
+        json_progress: bool,
+        files: u64,
+        size: u64,
+        current_file: &str,
+        hard_link_savings: u64,
+    ) {
+        if json_progress {
+            let progress = serde_json::json!({
+                "event": "progress",
+                "files": files,
+                "size": size,
+                "current_file": current_file,
+                "hard_link_savings": hard_link_savings,
+                "timestamp": std::time::UNIX_EPOCH.elapsed().unwrap_or_default().as_millis()
+            });
+            eprintln!("{}", progress.to_string());
+        }
+    }
+
+    fn emit_progress(&self, files: u64, size: u64, current_file: &str, hard_link_savings: u64) {
+        Self::emit_progress_event(
+            self.json_progress,
+            files,
+            size,
+            current_file,
+            hard_link_savings,
+        );
+    }
+
+    fn should_emit_progress(files: u64, last_progress: u64) -> bool {
+        files != last_progress && (files <= 10 || files % 100 == 0)
+    }
+
+    /// Emit status event as JSON
+    fn emit_status(&self, status: &str, message: &str) {
+        if self.json_progress {
+            let event = serde_json::json!({
+                "event": "status",
+                "status": status,
+                "message": message,
+                "timestamp": std::time::UNIX_EPOCH.elapsed().unwrap_or_default().as_millis()
+            });
+            eprintln!("{}", event.to_string());
+        }
+    }
+
     fn analyze_directory(&self) -> anyhow::Result<AnalysisResult> {
         let start_time = Instant::now();
+        self.emit_status("started", &format!("Starting scan of {}", self.path.display()));
 
         // Try MFT fast reading first if requested (Windows only, requires admin)
         #[cfg(windows)]
         if self.mft {
             eprintln!("Attempting MFT fast reading (requires admin privileges)...");
+            self.emit_status("mft_attempt", "Attempting MFT fast reading");
             match self.analyze_mft_fast(start_time) {
                 Ok(result) => {
                     eprintln!("MFT fast scan completed successfully!");
+                    self.emit_status("mft_complete", "MFT fast scan completed");
                     return Ok(result);
                 }
                 Err(e) => {
                     eprintln!("MFT fast scan failed ({}), falling back to standard scan...", e);
+                    self.emit_status("mft_failed", &format!("MFT failed: {}", e));
                 }
             }
         }
@@ -379,7 +433,6 @@ impl Cli {
                     accessed: None,
                     file_hash: None,
                     inode: Some(entry.file_reference),
-                    nlink: Some(entry.hard_links as u32),
                     device: device_id,
                     is_hard_link: entry.hard_links > 1,
                     has_ads: false,
@@ -473,6 +526,7 @@ impl Cli {
         let progress_counter = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
         let progress_counter_clone = progress_counter.clone();
         let show_progress = self.progress;
+        let json_progress = self.json_progress;
 
         // Spawn collector thread with progress reporting and hard link tracking
         let collector_handle = std::thread::spawn(move || {
@@ -533,11 +587,19 @@ impl Cli {
                     ext_stats.size += file_info.size;
                 }
 
-                // Report progress every 100 files with current file
-                if show_progress && total_files % 100 == 0 && total_files != last_progress {
+                if (show_progress || json_progress) && Self::should_emit_progress(total_files, last_progress) {
                     last_progress = total_files;
-                    eprintln!("Scanned: {} files, Size: {} (hard link savings: {}) - Current: {}",
-                        total_files, total_size, hard_link_savings, file_info.path);
+                    if show_progress && !json_progress {
+                        eprintln!("Scanned: {} files, Size: {} (hard link savings: {}) - Current: {}",
+                            total_files, total_size, hard_link_savings, file_info.path);
+                    }
+                    Self::emit_progress_event(
+                        json_progress,
+                        total_files,
+                        total_size,
+                        &file_info.path,
+                        hard_link_savings,
+                    );
                 }
 
                 files.push(file_info);
@@ -670,14 +732,19 @@ impl Cli {
                         ext_stats.count += 1;
                         ext_stats.size += file_info.size;
 
-                        if self.max_files == 0 || files.len() < self.max_files {
-                            files.push(file_info);
+                        // Report progress before pushing to avoid use-after-move.
+                        if (self.progress || self.json_progress)
+                            && Self::should_emit_progress(total_files, last_progress)
+                        {
+                            last_progress = total_files;
+                            if self.progress && !self.json_progress {
+                                eprintln!("Scanned: {} files, Size: {}", total_files, total_size);
+                            }
+                            self.emit_progress(total_files, total_size, &file_info.path, hard_link_savings);
                         }
 
-                        // Report progress every 100 files
-                        if self.progress && total_files % 100 == 0 && total_files != last_progress {
-                            last_progress = total_files;
-                            eprintln!("Scanned: {} files, Size: {}", total_files, total_size);
+                        if self.max_files == 0 || files.len() < self.max_files {
+                            files.push(file_info);
                         }
                         } // Close if is_new
                     }
@@ -808,7 +875,6 @@ impl Cli {
             accessed,
             file_hash,
             inode,
-            nlink,
             device,
             is_hard_link,
             #[cfg(windows)]
@@ -1227,28 +1293,41 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-    println!("🚀 Starting Rust CLI analysis of: {}", cli.path.display());
+    if !cli.quiet {
+        println!("🚀 Starting Rust CLI analysis of: {}", cli.path.display());
+    }
 
     let result = cli.analyze_directory()?;
 
-    println!("✅ Analysis complete! Found {} files, {} bytes in {}ms",
+    cli.emit_status("complete", &format!("Analysis complete! Found {} files, {} bytes in {}ms",
              result.total_files,
              result.total_size,
-             result.analysis_time_ms);
+             result.analysis_time_ms));
+
+    if !cli.quiet {
+        println!("✅ Analysis complete! Found {} files, {} bytes in {}ms",
+                 result.total_files,
+                 result.total_size,
+                 result.analysis_time_ms);
+    }
 
     // Print duplicate statistics if duplicates were detected
     if result.duplicate_count > 0 {
-        println!("📋 Found {} duplicate files ({} groups), wasting {} bytes",
-                 result.duplicate_count,
-                 result.duplicate_groups.len(),
-                 result.duplicate_size);
+        if !cli.quiet {
+            println!("📋 Found {} duplicate files ({} groups), wasting {} bytes",
+                     result.duplicate_count,
+                     result.duplicate_groups.len(),
+                     result.duplicate_size);
+        }
     }
 
     let json_output = serde_json::to_string_pretty(&result)?;
 
     if let Some(output_path) = cli.output {
         fs::write(&output_path, &json_output)?;
-        println!("💾 Results saved to: {}", output_path);
+        if !cli.quiet {
+            println!("💾 Results saved to: {}", output_path);
+        }
     } else if !cli.quiet {
         // Only print JSON if it's not too massive or quiet mode is off
         if result.total_files < 1000 {
