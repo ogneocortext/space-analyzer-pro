@@ -15,6 +15,17 @@ class DatabaseCore {
     this.db = null;
   }
 
+  /**
+   * Normalize path for consistent database lookups
+   * @param {string} p - Path to normalize
+   * @returns {string} Normalized path
+   */
+  normalizePath(p) {
+    if (!p) return p;
+    // Convert backslashes to forward slashes and remove trailing slash
+    return path.normalize(p).replace(/\\/g, "/").replace(/\/$/, "");
+  }
+
   initialize() {
     // Ensure directory exists
     const dir = path.dirname(this.dbPath);

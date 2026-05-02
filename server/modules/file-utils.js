@@ -42,6 +42,17 @@ function isValidPath(p) {
 }
 
 /**
+ * Normalize path for consistent database lookups
+ * @param {string} p - Path to normalize
+ * @returns {string} Normalized path
+ */
+function normalizePath(p) {
+  if (!p) return p;
+  // Convert backslashes to forward slashes and remove trailing slash
+  return path.normalize(p).replace(/\\/g, "/").replace(/\/$/, "");
+}
+
+/**
  * Generate file hash
  * @param {string} filePath - File path
  * @param {number} size - File size
@@ -253,4 +264,5 @@ module.exports = {
   getFileType,
   getDiskUsage,
   formatBytes,
+  normalizePath,
 };

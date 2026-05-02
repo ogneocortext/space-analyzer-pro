@@ -17,6 +17,7 @@ class AnalysisDatabase {
    * Store analysis results for a directory with separate file storage
    */
   storeAnalysis(directoryPath, analysisData) {
+    const normalizedPath = this.core.normalizePath(directoryPath);
     return new Promise((resolve, reject) => {
       const metadataHash = this.core.generateHash(
         JSON.stringify({
@@ -37,7 +38,7 @@ class AnalysisDatabase {
       this.db.run(
         sql,
         [
-          directoryPath,
+          normalizedPath,
           analysisData.totalFiles,
           analysisData.totalSize,
           metadataHash,
@@ -113,10 +114,11 @@ class AnalysisDatabase {
    * Get previous analysis for a directory
    */
   getAnalysis(directoryPath) {
+    const normalizedPath = this.core.normalizePath(directoryPath);
     return new Promise((resolve, reject) => {
       const sql = "SELECT * FROM analyses WHERE directory_path = ?";
 
-      this.db.get(sql, [directoryPath], (err, row) => {
+      this.db.get(sql, [normalizedPath], (err, row) => {
         if (err) {
           reject(err);
           return;
@@ -330,6 +332,7 @@ class AnalysisDatabase {
    * Get current analysis for a directory (most recent)
    */
   getCurrentAnalysis(directoryPath) {
+    const normalizedPath = this.core.normalizePath(directoryPath);
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT * FROM analyses
@@ -338,7 +341,7 @@ class AnalysisDatabase {
         LIMIT 1
       `;
 
-      this.db.get(sql, [directoryPath], (err, row) => {
+      this.db.get(sql, [normalizedPath], (err, row) => {
         if (err) {
           reject(err);
           return;
