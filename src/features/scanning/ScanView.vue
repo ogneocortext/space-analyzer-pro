@@ -18,6 +18,9 @@ import {
 } from "lucide-vue-next";
 import { useAnalysisStore } from "../../store/analysis";
 import { Card, Button } from "../../design-system/components";
+import PerformanceMonitor from "../../components/performance/PerformanceMonitor.vue";
+import RealTimePerformanceMonitor from "../../components/performance/RealTimePerformanceMonitor.vue";
+import PerformanceInsights from "../../components/performance/PerformanceInsights.vue";
 
 const store = useAnalysisStore();
 const router = useRouter();
@@ -535,6 +538,47 @@ function formatPath(path: string): string {
           </p>
         </div>
       </div>
+    </div>
+
+    <!-- Performance Monitoring -->
+    <div v-if="store.isAnalysisRunning || store.status === 'complete'" class="space-y-4">
+      <!-- Real-time Performance Monitor (shown during scanning) -->
+      <RealTimePerformanceMonitor
+        v-if="store.isAnalysisRunning"
+        :is-active="store.isAnalysisRunning"
+        :current-metrics="{
+          timestamp: Date.now(),
+          filesPerSecond:
+            store.progressData.files > 0
+              ? store.progressData.files /
+                ((Date.now() - (store.analysisStartTime || Date.now())) / 1000)
+              : 0,
+          bytesPerSecond:
+            store.progressData.totalSize > 0
+              ? store.progressData.totalSize /
+                ((Date.now() - (store.analysisStartTime || Date.now())) / 1000)
+              : 0,
+          memoryUsage: 0, // Will be updated with real data
+          diskReads: store.progressData.files,
+          cpuUsage: 0, // Will be updated with real data
+          ioWaitTime: 0, // Will be updated with real data
+        }"
+      />
+
+      <!-- Performance Monitor (shown after completion) -->
+      <PerformanceMonitor
+        v-if="store.status === 'complete' && store.analysisResult?.performance"
+        :performance="store.analysisResult.performance"
+        :is-loading="false"
+      />
+
+      <!-- Performance Insights (shown after completion) -->
+      <PerformanceInsights
+        v-if="store.status === 'complete' && store.analysisResult?.performance"
+        :performance="store.analysisResult.performance"
+        :scan-size="store.analysisResult.summary?.total_files || 0"
+        :scan-duration="store.analysisResult.performance?.scan_duration_ms || 0"
+      />
     </div>
 
     <!-- Results Summary -->

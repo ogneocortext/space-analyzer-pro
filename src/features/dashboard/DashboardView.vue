@@ -3,6 +3,8 @@ import { ref, computed, watch } from "vue";
 import { useAnalysisStore } from "../../store/analysis";
 import { Card, Button } from "../../design-system/components";
 import SkeletonLoader from "../../components/shared/SkeletonLoader.vue";
+import PerformanceMonitor from "../../components/performance/PerformanceMonitor.vue";
+import PerformanceInsights from "../../components/performance/PerformanceInsights.vue";
 import {
   RefreshCw,
   FolderOpen,
@@ -259,6 +261,17 @@ function getCategorizationReason(file: (typeof files.value)[0]): string {
             {{ files.filter((f) => f.size > 1024 * 1024 * 100).length }}
           </div>
         </Card>
+      </div>
+
+      <!-- Performance Monitoring Section -->
+      <div v-if="store.analysisResult?.performance" class="space-y-4">
+        <PerformanceMonitor :performance="store.analysisResult.performance" :is-loading="false" />
+
+        <PerformanceInsights
+          :performance="store.analysisResult.performance"
+          :scan-size="store.analysisResult.summary?.total_files || 0"
+          :scan-duration="store.analysisResult.performance?.scan_duration_ms || 0"
+        />
       </div>
 
       <!-- Category Distribution -->

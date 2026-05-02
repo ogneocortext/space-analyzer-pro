@@ -1,17 +1,21 @@
 /* eslint-disable preserve-caught-error */
 
-export interface FileInfo {
-  name: string;
-  size: number;
-  path: string;
-  extension: string;
-  category: string;
-  modified?: string;
-  is_hidden?: boolean;
-  is_directory?: boolean;
-  // Windows API fields
+export interface FileSize {
+  bytes: number;
+  formatted: string;
+  on_disk?: number;
+}
+
+export interface FileTimestamps {
   created?: string;
+  modified: string;
   accessed?: string;
+}
+
+export interface FileAttributes {
+  is_readonly: boolean;
+  is_hidden: boolean;
+  is_system: boolean;
   has_ads?: boolean;
   ads_count?: number;
   is_compressed?: boolean;
@@ -20,35 +24,98 @@ export interface FileInfo {
   is_reparse_point?: boolean;
   reparse_tag?: number;
   owner?: string;
-  is_hard_link?: boolean;
-  hard_link_count?: number;
+}
+
+export interface FileInfo {
+  name: string;
+  size: FileSize;
+  path: string;
+  extension: string;
+  category: string;
+  timestamps: FileTimestamps;
+  file_hash?: string;
+  is_hard_link: boolean;
+  attributes: FileAttributes;
+}
+
+export interface ScanConfig {
+  path: string;
+  max_files: number;
+  include_hidden: boolean;
+  follow_symlinks: boolean;
+  json_progress: boolean;
+}
+
+export interface SummaryStats {
+  total_files: number;
+  total_size: number;
+  scan_duration_ms: number;
+  files_scanned_per_second: number;
+  bytes_scanned_per_second: number;
+}
+
+export interface PerformanceMetrics {
+  scan_duration_ms: number;
+  files_per_second: number;
+  bytes_per_second: number;
+  memory_peak_mb?: number;
+  memory_current_mb?: number;
+  disk_reads?: number;
+  disk_bytes_read?: number;
+  cache_hits?: number;
+  cache_misses?: number;
+  cpu_usage_percent?: number;
+  thread_count?: number;
+  io_wait_time_ms?: number;
+  system_load_average?: number;
+}
+
+export interface Issue {
+  type_: string;
+  path: string;
+  message: string;
+  count: number;
+}
+
+export interface Warning {
+  type_: string;
+  path: string;
+  message: string;
+  size?: number;
+}
+
+export interface Issues {
+  errors: Issue[];
+  warnings: Warning[];
 }
 
 export interface AnalysisResult {
-  totalFiles: number;
-  totalSize: number;
-  files: FileInfo[];
-  categories?: {
-    [key: string]: {
-      count: number;
-      size: number;
-      files: Array<{ name: string; size: number; path: string }>;
-    };
+  schema_version: string;
+  generated_at: string;
+  scanner_version: string;
+  scan_config: ScanConfig;
+  summary: SummaryStats;
+  file_analysis: {
+    files: FileInfo[];
+    categories: { [key: string]: { count: number; size: number } };
+    extension_stats: { [key: string]: { count: number; size: number } };
+    duplicate_groups: any[];
+    duplicate_count: number;
+    duplicate_size: number;
+    hard_link_count: number;
+    hard_link_savings: number;
+    apparent_size: number;
   };
-  extensionStats?: { [key: string]: { count: number; size: number } };
-  analysisType?: string;
+  performance: PerformanceMetrics;
+  issues?: Issues;
+
+  // Legacy compatibility fields
+  totalFiles?: number;
+  totalSize?: number;
   analysisTime?: number;
   directoryPath?: string;
-  // Windows API summary stats
-  windowsStats?: {
-    hardLinkCount: number;
-    hardLinkSavings: number;
-    adsCount: number;
-    compressedCount: number;
-    compressedSavings: number;
-    sparseCount: number;
-    reparsePointCount: number;
-  };
+  categories?: any;
+  extensionStats?: any;
   ai_insights?: {
     recommended_categories: string[];
     potential_duplicates: string[];
@@ -84,6 +151,116 @@ export interface AnalysisResult {
   };
   strategy?: string;
   tools?: string[];
+}
+
+// Compatibility function to handle both old and new JSON formats
+export function normalizeAnalysisResult(data: any): AnalysisResult {
+  // Check if it's the new format (schema_version exists)
+  if (data.schema_version) {
+    // New format - return as-is with legacy compatibility fields
+    return {
+      ...data,
+      // Add legacy compatibility fields
+      totalFiles: data.summary?.total_files,
+      totalSize: data.summary?.total_size,
+      analysisTime: data.summary?.scan_duration_ms,
+      directoryPath: data.scan_config?.path,
+      categories: data.file_analysis?.categories,
+      extensionStats: data.file_analysis?.extension_stats,
+    };
+  } else {
+    // Old format - convert to new structure
+    return {
+      schema_version: "1.0",
+      generated_at: new Date().toISOString(),
+      scanner_version: "legacy",
+      scan_config: {
+        path: data.directoryPath || "",
+        max_files: 0,
+        include_hidden: false,
+        follow_symlinks: false,
+        json_progress: false,
+      },
+      summary: {
+        total_files: data.totalFiles || 0,
+        total_size: data.totalSize || 0,
+        scan_duration_ms: data.analysisTime || 0,
+        files_scanned_per_second: 0,
+        bytes_scanned_per_second: 0,
+      },
+      file_analysis: {
+        files:
+          data.files?.map((file: any) => ({
+            ...file,
+            size: {
+              bytes: file.size || 0,
+              formatted: formatFileSize(file.size || 0),
+              on_disk: file.compressed_size,
+            },
+            timestamps: {
+              created: file.created,
+              modified: file.modified || "",
+              accessed: file.accessed,
+            },
+            attributes: {
+              is_readonly: false,
+              is_hidden: file.is_hidden || false,
+              is_system: false,
+              has_ads: file.has_ads,
+              ads_count: file.ads_count,
+              is_compressed: file.is_compressed,
+              compressed_size: file.compressed_size,
+              is_sparse: file.is_sparse,
+              is_reparse_point: file.is_reparse_point,
+              reparse_tag: file.reparse_tag,
+              owner: file.owner,
+            },
+          })) || [],
+        categories: data.categories || {},
+        extension_stats: data.extensionStats || {},
+        duplicate_groups: [],
+        duplicate_count: 0,
+        duplicate_size: 0,
+        hard_link_count: 0,
+        hard_link_savings: 0,
+        apparent_size: data.totalSize || 0,
+      },
+      performance: {
+        scan_duration_ms: data.analysisTime || 0,
+        files_per_second: 0,
+        bytes_per_second: 0,
+        memory_peak_mb: undefined,
+        disk_reads: undefined,
+        cache_hits: undefined,
+      },
+      issues: undefined,
+      // Preserve legacy fields
+      totalFiles: data.totalFiles,
+      totalSize: data.totalSize,
+      analysisTime: data.analysisTime,
+      directoryPath: data.directoryPath,
+      categories: data.categories,
+      extensionStats: data.extensionStats,
+    };
+  }
+}
+
+// Helper function to format file size
+function formatFileSize(bytes: number): string {
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let size = bytes;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+
+  if (unitIndex === 0) {
+    return `${bytes} ${units[unitIndex]}`;
+  } else {
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
+  }
 }
 
 export interface AnalysisProgress {
