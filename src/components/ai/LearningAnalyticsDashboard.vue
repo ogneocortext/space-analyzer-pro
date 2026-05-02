@@ -390,12 +390,18 @@ const seedDemoDataIfEmpty = async () => {
       });
     }
 
-    // Generate demo learning analytics records
+    // Generate demo learning analytics records with deterministic progression
     for (let i = 0; i < 20; i++) {
+      const pattern = demoPatterns[i % demoPatterns.length];
+      // Learning rate improves over time (1.0 -> 1.5) with slight daily variation
+      const baseRate = 1.0 + (i / 20) * 0.5;
+      const dailyVariation = ((i % 3) - 1) * 0.05; // -0.05, 0, +0.05
+      const learningRate = Math.round((baseRate + dailyVariation) * 100) / 100;
+
       await indexedDBPersistence.saveAnalyticsData({
         type: "learning",
-        pattern: demoPatterns[i % demoPatterns.length],
-        learningRate: 1.0 + Math.random() * 0.5,
+        pattern,
+        learningRate,
         timestamp: Date.now() - i * 24 * 60 * 60 * 1000,
       });
     }
@@ -488,33 +494,65 @@ const getRecentLearningEvents = async (): Promise<LearningEvent[]> => {
 };
 
 const getABTestResults = async (): Promise<ABTestResult[]> => {
-  // Mock A/B test results - would be loaded from actual A/B testing system
-  return [
-    {
-      id: "1",
-      name: "Recommendation Algorithm A vs B",
-      status: "completed",
-      variantA: { conversion: 0.35 },
-      variantB: { conversion: 0.42 },
-      significance: "95%",
-    },
-    {
-      id: "2",
-      name: "UI Layout Test",
-      status: "running",
-      variantA: { conversion: 0.28 },
-      variantB: { conversion: 0.31 },
-      significance: "Insufficient data",
-    },
-  ];
+  // Try to load from IndexedDB first
+  try {
+    const abTestData = await indexedDBPersistence.loadAnalyticsData("ab-test", 10);
+    if (abTestData.length > 0) {
+      return abTestData.map((test: any) => ({
+        id: test.id || `ab-${Date.now()}`,
+        name: test.name || "A/B Test",
+        status: test.status || "completed",
+        variantA: test.variantA || { conversion: 0.3 },
+        variantB: test.variantB || { conversion: 0.35 },
+        significance: test.significance || "Inconclusive",
+      }));
+    }
+  } catch (e) {
+    // Fall through to default
+  }
+
+  // Return empty array if no real data available
+  // In a real A/B testing system, these would come from the backend
+  return [];
 };
 
 const getFeedbackAnalysis = async () => {
-  // Mock feedback analysis - would be loaded from actual feedback system
+  // Load real feedback data from IndexedDB
+  try {
+    const feedbackRecords = await indexedDBPersistence.loadAnalyticsData("user-feedback", 1000);
+
+    if (feedbackRecords.length > 0) {
+      // Calculate real metrics
+      const ratings = feedbackRecords
+        .map((r: any) => r.feedback?.rating)
+        .filter((r: number) => r !== undefined && r > 0);
+
+      const averageRating =
+        ratings.length > 0
+          ? ratings.reduce((sum: number, r: number) => sum + r, 0) / ratings.length
+          : 0;
+
+      // Calculate response rate based on total events vs feedback
+      const usageEvents = await indexedDBPersistence.loadUsageEvents(1000);
+      const responseRate = usageEvents.length > 0 ? feedbackRecords.length / usageEvents.length : 0;
+
+      return {
+        averageRating: Math.round(averageRating * 10) / 10,
+        totalFeedback: feedbackRecords.length,
+        responseRate: Math.round(responseRate * 100) / 100,
+        dataSource: "real",
+      };
+    }
+  } catch (e) {
+    console.error("Error loading feedback analysis:", e);
+  }
+
+  // Return default values if no data available
   return {
-    averageRating: 4.2,
-    totalFeedback: 156,
-    responseRate: 0.67,
+    averageRating: 0,
+    totalFeedback: 0,
+    responseRate: 0,
+    dataSource: "none",
   };
 };
 
