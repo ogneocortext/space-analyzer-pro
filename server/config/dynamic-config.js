@@ -127,8 +127,12 @@ module.exports = {
   // Async getter for when you need to ensure config is loaded
   getConfig: () => loadConfig(),
 
-  // Utility function to log current config
+// Utility function to log current config
   logConfig: async () => {
+    // Only log once per process
+    if (global.__SA_CONFIG_LOGGED__) return;
+    global.__SA_CONFIG_LOGGED__ = true;
+
     const config = await loadConfig();
     const hasOverride =
       process.env.SA_CPU_CORES ||
@@ -151,7 +155,7 @@ module.exports = {
       `Device: ${config.specs.isLaptop ? "Laptop (conservative)" : "Desktop (maximum performance)"}`
     );
     if (config.specs.ollamaModels && config.specs.ollamaModels.length > 0) {
-      console.log(`Ollama Models: ${config.specs.ollamaModels.join(", ")}`);
+      console.log(`🦙 Ollama Models: ${config.specs.ollamaModels.join(", ")}`);
     }
     console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
     console.log(`Workers: ${config.config.workerCount} (${config.config.workerMemoryMB}MB each)`);

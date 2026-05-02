@@ -110,6 +110,9 @@ if (require.main === module) {
     const availablePort = await portDetector.findAvailablePort();
     app.port = availablePort;
 
+    const { logConfig } = require("../config/dynamic-config");
+    await logConfig();
+
     const server = http.createServer(app.app);
     setupWebSocketServer(server);
 
