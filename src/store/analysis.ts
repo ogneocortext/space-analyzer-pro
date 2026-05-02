@@ -20,6 +20,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
   const progress = ref(0);
   const isAnalysisRunning = ref(false);
   const isLoading = ref(false);
+  const currentAnalysisId = ref<string | null>(null);
   // Data will be fetched from database - don't store in localStorage
   const data = ref<any>(null);
   const error = ref<string | null>(null);
@@ -51,11 +52,17 @@ export const useAnalysisStore = defineStore("analysis", () => {
     }
     // Also try to cancel via API
     if (isAnalysisRunning.value) {
-      fetch(`${analysisBridge.baseUrl}/api/cancel`, { method: "POST" }).catch(() => {
+      const body = currentAnalysisId.value ? JSON.stringify({ analysisId: currentAnalysisId.value }) : "{}";
+      fetch(`${analysisBridge.baseUrl}/api/cancel`, { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body
+      }).catch(() => {
         // Ignore errors - backend might not support cancel
       });
     }
     isAnalysisRunning.value = false;
+    currentAnalysisId.value = null;
     isLoading.value = false;
     status.value = "cancelled";
 
@@ -78,7 +85,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
       recentlyScannedFiles.value = [];
       useAI.value = enableAI;
 
-      const { result } = await analysisBridge.analyzeDirectoryWithProgress(
+      const { result, analysisId } = await analysisBridge.analyzeDirectoryWithProgress(
         path.value,
         (progressInfo) => {
           log("PROGRESS", progressInfo);
@@ -107,6 +114,8 @@ export const useAnalysisStore = defineStore("analysis", () => {
         },
         { useOllama: enableAI }
       );
+      
+      currentAnalysisId.value = analysisId;
 
       log("RESULT", result);
       data.value = result;
@@ -166,6 +175,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
     status.value = "idle";
     progress.value = 0;
     isAnalysisRunning.value = false;
+    currentAnalysisId.value = null;
     data.value = null;
     error.value = null;
     scannedFiles.value = [];
