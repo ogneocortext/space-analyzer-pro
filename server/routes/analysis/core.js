@@ -492,6 +492,20 @@ class CoreRoutes {
                 });
             }
 
+            // Auto-trigger AI categorization for uncategorized files
+            if (results.files && results.files.length > 0) {
+              this.triggerAICategorization(analysisId, directoryPath, results.files)
+                .then((catResult) => {
+                  if (catResult.categorized > 0) {
+                    console.log(`🤖 AI categorized ${catResult.categorized} files`);
+                  }
+                })
+                .catch((err) => {
+                  // Don't fail the scan if AI categorization fails
+                  console.warn("⚠️ AI categorization failed (non-critical):", err.message);
+                });
+            }
+
             analysis.status = "complete";
             analysis.progress = 100;
 
@@ -527,6 +541,74 @@ class CoreRoutes {
     } catch (error) {
       analysis.status = "error";
       analysis.error = error.message;
+      throw error;
+    }
+  }
+
+  /**
+   * Trigger AI categorization for uncategorized files after scan completes
+   * Non-blocking - runs in background, doesn't affect scan result
+   */
+  async triggerAICategorization(analysisId, directoryPath, files) {
+    try {
+      // Filter files that need categorization (no category or 'other')
+      const uncategorizedFiles = files.filter((f) => !f.category || f.category === "other");
+
+      if (uncategorizedFiles.length === 0) {
+        return { categorized: 0, message: "No files to categorize" };
+      }
+
+      // Limit to first 50 files to avoid overwhelming the AI service
+      const filesToCategorize = uncategorizedFiles.slice(0, 50);
+
+      // Prepare file data for AI service
+      const fileData = filesToCategorize.map((f) => ({
+        path: f.path || f.name,
+        name: f.name || f.path?.split(/[\\/]/).pop() || "unknown",
+        size: f.size || 0,
+        extension: f.extension || f.path?.split(".").pop() || "",
+        modified_time: f.modified_time || Date.now() / 1000,
+      }));
+
+      // Call AI service via proxy route (or directly if axios available)
+      const axios = require("axios");
+      const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://127.0.0.1:5000";
+
+      const response = await axios.post(`${AI_SERVICE_URL}/predict/categories-batch`, fileData, {
+        timeout: 30000,
+      });
+
+      const predictions = response.data?.predictions || [];
+
+      // Update files with predicted categories
+      let categorizedCount = 0;
+      predictions.forEach((prediction) => {
+        const fileIndex = files.findIndex((f) => (f.path || f.name) === prediction.path);
+        if (fileIndex >= 0) {
+          files[fileIndex].category = prediction.predicted_category;
+          files[fileIndex].ai_confidence = prediction.confidence;
+          categorizedCount++;
+        }
+      });
+
+      // Store AI categorization results in analysisResults
+      const analysisResult = this.server.analysisResults.get(analysisId);
+      if (analysisResult) {
+        analysisResult.aiCategorized = categorizedCount;
+        analysisResult.aiCategories = predictions.map((p) => ({
+          path: p.path,
+          category: p.predicted_category,
+          confidence: p.confidence,
+        }));
+      }
+
+      return {
+        categorized: categorizedCount,
+        total: filesToCategorize.length,
+        message: `AI categorized ${categorizedCount} files`,
+      };
+    } catch (error) {
+      console.error("AI categorization error:", error.message);
       throw error;
     }
   }
