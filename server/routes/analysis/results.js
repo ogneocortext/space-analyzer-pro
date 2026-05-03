@@ -88,9 +88,7 @@ class ResultsRoutes {
         }
 
         if (extension) {
-          files = files.filter((f) =>
-            f.name.toLowerCase().endsWith(extension.toLowerCase())
-          );
+          files = files.filter((f) => f.name.toLowerCase().endsWith(extension.toLowerCase()));
         }
 
         if (minSize) {
@@ -206,6 +204,63 @@ class ResultsRoutes {
         });
       } catch (error) {
         console.error("Analysis health error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    // Get analysis history (all completed analyses)
+    this.router.get("/analysis/history", async (req, res) => {
+      try {
+        const { limit = 50, offset = 0 } = req.query;
+        const maxLimit = Math.min(parseInt(limit) || 50, 100);
+        const skip = parseInt(offset) || 0;
+
+        const analyses = [];
+
+        // Get completed analyses from analysisResults map
+        if (this.server?.analysisResults) {
+          for (const [id, result] of this.server.analysisResults.entries()) {
+            analyses.push({
+              analysisId: id,
+              directory: result.directoryPath || result.path || "Unknown",
+              status: "complete",
+              startTime: result.startTime || result.completedAt,
+              completedAt: result.completedAt,
+              totalFiles: result.totalFiles || result.files?.length || 0,
+              totalSize: result.totalSize || 0,
+              categories: result.categories || {},
+              extensions: result.extensions || {},
+              scanDuration: result.scanDuration || 0,
+            });
+          }
+        }
+
+        // Sort by completion date (newest first)
+        analyses.sort((a, b) => {
+          const dateA = new Date(b.completedAt || b.startTime || 0);
+          const dateB = new Date(a.completedAt || a.startTime || 0);
+          return dateA.getTime() - dateB.getTime();
+        });
+
+        // Apply pagination
+        const total = analyses.length;
+        const paginatedAnalyses = analyses.slice(skip, skip + maxLimit);
+
+        res.json({
+          success: true,
+          analyses: paginatedAnalyses,
+          pagination: {
+            total,
+            limit: maxLimit,
+            offset: skip,
+            hasMore: skip + maxLimit < total,
+          },
+        });
+      } catch (error) {
+        console.error("Get analysis history error:", error);
         res.status(500).json({
           success: false,
           error: error.message,
