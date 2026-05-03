@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                                                             |
 | ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 2.8.8   | 2026-05-02 | Stability & Infrastructure: Backend crash protection, persistent scan history, standardized ports, script improvements              |
 | 2.8.7   | 2026-05-02 | Static Analysis Integration: ESLint-based code quality analysis, real vs simulated data indicators, ML training on analysis results |
 | 2.8.6   | 2026-05-02 | Bug Fixes & Missing Routes: Fixed 404 errors, corrected settings routes, added Learning/NLP/AI Model endpoints                      |
 | 2.8.5   | 2026-05-02 | Error Tracking & Analysis Components: Enhanced file details, error logging, and build fixes                                         |
@@ -33,6 +34,55 @@ All notable changes to Space Analyzer will be documented in this file.
 | 2.1.8   | 2026-04-27 | Project cleanup and organization                                                                                                    |
 | 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                                                               |
 | 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                                                               |
+
+## [2.8.8] - 2026-05-02
+
+### Stability & Infrastructure Improvements
+
+**Backend crash protection, persistent scan history, standardized port configuration, improved script error handling, and project file organization.**
+
+#### Backend Crash Protection
+
+- **Global Error Handlers**: Added `uncaughtException` and `unhandledRejection` handlers at process level
+- **Memory Limit Increase**: Set Node.js max-old-space-size to 4GB for large directory scans
+- **Scanner Process Safety**: Added error handlers for scanner process crashes with proper cleanup
+- **Temp File Cleanup**: Guaranteed cleanup of temp files even on errors
+- **Non-blocking Database Saves**: Analysis results saved to database asynchronously (fire-and-forget)
+
+#### Persistent Scan History
+
+- **Database Storage**: Analysis results now persisted to SQLite database
+- **GET /api/analysis/history**: New endpoint returns paginated scan history from database
+- **Fallback Support**: Falls back to in-memory storage if database unavailable
+- **History Metadata**: Stores directory, file counts, sizes, timestamps, and categories
+
+#### Port Configuration Standardization
+
+| Service      | Old Port | New Port | Notes                      |
+| ------------ | -------- | -------- | -------------------------- |
+| Vite Dev     | 3001     | **5173** | Standard Vite default port |
+| Vite Preview | 3002     | **4173** | Standard Vite preview port |
+| Python AI    | 8084     | **5000** | Common Python service port |
+
+- **Environment Sync**: `.env`, `.env.example`, and `ports.config.js` now consistent
+- **Dynamic Proxy**: Vite proxy uses `ports.API_SERVER_PORT` variable instead of hardcoded value
+- **Documentation**: Added sync comments across all port configuration files
+
+#### Script Improvements
+
+- **launch-services.js**: Added SIGINT/SIGTERM handlers for graceful shutdown
+- **port-config.js**: Added try-catch with fallback port values if config missing
+- **fix-issues.js**: Added file existence checks, backup creation before modifications
+- **cleanup-results.js**: Fixed date parsing safety with validation
+
+#### Project Organization
+
+- **Test Files**: Moved 20+ `*_test.json` files to `tests/` directory
+- **Build Logs**: Moved to `logs/` directory
+- **Removed Duplicates**: Deleted `dist-latest/` and `dist-new/` folders
+- **Archive**: Moved stray analysis files to `archive/old-analysis-results/`
+
+---
 
 ## [2.8.7] - 2026-05-02
 
