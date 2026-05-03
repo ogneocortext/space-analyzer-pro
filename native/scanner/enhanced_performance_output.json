@@ -1,0 +1,192 @@
+{
+  "schema_version": "2.0",
+  "generated_at": "2026-05-02T19:24:22.875799500+00:00",
+  "scanner_version": "2.8.5",
+  "scan_config": {
+    "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test_scan_directory",
+    "max_files": 0,
+    "include_hidden": false,
+    "follow_symlinks": false,
+    "json_progress": true
+  },
+  "summary": {
+    "total_files": 4,
+    "total_size": 98,
+    "scan_duration_ms": 26,
+    "files_scanned_per_second": 153,
+    "bytes_scanned_per_second": 3769
+  },
+  "file_analysis": {
+    "files": [
+      {
+        "name": "test2.txt",
+        "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test_scan_directory\\test2.txt",
+        "size": {
+          "bytes": 13,
+          "formatted": "13 B",
+          "on_disk": null
+        },
+        "extension": "txt",
+        "category": "Documents",
+        "timestamps": {
+          "created": "2026-05-02T19:14:26+00:00",
+          "modified": "2026-05-02T19:14:28+00:00",
+          "accessed": "2026-05-02T07:00:00+00:00"
+        },
+        "file_hash": null,
+        "is_hard_link": false,
+        "attributes": {
+          "is_readonly": false,
+          "is_hidden": false,
+          "is_system": false,
+          "has_ads": false,
+          "ads_count": 0,
+          "is_compressed": false,
+          "compressed_size": null,
+          "is_sparse": false,
+          "is_reparse_point": false,
+          "reparse_tag": null,
+          "owner": "Everyone"
+        }
+      },
+      {
+        "name": "large_test.txt",
+        "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test_scan_directory\\large_test.txt",
+        "size": {
+          "bytes": 59,
+          "formatted": "59 B",
+          "on_disk": null
+        },
+        "extension": "txt",
+        "category": "Documents",
+        "timestamps": {
+          "created": "2026-05-02T19:14:26+00:00",
+          "modified": "2026-05-02T19:14:28+00:00",
+          "accessed": "2026-05-02T07:00:00+00:00"
+        },
+        "file_hash": null,
+        "is_hard_link": false,
+        "attributes": {
+          "is_readonly": false,
+          "is_hidden": false,
+          "is_system": false,
+          "has_ads": false,
+          "ads_count": 0,
+          "is_compressed": false,
+          "compressed_size": null,
+          "is_sparse": false,
+          "is_reparse_point": false,
+          "reparse_tag": null,
+          "owner": "Everyone"
+        }
+      },
+      {
+        "name": "test3.json",
+        "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test_scan_directory\\test3.json",
+        "size": {
+          "bytes": 13,
+          "formatted": "13 B",
+          "on_disk": null
+        },
+        "extension": "json",
+        "category": "Config",
+        "timestamps": {
+          "created": "2026-05-02T19:14:26+00:00",
+          "modified": "2026-05-02T19:14:28+00:00",
+          "accessed": "2026-05-02T07:00:00+00:00"
+        },
+        "file_hash": null,
+        "is_hard_link": false,
+        "attributes": {
+          "is_readonly": false,
+          "is_hidden": false,
+          "is_system": false,
+          "has_ads": false,
+          "ads_count": 0,
+          "is_compressed": false,
+          "compressed_size": null,
+          "is_sparse": false,
+          "is_reparse_point": false,
+          "reparse_tag": null,
+          "owner": "Everyone"
+        }
+      },
+      {
+        "name": "test1.txt",
+        "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer\\test_scan_directory\\test1.txt",
+        "size": {
+          "bytes": 13,
+          "formatted": "13 B",
+          "on_disk": null
+        },
+        "extension": "txt",
+        "category": "Documents",
+        "timestamps": {
+          "created": "2026-05-02T19:14:26+00:00",
+          "modified": "2026-05-02T19:14:28+00:00",
+          "accessed": "2026-05-02T07:00:00+00:00"
+        },
+        "file_hash": null,
+        "is_hard_link": false,
+        "attributes": {
+          "is_readonly": false,
+          "is_hidden": false,
+          "is_system": false,
+          "has_ads": false,
+          "ads_count": 0,
+          "is_compressed": false,
+          "compressed_size": null,
+          "is_sparse": false,
+          "is_reparse_point": false,
+          "reparse_tag": null,
+          "owner": "Everyone"
+        }
+      }
+    ],
+    "categories": {
+      "Config": {
+        "count": 1,
+        "size": 13
+      },
+      "Documents": {
+        "count": 3,
+        "size": 85
+      }
+    },
+    "extension_stats": {
+      "json": {
+        "count": 1,
+        "size": 13
+      },
+      "txt": {
+        "count": 3,
+        "size": 85
+      }
+    },
+    "duplicate_groups": [],
+    "duplicate_count": 0,
+    "duplicate_size": 0,
+    "hard_link_count": 0,
+    "hard_link_savings": 0,
+    "apparent_size": 98
+  },
+  "performance": {
+    "scan_duration_ms": 26,
+    "files_per_second": 153,
+    "bytes_per_second": 3769,
+    "memory_peak_mb": 0,
+    "memory_current_mb": null,
+    "disk_reads": 4,
+    "disk_bytes_read": 98,
+    "cache_hits": null,
+    "cache_misses": null,
+    "cpu_usage_percent": null,
+    "thread_count": null,
+    "io_wait_time_ms": null,
+    "system_load_average": null
+  },
+  "issues": {
+    "errors": [],
+    "warnings": []
+  }
+}
