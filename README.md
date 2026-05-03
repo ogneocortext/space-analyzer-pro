@@ -225,11 +225,17 @@ Advanced multi-threading for CPU-intensive operations:
 
 ### Code Analysis ✅
 
+- **ESLint Integration** - Real static analysis with ESLint for JavaScript/TypeScript projects (v2.8.7)
+- **Code Quality Scoring** - 0-100 quality score based on errors, warnings, and fixable issues
+- **Issue Categorization** - Automatic classification: security, performance, style, best-practices, type-safety
+- **Real vs Simulated Data** - Clear visual indicators showing data provenance (green=real, yellow=simulated)
+- **Tool Installation Helper** - One-click commands to install missing analysis tools
 - **Code Complexity Analysis** - Analyze code complexity for multiple languages (JS, TS, Python, Java, C#, Go, Rust, etc.)
 - **Complexity Metrics** - Cyclomatic complexity, cognitive complexity, maintainability index, nesting depth
 - **Complexity Grades** - A-F grading system with color-coded visualization
 - **Refactoring Priority** - Critical, high, medium, low priority indicators
 - **Function Analysis** - Function count, length metrics, and complexity per function
+- **ML-Powered Insights** - Models trained on real ESLint results, not random data
 
 ### System & Insights ✅
 
@@ -346,6 +352,91 @@ Advanced multi-threading for CPU-intensive operations:
 - **Real-time file system monitoring** with ~1M changes/sec processing capability
 - **Change detection** with comprehensive event tracking
 - **Automatic updates** without full rescans
+
+### Static Analysis Integration (v2.8.7) 🔍
+
+**Real ESLint-based code quality analysis with ML training on actual results.**
+
+#### Real vs Simulated Data Transparency
+
+- **Data Source Badges**: Clear visual indicators showing analysis data provenance
+  - ✅ **Green Badge**: "Real Analysis Data" - ESLint was used for actual analysis
+  - ⚠️ **Yellow Badge**: "Simulated Data" - Fallback data when tools unavailable
+  - ❌ **Red Badge**: "Analysis Failed" - Error state with retry option
+- **Install Tools Button**: One-click installation commands for missing ESLint plugins
+- **Configurable Fallback**: Analysis only falls back to simulation when explicitly allowed
+
+#### ESLint Integration Features
+
+- **Full Project Analysis**: Scan entire JavaScript/TypeScript projects
+- **Single File Analysis**: On-demand analysis of individual files
+- **Issue Detection**: 100+ ESLint rules covering common problems
+- **Auto-Fix Detection**: Identifies issues that can be automatically fixed
+- **Severity Levels**: Clear error vs warning distinction
+
+#### Code Quality Metrics
+
+| Metric        | Range | Description                    |
+| ------------- | ----- | ------------------------------ |
+| Quality Score | 0-100 | Overall code quality rating    |
+| Total Issues  | Count | Combined errors + warnings     |
+| Errors        | Count | Must-fix issues (severity 2)   |
+| Warnings      | Count | Should-fix issues (severity 1) |
+| Fixable       | Count | Issues with auto-fix available |
+
+#### Issue Categories
+
+- **Security** - `no-eval`, `security/detect-object-injection`, unsafe regex
+- **Performance** - `no-console` in loops, excessive complexity
+- **Style** - Quotes, semicolons, indentation, trailing spaces
+- **Best Practices** - `no-unused-vars`, `no-undef`, `prefer-const`
+- **Type Safety** - TypeScript-specific rules for type safety
+
+#### ML-Powered Pattern Recognition
+
+- **Real Training Data**: ML models trained on actual ESLint results, not random data
+- **Pattern Frequency Tracking**: Tracks how often issues occur across files
+- **Smart Refactoring Suggestions**: Maps detected issues to specific refactoring actions
+  - High complexity → "extract-method"
+  - Long functions → "reduce-function-size"
+  - Duplicate code → "extract-function"
+  - Magic numbers → "extract-constant"
+- **Pattern Database**: Stores detected patterns for trend analysis
+
+#### Modular Route Architecture
+
+Analysis routes refactored into maintainable modules:
+
+```
+server/routes/analysis/
+├── index.js          # Router orchestration (25 lines)
+├── core.js           # Analysis lifecycle (433 lines)
+├── results.js        # Results & pagination (175 lines)
+└── code-quality.js   # ESLint integration (115 lines)
+```
+
+- **61% Size Reduction**: 1,928 lines → 748 lines
+- **Better Maintainability**: Each module has single responsibility
+- **Independent Testing**: Modules can be tested in isolation
+
+#### API Endpoints
+
+| Endpoint                      | Method | Description                               |
+| ----------------------------- | ------ | ----------------------------------------- |
+| `/api/analysis/code-quality`  | POST   | Full project ESLint + complexity analysis |
+| `/api/analysis/file`          | GET    | Single file analysis                      |
+| `/api/analysis/tools-status`  | GET    | Check ESLint/TypeScript availability      |
+| `/api/analysis/install-tools` | POST   | Get npm install commands                  |
+| `/api/learning/patterns`      | POST   | Store analysis patterns from ML           |
+| `/api/learning/patterns`      | GET    | Retrieve stored patterns                  |
+
+#### Benefits for Developers
+
+- **Immediate Feedback**: Know your code quality score during development
+- **Actionable Insights**: Specific issues with line numbers and fix suggestions
+- **No Hidden Simulation**: Always know if analysis is real or simulated
+- **Easy Setup**: Simple npm commands to install missing tools
+- **Learning System**: ML models improve as they learn from your codebase
 
 ### Coming Soon 🚧
 
