@@ -775,6 +775,7 @@ export const useSelfLearningStore = defineStore("selfLearning", () => {
     dismissRecommendation,
     resetPatterns,
     exportPatterns,
+    savePatterns,
 
     // ML Features
     getModelAccuracy: () => mlRecommendationEngine.getModelAccuracy(),

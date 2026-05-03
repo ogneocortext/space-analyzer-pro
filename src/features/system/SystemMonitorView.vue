@@ -6,26 +6,60 @@ import { Card } from "../../design-system/components";
 const store = useAnalysisStore();
 const refreshInterval = ref<number | null>(null);
 const lastUpdate = ref(new Date());
+const loading = ref(false);
+const error = ref<string | null>(null);
 
-// Simulated real-time system metrics (in production, these would come from backend API)
+// Real system metrics from backend API
 const systemMetrics = ref({
-  cpu: { usage: 25, cores: 8, temperature: 45 },
-  memory: { total: 32 * 1024 * 1024 * 1024, used: 12 * 1024 * 1024 * 1024, free: 20 * 1024 * 1024 * 1024 },
-  disk: { total: 500 * 1024 * 1024 * 1024, used: 320 * 1024 * 1024 * 1024, free: 180 * 1024 * 1024 * 1024 },
-  network: { up: 1.5 * 1024 * 1024, down: 5.2 * 1024 * 1024 },
+  cpu: { usage: 0, cores: 0, model: "" },
+  memory: { total: 0, used: 0, free: 0, percentage: 0 },
+  disk: { used: 0, total: 0, percentage: 0, free: 0 },
+  process: { uptime: 0, memory: { rss: 0, heapTotal: 0, heapUsed: 0, external: 0 }, pid: 0 },
 });
+
+// Fetch real system metrics from API
+const fetchSystemMetrics = async () => {
+  try {
+    loading.value = true;
+    error.value = null;
+
+    const response = await fetch("/api/system/metrics");
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    systemMetrics.value = data;
+    lastUpdate.value = new Date();
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Failed to fetch system metrics";
+    error.value = errorMessage;
+    console.error("Failed to fetch system metrics:", err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Run directory analysis to get category data
+const runAnalysis = async () => {
+  try {
+    await store.handleAnalysis(store.path);
+  } catch (err) {
+    console.error("Failed to start analysis:", err);
+  }
+};
 
 // Analysis-based metrics
 const analysisMetrics = computed(() => {
   if (!store.analysisResult) return null;
-  
+
   const files = store.analysisResult.files || [];
   const totalSize = store.analysisResult.totalSize || 0;
-  
+
   // Calculate I/O estimate based on file count and sizes
   const avgFileSize = totalSize / (files.length || 1);
   const estimatedScanTime = files.length * 0.001; // ~1ms per file
-  
+
   return {
     scannedFiles: files.length,
     scannedSize: totalSize,
@@ -35,40 +69,27 @@ const analysisMetrics = computed(() => {
   };
 });
 
-// Health score (0-100)
+// Health score (0-100) based on real metrics
 const healthScore = computed(() => {
-  const diskUsage = systemMetrics.value.disk.used / systemMetrics.value.disk.total;
-  const memUsage = systemMetrics.value.memory.used / systemMetrics.value.memory.total;
-  
+  const diskUsage = systemMetrics.value.disk.percentage / 100;
+  const memUsage = systemMetrics.value.memory.percentage / 100;
+  const cpuUsage = systemMetrics.value.cpu.usage / 100;
+
   // Lower is better for these metrics
   let score = 100;
   score -= diskUsage * 30; // Disk usage penalty (max 30)
   score -= memUsage * 20; // Memory usage penalty (max 20)
-  score -= (systemMetrics.value.cpu.usage / 100) * 20; // CPU usage penalty (max 20)
-  
+  score -= cpuUsage * 10; // CPU usage penalty (max 10)
+
   return Math.max(0, Math.min(100, Math.round(score)));
 });
 
-// Simulate real-time updates
-function updateMetrics() {
-  // Simulate slight variations in metrics
-  systemMetrics.value.cpu.usage = Math.max(5, Math.min(95, 
-    systemMetrics.value.cpu.usage + (Math.random() - 0.5) * 10
-  ));
-  
-  systemMetrics.value.memory.used = Math.max(
-    4 * 1024 * 1024 * 1024,
-    Math.min(
-      systemMetrics.value.memory.total - 2 * 1024 * 1024 * 1024,
-      systemMetrics.value.memory.used + (Math.random() - 0.5) * 500 * 1024 * 1024
-    )
-  );
-  
-  lastUpdate.value = new Date();
-}
-
 onMounted(() => {
-  refreshInterval.value = window.setInterval(updateMetrics, 2000);
+  // Fetch initial metrics
+  fetchSystemMetrics();
+
+  // Set up real-time updates
+  refreshInterval.value = window.setInterval(fetchSystemMetrics, 2000);
 });
 
 onUnmounted(() => {
@@ -117,8 +138,15 @@ function getProgressColor(percentage: number): string {
         <p class="text-slate-400 mt-1">Real-time system health and resource monitoring</p>
       </div>
       <div class="text-sm text-slate-500">
-        Last updated: {{ lastUpdate.toLocaleTimeString() }}
+        <span v-if="loading" class="text-yellow-400">Loading...</span>
+        <span v-else>Last updated: {{ lastUpdate.toLocaleTimeString() }}</span>
       </div>
+    </div>
+
+    <!-- Error Message -->
+    <div v-if="error" class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+      <div class="text-red-400 font-medium">Error loading system metrics</div>
+      <div class="text-slate-400 text-sm">{{ error }}</div>
     </div>
 
     <!-- Health Score -->
@@ -127,16 +155,23 @@ function getProgressColor(percentage: number): string {
         <div class="relative w-32 h-32">
           <svg class="w-full h-full transform -rotate-90">
             <circle
-              cx="64" cy="64" r="56"
-              stroke="currentColor" stroke-width="12"
-              fill="none" class="text-slate-700"
+              cx="64"
+              cy="64"
+              r="56"
+              stroke="currentColor"
+              stroke-width="12"
+              fill="none"
+              class="text-slate-700"
             />
             <circle
-              cx="64" cy="64" r="56"
-              stroke="currentColor" stroke-width="12"
+              cx="64"
+              cy="64"
+              r="56"
+              stroke="currentColor"
+              stroke-width="12"
               fill="none"
               :stroke-dasharray="351.86"
-              :stroke-dashoffset="351.86 - (351.86 * healthScore / 100)"
+              :stroke-dashoffset="351.86 - (351.86 * healthScore) / 100"
               class="transition-all duration-500"
               :class="getHealthColor(healthScore)"
             />
@@ -149,9 +184,17 @@ function getProgressColor(percentage: number): string {
         </div>
         <div class="flex-1 space-y-2">
           <p class="text-slate-300">
-            System health is 
+            System health is
             <span class="font-semibold" :class="getHealthColor(healthScore)">
-              {{ healthScore >= 80 ? 'Excellent' : healthScore >= 60 ? 'Good' : healthScore >= 40 ? 'Fair' : 'Poor' }}
+              {{
+                healthScore >= 80
+                  ? "Excellent"
+                  : healthScore >= 60
+                    ? "Good"
+                    : healthScore >= 40
+                      ? "Fair"
+                      : "Poor"
+              }}
             </span>
           </p>
           <p class="text-sm text-slate-500">
@@ -165,7 +208,9 @@ function getProgressColor(percentage: number): string {
     <div class="grid grid-cols-4 gap-4">
       <!-- CPU -->
       <Card title="CPU Usage">
-        <div class="text-3xl font-bold text-blue-400">{{ Math.round(systemMetrics.cpu.usage) }}%</div>
+        <div class="text-3xl font-bold text-blue-400">
+          {{ Math.round(systemMetrics.cpu.usage) }}%
+        </div>
         <div class="text-sm text-slate-500">{{ systemMetrics.cpu.cores }} cores</div>
         <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden mt-3">
           <div
@@ -180,14 +225,14 @@ function getProgressColor(percentage: number): string {
         <div class="text-3xl font-bold text-purple-400">
           {{ formatSize(systemMetrics.memory.used) }}
         </div>
-        <div class="text-sm text-slate-500">
-          of {{ formatSize(systemMetrics.memory.total) }}
-        </div>
+        <div class="text-sm text-slate-500">of {{ formatSize(systemMetrics.memory.total) }}</div>
         <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden mt-3">
           <div
             class="h-full rounded-full transition-all duration-500"
-            :class="getProgressColor((systemMetrics.memory.used / systemMetrics.memory.total) * 100)"
-            :style="{ width: (systemMetrics.memory.used / systemMetrics.memory.total * 100) + '%' }"
+            :class="
+              getProgressColor((systemMetrics.memory.used / systemMetrics.memory.total) * 100)
+            "
+            :style="{ width: (systemMetrics.memory.used / systemMetrics.memory.total) * 100 + '%' }"
           />
         </div>
       </Card>
@@ -197,14 +242,12 @@ function getProgressColor(percentage: number): string {
         <div class="text-3xl font-bold text-emerald-400">
           {{ formatSize(systemMetrics.disk.used) }}
         </div>
-        <div class="text-sm text-slate-500">
-          of {{ formatSize(systemMetrics.disk.total) }}
-        </div>
+        <div class="text-sm text-slate-500">of {{ formatSize(systemMetrics.disk.total) }}</div>
         <div class="w-full h-2 bg-slate-700 rounded-full overflow-hidden mt-3">
           <div
             class="h-full rounded-full transition-all duration-500"
             :class="getProgressColor((systemMetrics.disk.used / systemMetrics.disk.total) * 100)"
-            :style="{ width: (systemMetrics.disk.used / systemMetrics.disk.total * 100) + '%' }"
+            :style="{ width: (systemMetrics.disk.used / systemMetrics.disk.total) * 100 + '%' }"
           />
         </div>
       </Card>
@@ -213,12 +256,15 @@ function getProgressColor(percentage: number): string {
       <Card title="Network">
         <div class="space-y-2">
           <div class="flex justify-between">
-            <span class="text-sm text-slate-500">↓ Download</span>
-            <span class="font-medium text-blue-400">{{ formatSpeed(systemMetrics.network.down) }}</span>
+            <span class="text-sm text-slate-500">Status</span>
+            <span class="font-medium text-blue-400">Available</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-sm text-slate-500">↑ Upload</span>
-            <span class="font-medium text-emerald-400">{{ formatSpeed(systemMetrics.network.up) }}</span>
+            <span class="text-sm text-slate-500">Type</span>
+            <span class="font-medium text-emerald-400">System Metrics</span>
+          </div>
+          <div class="text-xs text-slate-500 text-center mt-2">
+            Network metrics require additional monitoring setup
           </div>
         </div>
       </Card>
@@ -229,19 +275,27 @@ function getProgressColor(percentage: number): string {
       <div class="grid grid-cols-4 gap-4">
         <div class="text-center">
           <div class="text-sm text-slate-500">Files Scanned</div>
-          <div class="text-2xl font-bold text-blue-400">{{ analysisMetrics.scannedFiles.toLocaleString() }}</div>
+          <div class="text-2xl font-bold text-blue-400">
+            {{ analysisMetrics.scannedFiles.toLocaleString() }}
+          </div>
         </div>
         <div class="text-center">
           <div class="text-sm text-slate-500">Data Scanned</div>
-          <div class="text-2xl font-bold text-purple-400">{{ formatSize(analysisMetrics.scannedSize) }}</div>
+          <div class="text-2xl font-bold text-purple-400">
+            {{ formatSize(analysisMetrics.scannedSize) }}
+          </div>
         </div>
         <div class="text-center">
           <div class="text-sm text-slate-500">Avg File Size</div>
-          <div class="text-2xl font-bold text-emerald-400">{{ formatSize(analysisMetrics.avgFileSize) }}</div>
+          <div class="text-2xl font-bold text-emerald-400">
+            {{ formatSize(analysisMetrics.avgFileSize) }}
+          </div>
         </div>
         <div class="text-center">
           <div class="text-sm text-slate-500">Scan Time</div>
-          <div class="text-2xl font-bold text-orange-400">{{ analysisMetrics.estimatedScanTime.toFixed(1) }}s</div>
+          <div class="text-2xl font-bold text-orange-400">
+            {{ analysisMetrics.estimatedScanTime.toFixed(1) }}s
+          </div>
         </div>
       </div>
     </Card>
@@ -249,9 +303,14 @@ function getProgressColor(percentage: number): string {
     <!-- Storage Breakdown -->
     <div class="grid grid-cols-2 gap-6">
       <Card title="Storage by Category">
-        <div v-if="analysisMetrics?.categories" class="space-y-2">
+        <div
+          v-if="analysisMetrics?.categories && Object.keys(analysisMetrics.categories).length > 0"
+          class="space-y-2"
+        >
           <div
-            v-for="[category, data] in Object.entries(analysisMetrics.categories).sort(([,a]: any, [,b]: any) => b.size - a.size)"
+            v-for="[category, data] in Object.entries(analysisMetrics.categories).sort(
+              ([, a]: any, [, b]: any) => b.size - a.size
+            )"
             :key="category"
             class="flex items-center justify-between p-2 bg-slate-800/50 rounded"
           >
@@ -260,27 +319,92 @@ function getProgressColor(percentage: number): string {
           </div>
         </div>
         <div v-else class="text-slate-500 text-center py-4">
-          No category data available
+          <div class="mb-4">
+            <svg
+              class="w-12 h-12 mx-auto text-slate-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              ></path>
+            </svg>
+          </div>
+          <div class="mb-2">No analysis data available</div>
+          <div class="text-sm text-slate-600 mb-4">
+            Run a directory scan to see storage breakdown by category
+          </div>
+          <Button @click="runAnalysis" variant="primary" size="sm"> Run Analysis </Button>
         </div>
       </Card>
 
       <Card title="Recommendations">
         <div class="space-y-3">
-          <div v-if="(systemMetrics.disk.used / systemMetrics.disk.total) > 0.85" class="p-3 bg-red-500/10 border border-red-500/20 rounded">
+          <div
+            v-if="systemMetrics.disk.used / systemMetrics.disk.total > 0.8"
+            class="p-3 bg-red-500/10 border border-red-500/20 rounded"
+          >
             <div class="font-medium text-red-400">Low Disk Space</div>
-            <div class="text-sm text-slate-400">Consider cleaning up files or expanding storage</div>
+            <div class="text-sm text-slate-400">
+              Consider cleaning up files or expanding storage
+            </div>
           </div>
-          <div v-if="(systemMetrics.memory.used / systemMetrics.memory.total) > 0.8" class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded">
+          <div v-else class="p-3 bg-blue-500/10 border border-blue-500/20 rounded">
+            <div class="font-medium text-blue-400">Disk Usage Monitoring</div>
+            <div class="text-sm text-slate-400">
+              Disk usage is at
+              {{ Math.round((systemMetrics.disk.used / systemMetrics.disk.total) * 100) }}%. Monitor
+              for growth.
+            </div>
+          </div>
+
+          <div
+            v-if="systemMetrics.memory.used / systemMetrics.memory.total > 0.7"
+            class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded"
+          >
             <div class="font-medium text-yellow-400">High Memory Usage</div>
             <div class="text-sm text-slate-400">Close unused applications to free memory</div>
           </div>
-          <div v-if="systemMetrics.cpu.usage > 80" class="p-3 bg-orange-500/10 border border-orange-500/20 rounded">
+          <div v-else class="p-3 bg-green-500/10 border border-green-500/20 rounded">
+            <div class="font-medium text-green-400">Memory Usage OK</div>
+            <div class="text-sm text-slate-400">
+              Memory usage is at
+              {{ Math.round((systemMetrics.memory.used / systemMetrics.memory.total) * 100) }}%
+            </div>
+          </div>
+
+          <div
+            v-if="systemMetrics.cpu.usage > 70"
+            class="p-3 bg-orange-500/10 border border-orange-500/20 rounded"
+          >
             <div class="font-medium text-orange-400">High CPU Load</div>
             <div class="text-sm text-slate-400">Check for resource-intensive processes</div>
           </div>
-          <div v-if="healthScore >= 80" class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded">
-            <div class="font-medium text-emerald-400">System Running Well</div>
-            <div class="text-sm text-slate-400">No immediate action needed</div>
+          <div v-else class="p-3 bg-purple-500/10 border border-purple-500/20 rounded">
+            <div class="font-medium text-purple-400">CPU Usage Normal</div>
+            <div class="text-sm text-slate-400">
+              CPU usage is at {{ Math.round(systemMetrics.cpu.usage) }}%
+            </div>
+          </div>
+
+          <div
+            v-if="healthScore >= 70"
+            class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded"
+          >
+            <div class="font-medium text-emerald-400">System Health Good</div>
+            <div class="text-sm text-slate-400">
+              Health score: {{ healthScore }}/100. System is performing well.
+            </div>
+          </div>
+          <div v-else class="p-3 bg-orange-500/10 border border-orange-500/20 rounded">
+            <div class="font-medium text-orange-400">System Needs Attention</div>
+            <div class="text-sm text-slate-400">
+              Health score: {{ healthScore }}/100. Review system metrics.
+            </div>
           </div>
         </div>
       </Card>
