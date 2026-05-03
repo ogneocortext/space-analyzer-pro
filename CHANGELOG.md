@@ -4,34 +4,127 @@ All notable changes to Space Analyzer will be documented in this file.
 
 ## Version Timeline
 
-| Version | Date       | Summary                                                                                                        |
-| ------- | ---------- | -------------------------------------------------------------------------------------------------------------- |
-| 2.8.6   | 2026-05-02 | Bug Fixes & Missing Routes: Fixed 404 errors, corrected settings routes, added Learning/NLP/AI Model endpoints |
-| 2.8.5   | 2026-05-02 | Error Tracking & Analysis Components: Enhanced file details, error logging, and build fixes                    |
-| 2.8.4   | 2026-05-02 | Scanner Output Contract: JSONL progress, clean result files, and unchanged-directory reuse                     |
-| 2.8.3   | 2026-05-02 | Performance Optimization: Lazy Hardware Detection, Persistent Caching & Log Consolidation                      |
-| 2.8.2   | 2026-05-02 | Backend Architecture Refactoring: Modularization, Dedicated Services & Route Handlers                          |
-| 2.8.1   | 2026-05-01 | Interactive File Management: Delete & Reveal functionality in UI                                               |
-| 2.8.0   | 2026-05-01 | Native Windows Scanner Optimization: Production-Grade APIs & Large Dataset Support                             |
-| 2.7.0   | 2026-05-01 | Node.js v25+ Performance Optimizations & Worker Pool Integration                                               |
-| 2.6.0   | 2026-04-30 | Revolutionary 3D File System Browser: Professional-Grade Visualization & Analysis                              |
-| 2.5.0   | 2026-04-30 | Advanced Self-Learning Enhancements: Analytics, A/B Testing, Feedback, Adaptive Learning                       |
-| 2.4.0   | 2026-04-30 | Advanced Features: Self-Learning, 3D Browser, NTFS MFT, USN Journal Integration                                |
-| 2.3.1   | 2026-04-30 | File Structure Organization: Cleaned root directory, organized server files, improved docs                     |
-| 2.3.0   | 2026-04-30 | Comprehensive Backend Enhancements: Progress, Caching, Profiles, Filters, Analytics                            |
-| 2.2.8   | 2026-04-30 | Multi-Agent Orchestrator Steps 4-6: Circuit Breaker, Task Queue, Batch Analysis                                |
-| 2.2.7   | 2026-04-29 | Multi-Agent Orchestrator v2.0 - Intelligent task distribution with circuit breakers                            |
-| 2.2.6   | 2026-04-29 | Notification System with database persistence, Templates & Batch Export for Reports                            |
-| 2.2.5   | 2026-04-29 | PDF Reports: Generate, view, and download professional analysis reports                                        |
-| 2.2.4   | 2026-04-29 | Code Complexity Analysis: metrics, grades, refactoring recommendations                                         |
-| 2.2.3   | 2026-04-29 | AI-powered features: Document Summarization, Natural Language Interface, Cleanup Assistant                     |
-| 2.2.2   | 2026-04-29 | Ollama API 0.22.0 integration, optimized context payload, trend tracking database                              |
-| 2.2.1   | 2026-04-29 | Windows API data display in frontend                                                                           |
-| 2.2.0   | 2026-04-28 | Major feature expansion: 15 views, Windows API, AI Auto-Organization, PDF reports                              |
-| 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                                             |
-| 2.1.8   | 2026-04-27 | Project cleanup and organization                                                                               |
-| 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                                          |
-| 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                                          |
+| Version | Date       | Summary                                                                                                                             |
+| ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 2.8.7   | 2026-05-02 | Static Analysis Integration: ESLint-based code quality analysis, real vs simulated data indicators, ML training on analysis results |
+| 2.8.6   | 2026-05-02 | Bug Fixes & Missing Routes: Fixed 404 errors, corrected settings routes, added Learning/NLP/AI Model endpoints                      |
+| 2.8.5   | 2026-05-02 | Error Tracking & Analysis Components: Enhanced file details, error logging, and build fixes                                         |
+| 2.8.4   | 2026-05-02 | Scanner Output Contract: JSONL progress, clean result files, and unchanged-directory reuse                                          |
+| 2.8.3   | 2026-05-02 | Performance Optimization: Lazy Hardware Detection, Persistent Caching & Log Consolidation                                           |
+| 2.8.2   | 2026-05-02 | Backend Architecture Refactoring: Modularization, Dedicated Services & Route Handlers                                               |
+| 2.8.1   | 2026-05-01 | Interactive File Management: Delete & Reveal functionality in UI                                                                    |
+| 2.8.0   | 2026-05-01 | Native Windows Scanner Optimization: Production-Grade APIs & Large Dataset Support                                                  |
+| 2.7.0   | 2026-05-01 | Node.js v25+ Performance Optimizations & Worker Pool Integration                                                                    |
+| 2.6.0   | 2026-04-30 | Revolutionary 3D File System Browser: Professional-Grade Visualization & Analysis                                                   |
+| 2.5.0   | 2026-04-30 | Advanced Self-Learning Enhancements: Analytics, A/B Testing, Feedback, Adaptive Learning                                            |
+| 2.4.0   | 2026-04-30 | Advanced Features: Self-Learning, 3D Browser, NTFS MFT, USN Journal Integration                                                     |
+| 2.3.1   | 2026-04-30 | File Structure Organization: Cleaned root directory, organized server files, improved docs                                          |
+| 2.3.0   | 2026-04-30 | Comprehensive Backend Enhancements: Progress, Caching, Profiles, Filters, Analytics                                                 |
+| 2.2.8   | 2026-04-30 | Multi-Agent Orchestrator Steps 4-6: Circuit Breaker, Task Queue, Batch Analysis                                                     |
+| 2.2.7   | 2026-04-29 | Multi-Agent Orchestrator v2.0 - Intelligent task distribution with circuit breakers                                                 |
+| 2.2.6   | 2026-04-29 | Notification System with database persistence, Templates & Batch Export for Reports                                                 |
+| 2.2.5   | 2026-04-29 | PDF Reports: Generate, view, and download professional analysis reports                                                             |
+| 2.2.4   | 2026-04-29 | Code Complexity Analysis: metrics, grades, refactoring recommendations                                                              |
+| 2.2.3   | 2026-04-29 | AI-powered features: Document Summarization, Natural Language Interface, Cleanup Assistant                                          |
+| 2.2.2   | 2026-04-29 | Ollama API 0.22.0 integration, optimized context payload, trend tracking database                                                   |
+| 2.2.1   | 2026-04-29 | Windows API data display in frontend                                                                                                |
+| 2.2.0   | 2026-04-28 | Major feature expansion: 15 views, Windows API, AI Auto-Organization, PDF reports                                                   |
+| 2.1.9   | 2026-04-27 | Rust CLI build fixes and real-time scanner metrics                                                                                  |
+| 2.1.8   | 2026-04-27 | Project cleanup and organization                                                                                                    |
+| 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                                                               |
+| 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                                                               |
+
+## [2.8.7] - 2026-05-02
+
+### Static Analysis Integration
+
+**Integrated real static analysis tools (ESLint) for code quality analysis with automatic fallback to simulation, data source transparency, and ML training on real analysis results.**
+
+#### Backend Analysis API (Phase 1)
+
+**New `AnalysisController.js`**
+
+- **ESLint Integration**: Full ESLint analysis with JSON output parsing for JavaScript/TypeScript projects
+- **Cyclomatic Complexity**: Regex-based complexity calculation for function-level analysis
+- **Issue Categorization**: Automatic categorization into security, performance, style, best-practices, and type-safety
+- **Code Quality Scoring**: 0-100 quality score based on errors and warnings
+- **Tool Availability Detection**: Automatic detection of installed analysis tools (ESLint, TypeScript)
+
+**New API Endpoints**
+
+| Endpoint                           | Method                                                     | Description |
+| ---------------------------------- | ---------------------------------------------------------- | ----------- |
+| `POST /api/analysis/code-quality`  | Analyze entire project with ESLint and complexity analysis |
+| `GET /api/analysis/file`           | Analyze single file for code quality                       |
+| `GET /api/analysis/tools-status`   | Check availability of analysis tools                       |
+| `POST /api/analysis/install-tools` | Get installation commands for missing tools                |
+
+#### Frontend Integration (Phase 2)
+
+**Updated `ComprehensiveAnalysisService.ts`**
+
+- **Real API First**: Always attempts real analysis before falling back to simulation
+- **Data Source Tracking**: Results marked with `"real"` or `"simulated"` data source
+- **Tool Status Checking**: `checkToolsStatus()` method for availability detection
+- **Single File Analysis**: `analyzeFile()` for on-demand file analysis
+- **Configurable Fallback**: Only simulates when `allowSimulation: true` is set
+
+**New `AnalysisDataSourceBadge.vue` Component**
+
+- **Real Data Indicator**: Green badge showing "✅ Real Analysis Data" with tools used
+- **Simulated Data Warning**: Yellow badge with "⚠️ Simulated Data" and Install Tools button
+- **Error State**: Red badge with "❌ Analysis Failed" and Retry button
+- **Visual Clarity**: Clear color-coded indicators for data provenance
+
+#### Self-Learning ML (Phase 3)
+
+**Enhanced `SelfLearningMLService.ts`**
+
+- **Training on Real Results**: `trainWithAnalysisResults()` trains ML models using actual ESLint output
+- **Feature Extraction**: `extractFeaturesFromAnalysis()` extracts complexity, issues, maintainability metrics
+- **Pattern Tracking**: `trackAnalysisPatterns()` tracks issue frequency across files
+- **Refactoring Suggestions**: `suggestRefactoring()` maps detected issues to actionable recommendations
+- **Database Persistence**: Patterns stored via `POST /api/learning/patterns` endpoint
+
+**New Learning Routes**
+
+- `POST /api/learning/patterns` - Store analysis patterns from ML training
+- `GET /api/learning/patterns` - Retrieve stored patterns with filtering
+
+#### Modular Architecture Improvements
+
+**Refactored `server/routes/analysis/`**
+
+Broke down monolithic `analysis.js` (1,928 lines) into modular components:
+
+```
+server/routes/analysis/
+├── index.js          # Main router (25 lines)
+├── core.js           # Analysis lifecycle (433 lines)
+├── results.js        # Results retrieval (175 lines)
+└── code-quality.js   # ESLint integration (115 lines)
+```
+
+- **61% Size Reduction**: 1,928 lines → 748 lines
+- **Better Maintainability**: Separated concerns by functionality
+- **Easier Testing**: Individual modules can be tested in isolation
+
+#### Infrastructure Fixes
+
+**Express Route Pattern Updates**
+
+- Fixed Express v4.x/5.x compatibility issues
+- Changed `/api/*` → `/api/{*path}` for CORS preflight handler
+- Changed `app.get('*')` → `app.get('/{*path}')` for SPA fallback
+- Changed `app.all('/api/*')` → `app.use('/api')` for 404 handler
+
+#### Benefits
+
+- **Real Analysis Data**: No more simulated data when ESLint is available
+- **Transparency**: Users always know if data is real or simulated
+- **Easy Tool Installation**: One-click install commands for missing tools
+- **ML-Powered Insights**: Models trained on actual code patterns, not random data
+- **Better Code Quality**: Real-time code quality feedback during development
 
 ## [2.8.6] - 2026-05-02
 
