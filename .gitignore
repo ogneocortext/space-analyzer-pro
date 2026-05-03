@@ -33,6 +33,7 @@ server/*.backup
 server/knowledge.db
 server/knowledge.db-journal
 server/output_src_*.json
+server/output_analysis_*.json
 server/server.log
 
 # OS generated files
