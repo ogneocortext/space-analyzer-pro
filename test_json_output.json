@@ -1,0 +1,106 @@
+{
+  "schema_version": "2.0",
+  "generated_at": "2026-05-02T12:03:00Z",
+  "scanner_version": "2.8.5",
+  "scan_config": {
+    "path": "D:/Test",
+    "max_files": 1000,
+    "include_hidden": false,
+    "follow_symlinks": false,
+    "json_progress": true
+  },
+  "summary": {
+    "total_files": 150,
+    "total_size": 52428800,
+    "scan_duration_ms": 1250,
+    "files_scanned_per_second": 120,
+    "bytes_scanned_per_second": 41943040
+  },
+  "file_analysis": {
+    "files": [
+      {
+        "name": "test.txt",
+        "path": "D:/Test/test.txt",
+        "size": {
+          "bytes": 1024,
+          "formatted": "1.0 KB",
+          "on_disk": null
+        },
+        "extension": "txt",
+        "category": "Documents",
+        "timestamps": {
+          "created": "2026-05-02T10:00:00Z",
+          "modified": "2026-05-02T11:00:00Z",
+          "accessed": "2026-05-02T12:00:00Z"
+        },
+        "file_hash": null,
+        "is_hard_link": false,
+        "attributes": {
+          "is_readonly": false,
+          "is_hidden": false,
+          "is_system": false,
+          "has_ads": false,
+          "ads_count": 0,
+          "is_compressed": false,
+          "compressed_size": null,
+          "is_sparse": false,
+          "is_reparse_point": false,
+          "reparse_tag": null,
+          "owner": null
+        }
+      }
+    ],
+    "categories": {
+      "Documents": {
+        "count": 50,
+        "size": 20971520
+      },
+      "Images": {
+        "count": 100,
+        "size": 31457280
+      }
+    },
+    "extension_stats": {
+      "txt": {
+        "count": 25,
+        "size": 10485760
+      },
+      "jpg": {
+        "count": 75,
+        "size": 41943040
+      }
+    },
+    "duplicate_groups": [],
+    "duplicate_count": 0,
+    "duplicate_size": 0,
+    "hard_link_count": 0,
+    "hard_link_savings": 0,
+    "apparent_size": 52428800
+  },
+  "performance": {
+    "scan_duration_ms": 1250,
+    "files_per_second": 120,
+    "bytes_per_second": 41943040,
+    "memory_peak_mb": null,
+    "disk_reads": null,
+    "cache_hits": null
+  },
+  "issues": {
+    "errors": [
+      {
+        "type_": "access_denied",
+        "path": "D:/Test/protected.txt",
+        "message": "Unable to access file metadata",
+        "count": 1
+      }
+    ],
+    "warnings": [
+      {
+        "type_": "large_file",
+        "path": "D:/Test/large_video.mp4",
+        "message": "File larger than 1GB",
+        "size": 2147483648
+      }
+    ]
+  }
+}

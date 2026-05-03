@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script type="module" src="/@vite/client"></script>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="description"
+      content="Space Analyzer Pro 2026 - AI-powered disk space analysis and optimization tool with machine learning capabilities"
+    />
+    <meta name="theme-color" content="#0B0B0E" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- CSP disabled for debugging -->
+    <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' ws: localhost:8080 localhost:8081 localhost:8085 localhost:8082 localhost:8083 localhost:8084;"> -->
+    <title>Space Analyzer Pro 2026 - AI-Powered Disk Space Analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@300;400;600;800&family=DM+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Prevent flash of unstyled content */
+      html {
+        background-color: #0b0b0e;
+      }
+      body {
+        background-color: #0b0b0e;
+        color: #e5e5e5;
+        opacity: 1;
+        transition: none !important;
+      }
+      /* Hide content until fonts are loaded */
+      .font-loading {
+        opacity: 0;
+      }
+      .font-loaded {
+        opacity: 1;
+        transition: opacity 0.1s ease-in-out;
+      }
+    </style>
+    <noscript>
+      <style>
+        /* Fallback styles when JavaScript is disabled */
+        body {
+          background: #0b0b0e;
+          color: #e5e5e5;
+        }
+        .app-container {
+          padding: 2rem;
+          text-align: center;
+        }
+      </style>
+    </noscript>
+  </head>
+  <body>
+    <!-- Vue app mount point -->
+    <div id="app" role="application" aria-label="Space Analyzer Pro main application"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
