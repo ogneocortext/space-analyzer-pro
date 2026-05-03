@@ -141,6 +141,60 @@ The backend has been refactored into a high-performance, modular service-oriente
 - **Scalability**: Decoupled services allow for independent scaling and testing.
 - **Performance**: Optimized initialization and resource management through lazy-loading and hardware-aware configuration.
 
+### AI Service & Intelligent Caching (v2.8.9) ✅
+
+**Python ML service for file categorization, multi-layer caching system, and automatic AI-powered analysis.**
+
+#### Python AI Service
+
+- **File Categorization**: ML-powered file type prediction (documents, images, videos, code, archives, etc.)
+- **Cleanup Recommendations**: AI-suggested files for deletion/archival based on age, size, and patterns
+- **Model Training**: Train Random Forest classifier on labeled file data (15+ files required)
+- **FastAPI Backend**: REST API with automatic OpenAPI docs at `http://localhost:5000/docs`
+
+**Auto-Categorization:**
+
+- Automatically categorizes up to 50 uncategorized files after each directory scan
+- Runs non-blocking in background (doesn't delay scan completion)
+- Stores categories with confidence scores (60-95% for trained model)
+- Console output: `🤖 AI categorized 47 files`
+
+**Integration:**
+
+```bash
+npm run ai:start       # Start Python AI service
+npm run ai:test        # Run API tests
+```
+
+#### Intelligent Caching System
+
+**Multi-layer caching for instant analysis retrieval:**
+
+| Layer            | Speed       | Persistence | Use Case                     |
+| ---------------- | ----------- | ----------- | ---------------------------- |
+| **Memory Cache** | ⚡ Instant  | 24h TTL     | Recently scanned directories |
+| **Database**     | 💾 ~100ms   | Permanent   | Historical scan results      |
+| **Fresh Scan**   | ⏱️ Variable | N/A         | New or expired directories   |
+
+**Features:**
+
+- **LRU Eviction**: Automatically removes oldest accessed when cache full (50 max)
+- **Background Cleanup**: Removes expired entries every 5 minutes
+- **Statistics**: Hit rate, evictions, cache size monitoring via `/api/analysis/cache/stats`
+- **Validation**: Checks result age and structure before using cached data
+
+**API Endpoints:**
+
+- `GET /api/analysis/cache/stats` - Cache statistics
+- `POST /api/analysis/cache/clear` - Clear analysis cache
+
+#### Database Persistence
+
+- **SQLite Storage**: Analysis results stored with compressed JSON
+- **Scan History**: Paginated history via `GET /api/analysis/history`
+- **Async Storage**: Fire-and-forget pattern doesn't block scans
+- **Fallback**: Works in memory if database unavailable
+
 ### Stability & Infrastructure (v2.8.8) ✅
 
 **Enhanced backend stability, persistent scan history, standardized configuration, and improved error handling.**
