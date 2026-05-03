@@ -2,7 +2,7 @@
 
 AI-Powered disk space analysis and optimization tool with machine learning capabilities. Features dual-purpose analysis for both storage optimization and code analysis for developers.
 
-![Version](https://img.shields.io/badge/version-2.8.9-blue)
+![Version](https://img.shields.io/badge/version-2.9.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Node.js](https://img.shields.io/badge/node.js-18+-green)
 ![Vue.js](https://img.shields.io/badge/vue.js-3.0+-4FC08D)
@@ -24,6 +24,22 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 > - **Current Focus**: Feature completeness and stability before any expansion
 
 ## Features
+
+### 🆕 Latest Features (v2.9.0) ✅
+
+#### Real Data Integration
+
+- **Live System Monitoring** - Real-time CPU, memory, and disk usage from actual system metrics
+- **Enhanced Admin Errors Page** - Advanced error management with bulk operations, filtering, and pagination
+- **Self-Learning Store Fixes** - Fixed savePatterns functionality and learning analytics
+- **Storage by Category** - Enhanced empty state with one-click analysis triggering
+
+#### System Monitoring
+
+- **Real-time Metrics** - Actual system performance data (no more simulated values)
+- **Dynamic Health Scoring** - Health scores based on real system performance
+- **Threshold-based Alerts** - Smart recommendations triggered by actual system state
+- **Error Handling** - Comprehensive error handling with loading states
 
 ### Core Analysis ✅
 
