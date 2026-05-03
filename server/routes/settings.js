@@ -78,7 +78,58 @@ class SettingsRoutes {
       }
     });
 
-    // Get specific setting
+    // IMPORTANT: Specific routes must be defined BEFORE generic /settings/:key route
+    // to prevent Express from treating "notifications" as a key parameter
+
+    // Get notification settings (convenience endpoint) - MUST be before /settings/:key
+    this.router.get("/settings/notifications", async (req, res) => {
+      try {
+        // Check if knowledge service is available
+        if (!this.server.knowledge || !this.server.knowledge.getUserSetting) {
+          console.warn("⚠️ Knowledge service not available, returning default settings");
+          res.setHeader("Cache-Control", "max-age=60");
+          return res.json({
+            success: true,
+            settings: this.getDefaultNotificationSettings(),
+          });
+        }
+
+        const settings = await this.server.knowledge.getUserSetting("notifications");
+        // Cache for 1 minute since settings can change during user session
+        res.setHeader("Cache-Control", "max-age=60");
+        res.json({
+          success: true,
+          settings: settings || this.getDefaultNotificationSettings(),
+        });
+      } catch (error) {
+        console.error("Error fetching notification settings:", error);
+        res.setHeader("Cache-Control", "max-age=60");
+        res.json({
+          success: true,
+          settings: this.getDefaultNotificationSettings(),
+        });
+      }
+    });
+
+    // Save notification settings (convenience endpoint) - MUST be before /settings/:key
+    this.router.post("/settings/notifications", async (req, res) => {
+      try {
+        const settings = req.body;
+        await this.server.knowledge.setUserSetting("notifications", settings);
+        res.json({
+          success: true,
+          message: "Notification settings saved successfully",
+        });
+      } catch (error) {
+        console.error("Error saving notification settings:", error);
+        res.status(500).json({
+          success: false,
+          error: "Failed to save notification settings",
+        });
+      }
+    });
+
+    // Get specific setting - MUST be after specific routes like /settings/notifications
     this.router.get("/settings/:key", async (req, res) => {
       try {
         const { key } = req.params;
@@ -218,54 +269,6 @@ class SettingsRoutes {
         res.status(500).json({
           success: false,
           error: "Failed to delete setting",
-        });
-      }
-    });
-
-    // Get notification settings (convenience endpoint)
-    this.router.get("/settings/notifications", async (req, res) => {
-      try {
-        // Check if knowledge service is available
-        if (!this.server.knowledge || !this.server.knowledge.getUserSetting) {
-          console.warn("⚠️ Knowledge service not available, returning default settings");
-          res.setHeader("Cache-Control", "max-age=60");
-          return res.json({
-            success: true,
-            settings: this.getDefaultNotificationSettings(),
-          });
-        }
-
-        const settings = await this.server.knowledge.getUserSetting("notifications");
-        // Cache for 1 minute since settings can change during user session
-        res.setHeader("Cache-Control", "max-age=60");
-        res.json({
-          success: true,
-          settings: settings || this.getDefaultNotificationSettings(),
-        });
-      } catch (error) {
-        console.error("Error fetching notification settings:", error);
-        res.setHeader("Cache-Control", "max-age=60");
-        res.json({
-          success: true,
-          settings: this.getDefaultNotificationSettings(),
-        });
-      }
-    });
-
-    // Save notification settings (convenience endpoint)
-    this.router.post("/settings/notifications", async (req, res) => {
-      try {
-        const settings = req.body;
-        await this.server.knowledge.setUserSetting("notifications", settings);
-        res.json({
-          success: true,
-          message: "Notification settings saved successfully",
-        });
-      } catch (error) {
-        console.error("Error saving notification settings:", error);
-        res.status(500).json({
-          success: false,
-          error: "Failed to save notification settings",
         });
       }
     });
