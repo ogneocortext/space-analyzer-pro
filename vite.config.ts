@@ -102,9 +102,10 @@ export default defineConfig(({ mode }) => {
           "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: ws: wss: http: https:; img-src 'self' data: blob: http: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: http: https:; style-src 'self' 'unsafe-inline' data: blob: http: https:; font-src 'self' data: blob: http: https:; connect-src 'self' data: blob: ws: wss: http: https:; worker-src 'self' blob: data:; frame-src 'self' blob:; media-src 'self' data: blob: http: https:;",
       },
       // Optimized proxy configuration
+      // Uses API_SERVER_PORT from ports.config.js
       proxy: {
         "/api": {
-          target: "http://127.0.0.1:8080",
+          target: `http://127.0.0.1:${ports.API_SERVER_PORT}`,
           changeOrigin: true,
           secure: false,
           timeout: 300000, // 5 minutes for long operations
