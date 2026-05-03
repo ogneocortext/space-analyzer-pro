@@ -5,21 +5,21 @@
  * Cleans up and organizes results folder by date
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const resultsDir = path.join(__dirname, '..', 'results');
+const resultsDir = path.join(__dirname, "..", "results");
 
 const args = process.argv.slice(2);
 const daysToKeep = parseInt(args[0]) || 7;
 
-console.log('🧹 Cleaning up results folder...\n');
+console.log("🧹 Cleaning up results folder...\n");
 
 // Ensure results directory exists
 if (!fs.existsSync(resultsDir)) {
-  console.log('Results folder does not exist. Creating it...');
+  console.log("Results folder does not exist. Creating it...");
   fs.mkdirSync(resultsDir, { recursive: true });
   process.exit(0);
 }
@@ -28,7 +28,7 @@ if (!fs.existsSync(resultsDir)) {
 const files = fs.readdirSync(resultsDir);
 
 if (files.length === 0) {
-  console.log('✅ Results folder is already clean');
+  console.log("✅ Results folder is already clean");
   process.exit(0);
 }
 
@@ -36,7 +36,7 @@ console.log(`Found ${files.length} files in results folder\n`);
 
 // Organize by date
 const today = new Date();
-const dateFolder = path.join(resultsDir, today.toISOString().split('T')[0]);
+const dateFolder = path.join(resultsDir, today.toISOString().split("T")[0]);
 
 if (!fs.existsSync(dateFolder)) {
   fs.mkdirSync(dateFolder, { recursive: true });
@@ -45,13 +45,13 @@ if (!fs.existsSync(dateFolder)) {
 
 // Move files to date folder
 let movedCount = 0;
-files.forEach(file => {
+files.forEach((file) => {
   const srcPath = path.join(resultsDir, file);
   const destPath = path.join(dateFolder, file);
-  
+
   // Skip if already in a date folder
   if (fs.existsSync(dateFolder) && file === path.basename(dateFolder)) return;
-  
+
   try {
     fs.renameSync(srcPath, destPath);
     console.log(`  Moved: ${file}`);
@@ -67,19 +67,36 @@ console.log(`\n✅ Moved ${movedCount} files to ${dateFolder}`);
 const cutoffDate = new Date();
 cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
 
-const folders = fs.readdirSync(resultsDir).filter(f => 
-  fs.statSync(path.join(resultsDir, f)).isDirectory() && 
-  /^\d{4}-\d{2}-\d{2}$/.test(f)
-);
+let folders = [];
+try {
+  folders = fs.readdirSync(resultsDir).filter((f) => {
+    const fPath = path.join(resultsDir, f);
+    try {
+      return fs.statSync(fPath).isDirectory() && /^\d{4}-\d{2}-\d{2}$/.test(f);
+    } catch (e) {
+      return false;
+    }
+  });
+} catch (error) {
+  console.error("⚠️  Error reading results directory:", error.message);
+}
 
 let deletedCount = 0;
-folders.forEach(folder => {
-  const folderDate = new Date(folder);
-  if (folderDate < cutoffDate) {
-    const folderPath = path.join(resultsDir, folder);
-    fs.rmSync(folderPath, { recursive: true, force: true });
-    console.log(`  Deleted old folder: ${folder}`);
-    deletedCount++;
+folders.forEach((folder) => {
+  try {
+    // Parse date safely
+    const [year, month, day] = folder.split("-").map(Number);
+    const folderDate = new Date(year, month - 1, day); // month is 0-indexed
+
+    // Validate date is valid before comparing
+    if (!isNaN(folderDate.getTime()) && folderDate < cutoffDate) {
+      const folderPath = path.join(resultsDir, folder);
+      fs.rmSync(folderPath, { recursive: true, force: true });
+      console.log(`  Deleted old folder: ${folder}`);
+      deletedCount++;
+    }
+  } catch (error) {
+    console.warn(`⚠️  Could not process folder ${folder}:`, error.message);
   }
 });
 
@@ -87,4 +104,4 @@ if (deletedCount > 0) {
   console.log(`\n🗑️  Deleted ${deletedCount} old date folders (older than ${daysToKeep} days)`);
 }
 
-console.log('\n✅ Cleanup complete');
+console.log("\n✅ Cleanup complete");
