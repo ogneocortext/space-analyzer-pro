@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                                                             |
 | ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 2.8.9   | 2026-05-02 | AI Service Integration: Python ML service, intelligent caching, database persistence, auto-categorization                           |
 | 2.8.8   | 2026-05-02 | Stability & Infrastructure: Backend crash protection, persistent scan history, standardized ports, script improvements              |
 | 2.8.7   | 2026-05-02 | Static Analysis Integration: ESLint-based code quality analysis, real vs simulated data indicators, ML training on analysis results |
 | 2.8.6   | 2026-05-02 | Bug Fixes & Missing Routes: Fixed 404 errors, corrected settings routes, added Learning/NLP/AI Model endpoints                      |
@@ -34,6 +35,74 @@ All notable changes to Space Analyzer will be documented in this file.
 | 2.1.8   | 2026-04-27 | Project cleanup and organization                                                                                                    |
 | 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                                                               |
 | 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                                                               |
+
+## [2.8.9] - 2026-05-02
+
+### AI Service, Intelligent Caching & Database Persistence
+
+**Python ML service for file categorization, multi-layer caching system, improved database persistence, and automatic AI-powered file categorization.**
+
+#### Python AI Service (New)
+
+**New `ai-service/` directory with FastAPI-based ML service:**
+
+- **File Categorization**: ML-powered file type prediction (documents, images, code, etc.)
+- **Cleanup Recommendations**: AI-suggested files for deletion/archival based on age/size
+- **Model Training**: Train Random Forest classifier on labeled file data
+- **REST API**: FastAPI with automatic OpenAPI docs at `/docs`
+
+**API Endpoints:**
+
+- `POST /api/ai/predict/category` - Predict single file category
+- `POST /api/ai/predict/categories-batch` - Batch file categorization
+- `POST /api/ai/predict/cleanup` - Get cleanup recommendations
+- `POST /api/ai/train/categorizer` - Train categorization model
+- `GET /api/ai/models` - Get ML models status
+
+**Integration:**
+
+- Uses `PYTHON_AI_PORT=5000` (configured in `config/ports.config.js`)
+- Node.js backend proxies requests to Python service
+- Models persist to `ai-service/models/*.pkl` files
+
+#### Intelligent Caching System
+
+**New `CacheManager` with multi-layer caching:**
+
+- **Memory Cache**: In-memory LRU cache (50 items, 24h TTL)
+- **Database Layer**: SQLite fallback when not in memory
+- **Auto-Cleanup**: Background cleanup every 5 minutes
+- **Statistics**: Hit rate, evictions, cache size monitoring
+
+**API Endpoints:**
+
+- `GET /api/analysis/cache/stats` - Cache statistics
+- `POST /api/analysis/cache/clear` - Clear analysis cache
+
+**Performance:**
+
+- ⚡ Instant response for cached analyses (no rescanning)
+- 💾 Database fallback when cache miss
+- 📊 Hit rate monitoring
+
+#### Auto-Categorization on Scan
+
+**Automatically categorizes files after directory scan:**
+
+- Triggers after every successful scan
+- Processes up to 50 uncategorized files per scan
+- Runs non-blocking in background
+- Stores categories with confidence scores
+- Console output: `🤖 AI categorized 47 files`
+
+#### Database Persistence Improvements
+
+- **Analysis Results**: Stored in SQLite with compressed JSON
+- **Scan History**: `GET /api/analysis/history` returns paginated history
+- **Fallback Support**: Works in memory if database unavailable
+- **Async Storage**: Fire-and-forget pattern doesn't block scans
+
+---
 
 ## [2.8.8] - 2026-05-02
 
