@@ -2,6 +2,17 @@
 
 AI-Powered disk space analysis and optimization tool with machine learning capabilities. Features dual-purpose analysis for both storage optimization and code analysis for developers.
 
+![Version](https://img.shields.io/badge/version-2.8.9-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Node.js](https://img.shields.io/badge/node.js-18+-green)
+![Vue.js](https://img.shields.io/badge/vue.js-3.0+-4FC08D)
+![TypeScript](https://img.shields.io/badge/typescript-5.0+-3178C6)
+![Python](https://img.shields.io/badge/python-3.8+-3776AB)
+![Rust](https://img.shields.io/badge/rust-1.70+-CE422B)
+![FastAPI](https://img.shields.io/badge/fastapi-0.104+-009688)
+![Tailwind CSS](https://img.shields.io/badge/tailwindcss-3.0+-38B2AC)
+![SQLite](https://img.shields.io/badge/sqlite-3.0+-003B57)
+
 > **⚠️ Alpha Status & Design Intent**
 >
 > This application is currently in **alpha** and is designed to run on **localhost by a single user**.
@@ -521,14 +532,97 @@ server/routes/analysis/
 
 ## Tech Stack
 
-- **Frontend**: Vue 3, TypeScript, Vite
-- **UI Components**: Custom design system with Tailwind CSS
+### Frontend
+
+- **Framework**: Vue 3 with Composition API
+- **Language**: TypeScript 5.0+
+- **Build Tool**: Vite
 - **State Management**: Pinia
-- **Visualization**: Custom Canvas/SVG rendering
-- **AI Integration**: Ollama, Google Gemini, Custom ML services
-- **Backend**: Express.js (optional server mode)
-- **Styling**: Tailwind CSS
-- **Native Scanner**: Rust (preferred) - High-performance directory scanning with N-API bindings
+- **UI Framework**: Custom design system with Tailwind CSS
+- **Visualization**: Custom Canvas/SVG rendering (Treemap, 3D, Network graphs)
+- **Testing**: Vitest + Playwright for E2E
+
+### Backend
+
+- **Runtime**: Node.js 18+
+- **Framework**: Express.js (optional server mode)
+- **Database**: SQLite for analysis persistence
+- **Caching**: Multi-layer caching system (Memory + Database)
+
+### AI & Machine Learning
+
+- **Local AI**: Ollama (Llama, Mistral, etc.)
+- **Cloud AI**: Google Gemini (fallback)
+- **Python AI Service**: FastAPI with ML categorization
+  - **ML Framework**: scikit-learn (Random Forest)
+  - **Features**: File categorization, cleanup recommendations
+  - **API**: REST endpoints at `http://localhost:5000`
+
+### Native Components
+
+- **Scanner**: Rust (preferred) - High-performance directory scanning
+  - **Bindings**: N-API for Node.js integration
+  - **Features**: AVX2 optimization, LTO, buffered hashing
+  - **Windows**: NTFS integration (HardLinks, ADS, Compression)
+- **Alternative**: Archived C++ scanner (not recommended)
+
+### Development Tools
+
+- **Linting**: ESLint + Prettier
+- **Type Checking**: TypeScript strict mode
+- **Git Hooks**: Husky for pre-commit checks
+- **Package Management**: npm
+
+## 🚀 Quick Start
+
+Get Space Analyzer Pro running in minutes with these copy-paste commands:
+
+### 1. Clone & Install
+
+```bash
+# Clone the repository
+git clone https://github.com/ogneocortext/space-analyzer-pro.git
+cd space-analyzer-pro
+
+# Install dependencies
+npm install
+```
+
+### 2. Start the Application
+
+```bash
+# Start frontend (opens browser automatically)
+npm run dev
+
+# In another terminal, start backend (required for analysis)
+npm run server
+```
+
+### 3. Optional: Start AI Services
+
+```bash
+# Start Python AI service for file categorization
+npm run ai:start
+
+# Start Ollama for local AI features (optional)
+ollama serve
+```
+
+### 4. Access the Application
+
+- **Frontend**: http://localhost:5173
+- **Backend API**: http://localhost:8080
+- **AI Service**: http://localhost:5000 (docs at `/docs`)
+- **Ollama**: http://localhost:11434
+
+### 5. First Scan
+
+1. Open http://localhost:5173
+2. Click "Scan Directory"
+3. Choose a directory to analyze
+4. View results and explore features
+
+---
 
 ## Getting Started
 
