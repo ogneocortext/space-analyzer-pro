@@ -293,6 +293,30 @@ class ResultsRoutes {
       }
     });
 
+    // Cache management endpoints
+    this.router.get("/analysis/cache/stats", (req, res) => {
+      try {
+        const coreRoutes = this.server?.routes?.analysis?.coreRoutes;
+        const stats = coreRoutes?.getCacheStats() || { size: 0, maxSize: 50, hitRate: "0%" };
+        res.json({
+          success: true,
+          cache: stats,
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    this.router.post("/analysis/cache/clear", (req, res) => {
+      try {
+        const coreRoutes = this.server?.routes?.analysis?.coreRoutes;
+        const result = coreRoutes?.clearCache() || { success: true, message: "Cache cleared" };
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     console.log("  ✅ Results routes added");
   }
 }

@@ -1,17 +1,23 @@
 /**
  * Core Analysis Routes
  * Current status, start, cancel, progress streaming
+ * Enhanced with caching and database persistence
  */
 
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const { spawn } = require("child_process");
+const CacheManager = require("../../utils/cache-manager");
 
 class CoreRoutes {
   constructor(server, router) {
     this.server = server;
     this.router = router;
+    this.cache = new CacheManager({
+      maxSize: 50,
+      defaultTTL: 24 * 60 * 60 * 1000, // 24 hours
+    });
     this.setupRoutes();
   }
 
@@ -34,6 +40,43 @@ class CoreRoutes {
           return res.status(400).json({
             success: false,
             error: "Invalid path",
+          });
+        }
+
+        // Normalize path for cache key
+        const normalizedPath = this.server.normalizePath
+          ? this.server.normalizePath(targetPath)
+          : targetPath.toLowerCase();
+
+        // Check cache first
+        const cacheKey = this.cache.generateKey(normalizedPath, options);
+        const cachedResult = await this.cache.get(cacheKey, async () => {
+          // Try to load from database if not in memory cache
+          if (this.server?.knowledgeDB?.analysis?.getAnalysisByPath) {
+            try {
+              const dbResult =
+                await this.server.knowledgeDB.analysis.getAnalysisByPath(normalizedPath);
+              if (dbResult && this.isResultValid(dbResult)) {
+                console.log(`💾 Loaded analysis from database for: ${normalizedPath}`);
+                return dbResult;
+              }
+            } catch (dbError) {
+              console.warn("Failed to load from database:", dbError.message);
+            }
+          }
+          return null;
+        });
+
+        if (cachedResult && cachedResult.data) {
+          console.log(`⚡ Cache hit for: ${normalizedPath}`);
+          return res.json({
+            success: true,
+            analysisId: cachedResult.data.analysisId || `cached-${Date.now()}`,
+            status: "complete",
+            message: "Analysis loaded from cache",
+            cached: true,
+            source: cachedResult.source,
+            result: cachedResult.data,
           });
         }
 
@@ -473,17 +516,28 @@ class CoreRoutes {
             }
 
             // Store results in memory
-            this.server.analysisResults.set(analysisId, {
+            const finalResults = {
               ...results,
               directory: directoryPath,
               analysisId,
               completedAt: Date.now(),
-            });
+              options,
+            };
+
+            this.server.analysisResults.set(analysisId, finalResults);
+
+            // Save to cache
+            const normalizedPath = this.server.normalizePath
+              ? this.server.normalizePath(directoryPath)
+              : directoryPath.toLowerCase();
+            const cacheKey = this.cache.generateKey(normalizedPath, options);
+            this.cache.set(cacheKey, finalResults);
+            console.log(`⚡ Analysis cached: ${cacheKey}`);
 
             // Also save to database for persistence (fire and forget)
             if (this.server?.knowledgeDB?.analysis?.storeAnalysis) {
               this.server.knowledgeDB.analysis
-                .storeAnalysis(directoryPath, results)
+                .storeAnalysis(directoryPath, finalResults)
                 .then((dbId) => {
                   console.log(`💾 Analysis saved to database with ID: ${dbId}`);
                 })
@@ -611,6 +665,36 @@ class CoreRoutes {
       console.error("AI categorization error:", error.message);
       throw error;
     }
+  }
+
+  /**
+   * Check if cached result is still valid (not expired, same directory)
+   */
+  isResultValid(result, maxAge = 24 * 60 * 60 * 1000) {
+    if (!result || !result.completedAt) return false;
+
+    const age = Date.now() - result.completedAt;
+    if (age > maxAge) return false;
+
+    // Check if result has required fields
+    if (!result.files || !Array.isArray(result.files)) return false;
+
+    return true;
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats() {
+    return this.cache.getStats();
+  }
+
+  /**
+   * Clear analysis cache
+   */
+  clearCache() {
+    this.cache.clear();
+    return { success: true, message: "Cache cleared" };
   }
 }
 
