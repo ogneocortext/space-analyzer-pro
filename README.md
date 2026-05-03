@@ -889,7 +889,147 @@ MIT License - See [LICENSE](LICENSE) file for details
 
 ## Version History
 
-- **2.1.0** - Vue 3 migration with enhanced performance dependencies
+- **2.8.9** - AI Service & Intelligent Caching
+  - Python ML service for file categorization (FastAPI, Random Forest)
+  - Multi-layer caching system (Memory + Database + LRU eviction)
+  - Auto-categorization after scans (up to 50 files, non-blocking)
+  - Cache management endpoints (`/api/analysis/cache/stats`, `/api/analysis/cache/clear`)
+  - Enhanced database persistence with async storage
+  - AI model training with 15+ labeled files requirement
+
+- **2.8.8** - Stability & Infrastructure
+  - Backend crash protection with 4GB memory limit
+  - Persistent scan history in SQLite database
+  - Standardized port configuration (`config/ports.config.js`)
+  - Improved script error handling and cleanup
+  - Project file organization and documentation
+
+- **2.8.7** - Static Analysis Integration
+  - ESLint-based code quality analysis
+  - Real vs simulated data indicators
+  - ML training on analysis results
+  - Performance monitoring and insights
+
+- **2.8.6** - Bug Fixes & Missing Routes
+  - Fixed 404 errors for missing endpoints
+  - Corrected settings routes
+  - Added Learning/NLP/AI Model endpoints
+  - Improved error handling
+
+- **2.8.5** - Error Tracking & Analysis Components
+  - Enhanced file details display
+  - Comprehensive error logging
+  - Build fixes and optimizations
+
+- **2.8.4** - Scanner Output Contract
+  - JSONL progress streaming
+  - Clean result file format
+  - Unchanged directory reuse optimization
+
+- **2.8.3** - Performance Optimization
+  - Lazy hardware detection
+  - Persistent caching strategies
+  - Log consolidation
+
+- **2.8.2** - Backend Architecture Refactoring
+  - Modular service-oriented architecture
+  - Dedicated route handlers
+  - Improved maintainability and scalability
+
+- **2.8.1** - Interactive File Management
+  - Delete and Reveal functionality in UI
+  - Direct file operations
+
+- **2.8.0** - Native Windows Scanner Optimization
+  - Production-grade APIs
+  - Large dataset support (96GB+ tested)
+
+- **2.7.0** - Node.js v25+ Performance Optimizations
+  - Worker Pool integration
+  - Enhanced performance monitoring
+
+- **2.6.0** - Revolutionary 3D File System Browser
+  - Professional-grade visualization
+  - Interactive 3D file system exploration
+
+- **2.5.0** - Advanced Self-Learning Enhancements
+  - Analytics and A/B testing
+  - Feedback collection
+  - Adaptive learning algorithms
+
+- **2.4.0** - Advanced Features
+  - Self-learning capabilities
+  - 3D browser integration
+  - NTFS MFT and USN Journal support
+
+- **2.3.1** - File Structure Organization
+  - Cleaned root directory
+  - Organized server files
+  - Improved documentation
+
+- **2.3.0** - Comprehensive Backend Enhancements
+  - Progress tracking
+  - Caching mechanisms
+  - Profile management
+  - Advanced filters
+  - Analytics dashboard
+
+- **2.2.8** - Multi-Agent Orchestrator Steps 4-6
+  - Circuit breaker implementation
+  - Task queue management
+  - Batch analysis capabilities
+
+- **2.2.7** - Multi-Agent Orchestrator v2.0
+  - Intelligent task distribution
+  - Circuit breakers for reliability
+
+- **2.2.6** - Notification System
+  - Database persistence
+  - Template support
+  - Batch export for reports
+
+- **2.2.5** - PDF Reports
+  - Generate professional analysis reports
+  - View and download functionality
+
+- **2.2.4** - Code Complexity Analysis
+  - Metrics and grading system
+  - Refactoring recommendations
+
+- **2.2.3** - AI-powered Features
+  - Document summarization
+  - Natural language interface
+  - Cleanup assistant
+
+- **2.2.2** - Ollama API 0.22.0 Integration
+  - Optimized context payload
+  - Trend tracking database
+
+- **2.2.1** - Windows API Data Display
+  - Frontend integration for Windows-specific data
+
+- **2.2.0** - Major Feature Expansion
+  - 15 different views
+  - Windows API integration
+  - AI Auto-Organization
+  - PDF report generation
+
+- **2.1.9** - Rust CLI Build Fixes
+  - Real-time scanner metrics
+  - Build system improvements
+
+- **2.1.8** - Project Cleanup
+  - Organization improvements
+  - Code structure cleanup
+
+- **2.1.7** - Improvement Recommendations
+  - Implementation of optimization suggestions
+
+- **2.1.6** - Initial Release
+  - Core features and AI integration
+  - Vue 3 migration completed
+
+- **2.1.0** - Vue 3 Migration
   - Migrated from React to Vue 3
   - Added fast-glob for high-performance file scanning
   - Added file-type for accurate file type detection
@@ -897,4 +1037,5 @@ MIT License - See [LICENSE](LICENSE) file for details
   - Added filesize for standardized byte formatting
   - Enabled TypeScript strict mode
   - Updated sqlite3 to v6.0.1
+
 - **2.0.1** - AI-Powered Space Analyzer with Vision Analysis and Feature Hub
