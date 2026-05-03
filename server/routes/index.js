@@ -5,6 +5,7 @@
 
 const AnalysisRoutes = require("./analysis");
 const AIRoutes = require("./ai");
+const AIServiceRoutes = require("./ai-service");
 const FileRoutes = require("./files");
 const ExportRoutes = require("./exports");
 const ComplexityRoutes = require("./complexity");
@@ -32,6 +33,8 @@ class RoutesManager {
     console.log("  ✅ AnalysisRoutes loaded");
     this.routes.ai = new AIRoutes(this.server);
     console.log("  ✅ AIRoutes loaded");
+    this.routes.aiService = new AIServiceRoutes(this.server);
+    console.log("  ✅ AIServiceRoutes loaded");
     this.routes.files = new FileRoutes(this.server);
     console.log("  ✅ FileRoutes loaded");
     this.routes.exports = new ExportRoutes(this.server);
@@ -55,6 +58,7 @@ class RoutesManager {
     // Mount all routes to the Express app
     app.use("/api", this.routes.analysis.getRouter());
     app.use("/api", this.routes.ai.getRouter());
+    app.use("/api", this.routes.aiService.getRouter());
     app.use("/api", this.routes.files.getRouter());
     app.use("/api", this.routes.exports.getRouter());
     app.use("/api", this.routes.complexity.getRouter());
@@ -68,6 +72,7 @@ class RoutesManager {
     app.use("/api", this.routes.aiModels.getRouter());
 
     console.log("✅ All API routes mounted successfully");
+    console.log("📍 AI Service routes available at: /api/ai/*");
     console.log("📍 Error routes available at: /api/errors/*");
     console.log("📍 Learning routes available at: /api/learning/*");
     console.log("📍 NLP routes available at: /api/nlp/*");
