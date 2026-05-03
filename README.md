@@ -141,6 +141,29 @@ The backend has been refactored into a high-performance, modular service-oriente
 - **Scalability**: Decoupled services allow for independent scaling and testing.
 - **Performance**: Optimized initialization and resource management through lazy-loading and hardware-aware configuration.
 
+### Stability & Infrastructure (v2.8.8) ✅
+
+**Enhanced backend stability, persistent scan history, standardized configuration, and improved error handling.**
+
+#### Crash Protection
+
+- **4GB Memory Limit**: Node.js configured for large directory scans without crashes
+- **Global Error Handlers**: `uncaughtException` and `unhandledRejection` handlers prevent server crashes
+- **Process Safety**: Scanner processes have proper error handling and cleanup
+- **Non-blocking Operations**: Database saves happen asynchronously without blocking scans
+
+#### Persistent Scan History
+
+- **Database Storage**: Analysis results persisted to SQLite database
+- **History API**: `GET /api/analysis/history` returns paginated scan history
+- **Metadata Tracking**: Stores directory paths, file counts, sizes, timestamps, and categories
+
+#### Standardized Port Configuration
+
+- **Centralized Ports**: All ports defined in `config/ports.config.js`
+- **Environment Sync**: `.env` and `.env.example` automatically synchronized
+- **Vite Default Ports**: Using standard Vite ports (5173 dev, 4173 preview)
+
 ### Hardware Caching & Optimized Startup (v2.8.3) ✅
 
 **Drastically reduced startup latency and terminal noise through intelligent resource management.**
@@ -497,19 +520,23 @@ VITE_OLLAMA_URL=http://localhost:11434
 
 ### Port Configuration
 
-All ports are centrally managed in `config/ports.config.js` to prevent conflicts:
+All ports are centrally managed in `config/ports.config.js` and synchronized with `.env`:
 
-| Service             | Port  | Description                 |
-| ------------------- | ----- | --------------------------- |
-| Vite Dev Server     | 3001  | Frontend development server |
-| Vite Preview Server | 3002  | Production build preview    |
-| Backend API         | 8080  | Express backend server      |
-| Python AI Service   | 8084  | Python AI integration       |
-| Ollama              | 11434 | Local AI service            |
-| PostgreSQL          | 5432  | Database (if used)          |
-| Redis               | 6379  | Cache (if used)             |
+| Service             | Port  | Description                 | Config Variable     |
+| ------------------- | ----- | --------------------------- | ------------------- |
+| Vite Dev Server     | 5173  | Frontend development server | `VITE_DEV_PORT`     |
+| Vite Preview Server | 4173  | Production build preview    | `VITE_PREVIEW_PORT` |
+| Backend API         | 8080  | Express backend server      | `PORT`              |
+| Python AI Service   | 5000  | Python AI integration       | `PYTHON_AI_PORT`    |
+| Ollama              | 11434 | Local AI service            | `OLLAMA_HOST`       |
+| PostgreSQL          | 5432  | Database (if used)          | `POSTGRES_PORT`     |
+| Redis               | 6379  | Cache (if used)             | `REDIS_PORT`        |
 
-To change ports, edit `config/ports.config.js` - all services will automatically use the updated values.
+**To change ports:**
+
+1. Edit `config/ports.config.js` - central port definitions
+2. Update `.env` and `.env.example` - environment variables
+3. Both files must stay synchronized (see sync comments in each file)
 
 ## Documentation
 
