@@ -3,6 +3,24 @@
  * Single, clean server implementation replacing backend-server.js and src/app.js
  */
 
+// Global error handling to prevent crashes
+process.on("uncaughtException", (error) => {
+  console.error("💥 UNCAUGHT EXCEPTION - Server will stay running:", error);
+  // Log to file or monitoring service here
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("⚠️ UNHANDLED REJECTION at:", promise, "reason:", reason);
+  // Log to file or monitoring service here
+});
+
+// Increase memory limit for large scans (4GB)
+const v8 = require("v8");
+const maxMemoryGB = 4;
+const maxMemoryMB = maxMemoryGB * 1024;
+v8.setFlagsFromString(`--max-old-space-size=${maxMemoryMB}`);
+console.log(`📊 Memory limit set to ${maxMemoryGB}GB`);
+
 const express = require("express");
 const cors = require("cors");
 const compression = require("compression");
@@ -536,16 +554,14 @@ class SpaceAnalyzerServer {
       });
     });
 
-    // Process error handlers
+    // Process error handlers - already handled at top of file, just log here
     process.on("uncaughtException", async (error) => {
       await this.errorLogger.logUncaughtException(error);
-      console.error("💥 Uncaught Exception:", error);
-      setTimeout(() => process.exit(1), 1000);
+      // Don't exit - let the server keep running
     });
 
     process.on("unhandledRejection", async (reason, promise) => {
       await this.errorLogger.logUnhandledRejection(reason, promise);
-      console.error("⚠️ Unhandled Rejection:", reason);
     });
   }
 

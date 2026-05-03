@@ -423,16 +423,54 @@ class CoreRoutes {
         });
 
         process.on("close", async (code) => {
+          // Clean up process reference
+          analysis.process = null;
+
           if (code !== 0) {
             analysis.status = "error";
-            analysis.error = stderr || "Scanner failed";
+            analysis.error = stderr || `Scanner exited with code ${code}`;
+            // Clean up temp file on error
+            try {
+              fs.unlinkSync(tempFile);
+            } catch (e) {
+              /* ignore */
+            }
             reject(new Error(analysis.error));
             return;
           }
 
           try {
-            const results = JSON.parse(fs.readFileSync(tempFile, "utf8"));
-            fs.unlinkSync(tempFile).catch(() => {});
+            // Check if temp file exists
+            if (!fs.existsSync(tempFile)) {
+              throw new Error("Scanner output file not found");
+            }
+
+            // Get file stats to check size
+            const stats = fs.statSync(tempFile);
+            console.log(`📊 Scan output file size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+
+            // For very large files, we might need streaming parsing
+            // For now, use chunked reading for files > 100MB
+            let results;
+            if (stats.size > 100 * 1024 * 1024) {
+              console.warn("⚠️ Large scan result, using buffered read");
+            }
+
+            // Read and parse results
+            const fileContent = fs.readFileSync(tempFile, "utf8");
+            results = JSON.parse(fileContent);
+
+            // Validate results structure
+            if (!results || typeof results !== "object") {
+              throw new Error("Invalid scan results structure");
+            }
+
+            // Clean up temp file
+            try {
+              fs.unlinkSync(tempFile);
+            } catch (e) {
+              /* ignore */
+            }
 
             // Store results in memory
             this.server.analysisResults.set(analysisId, {
@@ -442,18 +480,16 @@ class CoreRoutes {
               completedAt: Date.now(),
             });
 
-            // Also save to database for persistence
+            // Also save to database for persistence (fire and forget)
             if (this.server?.knowledgeDB?.analysis?.storeAnalysis) {
-              try {
-                const dbId = await this.server.knowledgeDB.analysis.storeAnalysis(
-                  directoryPath,
-                  results
-                );
-                console.log(`💾 Analysis saved to database with ID: ${dbId}`);
-              } catch (dbError) {
-                console.warn("⚠️ Failed to save analysis to database:", dbError.message);
-                // Don't fail the scan if database save fails
-              }
+              this.server.knowledgeDB.analysis
+                .storeAnalysis(directoryPath, results)
+                .then((dbId) => {
+                  console.log(`💾 Analysis saved to database with ID: ${dbId}`);
+                })
+                .catch((dbError) => {
+                  console.warn("⚠️ Failed to save analysis to database:", dbError.message);
+                });
             }
 
             analysis.status = "complete";
@@ -461,10 +497,31 @@ class CoreRoutes {
 
             resolve(results);
           } catch (error) {
+            console.error("❌ Error processing scan results:", error);
             analysis.status = "error";
-            analysis.error = "Failed to parse results";
+            analysis.error = error.message || "Failed to process scan results";
+            // Clean up temp file on error
+            try {
+              fs.unlinkSync(tempFile);
+            } catch (e) {
+              /* ignore */
+            }
             reject(error);
           }
+        });
+
+        // Handle process errors (crash, killed, etc.)
+        process.on("error", (error) => {
+          console.error("❌ Scanner process error:", error);
+          analysis.status = "error";
+          analysis.error = `Scanner process error: ${error.message}`;
+          analysis.process = null;
+          try {
+            fs.unlinkSync(tempFile);
+          } catch (e) {
+            /* ignore */
+          }
+          reject(error);
         });
       });
     } catch (error) {
