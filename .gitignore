@@ -6,6 +6,12 @@ cpp-build
 .cache
 .env
 config/
+
+# Python AI Service
+ai-service/venv/
+ai-service/__pycache__/
+ai-service/models/*.pkl
+ai-service/models/*.joblib
 .mcp
 *.log
 *.sqlite

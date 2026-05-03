@@ -38,7 +38,11 @@
     "type-check:full": "tsc --noEmit",
     "update-deps": "npm update && npm audit fix",
     "prepare": "husky",
-    "github:nav": "node config/github-nav.js"
+    "github:nav": "node config/github-nav.js",
+    "ai:start": "cd ai-service && powershell -ExecutionPolicy Bypass -File start.ps1",
+    "ai:start:unix": "cd ai-service && bash start.sh",
+    "ai:install": "cd ai-service && python -m pip install -r requirements.txt",
+    "ai:test": "cd ai-service && python test_api.py"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
