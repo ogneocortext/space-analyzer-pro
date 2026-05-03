@@ -211,16 +211,40 @@ class ResultsRoutes {
       }
     });
 
-    // Get analysis history (all completed analyses)
+    // Get analysis history (all completed analyses) - from database
     this.router.get("/analysis/history", async (req, res) => {
       try {
         const { limit = 50, offset = 0 } = req.query;
         const maxLimit = Math.min(parseInt(limit) || 50, 100);
         const skip = parseInt(offset) || 0;
 
-        const analyses = [];
+        // Try to get from database first
+        if (this.server?.knowledgeDB?.analysis?.getAnalysisHistory) {
+          try {
+            const dbResult = await this.server.knowledgeDB.analysis.getAnalysisHistory(
+              maxLimit,
+              skip
+            );
 
-        // Get completed analyses from analysisResults map
+            res.json({
+              success: true,
+              analyses: dbResult.analyses,
+              pagination: {
+                total: dbResult.total,
+                limit: maxLimit,
+                offset: skip,
+                hasMore: skip + maxLimit < dbResult.total,
+              },
+              source: "database",
+            });
+            return;
+          } catch (dbError) {
+            console.warn("⚠️ Database query failed, falling back to memory:", dbError.message);
+          }
+        }
+
+        // Fallback to in-memory results
+        const analyses = [];
         if (this.server?.analysisResults) {
           for (const [id, result] of this.server.analysisResults.entries()) {
             analyses.push({
@@ -258,6 +282,7 @@ class ResultsRoutes {
             offset: skip,
             hasMore: skip + maxLimit < total,
           },
+          source: "memory",
         });
       } catch (error) {
         console.error("Get analysis history error:", error);

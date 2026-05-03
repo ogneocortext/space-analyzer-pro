@@ -527,6 +527,51 @@ class AnalysisDatabase {
       });
     });
   }
+
+  /**
+   * Get analysis history (all completed analyses) with pagination
+   */
+  getAnalysisHistory(limit = 50, offset = 0) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT
+          id as analysisId,
+          directory_path as directory,
+          total_files as totalFiles,
+          total_size as totalSize,
+          metadata_hash as metadataHash,
+          last_analyzed as lastAnalyzed,
+          created_at as createdAt
+        FROM analyses
+        ORDER BY last_analyzed DESC
+        LIMIT ? OFFSET ?
+      `;
+
+      this.db.all(sql, [limit, offset], (err, rows) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        // Get total count
+        this.db.get("SELECT COUNT(*) as total FROM analyses", [], (countErr, countRow) => {
+          if (countErr) {
+            reject(countErr);
+            return;
+          }
+
+          resolve({
+            analyses: rows.map((row) => ({
+              ...row,
+              status: "complete",
+              analysisId: row.analysisId.toString(),
+            })),
+            total: countRow.total,
+          });
+        });
+      });
+    });
+  }
 }
 
 module.exports = AnalysisDatabase;

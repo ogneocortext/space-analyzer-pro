@@ -434,13 +434,27 @@ class CoreRoutes {
             const results = JSON.parse(fs.readFileSync(tempFile, "utf8"));
             fs.unlinkSync(tempFile).catch(() => {});
 
-            // Store results
+            // Store results in memory
             this.server.analysisResults.set(analysisId, {
               ...results,
               directory: directoryPath,
               analysisId,
               completedAt: Date.now(),
             });
+
+            // Also save to database for persistence
+            if (this.server?.knowledgeDB?.analysis?.storeAnalysis) {
+              try {
+                const dbId = await this.server.knowledgeDB.analysis.storeAnalysis(
+                  directoryPath,
+                  results
+                );
+                console.log(`💾 Analysis saved to database with ID: ${dbId}`);
+              } catch (dbError) {
+                console.warn("⚠️ Failed to save analysis to database:", dbError.message);
+                // Don't fail the scan if database save fails
+              }
+            }
 
             analysis.status = "complete";
             analysis.progress = 100;
