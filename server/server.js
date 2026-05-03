@@ -33,9 +33,46 @@ class SpaceAnalyzerServer {
   initialize() {
     this.setupSecurity();
     this.setupMiddleware();
-    this.setupRoutes();
-    this.setupErrorHandling();
-    this.setupHealthChecks();
+    this.setupDatabase().then(() => {
+      this.setupRoutes();
+      this.setupErrorHandling();
+      this.setupHealthChecks();
+    });
+  }
+
+  /**
+   * Initialize database connection
+   */
+  async setupDatabase() {
+    try {
+      console.log("🔄 Initializing database...");
+      const KnowledgeDatabase = require("./KnowledgeDatabase");
+
+      // Ensure data directory exists
+      const dataDir = path.join(__dirname, "data");
+      if (!fs.existsSync(dataDir)) {
+        console.log(`📁 Creating data directory: ${dataDir}`);
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+
+      const dbPath = path.join(dataDir, "space-analyzer.db");
+      console.log(`📚 Database path: ${dbPath}`);
+
+      this.knowledgeDB = new KnowledgeDatabase(dbPath);
+
+      // Wait for database to initialize
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      if (this.knowledgeDB.db) {
+        console.log("✅ Database initialized successfully");
+      } else {
+        console.warn("⚠️ Database initialization failed, using in-memory fallback");
+        this.knowledgeDB = null;
+      }
+    } catch (error) {
+      console.error("❌ Database initialization error:", error.message);
+      this.knowledgeDB = null;
+    }
   }
 
   /**
@@ -171,7 +208,7 @@ class SpaceAnalyzerServer {
 
     // Create server object for RoutesManager with all expected properties
     const mockServer = {
-      knowledgeDB: null,
+      knowledgeDB: this.knowledgeDB,
       knowledge: this.createKnowledgeService(),
       errorLogger: this.errorLogger,
       activeAnalyses: new Map(),
