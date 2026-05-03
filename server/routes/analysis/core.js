@@ -16,6 +16,141 @@ class CoreRoutes {
   }
 
   setupRoutes() {
+    // Backward-compatible: POST /api/analyze (alias for /api/analysis/start)
+    this.router.post("/analyze", async (req, res) => {
+      try {
+        const { directoryPath, path, options = {} } = req.body;
+        const targetPath = directoryPath || path;
+
+        if (!targetPath) {
+          return res.status(400).json({
+            success: false,
+            error: "Path is required (directoryPath or path)",
+          });
+        }
+
+        // Validate path
+        if (this.server.isValidPath && !this.server.isValidPath(targetPath)) {
+          return res.status(400).json({
+            success: false,
+            error: "Invalid path",
+          });
+        }
+
+        // Generate analysis ID
+        const analysisId = `analysis-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+
+        // Initialize analysis state
+        const analysis = {
+          id: analysisId,
+          directoryPath: targetPath,
+          status: "starting",
+          progress: 0,
+          startTime: Date.now(),
+          filesScanned: 0,
+          bytesScanned: 0,
+          currentFile: "",
+          options,
+        };
+
+        this.server.activeAnalyses.set(analysisId, analysis);
+
+        // Start analysis in background
+        this.runAnalysis(analysisId, targetPath, options).catch((error) => {
+          console.error(`Analysis ${analysisId} failed:`, error);
+          analysis.status = "error";
+          analysis.error = error.message;
+        });
+
+        res.json({
+          success: true,
+          analysisId,
+          status: "starting",
+          message: "Analysis started",
+        });
+      } catch (error) {
+        console.error("Start analysis error:", error);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Backward-compatible: POST /api/analyze/cancel
+    this.router.post("/analyze/cancel", async (req, res) => {
+      try {
+        const { analysisId } = req.body;
+
+        if (!analysisId) {
+          // Cancel all active
+          let count = 0;
+          for (const [id, analysis] of this.server.activeAnalyses) {
+            if (analysis.process) {
+              analysis.process.kill();
+              count++;
+            }
+          }
+          this.server.activeAnalyses.clear();
+          return res.json({ success: true, message: `Cancelled ${count} analyses` });
+        }
+
+        const analysis = this.server.activeAnalyses.get(analysisId);
+        if (!analysis) {
+          return res.status(404).json({ success: false, error: "Analysis not found" });
+        }
+
+        if (analysis.process) {
+          analysis.process.kill();
+        }
+
+        analysis.status = "cancelled";
+        this.server.activeAnalyses.delete(analysisId);
+
+        res.json({ success: true, message: "Analysis cancelled" });
+      } catch (error) {
+        console.error("Cancel analysis error:", error);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Backward-compatible: POST /api/analyze/file (drag-drop file analysis)
+    this.router.post("/analyze/file", async (req, res) => {
+      try {
+        // Handle multipart form data for file uploads
+        const busboy = require("busboy");
+        const bb = busboy({ headers: req.headers });
+
+        let filePath = "";
+        let fileSize = 0;
+
+        bb.on("field", (fieldname, val) => {
+          if (fieldname === "filePath") filePath = val;
+          if (fieldname === "fileSize") fileSize = parseInt(val) || 0;
+        });
+
+        bb.on("finish", async () => {
+          if (!filePath) {
+            return res.status(400).json({
+              success: false,
+              error: "filePath is required",
+            });
+          }
+
+          // Return immediate response - actual analysis happens via code-quality endpoint
+          res.json({
+            success: true,
+            message: "File analysis request received",
+            filePath,
+            fileSize,
+            analysisId: `file-analysis-${Date.now()}`,
+          });
+        });
+
+        req.pipe(bb);
+      } catch (error) {
+        console.error("File analysis error:", error);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     // Get current analysis status
     this.router.get("/analysis/current", async (req, res) => {
       try {
@@ -239,10 +374,13 @@ class CoreRoutes {
       const interval = setInterval(sendProgress, 1000);
 
       // Timeout after 5 minutes
-      setTimeout(() => {
-        clearInterval(interval);
-        res.end();
-      }, 5 * 60 * 1000);
+      setTimeout(
+        () => {
+          clearInterval(interval);
+          res.end();
+        },
+        5 * 60 * 1000
+      );
     });
 
     console.log("  ✅ Core analysis routes added");
