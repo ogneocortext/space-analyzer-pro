@@ -385,6 +385,46 @@ await runIntegrationTests();
 - ✅ `getFeaturedModels()` with rate limiting
 - ✅ `generateWithTools()` with tool support
 
+#### CSS Improvements & Accessibility
+
+**Critical CSS Fixes:**
+
+- **Fixed Invalid CSS in theme.css**: Moved orphaned custom properties (`--surface-secondary`, `--success`, `--warning`, etc.) inside `:root` selector
+- **Fixed Invalid CSS in SkeletonLoading.css**: Replaced invalid Tailwind `space-y` property with valid flexbox `gap` property
+
+**Accessibility Enhancements:**
+
+- **Focus-Visible Styles**: Added clear outline and box-shadow for keyboard navigation
+  - `:focus-visible` with 2px solid outline
+  - Enhanced focus states for buttons, links, inputs
+  - Skip-link class for keyboard users
+- **Reduced Motion Support**: Added `@media prefers-reduced-motion: reduce` support
+  - Disables all animations for motion-sensitive users
+  - Falls back to static styles for skeletons
+  - Respects OS-level accessibility settings
+- **Semantic Focus States**: Different focus styles for mouse vs keyboard users
+
+**Performance Optimizations:**
+
+- **CSS Containment**: Added `contain: layout style paint` for better rendering performance
+  - Applied to cards, charts, and file items
+- **Paint Optimization**: `will-change: transform` on animated elements
+- **Content Visibility**: `content-visibility: auto` for off-screen sections (progressive enhancement)
+
+**Animation Library Expansion:**
+
+- Expanded from 1 to 15+ utility animations
+- **New Animations**: fade, scale, pulse, spin, bounce, shake, slide
+- **Animation Delays**: `.delay-100` through `.delay-500` classes
+- **Reduced Motion**: All animations respect `prefers-reduced-motion`
+
+**Files Modified:**
+
+- `src/styles/theme.css`
+- `src/components/styles/SkeletonLoading.css`
+- `src/styles/animations.css`
+- `src/styles/index.css`
+
 ---
 
 ## [2.9.0] - 2026-05-03
