@@ -23,16 +23,18 @@ body {
 }
 
 /* Surface and status colors */
---surface-secondary: #334155;
+:root {
+  --surface-secondary: #334155;
 
-/* Status colors */
---success: #10b981;
---warning: #f59e0b;
---error: #ef4444;
---info: #3b82f6;
+  /* Status colors */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
 
-/* Legacy compatibility */
---legend-color: #94a3b8;
+  /* Legacy compatibility */
+  --legend-color: #94a3b8;
+}
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
