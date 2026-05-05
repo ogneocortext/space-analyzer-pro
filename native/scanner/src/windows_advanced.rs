@@ -11,6 +11,7 @@ pub mod advanced {
     use winapi::um::handleapi::CloseHandle;
     use winapi::um::ioapiset::DeviceIoControl;
     use winapi::um::winioctl::{FSCTL_QUERY_USN_JOURNAL, FSCTL_ENUM_USN_DATA};
+    use winapi::um::errhandlingapi::GetLastError;
 
     // FSCTL_READ_USN_JOURNAL = 0x000900bb
     const FSCTL_READ_USN_JOURNAL: u32 = 0x000900bb;
@@ -19,6 +20,7 @@ pub mod advanced {
         FILE_ATTRIBUTE_DIRECTORY,
     };
     use std::mem;
+    use crate::windows_errors::WindowsError;
 
     // ============================================================================
     // USN JOURNAL - Incremental Change Tracking
@@ -82,6 +84,8 @@ pub mod advanced {
             );
 
             if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
+                let win_err = WindowsError::new(unsafe { GetLastError() }, "Open volume for USN query");
+                eprintln!("Windows Advanced: {}", win_err.format_error());
                 return None;
             }
 
@@ -132,6 +136,8 @@ pub mod advanced {
             );
 
             if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
+                let win_err = WindowsError::new(unsafe { GetLastError() }, "Open volume for USN enum");
+                eprintln!("Windows Advanced: {}", win_err.format_error());
                 return changes;
             }
 
@@ -251,6 +257,8 @@ pub mod advanced {
             );
 
             if handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
+                let win_err = WindowsError::new(unsafe { GetLastError() }, "Find file hard links");
+                eprintln!("Windows Advanced: {}", win_err.format_error());
                 return links;
             }
 
@@ -357,7 +365,8 @@ pub mod advanced {
             );
 
             if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
-                eprintln!("Failed to open volume. Administrator privileges required.");
+                let win_err = WindowsError::new(unsafe { GetLastError() }, "Open volume for MFT scan");
+                eprintln!("Windows Advanced: {} - Administrator privileges may be required.", win_err.format_error());
                 return files;
             }
 

@@ -52,7 +52,6 @@ class SpaceAnalyzerAPIServer {
 
     // Initialize database
     this.knowledgeDB = null;
-    this.dbInitializationPromise = this.initializeDatabase();
 
     try {
       const { WorkerPool } = require("../worker-pool");
@@ -125,12 +124,10 @@ class SpaceAnalyzerAPIServer {
   }
 
   setupGlobalErrorHandlers() {
-    // Handle uncaught exceptions
+    // Handle uncaught exceptions - keep server running
     process.on("uncaughtException", async (error) => {
       await this.errorLogger.logUncaughtException(error);
-      console.error("💥 Uncaught Exception:", error);
-      // Give time for log to flush before exiting
-      setTimeout(() => process.exit(1), 1000);
+      console.error("💥 Uncaught Exception (server continuing):", error);
     });
 
     // Handle unhandled promise rejections

@@ -64,7 +64,7 @@ export function convertDependencyGraphToNeuralData(dependencyGraph: DependencyGr
       y: y + (Math.random() - 0.5) * 50,
       size: Math.max(5, Math.min(20, Math.log10(node.size + 1) * 3)),
       type: (node.type === "directory" ? "directory" : "file") as "pattern" | "directory" | "file",
-      connections: [],
+      connections: [] as string[],
       fileType,
       fileSize: node.size,
       category: node.type,

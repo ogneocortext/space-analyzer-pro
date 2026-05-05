@@ -26,7 +26,7 @@ class DatabaseCore {
     return path.normalize(p).replace(/\\/g, "/").replace(/\/$/, "");
   }
 
-  initialize() {
+  async initialize() {
     try {
       // Ensure directory exists with proper permissions
       const dir = path.dirname(this.dbPath);
@@ -59,28 +59,33 @@ class DatabaseCore {
         }
       }
 
-      // Open database with better error handling
-      this.db = new sqlite3.Database(
-        this.dbPath,
-        sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
-        (err) => {
-          if (err) {
-            console.error("❌ Failed to open knowledge database:", err);
-            console.error("Database path:", this.dbPath);
-            this.db = null;
-            throw err;
-          } else {
-            console.log("📚 Knowledge database initialized successfully:", this.dbPath);
-
-            // Configure database for better performance
-            this.configureDatabase();
-
-            // Create tables and run migrations
-            this.createTables();
-            this.runMigrations();
+      // Open database with async/await to prevent race conditions
+      await new Promise((resolve, reject) => {
+        this.db = new sqlite3.Database(
+          this.dbPath,
+          sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
+          (err) => {
+            if (err) {
+              console.error("❌ Failed to open knowledge database:", err);
+              console.error("Database path:", this.dbPath);
+              this.db = null;
+              reject(err);
+            } else {
+              console.log("📚 Knowledge database initialized successfully:", this.dbPath);
+              resolve();
+            }
           }
-        }
-      );
+        );
+      });
+
+      // Configure database for better performance
+      await this.configureDatabase();
+
+      // Create tables and run migrations
+      await this.createTables();
+      await this.runMigrations();
+
+      return true;
     } catch (error) {
       console.error("❌ Database initialization failed:", error);
       this.db = null;
@@ -88,8 +93,8 @@ class DatabaseCore {
     }
   }
 
-  configureDatabase() {
-    if (!this.db) return;
+  async configureDatabase() {
+    if (!this.db) return Promise.resolve();
 
     // Configure SQLite for better performance
     const pragmas = [
@@ -102,7 +107,7 @@ class DatabaseCore {
     ];
 
     // Execute pragmas sequentially to ensure proper order
-    pragmas
+    return pragmas
       .reduce((promise, pragma, index) => {
         return promise.then(() => {
           return new Promise((resolve, reject) => {
@@ -123,32 +128,36 @@ class DatabaseCore {
       });
   }
 
-  runMigrations() {
-    if (!this.db) return;
+  async runMigrations() {
+    if (!this.db) return Promise.resolve();
 
     // Create migrations table if not exists
-    this.db.run(
-      `
-      CREATE TABLE IF NOT EXISTS migrations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        version TEXT UNIQUE NOT NULL,
-        applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `,
-      (err) => {
-        if (err) {
-          console.error("❌ Failed to create migrations table:", err);
-          return;
+    await new Promise((resolve, reject) => {
+      this.db.run(
+        `
+        CREATE TABLE IF NOT EXISTS migrations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          version TEXT UNIQUE NOT NULL,
+          applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `,
+        (err) => {
+          if (err) {
+            console.error("❌ Failed to create migrations table:", err);
+            reject(err);
+          } else {
+            resolve();
+          }
         }
+      );
+    });
 
-        // Check and apply migrations
-        this.applyMigrations();
-      }
-    );
+    // Check and apply migrations
+    await this.applyMigrations();
   }
 
-  applyMigrations() {
-    if (!this.db) return;
+  async applyMigrations() {
+    if (!this.db) return Promise.resolve();
 
     const migrations = [
       {
@@ -173,35 +182,82 @@ class DatabaseCore {
           CREATE INDEX IF NOT EXISTS idx_analyses_last_analyzed ON analyses(last_analyzed);
         `,
       },
+      {
+        version: "1.2.0",
+        description: "Add foreign key constraints with ON DELETE CASCADE",
+        sql: `
+          -- Enable foreign key support
+          PRAGMA foreign_keys = ON;
+
+          -- Add foreign keys to existing tables (SQLite doesn't support ALTER TABLE ADD CONSTRAINT)
+          -- These will only apply to new tables, existing data won't be affected
+          -- Recreate tables with proper foreign keys if needed
+
+          -- Create indexes for foreign key columns for performance
+          CREATE INDEX IF NOT EXISTS idx_file_metadata_dir ON file_metadata(directory_path);
+          CREATE INDEX IF NOT EXISTS idx_analysis_trends_dir ON analysis_trends(directory_path);
+          CREATE INDEX IF NOT EXISTS idx_cleanup_recs_dir ON cleanup_recommendations(directory_path);
+          CREATE INDEX IF NOT EXISTS idx_complexity_metrics_dir ON complexity_metrics(directory_path);
+        `,
+      },
     ];
 
-    migrations.forEach((migration) => {
-      this.db.get(
-        "SELECT version FROM migrations WHERE version = ?",
-        [migration.version],
-        (err, row) => {
-          if (err) {
-            console.error(`❌ Failed to check migration ${migration.version}:`, err);
-            return;
+    for (const migration of migrations) {
+      try {
+        const row = await new Promise((resolve, reject) => {
+          this.db.get(
+            "SELECT version FROM migrations WHERE version = ?",
+            [migration.version],
+            (err, row) => {
+              if (err) reject(err);
+              else resolve(row);
+            }
+          );
+        });
+
+        if (!row) {
+          console.log(`🔄 Applying migration ${migration.version}: ${migration.description}`);
+          try {
+            await new Promise((resolve, reject) => {
+              this.db.run(migration.sql, (err) => {
+                if (err) reject(err);
+                else resolve();
+              });
+            });
+            console.log(`✅ Migration ${migration.version} applied successfully`);
+          } catch (err) {
+            // Gracefully handle duplicate column errors
+            if (
+              err.message &&
+              (err.message.includes("duplicate column") || err.message.includes("already exists"))
+            ) {
+              console.log(
+                `⚠️ Migration ${migration.version}: Columns may already exist, marking as applied`
+              );
+            } else {
+              console.error(`❌ Failed to apply migration ${migration.version}:`, err);
+              continue;
+            }
           }
 
-          if (!row) {
-            console.log(`🔄 Applying migration ${migration.version}: ${migration.description}`);
-            this.db.run(migration.sql, (err) => {
-              if (err) {
-                console.error(`❌ Failed to apply migration ${migration.version}:`, err);
-              } else {
-                console.log(`✅ Migration ${migration.version} applied successfully`);
-                this.db.run("INSERT INTO migrations (version) VALUES (?)", [migration.version]);
+          await new Promise((resolve, reject) => {
+            this.db.run(
+              "INSERT OR IGNORE INTO migrations (version) VALUES (?)",
+              [migration.version],
+              (err) => {
+                if (err) reject(err);
+                else resolve();
               }
-            });
-          }
+            );
+          });
         }
-      );
-    });
+      } catch (err) {
+        console.error(`❌ Failed to check migration ${migration.version}:`, err);
+      }
+    }
   }
 
-  createTables() {
+  async createTables() {
     const tables = `
       -- Analysis metadata for directories
       CREATE TABLE IF NOT EXISTS analyses (
@@ -236,7 +292,8 @@ class DatabaseCore {
         file_hash TEXT,
         last_modified DATETIME,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(directory_path, file_path)
+        UNIQUE(directory_path, file_path),
+        FOREIGN KEY (directory_path) REFERENCES analyses(directory_path) ON DELETE CASCADE
       );
 
       -- Analysis files - separate storage for efficient querying
@@ -288,7 +345,7 @@ class DatabaseCore {
         top_categories TEXT, -- JSON array of top 5 categories
         largest_files TEXT, -- JSON array of top 5 files
         growth_rate REAL, -- Percentage growth
-        FOREIGN KEY (directory_path) REFERENCES analyses(directory_path)
+        FOREIGN KEY (directory_path) REFERENCES analyses(directory_path) ON DELETE CASCADE
       );
 
       -- File Summaries for AI document summarization
@@ -320,7 +377,8 @@ class DatabaseCore {
         safe_to_delete BOOLEAN DEFAULT 0,
         user_action TEXT, -- 'pending', 'approved', 'rejected', 'completed'
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(directory_path, file_path)
+        UNIQUE(directory_path, file_path),
+        FOREIGN KEY (directory_path) REFERENCES analyses(directory_path) ON DELETE CASCADE
       );
 
       -- Code Complexity Metrics
@@ -343,7 +401,8 @@ class DatabaseCore {
         complexity_grade TEXT, -- 'A', 'B', 'C', 'D', 'F'
         refactoring_priority TEXT, -- 'critical', 'high', 'medium', 'low'
         analyzed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        file_hash TEXT -- For cache invalidation
+        file_hash TEXT, -- For cache invalidation
+        FOREIGN KEY (directory_path) REFERENCES analyses(directory_path) ON DELETE CASCADE
       );
 
       -- Report Templates for user-defined PDF styles
@@ -413,12 +472,16 @@ class DatabaseCore {
       CREATE INDEX IF NOT EXISTS idx_user_settings_key ON user_settings(setting_key);
     `;
 
-    this.db.exec(tables, (err) => {
-      if (err) {
-        console.error("❌ Failed to create tables:", err);
-      } else {
-        console.log("✅ Knowledge database tables ready");
-      }
+    return new Promise((resolve, reject) => {
+      this.db.exec(tables, (err) => {
+        if (err) {
+          console.error("❌ Failed to create tables:", err);
+          reject(err);
+        } else {
+          console.log("✅ Knowledge database tables ready");
+          resolve();
+        }
+      });
     });
   }
 
@@ -497,6 +560,10 @@ class DatabaseCore {
    * Get database statistics
    */
   getStats() {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT
@@ -540,6 +607,10 @@ class DatabaseCore {
    * Get user setting by key
    */
   getUserSetting(key) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = "SELECT setting_value FROM user_settings WHERE setting_key = ?";
       this.db.get(sql, [key], (err, row) => {
@@ -560,6 +631,10 @@ class DatabaseCore {
    * Set user setting
    */
   setUserSetting(key, value) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         INSERT INTO user_settings (setting_key, setting_value, updated_at)
@@ -580,6 +655,10 @@ class DatabaseCore {
    * Delete user setting
    */
   deleteUserSetting(key) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = "DELETE FROM user_settings WHERE setting_key = ?";
       this.db.run(sql, [key], (err) => {
@@ -593,6 +672,10 @@ class DatabaseCore {
    * Get all user settings
    */
   getAllUserSettings() {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = "SELECT setting_key, setting_value FROM user_settings";
       this.db.all(sql, [], (err, rows) => {
@@ -617,6 +700,10 @@ class DatabaseCore {
    * Clean up old data to reduce database size
    */
   cleanup(daysToKeep = 30) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);

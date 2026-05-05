@@ -70,10 +70,11 @@ import { defineAsyncComponent } from "vue";
 import ErrorBoundary from "@/components/shared/ErrorBoundary.vue";
 import SkeletonLoader from "@/components/shared/SkeletonLoader.vue";
 
-// Lazy load the 3D component
+// Lazy load the 3D component with error boundary
 const FileSystem3D = defineAsyncComponent({
   loader: () => import("@/components/3d/FileSystem3D.vue"),
   loadingComponent: SkeletonLoader,
+  errorComponent: ErrorBoundary,
   delay: 200,
   timeout: 30000,
 });
@@ -95,11 +96,13 @@ const setLayout = (layout: string) => {
 };
 
 const handleNodeSelected = (node: any) => {
-  console.log("Node selected:", node);
+  // Node selection handled by FileSystem3D component
+  // TODO: Implement selection handling if needed
 };
 
 const handleNodeOpened = (node: any) => {
-  console.log("Node opened:", node);
+  // Node open handled by FileSystem3D component
+  // TODO: Implement open handling if needed
 };
 </script>
 

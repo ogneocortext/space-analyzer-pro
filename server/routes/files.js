@@ -16,6 +16,42 @@ class FileRoutes {
     this.setupRoutes();
   }
 
+  /**
+   * Sanitize search query to prevent ReDoS attacks
+   * @param {string} query - Raw search query
+   * @returns {string|null} Sanitized query or null if invalid
+   */
+  sanitizeSearchQuery(query) {
+    if (!query || typeof query !== "string") {
+      return null;
+    }
+
+    // Limit length to prevent excessive processing
+    const MAX_LENGTH = 100;
+    let sanitized = query.slice(0, MAX_LENGTH);
+
+    // Remove regex special characters that could cause ReDoS
+    const dangerousChars = /[.*+?^${}()|[\]\\]/g;
+    sanitized = sanitized.replace(dangerousChars, "");
+
+    // Check for repeated characters that could cause catastrophic backtracking
+    const repeatedPattern = /(.)(\1{10,})/;
+    if (repeatedPattern.test(sanitized)) {
+      // Remove excessive repeated characters
+      sanitized = sanitized.replace(/(.)(\1{10,})/g, "$1$1$1");
+    }
+
+    // Trim whitespace
+    sanitized = sanitized.trim();
+
+    // Return null if empty after sanitization
+    if (sanitized.length === 0) {
+      return null;
+    }
+
+    return sanitized;
+  }
+
   setupRoutes() {
     // Delete file
     this.router.post("/files/delete", async (req, res) => {
@@ -116,13 +152,13 @@ class FileRoutes {
     // Open file explorer at location
     this.router.post("/files/open-explorer", async (req, res) => {
       try {
+        const homeDir = os.homedir();
         if (process.platform === "win32") {
-          const startPath = "C:\\Users\\" + (os.userInfo().username || "Public");
-          spawn("explorer", [startPath]);
+          spawn("explorer", [homeDir]);
         } else if (process.platform === "darwin") {
-          spawn("open", ["/Users"]);
+          spawn("open", [homeDir]);
         } else {
-          spawn("xdg-open", ["/home"]);
+          spawn("xdg-open", [homeDir]);
         }
 
         res.json({ success: true });
@@ -168,7 +204,12 @@ class FileRoutes {
         let results = files;
 
         if (query) {
-          const queryLower = query.toLowerCase();
+          // Sanitize query to prevent ReDoS attacks
+          const sanitizedQuery = this.sanitizeSearchQuery(query);
+          if (sanitizedQuery === null) {
+            return res.status(400).json({ error: "Invalid search query" });
+          }
+          const queryLower = sanitizedQuery.toLowerCase();
           results = results.filter(
             (f) =>
               f.name.toLowerCase().includes(queryLower) || f.path.toLowerCase().includes(queryLower)

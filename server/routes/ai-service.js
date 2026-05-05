@@ -5,9 +5,14 @@
  */
 
 const axios = require("axios");
+const config = require("../config");
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://127.0.0.1:5000";
-const REQUEST_TIMEOUT = 30000; // 30 seconds
+
+// Get timeouts from config with defaults
+const getRequestTimeout = () => config.get("services.aiService.timeout", 30000);
+const getBatchTimeout = () => config.get("services.aiService.batchTimeout", 60000);
+const getTrainingTimeout = () => config.get("services.aiService.trainingTimeout", 5000);
 
 class AIServiceRoutes {
   constructor(server) {
@@ -67,11 +72,9 @@ class AIServiceRoutes {
           });
         }
 
-        const response = await axios.post(
-          `${AI_SERVICE_URL}/predict/category`,
-          fileData,
-          { timeout: REQUEST_TIMEOUT }
-        );
+        const response = await axios.post(`${AI_SERVICE_URL}/predict/category`, fileData, {
+          timeout: REQUEST_TIMEOUT,
+        });
 
         res.json({
           success: true,
@@ -97,7 +100,7 @@ class AIServiceRoutes {
         const response = await axios.post(
           `${AI_SERVICE_URL}/predict/categories-batch`,
           files,
-          { timeout: REQUEST_TIMEOUT * 2 } // Longer timeout for batch
+          { timeout: getBatchTimeout() } // Longer timeout for batch operations
         );
 
         res.json({
@@ -121,11 +124,9 @@ class AIServiceRoutes {
           });
         }
 
-        const response = await axios.post(
-          `${AI_SERVICE_URL}/predict/cleanup`,
-          analysisData,
-          { timeout: REQUEST_TIMEOUT }
-        );
+        const response = await axios.post(`${AI_SERVICE_URL}/predict/cleanup`, analysisData, {
+          timeout: getRequestTimeout(),
+        });
 
         res.json({
           success: true,
@@ -151,7 +152,7 @@ class AIServiceRoutes {
         const response = await axios.post(
           `${AI_SERVICE_URL}/train/categorizer`,
           files,
-          { timeout: 5000 } // Short timeout - training is background
+          { timeout: getTrainingTimeout() } // Short timeout - training is background
         );
 
         res.json({
@@ -176,11 +177,9 @@ class AIServiceRoutes {
           });
         }
 
-        const response = await axios.post(
-          `${AI_SERVICE_URL}/train/cleanup-predictor`,
-          analyses,
-          { timeout: 5000 }
-        );
+        const response = await axios.post(`${AI_SERVICE_URL}/train/cleanup-predictor`, analyses, {
+          timeout: 5000,
+        });
 
         res.json({
           success: true,

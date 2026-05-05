@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import {
   AlertTriangle,
   RefreshCw,
@@ -22,7 +22,6 @@ import {
   Bug,
   AlertCircle,
   CheckCircle,
-  Info,
   ChevronLeft,
   MoreVertical,
   Copy,
@@ -31,11 +30,14 @@ import {
   Calendar,
   BarChart3,
   PieChart,
-  Settings,
   Bell,
   BellOff,
 } from "lucide-vue-next";
 import { Card, Button } from "../../design-system/components";
+import { useErrorLogs } from "../../composables/useErrorLogs";
+import { useDebugLogger } from "@/services/DebugLogger";
+
+const logger = useDebugLogger("ErrorLogView");
 
 interface ErrorEntry {
   id: string;
@@ -62,10 +64,17 @@ interface ErrorStats {
   byDay: Record<string, number>;
 }
 
-const errors = ref<ErrorEntry[]>([]);
-const stats = ref<ErrorStats | null>(null);
-const loading = ref(false);
-const error = ref("");
+const {
+  errors,
+  stats,
+  loading,
+  error,
+  fetchErrors,
+  fetchStats,
+  clearErrors,
+  deleteErrors,
+  isTauri,
+} = useErrorLogs();
 const selectedError = ref<ErrorEntry | null>(null);
 const showDetails = ref(false);
 const filterSource = ref<string>("all");
@@ -207,54 +216,30 @@ const errorSeverityDistribution = computed(() => {
 
 const hasSelectedErrors = computed(() => selectedErrors.value.size > 0);
 
-const fetchErrors = async () => {
-  loading.value = true;
-  error.value = "";
-
-  try {
-    const response = await fetch("/api/errors/recent?limit=100");
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`HTTP ${response.status}: ${text.slice(0, 100)}`);
-    }
-
-    const data = await response.json();
-
-    if (data.success) {
-      errors.value = data.errors;
-    } else {
-      throw new Error(data.error || "Failed to fetch errors");
-    }
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : "Failed to load errors";
-    console.error("Failed to fetch errors:", err);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const fetchStats = async () => {
-  try {
-    const response = await fetch("/api/errors/stats?days=7");
-
-    if (!response.ok) {
-      console.warn("Failed to fetch stats:", response.status);
-      return;
-    }
-
-    const data = await response.json();
-
-    if (data.success) {
-      stats.value = data.stats;
-    }
-  } catch (err) {
-    console.error("Failed to fetch stats:", err);
-  }
-};
+// fetchErrors and fetchStats now come from useErrorLogs composable
 
 const exportErrors = async () => {
   try {
+    // In Tauri mode, use native commands instead of HTTP API
+    if (isTauri()) {
+      console.warn("🖥️ Tauri mode detected - using native error export");
+      const errors = await invoke<Array<any>>("get_error_logs", { limit: 1000 });
+      // Create blob from errors data
+      const errorText = JSON.stringify(errors, null, 2);
+      const blob = new Blob([errorText], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+
+      // Download the file
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "error-logs.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      return;
+    }
+
     const response = await fetch("/api/errors/export?limit=1000");
     const blob = await response.blob();
 
@@ -269,25 +254,12 @@ const exportErrors = async () => {
   }
 };
 
-const clearErrors = async () => {
+const handleClearErrors = async () => {
   if (!confirm("Are you sure you want to clear all error logs?")) return;
 
   try {
-    const response = await fetch("/api/errors/clear", { method: "DELETE" });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (data.success) {
-      errors.value = [];
-      stats.value = null;
-      selectedErrors.value.clear();
-    } else {
-      throw new Error(data.error);
-    }
+    await clearErrors();
+    selectedErrors.value.clear();
   } catch (err) {
     alert("Failed to clear errors: " + (err instanceof Error ? err.message : "Unknown error"));
   }
@@ -327,30 +299,15 @@ const selectAllErrors = () => {
   }
 };
 
-const bulkDeleteErrors = async () => {
+const handleBulkDelete = async () => {
   if (selectedErrors.value.size === 0) return;
 
   if (!confirm(`Are you sure you want to delete ${selectedErrors.value.size} selected errors?`))
     return;
 
   try {
-    const response = await fetch("/api/errors/bulk-delete", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ errorIds: Array.from(selectedErrors.value) }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (data.success) {
-      errors.value = errors.value.filter((error) => !selectedErrors.value.has(error.id));
-      selectedErrors.value.clear();
-    } else {
-      throw new Error(data.error);
-    }
+    await deleteErrors(Array.from(selectedErrors.value));
+    selectedErrors.value.clear();
   } catch (err) {
     alert("Failed to delete errors: " + (err instanceof Error ? err.message : "Unknown error"));
   }
@@ -368,12 +325,18 @@ ${error.stack ? `Stack Trace:\n${error.stack}` : ""}`;
 
   navigator.clipboard.writeText(errorText).then(() => {
     // Show success notification
-    console.log("Error details copied to clipboard");
+    logger.info("Error details copied to clipboard");
   });
 };
 
 const fetchErrorTrends = async () => {
   try {
+    // In Tauri mode, skip trends fetch
+    if (isTauri()) {
+      logger.info("Tauri mode detected - skipping error trends fetch");
+      return;
+    }
+
     const response = await fetch("/api/errors/trends?days=7");
     if (response.ok) {
       const data = await response.json();
@@ -382,12 +345,18 @@ const fetchErrorTrends = async () => {
       }
     }
   } catch (err) {
-    console.error("Failed to fetch error trends:", err);
+    logger.error("Failed to fetch error trends", { error: err });
   }
 };
 
 const fetchSystemHealth = async () => {
   try {
+    // In Tauri mode, skip system health fetch
+    if (isTauri()) {
+      logger.info("Tauri mode detected - skipping system health fetch");
+      return;
+    }
+
     const response = await fetch("/api/system/health");
     if (response.ok) {
       const data = await response.json();
@@ -396,7 +365,7 @@ const fetchSystemHealth = async () => {
       }
     }
   } catch (err) {
-    console.error("Failed to fetch system health:", err);
+    logger.error("Failed to fetch system health", { error: err });
   }
 };
 
@@ -428,7 +397,7 @@ const exportSelectedErrors = async () => {
 
 const toggleCategoryFilter = (category: string) => {
   // Placeholder for category filter functionality
-  console.log(`Toggle category filter: ${category}`);
+  logger.debug("Toggle category filter", { category });
   // TODO: Implement category filtering logic
 };
 
@@ -499,8 +468,11 @@ const getStatusClass = (statusCode: number) => {
 onMounted(() => {
   fetchErrors();
   fetchStats();
-  fetchErrorTrends();
-  fetchSystemHealth();
+  // Note: error trends and system health APIs not available in Tauri mode
+  if (!isTauri) {
+    fetchErrorTrends();
+    fetchSystemHealth();
+  }
 });
 
 onUnmounted(() => {
@@ -610,7 +582,7 @@ onUnmounted(() => {
             Export
           </Button>
 
-          <Button @click="clearErrors" variant="danger" size="sm">
+          <Button @click="handleClearErrors" variant="danger" size="sm">
             <Trash2 class="w-4 h-4" />
             Clear
           </Button>
@@ -796,7 +768,7 @@ onUnmounted(() => {
             <Download class="w-4 h-4" />
             Export Selected
           </Button>
-          <Button @click="bulkDeleteErrors" variant="danger" size="sm">
+          <Button @click="handleBulkDelete" variant="danger" size="sm">
             <Trash2 class="w-4 h-4" />
             Delete Selected
           </Button>

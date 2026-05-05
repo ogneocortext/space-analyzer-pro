@@ -17,6 +17,10 @@ class AnalysisDatabase {
    * Store analysis results for a directory with separate file storage
    */
   storeAnalysis(directoryPath, analysisData) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     const normalizedPath = this.core.normalizePath(directoryPath);
     const totalFiles = analysisData.totalFiles ?? analysisData.total_files ?? 0;
     const totalSize = analysisData.totalSize ?? analysisData.total_size ?? 0;
@@ -72,6 +76,10 @@ class AnalysisDatabase {
    * Store individual files for an analysis with batching
    */
   storeAnalysisFiles(analysisId, files) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const stmt = this.db.prepare(`
         INSERT OR REPLACE INTO analysis_files
@@ -116,6 +124,10 @@ class AnalysisDatabase {
    * Get previous analysis for a directory
    */
   getAnalysis(directoryPath) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     const normalizedPath = this.core.normalizePath(directoryPath);
     return new Promise((resolve, reject) => {
       const sql = "SELECT * FROM analyses WHERE directory_path = ?";
@@ -139,6 +151,10 @@ class AnalysisDatabase {
    * Get paginated files for an analysis with optional filtering
    */
   getAnalysisFiles(analysisId, options = {}) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const {
         page = 1,
@@ -193,10 +209,18 @@ class AnalysisDatabase {
 
         const total = countRow.count;
 
-        // Apply sorting
+        // Apply sorting with strict validation to prevent SQL injection
         const validSortColumns = ["file_name", "file_size", "file_category", "file_extension"];
+        const validDirections = ["ASC", "DESC"];
+
+        // Validate sort column against whitelist
         const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "file_size";
-        const orderDirection = sortOrder.toLowerCase() === "asc" ? "ASC" : "DESC";
+
+        // Validate sort direction strictly
+        const normalizedDirection = sortOrder?.toUpperCase();
+        const orderDirection = validDirections.includes(normalizedDirection)
+          ? normalizedDirection
+          : "DESC";
 
         sql += ` ORDER BY ${orderColumn} ${orderDirection}`;
 
@@ -229,6 +253,10 @@ class AnalysisDatabase {
    * Get file statistics for an analysis
    */
   getAnalysisStats(analysisId) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const statsSql = `
         SELECT
@@ -422,6 +450,10 @@ class AnalysisDatabase {
    * Get current analysis for a directory (most recent)
    */
   getCurrentAnalysis(directoryPath) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     const normalizedPath = this.core.normalizePath(directoryPath);
     return new Promise((resolve, reject) => {
       const sql = `
@@ -450,6 +482,10 @@ class AnalysisDatabase {
    * Store file metadata for incremental analysis
    */
   storeFileMetadata(directoryPath, files) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const stmt = this.db.prepare(`
         INSERT OR REPLACE INTO file_metadata
@@ -487,6 +523,10 @@ class AnalysisDatabase {
    * Get changed files since last analysis
    */
   getChangedFiles(directoryPath, currentFiles) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = "SELECT * FROM file_metadata WHERE directory_path = ?";
 
@@ -532,6 +572,10 @@ class AnalysisDatabase {
    * Get analysis history (all completed analyses) with pagination
    */
   getAnalysisHistory(limit = 50, offset = 0) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT

@@ -31,7 +31,27 @@ class ErrorLogger {
   }
 
   startFlushInterval() {
-    setInterval(() => this.flushBuffer(), this.flushInterval);
+    this.flushIntervalId = setInterval(() => this.flushBuffer(), this.flushInterval);
+  }
+
+  /**
+   * Stop the flush interval (for graceful shutdown)
+   */
+  stopFlushInterval() {
+    if (this.flushIntervalId) {
+      clearInterval(this.flushIntervalId);
+      this.flushIntervalId = null;
+      console.log("✅ Error logger flush interval cleared");
+    }
+  }
+
+  /**
+   * Cleanup for graceful shutdown
+   */
+  async cleanup() {
+    this.stopFlushInterval();
+    // Flush any remaining errors
+    await this.flushBuffer();
   }
 
   /**

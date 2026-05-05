@@ -22,13 +22,18 @@ import {
   Filter,
   Trash2,
   ExternalLink,
+  Eye,
+  Maximize2,
+  Grid3x3,
 } from "lucide-vue-next";
 
 const store = useAnalysisStore();
 const searchQuery = ref("");
 const selectedCategory = ref<string>("all");
 const sortBy = ref<"name" | "size" | "category">("name");
-const viewMode = ref<"list" | "grid">("list");
+const viewMode = ref<"list" | "grid" | "preview" | "canvas">("list");
+const selectedFile = ref<any>(null);
+const showPreviewModal = ref(false);
 const errorMessage = ref("");
 const showError = ref(false);
 const isLoading = computed(() => store.isLoading || false);
@@ -216,6 +221,53 @@ async function revealFile(filePath: string) {
   }
 }
 
+function openPreview(file: any) {
+  selectedFile.value = file;
+  showPreviewModal.value = true;
+}
+
+function closePreview() {
+  selectedFile.value = null;
+  showPreviewModal.value = false;
+}
+
+function getFilePreviewType(file: any): string {
+  const ext = file.extension?.toLowerCase() || "";
+  const imageExts = ["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico"];
+  const videoExts = ["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"];
+  const audioExts = ["mp3", "wav", "flac", "aac", "ogg", "m4a"];
+  const textExts = ["txt", "md", "json", "xml", "csv", "log", "ini", "config"];
+  const codeExts = [
+    "js",
+    "ts",
+    "vue",
+    "py",
+    "java",
+    "cpp",
+    "c",
+    "h",
+    "cs",
+    "php",
+    "rb",
+    "go",
+    "rs",
+  ];
+
+  if (imageExts.includes(ext)) return "image";
+  if (videoExts.includes(ext)) return "video";
+  if (audioExts.includes(ext)) return "audio";
+  if (textExts.includes(ext) || codeExts.includes(ext)) return "text";
+  return "unknown";
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
 async function deleteFile(filePath: string) {
   if (!confirm(`Are you sure you want to permanently delete this file?\n\n${filePath}`)) {
     return;
@@ -269,7 +321,7 @@ async function deleteFile(filePath: string) {
       v-if="showError"
       class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3"
     >
-      <AlertCircle class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+      <AlertCircle class="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
       <div class="flex-1">
         <p class="text-red-300 text-sm">{{ errorMessage }}</p>
       </div>
@@ -319,7 +371,7 @@ async function deleteFile(filePath: string) {
 
     <!-- Filters -->
     <Card v-if="hasData" padding="sm">
-      <div class="flex flex-wrap gap-4 items-center">
+      <div class="flex flex-wrap gap-4 items-center filter-container">
         <!-- Search -->
         <div class="flex-1 min-w-[200px] relative">
           <Search class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -368,7 +420,7 @@ async function deleteFile(filePath: string) {
         </div>
 
         <!-- View Toggle -->
-        <div class="flex gap-1 bg-slate-800 rounded-lg p-1">
+        <div class="flex gap-1 bg-slate-800 rounded-lg p-1 view-toggle">
           <button
             :class="[
               'px-3 py-1.5 rounded text-sm flex items-center gap-1',
@@ -393,6 +445,30 @@ async function deleteFile(filePath: string) {
             <LayoutGrid class="w-4 h-4" />
             Grid
           </button>
+          <button
+            :class="[
+              'px-3 py-1.5 rounded text-sm flex items-center gap-1',
+              viewMode === 'preview'
+                ? 'bg-slate-700 text-slate-100'
+                : 'text-slate-400 hover:text-slate-200',
+            ]"
+            @click="viewMode = 'preview'"
+          >
+            <Eye class="w-4 h-4" />
+            Preview
+          </button>
+          <button
+            :class="[
+              'px-3 py-1.5 rounded text-sm flex items-center gap-1',
+              viewMode === 'canvas'
+                ? 'bg-slate-700 text-slate-100'
+                : 'text-slate-400 hover:text-slate-200',
+            ]"
+            @click="viewMode = 'canvas'"
+          >
+            <Grid3x3 class="w-4 h-4" />
+            Canvas
+          </button>
         </div>
       </div>
     </Card>
@@ -405,7 +481,7 @@ async function deleteFile(filePath: string) {
     </p>
 
     <!-- List View -->
-    <div v-if="viewMode === 'list'" class="space-y-2">
+    <div v-if="viewMode === 'list'" class="space-y-2 file-list files-container">
       <div
         v-for="file in filteredFiles.slice(0, 100)"
         :key="file.path"
@@ -504,7 +580,10 @@ async function deleteFile(filePath: string) {
     </div>
 
     <!-- Grid View -->
-    <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div
+      v-else-if="viewMode === 'grid'"
+      class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+    >
       <div
         v-for="file in filteredFiles.slice(0, 100)"
         :key="file.path"
@@ -578,6 +657,87 @@ async function deleteFile(filePath: string) {
                 class="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"
               ></div>
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview View -->
+    <div v-else-if="viewMode === 'preview'" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div
+          v-for="file in filteredFiles.slice(0, 50)"
+          :key="file.path"
+          class="p-4 bg-slate-900 border border-slate-800 rounded-lg hover:border-slate-700 cursor-pointer transition-all hover:shadow-lg"
+          @click="openPreview(file)"
+        >
+          <div class="flex items-start gap-4">
+            <div
+              class="w-16 h-16 rounded-lg bg-slate-800 flex items-center justify-center shrink-0"
+            >
+              <component :is="getCategoryIcon(file.category)" class="w-8 h-8 text-slate-400" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-slate-200 truncate mb-1">
+                {{ file.name }}
+              </p>
+              <p class="text-sm text-slate-400 mb-2">
+                {{ formatFileSize(file.size) }}
+              </p>
+              <div class="flex gap-1 flex-wrap">
+                <span class="px-1.5 py-0.5 bg-slate-700 rounded text-xs text-slate-300">
+                  {{ file.category }}
+                </span>
+                <span
+                  v-if="file.is_hard_link"
+                  class="px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded text-xs"
+                  >HL</span
+                >
+                <span
+                  v-if="file.has_ads"
+                  class="px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs"
+                  >ADS</span
+                >
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 flex gap-2">
+            <button
+              class="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs rounded transition-colors"
+              @click.stop="getAISummary(file)"
+            >
+              <Zap class="w-3 h-3 inline mr-1" />
+              AI
+            </button>
+            <button
+              class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs rounded transition-colors"
+              @click.stop="revealFile(file.path)"
+            >
+              <ExternalLink class="w-3 h-3 inline mr-1" />
+              Reveal
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Canvas View -->
+    <div v-else-if="viewMode === 'canvas'" class="space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-slate-100">Canvas Visualization</h3>
+          <div class="text-sm text-slate-400">
+            {{ filteredFiles.length }} files • Click to preview
+          </div>
+        </div>
+        <div class="relative h-96 bg-slate-950 rounded-lg overflow-hidden">
+          <canvas ref="canvasRef" class="w-full h-full"></canvas>
+          <div class="absolute inset-0 flex items-center justify-center text-slate-500">
+            <div class="text-center">
+              <Grid3x3 class="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>Interactive canvas visualization</p>
+              <p class="text-sm opacity-75">Coming soon - D3.js integration</p>
+            </div>
           </div>
         </div>
       </div>
@@ -688,6 +848,134 @@ async function deleteFile(filePath: string) {
               {{ summaryData.responseTime }}ms
             </span>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- File Preview Modal -->
+    <div
+      v-if="showPreviewModal && selectedFile"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      @click="closePreview"
+    >
+      <div
+        class="bg-slate-900 border border-slate-700 rounded-xl max-w-4xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+        @click.stop
+      >
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-slate-100 flex items-center gap-2">
+            <component
+              :is="getCategoryIcon(selectedFile.category)"
+              class="w-5 h-5 text-slate-400"
+            />
+            File Preview
+          </h3>
+          <button
+            class="text-slate-400 hover:text-slate-200 transition-colors"
+            @click="closePreview"
+          >
+            <X class="w-5 h-5" />
+          </button>
+        </div>
+
+        <!-- File Info -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div>
+            <h4 class="text-sm font-medium text-slate-400 mb-2">File Details</h4>
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <span class="text-slate-500">Name:</span>
+                <span class="text-slate-200 truncate ml-2">{{ selectedFile.name }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Size:</span>
+                <span class="text-slate-200">{{ formatFileSize(selectedFile.size) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Category:</span>
+                <span class="text-slate-200">{{ selectedFile.category }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Type:</span>
+                <span class="text-slate-200">{{ getFilePreviewType(selectedFile) }}</span>
+              </div>
+              <div v-if="selectedFile.modified_time" class="flex justify-between">
+                <span class="text-slate-500">Modified:</span>
+                <span class="text-slate-200">{{
+                  new Date(selectedFile.modified_time * 1000).toLocaleDateString()
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-sm font-medium text-slate-400 mb-2">Path</h4>
+            <div class="bg-slate-800 rounded-lg p-3">
+              <p class="text-slate-300 text-sm font-mono break-all">{{ selectedFile.path }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview Area -->
+        <div class="mb-6">
+          <h4 class="text-sm font-medium text-slate-400 mb-2">Preview</h4>
+          <div class="bg-slate-800 rounded-lg p-6 min-h-[200px] flex items-center justify-center">
+            <!-- Image Preview -->
+            <div v-if="getFilePreviewType(selectedFile) === 'image'" class="text-center">
+              <Image class="w-16 h-16 text-slate-500 mx-auto mb-2" />
+              <p class="text-slate-400">Image preview coming soon</p>
+            </div>
+
+            <!-- Video Preview -->
+            <div v-else-if="getFilePreviewType(selectedFile) === 'video'" class="text-center">
+              <Video class="w-16 h-16 text-slate-500 mx-auto mb-2" />
+              <p class="text-slate-400">Video preview coming soon</p>
+            </div>
+
+            <!-- Audio Preview -->
+            <div v-else-if="getFilePreviewType(selectedFile) === 'audio'" class="text-center">
+              <Music class="w-16 h-16 text-slate-500 mx-auto mb-2" />
+              <p class="text-slate-400">Audio preview coming soon</p>
+            </div>
+
+            <!-- Text/Code Preview -->
+            <div v-else-if="getFilePreviewType(selectedFile) === 'text'" class="text-center">
+              <FileText class="w-16 h-16 text-slate-500 mx-auto mb-2" />
+              <p class="text-slate-400">Text preview coming soon</p>
+            </div>
+
+            <!-- Unknown File Type -->
+            <div v-else class="text-center">
+              <FileQuestion class="w-16 h-16 text-slate-500 mx-auto mb-2" />
+              <p class="text-slate-400">Preview not available for this file type</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3">
+          <button
+            class="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-colors"
+            @click="getAISummary(selectedFile)"
+          >
+            <Zap class="w-4 h-4 inline mr-2" />
+            AI Analysis
+          </button>
+          <button
+            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            @click="revealFile(selectedFile.path)"
+          >
+            <ExternalLink class="w-4 h-4 inline mr-2" />
+            Reveal in Explorer
+          </button>
+          <button
+            class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors"
+            @click="deleteFile(selectedFile.path)"
+          >
+            <Trash2 class="w-4 h-4 inline mr-2" />
+            Delete
+          </button>
         </div>
       </div>
     </div>

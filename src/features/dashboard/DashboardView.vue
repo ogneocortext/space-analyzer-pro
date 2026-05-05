@@ -263,6 +263,93 @@ function getCategorizationReason(file: (typeof files.value)[0]): string {
         </Card>
       </div>
 
+      <!-- Recent Activity Section -->
+      <Card title="Recent Activity" v-if="hasData">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-slate-200">Latest Scans & Actions</h3>
+            <Button variant="secondary" size="sm" @click="refreshData">
+              <RefreshCw class="w-4 h-4 mr-1" />
+              Refresh
+            </Button>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg">
+              <div class="p-2 bg-blue-500/20 rounded-lg">
+                <Database class="w-4 h-4 text-blue-400" />
+              </div>
+              <div class="flex-1">
+                <div class="text-sm font-medium text-slate-200">Last Scan Completed</div>
+                <div class="text-xs text-slate-400">
+                  {{
+                    store.analysisResult?.summary?.scan_time
+                      ? new Date(store.analysisResult.summary.scan_time).toLocaleString()
+                      : "Unknown"
+                  }}
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-medium text-blue-400">
+                  {{ totalFiles.toLocaleString() }}
+                </div>
+                <div class="text-xs text-slate-400">files scanned</div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg">
+              <div class="p-2 bg-emerald-500/20 rounded-lg">
+                <HardDrive class="w-4 h-4 text-emerald-400" />
+              </div>
+              <div class="flex-1">
+                <div class="text-sm font-medium text-slate-200">Storage Analyzed</div>
+                <div class="text-xs text-slate-400">Total storage space processed</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-medium text-emerald-400">{{ formatSize(totalSize) }}</div>
+                <div class="text-xs text-slate-400">total size</div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg">
+              <div class="p-2 bg-purple-500/20 rounded-lg">
+                <Layers class="w-4 h-4 text-purple-400" />
+              </div>
+              <div class="flex-1">
+                <div class="text-sm font-medium text-slate-200">Categories Identified</div>
+                <div class="text-xs text-slate-400">File categories processed</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-medium text-purple-400">
+                  {{ Object.keys(fileCategories).length }}
+                </div>
+                <div class="text-xs text-slate-400">categories</div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 bg-slate-800/50 rounded-lg">
+              <div class="p-2 bg-amber-500/20 rounded-lg">
+                <Zap class="w-4 h-4 text-amber-400" />
+              </div>
+              <div class="flex-1">
+                <div class="text-sm font-medium text-slate-200">Performance Metrics</div>
+                <div class="text-xs text-slate-400">Scan performance data</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-medium text-amber-400">
+                  {{
+                    store.analysisResult?.performance?.scan_duration_ms
+                      ? `${store.analysisResult.performance.scan_duration_ms}ms`
+                      : "N/A"
+                  }}
+                </div>
+                <div class="text-xs text-slate-400">scan time</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <!-- Performance Monitoring Section -->
       <div v-if="store.analysisResult?.performance" class="space-y-4">
         <PerformanceMonitor :performance="store.analysisResult.performance" :is-loading="false" />

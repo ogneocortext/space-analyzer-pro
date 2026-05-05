@@ -75,7 +75,10 @@ class AIRoutes {
           .digest("hex");
 
         // Check cache
-        const cached = await this.server.knowledgeDB.getFileSummary(filePath, fileHash);
+        let cached = null;
+        if (this.server.knowledgeDB) {
+          cached = await this.server.knowledgeDB.getFileSummary(filePath, fileHash);
+        }
         if (cached) {
           return res.json({
             success: true,
@@ -105,25 +108,26 @@ class AIRoutes {
         const prompt = this.buildSummaryPrompt(extracted.text, extracted.type);
 
         // Query Ollama using EnhancedOllamaService
-        const result = await this.server.ollamaService.generate(
-          prompt,
-          model,
-          { temperature: 0.3, num_predict: 500 }
-        );
+        const result = await this.server.ollamaService.generate(prompt, model, {
+          temperature: 0.3,
+          num_predict: 500,
+        });
 
         const summary = result.response || "";
 
         // Cache the summary
-        await this.server.knowledgeDB.storeFileSummary(
-          filePath,
-          fileHash,
-          stats.size,
-          extracted.type,
-          summary,
-          extracted.text.substring(0, 500),
-          model,
-          result.eval_count || 0
-        );
+        if (this.server.knowledgeDB) {
+          await this.server.knowledgeDB.storeFileSummary(
+            filePath,
+            fileHash,
+            stats.size,
+            extracted.type,
+            summary,
+            extracted.text.substring(0, 500),
+            model,
+            result.eval_count || 0
+          );
+        }
 
         res.json({
           success: true,
@@ -208,24 +212,31 @@ class AIRoutes {
         }
 
         // Analyze files with Ollama for cleanup recommendations
-        const recommendations = await this.generateCleanupRecommendations(analysisData, targetSavings);
+        const recommendations = await this.generateCleanupRecommendations(
+          analysisData,
+          targetSavings
+        );
 
         // Store recommendations in database
-        for (const rec of recommendations) {
-          await this.server.knowledgeDB.storeCleanupRecommendation(
-            directory || analysisData.directory,
-            rec.filePath,
-            rec.fileSize,
-            rec.type,
-            rec.confidence,
-            rec.reasoning,
-            rec.potentialSavings,
-            rec.safeToDelete
-          );
+        if (this.server.knowledgeDB) {
+          for (const rec of recommendations) {
+            await this.server.knowledgeDB.storeCleanupRecommendation(
+              directory || analysisData.directory,
+              rec.filePath,
+              rec.fileSize,
+              rec.type,
+              rec.confidence,
+              rec.reasoning,
+              rec.potentialSavings,
+              rec.safeToDelete
+            );
+          }
         }
 
         // Get potential savings summary
-        const savings = await this.server.knowledgeDB.getPotentialSavings(directory || analysisData.directory);
+        const savings = this.server.knowledgeDB
+          ? await this.server.knowledgeDB.getPotentialSavings(directory || analysisData.directory)
+          : { totalPotentialSavings: 0, fileCount: 0 };
 
         res.json({
           success: true,
@@ -253,13 +264,25 @@ class AIRoutes {
           return res.status(400).json({ error: "Directory is required" });
         }
 
-        const recommendations = await this.server.knowledgeDB.getCleanupRecommendations(
-          directory,
-          parseInt(limit),
-          type || null
-        );
+        // Validate directory path
+        if (!this.server.isValidPath(directory)) {
+          return res.status(400).json({ error: "Invalid directory path" });
+        }
 
-        const savings = await this.server.knowledgeDB.getPotentialSavings(directory);
+        const parsedLimit = parseInt(limit);
+        const safeLimit = Number.isNaN(parsedLimit) ? 50 : Math.max(1, Math.min(1000, parsedLimit));
+
+        const recommendations = this.server.knowledgeDB
+          ? await this.server.knowledgeDB.getCleanupRecommendations(
+              directory,
+              safeLimit,
+              type || null
+            )
+          : [];
+
+        const savings = this.server.knowledgeDB
+          ? await this.server.knowledgeDB.getPotentialSavings(directory)
+          : { totalPotentialSavings: 0, fileCount: 0 };
 
         res.json({
           success: true,
@@ -284,10 +307,14 @@ class AIRoutes {
         }
 
         if (!["approved", "rejected", "completed"].includes(action)) {
-          return res.status(400).json({ error: "Invalid action. Use: approved, rejected, completed" });
+          return res
+            .status(400)
+            .json({ error: "Invalid action. Use: approved, rejected, completed" });
         }
 
-        const changes = await this.server.knowledgeDB.updateCleanupAction(filePath, action);
+        const changes = this.server.knowledgeDB
+          ? await this.server.knowledgeDB.updateCleanupAction(filePath, action)
+          : 0;
 
         res.json({
           success: true,
@@ -308,8 +335,16 @@ class AIRoutes {
         const { question, directory, analysisId } = req.body;
 
         // Check cache
-        const contextHash = this.server.knowledgeDB.generateHash(analysisId || directory || "general");
-        const cached = await this.server.knowledgeDB.findSimilarResponse(question, contextHash);
+        let cached = null;
+        let contextHash = crypto
+          .createHash("md5")
+          .update(analysisId || directory || "general")
+          .digest("hex");
+
+        if (this.server.knowledgeDB) {
+          contextHash = this.server.knowledgeDB.generateHash(analysisId || directory || "general");
+          cached = await this.server.knowledgeDB.findSimilarResponse(question, contextHash);
+        }
 
         if (cached) {
           return res.json({
@@ -330,7 +365,9 @@ class AIRoutes {
         const response = await this.queryOllama(prompt);
 
         // Cache response
-        await this.server.knowledgeDB.storeResponse(question, response, contextHash, "qa");
+        if (this.server.knowledgeDB) {
+          await this.server.knowledgeDB.storeResponse(question, response, contextHash, "qa");
+        }
 
         res.json({
           success: true,
@@ -423,7 +460,7 @@ Summary:`,
 Available file properties: name, path, size, extension, category, modified date
 
 Examples:
-"Find videos from 2023 larger than 500MB" 
+"Find videos from 2023 larger than 500MB"
 → {"extensions": ["mp4", "avi", "mov"], "dateFrom": "2023-01-01", "dateTo": "2023-12-31", "minSize": 524288000}
 
 "Show old documents not opened in 2 years"
@@ -447,11 +484,10 @@ Respond ONLY with JSON object containing these optional fields:
 JSON response:`;
 
     try {
-      const result = await this.server.ollamaService.generate(
-        prompt,
-        "phi4-mini:latest",
-        { temperature: 0.1, num_predict: 200 }
-      );
+      const result = await this.server.ollamaService.generate(prompt, "phi4-mini:latest", {
+        temperature: 0.1,
+        num_predict: 200,
+      });
 
       const text = result.response || "";
 
@@ -488,7 +524,10 @@ JSON response:`;
         // Name contains
         if (query.nameContains) {
           const search = query.nameContains.toLowerCase();
-          if (!file.name?.toLowerCase().includes(search) && !file.path?.toLowerCase().includes(search))
+          if (
+            !file.name?.toLowerCase().includes(search) &&
+            !file.path?.toLowerCase().includes(search)
+          )
             return false;
         }
 
@@ -526,11 +565,10 @@ Respond with JSON:
   "potentialSavings": ${file.size}
 }`;
 
-        const result = await this.server.ollamaService.generate(
-          prompt,
-          "phi4-mini:latest",
-          { temperature: 0.1, num_predict: 200 }
-        );
+        const result = await this.server.ollamaService.generate(prompt, "phi4-mini:latest", {
+          temperature: 0.1,
+          num_predict: 200,
+        });
 
         const text = result.response || "";
 

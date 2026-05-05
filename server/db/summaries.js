@@ -16,7 +16,20 @@ class SummariesDatabase {
   /**
    * Store AI-generated file summary
    */
-  storeFileSummary(filePath, fileHash, fileSize, fileType, summaryText, extractedPreview, modelUsed, tokensUsed) {
+  storeFileSummary(
+    filePath,
+    fileHash,
+    fileSize,
+    fileType,
+    summaryText,
+    extractedPreview,
+    modelUsed,
+    tokensUsed
+  ) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         INSERT OR REPLACE INTO file_summaries
@@ -26,7 +39,16 @@ class SummariesDatabase {
 
       this.db.run(
         sql,
-        [filePath, fileHash, fileSize, fileType, summaryText, extractedPreview, modelUsed, tokensUsed],
+        [
+          filePath,
+          fileHash,
+          fileSize,
+          fileType,
+          summaryText,
+          extractedPreview,
+          modelUsed,
+          tokensUsed,
+        ],
         function (err) {
           if (err) {
             console.error("❌ Error storing file summary:", err);
@@ -44,6 +66,10 @@ class SummariesDatabase {
    * Get cached file summary
    */
   getFileSummary(filePath, fileHash = null) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       let sql = `SELECT * FROM file_summaries WHERE file_path = ?`;
       const params = [filePath];
@@ -80,6 +106,10 @@ class SummariesDatabase {
    * Get popular file summaries (for analytics)
    */
   getPopularSummaries(limit = 20) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT file_path, file_type, summary_text, hit_count, accessed_at
@@ -99,6 +129,10 @@ class SummariesDatabase {
    * Clean up old summaries
    */
   cleanupOldSummaries(daysToKeep = 30) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);

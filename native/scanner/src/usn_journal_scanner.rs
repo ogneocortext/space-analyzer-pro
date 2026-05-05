@@ -18,6 +18,7 @@ use winapi::um::winioctl::{FSCTL_QUERY_USN_JOURNAL, FSCTL_READ_USN_JOURNAL};
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::shared::minwindef::{DWORD, LPVOID};
 use serde::{Deserialize, Serialize};
+use crate::windows_errors::WindowsError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
@@ -114,8 +115,10 @@ impl UsnJournalScanner {
         };
 
         if handle == INVALID_HANDLE_VALUE {
-            let error = unsafe { GetLastError() };
-            return Err(format!("Failed to open volume {}: Error code {}", volume_path, error));
+            let win_err = WindowsError::new(unsafe { GetLastError() }, "Open volume for USN journal")
+                .with_path(&volume_path);
+            eprintln!("USN Journal: {}", win_err.format_error());
+            return Err(format!("{} (Suggestion: {})", win_err.format_error(), win_err.suggestion()));
         }
 
         self.volume_handle = Some(handle);
@@ -160,8 +163,10 @@ impl UsnJournalScanner {
         };
 
         if !success {
-            let error = unsafe { GetLastError() };
-            return Err(format!("Failed to query USN journal: Error code {}", error));
+            let win_err = WindowsError::new(unsafe { GetLastError() }, "Query USN journal")
+                .with_path(&volume_path);
+            eprintln!("USN Journal: {}", win_err.format_error());
+            return Err(format!("{} (Suggestion: {})", win_err.format_error(), win_err.suggestion()));
         }
 
         // Parse USN journal data
@@ -242,8 +247,9 @@ impl UsnJournalScanner {
         };
 
         if !success {
-            let error = unsafe { GetLastError() };
-            return Err(format!("Failed to read USN journal: Error code {}", error));
+            let win_err = WindowsError::new(unsafe { GetLastError() }, "Read USN journal");
+            eprintln!("USN Journal: {}", win_err.format_error());
+            return Err(format!("{} (Suggestion: {})", win_err.format_error(), win_err.suggestion()));
         }
 
         // Parse USN records

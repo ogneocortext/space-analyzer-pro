@@ -17,8 +17,10 @@ class OrchestrateRoutes {
           return res.status(400).json({ success: false, error: "directoryPath is required" });
         }
 
-        const analysisId = `orchestrator-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+        const suffix = Math.random().toString(36).substr(2, 4);
+        const analysisId = `orchestrator-${timestamp}-${suffix}`;
+
         this.server.activeAnalyses.set(analysisId, {
           analysisId,
           files: 0,
@@ -36,23 +38,30 @@ class OrchestrateRoutes {
 
         // Start analysis in background
         if (this.server.orchestrator) {
-          this.server.orchestrator.analyzeDirectory(directoryPath, {
-            ai: options.useOllama || false,
-            priority: options.priority || 2, // NORMAL
-            parallel: options.parallel !== false,
-          }).then(result => {
-             const finalProgress = {
-               analysisId,
-               percentage: 100,
-               status: "complete",
-               completed: true,
-               ...result
-             };
-             this.server.activeAnalyses.set(analysisId, finalProgress);
-             this.server.eventEmitter.emit("progress", finalProgress);
-          }).catch(err => {
-             this.server.eventEmitter.emit("progress", { analysisId, status: "failed", error: err.message });
-          });
+          this.server.orchestrator
+            .analyzeDirectory(directoryPath, {
+              ai: options.useOllama || false,
+              priority: options.priority || 2, // NORMAL
+              parallel: options.parallel !== false,
+            })
+            .then((result) => {
+              const finalProgress = {
+                analysisId,
+                percentage: 100,
+                status: "complete",
+                completed: true,
+                ...result,
+              };
+              this.server.activeAnalyses.set(analysisId, finalProgress);
+              this.server.eventEmitter.emit("progress", finalProgress);
+            })
+            .catch((err) => {
+              this.server.eventEmitter.emit("progress", {
+                analysisId,
+                status: "failed",
+                error: err.message,
+              });
+            });
         }
 
         res.json({ success: true, analysisId, message: "Analysis started" });
@@ -63,7 +72,8 @@ class OrchestrateRoutes {
 
     // Orchestrator health/status
     this.router.get("/orchestrate/status", (req, res) => {
-      if (!this.server.orchestrator) return res.status(503).json({ error: "Orchestrator not initialized" });
+      if (!this.server.orchestrator)
+        return res.status(503).json({ error: "Orchestrator not initialized" });
       res.json({
         success: true,
         orchestrator: this.server.orchestrator.getHealth(),
@@ -73,8 +83,9 @@ class OrchestrateRoutes {
 
     // Agent health monitoring
     this.router.get("/orchestrate/agents/health", (req, res) => {
-      if (!this.server.orchestrator) return res.status(503).json({ error: "Orchestrator not initialized" });
-      
+      if (!this.server.orchestrator)
+        return res.status(503).json({ error: "Orchestrator not initialized" });
+
       const agentHealth = Array.from(this.server.orchestrator.agents.values()).map((agent) => ({
         id: agent.id,
         name: agent.name,
@@ -97,11 +108,11 @@ class OrchestrateRoutes {
       if (!this.server.orchestrator || !this.server.orchestrator.taskQueue) {
         return res.status(503).json({ error: "Task queue not available" });
       }
-      
+
       const { status = "all", limit = 50 } = req.query;
       const allTasks = this.server.orchestrator.taskQueue.tasks || [];
-      
-      let filteredTasks = status === "all" ? allTasks : allTasks.filter(t => t.status === status);
+
+      let filteredTasks = status === "all" ? allTasks : allTasks.filter((t) => t.status === status);
       const limitedTasks = filteredTasks.slice(0, parseInt(limit));
 
       res.json({
@@ -109,9 +120,9 @@ class OrchestrateRoutes {
         tasks: limitedTasks,
         stats: {
           total: allTasks.length,
-          pending: allTasks.filter(t => t.status === "pending").length,
-          active: allTasks.filter(t => t.status === "active").length,
-        }
+          pending: allTasks.filter((t) => t.status === "pending").length,
+          active: allTasks.filter((t) => t.status === "active").length,
+        },
       });
     });
   }

@@ -37,8 +37,31 @@ function findProjectRoot(startDir) {
  */
 function isValidPath(p) {
   if (!p) return false;
-  const dangerousPatterns = [/\.\.\./];
-  return !dangerousPatterns.some((pattern) => pattern.test(p));
+  // Check for various path traversal patterns
+  const dangerousPatterns = [
+    /\.\./, // Basic parent directory
+    /%2e%2e/i, // URL-encoded parent directory
+    /%252e%252e/i, // Double URL-encoded
+    /\.\.\.+/, // Multiple dots (3+ consecutive dots)
+  ];
+
+  // Check for dangerous patterns
+  if (dangerousPatterns.some((pattern) => pattern.test(p))) {
+    return false;
+  }
+
+  // Ensure path is absolute (prevents relative path trickery)
+  if (!path.isAbsolute(p)) {
+    return false;
+  }
+
+  // Normalize and check again after normalization
+  const normalized = path.normalize(p);
+  if (dangerousPatterns.some((pattern) => pattern.test(normalized))) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -108,7 +131,7 @@ async function findCppExecutable() {
  * @param {Function} generateFileHash - Function to generate file hash
  * @returns {Promise<Array>} Array of file info
  */
-async function getDirectoryFilesQuick(directoryPath, generateFileHash) {
+async function getDirectoryFilesQuick(directoryPath, generateFileHash, maxFiles = 100000) {
   const { promises: fsPromises } = require("fs");
   const startTime = Date.now();
 
@@ -132,8 +155,15 @@ async function getDirectoryFilesQuick(directoryPath, generateFileHash) {
       deep: 10,
     });
 
+    // Limit the number of files to prevent memory issues
+    const limitedPaths = filePaths.slice(0, maxFiles);
+
+    if (filePaths.length > maxFiles) {
+      console.warn(`⚠️ Directory contains ${filePaths.length} files, limiting to ${maxFiles}`);
+    }
+
     const files = [];
-    for (const filePath of filePaths) {
+    for (const filePath of limitedPaths) {
       try {
         const stats = await fsPromises.stat(filePath);
         files.push({
@@ -153,7 +183,7 @@ async function getDirectoryFilesQuick(directoryPath, generateFileHash) {
   } catch (error) {
     console.error("❌ Fast-glob scan failed, falling back to manual scan:", error.message);
     // Fallback to manual scan if fast-glob fails
-    return getDirectoryFilesManual(directoryPath, generateFileHash);
+    return getDirectoryFilesManual(directoryPath, generateFileHash, maxFiles);
   }
 }
 
@@ -163,17 +193,21 @@ async function getDirectoryFilesQuick(directoryPath, generateFileHash) {
  * @param {Function} generateFileHash - Function to generate file hash
  * @returns {Promise<Array>} Array of file info
  */
-async function getDirectoryFilesManual(directoryPath, generateFileHash) {
+async function getDirectoryFilesManual(directoryPath, generateFileHash, maxFiles = 100000) {
   const { promises: fsPromises } = require("fs");
   const files = [];
   const startTime = Date.now();
+  let fileCount = 0;
 
   const walk = async (dir, maxDepth = 10, currentDepth = 0) => {
     if (currentDepth >= maxDepth) return;
+    if (fileCount >= maxFiles) return; // Stop when limit reached
 
     try {
       const entries = await fsPromises.readdir(dir, { withFileTypes: true });
       for (const entry of entries) {
+        if (fileCount >= maxFiles) break; // Stop when limit reached
+
         const fullPath = path.join(dir, entry.name);
 
         try {
@@ -196,6 +230,7 @@ async function getDirectoryFilesManual(directoryPath, generateFileHash) {
               hash: generateFileHash(fullPath, stats.size, stats.mtime.getTime()),
               lastModified: stats.mtime.toISOString(),
             });
+            fileCount++;
           }
         } catch (e) {
           // Skip files we can't access
@@ -207,6 +242,11 @@ async function getDirectoryFilesManual(directoryPath, generateFileHash) {
   };
 
   await walk(directoryPath);
+
+  if (fileCount >= maxFiles) {
+    console.warn(`⚠️ Manual scan reached maxFiles limit: ${maxFiles}`);
+  }
+
   const duration = Date.now() - startTime;
   console.log(`⚡ Manual scan complete: ${files.length} files in ${duration}ms`);
   return files;

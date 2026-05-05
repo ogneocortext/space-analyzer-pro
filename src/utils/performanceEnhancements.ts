@@ -34,7 +34,6 @@ export const throttle = <T extends (...args: any[]) => any>(
 export class VirtualScroller {
   private containerHeight: number;
   private itemHeight: number;
-  private scrollTop = 0;
 
   constructor(containerHeight: number, itemHeight: number) {
     this.containerHeight = containerHeight;
@@ -42,7 +41,6 @@ export class VirtualScroller {
   }
 
   getVisibleRange(totalItems: number, scrollTop: number) {
-    this.scrollTop = scrollTop;
     const startIndex = Math.floor(scrollTop / this.itemHeight);
     const endIndex = Math.min(
       startIndex + Math.ceil(this.containerHeight / this.itemHeight) + 1,
@@ -71,7 +69,7 @@ export class LazyImageLoader {
             if (src && !this.loadedImages.has(src)) {
               img.src = src;
               img.onload = () => {
-                img.classList.add('loaded');
+                img.classList.add("loaded");
                 this.loadedImages.add(src);
               };
               this.observer.unobserve(img);
@@ -79,7 +77,7 @@ export class LazyImageLoader {
           }
         });
       },
-      { rootMargin: '50px' }
+      { rootMargin: "50px" }
     );
   }
 
@@ -124,8 +122,8 @@ export class PerformanceMonitor {
 
   logSlowOperations(threshold = 100) {
     this.metrics.forEach((value, key) => {
-      if (key.endsWith('_duration') && value > threshold) {
-        console.warn(`Slow operation: ${key.replace('_duration', '')} took ${value.toFixed(2)}ms`);
+      if (key.endsWith("_duration") && value > threshold) {
+        console.warn(`Slow operation: ${key.replace("_duration", "")} took ${value.toFixed(2)}ms`);
       }
     });
   }
@@ -166,30 +164,30 @@ export class ResponsiveHelper {
     md: 768,
     lg: 1024,
     xl: 1280,
-    '2xl': 1536,
+    "2xl": 1536,
   };
 
   static getCurrentBreakpoint(): string {
     const width = window.innerWidth;
-    if (width >= this.breakpoints['2xl']) return '2xl';
-    if (width >= this.breakpoints.xl) return 'xl';
-    if (width >= this.breakpoints.lg) return 'lg';
-    if (width >= this.breakpoints.md) return 'md';
-    return 'sm';
+    if (width >= this.breakpoints["2xl"]) return "2xl";
+    if (width >= this.breakpoints.xl) return "xl";
+    if (width >= this.breakpoints.lg) return "lg";
+    if (width >= this.breakpoints.md) return "md";
+    return "sm";
   }
 
   static isMobile(): boolean {
-    return this.getCurrentBreakpoint() === 'sm';
+    return this.getCurrentBreakpoint() === "sm";
   }
 
   static isTablet(): boolean {
     const bp = this.getCurrentBreakpoint();
-    return bp === 'md' || bp === 'lg';
+    return bp === "md" || bp === "lg";
   }
 
   static isDesktop(): boolean {
     const bp = this.getCurrentBreakpoint();
-    return bp === 'xl' || bp === '2xl';
+    return bp === "xl" || bp === "2xl";
   }
 }
 
@@ -197,11 +195,11 @@ export class ResponsiveHelper {
 export class AnimationHelper {
   static fadeIn(element: HTMLElement, duration = 300): Promise<void> {
     return new Promise((resolve) => {
-      element.style.opacity = '0';
+      element.style.opacity = "0";
       element.style.transition = `opacity ${duration}ms ease-in-out`;
-      
+
       requestAnimationFrame(() => {
-        element.style.opacity = '1';
+        element.style.opacity = "1";
         setTimeout(() => resolve(), duration);
       });
     });
@@ -210,25 +208,29 @@ export class AnimationHelper {
   static fadeOut(element: HTMLElement, duration = 300): Promise<void> {
     return new Promise((resolve) => {
       element.style.transition = `opacity ${duration}ms ease-in-out`;
-      element.style.opacity = '0';
+      element.style.opacity = "0";
       setTimeout(() => resolve(), duration);
     });
   }
 
-  static slideIn(element: HTMLElement, direction: 'left' | 'right' | 'up' | 'down' = 'right', duration = 300): Promise<void> {
+  static slideIn(
+    element: HTMLElement,
+    direction: "left" | "right" | "up" | "down" = "right",
+    duration = 300
+  ): Promise<void> {
     return new Promise((resolve) => {
       const transforms = {
-        left: 'translateX(-100%)',
-        right: 'translateX(100%)',
-        up: 'translateY(-100%)',
-        down: 'translateY(100%)',
+        left: "translateX(-100%)",
+        right: "translateX(100%)",
+        up: "translateY(-100%)",
+        down: "translateY(100%)",
       };
 
       element.style.transform = transforms[direction];
       element.style.transition = `transform ${duration}ms ease-out`;
-      
+
       requestAnimationFrame(() => {
-        element.style.transform = 'translate(0)';
+        element.style.transform = "translate(0)";
         setTimeout(() => resolve(), duration);
       });
     });

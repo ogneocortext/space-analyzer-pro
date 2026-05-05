@@ -15,6 +15,7 @@ use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE,
 use winapi::um::errhandlingapi::GetLastError;
 use winapi::shared::minwindef::{DWORD, LPVOID};
 use serde::{Deserialize, Serialize};
+use crate::windows_errors::{WindowsError, ERROR_HANDLE_EOF};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MftEntry {
@@ -79,8 +80,10 @@ impl NtfsMftScanner {
         };
 
         if handle == INVALID_HANDLE_VALUE {
-            let error = unsafe { GetLastError() };
-            return Err(format!("Failed to open volume {}: Error code {}", volume_path, error));
+            let win_err = WindowsError::new(unsafe { GetLastError() }, "Open volume")
+                .with_path(&volume_path);
+            eprintln!("MFT Scanner: {}", win_err.format_error());
+            return Err(format!("{} (Suggestion: {})", win_err.format_error(), win_err.suggestion()));
         }
 
         self.volume_handle = Some(handle);
@@ -174,8 +177,10 @@ impl NtfsMftScanner {
 
             if !success {
                 let error = unsafe { GetLastError() };
-                if error != 38 { // ERROR_HANDLE_EOF
-                    return Err(format!("Failed to read MFT at offset {}: Error code {}", offset, error));
+                if error != ERROR_HANDLE_EOF {
+                    let win_err = WindowsError::new(error, "Read MFT");
+                    eprintln!("MFT Scanner: {}", win_err.format_error());
+                    return Err(format!("{} (Suggestion: {})", win_err.format_error(), win_err.suggestion()));
                 }
                 break;
             }

@@ -17,6 +17,10 @@ class AIDatabase {
    * Store AI response for future retrieval
    */
   storeAIResponse(question, answer, contextHash, modelUsed, responseTime) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         INSERT INTO ai_responses
@@ -35,6 +39,10 @@ class AIDatabase {
    * Find similar cached response
    */
   findSimilarResponse(question, contextHash) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT * FROM ai_responses
@@ -67,7 +75,18 @@ class AIDatabase {
   /**
    * Store AI analysis context for Ollama prompts
    */
-  storeAIAnalysisContext(analysisId, directoryPath, contextType, contextPayload, modelUsed, promptTemplate) {
+  storeAIAnalysisContext(
+    analysisId,
+    directoryPath,
+    contextType,
+    contextPayload,
+    modelUsed,
+    promptTemplate
+  ) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         INSERT INTO ai_analysis_context
@@ -77,7 +96,14 @@ class AIDatabase {
 
       this.db.run(
         sql,
-        [analysisId, directoryPath, contextType, JSON.stringify(contextPayload), modelUsed, promptTemplate],
+        [
+          analysisId,
+          directoryPath,
+          contextType,
+          JSON.stringify(contextPayload),
+          modelUsed,
+          promptTemplate,
+        ],
         function (err) {
           if (err) {
             console.error("Error storing AI context:", err);
@@ -94,6 +120,10 @@ class AIDatabase {
    * Get AI analysis context for a directory
    */
   getAIAnalysisContext(analysisId, contextType = null) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       let sql = `
         SELECT * FROM ai_analysis_context

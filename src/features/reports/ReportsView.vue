@@ -74,7 +74,7 @@
     </section>
 
     <!-- Generate Report Section -->
-    <section class="generate-section">
+    <section class="generate-section report-generator">
       <h2>Generate New Report</h2>
       <div class="generate-cards">
         <div v-if="currentAnalysis" class="generate-card">
@@ -95,6 +95,7 @@
           <button
             :disabled="generating.analysis"
             class="btn btn-primary"
+            data-action="generate"
             @click="generateAnalysisReport"
           >
             <span v-if="generating.analysis" class="spinner" />
@@ -136,7 +137,7 @@
     </section>
 
     <!-- Batch Export Section -->
-    <section class="batch-section">
+    <section class="batch-section export">
       <div class="section-header">
         <h2>🔄 Batch Export</h2>
         <button
