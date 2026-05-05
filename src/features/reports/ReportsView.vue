@@ -252,24 +252,40 @@
             <button
               class="btn btn-sm btn-secondary preview-btn"
               title="Preview"
+              aria-label="Preview report"
               @click.stop="openPreview(report)"
             >
-              🔍
+              <span aria-hidden="true">🔍</span>
+              <span class="sr-only">Preview</span>
             </button>
-            <button class="btn btn-sm btn-secondary" title="View" @click.stop="viewReport(report)">
-              👁️
+            <button
+              class="btn btn-sm btn-secondary"
+              title="View"
+              aria-label="View report"
+              @click.stop="viewReport(report)"
+            >
+              <span aria-hidden="true">👁️</span>
+              <span class="sr-only">View</span>
             </button>
             <a
               :href="report.downloadUrl"
               download
               class="btn btn-sm btn-secondary"
               title="Download"
+              aria-label="Download report"
               @click.stop
             >
-              ⬇️
+              <span aria-hidden="true">⬇️</span>
+              <span class="sr-only">Download</span>
             </a>
-            <button class="btn btn-sm btn-danger" title="Delete" @click.stop="deleteReport(report)">
-              🗑️
+            <button
+              class="btn btn-sm btn-danger"
+              title="Delete"
+              aria-label="Delete report"
+              @click.stop="deleteReport(report)"
+            >
+              <span aria-hidden="true">🗑️</span>
+              <span class="sr-only">Delete</span>
             </button>
           </div>
         </div>
