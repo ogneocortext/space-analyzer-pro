@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from "react";
-import { portDetector } from "../services/PortDetector";
+import { PortDetector } from "../services/PortDetector";
 
 // AI Capability Types
 export interface AICapabilities {
@@ -163,8 +163,9 @@ const AIContextProviderInternal: React.FC<{ children: ReactNode }> = ({ children
     const initializeAICapabilities = async () => {
       try {
         // Get dynamic backend URL
+        const portDetector = PortDetector.getInstance();
         const config = await portDetector.detectAllServers();
-        const healthUrl = `${portDetector.getApiBaseUrl()}/health`;
+        const healthUrl = `http://localhost:${config.backend}/health`;
 
         // Check backend health and capabilities
         const response = await fetch(healthUrl);

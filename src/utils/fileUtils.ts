@@ -261,7 +261,10 @@ export const buildFileTree = (files: FileInfo[]): Record<string, FileNode> => {
         tree[currentPath].children = tree[currentPath].children || [];
         tree[currentPath].children?.push(tree[fullPath]);
         if (tree[currentPath]?.size !== undefined && file.size !== undefined) {
-          tree[currentPath].size += file.size;
+          const currentPathNode = tree[currentPath];
+          if (currentPathNode && currentPathNode.size !== undefined) {
+            currentPathNode.size += file.size;
+          }
         }
       }
 
@@ -305,25 +308,4 @@ export const filterAndSortFiles = (
   });
 
   return filteredFiles;
-};
-
-/**
- * Custom hook for debounced search
- */
-import { useState, useEffect } from "react";
-
-export const useDebouncedValue = (value: string, delay: number): string => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
 };

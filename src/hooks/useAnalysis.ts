@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AnalysisResult } from "../services/AnalysisBridge";
+import { AnalysisResult } from "../services/analysis/AnalysisBridge";
 
 // Custom hook for analysis data with intelligent caching
 export const useAnalysisData = (directoryPath: string | null) => {
@@ -8,7 +8,7 @@ export const useAnalysisData = (directoryPath: string | null) => {
     queryFn: async (): Promise<AnalysisResult | null> => {
       if (!directoryPath) return null;
 
-      const { AnalysisBridge } = await import("../services/AnalysisBridge");
+      const { AnalysisBridge } = await import("../services/analysis/AnalysisBridge");
       const bridge = new AnalysisBridge();
 
       const result = await bridge.analyzeDirectory(directoryPath);
@@ -34,7 +34,7 @@ export const useAnalysisWithProgress = () => {
       directoryPath: string;
       onProgress?: (progress: any) => void;
     }) => {
-      const { AnalysisBridge } = await import("../services/AnalysisBridge");
+      const { AnalysisBridge } = await import("../services/analysis/AnalysisBridge");
       const bridge = new AnalysisBridge();
 
       const result = await bridge.analyzeDirectoryWithProgress(directoryPath, (progress) => {
@@ -201,7 +201,7 @@ export const usePrefetchAnalysis = (directoryPath: string | null) => {
     await queryClient.prefetchQuery({
       queryKey: ["analysis", directoryPath],
       queryFn: async (): Promise<AnalysisResult | null> => {
-        const { AnalysisBridge } = await import("../services/AnalysisBridge");
+        const { AnalysisBridge } = await import("../services/analysis/AnalysisBridge");
         const bridge = new AnalysisBridge();
         const result = await bridge.analyzeDirectory(directoryPath);
         return result;
@@ -223,7 +223,8 @@ export const useNeuralData = (analysisData: AnalysisResult | null) => {
       }
 
       console.warn("🧠 Calculating neural dependency graph...");
-      const { dependencyCheckerService } = await import("../services/DependencyCheckerService");
+      const { dependencyCheckerService } =
+        await import("../services/analysis/DependencyCheckerService");
 
       // Build the graph (this is async)
       // Limit to 200 files for performance

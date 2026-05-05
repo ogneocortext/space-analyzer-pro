@@ -14,7 +14,7 @@ import {
   Clock,
   BarChart3,
 } from "lucide-vue-next";
-import type { PerformanceMetrics } from "@/services/AnalysisBridge";
+import type { PerformanceMetrics } from "@/services/analysis/AnalysisBridge";
 
 interface Props {
   performance: PerformanceMetrics | null;

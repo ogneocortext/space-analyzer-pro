@@ -146,8 +146,19 @@ class AnalysisController {
         throw err;
       });
 
-      // Parse ESLint results
-      const eslintResults = JSON.parse(stdout || "[]");
+      // Parse ESLint results with error handling
+      let eslintResults;
+      try {
+        eslintResults = JSON.parse(stdout || "[]");
+      } catch (parseError) {
+        console.error("❌ Failed to parse ESLint output:", parseError);
+        return {
+          status: "failed",
+          error: "Invalid JSON output from ESLint",
+          issues: [],
+          summary: { total: 0, errors: 0, warnings: 0 },
+        };
+      }
 
       return this.transformESLintResults(eslintResults);
     } catch (error) {

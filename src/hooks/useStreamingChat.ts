@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { AIChatService, StreamingChunk, ChatResponse } from "../services/AIChatService";
+import { AIChatService, StreamingChunk, ChatResponse } from "../services/ai/AIChatService";
 
 export interface UseStreamingChatReturn {
   messages: any[];

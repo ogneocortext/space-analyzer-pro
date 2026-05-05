@@ -1,0 +1,442 @@
+/* Desktop-specific styles for Space Analyzer Pro */
+
+/* Reset and base styles for desktop */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar for desktop */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Windows-specific window chrome adjustments */
+.windows {
+  --titlebar-height: 30px;
+}
+
+.macOS {
+  --titlebar-height: 28px;
+}
+
+.linux {
+  --titlebar-height: 32px;
+}
+
+/* Desktop layout overrides */
+.desktop-layout {
+  --desktop-primary: #6366f1;
+  --desktop-secondary: #8b5cf6;
+  --desktop-accent: #22c55e;
+  --desktop-danger: #ef4444;
+  --desktop-warning: #f59e0b;
+  
+  --desktop-bg-primary: #0f172a;
+  --desktop-bg-secondary: #1e293b;
+  --desktop-bg-tertiary: #334155;
+  
+  --desktop-text-primary: #f1f5f9;
+  --desktop-text-secondary: #cbd5e1;
+  --desktop-text-tertiary: #94a3b8;
+  --desktop-text-muted: #64748b;
+  
+  --desktop-border: #334155;
+  --desktop-border-light: #475569;
+}
+
+/* Focus styles for desktop */
+.desktop-layout *:focus {
+  outline: 2px solid var(--desktop-primary);
+  outline-offset: 2px;
+}
+
+.desktop-layout *:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.desktop-layout *:focus-visible {
+  outline: 2px solid var(--desktop-primary);
+  outline-offset: 2px;
+}
+
+/* Selection styles */
+.desktop-layout ::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: var(--desktop-text-primary);
+}
+
+.desktop-layout ::-moz-selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: var(--desktop-text-primary);
+}
+
+/* Drag and drop styles */
+.desktop-layout .drag-over {
+  background: rgba(99, 102, 241, 0.1);
+  border: 2px dashed var(--desktop-primary);
+}
+
+.desktop-layout .drag-active {
+  opacity: 0.7;
+  transform: scale(0.98);
+}
+
+/* Context menu styles */
+.desktop-context-menu {
+  position: fixed;
+  background: var(--desktop-bg-secondary);
+  border: 1px solid var(--desktop-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  padding: 4px 0;
+  min-width: 180px;
+  z-index: 10000;
+  backdrop-filter: blur(8px);
+}
+
+.desktop-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  color: var(--desktop-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.desktop-context-menu-item:hover {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--desktop-text-primary);
+}
+
+.desktop-context-menu-separator {
+  height: 1px;
+  background: var(--desktop-border);
+  margin: 4px 8px;
+}
+
+.desktop-context-menu-item.disabled {
+  color: var(--desktop-text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.desktop-context-menu-item.disabled:hover {
+  background: transparent;
+}
+
+/* Tooltip styles */
+.desktop-tooltip {
+  position: fixed;
+  background: var(--desktop-bg-primary);
+  color: var(--desktop-text-primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  border: 1px solid var(--desktop-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 10001;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.desktop-tooltip.visible {
+  opacity: 1;
+}
+
+/* Modal overlay for desktop */
+.desktop-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.desktop-modal {
+  background: var(--desktop-bg-secondary);
+  border: 1px solid var(--desktop-border);
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.desktop-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--desktop-border);
+  background: var(--desktop-bg-tertiary);
+}
+
+.desktop-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--desktop-text-primary);
+  margin: 0;
+}
+
+.desktop-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid var(--desktop-border);
+  border-radius: 6px;
+  color: var(--desktop-text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.desktop-modal-close:hover {
+  background: var(--desktop-danger);
+  border-color: var(--desktop-danger);
+  color: white;
+}
+
+.desktop-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.desktop-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--desktop-border);
+  background: var(--desktop-bg-tertiary);
+}
+
+/* Loading states for desktop */
+.desktop-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--desktop-text-tertiary);
+}
+
+.desktop-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--desktop-border);
+  border-top: 2px solid var(--desktop-primary);
+  border-radius: 50%;
+  animation: desktop-spin 1s linear infinite;
+  margin-right: 12px;
+}
+
+@keyframes desktop-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Button styles for desktop */
+.desktop-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--desktop-border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  user-select: none;
+}
+
+.desktop-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.desktop-btn-primary {
+  background: var(--desktop-primary);
+  color: white;
+  border-color: var(--desktop-primary);
+}
+
+.desktop-btn-primary:hover:not(:disabled) {
+  background: var(--desktop-secondary);
+  border-color: var(--desktop-secondary);
+}
+
+.desktop-btn-secondary {
+  background: transparent;
+  color: var(--desktop-text-secondary);
+  border-color: var(--desktop-border);
+}
+
+.desktop-btn-secondary:hover:not(:disabled) {
+  background: var(--desktop-bg-tertiary);
+  color: var(--desktop-text-primary);
+}
+
+.desktop-btn-danger {
+  background: var(--desktop-danger);
+  color: white;
+  border-color: var(--desktop-danger);
+}
+
+.desktop-btn-danger:hover:not(:disabled) {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+/* Input styles for desktop */
+.desktop-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--desktop-bg-primary);
+  border: 1px solid var(--desktop-border);
+  border-radius: 6px;
+  color: var(--desktop-text-primary);
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.desktop-input:focus {
+  outline: none;
+  border-color: var(--desktop-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.desktop-input::placeholder {
+  color: var(--desktop-text-muted);
+}
+
+/* Keyboard shortcut display */
+.kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--desktop-bg-tertiary);
+  border: 1px solid var(--desktop-border);
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  color: var(--desktop-text-secondary);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive desktop adjustments */
+@media (max-width: 1200px) {
+  .desktop-layout .desktop-sidebar {
+    width: 240px;
+  }
+  
+  .desktop-layout .desktop-sidebar.collapsed {
+    width: 50px;
+  }
+}
+
+@media (max-width: 768px) {
+  .desktop-layout .desktop-sidebar {
+    position: fixed;
+    left: -280px;
+    top: var(--titlebar-height);
+    height: calc(100vh - var(--titlebar-height));
+    z-index: 999;
+    transition: left 0.3s ease;
+  }
+  
+  .desktop-layout .desktop-sidebar.open {
+    left: 0;
+  }
+  
+  .desktop-layout .desktop-main {
+    margin-left: 0;
+  }
+}
+
+/* High DPI adjustments */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .desktop-layout {
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
+}
+
+/* Dark/light theme transitions */
+.desktop-layout {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.desktop-layout * {
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+/* Performance optimizations */
+.desktop-layout {
+  will-change: transform;
+  contain: layout style paint;
+}
+
+.desktop-sidebar {
+  contain: layout style paint;
+}
+
+.desktop-main {
+  contain: layout style paint;
+}
+
+/* Print styles for desktop */
+@media print {
+  .desktop-layout .desktop-titlebar,
+  .desktop-layout .desktop-sidebar,
+  .desktop-layout .desktop-statusbar {
+    display: none;
+  }
+  
+  .desktop-layout .desktop-main {
+    margin: 0;
+  }
+}

@@ -3,20 +3,15 @@
  * Provides API endpoints for viewing, managing, and exporting error logs
  */
 
-console.log("📄 Loading errors.js routes file...");
-
 const express = require("express");
 const path = require("path");
 const { getErrorLogger } = require("../utils/error-logger");
-
-console.log("📄 errors.js: modules loaded, creating ErrorRoutes class...");
 
 class ErrorRoutes {
   constructor(server) {
     this.server = server;
     this.router = express.Router();
     this.errorLogger = getErrorLogger();
-    console.log("🚀 ErrorRoutes initialized");
     this.setupRoutes();
   }
 

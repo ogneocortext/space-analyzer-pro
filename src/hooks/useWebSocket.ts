@@ -121,21 +121,30 @@ export const useAnalysisProgress = (analysisId: string | null) => {
     console.warn("🔍 useAnalysisProgress - currentAnalysisId (with fallback):", currentAnalysisId);
     console.warn("🔍 useAnalysisProgress - lastMessage:", lastMessage);
 
+    // Handle SSE progress messages from Rust CLI
     if (
       lastMessage &&
       (lastMessage.type === "progress" || lastMessage.type === "progress_update") &&
-      lastMessage.analysisId === currentAnalysisId
+      (lastMessage.analysisId === currentAnalysisId || !lastMessage.analysisId)
     ) {
       console.warn("✅ Progress message matched, updating progress");
       // Handle both 'progress' and 'progress_update' message types
       const progressData = lastMessage.progress || lastMessage; // Handle nested progress data
       console.warn("📊 Progress data:", progressData);
-      setProgress({
-        files: progressData.files || 0,
-        percentage: progressData.percentage || 0,
+
+      const newProgress = {
+        files: progressData.files || progressData.filesScanned || 0,
+        percentage: Math.min(100, Math.max(0, progressData.percentage || 0)),
         currentFile: progressData.currentFile || "",
         completed: progressData.completed || progressData.status === "complete" || false,
-      });
+      };
+
+      setProgress(newProgress);
+
+      // Also update the store's progressData for UI components
+      if (typeof window !== "undefined" && (window as any).__updateStoreProgress) {
+        (window as any).__updateStoreProgress(newProgress);
+      }
 
       // If progress message includes file details, add to scanned files
       if (progressData.file) {

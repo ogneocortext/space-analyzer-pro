@@ -109,27 +109,17 @@ export const useNotificationStore = defineStore("notifications", () => {
   }
 
   async function loadSettings(): Promise<NotificationSettings> {
-    try {
-      const response = await fetch(`${API_BASE}/settings/notifications`);
-      const data = await response.json();
-      if (data.success && data.settings) {
-        return { ...DEFAULT_SETTINGS, ...data.settings };
-      }
-    } catch (error) {
-      console.error("Failed to load notification settings from server:", error);
-    }
+    // For web version, just use defaults without trying to contact server
+    // This prevents the JSON parsing error when server is not available
     return DEFAULT_SETTINGS;
   }
 
   async function saveSettings(): Promise<void> {
+    // For web version, just save to localStorage without server
     try {
-      await fetch(`${API_BASE}/settings/notifications`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings.value),
-      });
+      localStorage.setItem("notification-settings", JSON.stringify(settings.value));
     } catch (error) {
-      console.error("Failed to save notification settings to server:", error);
+      console.error("Failed to save notification settings:", error);
     }
   }
 

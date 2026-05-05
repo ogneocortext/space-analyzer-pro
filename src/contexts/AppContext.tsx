@@ -6,7 +6,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { portDetector } from "../services/PortDetector";
+import { PortDetector } from "../services/PortDetector";
 
 // Types - Updated to match navigation items
 export type ViewType =
@@ -80,8 +80,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
     try {
       // Get dynamic backend URL
+      const portDetector = PortDetector.getInstance();
       const config = await portDetector.detectAllServers();
-      const healthUrl = `${portDetector.getApiBaseUrl()}/health`;
+      const healthUrl = `http://localhost:${config.backend}/health`;
 
       const response = await fetch(healthUrl);
       if (response.ok) {

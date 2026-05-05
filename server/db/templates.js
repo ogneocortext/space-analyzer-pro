@@ -17,6 +17,10 @@ class TemplatesDatabase {
    * Create a new report template
    */
   createTemplate(template) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         INSERT INTO report_templates
@@ -57,6 +61,10 @@ class TemplatesDatabase {
    * Get all templates (optionally filtered by type)
    */
   getTemplates(templateType = null, activeOnly = true) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       let sql = `SELECT * FROM report_templates WHERE 1=1`;
       const params = [];
@@ -78,13 +86,19 @@ class TemplatesDatabase {
           return;
         }
 
-        // Parse JSON fields
+        // Parse JSON fields with proper error handling
         rows.forEach((row) => {
           try {
             if (row.color_scheme) row.color_scheme = JSON.parse(row.color_scheme);
+          } catch (e) {
+            console.error(`Failed to parse color_scheme for template ${row.id}:`, e.message);
+            row.color_scheme = null; // Reset to null instead of keeping invalid string
+          }
+          try {
             if (row.include_sections) row.include_sections = JSON.parse(row.include_sections);
           } catch (e) {
-            // Keep as strings if parsing fails
+            console.error(`Failed to parse include_sections for template ${row.id}:`, e.message);
+            row.include_sections = null; // Reset to null instead of keeping invalid string
           }
         });
 
@@ -97,6 +111,10 @@ class TemplatesDatabase {
    * Get a single template by ID
    */
   getTemplateById(templateId) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `SELECT * FROM report_templates WHERE id = ?`;
 
@@ -109,9 +127,15 @@ class TemplatesDatabase {
         if (row) {
           try {
             if (row.color_scheme) row.color_scheme = JSON.parse(row.color_scheme);
+          } catch (e) {
+            console.error(`Failed to parse color_scheme for template ${row.id}:`, e.message);
+            row.color_scheme = null;
+          }
+          try {
             if (row.include_sections) row.include_sections = JSON.parse(row.include_sections);
           } catch (e) {
-            // Keep as strings if parsing fails
+            console.error(`Failed to parse include_sections for template ${row.id}:`, e.message);
+            row.include_sections = null;
           }
         }
 
@@ -124,6 +148,10 @@ class TemplatesDatabase {
    * Get default template for a type
    */
   getDefaultTemplate(templateType) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT * FROM report_templates
@@ -155,6 +183,10 @@ class TemplatesDatabase {
    * Update a template
    */
   updateTemplate(templateId, updates) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const fields = [];
       const values = [];
@@ -224,6 +256,10 @@ class TemplatesDatabase {
    * Delete a template
    */
   deleteTemplate(templateId) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `DELETE FROM report_templates WHERE id = ?`;
 
@@ -242,6 +278,10 @@ class TemplatesDatabase {
    * Set a template as default for its type
    */
   setDefaultTemplate(templateId, templateType) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       // First, unset any existing default for this type
       const unsetSql = `UPDATE report_templates SET is_default = 0 WHERE template_type = ?`;
@@ -270,6 +310,10 @@ class TemplatesDatabase {
    * Duplicate a template
    */
   duplicateTemplate(templateId, newName) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       this.getTemplateById(templateId)
         .then((template) => {

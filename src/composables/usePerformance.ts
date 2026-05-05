@@ -3,16 +3,17 @@
  * Provides reactive performance utilities for Vue components
  */
 
-import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { 
-  debounce, 
-  throttle, 
-  VirtualScroller, 
-  LazyImageLoader, 
+import { ref, onMounted, onUnmounted, computed } from "vue";
+import {
+  debounce,
+  throttle,
+  VirtualScroller,
+  LazyImageLoader,
   PerformanceMonitor,
   MemoryManager,
-  ResponsiveHelper 
-} from '../utils/performanceEnhancements';
+  ResponsiveHelper,
+} from "../utils/performanceEnhancements";
+import { INTERVALS } from "../config/frontend";
 
 // Performance monitoring composable
 export function usePerformanceMonitor(componentName: string) {
@@ -45,7 +46,7 @@ export function useVirtualScroll(options: {
   const scrollTop = ref(0);
   const scroller = new VirtualScroller(options.containerHeight, options.itemHeight);
 
-  const visibleRange = computed(() => 
+  const visibleRange = computed(() =>
     scroller.getVisibleRange(options.items.length, scrollTop.value)
   );
 
@@ -54,13 +55,9 @@ export function useVirtualScroll(options: {
     return options.items.slice(startIndex, endIndex);
   });
 
-  const offsetY = computed(() => 
-    scroller.getOffsetY(visibleRange.value.startIndex)
-  );
+  const offsetY = computed(() => scroller.getOffsetY(visibleRange.value.startIndex));
 
-  const totalHeight = computed(() => 
-    options.items.length * options.itemHeight
-  );
+  const totalHeight = computed(() => options.items.length * options.itemHeight);
 
   const handleScroll = throttle((e: Event) => {
     scrollTop.value = (e.target as HTMLElement).scrollTop;
@@ -139,11 +136,11 @@ export function useResponsive() {
   }, 100);
 
   onMounted(() => {
-    window.addEventListener('resize', updateBreakpoint);
+    window.addEventListener("resize", updateBreakpoint);
   });
 
   onUnmounted(() => {
-    window.removeEventListener('resize', updateBreakpoint);
+    window.removeEventListener("resize", updateBreakpoint);
   });
 
   return {
@@ -155,7 +152,7 @@ export function useResponsive() {
 }
 
 // Debounced input composable
-export function useDebouncedInput(initialValue = '', delay = 300) {
+export function useDebouncedInput(initialValue = "", delay = 300) {
   const value = ref(initialValue);
   const debouncedValue = ref(initialValue);
 
@@ -185,31 +182,42 @@ export function usePerformanceMetrics() {
 
   let frameCount = 0;
   let lastTime = performance.now();
+  let memoryInterval: NodeJS.Timeout | null = null;
+  let rafId: number | null = null;
 
   const measureFPS = () => {
     frameCount++;
     const currentTime = performance.now();
-    
+
     if (currentTime >= lastTime + 1000) {
       metrics.value.fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
       frameCount = 0;
       lastTime = currentTime;
     }
-    
-    requestAnimationFrame(measureFPS);
+
+    rafId = requestAnimationFrame(measureFPS);
   };
 
   const measureMemory = () => {
-    if ('memory' in performance) {
+    if ("memory" in performance) {
       const memory = (performance as any).memory;
       metrics.value.memoryUsage = Math.round(memory.usedJSHeapSize / 1024 / 1024); // MB
     }
   };
 
   onMounted(() => {
-    requestAnimationFrame(measureFPS);
+    rafId = requestAnimationFrame(measureFPS);
     measureMemory();
-    setInterval(measureMemory, 5000); // Update memory usage every 5 seconds
+    memoryInterval = setInterval(measureMemory, INTERVALS.memoryCheck);
+  });
+
+  onUnmounted(() => {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+    }
+    if (memoryInterval) {
+      clearInterval(memoryInterval);
+    }
   });
 
   return {
@@ -217,9 +225,4 @@ export function usePerformanceMetrics() {
   };
 }
 
-export {
-  debounce,
-  throttle,
-  PerformanceMonitor,
-  ResponsiveHelper,
-};
+export { debounce, throttle, PerformanceMonitor, ResponsiveHelper };

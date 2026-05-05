@@ -44,18 +44,77 @@ class SpaceAnalyzerServer {
     this.port = parseInt(process.env.PORT) || 8080;
     this.eventEmitter = new EventEmitter();
     this.errorLogger = getErrorLogger();
+    this.rateLimitStore = new Map(); // In-memory rate limiting store
 
     this.initialize();
   }
 
   initialize() {
     this.setupSecurity();
+    this.setupRateLimiting();
     this.setupMiddleware();
     this.setupDatabase().then(() => {
       this.setupRoutes();
       this.setupErrorHandling();
       this.setupHealthChecks();
     });
+  }
+
+  /**
+   * Basic in-memory rate limiting middleware
+   * Limits: 100 requests per minute per IP
+   */
+  setupRateLimiting() {
+    const WINDOW_MS = 60 * 1000; // 1 minute
+    const MAX_REQUESTS = 100;
+
+    this.app.use((req, res, next) => {
+      const clientIp = req.ip || req.connection.remoteAddress || "unknown";
+      const now = Date.now();
+
+      // Get or create rate limit entry
+      let entry = this.rateLimitStore.get(clientIp);
+      if (!entry) {
+        entry = { count: 0, resetTime: now + WINDOW_MS };
+        this.rateLimitStore.set(clientIp, entry);
+      }
+
+      // Reset if window has passed
+      if (now > entry.resetTime) {
+        entry.count = 0;
+        entry.resetTime = now + WINDOW_MS;
+      }
+
+      // Check limit
+      if (entry.count >= MAX_REQUESTS) {
+        return res.status(429).json({
+          success: false,
+          error: "Too many requests, please try again later",
+          retryAfter: Math.ceil((entry.resetTime - now) / 1000),
+        });
+      }
+
+      entry.count++;
+
+      // Add rate limit headers
+      res.setHeader("X-RateLimit-Limit", MAX_REQUESTS);
+      res.setHeader("X-RateLimit-Remaining", Math.max(0, MAX_REQUESTS - entry.count));
+
+      next();
+    });
+
+    // Cleanup old entries every 5 minutes
+    setInterval(
+      () => {
+        const now = Date.now();
+        for (const [ip, entry] of this.rateLimitStore.entries()) {
+          if (now > entry.resetTime) {
+            this.rateLimitStore.delete(ip);
+          }
+        }
+      },
+      5 * 60 * 1000
+    );
   }
 
   /**
@@ -78,8 +137,8 @@ class SpaceAnalyzerServer {
 
       this.knowledgeDB = new KnowledgeDatabase(dbPath);
 
-      // Wait for database to initialize
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Properly await database initialization to prevent race conditions
+      await this.knowledgeDB.initialize();
 
       if (this.knowledgeDB.db) {
         console.log("✅ Database initialized successfully");
@@ -189,21 +248,24 @@ class SpaceAnalyzerServer {
             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "blob:"],
-            connectSrc: ["'self'", "http:", "https:", "ws:", "wss:"],
+            connectSrc: ["'self'", "http://localhost:*", "ws://localhost:*"],
           },
         },
         crossOriginEmbedderPolicy: false,
+        hsts: {
+          maxAge: 31536000,
+          includeSubDomains: true,
+          preload: true,
+        },
+        referrerPolicy: { policy: "same-origin" },
+        permittedCrossDomainPolicies: { permittedPolicies: "none" },
       })
     );
 
-    this.app.use(
-      cors({
-        origin: true,
-        credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
-      })
-    );
+    // Use CORS configuration from config with localhost restriction
+    const config = require("./src/config");
+    const corsOptions = config.get("server.cors");
+    this.app.use(cors(corsOptions));
   }
 
   setupMiddleware() {
@@ -233,6 +295,18 @@ class SpaceAnalyzerServer {
       analysisResults: new Map(),
       isValidPath,
       normalizePath,
+    };
+
+    // Add memory limit for analysisResults (LRU cleanup)
+    const originalSet = mockServer.analysisResults.set.bind(mockServer.analysisResults);
+    mockServer.analysisResults.set = function (key, value) {
+      // Remove oldest entry if limit reached (100 entries)
+      if (this.size >= 100) {
+        const firstKey = this.keys().next().value;
+        this.delete(firstKey);
+        console.log(`🧹 Cleaned up old analysis result to prevent memory growth`);
+      }
+      return originalSet(key, value);
     };
 
     // Add comprehensive debug endpoint before RoutesManager to ensure it's accessible
@@ -385,11 +459,55 @@ class SpaceAnalyzerServer {
       }
     });
 
-    // Use RoutesManager for all /api routes after fallback endpoints
+    // Add a simple health check endpoint directly to ensure it works
+    this.app.get("/api/health", (req, res) => {
+      try {
+        const os = require("os");
+
+        // Check database health
+        const dbHealthy = mockServer.knowledgeDB && mockServer.knowledgeDB.db !== null;
+
+        if (!dbHealthy) {
+          return res.status(503).json({
+            success: false,
+            status: "degraded",
+            timestamp: new Date().toISOString(),
+            error: "Database unavailable",
+            message: "Service is running but database connection failed",
+            version: "2.8.9",
+            service: "Space Analyzer Backend",
+          });
+        }
+
+        res.json({
+          success: true,
+          status: "healthy",
+          timestamp: new Date().toISOString(),
+          uptime: os.uptime(),
+          memory: {
+            total: os.totalmem(),
+            free: os.freemem(),
+            used: os.totalmem() - os.freemem(),
+          },
+          database: dbHealthy ? "connected" : "disconnected",
+          version: "2.8.9",
+          service: "Space Analyzer Backend",
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          status: "error",
+          error: "Health check failed",
+          message: error.message,
+        });
+      }
+    });
+
+    // Use RoutesManager for all /api routes first
     const routesManager = new RoutesManager(mockServer);
     routesManager.mountAll(this.app);
 
-    // Catch-all for undefined /api routes - return helpful error
+    // Catch-all for undefined /api routes - return helpful error (must be after routes are mounted)
     this.app.all("/api", (req, res) => {
       res.status(404).json({
         success: false,
@@ -410,16 +528,20 @@ class SpaceAnalyzerServer {
       });
     });
 
-    // Catch-all for undefined /api/* routes
-    this.app.use("/api", (req, res) => {
-      res.status(404).json({
-        success: false,
-        error: "API endpoint not found",
-        path: req.path,
-        method: req.method,
-        message: "The requested API endpoint does not exist",
-        suggestion: "Check /api/debug/routes for available endpoints",
-      });
+    // Catch-all for undefined /api/* routes (must be after routes are mounted)
+    this.app.use((req, res, next) => {
+      if (req.path.startsWith("/api/") && !res.headersSent) {
+        res.status(404).json({
+          success: false,
+          error: "API endpoint not found",
+          path: req.path,
+          method: req.method,
+          message: "The requested API endpoint does not exist",
+          suggestion: "Check /api/debug/routes for available endpoints",
+        });
+      } else {
+        next();
+      }
     });
 
     // Serve static frontend files
@@ -455,17 +577,7 @@ class SpaceAnalyzerServer {
   }
 
   setupHealthChecks() {
-    // Basic health check
-    this.app.get("/api/health", (req, res) => {
-      res.json({
-        success: true,
-        status: "healthy",
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-      });
-    });
-
-    // Status endpoint (more detailed than health)
+    // Status endpoint (more detailed than health
     this.app.get("/api/status", (req, res) => {
       const os = require("os");
       res.json({
@@ -574,13 +686,72 @@ class SpaceAnalyzerServer {
       console.log(`🔍 Debug routes: http://localhost:${this.port}/api/debug/routes\n`);
     });
 
-    // Graceful shutdown
-    const shutdown = (signal) => {
-      console.log(`\n🛑 ${signal} received, shutting down...`);
-      server.close(() => {
-        console.log("✅ Server closed");
+    // Graceful shutdown with resource cleanup
+    const shutdown = async (signal) => {
+      console.log(`\n🛑 ${signal} received, shutting down gracefully...`);
+
+      // Stop accepting new connections
+      server.close(async () => {
+        console.log("✅ HTTP server closed");
+
+        // Cleanup resources
+        try {
+          // Stop error logger flush interval
+          if (this.errorLogger && this.errorLogger.cleanup) {
+            await this.errorLogger.cleanup();
+            console.log("✅ Error logger stopped");
+          }
+
+          // Cleanup Ollama process if running
+          const { cleanupOllamaProcess } = require("./modules/ollama-service");
+          cleanupOllamaProcess.call(this);
+
+          // Close database connection
+          if (this.knowledgeDB && this.knowledgeDB.close) {
+            await this.knowledgeDB.close();
+            console.log("✅ Database connection closed");
+          }
+
+          // Clean up temp analysis files
+          const tempFilePattern = /^temp_analysis_.*\.json$/;
+          const tempDir = path.join(__dirname, "..");
+          try {
+            const files = fs.readdirSync(tempDir);
+            for (const file of files) {
+              if (tempFilePattern.test(file)) {
+                fs.unlinkSync(path.join(tempDir, file));
+                console.log(`🧹 Cleaned up temp file: ${file}`);
+              }
+            }
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+
+          // Clear analysis results from memory
+          if (this.analysisResults) {
+            this.analysisResults.clear();
+            console.log("✅ Analysis results cache cleared");
+          }
+
+          // Clear active analyses
+          if (this.activeAnalyses) {
+            this.activeAnalyses.clear();
+            console.log("✅ Active analyses cleared");
+          }
+
+          console.log("👋 Graceful shutdown complete");
+        } catch (error) {
+          console.error("❌ Error during shutdown:", error);
+        }
+
         process.exit(0);
       });
+
+      // Force shutdown after 10 seconds if graceful shutdown fails
+      setTimeout(() => {
+        console.error("⚠️ Forced shutdown after timeout");
+        process.exit(1);
+      }, 10000);
     };
 
     process.on("SIGTERM", () => shutdown("SIGTERM"));

@@ -5,7 +5,13 @@ target
 cpp-build
 .cache
 .env
+.env.local
 config/
+
+# Build environment configuration (user-specific paths)
+# Template is tracked: build-env-template.ps1
+# Copy is ignored: build-env.ps1
+build-env.ps1
 
 # Python AI Service
 ai-service/venv/

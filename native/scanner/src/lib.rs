@@ -11,6 +11,9 @@ use num_cpus;
 
 // Include the new scanner modules
 #[cfg(windows)]
+pub mod windows_errors;
+
+#[cfg(windows)]
 pub mod windows_advanced;
 
 #[cfg(windows)]

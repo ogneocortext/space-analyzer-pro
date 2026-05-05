@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                                                             |
 | ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 2.9.1   | 2026-05-04 | Complete Windows GUI Error Fixes: 8/8 issues resolved, structured error handling, panic handlers, build tool documentation          |
 | 2.9.0   | 2026-05-03 | Real Data Integration: Eliminated simulated data, enhanced admin errors page, fixed selfLearningStore, improved system monitoring   |
 | 2.8.9   | 2026-05-02 | AI Service Integration: Python ML service, intelligent caching, database persistence, auto-categorization                           |
 | 2.8.8   | 2026-05-02 | Stability & Infrastructure: Backend crash protection, persistent scan history, standardized ports, script improvements              |
@@ -36,6 +37,80 @@ All notable changes to Space Analyzer will be documented in this file.
 | 2.1.8   | 2026-04-27 | Project cleanup and organization                                                                                                    |
 | 2.1.7   | 2026-04-27 | Implement improvement recommendations                                                                                               |
 | 2.1.6   | 2026-04-27 | Initial release with core features and AI integration                                                                               |
+
+## [2.9.1] - 2026-05-04
+
+### Complete Windows GUI Error Resolution
+
+**Resolved all 8 Windows GUI issues, achieving 100% issue resolution across the entire project (48/48 issues).**
+
+#### Windows GUI Error Fixes
+
+**GUI-1: Tauri Command Error Handling ✅**
+
+- Added `TauriError` enum with structured error types
+- Implemented `from_io_error()` helper for error categorization
+- Added user-friendly error messages and recovery suggestions
+- Updated `analyze_directory()` and `get_file_details()` commands
+
+**GUI-2: Scanner Error Propagation ✅**
+
+- Modified `scan_directory_sync()` to collect WalkDir errors
+- Added error categorization (PermissionDenied vs NotFound vs AccessError)
+- Improved metadata error handling with context
+- Errors now collected in `ScanResult.errors` with descriptive messages
+
+**GUI-3: Windows API Error Codes ✅**
+
+- Created `windows_errors.rs` module with 65+ error code constants
+- Implemented `WindowsError` struct with error categorization
+- Added user-friendly messages and recovery suggestions
+- Updated all scanner files (NTFS MFT, USN Journal, Windows Advanced)
+
+**GUI-4: Panic Handling in CLI ✅**
+
+- Added `std::panic::set_hook` at start of main()
+- Panics logged to `scanner-panics.log` with timestamps
+- User-friendly message printed to stderr
+- Includes timestamp and panic location
+
+**GUI-5: Promise Rejection Handling ✅**
+
+- Added DebugLogger import and initialization
+- Wrapped all 8 Tauri invoke calls in try-catch blocks
+- Added structured error logging with context
+- Functions return null/empty array on error instead of crashing
+
+**GUI-6: Error Boundaries ✅**
+
+- Added ErrorBoundary import to `DesktopLayout.vue`
+- Wrapped `<slot />` content with ErrorBoundary component
+- Provides "Try Again", "Reload Page", "Go Home" recovery options
+
+**GUI-7: Build Documentation ✅**
+
+- Created `WINDOWS_BUILD_PREREQUISITES.md` with comprehensive setup guide
+- Added `build-env-template.ps1` for multi-drive build tool configuration
+- Documented Visual Studio requirements, verification scripts
+- Included troubleshooting section for common errors
+
+**GUI-8: Windows-Specific Configuration ✅**
+
+- Added Windows bundle configuration (webview install mode, signing)
+- Added NSIS installer settings
+- Added system tray icon configuration
+- Windows-specific optimizations for native feel
+
+#### Project Status Achievement
+
+**100% Issue Resolution:**
+
+- Backend: 35/35 resolved
+- Frontend: 5/5 resolved
+- Windows GUI: 8/8 resolved
+- **Total: 48/48 resolved** ✅
+
+---
 
 ## [2.9.0] - 2026-05-03
 

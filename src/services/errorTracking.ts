@@ -1,7 +1,8 @@
 /**
  * Error Tracking Service
- * Captures and reports frontend errors to the backend
+ * Captures and reports frontend errors to the backend (API in web mode, Tauri in desktop mode)
  */
+import { invoke } from "@tauri-apps/api/core";
 
 interface ErrorContext {
   component?: string;
@@ -28,6 +29,7 @@ class ErrorTracker {
   private bufferSize = 50;
   private flushInterval = 10000; // 10 seconds
   private apiUrl = "/api/errors/report";
+  private isTauri = (): boolean => !!(window as any).__TAURI__;
   private lastErrors = new Set<string>(); // For deduplication
   private maxDedupeSize = 100;
 
@@ -166,33 +168,45 @@ class ErrorTracker {
     // Send errors in batch
     for (const error of errors) {
       try {
-        const response = await fetch(this.apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(error),
-          // Don't wait for response
-          keepalive: true,
-        });
+        if (this.isTauri()) {
+          // Tauri desktop mode - use invoke
+          await invoke("report_error", {
+            error: {
+              id: error.timestamp, // Use timestamp as ID if not set
+              timestamp: error.timestamp,
+              error_type: error.type,
+              message: error.message,
+              stack: error.stack,
+              source: error.url || "frontend",
+              url: error.url,
+              component: error.component,
+            },
+          });
+        } else {
+          // Web mode - use API
+          const response = await fetch(this.apiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(error),
+            keepalive: true,
+          });
 
-        // Check if response is JSON before parsing
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          // Only parse if it's actually JSON
-          try {
-            await response.json();
-          } catch {
-            // JSON parse failed, but we don't care about the response
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            try {
+              await response.json();
+            } catch {
+              // JSON parse failed, but we don't care about the response
+            }
           }
         }
-        // If not JSON (e.g., HTML error page), just ignore - we'll log locally
       } catch (err) {
         // If reporting fails, log locally but don't create infinite loop
         if (import.meta.env.DEV) {
           console.debug("Failed to report error to backend:", err);
         }
-        // Could store in localStorage for later retry
       }
     }
   }

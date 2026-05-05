@@ -17,7 +17,6 @@ const ErrorRoutes = require("./errors");
 const LearningRoutes = require("./learning");
 const NLPRoutes = require("./nlp");
 const AIModelsRoutes = require("./ai-models");
-console.log("📦 ErrorRoutes module loaded:", typeof ErrorRoutes);
 
 class RoutesManager {
   constructor(server) {
@@ -41,6 +40,7 @@ class RoutesManager {
     this.routes.complexity = new ComplexityRoutes(this.server);
     this.routes.reports = new ReportsRoutes(this.server);
     this.routes.settings = new SettingsRoutes(this.server);
+    console.log("  ✅ SettingsRoutes loaded");
     this.routes.orchestrate = new OrchestrateRoutes(this.server);
     this.routes.system = new SystemRoutes(this.server);
     console.log("  ✅ SystemRoutes loaded");

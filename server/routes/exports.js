@@ -24,11 +24,22 @@ class ExportRoutes {
           return res.status(400).json({ error: "Data is required" });
         }
 
+        // Whitelist validation for export formats
+        const allowedFormats = ["csv", "json", "txt"];
+        const normalizedFormat = format.toLowerCase().trim();
+
+        if (!allowedFormats.includes(normalizedFormat)) {
+          return res.status(400).json({
+            error: "Invalid format",
+            message: `Format must be one of: ${allowedFormats.join(", ")}`,
+          });
+        }
+
         let content;
         let mimeType;
         let extension;
 
-        switch (format.toLowerCase()) {
+        switch (normalizedFormat) {
           case "csv":
             content = this.convertToCSV(data);
             mimeType = "text/csv";
@@ -88,7 +99,10 @@ class ExportRoutes {
         const htmlReport = this.generateHTMLReport(analysis, title);
 
         res.setHeader("Content-Type", "text/html");
-        res.setHeader("Content-Disposition", `attachment; filename="${title.replace(/\s+/g, "_")}.html"`);
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${title.replace(/\s+/g, "_")}.html"`
+        );
         res.send(htmlReport);
       } catch (error) {
         console.error("Report generation error:", error);
@@ -210,14 +224,14 @@ class ExportRoutes {
 <body>
   <h1>${title}</h1>
   <p>Generated: ${date}</p>
-  
+
   <div class="summary">
     <h2>Summary</h2>
     <p><strong>Total Files:</strong> ${totalFiles.toLocaleString()}</p>
     <p><strong>Total Size:</strong> ${totalSize}</p>
     <p><strong>Directory:</strong> ${analysis.directory || "Unknown"}</p>
   </div>
-  
+
   <h2>Top 20 Largest Files</h2>
   <table>
     <thead>

@@ -17,6 +17,10 @@ class TrendsDatabase {
    * Store analysis trend data
    */
   storeAnalysisTrend(directoryPath, analysisData) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       // Get previous analysis to calculate changes
       const prevSql = `
@@ -79,7 +83,9 @@ class TrendsDatabase {
           function (err) {
             if (err) reject(err);
             else {
-              console.log(`📈 Stored trend for ${directoryPath}: ${fileCountChange > 0 ? "+" : ""}${fileCountChange} files, ${growthRate.toFixed(2)}% growth`);
+              console.log(
+                `📈 Stored trend for ${directoryPath}: ${fileCountChange > 0 ? "+" : ""}${fileCountChange} files, ${growthRate.toFixed(2)}% growth`
+              );
               resolve({
                 id: this.lastID,
                 fileCountChange,
@@ -97,6 +103,10 @@ class TrendsDatabase {
    * Get analysis trends for a directory
    */
   getAnalysisTrends(directoryPath, limit = 10) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT * FROM analysis_trends
@@ -130,6 +140,10 @@ class TrendsDatabase {
    * Get trend summary (growth over time)
    */
   getTrendSummary(directoryPath) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT
@@ -147,23 +161,34 @@ class TrendsDatabase {
         WHERE directory_path = ?
       `;
 
-      this.db.get(sql, [directoryPath, directoryPath, directoryPath, directoryPath, directoryPath], (err, row) => {
-        if (err) {
-          reject(err);
-          return;
+      this.db.get(
+        sql,
+        [directoryPath, directoryPath, directoryPath, directoryPath, directoryPath],
+        (err, row) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          const totalGrowth =
+            row.initial_size > 0
+              ? ((row.current_size - row.initial_size) / row.initial_size) * 100
+              : 0;
+
+          resolve({
+            ...row,
+            total_growth_percent: totalGrowth,
+            analysis_count: row.data_points,
+            days_tracked:
+              row.first_analysis && row.last_analysis
+                ? Math.ceil(
+                    (new Date(row.last_analysis) - new Date(row.first_analysis)) /
+                      (1000 * 60 * 60 * 24)
+                  )
+                : 0,
+          });
         }
-
-        const totalGrowth = row.initial_size > 0 ? ((row.current_size - row.initial_size) / row.initial_size) * 100 : 0;
-
-        resolve({
-          ...row,
-          total_growth_percent: totalGrowth,
-          analysis_count: row.data_points,
-          days_tracked: row.first_analysis && row.last_analysis
-            ? Math.ceil((new Date(row.last_analysis) - new Date(row.first_analysis)) / (1000 * 60 * 60 * 24))
-            : 0,
-        });
-      });
+      );
     });
   }
 }

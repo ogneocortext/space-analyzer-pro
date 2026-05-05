@@ -17,6 +17,10 @@ class ComplexityDatabase {
    * Store code complexity metrics
    */
   storeComplexityMetrics(metrics) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         INSERT OR REPLACE INTO complexity_metrics
@@ -63,6 +67,10 @@ class ComplexityDatabase {
    * Get complexity metrics for a file
    */
   getComplexityMetrics(filePath) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `SELECT * FROM complexity_metrics WHERE file_path = ?`;
       this.db.get(sql, [filePath], (err, row) => {
@@ -76,6 +84,10 @@ class ComplexityDatabase {
    * Get complexity metrics for a directory
    */
   getDirectoryComplexity(directoryPath, minPriority = null) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       let sql = `SELECT * FROM complexity_metrics WHERE directory_path = ?`;
       const params = [directoryPath];
@@ -104,6 +116,10 @@ class ComplexityDatabase {
    * Get complexity summary statistics for a directory
    */
   getComplexitySummary(directoryPath) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT
@@ -136,6 +152,10 @@ class ComplexityDatabase {
    * Get files needing refactoring by priority
    */
   getFilesNeedingRefactoring(directoryPath, limit = 20) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT * FROM complexity_metrics
@@ -161,6 +181,10 @@ class ComplexityDatabase {
    * Delete complexity metrics for files that no longer exist
    */
   cleanupOrphanedMetrics(validFilePaths) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const placeholders = validFilePaths.map(() => "?").join(",");
       const sql = `
@@ -183,6 +207,10 @@ class ComplexityDatabase {
    * Get most complex files across all directories
    */
   getMostComplexFiles(limit = 20) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT * FROM complexity_metrics

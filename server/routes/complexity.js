@@ -25,6 +25,11 @@ class ComplexityRoutes {
           return res.status(400).json({ error: "Directory or analysisId is required" });
         }
 
+        // Validate directory path if provided
+        if (directory && !this.server.isValidPath(directory)) {
+          return res.status(400).json({ error: "Invalid directory path" });
+        }
+
         // Get analysis data
         const analysisData = analysisId
           ? this.server.analysisResults.get(analysisId)
@@ -35,7 +40,21 @@ class ComplexityRoutes {
         }
 
         // Filter code files
-        const codeExtensions = [".js", ".ts", ".jsx", ".tsx", ".py", ".java", ".cs", ".cpp", ".c", ".go", ".rs", ".php", ".rb"];
+        const codeExtensions = [
+          ".js",
+          ".ts",
+          ".jsx",
+          ".tsx",
+          ".py",
+          ".java",
+          ".cs",
+          ".cpp",
+          ".c",
+          ".go",
+          ".rs",
+          ".php",
+          ".rb",
+        ];
         const codeFiles = analysisData.files
           .filter((f) => {
             const ext = path.extname(f.name).toLowerCase();
@@ -51,29 +70,34 @@ class ComplexityRoutes {
         const filePaths = codeFiles.map((f) => f.path);
         const complexityResults = await analyzer.analyzeFiles(filePaths);
 
-        // Store results in database
-        for (const result of complexityResults) {
-          const fileHash = crypto.createHash("md5").update(`${result.filePath}:${result.linesOfCode}`).digest("hex");
+        // Store results in database if available
+        if (this.server.knowledgeDB) {
+          for (const result of complexityResults) {
+            const fileHash = crypto
+              .createHash("md5")
+              .update(`${result.filePath}:${result.linesOfCode}`)
+              .digest("hex");
 
-          await this.server.knowledgeDB.storeComplexityMetrics({
-            filePath: result.filePath,
-            directoryPath: directory || analysisData.directory,
-            language: result.language,
-            linesOfCode: result.linesOfCode,
-            logicalLines: result.logicalLines,
-            commentLines: result.commentLines,
-            blankLines: result.blankLines,
-            cyclomaticComplexity: result.cyclomaticComplexity,
-            cognitiveComplexity: result.cognitiveComplexity,
-            functionCount: result.functionCount,
-            maxFunctionLength: result.maxFunctionLength,
-            averageFunctionLength: result.averageFunctionLength,
-            nestingDepth: result.nestingDepth,
-            maintainabilityIndex: result.maintainabilityIndex,
-            complexityGrade: result.complexityGrade,
-            refactoringPriority: result.refactoringPriority,
-            fileHash,
-          });
+            await this.server.knowledgeDB.storeComplexityMetrics({
+              filePath: result.filePath,
+              directoryPath: directory || analysisData.directory,
+              language: result.language,
+              linesOfCode: result.linesOfCode,
+              logicalLines: result.logicalLines,
+              commentLines: result.commentLines,
+              blankLines: result.blankLines,
+              cyclomaticComplexity: result.cyclomaticComplexity,
+              cognitiveComplexity: result.cognitiveComplexity,
+              functionCount: result.functionCount,
+              maxFunctionLength: result.maxFunctionLength,
+              averageFunctionLength: result.averageFunctionLength,
+              nestingDepth: result.nestingDepth,
+              maintainabilityIndex: result.maintainabilityIndex,
+              complexityGrade: result.complexityGrade,
+              refactoringPriority: result.refactoringPriority,
+              fileHash,
+            });
+          }
         }
 
         // Calculate summary statistics
@@ -106,14 +130,26 @@ class ComplexityRoutes {
           return res.status(400).json({ error: "Directory is required" });
         }
 
-        const metrics = await this.server.knowledgeDB.getDirectoryComplexity(directory, minPriority || null);
+        // Validate directory path
+        if (!this.server.isValidPath(directory)) {
+          return res.status(400).json({ error: "Invalid directory path" });
+        }
 
-        const summary = await this.server.knowledgeDB.getComplexitySummary(directory);
+        const metrics = this.server.knowledgeDB
+          ? await this.server.knowledgeDB.getDirectoryComplexity(directory, minPriority || null)
+          : [];
+
+        const summary = this.server.knowledgeDB
+          ? await this.server.knowledgeDB.getComplexitySummary(directory)
+          : null;
+
+        const parsedLimit = parseInt(limit);
+        const safeLimit = Number.isNaN(parsedLimit) ? 50 : Math.max(1, Math.min(1000, parsedLimit));
 
         res.json({
           success: true,
           directory,
-          metrics: metrics.slice(0, parseInt(limit)),
+          metrics: metrics.slice(0, safeLimit),
           summary,
           count: metrics.length,
         });
@@ -132,8 +168,17 @@ class ComplexityRoutes {
           return res.status(400).json({ error: "Directory is required" });
         }
 
-        const summary = await this.server.knowledgeDB.getComplexitySummary(directory);
-        const filesNeedingRefactoring = await this.server.knowledgeDB.getFilesNeedingRefactoring(directory, 20);
+        // Validate directory path
+        if (!this.server.isValidPath(directory)) {
+          return res.status(400).json({ error: "Invalid directory path" });
+        }
+
+        const summary = this.server.knowledgeDB
+          ? await this.server.knowledgeDB.getComplexitySummary(directory)
+          : null;
+        const filesNeedingRefactoring = this.server.knowledgeDB
+          ? await this.server.knowledgeDB.getFilesNeedingRefactoring(directory, 20)
+          : [];
 
         res.json({
           success: true,
@@ -156,7 +201,9 @@ class ComplexityRoutes {
           return res.status(400).json({ error: "Directory is required" });
         }
 
-        const files = await this.server.knowledgeDB.getFilesNeedingRefactoring(directory, parseInt(limit));
+        const files = this.server.knowledgeDB
+          ? await this.server.knowledgeDB.getFilesNeedingRefactoring(directory, parseInt(limit))
+          : [];
 
         res.json({
           success: true,

@@ -7,6 +7,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs").promises;
 const PDFGenerator = require("../modules/pdf-generator");
+const logger = require("../utils/logger");
 
 class ReportsRoutes {
   constructor(server) {
@@ -56,7 +57,7 @@ class ReportsRoutes {
           },
         });
       } catch (error) {
-        console.error("Generate analysis report error:", error);
+        logger.error("Generate analysis report error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -71,6 +72,13 @@ class ReportsRoutes {
         }
 
         // Get complexity data from database
+        if (!this.server.knowledgeDB) {
+          return res.status(503).json({
+            error: "Database unavailable",
+            message: "Complexity analysis requires database access",
+          });
+        }
+
         const metrics = await this.server.knowledgeDB.getDirectoryComplexity(directory);
         const summary = await this.server.knowledgeDB.getComplexitySummary(directory);
 
@@ -107,7 +115,7 @@ class ReportsRoutes {
           },
         });
       } catch (error) {
-        console.error("Generate complexity report error:", error);
+        logger.error("Generate complexity report error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -138,7 +146,7 @@ class ReportsRoutes {
         const fileStream = require("fs").createReadStream(reportPath);
         fileStream.pipe(res);
       } catch (error) {
-        console.error("Download report error:", error);
+        logger.error("Download report error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -169,7 +177,7 @@ class ReportsRoutes {
         const fileStream = require("fs").createReadStream(reportPath);
         fileStream.pipe(res);
       } catch (error) {
-        console.error("View report error:", error);
+        logger.error("View report error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -188,7 +196,7 @@ class ReportsRoutes {
           ...result,
         });
       } catch (error) {
-        console.error("List reports error:", error);
+        logger.error("List reports error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -219,7 +227,7 @@ class ReportsRoutes {
           message: `Report ${filename} deleted successfully`,
         });
       } catch (error) {
-        console.error("Delete report error:", error);
+        logger.error("Delete report error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -237,7 +245,7 @@ class ReportsRoutes {
           maxAgeDays,
         });
       } catch (error) {
-        console.error("Cleanup reports error:", error);
+        logger.error("Cleanup reports error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -261,7 +269,7 @@ class ReportsRoutes {
           viewUrl: `/api/reports/view/${filename}`,
         });
       } catch (error) {
-        console.error("Preview report error:", error);
+        logger.error("Preview report error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -273,6 +281,13 @@ class ReportsRoutes {
     // Get all templates
     this.router.get("/reports/templates", async (req, res) => {
       try {
+        if (!this.server.knowledgeDB) {
+          return res.status(503).json({
+            error: "Database unavailable",
+            message: "Template management requires database access",
+          });
+        }
+
         const { type, active = "true" } = req.query;
         const templates = await this.server.knowledgeDB.getTemplates(
           type || null,
@@ -285,7 +300,7 @@ class ReportsRoutes {
           count: templates.length,
         });
       } catch (error) {
-        console.error("Get templates error:", error);
+        logger.error("Get templates error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -293,8 +308,14 @@ class ReportsRoutes {
     // Get single template
     this.router.get("/reports/templates/:id", async (req, res) => {
       try {
+        if (!this.server.knowledgeDB) {
+          return res.status(503).json({ error: "Database unavailable" });
+        }
+
         const { id } = req.params;
-        const template = await this.server.knowledgeDB.getTemplateById(parseInt(id));
+        const parsedId = parseInt(id);
+        const safeId = Number.isNaN(parsedId) ? 0 : parsedId;
+        const template = await this.server.knowledgeDB.getTemplateById(safeId);
 
         if (!template) {
           return res.status(404).json({ error: "Template not found" });
@@ -305,7 +326,7 @@ class ReportsRoutes {
           template,
         });
       } catch (error) {
-        console.error("Get template error:", error);
+        logger.error("Get template error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -313,6 +334,10 @@ class ReportsRoutes {
     // Create template
     this.router.post("/reports/templates", async (req, res) => {
       try {
+        if (!this.server.knowledgeDB) {
+          return res.status(503).json({ error: "Database unavailable" });
+        }
+
         const template = req.body;
 
         // Validation
@@ -329,7 +354,7 @@ class ReportsRoutes {
           template: result,
         });
       } catch (error) {
-        console.error("Create template error:", error);
+        logger.error("Create template error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -337,6 +362,10 @@ class ReportsRoutes {
     // Update template
     this.router.put("/reports/templates/:id", async (req, res) => {
       try {
+        if (!this.server.knowledgeDB) {
+          return res.status(503).json({ error: "Database unavailable" });
+        }
+
         const { id } = req.params;
         const updates = req.body;
 
@@ -351,7 +380,7 @@ class ReportsRoutes {
           updated: result.updated,
         });
       } catch (error) {
-        console.error("Update template error:", error);
+        logger.error("Update template error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -359,6 +388,10 @@ class ReportsRoutes {
     // Delete template
     this.router.delete("/reports/templates/:id", async (req, res) => {
       try {
+        if (!this.server.knowledgeDB) {
+          return res.status(503).json({ error: "Database unavailable" });
+        }
+
         const { id } = req.params;
 
         const result = await this.server.knowledgeDB.deleteTemplate(parseInt(id));
@@ -372,7 +405,7 @@ class ReportsRoutes {
           deleted: result.deleted,
         });
       } catch (error) {
-        console.error("Delete template error:", error);
+        logger.error("Delete template error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -380,6 +413,10 @@ class ReportsRoutes {
     // Set default template
     this.router.post("/reports/templates/:id/default", async (req, res) => {
       try {
+        if (!this.server.knowledgeDB) {
+          return res.status(503).json({ error: "Database unavailable" });
+        }
+
         const { id } = req.params;
         const { templateType } = req.body;
 
@@ -394,7 +431,7 @@ class ReportsRoutes {
           updated: result.updated,
         });
       } catch (error) {
-        console.error("Set default template error:", error);
+        logger.error("Set default template error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -402,6 +439,10 @@ class ReportsRoutes {
     // Duplicate template
     this.router.post("/reports/templates/:id/duplicate", async (req, res) => {
       try {
+        if (!this.server.knowledgeDB) {
+          return res.status(503).json({ error: "Database unavailable" });
+        }
+
         const { id } = req.params;
         const { newName } = req.body;
 
@@ -412,7 +453,7 @@ class ReportsRoutes {
           template: result,
         });
       } catch (error) {
-        console.error("Duplicate template error:", error);
+        logger.error("Duplicate template error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -424,6 +465,13 @@ class ReportsRoutes {
     // Create batch export job
     this.router.post("/reports/batch", async (req, res) => {
       try {
+        if (!this.server.knowledgeDB?.db) {
+          return res.status(503).json({
+            error: "Database unavailable",
+            message: "Batch jobs require database access",
+          });
+        }
+
         const { jobName, jobType, analysisIds, exportOptions } = req.body;
 
         if (!jobType || !analysisIds || !Array.isArray(analysisIds)) {
@@ -468,7 +516,7 @@ class ReportsRoutes {
         // Start processing (async)
         this.processBatchJob(jobId, analysisIds, jobType, exportOptions);
       } catch (error) {
-        console.error("Create batch job error:", error);
+        logger.error("Create batch job error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -476,6 +524,13 @@ class ReportsRoutes {
     // Get batch jobs
     this.router.get("/reports/batch", async (req, res) => {
       try {
+        if (!this.server.knowledgeDB?.db) {
+          return res.status(503).json({
+            error: "Database unavailable",
+            message: "Batch jobs require database access",
+          });
+        }
+
         const { status, limit = 50 } = req.query;
 
         let sql = `SELECT * FROM batch_export_jobs`;
@@ -514,7 +569,7 @@ class ReportsRoutes {
           count: jobs.length,
         });
       } catch (error) {
-        console.error("Get batch jobs error:", error);
+        logger.error("Get batch jobs error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -522,6 +577,10 @@ class ReportsRoutes {
     // Get single batch job
     this.router.get("/reports/batch/:id", async (req, res) => {
       try {
+        if (!this.server.knowledgeDB?.db) {
+          return res.status(503).json({ error: "Database unavailable" });
+        }
+
         const { id } = req.params;
 
         const job = await new Promise((resolve, reject) => {
@@ -555,7 +614,7 @@ class ReportsRoutes {
           job,
         });
       } catch (error) {
-        console.error("Get batch job error:", error);
+        logger.error("Get batch job error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
@@ -563,6 +622,10 @@ class ReportsRoutes {
     // Cancel batch job
     this.router.delete("/reports/batch/:id", async (req, res) => {
       try {
+        if (!this.server.knowledgeDB?.db) {
+          return res.status(503).json({ error: "Database unavailable" });
+        }
+
         const { id } = req.params;
 
         // Only allow cancelling pending or processing jobs
@@ -589,26 +652,53 @@ class ReportsRoutes {
           message: "Job cancelled",
         });
       } catch (error) {
-        console.error("Cancel batch job error:", error);
+        logger.error("Cancel batch job error", { error: error.message });
         res.status(500).json({ error: error.message });
       }
     });
   }
 
+  /**
+   * Safely execute database operation with error handling
+   */
+  async safeDbRun(sql, params, context = "DB Operation") {
+    if (!this.server.knowledgeDB?.db) {
+      throw new Error("Database not available");
+    }
+
+    try {
+      await new Promise((resolve, reject) => {
+        this.server.knowledgeDB.db.run(sql, params, (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+      return { success: true };
+    } catch (error) {
+      logger.error(`${context} failed`, { error: error.message, sql: sql.substring(0, 50) });
+      return { success: false, error: error.message };
+    }
+  }
+
   // Process batch job asynchronously
   async processBatchJob(jobId, analysisIds, jobType, exportOptions) {
+    // Guard against missing database
+    if (!this.server.knowledgeDB?.db) {
+      logger.error(`Cannot process batch job ${jobId}: Database unavailable`);
+      return;
+    }
+
     try {
       // Update status to processing
-      await new Promise((resolve, reject) => {
-        this.server.knowledgeDB.db.run(
-          `UPDATE batch_export_jobs SET status = 'processing', started_at = CURRENT_TIMESTAMP WHERE id = ?`,
-          [jobId],
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
+      const startResult = await this.safeDbRun(
+        `UPDATE batch_export_jobs SET status = 'processing', started_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [jobId],
+        "Start batch job"
+      );
+
+      if (!startResult.success) {
+        throw new Error(`Failed to start batch job: ${startResult.error}`);
+      }
 
       const outputFiles = [];
       let processed = 0;
@@ -630,50 +720,49 @@ class ReportsRoutes {
 
           processed++;
 
-          // Update progress
-          await new Promise((resolve, reject) => {
-            this.server.knowledgeDB.db.run(
-              `UPDATE batch_export_jobs SET processed_items = ? WHERE id = ?`,
-              [processed, jobId],
-              (err) => {
-                if (err) reject(err);
-                else resolve();
-              }
-            );
-          });
+          // Update progress with error handling
+          const progressResult = await this.safeDbRun(
+            `UPDATE batch_export_jobs SET processed_items = ? WHERE id = ?`,
+            [processed, jobId],
+            `Update progress for job ${jobId}`
+          );
+
+          if (!progressResult.success) {
+            logger.warn(`Failed to update progress for job ${jobId}`, {
+              error: progressResult.error,
+            });
+            // Continue processing even if progress update fails
+          }
         } catch (err) {
-          console.error(`Error processing analysis ${analysisId}:`, err);
+          logger.error(`Error processing analysis ${analysisId}`, { error: err.message });
         }
       }
 
       // Mark as completed
-      await new Promise((resolve, reject) => {
-        this.server.knowledgeDB.db.run(
-          `UPDATE batch_export_jobs
-           SET status = 'completed', completed_at = CURRENT_TIMESTAMP, output_files = ?
-           WHERE id = ?`,
-          [JSON.stringify(outputFiles), jobId],
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
+      const completeResult = await this.safeDbRun(
+        `UPDATE batch_export_jobs
+         SET status = 'completed', completed_at = CURRENT_TIMESTAMP, output_files = ?
+         WHERE id = ?`,
+        [JSON.stringify(outputFiles), jobId],
+        `Complete batch job ${jobId}`
+      );
 
-      console.log(`✅ Batch job ${jobId} completed: ${outputFiles.length} files generated`);
+      if (!completeResult.success) {
+        logger.error(`Failed to mark job ${jobId} as completed`, { error: completeResult.error });
+      } else {
+        logger.log("✅", `Batch job ${jobId} completed: ${outputFiles.length} files generated`);
+      }
     } catch (error) {
-      console.error(`❌ Batch job ${jobId} failed:`, error);
+      logger.error(`Batch job ${jobId} failed`, { error: error.message });
 
-      // Mark as failed
-      await new Promise((resolve) => {
-        this.server.knowledgeDB.db.run(
-          `UPDATE batch_export_jobs
-           SET status = 'failed', completed_at = CURRENT_TIMESTAMP, error_message = ?
-           WHERE id = ?`,
-          [error.message, jobId],
-          () => resolve()
-        );
-      });
+      // Mark as failed - use safeDbRun but don't throw if this also fails
+      await this.safeDbRun(
+        `UPDATE batch_export_jobs
+         SET status = 'failed', completed_at = CURRENT_TIMESTAMP, error_message = ?
+         WHERE id = ?`,
+        [error.message.substring(0, 500), jobId], // Limit error message size
+        `Mark job ${jobId} as failed`
+      );
     }
   }
 

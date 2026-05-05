@@ -14,22 +14,48 @@ const TemplatesDatabase = require("./templates");
 
 class KnowledgeDatabase {
   constructor(dbPath) {
-    // Initialize core database functionality
-    this.core = new DatabaseCore(dbPath);
-    this.core.initialize();
+    this.dbPath = dbPath;
+    this.core = null;
+    this.analysis = null;
+    this.ai = null;
+    this.trends = null;
+    this.summaries = null;
+    this.cleanup = null;
+    this.complexity = null;
+    this.templates = null;
+    this.db = null;
+    this.initialized = false;
+  }
 
-    // Initialize all feature modules
-    this.analysis = new AnalysisDatabase(this.core);
-    this.ai = new AIDatabase(this.core);
-    this.trends = new TrendsDatabase(this.core);
-    this.summaries = new SummariesDatabase(this.core);
-    this.cleanup = new CleanupDatabase(this.core);
-    this.complexity = new ComplexityDatabase(this.core);
-    this.templates = new TemplatesDatabase(this.core);
+  async initialize() {
+    if (this.initialized) return true;
 
-    // Set database reference once initialized
-    this.db = this.core.getDatabase();
-    this.setupModules();
+    try {
+      // Initialize core database functionality
+      this.core = new DatabaseCore(this.dbPath);
+      await this.core.initialize();
+
+      // Initialize all feature modules
+      this.analysis = new AnalysisDatabase(this.core);
+      this.ai = new AIDatabase(this.core);
+      this.trends = new TrendsDatabase(this.core);
+      this.summaries = new SummariesDatabase(this.core);
+      this.cleanup = new CleanupDatabase(this.core);
+      this.complexity = new ComplexityDatabase(this.core);
+      this.templates = new TemplatesDatabase(this.core);
+
+      // Set database reference once initialized
+      this.db = this.core.getDatabase();
+      this.setupModules();
+      this.initialized = true;
+
+      return true;
+    } catch (error) {
+      console.error("❌ KnowledgeDatabase initialization failed:", error);
+      this.db = null;
+      this.initialized = false;
+      throw error;
+    }
   }
 
   setupModules() {

@@ -1,9 +1,15 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { AnalysisBridge } from "@/services/AnalysisBridge";
+import { AnalysisBridge } from "@/services/analysis/AnalysisBridge";
+import { useDebugLogger } from "@/services/DebugLogger";
 
-// Simple logger that saves to window object for inspection
+// Initialize logger for analysis store
+const logger = useDebugLogger("AnalysisStore");
+
+// Legacy window logger for backwards compatibility
 const log = (tag: string, ...args: any[]) => {
+  logger.info(tag, ...args);
+  // Also save to window for inspection
   const timestamp = new Date().toISOString();
   const entry = { timestamp, tag, data: args };
   if (typeof window !== "undefined") {
@@ -34,6 +40,9 @@ export const useAnalysisStore = defineStore("analysis", () => {
     completed: false as boolean | undefined,
     totalSize: 0,
   });
+  // Initialize backend status - in Tauri mode, set to ok by default
+  const isTauriMode = typeof window !== "undefined" && !!(window as any).__TAURI__;
+  const backendStatus = ref(isTauriMode ? { ok: true } : null);
   const abortController = ref<AbortController | null>(null);
   const analysisStartTime = ref<number | null>(null);
 
@@ -42,6 +51,43 @@ export const useAnalysisStore = defineStore("analysis", () => {
   // Check if backend is available
   async function checkBackend(): Promise<{ ok: boolean; error?: string }> {
     return await analysisBridge.checkBackendHealth();
+  }
+
+  // Update progress data from external sources (WebSocket/SSE/Tauri)
+  function updateProgressFromWebSocket(progressInfo: {
+    files: number;
+    percentage: number;
+    currentFile: string;
+    completed: boolean;
+    totalSize?: number;
+  }) {
+    logger.debug("Updating progress from WebSocket", progressInfo);
+
+    progressData.value = {
+      files: progressInfo.files,
+      percentage: progressInfo.percentage,
+      currentFile: progressInfo.currentFile,
+      completed: progressInfo.completed,
+      totalSize: progressInfo.totalSize ?? progressData.value.totalSize ?? 0,
+    };
+    progress.value = progressInfo.percentage;
+
+    logger.debug("Updated progressData", progressData.value);
+
+    // Update status if completed
+    if (progressInfo.completed) {
+      status.value = "complete";
+      isAnalysisRunning.value = false;
+    } else if (!isAnalysisRunning.value && !progressInfo.completed) {
+      // Mark as running when we receive progress
+      isAnalysisRunning.value = true;
+      status.value = "analyzing";
+    }
+  }
+
+  // Register store update function for WebSocket updates
+  if (typeof window !== "undefined") {
+    (window as any).__updateStoreProgress = updateProgressFromWebSocket;
   }
 
   // Cancel ongoing analysis
@@ -56,7 +102,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
       const body = currentAnalysisId.value
         ? JSON.stringify({ analysisId: currentAnalysisId.value })
         : "{}";
-      fetch(`${analysisBridge.baseUrl}/api/cancel`, {
+      fetch(`${analysisBridge.baseUrl}/api/analysis/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body,
@@ -81,8 +127,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
     analysisStartTime.value = Date.now();
 
     try {
-      console.log("🚀 handleAnalysis called with enableAI:", enableAI);
-      console.log("📂 Path to analyze:", path.value);
+      logger.info("handleAnalysis called", { enableAI, path: path.value });
       log("ANALYSIS_START", "Starting analysis");
       status.value = "starting";
       isAnalysisRunning.value = true;
@@ -93,7 +138,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
       recentlyScannedFiles.value = [];
       useAI.value = enableAI;
 
-      console.log("🔧 Store state set:", {
+      logger.debug("Store state set", {
         status: status.value,
         isAnalysisRunning: isAnalysisRunning.value,
         path: path.value,
@@ -102,7 +147,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
       const { result, analysisId } = await analysisBridge.analyzeDirectoryWithProgress(
         path.value,
         (progressInfo) => {
-          console.log("📊 Progress callback received:", progressInfo);
+          logger.debug("Progress callback received", progressInfo);
           log("PROGRESS", progressInfo);
           progress.value = progressInfo.percentage;
           progressData.value = {
@@ -114,7 +159,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
           };
           status.value = "analyzing";
 
-          console.log("🔧 Updated progressData:", progressData.value);
+          logger.debug("Updated progressData", progressData.value);
 
           // Add current file to recently scanned files list
           if (
@@ -245,6 +290,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
     scannedFiles,
     recentlyScannedFiles,
     progressData,
+    analysisStartTime,
     handleAnalysis,
     cancelAnalysis,
     checkBackend,
@@ -252,5 +298,6 @@ export const useAnalysisStore = defineStore("analysis", () => {
     initialize,
     fetchAnalysisFromDB,
     getAnalysisHistory,
+    updateProgressFromWebSocket,
   };
 });

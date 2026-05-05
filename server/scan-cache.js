@@ -57,7 +57,16 @@ class ScanCache {
       profile: options.profile || "full",
     };
 
-    return crypto.createHash("md5").update(JSON.stringify(hashInput)).digest("hex");
+    // Safe JSON stringify to prevent circular reference crashes
+    let hashString;
+    try {
+      hashString = JSON.stringify(hashInput);
+    } catch (circularError) {
+      // Fallback: create string from primitive values only
+      hashString = `${hashInput.path}:${hashInput.includeHidden}:${hashInput.maxDepth}:${hashInput.profile}`;
+    }
+
+    return crypto.createHash("md5").update(hashString).digest("hex");
   }
 
   async get(directoryPath, options = {}) {

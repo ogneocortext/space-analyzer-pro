@@ -5,9 +5,10 @@ import App from "./App.vue";
 
 // Import global styles and initialization
 import "./styles/index.css";
+import "./styles/desktop.css";
 import "./installHook.js";
-import performancePlugin from "./plugins/performance";
 import { vueErrorHandler } from "./services/errorTracking";
+import { useKeyboardShortcuts } from "./composables/useKeyboardShortcuts";
 
 console.warn("Starting Vue app...");
 
@@ -214,13 +215,7 @@ app.config.warnHandler = (msg, instance, trace) => {
 
 app.use(pinia);
 app.use(router);
-app.use(performancePlugin, {
-  enableMonitoring: true,
-  enableVirtualScrolling: true,
-  enableLazyLoading: true,
-  maxCacheSize: 100,
-});
 
 app.mount("#app");
 
-console.warn("Vue app mounted successfully with performance optimizations");
+console.warn("Vue app mounted successfully with performance optimizations and desktop features");

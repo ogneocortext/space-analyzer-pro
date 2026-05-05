@@ -1,0 +1,17 @@
+[build]
+target = "x86_64-pc-windows-msvc"
+
+[target.x86_64-pc-windows-msvc]
+linker = "link.exe"
+
+[env]
+# Set Windows SDK environment variables
+# These will be picked up by the build scripts
+
+# Option 1: If you have Windows SDK installed at default location
+# INCLUDE = "C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\um;C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\ucrt;C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\shared"
+# LIB = "C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\um\x64;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\ucrt\x64"
+
+# Option 2: For non-standard VS installs, set these before running cargo:
+# VCINSTALLDIR = "D:\Microsoft Visual Studio\18\Community\VC"
+# VisualStudioVersion = "17.0"

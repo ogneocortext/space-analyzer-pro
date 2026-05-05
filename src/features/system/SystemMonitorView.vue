@@ -14,6 +14,7 @@ const systemMetrics = ref({
   cpu: { usage: 0, cores: 0, model: "" },
   memory: { total: 0, used: 0, free: 0, percentage: 0 },
   disk: { used: 0, total: 0, percentage: 0, free: 0 },
+  network: { interfaces: [], totalRx: 0, totalTx: 0, activeConnections: 0 },
   process: { uptime: 0, memory: { rss: 0, heapTotal: 0, heapUsed: 0, external: 0 }, pid: 0 },
 });
 
@@ -257,14 +258,37 @@ function getProgressColor(percentage: number): string {
         <div class="space-y-2">
           <div class="flex justify-between">
             <span class="text-sm text-slate-500">Status</span>
-            <span class="font-medium text-blue-400">Available</span>
+            <span class="font-medium text-blue-400">
+              {{ systemMetrics.network.interfaces.length > 0 ? "Connected" : "Disconnected" }}
+            </span>
           </div>
           <div class="flex justify-between">
-            <span class="text-sm text-slate-500">Type</span>
-            <span class="font-medium text-emerald-400">System Metrics</span>
+            <span class="text-sm text-slate-500">Interfaces</span>
+            <span class="font-medium text-emerald-400">{{
+              systemMetrics.network.interfaces.length
+            }}</span>
           </div>
-          <div class="text-xs text-slate-500 text-center mt-2">
-            Network metrics require additional monitoring setup
+          <div class="flex justify-between">
+            <span class="text-sm text-slate-500">Active Connections</span>
+            <span class="font-medium text-purple-400">{{
+              systemMetrics.network.activeConnections
+            }}</span>
+          </div>
+          <div
+            v-if="systemMetrics.network.interfaces.length > 0"
+            class="mt-3 pt-3 border-t border-slate-700"
+          >
+            <div class="text-xs text-slate-500 mb-2">Network Interfaces:</div>
+            <div class="space-y-1">
+              <div
+                v-for="iface in systemMetrics.network.interfaces.slice(0, 2)"
+                :key="iface.name"
+                class="flex justify-between text-xs"
+              >
+                <span class="text-slate-400">{{ iface.name }}</span>
+                <span class="text-slate-300">{{ iface.address }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </Card>

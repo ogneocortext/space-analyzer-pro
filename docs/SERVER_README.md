@@ -10,148 +10,154 @@ This is the modern, modular backend for Space Analyzer, rebuilt with current bes
 
 ```
 server/
-├── src/
-│   ├── services/          # Business logic layer
-│   │   ├── file-scanner/  # File system operations
-│   │   ├── ai-integration/ # AI provider management
-│   │   └── analysis/      # Analysis logic
-│   ├── controllers/       # HTTP request handlers
-│   ├── middleware/        # Cross-cutting concerns
-│   ├── models/           # Data models
-│   ├── utils/            # Shared utilities
-│   └── config/           # Configuration management
-├── tests/                # Test suites
-├── docker/               # Docker configurations
-└── docs/                 # API documentation
+├── routes/               # HTTP route handlers (analysis, ai, files, system, etc.)
+├── modules/              # Business logic (file-utils, ollama-service, analysis-service)
+├── db/                   # Database layer
+│   ├── core.js           # Database initialization and migrations
+│   ├── analysis.js       # Analysis data access
+│   ├── ai.js             # AI response caching
+│   └── templates.js      # Report templates
+├── utils/                # Shared utilities (error-logger, config-manager)
+├── services/             # Enhanced Ollama AI service
+├── middleware/           # Cross-cutting concerns (security, error handling)
+└── config/               # Configuration management
 ```
 
 ### Key Features
 
-- **🔒 Enhanced Security**: JWT authentication, input validation, rate limiting, security headers
-- **🚀 Performance Optimized**: Async processing, caching, compression, connection pooling
-- **🤖 Multi-Agent Orchestrator**: Intelligent task distribution with circuit breakers and smart caching
-- **📊 Observability**: Structured logging, metrics, health checks, distributed tracing
-- **🧪 Testable**: Modular design with dependency injection
-- **🐳 Container Ready**: Docker and Kubernetes support
-- **🔄 CI/CD Ready**: GitHub Actions integration
+- **🔒 Enhanced Security**: Input validation, rate limiting, security headers, path sanitization
+- **🚀 Performance Optimized**: Async processing, multi-layer caching, compression
+- **🤖 AI Integration**: Ollama-based AI analysis with intelligent caching
+- **📊 Observability**: Structured logging, metrics, health checks
+- **🧪 Testable**: Modular design with clear separation of concerns
+- **� SQLite Database**: Single-file database with WAL mode for performance
 
 ---
 
-## 🤖 Multi-Agent Orchestrator (New in v2.2.7)
+## 🔄 Worker Pool & Caching
 
-The Multi-Agent Orchestrator is an enterprise-grade task distribution system that transforms file analysis from a single-threaded process into a distributed, fault-tolerant architecture.
+The backend uses a worker pool pattern for efficient file analysis with multi-layer caching for performance.
 
-### Why Agents?
+### Worker Pool
 
-Traditional file scanning uses a single process. The orchestrator introduces **intelligent agents** that can:
+File analysis operations are handled through an efficient worker pool system:
 
-- Handle different task types (file scanning, AI analysis, background jobs)
-- Operate independently with fault isolation
-- Scale based on hardware capabilities
-- Self-heal using circuit breaker patterns
+- **Async Processing**: Non-blocking file scanning using fast-glob
+- **File Count Limits**: Maximum 100,000 files per scan to prevent memory issues
+- **Depth Limiting**: 10-level maximum directory depth
+- **Exclusion Patterns**: Automatic exclusion of node_modules, .git, **pycache**, etc.
 
-### Architecture
+### Multi-Layer Caching
 
 ```
-Request → Priority Queue → Circuit Breaker → Agent Selection → Execution
-                ↓                    ↓              ↓
-           [CRITICAL]           [CLOSED]    Score: Strength×10
-           [HIGH]               [HALF_OPEN]      Health×5
-           [NORMAL]             [OPEN]           Warmth×3
-           [LOW]                                  Load Factor
-           [BACKGROUND]
+┌─────────────────────────────────────────────────────┐
+│                    Request                          │
+└──────────────┬──────────────────────────────────────┘
+               │
+       ┌───────▼────────┐
+       │  Memory Cache  │  ← Fastest, limited size
+       │   (Map/LRU)    │
+       └───────┬────────┘
+               │ Miss
+       ┌───────▼────────┐
+       │  Web Storage   │  ← Browser localStorage
+       │     Cache      │
+       └───────┬────────┘
+               │ Miss
+       ┌───────▼────────┐
+       │  Database Cache│  ← SQLite with WAL mode
+       │   (SQLite)     │
+       └───────┬────────┘
+               │ Miss
+       ┌───────▼────────┐
+       │  Fresh Scan    │  ← Full file system scan
+       └────────────────┘
 ```
 
 ### Components
 
-| Component           | Purpose                | Benefit                           |
-| ------------------- | ---------------------- | --------------------------------- |
-| **Smart Cache**     | TTL + LRU caching      | 85%+ hit rate for repeated scans  |
-| **Circuit Breaker** | Fault isolation        | Auto-recovery from agent failures |
-| **Priority Queue**  | 5-level prioritization | Critical tasks processed first    |
-| **Agent Pool**      | Specialized workers    | Optimal tool for each job         |
-| **Load Balancer**   | Score-based routing    | Maximum efficiency                |
+| Component          | Purpose               | Benefit                          |
+| ------------------ | --------------------- | -------------------------------- |
+| **Memory Cache**   | In-memory Map storage | Fastest access for active data   |
+| **LRU Eviction**   | Automatic cleanup     | Prevents unbounded memory growth |
+| **Database Cache** | SQLite persistence    | Survives server restarts         |
+| **Web Storage**    | Browser localStorage  | Frontend caching for SPA         |
 
 ### API Usage
 
 ```bash
-# Single-call orchestrated analysis (replaces 3+ API calls)
-curl -X POST http://localhost:8080/api/orchestrate/analyze \
+# Start directory analysis
+curl -X POST http://localhost:8080/api/analysis/start \
   -H "Content-Type: application/json" \
-  -d '{
-    "directoryPath": "C:\\Data",
-    "options": {
-      "useOllama": true,
-      "priority": 1
-    }
-  }'
+  -d '{"directory": "C:\\Data", "options": {}}'
 
-# Check orchestrator health
-curl http://localhost:8080/api/orchestrate/status
+# Check analysis status
+curl http://localhost:8080/api/analysis/status/{analysisId}
 
-# View cache metrics
-curl http://localhost:8080/api/orchestrate/cache/metrics
+# Get analysis results
+curl http://localhost:8080/api/analysis/results/{analysisId}
+
+# Get system health
+curl http://localhost:8080/api/health
 ```
 
 ### Frontend Usage (TypeScript/Vue)
 
 ```typescript
-import { AnalysisBridge } from "@/services/AnalysisBridge";
+import { AnalysisService } from "@/services/AnalysisService";
 
-const analysisBridge = new AnalysisBridge();
+const analysisService = new AnalysisService();
 
-// Simple orchestrated analysis - single call replaces 3+ API calls!
+// Start directory analysis
 async function scanDirectory(path: string) {
   try {
-    // HIGH priority (1) for user-facing scans
-    const { result, analysisId } = await analysisBridge.analyzeWithOrchestrator(path, {
-      useOllama: true, // Enable AI analysis
-      priority: 1, // HIGH priority
-      parallel: true, // Parallel processing
-    });
+    const { analysisId } = await analysisService.startAnalysis(path);
 
-    console.log(`Analyzed ${result.totalFiles} files (${result.totalSize} bytes)`);
+    // Poll for completion
+    const result = await analysisService.waitForCompletion(analysisId);
+    console.log(`Analyzed ${result.totalFiles} files`);
     return result;
   } catch (error) {
     console.error("Analysis failed:", error);
   }
 }
 
-// Monitor orchestrator health
+// Check system health
 async function checkHealth() {
-  const status = await analysisBridge.getOrchestratorStatus();
+  const response = await fetch("/api/health");
+  const health = await response.json();
 
-  console.log(`Agents: ${status.agents.available}/${status.agents.total} available`);
-  console.log(`Tasks: ${status.tasks.active} active, ${status.tasks.queued} queued`);
-  console.log(`Cache: ${(status.cache.hitRate * 100).toFixed(1)}% hit rate`);
+  console.log(`Status: ${health.status}`);
+  console.log(`Database: ${health.database}`);
+  console.log(`Active Analyses: ${health.activity?.activeAnalyses || 0}`);
 
-  return status;
+  return health;
 }
 
 // Force re-analysis by invalidating cache
 async function refreshAnalysis(path: string) {
-  await analysisBridge.invalidateOrchestratorCache(path);
-  return scanDirectory(path); // Will re-scan, not use cache
+  // Clear cache and re-scan
+  return scanDirectory(path);
 }
 ```
 
 ### Performance
 
-| Metric           | Before    | After     | Improvement       |
-| ---------------- | --------- | --------- | ----------------- |
-| API Calls        | 3+        | 1         | 67% reduction     |
-| Cache Hit Rate   | 0%        | 85%+      | Instant repeats   |
-| Fault Recovery   | Manual    | Automatic | Self-healing      |
-| Concurrent Tasks | Unlimited | 10 max    | Controlled load   |
-| Completion Rate  | ~95%      | 99.9%     | Automatic retries |
+| Metric          | Value     | Description               |
+| --------------- | --------- | ------------------------- |
+| Max File Count  | 100,000   | Per scan limit            |
+| Max Depth       | 10 levels | Directory recursion limit |
+| Cache Layers    | 3         | Memory → Web → Database   |
+| Rate Limit      | 100/min   | Per IP request limit      |
+| Body Size Limit | 50MB      | Maximum request body size |
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- Docker (optional)
-- Redis (optional, for caching and rate limiting)
+- npm or yarn
+- (Optional) Ollama for AI features - see [AI Setup Guide](#ai-setup)
 
 ### Installation
 

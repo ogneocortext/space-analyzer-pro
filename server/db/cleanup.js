@@ -26,6 +26,10 @@ class CleanupDatabase {
     potentialSavings,
     safeToDelete
   ) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         INSERT OR REPLACE INTO cleanup_recommendations
@@ -61,6 +65,10 @@ class CleanupDatabase {
    * Get cleanup recommendations for a directory
    */
   getCleanupRecommendations(directoryPath, limit = 50, type = null) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       let sql = `SELECT * FROM cleanup_recommendations WHERE directory_path = ?`;
       const params = [directoryPath];
@@ -84,6 +92,10 @@ class CleanupDatabase {
    * Update user action on recommendation
    */
   updateCleanupAction(filePath, action) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `UPDATE cleanup_recommendations SET user_action = ? WHERE file_path = ?`;
       this.db.run(sql, [action, filePath], function (err) {
@@ -100,6 +112,10 @@ class CleanupDatabase {
    * Get total potential savings from pending recommendations
    */
   getPotentialSavings(directoryPath) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT
@@ -121,6 +137,10 @@ class CleanupDatabase {
    * Get recommendations by action status
    */
   getRecommendationsByStatus(directoryPath, status, limit = 50) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT * FROM cleanup_recommendations
@@ -140,6 +160,10 @@ class CleanupDatabase {
    * Delete old completed recommendations
    */
   cleanupCompletedRecommendations(daysToKeep = 7) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
     return new Promise((resolve, reject) => {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);

@@ -177,6 +177,18 @@ struct AnalysisResult {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+struct Scanner {
+    path: PathBuf,
+    max_depth: usize,
+    json_progress: bool,
+    duplicates: bool,
+    max_hash_size: usize,
+    quiet: bool,
+    ignore_patterns: Vec<String>,
+    skip_hidden: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct ScanConfig {
     path: String,
     max_files: usize,
@@ -360,6 +372,14 @@ struct Cli {
     /// Enumerate all hard links for each file (Windows only, slower)
     #[arg(long)]
     enumerate_links: bool,
+
+    /// Skip hidden files and directories (those starting with .)
+    #[arg(long, default_value = "true")]
+    skip_hidden: bool,
+
+    /// Additional ignore patterns (comma-separated, supports wildcards)
+    #[arg(long, value_delimiter = ',')]
+    ignore_patterns: Vec<String>,
 }
 
 impl Cli {
@@ -482,11 +502,24 @@ impl Cli {
             }
         }
 
-        // Directories to exclude for performance
-        let exclude_dirs = [
-            ".git", "node_modules", "__pycache__", ".cache", "target", "build",
-            ".vscode", ".idea", ".tmp", "temp", "tmp"
+        // Default directories to exclude for performance
+        let mut exclude_dirs = vec![
+            "node_modules", "__pycache__", "target", "build",
+            "temp", "tmp"
         ];
+
+        // Add user-specified ignore patterns
+        for pattern in &self.ignore_patterns {
+            exclude_dirs.push(pattern.as_str());
+        }
+
+        // Add common hidden directories if skip_hidden is enabled
+        if self.skip_hidden {
+            exclude_dirs.extend([
+                ".git", ".svn", ".hg", ".cache", ".vscode", ".idea",
+                ".tmp", ".local", ".config"
+            ]);
+        }
 
         let walker = WalkDir::new(&self.path)
             .max_depth(self.max_depth)
@@ -1120,7 +1153,7 @@ let analysis_time = start_time.elapsed();
         }
 
         // Skip hidden files unless requested
-        if !self.hidden {
+        if self.skip_hidden {
             if let Some(file_name) = path.file_name() {
                 if let Some(name_str) = file_name.to_str() {
                     if name_str.starts_with('.') {
@@ -1187,8 +1220,25 @@ let analysis_time = start_time.elapsed();
 
     fn create_file_info(&self, entry: &walkdir::DirEntry, metadata: &fs::Metadata) -> Option<FileInfo> {
         let path = entry.path();
-        let file_name = entry.file_name().to_string_lossy().to_string();
-        let file_path_str = path.to_string_lossy().to_string();
+
+        // UTF-8 validation for filename
+        let file_name = match entry.file_name().to_str() {
+            Some(name) => name.to_string(),
+            None => {
+                // Handle non-UTF8 filenames
+                self.add_warning("invalid_filename", path, "Filename contains invalid UTF-8 characters", metadata.len());
+                entry.file_name().to_string_lossy().to_string()
+            }
+        };
+
+        // UTF-8 validation for file path
+        let file_path_str = match path.to_str() {
+            Some(path_str) => path_str.to_string(),
+            None => {
+                self.add_warning("invalid_path", path, "Path contains invalid UTF-8 characters", metadata.len());
+                path.to_string_lossy().to_string()
+            }
+        };
 
         let extension = path
             .extension()
@@ -1660,6 +1710,37 @@ let analysis_time = start_time.elapsed();
 }
 
 fn main() -> anyhow::Result<()> {
+    // Set up panic handler for graceful error reporting
+    std::panic::set_hook(Box::new(|info| {
+        let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
+        let location = info.location()
+            .map(|loc| format!("{}:{}", loc.file(), loc.line()))
+            .unwrap_or_else(|| "unknown location".to_string());
+
+        let panic_msg = format!(
+            "[{}] PANIC at {}\n  Message: {}\n",
+            timestamp,
+            location,
+            info
+        );
+
+        // Log to panic log file
+        let log_path = std::path::PathBuf::from("scanner-panics.log");
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+        {
+            use std::io::Write;
+            let _ = file.write_all(panic_msg.as_bytes());
+        }
+
+        // Print to stderr
+        eprintln!("\n💥 Scanner Panic!");
+        eprintln!("{}", panic_msg);
+        eprintln!("Please report this issue with the log file: {}", log_path.display());
+    }));
+
     let cli = Cli::parse();
 
     // Validate path
