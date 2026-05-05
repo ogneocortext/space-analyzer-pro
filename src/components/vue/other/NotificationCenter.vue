@@ -1,14 +1,19 @@
 <template>
   <div class="notification-system">
-    <!-- Bell Icon with Badge -->
+    <!-- Notification bell trigger -->
     <button
-      class="notification-bell"
-      :class="{ 'has-unread': store.unreadCount > 0 }"
-      title="Notifications"
-      aria-label="Open notifications"
-      @click="store.toggleCenter()"
+      class="notification-trigger"
+      :class="{ active: store.centerOpen, 'has-unread': store.unreadCount > 0 }"
+      aria-label="Toggle notifications"
+      aria-expanded="store.centerOpen"
+      aria-haspopup="true"
+      aria-controls="notification-panel"
+      @click="store.toggleCenter"
     >
-      <span class="bell-icon" aria-hidden="true">🔔</span>
+      <span class="bell-icon" :class="{ ringing: store.unreadCount > 0 }" aria-hidden="true"
+        >🔔</span
+      >
+      <span class="sr-only">Notifications</span>
       <span v-if="store.unreadCount > 0" class="unread-badge">
         {{ store.unreadCount > 99 ? "99+" : store.unreadCount }}
       </span>
@@ -37,7 +42,7 @@
           <div class="toast-progress-fill" :style="{ width: `${notification.progress}%` }" />
         </div>
 
-        <div class="toast-content">
+        <div class="toast-text">
           <!-- Icon -->
           <div v-if="notification.icon" class="toast-icon">
             {{ notification.icon }}
@@ -49,12 +54,16 @@
           </div>
 
           <!-- Text Content -->
-          <div class="toast-text">
+          <div class="toast-content">
             <div class="toast-header">
               <h4 class="toast-title">
                 {{ notification.title }}
               </h4>
-              <button class="toast-close" @click="store.dismissNotification(notification.id)">
+              <button
+                class="toast-close"
+                :aria-label="`Close ${notification.title} notification`"
+                @click="store.dismissNotification(notification.id)"
+              >
                 ✕
               </button>
             </div>
@@ -94,164 +103,113 @@
     <Transition name="slide">
       <div v-if="store.centerOpen" class="notification-overlay" @click.self="store.closeCenter()">
         <div class="notification-center">
-          <!-- Header -->
-          <div class="nc-header">
-            <h3>Notifications</h3>
+          <!-- Panel header -->
+          <div class="panel-header">
+            <h3 id="notification-title">Notifications</h3>
             <div class="nc-actions">
               <button
-                class="nc-btn"
-                :disabled="store.unreadCount === 0"
-                @click="store.markAllAsRead()"
+                class="header-btn mark-read"
+                title="Mark all as read"
+                aria-label="Mark all notifications as read"
+                @click="store.markAllAsRead"
               >
-                Mark all read
+                ✓
               </button>
               <button
-                class="nc-btn nc-btn-danger"
-                :disabled="store.recentNotifications.length === 0"
-                @click="confirmClearAll()"
+                class="header-btn close-panel"
+                title="Close notification panel"
+                aria-label="Close notification panel"
+                @click="store.closeCenter"
               >
-                Clear all
+                ✕
               </button>
-              <button class="nc-close" @click="store.closeCenter()">✕</button>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="nc-filters">
+              <button
+                class="nc-filter"
+                :class="{ active: activeFilter === 'all' }"
+                @click="activeFilter = 'all'"
+              >
+                All ({{ store.notifications.length }})
+              </button>
+              <button
+                class="nc-filter"
+                :class="{ active: activeFilter === 'unread' }"
+                @click="activeFilter = 'unread'"
+              >
+                Unread ({{ store.unreadCount }})
+              </button>
+              <button
+                v-for="type in notificationTypes"
+                :key="type"
+                class="nc-filter"
+                :class="{ active: activeFilter === type }"
+                @click="activeFilter = type"
+              >
+                {{ type.charAt(0).toUpperCase() + type.slice(1) }}
+                ({{ countByType(type) }})
+              </button>
+            </div>
+
+            <a
+              v-if="notification.link"
+              class="nc-item-link"
+              :href="notification.link.url || '#notifications'"
+              @click.prevent="handleLinkClick(notification)"
+            >
+              {{ notification.link.text }} →
+            </a>
+
+            <!-- Item Actions -->
+            <div class="nc-item-menu">
+              <button
+                v-if="!notification.read"
+                class="nc-menu-btn"
+                title="Mark as read"
+                @click.stop="store.markAsRead(notification.id)"
+              >
+                👁️
+              </button>
+              <button
+                class="nc-menu-btn"
+                title="Delete"
+                @click.stop="store.deleteNotification(notification.id)"
+              >
+                🗑️
+              </button>
             </div>
           </div>
 
-          <!-- Filter Tabs -->
-          <div class="nc-filters">
-            <button
-              class="nc-filter"
-              :class="{ active: activeFilter === 'all' }"
-              @click="activeFilter = 'all'"
-            >
-              All ({{ store.notifications.length }})
-            </button>
-            <button
-              class="nc-filter"
-              :class="{ active: activeFilter === 'unread' }"
-              @click="activeFilter = 'unread'"
-            >
-              Unread ({{ store.unreadCount }})
-            </button>
-            <button
-              v-for="type in notificationTypes"
-              :key="type"
-              class="nc-filter"
-              :class="{ active: activeFilter === type }"
-              @click="activeFilter = type"
-            >
-              {{ type.charAt(0).toUpperCase() + type.slice(1) }}
-              ({{ countByType(type) }})
-            </button>
+          <!-- Empty State -->
+          <div v-if="filteredNotifications.length === 0" class="nc-empty">
+            <div class="nc-empty-icon">🔔</div>
+            <p v-if="activeFilter === 'unread'">No unread notifications</p>
+            <p v-else-if="activeFilter !== 'all'">No {{ activeFilter }} notifications</p>
+            <p v-else>No notifications yet</p>
           </div>
+        </div>
 
-          <!-- Notification List -->
-          <div class="nc-list">
-            <div
-              v-for="notification in filteredNotifications"
-              :key="notification.id"
-              class="nc-item"
-              :class="[`nc-item-${notification.type}`, { unread: !notification.read }]"
-              @click="handleNotificationClick(notification)"
-            >
-              <!-- Icon -->
-              <div class="nc-item-icon">
-                {{ notification.icon }}
-              </div>
-
-              <!-- Content -->
-              <div class="nc-item-content">
-                <div class="nc-item-header">
-                  <h4 class="nc-item-title">
-                    {{ notification.title }}
-                  </h4>
-                  <span class="nc-item-time">{{ formatTime(notification.createdAt) }}</span>
-                </div>
-                <p class="nc-item-message" v-html="notification.message" />
-
-                <!-- Progress -->
-                <div
-                  v-if="notification.type === 'progress' && notification.progress !== undefined"
-                  class="nc-item-progress"
-                >
-                  <div class="nc-progress-bar">
-                    <div class="nc-progress-fill" :style="{ width: `${notification.progress}%` }" />
-                  </div>
-                  <span class="nc-progress-text">{{ notification.progress }}%</span>
-                </div>
-
-                <!-- Actions -->
-                <div v-if="notification.actions?.length" class="nc-item-actions">
-                  <button
-                    v-for="action in notification.actions"
-                    :key="action.label"
-                    class="nc-action-btn"
-                    @click.stop="handleAction(notification, action)"
-                  >
-                    {{ action.label }}
-                  </button>
-                </div>
-
-                <!-- Link -->
-                <a
-                  v-if="notification.link"
-                  class="nc-item-link"
-                  @click.stop="handleLinkClick(notification)"
-                >
-                  {{ notification.link.text }} →
-                </a>
-              </div>
-
-              <!-- Item Actions -->
-              <div class="nc-item-menu">
-                <button
-                  v-if="!notification.read"
-                  class="nc-menu-btn"
-                  title="Mark as read"
-                  @click.stop="store.markAsRead(notification.id)"
-                >
-                  👁️
-                </button>
-                <button
-                  class="nc-menu-btn"
-                  title="Delete"
-                  @click.stop="store.deleteNotification(notification.id)"
-                >
-                  🗑️
-                </button>
-              </div>
-            </div>
-
-            <!-- Empty State -->
-            <div v-if="filteredNotifications.length === 0" class="nc-empty">
-              <div class="nc-empty-icon">🔔</div>
-              <p v-if="activeFilter === 'unread'">No unread notifications</p>
-              <p v-else-if="activeFilter !== 'all'">No {{ activeFilter }} notifications</p>
-              <p v-else>No notifications yet</p>
-            </div>
-          </div>
-
-          <!-- Footer with Settings Link -->
-          <div class="nc-footer">
-            <button class="nc-settings-link" @click="openSettings()">
-              ⚙️ Notification Settings
-            </button>
-          </div>
+        <!-- Footer with Settings Link -->
+        <div class="nc-footer">
+          <button class="nc-settings-link" @click="openSettings()">⚙️ Notification Settings</button>
         </div>
       </div>
     </Transition>
+  </div>
 
-    <!-- Clear All Confirmation Modal -->
-    <div v-if="showClearConfirm" class="nc-modal-overlay" @click.self="showClearConfirm = false">
-      <div class="nc-modal">
-        <h4>Clear All Notifications?</h4>
-        <p>
-          This will permanently delete all {{ store.recentNotifications.length }} notifications from
-          your history.
-        </p>
-        <div class="nc-modal-actions">
-          <button class="nc-btn" @click="showClearConfirm = false">Cancel</button>
-          <button class="nc-btn nc-btn-danger" @click="clearAllConfirmed()">Clear All</button>
-        </div>
+  <!-- Clear All Confirmation Modal -->
+  <div v-if="showClearConfirm" class="nc-modal-overlay" @click.self="showClearConfirm = false">
+    <div class="nc-modal">
+      <h4>Clear All Notifications?</h4>
+      <p>
+        This will permanently delete all {{ store.recentNotifications.length }} notifications from
+        your history.
+      </p>
+      <div class="nc-modal-actions">
+        <button class="nc-btn" @click="showClearConfirm = false">Cancel</button>
+        <button class="nc-btn nc-btn-danger" @click="clearAllConfirmed()">Clear All</button>
       </div>
     </div>
   </div>
