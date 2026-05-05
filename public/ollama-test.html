@@ -2,8 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ollama 0.22.0 API Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="description"
+      content="Ollama 0.23.0 API Test - Test AI model performance and response times for Space Analyzer"
+    />
+    <meta name="theme-color" content="#0d2137" />
+    <title>Ollama 0.23.0 API Test</title>
     <style>
       * {
         box-sizing: border-box;
@@ -188,11 +194,87 @@
         color: #94a3b8;
         margin-top: 4px;
       }
+      /* Recommendation card styles */
+      .recommendation-card {
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 15px;
+      }
+      .recommendation-card.best {
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+      }
+      .recommendation-card.detailed {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+      }
+      .recommendation-card.balanced {
+        background: rgba(168, 85, 247, 0.1);
+        border: 1px solid rgba(168, 85, 247, 0.3);
+      }
+      .recommendation-card .title {
+        font-weight: 600;
+      }
+      .recommendation-card.best .title {
+        color: #22c55e;
+      }
+      .recommendation-card.detailed .title {
+        color: #3b82f6;
+      }
+      .recommendation-card.balanced .title {
+        color: #a855f7;
+      }
+      .warning-text {
+        color: #ef4444;
+        font-size: 12px;
+      }
+      .hint-text {
+        color: #94a3b8;
+      }
+      /* Form label styles */
+      label {
+        display: block;
+        margin-bottom: 5px;
+        color: #e2e8f0;
+        font-size: 14px;
+      }
     </style>
+    <noscript>
+      <style>
+        body {
+          background: #0d2137;
+          color: #e2e8f0;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          padding: 20px;
+          text-align: center;
+        }
+        .noscript-message {
+          max-width: 600px;
+          margin: 50px auto;
+          padding: 30px;
+          background: rgba(30, 41, 59, 0.8);
+          border-radius: 12px;
+          border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        .noscript-message h1 {
+          color: #ef4444;
+          margin-bottom: 15px;
+        }
+      </style>
+    </noscript>
   </head>
   <body>
+    <noscript>
+      <div class="noscript-message">
+        <h1>JavaScript Required</h1>
+        <p>
+          This Ollama API test page requires JavaScript to function. Please enable JavaScript in
+          your browser settings to test AI model performance.
+        </p>
+      </div>
+    </noscript>
     <div class="container">
-      <h1>Ollama 0.22.0 API Test</h1>
+      <h1>Ollama 0.23.0 API Test</h1>
       <p class="subtitle">Test AI model performance and response times</p>
 
       <!-- Connection Status -->
@@ -212,47 +294,21 @@
       <!-- Available Models -->
       <div class="panel">
         <h2>🤖 Recommended Models for Space Analyzer</h2>
-        <div
-          style="
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.3);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 15px;
-          "
-        >
-          <strong style="color: #22c55e">🏆 BEST: phi4-mini:latest</strong><br />
+        <div class="recommendation-card best">
+          <div class="title">🏆 BEST: phi4-mini:latest</div>
           <small>2.4GB VRAM | 46+ tok/s | Fastest analysis & cleanup recommendations</small>
         </div>
-        <div
-          style="
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 15px;
-          "
-        >
-          <strong style="color: #3b82f6">📝 DETAILED: qwen2.5-coder:7b-instruct</strong><br />
+        <div class="recommendation-card detailed">
+          <div class="title">📝 DETAILED: qwen2.5-coder:7b-instruct</div>
           <small>4.5GB VRAM | 28 tok/s | Best for technical file structure analysis</small>
         </div>
-        <div
-          style="
-            background: rgba(168, 85, 247, 0.1);
-            border: 1px solid rgba(168, 85, 247, 0.3);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 15px;
-          "
-        >
-          <strong style="color: #a855f7">⚖️ BALANCED: gemma3:4b</strong><br />
+        <div class="recommendation-card balanced">
+          <div class="title">⚖️ BALANCED: gemma3:4b</div>
           <small>3.1GB VRAM | 37 tok/s | Good speed/quality balance</small>
         </div>
-        <p style="color: #ef4444; font-size: 12px">
-          ❌ Avoid: Music/llava models - not designed for file analysis
-        </p>
+        <p class="warning-text">❌ Avoid: Music/llava models - not designed for file analysis</p>
         <div id="modelList">
-          <p style="color: #94a3b8">Click "Refresh Status" to see all installed models...</p>
+          <p class="hint-text">Click "Refresh Status" to see all installed models...</p>
         </div>
       </div>
 
@@ -261,8 +317,8 @@
         <h2>⚡ Quick Performance Test</h2>
         <div class="grid-2">
           <div>
-            <label>Model</label>
-            <select id="testModel">
+            <label for="testModel">Model</label>
+            <select id="testModel" name="testModel">
               <option value="phi4-mini:latest">🏆 phi4-mini:latest (2.4GB - BEST: 46 tok/s)</option>
               <option value="qwen2.5-coder:7b-instruct">
                 📝 qwen2.5-coder:7b (4.5GB - Technical)
@@ -279,19 +335,28 @@
             </select>
           </div>
           <div>
-            <label>Timeout (seconds)</label>
-            <input type="number" id="timeout" value="60" min="10" max="120" />
+            <label for="timeout">Timeout (seconds)</label>
+            <input
+              type="number"
+              id="timeout"
+              name="timeout"
+              value="60"
+              min="10"
+              max="120"
+              aria-describedby="timeout-help"
+            />
+            <small id="timeout-help" class="hint-text">Max time to wait for model response</small>
           </div>
         </div>
         <div class="grid-2">
           <button onclick="runTest('direct')" id="btnDirect">🚀 Test Direct (11434)</button>
           <button onclick="runTest('proxy')" id="btnProxy">🔗 Test via Proxy (8080)</button>
         </div>
-        <div id="progressContainer" style="display: none">
+        <div id="progressContainer" style="display: none" role="status" aria-live="polite">
           <div class="progress-bar">
             <div class="progress-fill" style="width: 100%"></div>
           </div>
-          <p style="text-align: center; margin-top: 8px; font-size: 12px; color: #94a3b8">
+          <p class="hint-text" style="text-align: center; margin-top: 8px; font-size: 12px">
             ⏱️ First request loads model into VRAM (5-35s)...
           </p>
         </div>
@@ -309,8 +374,18 @@
       <!-- Custom Prompt Test -->
       <div class="panel">
         <h2>💬 Custom Prompt Test</h2>
-        <textarea id="customPrompt" rows="3" placeholder="Enter your prompt here...">
+        <label for="customPrompt">Custom Prompt</label>
+        <textarea
+          id="customPrompt"
+          name="customPrompt"
+          rows="3"
+          placeholder="Enter your prompt here..."
+          aria-describedby="customPrompt-help"
+        >
 Analyze this file structure: 1000 files, mostly .js and .ts, largest file is 50MB</textarea
+        >
+        <small id="customPrompt-help" class="hint-text"
+          >Enter a custom prompt for the AI model to analyze</small
         >
         <button onclick="runCustomTest()">🧠 Run Analysis</button>
       </div>
@@ -373,7 +448,7 @@ Analyze this file structure: 1000 files, mostly .js and .ts, largest file is 50M
       function renderModelList() {
         const container = document.getElementById("modelList");
         if (availableModels.length === 0) {
-          container.innerHTML = '<p style="color: #ef4444;">No models found</p>';
+          container.innerHTML = '<p class="warning-text">No models found</p>';
           return;
         }
 

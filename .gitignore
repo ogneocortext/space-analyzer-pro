@@ -1,9 +1,12 @@
 node_modules
 dist
+dist-*/
 build
 target
 cpp-build
 .cache
+bin/
+*.exe
 .env
 .env.local
 config/
