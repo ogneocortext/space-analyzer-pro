@@ -6,6 +6,7 @@ All notable changes to Space Analyzer will be documented in this file.
 
 | Version | Date       | Summary                                                                                                                             |
 | ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 2.10.0  | 2026-05-05 | Ollama 0.23.0 Integration: Zod validation, rate limiting, 14 localhost tools, secure env config, comprehensive testing              |
 | 2.9.1   | 2026-05-04 | Complete Windows GUI Error Fixes: 8/8 issues resolved, structured error handling, panic handlers, build tool documentation          |
 | 2.9.0   | 2026-05-03 | Real Data Integration: Eliminated simulated data, enhanced admin errors page, fixed selfLearningStore, improved system monitoring   |
 | 2.8.9   | 2026-05-02 | AI Service Integration: Python ML service, intelligent caching, database persistence, auto-categorization                           |
@@ -109,6 +110,280 @@ All notable changes to Space Analyzer will be documented in this file.
 - Frontend: 5/5 resolved
 - Windows GUI: 8/8 resolved
 - **Total: 48/48 resolved** ✅
+
+---
+
+## [2.10.0] - 2026-05-05
+
+### Ollama 0.23.0 Integration: Zod Validation, Rate Limiting & Localhost-Only Tools
+
+**Complete integration of Ollama 0.23.0 with Zod runtime validation, Ollama Cloud rate limiting for free tier protection, 14 localhost-only tools requiring zero cloud quota, and comprehensive security configuration.**
+
+#### Zod Schema Validation System
+
+**Implemented comprehensive runtime validation for all Ollama API interactions:**
+
+- **OllamaModelSchema**: Model metadata validation with SHA256 digest verification
+- **ChatMessageSchema**: Message structure with role validation (system/user/assistant/tool)
+- **ChatRequestSchema**: Request parameters including temperature, top_p, max_tokens
+- **OllamaResponseSchema**: Response validation with token counts and timing
+- **GenerateRequest/ResponseSchema**: Text generation validation
+- **EmbeddingRequest/ResponseSchema**: Vector embedding validation
+- **VisionAnalysisResultSchema**: Object detection and image analysis
+- **OpenClawSearchResponseSchema**: Ollama 0.23.0 web search results
+- **FeaturedModelsResponseSchema**: Ollama 0.23.0 server-driven recommendations
+
+**Validation Utilities:**
+
+```typescript
+// Runtime validation functions
+validateOllamaModels(data); // For /api/tags response
+validateOllamaResponse(data); // For chat completion
+validateChatRequest(data); // Pre-send request validation
+validateOpenClawSearch(data); // Web search response
+validateFeaturedModels(data); // Featured models response
+extractOllamaError(error); // Human-readable error formatting
+```
+
+**Benefits:**
+
+- ✅ Runtime type safety for all API responses
+- ✅ Invalid data gracefully filtered (doesn't crash app)
+- ✅ Clear error messages for debugging
+- ✅ Type-safe at runtime AND compile time
+
+#### Ollama Cloud Rate Limiting
+
+**Protect free tier quota with automatic rate limiting:**
+
+- **Session Limits**: 50 calls per 5-hour window
+- **Weekly Limits**: 200 calls per 7-day window
+- **Rate Throttling**: 1 second minimum between calls
+- **Usage Warnings**: Console alerts at 80% quota
+- **localStorage Persistence**: Tracks usage across page reloads
+- **Local-Only Mode**: Disable all cloud calls instantly
+
+**Implementation:**
+
+```typescript
+import { ollamaRateLimiter } from "@/services/ai/OllamaRateLimiter";
+
+// Check before cloud call
+const check = ollamaRateLimiter.canMakeCall();
+if (!check.allowed) {
+  console.warn("Rate limited:", check.reason);
+  return null;
+}
+
+// Record successful call
+ollamaRateLimiter.recordCall();
+
+// Enable local-only mode (zero cloud usage)
+ollamaRateLimiter.setLocalOnlyMode();
+```
+
+**UI Component:**
+
+```vue
+<OllamaCloudStatus />
+```
+
+- Visual usage bars for session and weekly limits
+- Color-coded warnings (Green/Yellow/Red)
+- One-click local-only toggle
+- Auto-refresh every 30 seconds
+
+#### 14 Localhost-Only Tools
+
+**File system and disk analysis tools that execute locally without Ollama Cloud:**
+
+**File System Analysis:**
+
+- `analyze_directory` - Directory structure, size, file distribution
+- `find_duplicates` - Hash-based duplicate detection
+- `find_large_files` - Identify storage-hogging files
+- `get_file_distribution` - File type breakdown by extension/category
+
+**Disk Usage & Cleanup:**
+
+- `get_disk_usage` - Drive capacity and free space
+- `get_cleanup_recommendations` - AI-powered cleanup suggestions
+- `find_old_files` - Files not accessed in X days
+
+**Search & Filter:**
+
+- `search_files` - Find files by name pattern with wildcards
+- `filter_by_category` - Filter by type (images, videos, documents, etc.)
+
+**System & Utilities:**
+
+- `get_system_info` - OS and hardware information
+- `convert_size` - Convert between B/KB/MB/GB/TB
+- `estimate_cleanup_savings` - Calculate potential space recovery
+
+**Usage:**
+
+```typescript
+import { localToolRegistry } from "@/services/ai/tools/LocalToolRegistry";
+import { ollamaService } from "@/services/ai/OllamaService";
+
+// Get localhost-only tools
+const tools = localToolRegistry.getToolDefinitions(false);
+
+// Use with Ollama chat
+const response = await ollamaService.generateWithTools(
+  "Analyze my Downloads folder and find large files",
+  tools.filter((t) => ["analyze_directory", "find_large_files"].includes(t.function.name))
+);
+```
+
+**All tools execute locally - ZERO Ollama Cloud quota used!**
+
+#### Secure Environment Configuration
+
+**Security-first configuration management:**
+
+- **API Keys in .env**: Never hardcoded, never committed
+- **.env.example Template**: Safe to share with team
+- **Sensitivity Levels**: public/private/secret classification
+- **Auto-Validation**: Checks required env vars on startup
+- **Safe Logging**: Secrets never appear in console logs
+- **Git-Safe**: `.env` in `.gitignore`, only `.env.example` tracked
+
+**Environment Variables:**
+
+```bash
+# Ollama Local (Required)
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_DEFAULT_MODEL=qwen2.5-coder:7b-instruct
+OLLAMA_TIMEOUT_MS=30000
+
+# Ollama Cloud (Optional - disabled by default)
+OLLAMA_CLOUD_ENABLED=false
+# OLLAMA_CLOUD_API_KEY=sk-...  # Only if cloud enabled
+
+# Web Search APIs (Optional - for local web search tools)
+SERPER_API_KEY=your_key_here
+BING_SEARCH_API_KEY=your_key_here
+TAVILY_API_KEY=your_key_here
+```
+
+**Usage:**
+
+```typescript
+import { getEnv, getOllamaConfig, isLocalhostOnly } from "@/config/env";
+
+// Type-safe environment access
+const apiKey = getEnv("SERPER_API_KEY");
+const timeout = getEnvNumber("OLLAMA_TIMEOUT_MS", 30000);
+const cloudEnabled = getEnvBool("OLLAMA_CLOUD_ENABLED", false);
+
+// Get Ollama configuration
+const config = getOllamaConfig();
+// { baseUrl, defaultModel, timeoutMs, cloudEnabled, cloudApiKey }
+
+// Check localhost-only mode
+const isLocal = isLocalhostOnly(); // true (safe default)
+```
+
+#### Ollama 0.23.0 Features
+
+**New API features from Ollama 0.23.0:**
+
+- **OpenClaw Web Search** (`searchWeb()`) - Web search via Ollama Cloud
+- **Featured Models** (`getFeaturedModels()`) - Server-driven recommendations
+- **Tool Calling** (`generateWithTools()`) - Function calling support
+
+**Rate-Limited Cloud Features:**
+
+```typescript
+// These methods automatically respect rate limits
+const searchResults = await ollamaService.searchWeb("TypeScript tips", {
+  maxResults: 5,
+});
+
+const featured = await ollamaService.getFeaturedModels();
+
+// Tool calling with rate limit protection
+const response = await ollamaService.generateWithTools(prompt, tools);
+```
+
+**Note:** Cloud features consume quota - rate limiting ensures you stay within free tier.
+
+#### Comprehensive Testing Suite
+
+**Unit and integration tests for all Ollama components:**
+
+- **Schema Validation Tests**: All Zod schemas tested
+- **Error Extraction Tests**: Error formatting validation
+- **Localhost Detection Tests**: URL validation
+- **Rate Limiting Tests**: Quota management
+- **Local Tool Registry Tests**: Tool execution
+- **Environment Configuration Tests**: Config validation
+
+**Test Commands:**
+
+```bash
+# Run unit tests
+npm test -- ollama-validation.test.ts
+
+# With coverage
+npm test -- ollama-validation.test.ts --coverage
+
+# Watch mode
+npm test -- ollama-validation.test.ts --watch
+```
+
+**Integration Test Helper:**
+
+```typescript
+import { runIntegrationTests } from "@/tests/ollama-validation.test";
+
+// Test with live Ollama instance
+await runIntegrationTests();
+```
+
+#### Documentation
+
+**Comprehensive documentation for all features:**
+
+- `OLLAMA_INTEGRATION_SUMMARY.md` - Complete project overview
+- `OLLAMA_CLOUD_RATE_LIMITING.md` - Rate limiting guide
+- `LOCALHOST_TOOLS_SECURITY.md` - Tool usage & security
+- `OLLAMA_TESTING_GUIDE.md` - Testing procedures
+- `.env.example` - Secure environment template
+
+#### Files Created
+
+**Core Implementation:**
+
+- `src/validation/ollama-schemas.ts` (~200 lines)
+- `src/validation/ollama-validation.ts` (~240 lines)
+- `src/services/ai/OllamaRateLimiter.ts` (~250 lines)
+- `src/services/ai/tools/LocalToolRegistry.ts` (~450 lines)
+- `src/config/env.ts` (~300 lines)
+- `src/components/OllamaCloudStatus.vue` (~300 lines)
+- `src/tests/ollama-validation.test.ts` (~470 lines)
+
+**Documentation:**
+
+- `.env.example` - Environment template
+- `OLLAMA_INTEGRATION_SUMMARY.md` - Project summary
+- `OLLAMA_CLOUD_RATE_LIMITING.md` - Rate limiting guide
+- `LOCALHOST_TOOLS_SECURITY.md` - Security documentation
+- `OLLAMA_TESTING_GUIDE.md` - Testing guide
+
+#### Updated Services
+
+**OllamaService.ts enhancements:**
+
+- ✅ Zod validation for `fetchModels()` - filters invalid models
+- ✅ Zod validation for `generate()` - validates responses
+- ✅ Zod validation for `chat()` - validates requests/responses
+- ✅ Error handling with `extractOllamaError()`
+- ✅ `searchWeb()` with rate limiting
+- ✅ `getFeaturedModels()` with rate limiting
+- ✅ `generateWithTools()` with tool support
 
 ---
 

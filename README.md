@@ -2,7 +2,7 @@
 
 AI-Powered disk space analysis and optimization tool with machine learning capabilities. Features dual-purpose analysis for both storage optimization and code analysis for developers.
 
-![Version](https://img.shields.io/badge/version-2.8.9-blue)
+![Version](https://img.shields.io/badge/version-2.10.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Node.js](https://img.shields.io/badge/node.js-18+-green)
 ![Vue.js](https://img.shields.io/badge/vue.js-3.0+-4FC08D)
@@ -27,18 +27,33 @@ AI-Powered disk space analysis and optimization tool with machine learning capab
 ![Backend](https://img.shields.io/badge/backend-35%2F35%20resolved-success)
 ![Frontend](https://img.shields.io/badge/frontend-5%2F5%20resolved-success)
 ![Windows%20GUI](https://img.shields.io/badge/Windows%20GUI-8%2F8%20resolved-success)
+![Ollama%20Integration](https://img.shields.io/badge/Ollama%20Integration-100%25-success)
 
 All tracked issues have been resolved:
 
 - **Backend**: 35/35 resolved (100%)
 - **Frontend**: 5/5 resolved (100%)
 - **Windows GUI**: 8/8 resolved (100%)
+- **Ollama Integration**: Complete with Zod validation, rate limiting, and localhost tools
 
-See [ERROR_TRACKER.md](ERROR_TRACKER.md) for detailed issue tracking.
+See [ERROR_TRACKER.md](ERROR_TRACKER.md) and [OLLAMA_INTEGRATION_SUMMARY.md](OLLAMA_INTEGRATION_SUMMARY.md) for detailed tracking.
 
 ## Features
 
-### 🆕 Latest Features (v2.8.9) ✅
+### 🆕 Latest Features (v2.10.0) ✅
+
+#### Ollama 0.23.0 Integration
+
+- **Zod Runtime Validation** - Type-safe API interactions with automatic validation
+- **Ollama Cloud Rate Limiting** - Stay within free tier with automatic quota protection
+- **14 Localhost-Only Tools** - File system analysis tools requiring zero cloud quota
+- **Secure Environment Configuration** - API keys in `.env`, never committed to GitHub
+- **Comprehensive Testing** - Unit and integration tests for all Ollama components
+- **OpenClaw Web Search** - AI-powered web search via Ollama Cloud (rate-limited)
+- **Featured Models** - Server-driven model recommendations (rate-limited)
+- **Tool Calling Support** - Function calling for advanced AI interactions
+
+### 🆕 Previous Features (v2.9.1) ✅
 
 #### Real Data Integration
 
@@ -70,6 +85,69 @@ See [ERROR_TRACKER.md](ERROR_TRACKER.md) for detailed issue tracking.
 - **Batch Export** - Generate reports for multiple analyses at once with job tracking
 - **Report Preview** - Preview reports before downloading with inline viewer
 - **CSV/JSON/TXT Export** - Multiple export formats for data analysis
+
+### AI & Ollama Integration ✅
+
+Complete Ollama 0.23.0 integration with security-first configuration:
+
+#### Runtime Validation
+
+- **Zod Schema Validation** - Type-safe API interactions for all Ollama endpoints
+- **Automatic Error Handling** - Invalid data filtered gracefully with clear error messages
+- **Request/Response Validation** - Pre-send and post-receive validation
+
+#### Rate Limiting & Quota Protection
+
+- **Free Tier Protection** - Automatic rate limiting (50 calls/session, 200/week)
+- **Usage Tracking** - localStorage persistence across page reloads
+- **Visual Monitoring** - `<OllamaCloudStatus />` component with usage bars
+- **Local-Only Mode** - Disable cloud calls instantly for zero quota usage
+
+#### 14 Localhost-Only AI Tools
+
+**Zero cloud quota required - all tools execute locally:**
+
+- `analyze_directory` - Directory structure and size analysis
+- `find_duplicates` - Hash-based duplicate file detection
+- `find_large_files` - Identify storage-hogging files
+- `get_file_distribution` - File type breakdown
+- `get_disk_usage` - Drive capacity monitoring
+- `get_cleanup_recommendations` - AI-powered cleanup suggestions
+- `find_old_files` - Stale file detection
+- `search_files` - Pattern-based file search
+- `filter_by_category` - Category-based file filtering
+- `get_system_info` - System information gathering
+- `convert_size` - Size unit conversions
+- `estimate_cleanup_savings` - Space recovery calculation
+
+**Usage:**
+
+```typescript
+import { localToolRegistry } from "@/services/ai/tools/LocalToolRegistry";
+import { ollamaService } from "@/services/ai/OllamaService";
+
+// Get localhost-only tools
+const tools = localToolRegistry.getToolDefinitions(false);
+
+// Use with Ollama for intelligent file analysis
+const response = await ollamaService.generateWithTools(
+  "Analyze my Downloads folder and suggest cleanup strategies",
+  tools
+);
+```
+
+#### Secure Configuration
+
+- **Environment Variables** - All API keys in `.env` (never committed)
+- **Localhost-Only Default** - `OLLAMA_CLOUD_ENABLED=false` safe default
+- **Safe Logging** - Secrets never appear in console output
+- **Validation** - Automatic environment variable validation
+
+#### Cloud Features (Rate-Limited)
+
+- **OpenClaw Web Search** - AI-powered web search via Ollama Cloud
+- **Featured Models** - Server-driven model recommendations
+- **Tool Calling** - Advanced function calling support
 
 ### Backend Enhancements (v2.3.0) ✅
 

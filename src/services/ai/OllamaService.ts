@@ -7,9 +7,32 @@
 /**
  * Ollama Service for Space Analyzer
  * Provides integration with local Ollama server for AI-powered features
+ * Updated for Ollama 0.23.0 with Zod validation
  */
 
 import { PortDetector } from "../PortDetector";
+import {
+  validateOllamaModels,
+  validateOllamaResponse,
+  validateChatRequest,
+  validateGenerateResponse,
+  validateOpenClawSearch,
+  validateFeaturedModels,
+  extractOllamaError,
+  isLocalhostOllama,
+  getLocalhostOllamaConfig,
+  type ValidationResult,
+} from "@/validation/ollama-validation";
+import { ollamaRateLimiter, type RateLimitConfig } from "./OllamaRateLimiter";
+import type {
+  OllamaModel,
+  OllamaResponse,
+  ChatMessage,
+  VisionAnalysisResult,
+  OpenClawSearchResponse,
+  FeaturedModelsResponse,
+  OllamaConfig,
+} from "@/validation/ollama-schemas";
 
 export interface OllamaModel {
   name: string;
@@ -131,13 +154,26 @@ class OllamaService {
       }
 
       const data = await response.json();
-      this.models = (data.models || []).map((model: any) => ({
-        ...model,
-        vision_capable: this.isVisionModel(model.name),
-      }));
+      const rawModels = data.models || [];
+
+      // Validate models with Zod
+      const validModels: OllamaModel[] = [];
+      for (const model of rawModels) {
+        const validation = validateOllamaModels([model]);
+        if (validation.success && validation.data && validation.data.length > 0) {
+          validModels.push({
+            ...validation.data[0],
+            vision_capable: this.isVisionModel(validation.data[0].name),
+          });
+        } else {
+          console.warn(`Invalid model data skipped: ${validation.message}`);
+        }
+      }
+
+      this.models = validModels;
       return this.models;
     } catch (error) {
-      console.error("Failed to fetch Ollama models:", error);
+      console.error("Failed to fetch Ollama models:", extractOllamaError(error));
       return [];
     }
   }
@@ -262,7 +298,7 @@ class OllamaService {
 
       return await response.json();
     } catch (error) {
-      console.error("Ollama generation failed:", error);
+      console.error("Ollama generation failed:", extractOllamaError(error));
       throw error;
     }
   }
@@ -345,7 +381,7 @@ class OllamaService {
       result.used_model = selectedModel;
       return result;
     } catch (error) {
-      console.error("Ollama chat failed:", error);
+      console.error("Ollama chat failed:", extractOllamaError(error));
       throw error;
     }
   }
@@ -776,6 +812,178 @@ Provide a helpful, accurate answer based on the context. If the context doesn't 
 
     const response = await this.generate(prompt, generalModel);
     return response.response;
+  }
+
+  // ============================================================================
+  // Ollama 0.23.0 New Features
+  // ============================================================================
+
+  /**
+   * OpenClaw Web Search (Ollama 0.23.0+)
+   * Search the web using Ollama's built-in search capability
+   * ⚠️ Consumes Ollama Cloud quota - rate limited
+   */
+  async searchWeb(
+    query: string,
+    options?: {
+      model?: string;
+      maxResults?: number;
+      skipRateLimit?: boolean; // Internal use only
+    }
+  ): Promise<OpenClawSearchResponse | null> {
+    // Check rate limits unless skipped
+    if (!options?.skipRateLimit) {
+      const rateCheck = ollamaRateLimiter.canMakeCall();
+      if (!rateCheck.allowed) {
+        console.warn("[OllamaService] searchWeb rate limited:", rateCheck.reason);
+        return null;
+      }
+    }
+
+    const searchModel = options?.model || this.currentModel;
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/search`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: searchModel,
+          query,
+          max_results: options?.maxResults || 5,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const validation = validateOpenClawSearch(data);
+
+      if (!validation.success) {
+        console.warn("OpenClaw search response validation failed:", validation.message);
+        return null;
+      }
+
+      // Record successful cloud call
+      if (!options?.skipRateLimit) {
+        ollamaRateLimiter.recordCall();
+      }
+
+      return validation.data || null;
+    } catch (error) {
+      console.error("OpenClaw web search failed:", extractOllamaError(error));
+      return null;
+    }
+  }
+
+  /**
+   * Get featured models from Ollama (Ollama 0.23.0+)
+   * Server-driven model recommendations
+   * ⚠️ Consumes Ollama Cloud quota - rate limited
+   */
+  async getFeaturedModels(skipRateLimit = false): Promise<FeaturedModelsResponse | null> {
+    // Check rate limits unless skipped
+    if (!skipRateLimit) {
+      const rateCheck = ollamaRateLimiter.canMakeCall();
+      if (!rateCheck.allowed) {
+        console.warn("[OllamaService] getFeaturedModels rate limited:", rateCheck.reason);
+        return null;
+      }
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/models/featured`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const validation = validateFeaturedModels(data);
+
+      if (!validation.success) {
+        console.warn("Featured models validation failed:", validation.message);
+        return null;
+      }
+
+      // Record successful cloud call
+      if (!skipRateLimit) {
+        ollamaRateLimiter.recordCall();
+      }
+
+      return validation.data || null;
+    } catch (error) {
+      console.error("Failed to fetch featured models:", extractOllamaError(error));
+      return null;
+    }
+  }
+
+  /**
+   * Generate with tool calling (Ollama 0.23.0+)
+   * Use tools like web search, file operations, etc.
+   * ⚠️ Tool calls may consume Ollama Cloud quota if using cloud-hosted tools
+   */
+  async generateWithTools(
+    prompt: string,
+    tools: Array<{
+      type: "function";
+      function: {
+        name: string;
+        description: string;
+        parameters: Record<string, unknown>;
+      };
+    }>,
+    model?: string
+  ): Promise<OllamaResponse | null> {
+    const selectedModel = model || this.currentModel;
+
+    try {
+      const request = {
+        model: selectedModel,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        tools,
+        stream: false,
+      };
+
+      const validation = validateChatRequest(request);
+      if (!validation.success) {
+        console.error("Tool calling request validation failed:", validation.message);
+        return null;
+      }
+
+      const response = await fetch(`${this.baseUrl}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const resultValidation = validateOllamaResponse(data);
+
+      if (!resultValidation.success) {
+        console.warn("Tool calling response validation failed:", resultValidation.message);
+        return null;
+      }
+
+      return resultValidation.data || null;
+    } catch (error) {
+      console.error("Tool calling generation failed:", extractOllamaError(error));
+      return null;
+    }
   }
 }
 
