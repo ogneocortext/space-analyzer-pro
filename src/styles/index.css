@@ -1197,3 +1197,112 @@ div {
     font-size: 0.75rem;
   }
 }
+
+/* ============================================================================
+   ACCESSIBILITY IMPROVEMENTS
+   ============================================================================ */
+
+/* Focus-visible styles for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--accent-primary, #00b4d8);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Remove default outline for mouse users, keep for keyboard */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Enhanced focus styles for interactive elements */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-primary, #00b4d8);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0, 180, 216, 0.2);
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--accent-primary, #00b4d8);
+  color: #000;
+  padding: 8px;
+  text-decoration: none;
+  z-index: 10000;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* ============================================================================
+   REDUCED MOTION SUPPORT
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton-animate {
+    animation: none !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .loading-progress-fill {
+    transition: none !important;
+  }
+
+  .glass-card,
+  .insight-card,
+  .soft-button,
+  .sidebar-nav-item {
+    transition: none !important;
+  }
+}
+
+/* ============================================================================
+   PERFORMANCE OPTIMIZATIONS
+   ============================================================================ */
+
+/* CSS containment for better rendering performance */
+.glass-card,
+.insight-card,
+.dashboard-chart,
+.stat-card,
+.file-item {
+  contain: layout style paint;
+}
+
+/* Optimize paint for frequently animated elements */
+.loading-progress-fill,
+.skeleton-animate {
+  will-change: transform;
+}
+
+/* Reduce paint areas for large containers */
+.app-container,
+.dashboard-container {
+  contain: layout;
+}
+
+/* Content visibility for off-screen elements (if supported) */
+@supports (content-visibility: auto) {
+  .dashboard-section:not(:first-child) {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 500px;
+  }
+}

@@ -167,7 +167,9 @@
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-  space-y: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 .skeleton-header {
