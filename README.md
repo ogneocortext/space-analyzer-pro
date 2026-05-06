@@ -36,7 +36,7 @@ All tracked issues have been resolved:
 - **Windows GUI**: 8/8 resolved (100%)
 - **Ollama Integration**: Complete with Zod validation, rate limiting, and localhost tools
 
-See [ERROR_TRACKER.md](ERROR_TRACKER.md) and [OLLAMA_INTEGRATION_SUMMARY.md](OLLAMA_INTEGRATION_SUMMARY.md) for detailed tracking.
+See [ERROR_TRACKER.md](docs/guides/ERROR_TRACKER.md) and [OLLAMA_INTEGRATION_SUMMARY.md](docs/ollama/OLLAMA_INTEGRATION_SUMMARY.md) for detailed tracking.
 
 ## Features
 
@@ -52,6 +52,14 @@ See [ERROR_TRACKER.md](ERROR_TRACKER.md) and [OLLAMA_INTEGRATION_SUMMARY.md](OLL
 - **OpenClaw Web Search** - AI-powered web search via Ollama Cloud (rate-limited)
 - **Featured Models** - Server-driven model recommendations (rate-limited)
 - **Tool Calling Support** - Function calling for advanced AI interactions
+
+#### Lucide Icon Library
+
+- **Emoji Replacement** - All emojis replaced with Lucide icons for consistency
+- **ReportsView Icons** - BarChart3, RefreshCw, Sparkles, Search, Eye, Download, Trash2
+- **Notification Icons** - Bell, Check, X, CheckCircle, XCircle, AlertTriangle, Info
+- **Type-Safe Mapping** - Dynamic `getNotificationIcon()` function for icon resolution
+- **Better Accessibility** - Icons use `aria-hidden` with proper screen reader text
 
 ### 🆕 Previous Features (v2.9.1) ✅
 
