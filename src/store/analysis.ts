@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { AnalysisBridge } from "@/services/analysis/AnalysisBridge";
 import { useDebugLogger } from "@/services/DebugLogger";
 
@@ -91,29 +91,41 @@ export const useAnalysisStore = defineStore("analysis", () => {
   }
 
   // Cancel ongoing analysis
-  function cancelAnalysis() {
+  async function cancelAnalysis() {
     log("CANCEL", "Cancelling analysis");
+
+    // First try to cancel via backend API
+    if (isAnalysisRunning.value && currentAnalysisId.value) {
+      try {
+        const response = await fetch("/api/analysis/cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ analysisId: currentAnalysisId.value }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          log("CANCEL_SUCCESS", "Backend cancel successful", result);
+        } else {
+          log("CANCEL_ERROR", "Backend cancel failed", response.status);
+        }
+      } catch (error) {
+        log("CANCEL_ERROR", "Failed to call backend cancel", error);
+      }
+    }
+
+    // Also abort any ongoing fetch requests
     if (abortController.value) {
       abortController.value.abort();
       abortController.value = null;
     }
-    // Also try to cancel via API
-    if (isAnalysisRunning.value) {
-      const body = currentAnalysisId.value
-        ? JSON.stringify({ analysisId: currentAnalysisId.value })
-        : "{}";
-      fetch(`${analysisBridge.baseUrl}/api/analysis/cancel`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body,
-      }).catch(() => {
-        // Ignore errors - backend might not support cancel
-      });
-    }
+
+    // Update store state
     isAnalysisRunning.value = false;
     currentAnalysisId.value = null;
     isLoading.value = false;
     status.value = "cancelled";
+    progress.value = 0;
 
     // Clean up any stored unsubscribe functions
     if (typeof window !== "undefined" && (window as any).__analysisUnsubscribe) {
@@ -209,11 +221,11 @@ export const useAnalysisStore = defineStore("analysis", () => {
       );
       if (response.ok) {
         const result = await response.json();
-        if (result.success && result.data) {
-          data.value = result.data;
-          scannedFiles.value = result.data.files || [];
+        if (result.success && result.analysis) {
+          data.value = result.analysis;
+          scannedFiles.value = result.analysis.files || [];
           log("FETCH_DB_SUCCESS", "Loaded analysis from", result.source);
-          return result.data;
+          return result.analysis;
         }
       }
       log("FETCH_DB_MISS", "No analysis found in database");
@@ -276,6 +288,64 @@ export const useAnalysisStore = defineStore("analysis", () => {
     // Clear persisted data (path is kept for convenience)
     // Analysis data is cleared from memory only, database keeps history
   };
+
+  // Progress polling mechanism
+  let progressPollingInterval: NodeJS.Timeout | null = null;
+
+  const startProgressPolling = () => {
+    if (progressPollingInterval) return;
+
+    progressPollingInterval = setInterval(async () => {
+      if (currentAnalysisId.value && isAnalysisRunning.value) {
+        try {
+          const response = await fetch(`/api/progress/${currentAnalysisId.value}`);
+          if (response.ok) {
+            const backendProgress = await response.json();
+            if (backendProgress.success) {
+              // Update progress data from backend
+              progressData.value = {
+                files: backendProgress.files || 0,
+                percentage: backendProgress.percentage || 0,
+                currentFile: backendProgress.currentFile || "Scanning...",
+                completed: backendProgress.completed || false,
+                totalSize: backendProgress.totalSize || 0,
+              };
+              progress.value = backendProgress.percentage || 0;
+
+              log("PROGRESS_POLL", "Updated progress from backend", progressData.value);
+            }
+          }
+        } catch (error) {
+          log("PROGRESS_POLL_ERROR", "Failed to fetch progress", error);
+        }
+      }
+    }, 1000); // Poll every 1 second
+  };
+
+  const stopProgressPolling = () => {
+    if (progressPollingInterval) {
+      clearInterval(progressPollingInterval);
+      progressPollingInterval = null;
+    }
+  };
+
+  // Watch for analysis running state to manage polling
+  watch(isAnalysisRunning, (running) => {
+    if (running) {
+      startProgressPolling();
+    } else {
+      stopProgressPolling();
+    }
+  });
+
+  // Watch for current analysis ID changes
+  watch(currentAnalysisId, (newId) => {
+    if (newId && isAnalysisRunning.value) {
+      startProgressPolling();
+    } else if (!newId) {
+      stopProgressPolling();
+    }
+  });
 
   return {
     path,

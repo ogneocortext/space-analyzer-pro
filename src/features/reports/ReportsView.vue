@@ -593,8 +593,8 @@ const previewUrl = ref<string | null>(null);
 const previewDownloadUrl = ref<string | null>(null);
 const previewError = ref<string | null>(null);
 
-// API Base URL
-const API_BASE = "http://localhost:8080/api";
+// Import API service
+import api from "@/services/api";
 
 // Computed
 const analysisTemplates = computed(() =>
@@ -608,10 +608,9 @@ const complexityTemplates = computed(() =>
 const fetchReports = async () => {
   loading.value = true;
   try {
-    const response = await fetch(`${API_BASE}/reports`);
-    const data = await response.json();
-    if (data.success) {
-      reports.value = data.reports;
+    const result = await api.getReports();
+    if (result.success) {
+      reports.value = result.data.reports;
     }
   } catch (error) {
     showMessage("Failed to fetch reports", "error");
@@ -637,10 +636,9 @@ const fetchCurrentAnalysis = async () => {
     }
 
     // Otherwise fetch from API
-    const response = await fetch(`${API_BASE}/analysis/history`);
-    const data = await response.json();
-    if (data.success && data.analyses?.length > 0) {
-      currentAnalysis.value = data.analyses[0];
+    const result = await api.getAnalysisHistory();
+    if (result.success && result.data.analyses?.length > 0) {
+      currentAnalysis.value = result.data.analyses[0];
     }
   } catch (error) {
     console.error("Failed to fetch current analysis:", error);
@@ -656,23 +654,25 @@ const generateAnalysisReport = async () => {
 
   generating.value.analysis = true;
   try {
-    const response = await fetch(`${API_BASE}/reports/analysis`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        analysisId: currentAnalysis.value.analysisId,
-        title: `Analysis Report - ${currentAnalysis.value.directory || "Unknown"}`,
-        includeFiles: true,
-        fileLimit: 100,
-      }),
+    const result = await api.generateAnalysisReport({
+      analysisId: currentAnalysis.value.analysisId,
+      includeRecommendations: true,
+      includeComplexity: true,
+      includeTimeline: true,
+      format: "pdf",
     });
 
-    const data = await response.json();
-    if (data.success) {
-      reports.value.unshift(data.report);
-      currentReport.value = data.report;
-      showMessage("Analysis report generated successfully!", "success");
+    if (result.success) {
+      const data = result.data;
+      if (data.success) {
+        reports.value.unshift(data.report);
+        currentReport.value = data.report;
+        showMessage("Analysis report generated successfully!", "success");
+      } else {
+        showMessage(data.error || "Failed to generate report", "error");
+      }
     } else {
+      showMessage(result.error || "Failed to generate report", "error");
       showMessage(data.error || "Failed to generate report", "error");
     }
   } catch (error) {
@@ -691,17 +691,13 @@ const generateComplexityReport = async () => {
 
   generating.value.complexity = true;
   try {
-    const response = await fetch(`${API_BASE}/reports/complexity`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        directory: currentAnalysis.value.directory,
-        title: `Complexity Analysis - ${currentAnalysis.value.directory}`,
-        fileLimit: 50,
-      }),
+    const result = await api.generateComplexityReport({
+      directory: currentAnalysis.value.directory,
+      title: `Complexity Analysis - ${currentAnalysis.value.directory}`,
+      fileLimit: 50,
     });
 
-    const data = await response.json();
+    const data = result.data;
     if (data.success) {
       reports.value.unshift(data.report);
       currentReport.value = data.report;
@@ -726,11 +722,8 @@ const deleteReport = async (report: any) => {
   if (!confirm(`Delete report "${report.filename}"?`)) return;
 
   try {
-    const response = await fetch(`${API_BASE}/reports/${report.filename}`, {
-      method: "DELETE",
-    });
-
-    const data = await response.json();
+    const result = await api.delete(`/reports/${report.filename}`);
+    const data = result.data;
     if (data.success) {
       reports.value = reports.value.filter((r) => r.reportId !== report.reportId);
       if (currentReport.value?.reportId === report.reportId) {
@@ -815,13 +808,8 @@ const saveTemplate = async () => {
 
     if (editingTemplate.value?.id) {
       // Update existing template
-      const response = await fetch(`${API_BASE}/reports/templates/${editingTemplate.value.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(templateData),
-      });
-
-      const data = await response.json();
+      const result = await api.updateTemplate(editingTemplate.value.id, templateData);
+      const data = result.data;
       if (data.success) {
         showMessage("Template updated successfully!", "success");
         await fetchTemplates();
@@ -831,13 +819,8 @@ const saveTemplate = async () => {
       }
     } else {
       // Create new template
-      const response = await fetch(`${API_BASE}/reports/templates`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(templateData),
-      });
-
-      const data = await response.json();
+      const result = await api.createTemplate(templateData);
+      const data = result.data;
       if (data.success) {
         templates.value.unshift(data.template);
         showMessage("Template created successfully!", "success");
@@ -873,8 +856,8 @@ const openPreview = async (report: any) => {
   previewError.value = null;
 
   try {
-    const response = await fetch(`${API_BASE}/reports/preview/${report.filename}`);
-    const data = await response.json();
+    const result = await api.getReportPreview(report.filename);
+    const data = result.data;
 
     if (data.success && data.viewUrl) {
       previewUrl.value = data.viewUrl;
@@ -895,8 +878,8 @@ const openPreview = async (report: any) => {
 
 const fetchTemplates = async () => {
   try {
-    const response = await fetch(`${API_BASE}/reports/templates`);
-    const data = await response.json();
+    const result = await api.getTemplates();
+    const data = result.data;
     if (data.success) {
       templates.value = data.templates;
     }

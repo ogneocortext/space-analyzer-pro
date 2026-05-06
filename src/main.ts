@@ -8,7 +8,6 @@ import "./styles/index.css";
 import "./styles/desktop.css";
 import "./installHook.js";
 import { vueErrorHandler } from "./services/errorTracking";
-import { useKeyboardShortcuts } from "./composables/useKeyboardShortcuts";
 
 console.warn("Starting Vue app...");
 

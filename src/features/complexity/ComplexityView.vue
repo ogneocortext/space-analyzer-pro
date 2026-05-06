@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { useAnalysisStore } from "../../store/analysis";
+import { useAnalysisStore } from "@/store/analysis";
+import api from "@/services/api";
 import { Card, Button } from "../../design-system/components";
 
 const store = useAnalysisStore();
@@ -26,22 +27,23 @@ onMounted(async () => {
 async function loadComplexityData() {
   loading.value = true;
   try {
-    const response = await fetch(
-      `http://localhost:8080/api/complexity/summary?directory=${encodeURIComponent(store.analysisResult.directory)}`
-    );
-    
-    if (response.ok) {
-      const data = await response.json();
+    const result = await api.get("/complexity/summary", {
+      directory: store.analysisResult.directory,
+    });
+
+    if (result.success) {
+      const data = result.data;
       summary.value = data.summary;
       filesNeedingRefactoring.value = data.filesNeedingRefactoring || [];
-      
+
       // Load detailed metrics
-      const metricsResponse = await fetch(
-        `http://localhost:8080/api/complexity/metrics?directory=${encodeURIComponent(store.analysisResult.directory)}&limit=100`
-      );
-      
-      if (metricsResponse.ok) {
-        const metricsData = await metricsResponse.json();
+      const metricsResponse = await api.get("/complexity/metrics", {
+        directory: store.analysisResult.directory,
+        limit: 100,
+      });
+
+      if (metricsResponse.success) {
+        const metricsData = metricsResponse.data;
         complexityData.value = metricsData.metrics || [];
       }
     }
@@ -56,16 +58,14 @@ async function loadComplexityData() {
 async function analyzeComplexity() {
   analyzing.value = true;
   try {
-    const response = await fetch('http://localhost:8080/api/complexity/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        directory: store.analysisResult.directory,
-        maxFiles: 100
-      })
+    const result = await api.post("/complexity/analyze", {
+      directory: store.analysisResult.directory,
+      includeMetrics: true,
+      includeRecommendations: true,
     });
-    
-    if (response.ok) {
+
+    if (result.success) {
+      const data = result.data;
       await loadComplexityData();
     }
   } catch (err) {
@@ -78,17 +78,17 @@ async function analyzeComplexity() {
 // Filtered and sorted files
 const filteredFiles = computed(() => {
   let files = complexityData.value;
-  
+
   // Filter by language
   if (selectedLanguage.value !== "all") {
-    files = files.filter(f => f.language === selectedLanguage.value);
+    files = files.filter((f) => f.language === selectedLanguage.value);
   }
-  
+
   // Filter by grade
   if (selectedGrade.value !== "all") {
-    files = files.filter(f => f.complexity_grade === selectedGrade.value);
+    files = files.filter((f) => f.complexity_grade === selectedGrade.value);
   }
-  
+
   // Sort
   return [...files].sort((a, b) => {
     switch (sortBy.value) {
@@ -109,7 +109,7 @@ const filteredFiles = computed(() => {
 
 // Available languages
 const languages = computed(() => {
-  const langs = new Set(complexityData.value.map(f => f.language).filter(Boolean));
+  const langs = new Set(complexityData.value.map((f) => f.language).filter(Boolean));
   return ["all", ...Array.from(langs).sort()];
 });
 
@@ -121,7 +121,7 @@ const gradeDistribution = computed(() => {
     B: summary.value.grade_b || 0,
     C: summary.value.grade_c || 0,
     D: summary.value.grade_d || 0,
-    F: summary.value.grade_f || 0
+    F: summary.value.grade_f || 0,
   };
 });
 
@@ -131,7 +131,7 @@ const priorityDistribution = computed(() => {
   return {
     critical: summary.value.critical_count || 0,
     high: summary.value.high_count || 0,
-    medium: summary.value.medium_count || 0
+    medium: summary.value.medium_count || 0,
   };
 });
 
@@ -147,7 +147,7 @@ function getGradeColor(grade: string): string {
     B: "bg-blue-500",
     C: "bg-yellow-500",
     D: "bg-orange-500",
-    F: "bg-red-500"
+    F: "bg-red-500",
   };
   return colors[grade] || "bg-slate-500";
 }
@@ -157,7 +157,7 @@ function getPriorityColor(priority: string): string {
     critical: "text-red-400 bg-red-500/20",
     high: "text-orange-400 bg-orange-500/20",
     medium: "text-yellow-400 bg-yellow-500/20",
-    low: "text-emerald-400 bg-emerald-500/20"
+    low: "text-emerald-400 bg-emerald-500/20",
   };
   return colors[priority] || "text-slate-400 bg-slate-500/20";
 }
@@ -167,7 +167,7 @@ function getPriorityLabel(priority: string): string {
     critical: "Critical - Immediate Refactoring Needed",
     high: "High - Refactor Soon",
     medium: "Medium - Consider Refactoring",
-    low: "Low - Good Code Quality"
+    low: "Low - Good Code Quality",
   };
   return labels[priority] || priority;
 }
@@ -177,8 +177,8 @@ function getPriorityLabel(priority: string): string {
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-slate-100">Code Complexity Analysis</h1>
-      <Button 
-        variant="primary" 
+      <Button
+        variant="primary"
         @click="analyzeComplexity"
         :disabled="analyzing || !store.analysisResult?.directory"
       >
@@ -189,19 +189,34 @@ function getPriorityLabel(priority: string): string {
 
     <!-- Loading State -->
     <div v-if="loading" class="text-center py-12">
-      <div class="inline-block animate-spin w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full mb-4"></div>
+      <div
+        class="inline-block animate-spin w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full mb-4"
+      ></div>
       <p class="text-slate-400">Loading complexity data...</p>
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!summary" class="text-center py-12 bg-slate-900/50 rounded-xl border border-slate-800">
-      <svg class="w-16 h-16 mx-auto mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    <div
+      v-else-if="!summary"
+      class="text-center py-12 bg-slate-900/50 rounded-xl border border-slate-800"
+    >
+      <svg
+        class="w-16 h-16 mx-auto mb-4 text-slate-600"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
       </svg>
       <h3 class="text-lg font-medium text-slate-300 mb-2">No Complexity Data</h3>
       <p class="text-slate-500 mb-4">Run complexity analysis to see code quality metrics</p>
-      <Button 
-        variant="primary" 
+      <Button
+        variant="primary"
         @click="analyzeComplexity"
         :disabled="analyzing || !store.analysisResult?.directory"
       >
@@ -222,7 +237,10 @@ function getPriorityLabel(priority: string): string {
       <Card padding="md" class="bg-slate-900 border-slate-800">
         <div class="text-center">
           <p class="text-sm text-slate-400 mb-1">Avg Complexity</p>
-          <p class="text-3xl font-bold" :class="summary?.avg_complexity > 20 ? 'text-red-400' : 'text-slate-100'">
+          <p
+            class="text-3xl font-bold"
+            :class="summary?.avg_complexity > 20 ? 'text-red-400' : 'text-slate-100'"
+          >
             {{ formatNumber(summary?.avg_complexity?.toFixed(1)) }}
           </p>
         </div>
@@ -231,7 +249,10 @@ function getPriorityLabel(priority: string): string {
       <Card padding="md" class="bg-slate-900 border-slate-800">
         <div class="text-center">
           <p class="text-sm text-slate-400 mb-1">Maintainability</p>
-          <p class="text-3xl font-bold" :class="summary?.avg_maintainability < 50 ? 'text-red-400' : 'text-emerald-400'">
+          <p
+            class="text-3xl font-bold"
+            :class="summary?.avg_maintainability < 50 ? 'text-red-400' : 'text-emerald-400'"
+          >
             {{ formatNumber(summary?.avg_maintainability?.toFixed(0)) }}
           </p>
         </div>
@@ -240,7 +261,14 @@ function getPriorityLabel(priority: string): string {
       <Card padding="md" class="bg-slate-900 border-slate-800">
         <div class="text-center">
           <p class="text-sm text-slate-400 mb-1">Need Refactoring</p>
-          <p class="text-3xl font-bold" :class="(summary?.critical_count + summary?.high_count) > 0 ? 'text-red-400' : 'text-emerald-400'">
+          <p
+            class="text-3xl font-bold"
+            :class="
+              summary?.critical_count + summary?.high_count > 0
+                ? 'text-red-400'
+                : 'text-emerald-400'
+            "
+          >
             {{ formatNumber((summary?.critical_count || 0) + (summary?.high_count || 0)) }}
           </p>
         </div>
@@ -252,16 +280,24 @@ function getPriorityLabel(priority: string): string {
       <Card padding="md" class="bg-slate-900 border-slate-800">
         <h3 class="text-lg font-semibold text-slate-200 mb-4">Complexity Grade Distribution</h3>
         <div class="space-y-3">
-          <div v-for="(count, grade) in gradeDistribution" :key="grade" class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white" 
-                 :class="getGradeColor(grade)">
+          <div
+            v-for="(count, grade) in gradeDistribution"
+            :key="grade"
+            class="flex items-center gap-3"
+          >
+            <div
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold text-white"
+              :class="getGradeColor(grade)"
+            >
               {{ grade }}
             </div>
             <div class="flex-1">
               <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div class="h-full rounded-full transition-all" 
-                     :class="getGradeColor(grade)"
-                     :style="{ width: `${(count / (summary?.total_files || 1)) * 100}%` }"></div>
+                <div
+                  class="h-full rounded-full transition-all"
+                  :class="getGradeColor(grade)"
+                  :style="{ width: `${(count / (summary?.total_files || 1)) * 100}%` }"
+                ></div>
               </div>
             </div>
             <span class="text-sm text-slate-400 w-12 text-right">{{ count }}</span>
@@ -277,15 +313,24 @@ function getPriorityLabel(priority: string): string {
       <Card padding="md" class="bg-slate-900 border-slate-800">
         <h3 class="text-lg font-semibold text-slate-200 mb-4">Refactoring Priority</h3>
         <div class="space-y-3">
-          <div v-for="(count, priority) in priorityDistribution" :key="priority" class="flex items-center gap-3">
-            <span class="text-sm font-medium w-16 capitalize" :class="getPriorityColor(priority).split(' ')[0]">
+          <div
+            v-for="(count, priority) in priorityDistribution"
+            :key="priority"
+            class="flex items-center gap-3"
+          >
+            <span
+              class="text-sm font-medium w-16 capitalize"
+              :class="getPriorityColor(priority).split(' ')[0]"
+            >
               {{ priority }}
             </span>
             <div class="flex-1">
               <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div class="h-full rounded-full transition-all" 
-                     :class="getPriorityColor(priority).split(' ')[0].replace('text-', 'bg-')"
-                     :style="{ width: `${(count / (summary?.total_files || 1)) * 100}%` }"></div>
+                <div
+                  class="h-full rounded-full transition-all"
+                  :class="getPriorityColor(priority).split(' ')[0].replace('text-', 'bg-')"
+                  :style="{ width: `${(count / (summary?.total_files || 1)) * 100}%` }"
+                ></div>
               </div>
             </div>
             <span class="text-sm text-slate-400 w-12 text-right">{{ count }}</span>
@@ -299,28 +344,40 @@ function getPriorityLabel(priority: string): string {
     </div>
 
     <!-- Files Needing Refactoring -->
-    <Card v-if="filesNeedingRefactoring.length > 0" padding="md" class="bg-slate-900 border-slate-800">
+    <Card
+      v-if="filesNeedingRefactoring.length > 0"
+      padding="md"
+      class="bg-slate-900 border-slate-800"
+    >
       <h3 class="text-lg font-semibold text-slate-200 mb-4 flex items-center gap-2">
         <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
         </svg>
         Files Needing Immediate Attention ({{ filesNeedingRefactoring.length }})
       </h3>
       <div class="space-y-2 max-h-64 overflow-y-auto">
-        <div v-for="file in filesNeedingRefactoring.slice(0, 10)" :key="file.file_path"
-             class="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+        <div
+          v-for="file in filesNeedingRefactoring.slice(0, 10)"
+          :key="file.file_path"
+          class="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg"
+        >
           <div class="flex-1 min-w-0">
-            <p class="font-medium text-slate-200 truncate">{{ file.file_path.split('/').pop() }}</p>
+            <p class="font-medium text-slate-200 truncate">{{ file.file_path.split("/").pop() }}</p>
             <p class="text-xs text-slate-500 truncate">{{ file.file_path }}</p>
           </div>
           <div class="flex items-center gap-3 ml-4">
-            <span class="px-2 py-1 rounded text-xs font-medium"
-                  :class="getPriorityColor(file.refactoring_priority)">
+            <span
+              class="px-2 py-1 rounded text-xs font-medium"
+              :class="getPriorityColor(file.refactoring_priority)"
+            >
               {{ file.refactoring_priority }}
             </span>
-            <span class="text-sm text-slate-400">
-              CC: {{ file.cyclomatic_complexity }}
-            </span>
+            <span class="text-sm text-slate-400"> CC: {{ file.cyclomatic_complexity }} </span>
             <span class="text-sm text-slate-400">
               MI: {{ file.maintainability_index?.toFixed(0) }}
             </span>
@@ -334,16 +391,22 @@ function getPriorityLabel(priority: string): string {
       <div class="flex flex-wrap gap-4 items-center">
         <div class="flex items-center gap-2">
           <label class="text-sm text-slate-400">Language:</label>
-          <select v-model="selectedLanguage" class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200">
+          <select
+            v-model="selectedLanguage"
+            class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200"
+          >
             <option v-for="lang in languages" :key="lang" :value="lang">
-              {{ lang === 'all' ? 'All Languages' : lang }}
+              {{ lang === "all" ? "All Languages" : lang }}
             </option>
           </select>
         </div>
 
         <div class="flex items-center gap-2">
           <label class="text-sm text-slate-400">Grade:</label>
-          <select v-model="selectedGrade" class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200">
+          <select
+            v-model="selectedGrade"
+            class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200"
+          >
             <option value="all">All Grades</option>
             <option value="A">A (Excellent)</option>
             <option value="B">B (Good)</option>
@@ -355,7 +418,10 @@ function getPriorityLabel(priority: string): string {
 
         <div class="flex items-center gap-2">
           <label class="text-sm text-slate-400">Sort By:</label>
-          <select v-model="sortBy" class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200">
+          <select
+            v-model="sortBy"
+            class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200"
+          >
             <option value="complexity">Cyclomatic Complexity</option>
             <option value="maintainability">Maintainability Index</option>
             <option value="lines">Lines of Code</option>
@@ -387,10 +453,15 @@ function getPriorityLabel(priority: string): string {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="file in filteredFiles.slice(0, 50)" :key="file.file_path" 
-                class="border-b border-slate-800/50 hover:bg-slate-800/30">
+            <tr
+              v-for="file in filteredFiles.slice(0, 50)"
+              :key="file.file_path"
+              class="border-b border-slate-800/50 hover:bg-slate-800/30"
+            >
               <td class="py-2 px-3">
-                <p class="font-medium text-slate-200 truncate max-w-xs">{{ file.file_path.split('/').pop() }}</p>
+                <p class="font-medium text-slate-200 truncate max-w-xs">
+                  {{ file.file_path.split("/").pop() }}
+                </p>
                 <p class="text-xs text-slate-500 truncate max-w-xs">{{ file.file_path }}</p>
               </td>
               <td class="py-2 px-3 text-center">
@@ -399,8 +470,10 @@ function getPriorityLabel(priority: string): string {
                 </span>
               </td>
               <td class="py-2 px-3 text-center">
-                <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-sm font-bold text-white"
-                      :class="getGradeColor(file.complexity_grade)">
+                <span
+                  class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-sm font-bold text-white"
+                  :class="getGradeColor(file.complexity_grade)"
+                >
                   {{ file.complexity_grade }}
                 </span>
               </td>
@@ -410,7 +483,9 @@ function getPriorityLabel(priority: string): string {
                 </span>
               </td>
               <td class="py-2 px-3 text-center">
-                <span :class="file.maintainability_index < 50 ? 'text-red-400' : 'text-emerald-400'">
+                <span
+                  :class="file.maintainability_index < 50 ? 'text-red-400' : 'text-emerald-400'"
+                >
                   {{ file.maintainability_index?.toFixed(0) }}
                 </span>
               </td>

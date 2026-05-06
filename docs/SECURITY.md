@@ -1,91 +1,196 @@
 # Security Policy
 
-## Supported Versions
+This document outlines the security practices and policies for Space Analyzer Pro.
 
-Currently, only the latest version of Space Analyzer is supported with security updates.
+## 🛡️ Security Overview
 
-## Reporting a Vulnerability
+Space Analyzer Pro is designed as a **local-first, single-user application** with security principles focused on protecting user data and system integrity.
 
-If you discover a security vulnerability, please report it responsibly.
+## 🔒 Key Security Principles
 
-### How to Report
+### 1. Local-First Architecture
+- **No network communication** except for optional AI services
+- **No data collection** or telemetry sent to external servers
+- **All processing** happens on the user's local machine
+- **No authentication** required (localhost only)
 
-**Do not** open a public issue for security vulnerabilities.
+### 2. Data Protection
+- **No data exfiltration** - Files and analysis never leave the user's system
+- **Local storage only** - All data stored in local SQLite database
+- **No cloud dependencies** - Optional AI services run locally (Ollama) or with explicit API keys
 
-Instead, please send an email to the project maintainers with:
-- A description of the vulnerability
-- Steps to reproduce the vulnerability
-- Any potential impact
-- If available, a suggested fix or mitigation
+### 3. System Access
+- **Read-only file access** by default
+- **Explicit user consent** for file operations (delete, move)
+- **Sandboxed operation** - Limited to specified directories
+- **No system modifications** without user action
 
-### What to Expect
-
-- We will acknowledge receipt of your report within 48 hours
-- We will provide a detailed response within 7 days
-- We will work with you to understand and resolve the issue
-- Once resolved, we will announce the security fix
-
-## Security Best Practices
-
-### For Users
-
-1. **Keep dependencies updated**: Regularly run `npm audit` and update dependencies
-2. **Use environment variables**: Never commit sensitive data like API keys
-3. **Review `.env.example`**: Use the provided template for configuration
-4. **Scan for vulnerabilities**: Use tools like `npm audit` or `snyk`
-5. **Keep your system updated**: Ensure your OS and Node.js are up to date
-
-### For Developers
-
-1. **Never commit secrets**: API keys, passwords, and tokens should never be in the codebase
-2. **Use `.env` files**: Keep sensitive configuration in environment variables
-3. **Validate input**: Always validate and sanitize user input
-4. **Use HTTPS**: Always use secure connections for API calls
-5. **Follow principle of least privilege**: Minimize permissions and access
-
-## Known Security Considerations
-
-### API Keys
-
-This project may use external AI services (Google Gemini, Ollama). These require API keys that should:
-- Never be committed to version control
-- Be stored in environment variables
-- Be rotated regularly
-- Have limited scope and permissions
+## 🚨 Security Considerations
 
 ### File System Access
+- **Scanner reads files** - Only reads file metadata and content for analysis
+- **User-initiated deletions** - File deletions require explicit user action
+- **Path validation** - Prevents path traversal attacks
+- **Permission checks** - Respects file system permissions
 
-The application analyzes local file systems. Ensure:
-- Only scan directories you have permission to access
-- Be aware of what data is being sent to external AI services
-- Review privacy policies of external services used
+### AI Services
+- **Local AI (Ollama)** - Runs entirely on user's machine
+- **Cloud AI (Gemini)** - Requires explicit API key configuration
+- **Python AI Service** - Runs on localhost port 5000
+- **No data retention** - AI services don't store analysis data
 
 ### Network Communication
+- **Optional only** - Network access disabled by default
+- **Localhost only** - AI services bind to localhost
+- **User control** - Users must explicitly enable network features
+- **No telemetry** - No data sent to external servers
 
-The application may communicate with:
-- Local Ollama server (localhost:11434)
-- External AI APIs (Google Gemini)
-- Development servers
+## 🔐 Security Features
 
-Ensure your network is secure and review what data is being transmitted.
+### Input Validation
+- **Path sanitization** - Prevents directory traversal
+- **File type validation** - Checks file extensions and magic numbers
+- **Size limits** - Prevents memory exhaustion from large files
+- **SQL injection protection** - Parameterized queries for database
 
-## Dependency Security
+### Error Handling
+- **No sensitive data exposure** - Error messages don't reveal paths
+- **Graceful degradation** - Services fail safely without data loss
+- **Audit logging** - Security events logged locally
+- **Resource cleanup** - Proper cleanup of temporary files
 
-We regularly audit dependencies for known vulnerabilities. To check your local installation:
+### Isolation
+- **Process isolation** - Separate processes for scanner and AI services
+- **Port isolation** - Services bind to different localhost ports
+- **Memory isolation** - Each service manages its own memory
+- **File isolation** - Temporary files created in secure locations
 
-```bash
-npm audit
-npm audit fix
+## 🚫 What Space Analyzer Pro Does NOT Do
+
+- ❌ **No data collection** - No telemetry or analytics collection
+- ❌ **No remote code execution** - All code runs locally
+- ❌ **No automatic updates** - Updates require manual action
+- ❌ **No network access by default** - Must be explicitly enabled
+- ❌ **No user tracking** - No user identification or tracking
+- ❌ **No data sharing** - Analysis data never leaves the system
+
+## 🔧 Security Configuration
+
+### Default Secure Settings
+```env
+# Network access disabled by default
+VITE_API_URL=http://localhost:8080
+VITE_OLLAMA_URL=http://localhost:11434
+
+# AI services optional
+AI_SERVICE_URL=http://127.0.0.1:5000
+
+# No external API keys required
+# GEMINI_API_KEY=  # Optional, user-provided
 ```
 
-## Security Updates
+### Port Configuration
+- **Frontend**: 5173 (Vite dev server)
+- **Backend**: 8080 (Express API)
+- **AI Service**: 5000 (Python FastAPI)
+- **Ollama**: 11434 (Local AI)
+- **All localhost only** - No external network binding
 
-When security vulnerabilities are discovered:
-1. We will assess the severity and impact
-2. We will develop a fix
-3. We will release a security update
-4. We will announce the update with details
+## 🛠️ Security Best Practices for Users
 
-## Contact
+### 1. System Security
+- **Keep system updated** - Regular OS and software updates
+- **Use antivirus** - Keep antivirus software active
+- **Review permissions** - Ensure app has only necessary permissions
+- **Network security** - Use firewall and secure network
 
-For security-related questions or to report vulnerabilities, please contact the project maintainers through the appropriate channels.
+### 2. Data Security
+- **Backup important data** - Before using deletion features
+- **Review scan results** - Before performing file operations
+- **Use test directories** - When trying new features
+- **Monitor disk usage** - Watch for unexpected disk usage
+
+### 3. AI Service Security
+- **Local AI preferred** - Use Ollama for maximum privacy
+- **Review API keys** - If using cloud AI services
+- **Monitor AI service** - Check Python AI service status
+- **Update AI models** - Keep ML models updated
+
+## 🐛 Vulnerability Reporting
+
+### How to Report
+1. **Private disclosure** - Report vulnerabilities privately
+2. **Email security** - Use the maintainer's security email
+3. **GitHub Security Advisory** - Use GitHub's private vulnerability reporting
+4. **Include details** - Provide steps to reproduce and impact assessment
+
+### Response Process
+1. **Acknowledgment** - Within 48 hours
+2. **Assessment** - Evaluate vulnerability severity
+3. **Fix development** - Develop and test patches
+4. **Security release** - Issue security update
+5. **Public disclosure** - After fix is deployed
+
+### Security Contact
+- **GitHub Security Advisory**: [Report Vulnerability](https://github.com/ogneocortext/space-analyzer-pro/security/advisories/new)
+- **Maintainer**: ogneocortext
+
+## 🔍 Security Audits
+
+### Regular Security Reviews
+- **Code reviews** - Security-focused code reviews
+- **Dependency audits** - Check for vulnerable dependencies
+- **Penetration testing** - Local security testing
+- **Configuration audits** - Review security configurations
+
+### Automated Security
+- **Dependency scanning** - npm audit for vulnerable packages
+- **Code scanning** - GitHub security scanning
+- **Static analysis** - ESLint security rules
+- **Secret scanning** - Prevent accidental secret commits
+
+## 📋 Security Checklist
+
+### Before Release
+- [ ] **Review file access** - Ensure no unauthorized file access
+- [ ] **Check network usage** - Verify no unexpected network calls
+- [ ] **Validate inputs** - All user inputs are sanitized
+- [ ] **Test error handling** - Verify no sensitive data exposure
+- [ ] **Audit dependencies** - Check for vulnerable packages
+- [ ] **Review permissions** - Ensure minimum required permissions
+
+### After Installation
+- [ ] **Verify localhost binding** - Services bind to localhost only
+- [ ] **Check file permissions** - App has appropriate permissions
+- [ ] **Test AI services** - Verify AI services work securely
+- [ ] **Review configuration** - Ensure secure default settings
+- [ ] **Monitor resources** - Check for resource leaks
+
+## 🚀 Future Security Enhancements
+
+### Planned Improvements
+- **Code signing** - Digital signatures for releases
+- **Sandboxing** - Enhanced process isolation
+- **Encryption** - Optional database encryption
+- **Audit logging** - Enhanced security event logging
+- **Security scanning** - Automated security testing
+
+### Community Contributions
+- **Security reviews** - Community security audits
+- **Vulnerability research** - Security research collaboration
+- **Best practices** - Security best practice sharing
+- **Documentation** - Security documentation improvements
+
+---
+
+## 📞 Security Contact
+
+For security-related questions or vulnerability reports:
+
+- **Maintainer**: ogneocortext
+- **GitHub Security**: [Report Vulnerability](https://github.com/ogneocortext/space-analyzer-pro/security/advisories/new)
+- **Private Email**: Available through GitHub
+
+---
+
+*This security policy is part of Space Analyzer Pro's commitment to user privacy and data protection. For questions about security practices, please refer to the contributing guidelines or contact the maintainer.*

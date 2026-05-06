@@ -1,5 +1,5 @@
 // Custom hook for managing file browser state
-import { useState, useCallback } from "react";
+import { ref, computed } from "vue";
 
 interface FileBrowserState {
   searchQuery: string;
@@ -10,59 +10,85 @@ interface FileBrowserState {
   currentPage: number;
 }
 
-export const useFileBrowserState = () => {
-  const [state, setState] = useState<FileBrowserState>({
+export interface UseFileBrowserStateReturn {
+  state: FileBrowserState;
+  updateSearchQuery: (query: string) => void;
+  updateSortBy: (sortBy: string) => void;
+  updateSortOrder: (order: "asc" | "desc") => void;
+  updateFilterType: (type: string) => void;
+  updatePageSize: (size: number) => void;
+  nextPage: () => void;
+  previousPage: () => void;
+  resetState: () => void;
+}
+
+export const useFileBrowserState = (initialState: Partial<FileBrowserState> = {}): UseFileBrowserStateReturn => {
+  const state = ref<FileBrowserState>({
     searchQuery: "",
     sortBy: "name",
     sortOrder: "asc",
     filterType: "all",
     pageSize: 50,
     currentPage: 1,
+    ...initialState
   });
 
-  const setSearchQuery = useCallback((searchQuery: string) => {
-    setState((prev) => ({ ...prev, searchQuery }));
-  }, []);
+  const totalPages = computed(() => Math.ceil(100 / state.value.pageSize)); // Assuming 100 total items
 
-  const setSortBy = useCallback((sortBy: "name" | "size" | "date") => {
-    setState((prev) => ({ ...prev, sortBy }));
-  }, []);
+  const updateSearchQuery = (query: string) => {
+    state.value.searchQuery = query;
+    state.value.currentPage = 1; // Reset to first page when searching
+  };
 
-  const setSortOrder = useCallback((sortOrder: "asc" | "desc") => {
-    setState((prev) => ({ ...prev, sortOrder }));
-  }, []);
+  const updateSortBy = (sortBy: string) => {
+    state.value.sortBy = sortBy;
+  };
 
-  const setFilterType = useCallback((filterType: string) => {
-    setState((prev) => ({ ...prev, filterType }));
-  }, []);
+  const updateSortOrder = (order: "asc" | "desc") => {
+    state.value.sortOrder = order;
+  };
 
-  const setPageSize = useCallback((pageSize: number) => {
-    setState((prev) => ({ ...prev, pageSize, currentPage: 1 })); // Reset to first page
-  }, []);
+  const updateFilterType = (type: string) => {
+    state.value.filterType = type;
+  };
 
-  const setCurrentPage = useCallback((currentPage: number) => {
-    setState((prev) => ({ ...prev, currentPage }));
-  }, []);
+  const updatePageSize = (size: number) => {
+    state.value.pageSize = size;
+    state.value.currentPage = 1; // Reset to first page
+  };
 
-  const resetFilters = useCallback(() => {
-    setState({
+  const nextPage = () => {
+    if (state.value.currentPage < totalPages.value) {
+      state.value.currentPage++;
+    }
+  };
+
+  const previousPage = () => {
+    if (state.value.currentPage > 1) {
+      state.value.currentPage--;
+    }
+  };
+
+  const resetState = () => {
+    state.value = {
       searchQuery: "",
       sortBy: "name",
       sortOrder: "asc",
       filterType: "all",
       pageSize: 50,
       currentPage: 1,
-    });
-  }, []);
+    };
+  };
 
   return {
-    ...state,
-    setSearchQuery,
-    setSortBy,
-    setSortOrder,
-    setFilterType,
-    setPageSize,
-    setCurrentPage,
-    resetFilters,
+    state,
+    updateSearchQuery,
+    updateSortBy,
+    updateSortOrder,
+    updateFilterType,
+    updatePageSize,
+    nextPage,
+    previousPage,
+    resetState,
   };
 };

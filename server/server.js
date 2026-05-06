@@ -3,7 +3,7 @@
  * Single, clean server implementation replacing backend-server.js and src/app.js
  */
 
-// Global error handling to prevent crashes
+// Global error handling to prevent crashes with Promise.try() for better error handling
 process.on("uncaughtException", (error) => {
   console.error("💥 UNCAUGHT EXCEPTION - Server will stay running:", error);
   // Log to file or monitoring service here
@@ -29,6 +29,7 @@ const path = require("path");
 const fs = require("fs");
 const http = require("http");
 const { EventEmitter } = require("events");
+const { Temporal } = require("@js-temporal/polyfill"); // Temporal API polyfill for Node.js 25/26 compatibility
 
 // Load environment variables
 require("dotenv").config({ path: path.resolve(__dirname, ".env") });
@@ -72,12 +73,11 @@ class SpaceAnalyzerServer {
       const clientIp = req.ip || req.connection.remoteAddress || "unknown";
       const now = Date.now();
 
-      // Get or create rate limit entry
-      let entry = this.rateLimitStore.get(clientIp);
-      if (!entry) {
-        entry = { count: 0, resetTime: now + WINDOW_MS };
-        this.rateLimitStore.set(clientIp, entry);
-      }
+      // Use Node.js 26 Map.prototype.getOrInsert() for cleaner code
+      const entry = this.rateLimitStore.getOrInsert(clientIp, () => ({
+        count: 0,
+        resetTime: now + WINDOW_MS,
+      }));
 
       // Reset if window has passed
       if (now > entry.resetTime) {
@@ -103,14 +103,18 @@ class SpaceAnalyzerServer {
       next();
     });
 
-    // Cleanup old entries every 5 minutes
+    // Cleanup old entries every 5 minutes using Iterator methods
     setInterval(
       () => {
         const now = Date.now();
-        for (const [ip, entry] of this.rateLimitStore.entries()) {
-          if (now > entry.resetTime) {
-            this.rateLimitStore.delete(ip);
-          }
+        // Use Iterator.prototype methods for efficient filtering
+        const expiredEntries = this.rateLimitStore
+          .entries()
+          .filter(([, entry]) => now > entry.resetTime)
+          .map(([ip]) => ip);
+
+        for (const ip of expiredEntries) {
+          this.rateLimitStore.delete(ip);
         }
       },
       5 * 60 * 1000
@@ -121,7 +125,8 @@ class SpaceAnalyzerServer {
    * Initialize database connection
    */
   async setupDatabase() {
-    try {
+    // Use Promise.try() for consistent error handling
+    return Promise.try(async () => {
       console.log("🔄 Initializing database...");
       const KnowledgeDatabase = require("./KnowledgeDatabase");
 
@@ -146,10 +151,10 @@ class SpaceAnalyzerServer {
         console.warn("⚠️ Database initialization failed, using in-memory fallback");
         this.knowledgeDB = null;
       }
-    } catch (error) {
+    }).catch((error) => {
       console.error("❌ Database initialization error:", error.message);
       this.knowledgeDB = null;
-    }
+    });
   }
 
   /**
@@ -262,9 +267,31 @@ class SpaceAnalyzerServer {
       })
     );
 
-    // Use CORS configuration from config with localhost restriction
-    const config = require("./src/config");
-    const corsOptions = config.get("server.cors");
+    // Use CORS configuration from config with proper frontend-backend communication
+    const config = require("./config");
+    const corsOptions = {
+      origin:
+        process.env.NODE_ENV === "production"
+          ? ["https://yourdomain.com"] // Add your production domain
+          : [
+              "http://localhost:5173", // Vite dev server
+              "http://localhost:4173", // Vite preview server
+              "http://localhost:8080", // Backend server
+              "http://127.0.0.1:5173",
+              "http://127.0.0.1:8080",
+            ],
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      allowedHeaders: [
+        "Origin",
+        "X-Requested-With",
+        "Content-Type",
+        "Accept",
+        "Authorization",
+        "X-Analysis-ID",
+      ],
+      exposedHeaders: ["X-Total-Count", "X-Page-Count", "X-Analysis-ID"],
+    };
     this.app.use(cors(corsOptions));
   }
 
@@ -276,9 +303,10 @@ class SpaceAnalyzerServer {
     // Static files
     this.app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-    // Request logging
+    // Request logging using Temporal API for better date handling
     this.app.use((req, res, next) => {
-      console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+      const timestamp = Temporal.Now.plainDateTimeISO().toString();
+      console.log(`${timestamp} - ${req.method} ${req.path}`);
       next();
     });
   }
@@ -296,6 +324,29 @@ class SpaceAnalyzerServer {
       isValidPath,
       normalizePath,
     };
+
+    // Load analysis history from database on startup
+    if (this.knowledgeDB?.db) {
+      console.log("📚 Loading analysis history from database...");
+      this.knowledgeDB
+        .getAnalysisHistory(100, 0)
+        .then((historyData) => {
+          const history = historyData.analyses || historyData;
+          if (Array.isArray(history)) {
+            history.forEach((analysis) => {
+              mockServer.analysisResults.set(analysis.id || analysis.analysisId, {
+                ...analysis,
+                status: "completed",
+                completedAt: analysis.lastAnalyzed || analysis.last_analyzed,
+              });
+            });
+            console.log(`✅ Loaded ${history.length} analyses from database`);
+          }
+        })
+        .catch((err) => {
+          console.log("⚠️ Could not load history:", err.message);
+        });
+    }
 
     // Add memory limit for analysisResults (LRU cleanup)
     const originalSet = mockServer.analysisResults.set.bind(mockServer.analysisResults);
@@ -323,6 +374,8 @@ class SpaceAnalyzerServer {
           { path: "/analysis/cancel", methods: ["POST"] },
           { path: "/analysis/status/:id", methods: ["GET"] },
           { path: "/analysis/health", methods: ["GET"] },
+          { path: "/analysis/progress/:id", methods: ["GET"] },
+          { path: "/analysis/progress/stream/:id", methods: ["GET"] }, // SSE for real-time progress
           // Error endpoints
           { path: "/errors/health", methods: ["GET"] },
           { path: "/errors/report", methods: ["POST"] },
@@ -363,7 +416,7 @@ class SpaceAnalyzerServer {
         res.json({
           success: true,
           status: "healthy",
-          timestamp: new Date().toISOString(),
+          timestamp: Temporal.Now.plainDateTimeISO().toString(),
           system: {
             platform: os.platform(),
             arch: os.arch(),
@@ -392,7 +445,7 @@ class SpaceAnalyzerServer {
           success: true,
           status: "available",
           service: "AI Service",
-          timestamp: new Date().toISOString(),
+          timestamp: Temporal.Now.plainDateTimeISO().toString(),
           note: "Fallback AI status endpoint - knowledge service temporarily unavailable",
         });
       } catch (error) {
@@ -431,7 +484,7 @@ class SpaceAnalyzerServer {
         const os = require("os");
         res.json({
           success: true,
-          timestamp: new Date().toISOString(),
+          timestamp: Temporal.Now.plainDateTimeISO().toString(),
           system: {
             platform: os.platform(),
             arch: os.arch(),
@@ -471,7 +524,7 @@ class SpaceAnalyzerServer {
           return res.status(503).json({
             success: false,
             status: "degraded",
-            timestamp: new Date().toISOString(),
+            timestamp: Temporal.Now.plainDateTimeISO().toString(),
             error: "Database unavailable",
             message: "Service is running but database connection failed",
             version: "2.8.9",
@@ -482,7 +535,7 @@ class SpaceAnalyzerServer {
         res.json({
           success: true,
           status: "healthy",
-          timestamp: new Date().toISOString(),
+          timestamp: Temporal.Now.plainDateTimeISO().toString(),
           uptime: os.uptime(),
           memory: {
             total: os.totalmem(),
@@ -570,21 +623,21 @@ class SpaceAnalyzerServer {
           success: true,
           message: "Space Analyzer Backend is running",
           port: this.port,
-          timestamp: new Date().toISOString(),
+          timestamp: Temporal.Now.plainDateTimeISO().toString(),
         });
       }
     });
   }
 
   setupHealthChecks() {
-    // Status endpoint (more detailed than health
+    // Status endpoint (more detailed than health)
     this.app.get("/api/status", (req, res) => {
       const os = require("os");
       res.json({
         success: true,
         status: "operational",
         version: process.env.npm_package_version || "2.5.0",
-        timestamp: new Date().toISOString(),
+        timestamp: Temporal.Now.plainDateTimeISO().toString(),
         uptime: process.uptime(),
         environment: process.env.NODE_ENV || "development",
         system: {
@@ -606,7 +659,7 @@ class SpaceAnalyzerServer {
         success: true,
         version: process.env.npm_package_version || "2.5.0",
         apiVersion: "v2",
-        buildDate: new Date().toISOString(),
+        buildDate: Temporal.Now.plainDateTimeISO().toString(),
       });
     });
 
@@ -654,15 +707,23 @@ class SpaceAnalyzerServer {
       });
     });
 
-    // Global error handler
+    // Global error handler using Promise.try() for consistent async error handling
     this.app.use(async (error, req, res, next) => {
-      await this.errorLogger.logRequestError(error, req, res);
+      await Promise.try(async () => {
+        await this.errorLogger.logRequestError(error, req, res);
 
-      const isDev = process.env.NODE_ENV === "development";
-      res.status(error.status || 500).json({
-        success: false,
-        error: error?.message || "Internal Server Error",
-        ...(isDev && error?.stack && { stack: error.stack }),
+        const isDev = process.env.NODE_ENV === "development";
+        res.status(error.status || 500).json({
+          success: false,
+          error: error?.message || "Internal Server Error",
+          ...(isDev && error?.stack && { stack: error.stack }),
+        });
+      }).catch(async (handlerError) => {
+        console.error("Error in error handler:", handlerError);
+        res.status(500).json({
+          success: false,
+          error: "Internal Server Error",
+        });
       });
     });
 
@@ -678,12 +739,38 @@ class SpaceAnalyzerServer {
   }
 
   start() {
+    // Check if port is already in use
+    const testServer = http.createServer();
+
+    testServer
+      .listen(this.port, () => {
+        testServer.close();
+        // Port is free, start the actual server
+        this.startServer();
+      })
+      .on("error", (err) => {
+        if (err.code === "EADDRINUSE") {
+          console.log(`⚠️ Port ${this.port} is already in use, trying alternative port...`);
+          // Try alternative ports
+          const alternativePort = this.port + 1;
+          this.port = alternativePort;
+          console.log(`🔄 Trying alternative port: ${alternativePort}`);
+          this.startServer();
+        } else {
+          console.error(`💥 Server error: ${err.message}`);
+          process.exit(1);
+        }
+      });
+  }
+
+  startServer() {
     const server = http.createServer(this.app);
 
     server.listen(this.port, () => {
       console.log(`\n🚀 Space Analyzer Server running on port ${this.port}`);
       console.log(`📊 Health check: http://localhost:${this.port}/api/health`);
       console.log(`🔍 Debug routes: http://localhost:${this.port}/api/debug/routes\n`);
+      console.log(`🌐 API available at: http://localhost:${this.port}/api`);
     });
 
     // Graceful shutdown with resource cleanup
@@ -712,16 +799,18 @@ class SpaceAnalyzerServer {
             console.log("✅ Database connection closed");
           }
 
-          // Clean up temp analysis files
-          const tempFilePattern = /^temp_analysis_.*\.json$/;
+          // Clean up temp analysis files using RegExp.escape() for safety
+          const tempFilePattern = new RegExp(`^${RegExp.escape("temp_analysis_")}.*\\.json$`);
           const tempDir = path.join(__dirname, "..");
           try {
-            const files = fs.readdirSync(tempDir);
-            for (const file of files) {
-              if (tempFilePattern.test(file)) {
-                fs.unlinkSync(path.join(tempDir, file));
-                console.log(`🧹 Cleaned up temp file: ${file}`);
-              }
+            // Use Iterator methods for efficient file processing
+            const filesToDelete = fs
+              .readdirSync(tempDir)
+              .filter((file) => tempFilePattern.test(file));
+
+            for (const file of filesToDelete) {
+              fs.unlinkSync(path.join(tempDir, file));
+              console.log(`🧹 Cleaned up temp file: ${file}`);
             }
           } catch (e) {
             // Ignore cleanup errors

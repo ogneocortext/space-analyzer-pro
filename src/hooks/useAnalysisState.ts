@@ -1,6 +1,6 @@
 // Custom hook for managing analysis state
-import { useState, useCallback, startTransition } from "react";
-import { bridge, AnalysisResult } from "../services/AnalysisBridge";
+import { ref, computed } from "vue";
+import { useAnalysisStore } from "../store";
 
 interface AnalysisState {
   path: string;
@@ -8,149 +8,71 @@ interface AnalysisState {
   progress: number;
   data: AnalysisResult | null;
   error: string | null;
-  isAnalysisRunning: boolean;
-  isBackendOnline: boolean;
-  analysisId: string | null;
-  currentFile: string;
-  filesScanned: number;
 }
 
-export const useAnalysisState = (initialPath: string = "") => {
-  const [state, setState] = useState<AnalysisState>({
-    path: initialPath,
-    status: "Idle",
-    progress: 0,
-    data: null,
-    error: null,
-    isAnalysisRunning: false,
-    isBackendOnline: false,
-    analysisId: null,
-    currentFile: "",
-    filesScanned: 0,
-  });
+export interface UseAnalysisStateReturn {
+  state: AnalysisState;
+  isAnalyzing: boolean;
+  hasData: boolean;
+  hasError: boolean;
+  updatePath: (path: string) => void;
+  updateStatus: (status: string) => void;
+  updateProgress: (progress: number) => void;
+  updateData: (data: AnalysisResult | null) => void;
+  updateError: (error: string | null) => void;
+  resetState: () => void;
+}
 
-  const setPath = useCallback((path: string) => {
-    setState((prev) => ({ ...prev, path }));
-  }, []);
+export const useAnalysisState = (): UseAnalysisStateReturn => {
+  const analysisStore = useAnalysisStore();
 
-  const setStatus = useCallback((status: string) => {
-    setState((prev) => ({ ...prev, status }));
-  }, []);
+  const state = computed((): AnalysisState => ({
+    path: analysisStore.currentFile || "",
+    status: analysisStore.isAnalyzing ? "analyzing" : "idle",
+    progress: analysisStore.analysisProgress,
+    data: analysisStore.analysisResult,
+    error: analysisStore.analysisError,
+  }));
 
-  const setProgress = useCallback((progress: number) => {
-    setState((prev) => ({ ...prev, progress }));
-  }, []);
+  const isAnalyzing = computed(() => analysisStore.isAnalyzing);
+  const hasData = computed(() => !!analysisStore.analysisResult);
+  const hasError = computed(() => !!analysisStore.analysisError);
 
-  const setData = useCallback((data: AnalysisResult | null) => {
-    setState((prev) => ({ ...prev, data }));
-  }, []);
+  const updatePath = (path: string) => {
+    analysisStore.currentFile = path;
+  };
 
-  const setError = useCallback((error: string | null) => {
-    setState((prev) => ({ ...prev, error }));
-  }, []);
+  const updateStatus = (status: string) => {
+    // This would update a status field if needed
+    console.log("Analysis status updated:", status);
+  };
 
-  const setIsAnalysisRunning = useCallback((isAnalysisRunning: boolean) => {
-    setState((prev) => ({ ...prev, isAnalysisRunning }));
-  }, []);
+  const updateProgress = (progress: number) => {
+    analysisStore.updateProgress(progress);
+  };
 
-  const setIsBackendOnline = useCallback((isBackendOnline: boolean) => {
-    setState((prev) => ({ ...prev, isBackendOnline }));
-  }, []);
+  const updateData = (data: AnalysisResult | null) => {
+    analysisStore.analysisResult = data;
+  };
 
-  const setAnalysisId = useCallback((analysisId: string | null) => {
-    setState((prev) => ({ ...prev, analysisId }));
-  }, []);
+  const updateError = (error: string | null) => {
+    analysisStore.setAnalysisError(error);
+  };
 
-  const handleAnalysis = useCallback(
-    async (useAI: boolean = true) => {
-      if (!state.path) {
-        setState((prev) => ({ ...prev, error: "Please enter a directory path" }));
-        return;
-      }
-
-      try {
-        // Critical state update - immediate
-        setState((prev) => ({
-          ...prev,
-          isAnalysisRunning: true,
-          error: null,
-          status: "Starting Analysis...",
-          progress: 0,
-          analysisId: null,
-          currentFile: "Initializing...",
-          filesScanned: 0,
-        }));
-
-        const response = await bridge.analyzeDirectoryWithProgress(
-          state.path,
-          (p) => {
-            console.warn("📊 Progress update:", p);
-            // Non-critical UI updates - use startTransition for smoother UX
-            startTransition(() => {
-              setState((prev) => ({
-                ...prev,
-                progress: p.percentage,
-                currentFile: p.currentFile || "Scanning...",
-                filesScanned: p.files || 0,
-                status: `Scanning: ${p.currentFile || "Processing..."} (${Math.round(p.percentage)}%)`,
-              }));
-            });
-          },
-          { useOllama: useAI }
-        );
-
-        // Critical state update - immediate
-        setState((prev) => ({
-          ...prev,
-          data: response.result,
-          analysisId: response.analysisId || null,
-          status: "Analysis Complete",
-          progress: 100,
-          currentFile: "Complete",
-          filesScanned: response.result?.totalFiles || 0,
-        }));
-      } catch (err: any) {
-        console.error(err);
-        setState((prev) => ({
-          ...prev,
-          error: err.message || "Analysis failed",
-          status: "Error",
-          currentFile: "",
-          filesScanned: 0,
-        }));
-      } finally {
-        setState((prev) => ({ ...prev, isAnalysisRunning: false }));
-      }
-    },
-    [state.path]
-  );
-
-  const resetAnalysis = useCallback(() => {
-    setState({
-      path: state.path,
-      status: "Idle",
-      progress: 0,
-      data: null,
-      error: null,
-      isAnalysisRunning: false,
-      isBackendOnline: state.isBackendOnline,
-      analysisId: null,
-      currentFile: "",
-      filesScanned: 0,
-    });
-  }, [state.path, state.isBackendOnline]);
+  const resetState = () => {
+    analysisStore.clearAnalysis();
+  };
 
   return {
-    ...state,
-    setPath,
-    setStatus,
-    setProgress,
-    setData,
-    setError,
-    setIsAnalysisRunning,
-    setIsBackendOnline,
-    setAnalysisId,
-    handleAnalysis,
-    resetAnalysis,
+    state,
+    isAnalyzing,
+    hasData,
+    hasError,
+    updatePath,
+    updateStatus,
+    updateProgress,
+    updateData,
+    updateError,
+    resetState,
   };
 };
