@@ -64,12 +64,13 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   },
 };
 
+// Icon names mapping for Lucide icons
 const ICONS: Record<NotificationType, string> = {
-  success: "✅",
-  error: "❌",
-  warning: "⚠️",
-  info: "ℹ️",
-  progress: "📊",
+  success: "check-circle",
+  error: "x-circle",
+  warning: "alert-triangle",
+  info: "info",
+  progress: "bar-chart-3",
 };
 
 export const useNotificationStore = defineStore("notifications", () => {
