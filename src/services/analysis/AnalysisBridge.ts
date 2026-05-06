@@ -305,7 +305,7 @@ export class AnalysisBridge {
         const isDev = origin.includes("localhost") || origin.includes("127.0.0.1");
 
         if (isDev) {
-          // In dev, use the Vite proxy (relative paths)
+          // In dev, use Vite proxy (relative paths)
           this.baseUrl = "";
           this.log("info", `🔗 AnalysisBridge using Vite proxy (relative paths)`);
         } else {
@@ -1213,11 +1213,20 @@ export class AnalysisBridge {
                 files: progress.filesProcessed || progress.files || 0,
                 percentage: progress.percentage || 0,
                 currentFile: progress.currentFile || "",
-                completed: progress.status === "complete" || progress.completed || false,
+                completed: progress.status === "complete" || progress.completed,
                 totalSize: progress.totalSize || 0,
               });
-
               console.warn("✅ Progress callback called successfully");
+            } else {
+              console.warn("⚠️ Progress data missing or incomplete:", progressData);
+              // Still call callback with default values to prevent UI freezing
+              onProgress({
+                files: 0,
+                percentage: 0,
+                currentFile: "Starting scan...",
+                completed: false,
+                totalSize: 0,
+              });
             }
 
             // Continue polling if not complete
@@ -1278,7 +1287,7 @@ export class AnalysisBridge {
         }
       );
 
-      // Start polling as backup immediately, but let SSE take priority if it works
+      // Start polling fallback if SSE doesn't connect within 3 seconds
       setTimeout(() => {
         if (!sseConnected) {
           console.warn("⏰ SSE not connected after 3 seconds, starting polling fallback");
@@ -1292,11 +1301,13 @@ export class AnalysisBridge {
       console.warn("⚠️ No progress callback provided");
     }
 
-    // Wait for analysis to complete and track progress
+    // Wait for analysis to complete by polling for results
+    // This replaces the old blocking while-loop approach. The SSE and pollProgress()
+    // callbacks above handle progress display; this loop just waits for final results.
     console.warn("⏳ Waiting for analysis to complete...");
     let isComplete = false;
     let attempts = 0;
-    const maxAttempts = 60; // 2 minutes with 2 second delay
+    const maxAttempts = 120; // 4 minutes with 2 second delay (increased from 60)
     const pollDelay = 2000;
 
     while (!isComplete && attempts < maxAttempts) {
@@ -1308,6 +1319,13 @@ export class AnalysisBridge {
         const resultsResponse = await fetch(`${this.baseUrl}/api/results/${immediateAnalysisId}`);
 
         if (!resultsResponse.ok) {
+          // If 404, analysis is still running - that's fine
+          if (resultsResponse.status === 404) {
+            console.warn(
+              `⏳ Analysis still running (attempt ${attempts}/${maxAttempts}), continuing to poll...`
+            );
+            continue;
+          }
           const errorText = await resultsResponse.text();
           console.error("❌ Results endpoint error:", {
             status: resultsResponse.status,
@@ -1317,40 +1335,24 @@ export class AnalysisBridge {
             url: `/api/results/${immediateAnalysisId}`,
             attempt: `${attempts}/${maxAttempts}`,
           });
-
-          // If results not found (404), continue polling (analysis still running)
-          if (resultsResponse.status === 404) {
-            console.warn(
-              `⏳ Analysis still running (attempt ${attempts}/${maxAttempts}), continuing to poll...`
-            );
-            continue;
-          } else {
-            throw new Error(`Results endpoint error: ${resultsResponse.status} - ${errorText}`);
-          }
+          // Don't throw on transient errors - just keep polling
+          continue;
         }
 
         const results = await resultsResponse.json();
-        console.warn("📊 Results response:", results);
-
+        
         // Check if analysis is complete and has results
-        if (
-          results.success &&
-          results.status === "complete" &&
-          (results.data || results.totalFiles > 0)
-        ) {
+        if (results.success && results.status === "complete" && (results.data || results.totalFiles > 0)) {
           isComplete = true;
+          console.warn("✅ Analysis complete, returning results");
           return {
             result: results.data || results,
             analysisId: immediateAnalysisId,
           };
         }
 
-        // If analysis is still running, continue polling
-        if (
-          results.status === "scanning" ||
-          results.status === "running" ||
-          results.progress !== undefined
-        ) {
+        // Log progress from results endpoint
+        if (results.status === "scanning" || results.status === "running" || results.progress !== undefined) {
           console.log(
             `⏳ Analysis still in progress: ${results.status || "unknown"} (${results.progress || 0}%)`
           );

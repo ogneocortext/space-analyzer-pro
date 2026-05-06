@@ -7,7 +7,7 @@
 
 let ports;
 try {
-  ports = await import("../config/ports.config.js");
+  ports = await import("../ports.config.js");
   ports = ports.default || ports;
 } catch (error) {
   console.warn("⚠️  Could not load ports config, using defaults");

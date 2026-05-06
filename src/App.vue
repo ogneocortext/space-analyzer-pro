@@ -14,18 +14,14 @@ import { useKeyboardShortcuts } from "./composables/useKeyboardShortcuts";
 
 const store = useAnalysisStore();
 const { isTauri } = useTauriDesktop();
+const { shortcuts } = useKeyboardShortcuts();
 
-// Use desktop shell when running in Tauri mode
 const shellComponent = computed(() => {
   return isTauri.value ? DesktopAppShell : AppShell;
 });
 
 onMounted(async () => {
-  // Initialize store - load previous analysis from database
   await store.initialize();
-
-  // Initialize keyboard shortcuts
-  const { shortcuts } = useKeyboardShortcuts();
 });
 </script>
 

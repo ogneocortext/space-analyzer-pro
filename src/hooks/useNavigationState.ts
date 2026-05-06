@@ -1,5 +1,5 @@
 // Custom hook for managing navigation state
-import { useState, useCallback } from "react";
+import { ref, computed } from "vue";
 
 type ViewType =
   | "dashboard"
@@ -8,42 +8,62 @@ type ViewType =
   | "treemap"
   | "export"
   | "browser"
-  | "settings"
   | "timeline"
-  | "system"
-  | "3d"
-  | "predictions"
-  | "learning"
-  | "codeanalysis"
-  | "duplicates"
-  | "dependencies";
+  | "settings"
+  | "help";
 
-export const useNavigationState = (initialView: ViewType = "dashboard") => {
-  const [currentView, setCurrentView] = useState<ViewType>(initialView);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+export interface UseNavigationStateReturn {
+  currentView: ViewType;
+  viewHistory: ViewType[];
+  isLoading: boolean;
+  navigateTo: (view: ViewType) => void;
+  goBack: () => void;
+  goForward: () => void;
+  clearHistory: () => void;
+}
 
-  const navigateTo = useCallback((view: ViewType) => {
-    setCurrentView(view);
-  }, []);
+export const useNavigationState = (): UseNavigationStateReturn => {
+  const currentView = ref<ViewType>("dashboard");
+  const viewHistory = ref<ViewType[]>([]);
+  const isLoading = ref(false);
 
-  const toggleSidebar = useCallback(() => {
-    setIsSidebarOpen((prev) => !prev);
-  }, []);
+  const navigateTo = (view: ViewType) => {
+    isLoading.value = true;
+    
+    // Simulate navigation delay
+    setTimeout(() => {
+      currentView.value = view;
+      viewHistory.value.push(view);
+      isLoading.value = false;
+    }, 300);
+  };
 
-  const openSidebar = useCallback(() => {
-    setIsSidebarOpen(true);
-  }, []);
+  const goBack = () => {
+    if (viewHistory.value.length > 1) {
+      const previousView = viewHistory.value[viewHistory.value.length - 2];
+      navigateTo(previousView);
+    }
+  };
 
-  const closeSidebar = useCallback(() => {
-    setIsSidebarOpen(false);
-  }, []);
+  const goForward = () => {
+    const currentIndex = viewHistory.value.indexOf(currentView.value);
+    if (currentIndex < viewHistory.value.length - 1) {
+      const nextView = viewHistory.value[currentIndex + 1];
+      navigateTo(nextView);
+    }
+  };
+
+  const clearHistory = () => {
+    viewHistory.value = [];
+  };
 
   return {
     currentView,
-    isSidebarOpen,
+    viewHistory,
+    isLoading,
     navigateTo,
-    toggleSidebar,
-    openSidebar,
-    closeSidebar,
+    goBack,
+    goForward,
+    clearHistory,
   };
 };

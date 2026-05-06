@@ -63,7 +63,7 @@ const fetchAnalysisHistory = async () => {
       }
     } catch (storeError) {
       console.warn("Store method failed, using direct API call:", storeError);
-      const response = await fetch("/api/analysis/history");
+      const response = await fetch("/api/history");
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -117,6 +117,42 @@ const loadAnalysis = async (analysis: any) => {
   }
 };
 
+const deleteAnalysis = async (analysis: any) => {
+  if (
+    !confirm(
+      `Are you sure you want to delete the analysis for "${analysis.directory}"? This action cannot be undone.`
+    )
+  ) {
+    return;
+  }
+
+  try {
+    error.value = "";
+
+    const response = await fetch(`/api/history/${analysis.analysisId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (result.success) {
+      // Remove from local analyses array
+      analyses.value = analyses.value.filter((a) => a.analysisId !== analysis.analysisId);
+      console.log(`✅ Deleted analysis ${analysis.analysisId}`);
+    } else {
+      throw new Error(result.error || "Failed to delete analysis");
+    }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Failed to delete analysis";
+    error.value = errorMessage;
+    console.error("Failed to delete analysis:", err);
+  }
+};
+
 const formatFileSize = (bytes: number) => {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -130,9 +166,44 @@ const formatDate = (dateString: string) => {
   return date.toLocaleString();
 };
 
-const formatDuration = (startTime: number, endTime?: number) => {
-  const end = endTime || Date.now();
-  const duration = end - startTime;
+const formatDuration = (analysis: any) => {
+  // If we have analysis_time_ms from the scan result, use that instead
+  if (analysis && analysis.analysis_time_ms) {
+    const duration = analysis.analysis_time_ms;
+    const seconds = Math.floor(duration / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (hours > 0) {
+      return `${hours}h ${minutes % 60}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds % 60}s`;
+    } else {
+      return `${seconds}s`;
+    }
+  }
+
+  // Fallback to calculating from start/end times
+  const startTime = analysis?.startTime;
+  const endTime = analysis?.endTime;
+
+  if (!startTime) return "N/A";
+
+  // Convert timestamps to numbers if they're strings
+  const start = typeof startTime === "string" ? new Date(startTime).getTime() : startTime;
+  const end = endTime
+    ? typeof endTime === "string"
+      ? new Date(endTime).getTime()
+      : endTime
+    : Date.now();
+
+  const duration = end - start;
+
+  // Handle invalid duration
+  if (isNaN(duration) || duration < 0) {
+    return "N/A";
+  }
+
   const seconds = Math.floor(duration / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -173,11 +244,11 @@ onMounted(() => {
             class="search-input"
           />
         </div>
-        <Button @click="fetchAnalysisHistory" :disabled="loading" variant="secondary">
+        <Button :disabled="loading" variant="secondary" @click="fetchAnalysisHistory">
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
           Refresh
         </Button>
-        <Button @click="router.push('/scan')" variant="primary">
+        <Button variant="primary" @click="router.push('/scan')">
           <FolderOpen class="w-4 h-4" />
           New Scan
         </Button>
@@ -189,10 +260,12 @@ onMounted(() => {
       <div class="error-content">
         <div class="error-icon">⚠️</div>
         <h3>Failed to Load Scan History</h3>
-        <p class="error-message">{{ error }}</p>
+        <p class="error-message">
+          {{ error }}
+        </p>
         <div class="error-actions">
-          <Button @click="fetchAnalysisHistory" variant="primary">Try Again</Button>
-          <Button @click="router.push('/scan')" variant="secondary">Start New Scan</Button>
+          <Button variant="primary" @click="fetchAnalysisHistory"> Try Again </Button>
+          <Button variant="secondary" @click="router.push('/scan')"> Start New Scan </Button>
         </div>
       </div>
     </div>
@@ -212,7 +285,7 @@ onMounted(() => {
         <Clock class="w-16 h-16 text-slate-600" />
         <h3>No Scan History</h3>
         <p>You haven't performed any scans yet. Start your first scan to see it here.</p>
-        <Button @click="router.push('/scan')" variant="primary">
+        <Button variant="primary" @click="router.push('/scan')">
           <FolderOpen class="w-4 h-4" />
           Start First Scan
         </Button>
@@ -238,8 +311,12 @@ onMounted(() => {
         >
           <div class="card-header">
             <div class="analysis-info">
-              <h3 class="analysis-path">{{ analysis.directory || "Unknown Path" }}</h3>
-              <p class="analysis-id">{{ analysis.analysisId }}</p>
+              <h3 class="analysis-path">
+                {{ analysis.directory || "Unknown Path" }}
+              </h3>
+              <p class="analysis-id">
+                {{ analysis.analysisId }}
+              </p>
             </div>
             <div class="analysis-status">
               <span class="status-badge" :class="analysis.status || 'completed'">
@@ -270,13 +347,17 @@ onMounted(() => {
             </div>
 
             <div class="card-actions">
-              <Button @click.stop="loadAnalysis(analysis)" variant="primary" size="sm">
+              <Button variant="primary" size="sm" @click.stop="loadAnalysis(analysis)">
                 <Eye class="w-4 h-4" />
                 View Analysis
               </Button>
-              <Button @click.stop="viewAnalysis(analysis)" variant="secondary" size="sm">
+              <Button variant="secondary" size="sm" @click.stop="viewAnalysis(analysis)">
                 <ChevronRight class="w-4 h-4" />
                 Details
+              </Button>
+              <Button variant="danger" size="sm" @click.stop="deleteAnalysis(analysis)">
+                <X class="w-4 h-4" />
+                Delete
               </Button>
             </div>
           </div>
@@ -289,7 +370,7 @@ onMounted(() => {
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>Analysis Details</h2>
-          <Button @click="showDetails = false" variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" @click="showDetails = false">
             <X class="w-4 h-4" />
           </Button>
         </div>
@@ -334,20 +415,18 @@ onMounted(() => {
               </div>
               <div class="detail-item">
                 <span class="detail-label">Duration:</span>
-                <span class="detail-value">{{
-                  formatDuration(selectedAnalysis.startTime, selectedAnalysis.endTime)
-                }}</span>
+                <span class="detail-value">{{ formatDuration(selectedAnalysis) }}</span>
               </div>
             </div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <Button @click="loadAnalysis(selectedAnalysis)" variant="primary">
+          <Button variant="primary" @click="loadAnalysis(selectedAnalysis)">
             <Eye class="w-4 h-4" />
             View Full Analysis
           </Button>
-          <Button @click="showDetails = false" variant="secondary"> Close </Button>
+          <Button variant="secondary" @click="showDetails = false"> Close </Button>
         </div>
       </div>
     </div>

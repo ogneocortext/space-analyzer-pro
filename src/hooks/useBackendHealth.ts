@@ -1,35 +1,48 @@
 // Custom hook for backend health checking
-import { useState, useCallback, useEffect } from "react";
-import { ConfigService } from "../services/ConfigService";
+import { ref, onMounted, onUnmounted } from "vue";
 
 export const useBackendHealth = () => {
-  const [isBackendOnline, setIsBackendOnline] = useState(false);
-  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const isBackendOnline = ref(false);
+  const lastChecked = ref<Date | null>(null);
 
-  const checkBackend = useCallback(async () => {
+  const checkBackend = async () => {
     try {
-      const response = await fetch(`${ConfigService.API_BASE_URL}/health`);
-      const isOnline = response.ok;
-      setIsBackendOnline(isOnline);
-      setLastChecked(new Date());
-      return isOnline;
-    } catch (e) {
-      setIsBackendOnline(false);
-      setLastChecked(new Date());
-      return false;
+      const response = await fetch('/api/health');
+      const data = await response.json();
+      
+      isBackendOnline.value = data.status === 'ok';
+      lastChecked.value = new Date();
+    } catch (error) {
+      console.error('Backend health check failed:', error);
+      isBackendOnline.value = false;
+      lastChecked.value = new Date();
     }
-  }, []);
+  };
 
-  // Check backend on mount and set up interval (reduced from 5s to 30s for better performance)
-  useEffect(() => {
+  const startHealthChecks = () => {
+    // Check immediately
     checkBackend();
+    
+    // Then check every 30 seconds
     const interval = setInterval(checkBackend, 30000);
-    return () => clearInterval(interval);
-  }, [checkBackend]);
+    
+    return () => {
+      clearInterval(interval);
+    };
+  };
+
+  onMounted(() => {
+    const stopHealthChecks = startHealthChecks();
+    
+    onUnmounted(() => {
+      stopHealthChecks();
+    });
+  });
 
   return {
     isBackendOnline,
     lastChecked,
     checkBackend,
+    startHealthChecks,
   };
 };

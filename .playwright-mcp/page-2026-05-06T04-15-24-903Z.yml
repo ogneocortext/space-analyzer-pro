@@ -1,0 +1,188 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - link "Skip to content" [ref=e4] [cursor=pointer]:
+      - /url: "#main"
+    - navigation [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - link "Home" [ref=e8] [cursor=pointer]:
+            - /url: /en
+            - img "Node.js logo" [ref=e9]
+          - button "Toggle navigation menu" [ref=e20] [cursor=pointer]:
+            - img [ref=e21]
+        - checkbox "Toggle navigation menu" [ref=e23]
+  - main [ref=e25]:
+    - heading "Download Node.js®" [level=1] [ref=e26]
+    - generic [ref=e27]:
+      - paragraph [ref=e28]:
+        - text: Get Node.js®
+        - generic [ref=e29]:
+          - combobox "Version" [ref=e30] [cursor=pointer]:
+            - generic:
+              - generic: v24.15.0
+              - generic: LTS
+            - img [ref=e31]
+          - combobox [ref=e33]
+        - text: for
+        - text: using
+        - text: with
+      - generic [ref=e34]:
+        - generic [ref=e35]:
+          - generic [ref=e36]: Info
+          - generic [ref=e37]:
+            - text: Want new features sooner? Get the
+            - link "latest Node.js version" [ref=e38] [cursor=pointer]:
+              - /url: /en/download/current
+            - text: instead and try the latest improvements!
+        - generic [ref=e39]:
+          - generic: and their installation scripts are not maintained by the Node.js project. If you encounter any issues please visit
+      - paragraph [ref=e40]:
+        - text: Or get a prebuilt Node.js® for
+        - text: running a
+        - text: architecture.
+    - generic [ref=e42]:
+      - paragraph [ref=e43]:
+        - text: Read the
+        - link "changelog" [ref=e44] [cursor=pointer]:
+          - /url: https://github.com/nodejs/node/releases/tag/v24.15.0
+          - text: changelog
+          - img [ref=e45]
+        - text: or
+        - link "blog post" [ref=e47] [cursor=pointer]:
+          - /url: /en/blog/release/v24.15.0
+        - text: for this version.
+      - paragraph [ref=e48]:
+        - text: Learn more about
+        - link "Node.js releases" [ref=e49] [cursor=pointer]:
+          - /url: /en/about/previous-releases
+        - text: ", including the release schedule and LTS status."
+      - paragraph [ref=e50]:
+        - text: Learn how to
+        - link "verify" [ref=e51] [cursor=pointer]:
+          - /url: https://github.com/nodejs/node#verifying-binaries
+          - text: verify
+          - img [ref=e52]
+        - text: signed SHASUMS.
+      - paragraph [ref=e54]:
+        - text: Looking for Node.js source? Download a signed
+        - link "Node.js source" [ref=e55] [cursor=pointer]:
+          - /url: https://nodejs.org/dist/v24.15.0/node-v24.15.0.tar.gz
+          - text: Node.js source
+          - img [ref=e56]
+        - text: tarball.
+      - paragraph [ref=e58]:
+        - text: Check out our
+        - link "nightly" [ref=e59] [cursor=pointer]:
+          - /url: https://nodejs.org/download/nightly/
+          - text: nightly
+          - img [ref=e60]
+        - text: binaries or all
+        - link "previous releases" [ref=e62] [cursor=pointer]:
+          - /url: /en/download/archive/current
+        - text: or the
+        - link "unofficial" [ref=e63] [cursor=pointer]:
+          - /url: https://unofficial-builds.nodejs.org/download/
+          - text: unofficial
+          - img [ref=e64]
+        - text: binaries for other platforms.
+    - separator [ref=e66]
+    - generic [ref=e67]:
+      - heading "Proudly supported by the partners below:" [level=2] [ref=e68]
+      - paragraph [ref=e70]:
+        - text: We are able to serve Node.js's downloads and maintain our infrastructure proudly due to the support of these partners,
+        - link "and more" [ref=e71] [cursor=pointer]:
+          - /url: /en/about/partners
+        - text: .
+      - generic [ref=e73]:
+        - button "DigitalOcean" [ref=e74] [cursor=pointer]:
+          - img [ref=e75]
+        - button "Vercel" [ref=e101] [cursor=pointer]:
+          - img [ref=e102]
+        - button "Cloudflare" [ref=e104] [cursor=pointer]:
+          - img [ref=e105]
+  - contentinfo [ref=e118]:
+    - generic [ref=e119]:
+      - generic [ref=e120]:
+        - generic [ref=e122]:
+          - link "v24.15.0 Latest LTS" [ref=e123] [cursor=pointer]:
+            - /url: /blog/release/v24.15.0
+            - generic [ref=e124]: v24.15.0
+            - generic [ref=e125]: Latest LTS
+          - link "v26.0.0 Latest Release" [ref=e126] [cursor=pointer]:
+            - /url: /blog/release/v26.0.0
+            - generic [ref=e127]: v26.0.0
+            - generic [ref=e128]: Latest Release
+        - generic [ref=e130]:
+          - link "https://github.com/nodejs/node" [ref=e131] [cursor=pointer]:
+            - /url: https://github.com/nodejs/node
+            - img "https://github.com/nodejs/node" [ref=e133]
+          - link "https://discord.gg/nodejs" [ref=e135] [cursor=pointer]:
+            - /url: https://discord.gg/nodejs
+            - img "https://discord.gg/nodejs" [ref=e137]
+          - link "https://social.lfx.dev/@nodejs" [ref=e139] [cursor=pointer]:
+            - /url: https://social.lfx.dev/@nodejs
+            - img "https://social.lfx.dev/@nodejs" [ref=e141]
+          - link "https://bsky.app/profile/nodejs.org" [ref=e144] [cursor=pointer]:
+            - /url: https://bsky.app/profile/nodejs.org
+            - img "https://bsky.app/profile/nodejs.org" [ref=e146]
+          - link "https://twitter.com/nodejs" [ref=e148] [cursor=pointer]:
+            - /url: https://twitter.com/nodejs
+            - img "https://twitter.com/nodejs" [ref=e150]
+          - link "https://slack-invite.openjsf.org/" [ref=e152] [cursor=pointer]:
+            - /url: https://slack-invite.openjsf.org/
+            - img "https://slack-invite.openjsf.org/" [ref=e154]
+          - link "https://www.linkedin.com/company/node-js" [ref=e159] [cursor=pointer]:
+            - /url: https://www.linkedin.com/company/node-js
+            - img "https://www.linkedin.com/company/node-js" [ref=e161]
+      - generic [ref=e163]:
+        - paragraph [ref=e164]:
+          - text: Copyright
+          - link "OpenJS Foundation" [ref=e165] [cursor=pointer]:
+            - /url: https://openjsf.org/
+          - text: and Node.js contributors. All rights reserved. The
+          - link "OpenJS Foundation" [ref=e166] [cursor=pointer]:
+            - /url: https://openjsf.org/
+          - text: has registered trademarks and uses trademarks. For a list of trademarks of the
+          - link "OpenJS Foundation" [ref=e167] [cursor=pointer]:
+            - /url: https://openjsf.org/
+          - text: ", please see our"
+          - link "Trademark Policy" [ref=e168] [cursor=pointer]:
+            - /url: https://trademark-policy.openjsf.org/
+          - text: and
+          - link "Trademark List" [ref=e169] [cursor=pointer]:
+            - /url: https://trademark-list.openjsf.org/
+          - text: . Trademarks and logos not indicated on the
+          - link "list of OpenJS Foundation trademarks" [ref=e170] [cursor=pointer]:
+            - /url: https://trademark-list.openjsf.org/
+          - text: are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them.
+        - paragraph [ref=e171]:
+          - link "OpenJS Foundation" [ref=e172] [cursor=pointer]:
+            - /url: https://openjsf.org/
+            - generic [ref=e173]: OpenJS Foundation
+          - link "AI Coding Assistants Policy" [ref=e174] [cursor=pointer]:
+            - /url: https://ai-coding-assistants-policy.openjsf.org/
+            - generic [ref=e175]: AI Coding Assistants Policy
+          - link "Bylaws" [ref=e176] [cursor=pointer]:
+            - /url: https://bylaws.openjsf.org/
+            - generic [ref=e177]: Bylaws
+          - link "Code of Conduct" [ref=e178] [cursor=pointer]:
+            - /url: https://code-of-conduct.openjsf.org/
+            - generic [ref=e179]: Code of Conduct
+          - link "Cookie Policy" [ref=e180] [cursor=pointer]:
+            - /url: https://www.linuxfoundation.org/cookies/
+            - generic [ref=e181]: Cookie Policy
+          - link "Privacy Policy" [ref=e182] [cursor=pointer]:
+            - /url: https://privacy-policy.openjsf.org/
+            - generic [ref=e183]: Privacy Policy
+          - link "Security Policy" [ref=e184] [cursor=pointer]:
+            - /url: https://github.com/nodejs/node/security/policy
+            - generic [ref=e185]: Security Policy
+          - link "Terms of Use" [ref=e186] [cursor=pointer]:
+            - /url: https://terms-of-use.openjsf.org/
+            - generic [ref=e187]: Terms of Use
+          - link "Trademark List" [ref=e188] [cursor=pointer]:
+            - /url: https://trademark-list.openjsf.org/
+            - generic [ref=e189]: Trademark List
+          - link "Trademark Policy" [ref=e190] [cursor=pointer]:
+            - /url: https://trademark-policy.openjsf.org/
+            - generic [ref=e191]: Trademark Policy

@@ -1,6 +1,8 @@
 node_modules
 dist
 dist-*/
+dist-latest
+dist-new
 build
 target
 cpp-build
@@ -34,6 +36,15 @@ test-ollama-services.mjs
 scanner.node
 sqlite3-*.tgz
 tsconfig.node.tsbuildinfo
+
+# Data files
+data/
+temp_analysis.json
+test_response*.json
+api_test.json
+test-scan.json
+analysis_result.json
+build-log.txt
 analysis-results/
 code-analysis-results/
 code-centric-reports/

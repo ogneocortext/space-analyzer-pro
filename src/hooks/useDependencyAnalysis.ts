@@ -1,77 +1,101 @@
-import { useState, useEffect } from "react";
+import { ref, computed, watch } from "vue";
 import { AnalysisResult } from "../services/AnalysisBridge";
 
 export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
-  const [dependencyGraph, setDependencyGraph] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const dependencyGraph = ref<any>(null);
+  const isLoading = ref(false);
+  const error = ref<string | null>(null);
 
-  useEffect(() => {
-    if (!analysisData) return;
-
-    const analyzeDependencies = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        // Simulate dependency analysis based on file data
-        const files = analysisData.files || [];
-
-        // Create a simple dependency graph based on file categories
-        const graph = {
-          nodes: files.map((file) => ({
-            id: file.path,
-            name: file.name,
-            path: file.path,
-            type: "file",
-            category: file.category,
-            size: file.size,
-            dependencies: [],
-            dependents: [],
-          })),
-          edges: [],
-          circularDependencies: [],
-          missingDependencies: [],
-        };
-
-        // Create connections between files in the same category
-        const categoryMap: Record<string, string[]> = {};
-        files.forEach((file) => {
-          if (!categoryMap[file.category]) {
-            categoryMap[file.category] = [];
-          }
-          categoryMap[file.category].push(file.path);
-        });
-
-        // Add edges for files in the same category
-        Object.values(categoryMap).forEach((categoryFiles) => {
-          if (categoryFiles.length > 1) {
-            for (let i = 0; i < categoryFiles.length - 1; i++) {
-              graph.edges.push({
-                from: categoryFiles[i],
-                to: categoryFiles[i + 1],
-                type: "category",
-                strength: 0.3,
-              });
-            }
-          }
-        });
-
-        setDependencyGraph(graph);
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Dependency analysis failed:", err);
-        setError("Failed to analyze dependencies");
-        setIsLoading(false);
+  const processedGraph = computed(() => {
+    if (!dependencyGraph.value) return null;
+    
+    // Process the dependency graph for visualization
+    return {
+      nodes: dependencyGraph.value.nodes || [],
+      edges: dependencyGraph.value.edges || [],
+      metrics: {
+        totalNodes: dependencyGraph.value.nodes?.length || 0,
+        totalEdges: dependencyGraph.value.edges?.length || 0,
+        circularDependencies: dependencyGraph.value.circular?.length || 0,
       }
     };
+  });
 
-    analyzeDependencies();
-  }, [analysisData]);
+  const analyzeDependencies = () => {
+    if (!analysisData) return;
+    
+    isLoading.value = true;
+    error.value = null;
+    
+    try {
+      // Simple dependency analysis based on imports
+      const dependencies = new Map<string, Set<string>>();
+      const nodes: any[] = [];
+      const edges: any[] = [];
+      
+      // Analyze files for import relationships
+      if (analysisData.files) {
+        analysisData.files.forEach((file: any) => {
+          const nodeId = file.path || file.name;
+          nodes.push({
+            id: nodeId,
+            name: file.name,
+            type: 'file',
+            size: file.size || 0,
+          });
+          
+          // Extract imports from file content (simplified)
+          if (file.content) {
+            const importRegex = /import.*from\s+['"]([^'"]+)['"]/g;
+            const imports = file.content.match(importRegex) || [];
+            
+            imports.forEach((imp: string) => {
+              if (!dependencies.has(nodeId)) {
+                dependencies.set(nodeId, new Set());
+              }
+              dependencies.get(nodeId)!.add(imp);
+            });
+          }
+        });
+        
+        // Create edges from dependencies
+        dependencies.forEach((deps, from) => {
+          deps.forEach((to) => {
+            edges.push({
+              from,
+              to,
+              type: 'import',
+            });
+          });
+        });
+      }
+      
+      dependencyGraph.value = {
+        nodes,
+        edges,
+        circular: [], // Simplified circular detection
+      };
+      
+    } catch (err: any) {
+      error.value = err.message || 'Failed to analyze dependencies';
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  // Auto-analyze when analysis data changes
+  watch(analysisData, (newData) => {
+    if (newData) {
+      analyzeDependencies();
+    } else {
+      dependencyGraph.value = null;
+    }
+  }, { immediate: true });
 
   return {
-    dependencyGraph,
+    dependencyGraph: processedGraph,
     isLoading,
     error,
+    analyzeDependencies,
   };
 };

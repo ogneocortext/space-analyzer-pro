@@ -6,9 +6,7 @@
 const fs = require("fs");
 const path = require("path");
 const Joi = require("joi");
-
-// Import centralized port configuration
-const ports = require("../../../ports.config.js");
+const ports = require(path.resolve(__dirname, "../../../config/ports.config.js"));
 
 class ConfigService {
   constructor() {

@@ -30,6 +30,7 @@ import {
 } from "lucide-vue-next";
 import type { RouteLocationNormalized } from "vue-router";
 import NotificationCenter from "@/components/vue/other/NotificationCenter.vue";
+import BackgroundTaskIndicator from "@/components/BackgroundTaskIndicator.vue";
 
 const sidebarOpen = ref(false);
 
@@ -151,8 +152,8 @@ function getBreadcrumbLabel(route: RouteLocationNormalized): string {
         <span class="text-xl font-bold text-blue-400">Space Analyzer</span>
         <button
           class="lg:hidden p-2 hover:bg-slate-800 rounded"
-          @click="toggleSidebar"
           aria-label="Close sidebar menu"
+          @click="toggleSidebar"
         >
           <X class="w-5 h-5" aria-hidden="true" />
         </button>
@@ -333,8 +334,8 @@ function getBreadcrumbLabel(route: RouteLocationNormalized): string {
         <div class="flex items-center gap-4">
           <button
             class="lg:hidden p-2 hover:bg-slate-800 rounded-lg transition-colors"
-            @click="toggleSidebar"
             aria-label="Toggle sidebar menu"
+            @click="toggleSidebar"
           >
             <Menu class="w-5 h-5 text-slate-400" aria-hidden="true" />
           </button>
@@ -418,6 +419,7 @@ function getBreadcrumbLabel(route: RouteLocationNormalized): string {
 
         <div class="flex items-center gap-3">
           <slot name="top-bar-actions" />
+          <BackgroundTaskIndicator />
           <NotificationCenter />
         </div>
       </header>

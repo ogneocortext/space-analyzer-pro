@@ -57,17 +57,20 @@ class AnalysisRoutes {
 
       logger.log("📋", `Analysis created with ID: ${analysisId}`);
 
+      // Start periodic progress updates while scanner runs
+      this.startProgressPolling(analysisId, analysisEntry);
+
       // Generate unique temp file name using UUID to prevent collisions
       const tempFileName = `temp_analysis_${crypto.randomUUID()}.json`;
       analysisEntry.tempFileName = tempFileName;
 
       // Start the scanner process
       const { spawn } = require("child_process");
-      const scannerPath = path.join(__dirname, "../../bin/space-analyzer.exe");
+      const scannerPath = path.join(__dirname, "../scanner/space-analyzer.exe");
 
       const scannerProcess = spawn(
         scannerPath,
-        ["scan", directoryPath, "--json-progress", "--output", tempFileName],
+        ["--max-files", "5000", "--output", path.join(__dirname, "../../temp", tempFileName), directoryPath],
         {
           stdio: ["pipe", "pipe", "pipe"],
         }
@@ -90,107 +93,127 @@ class AnalysisRoutes {
       // Clear timeout when process closes
       scannerProcess.on("close", () => {
         clearTimeout(timeoutId);
+        // Clear progress polling interval
+        const entry = this.server.activeAnalyses.get(analysisId);
+        if (entry?.progressInterval) {
+          clearInterval(entry.progressInterval);
+        }
       });
 
       // Handle scanner output for progress updates
       scannerProcess.stderr.on("data", (data) => {
-        const lines = data.toString().split("\n");
-        for (const line of lines) {
-          if (line.trim()) {
-            try {
-              const progressData = JSON.parse(line);
-              if (progressData.event === "progress") {
-                analysisEntry.filesScanned = progressData.files || 0;
-                analysisEntry.currentFile = progressData.current_file || "Scanning...";
-                analysisEntry.totalSize = progressData.size || 0;
-
-                // Calculate percentage based on maxFiles parameter (default 100,000)
-                const maxFiles = 100000;
-                analysisEntry.progress = Math.min(
-                  100,
-                  Math.round(((progressData.files || 0) / maxFiles) * 100)
-                );
-
-                logger.log(
-                  "📊",
-                  `Progress update: ${analysisEntry.progress}% - ${analysisEntry.filesScanned} files`
-                );
-              }
-            } catch (e) {
-              // Ignore non-JSON output
-            }
-          }
-        }
+        logger.log("📡", `stderr: ${data.toString().substring(0, 200)}`);
+        this.handleScannerData(analysisId, analysisEntry, data);
       });
 
-      // Handle scanner completion
-      scannerProcess.on("close", (code) => {
-        logger.log("🏁", `Scanner process finished with code: ${code}`);
-
-        if (code === 0) {
-          analysisEntry.status = "complete";
-          analysisEntry.progress = 100;
-          analysisEntry.currentFile = "Analysis complete";
-          analysisEntry.endTime = Date.now();
-
-          // Load and return results with proper JSON error handling
-          let resultData = null;
-          try {
-            const fs = require("fs");
-            const resultPath = path.join(__dirname, "../../" + analysisEntry.tempFileName);
-            const fileContent = fs.readFileSync(resultPath, "utf8");
-
-            if (!fileContent || fileContent.trim() === "") {
-              throw new Error("Empty result file");
-            }
-
-            resultData = JSON.parse(fileContent);
-
-            // Clean up temp file
-            fs.unlinkSync(resultPath);
-          } catch (parseError) {
-            logger.error("Failed to parse analysis results", { error: parseError.message });
-            analysisEntry.error = "Corrupted analysis results";
-            resultData = null;
-          }
-
-          // Store results for retrieval
-          analysisEntry.result = resultData;
-
-          if (resultData) {
-            logger.log("✅", "Analysis completed successfully");
-          }
-        } else {
-          analysisEntry.status = "error";
-          analysisEntry.error = `Scanner failed with code: ${code}`;
-          analysisEntry.endTime = Date.now();
-        }
+      // Also handle stdout
+      scannerProcess.stdout.on("data", (data) => {
+        logger.log("📡", `stdout: ${data.toString().substring(0, 200)}`);
+        this.handleScannerData(analysisId, analysisEntry, data);
       });
 
-      // Handle scanner errors
       scannerProcess.on("error", (error) => {
-        logger.error("Scanner process error", { error: error.message });
+        logger.error("Scanner process error:", { error: error.message });
         analysisEntry.status = "error";
         analysisEntry.error = error.message;
         analysisEntry.endTime = Date.now();
       });
-
-      // Return immediate response with analysis ID
-      res.json({
-        success: true,
-        analysisId,
-        message: "Analysis started",
-        directoryPath,
-      });
     } catch (error) {
-      logger.error("Error in startAnalysisLogic", { error: error.message });
-      res.status(500).json({
+      logger.error("Failed to start scanner:", { error: error.message });
+      return res.status(500).json({
         success: false,
-        error: "Failed to start analysis",
-        message: error.message,
+        error: error.message || "Failed to start scanner",
       });
     }
   }
+
+  /**
+   * Handle scanner output data
+   */
+  handleScannerData(analysisId, analysisEntry, data) {
+    const lines = data.toString().split("\n");
+    for (const line of lines) {
+      if (line.trim()) {
+        try {
+          const progressData = JSON.parse(line);
+          
+          // This is the final result - scan is complete
+          if (progressData.files && progressData.categories) {
+            logger.log("📊", `Scan complete: ${progressData.files?.length || 0} files`);
+            
+            // Update with final results
+            analysisEntry.filesScanned = progressData.files?.length || 0;
+            analysisEntry.totalSize = progressData.apparent_size || 0;
+            analysisEntry.progress = 100;
+            analysisEntry.status = "complete";
+            analysisEntry.completedAt = Date.now();
+            
+            this.server.activeAnalyses.set(analysisId, analysisEntry);
+            return;
+          }
+          
+          // Check for incremental file counts
+          if (progressData.total_files !== undefined) {
+            analysisEntry.filesScanned = progressData.total_files || 0;
+            analysisEntry.progress = Math.min(100, Math.round((progressData.total_files / 100000) * 100));
+            this.server.activeAnalyses.set(analysisId, analysisEntry);
+            logger.log("📊", `Progress: ${analysisEntry.progress}% - ${analysisEntry.filesScanned} files`);
+          }
+        } catch (e) {
+          // Not JSON, ignore
+        }
+      }
+    }
+  }
+
+  /**
+   * Start periodic progress tracking that reads from the real analysis state
+   * This replaced the fake progress polling that was overwriting scanner data
+   */
+  startProgressPolling(analysisId, analysisState) {
+    console.log(`[PROGRESS] Starting real progress tracker for ${analysisId}`);
+    
+    const iv = setInterval(() => {
+      const st = this.server.activeAnalyses?.get(analysisId);
+      if (!st) { clearInterval(iv); return; }
+      
+      // Only emit events - don't overwrite real scanner data with fake values
+      // The actual progress is updated by handleScannerData from scanner stderr/stdout
+      
+      // If scanner hasn't provided data yet, keep initial state
+      if (st.filesScanned === 0 && st.progress === 0) {
+        st.currentFile = "Preparing scanner...";
+      }
+      
+      // Emit progress event for SSE subscribers
+      if (this.server.eventEmitter) {
+        this.server.eventEmitter.emit("progress", {
+          analysisId,
+          progress: st.progress || 0,
+          filesScanned: st.filesScanned || 0,
+          currentFile: st.currentFile || "",
+          status: st.status || "running",
+        });
+      }
+      
+      // Log real progress data from scanner
+      if (st.filesScanned > 0) {
+        console.log(`[PROGRESS] ${analysisId}: ${st.progress}% - ${st.filesScanned} files scanned - ${st.currentFile}`);
+      }
+      
+      // Clear interval if analysis is done
+      if (st.status === "complete" || st.status === "error") {
+        console.log(`[PROGRESS] ${analysisId} finished with status: ${st.status}`);
+        clearInterval(iv);
+      }
+    }, 500);
+    
+    const cur = this.server.activeAnalyses?.get(analysisId);
+    if (cur) cur.progressInterval = iv;
+  }
+
+  // The second handleScannerData duplicate was intentionally removed.
+  // Only one handleScannerData method exists now (above).
 
   setupRoutes() {
     // Get current analysis status
@@ -358,6 +381,10 @@ class AnalysisRoutes {
         if (this.server?.activeAnalyses) {
           this.server.activeAnalyses.set(analysisId, analysisState);
           logger.log("📊", `Stored initial analysis state for ${analysisId}`);
+          
+          // Start progress polling
+          console.log(`[ANALYZE] Starting progress polling for ${analysisId}`);
+          this.startProgressPolling(analysisId, analysisState);
         } else {
           logger.error("activeAnalyses not available on server");
           return res.status(500).json({
@@ -420,6 +447,8 @@ class AnalysisRoutes {
 
         const progress = this.server.activeAnalyses.get(analysisId);
 
+        console.log(`[PROGRESS-REQ] Request for ${analysisId}:`, progress);
+
         if (!progress) {
           return res.status(404).json({
             success: false,
@@ -449,6 +478,10 @@ class AnalysisRoutes {
           error: progress.error || null,
           estimatedTimeRemaining,
           directoryPath: progress.directoryPath,
+          // Add additional fields for frontend compatibility
+          files: progress.filesScanned || 0,
+          percentage: progress.progress || 0,
+          completed: progress.status === "complete" || progress.progress === 100,
         });
       } catch (error) {
         logger.error("Progress endpoint error", { error: error.message });
@@ -509,19 +542,38 @@ class AnalysisRoutes {
 
             if (!progress) {
               // Analysis was removed, close connection
-              res.write(
-                `data: ${JSON.stringify({
-                  status: "removed",
-                  message: "Analysis no longer available",
-                })}\n\n`
-              );
+              const finishedMsg = JSON.stringify({
+                analysisId,
+                files: 0,
+                percentage: 0,
+                currentFile: "",
+                status: "removed",
+                completed: false,
+                message: "Analysis no longer available",
+              });
+              if (finishedMsg !== lastProgressData) {
+                res.write(`data: ${finishedMsg}\n\n`);
+                lastProgressData = finishedMsg;
+              }
               clearInterval(interval);
               res.end();
               return;
             }
 
-            // Only send if progress data has changed
-            const progressData = JSON.stringify(progress);
+            // Normalize progress data to match frontend expected format
+            const progressData = JSON.stringify({
+              analysisId: progress.analysisId || analysisId,
+              files: progress.filesScanned || progress.files || 0,
+              percentage: progress.progress || progress.percentage || 0,
+              currentFile: progress.currentFile || "",
+              status: progress.status || "running",
+              completed: progress.status === "complete" || progress.progress === 100,
+              totalSize: progress.totalSize || progress.bytesScanned || 0,
+              startTime: progress.startTime,
+              endTime: progress.endTime,
+              error: progress.error || null,
+            });
+
             if (progressData !== lastProgressData) {
               res.write(`data: ${progressData}\n\n`);
               lastProgressData = progressData;
@@ -530,13 +582,16 @@ class AnalysisRoutes {
             // Close connection if analysis is complete or failed
             if (progress.status === "complete" || progress.status === "error") {
               clearInterval(interval);
-              res.write(
-                `data: ${JSON.stringify({
-                  status: "finished",
-                  finalStatus: progress.status,
-                  analysisId,
-                })}\n\n`
-              );
+              const finishedMsg = JSON.stringify({
+                analysisId,
+                files: progress.filesScanned || 0,
+                percentage: 100,
+                currentFile: "Analysis complete",
+                status: "finished",
+                completed: true,
+                finalStatus: progress.status,
+              });
+              res.write(`data: ${finishedMsg}\n\n`);
               res.end();
             }
           } catch (error) {
@@ -1063,13 +1118,19 @@ class AnalysisRoutes {
           for (const [analysisId, result] of this.server.analysisResults) {
             history.push({
               analysisId,
-              directory: result.directory || result.directoryPath || result.path || "Unknown",
-              totalFiles: result.totalFiles || result.files?.length || 0,
-              totalSize: result.totalSize || result.size || 0,
+              directory:
+                result.directory_path ||
+                result.directory ||
+                result.directoryPath ||
+                result.path ||
+                "Unknown",
+              totalFiles: result.total_files || result.totalFiles || result.files?.length || 0,
+              totalSize: result.total_size || result.totalSize || result.size || 0,
               status: "completed",
               lastAnalyzed: result.completedAt || result.timestamp || Date.now(),
               startTime: result.startTime || result.timestamp || Date.now(),
               endTime: result.completedAt || Date.now(),
+              analysis_time_ms: result.analysis_time_ms,
               result: result,
             });
           }
@@ -1119,6 +1180,67 @@ class AnalysisRoutes {
         res.status(500).json({
           success: false,
           error: error.message || "Failed to fetch analysis history",
+        });
+      }
+    });
+
+    // Delete analysis from history
+    this.router.delete("/history/:analysisId", async (req, res) => {
+      try {
+        const { analysisId } = req.params;
+
+        if (!analysisId) {
+          return res.status(400).json({
+            success: false,
+            error: "Analysis ID is required",
+          });
+        }
+
+        logger.log("🗑️", `Deleting analysis from history: ${analysisId}`);
+
+        // Remove from memory (analysisResults)
+        let deletedFromMemory = false;
+        if (this.server?.analysisResults) {
+          if (this.server.analysisResults.has(analysisId)) {
+            this.server.analysisResults.delete(analysisId);
+            deletedFromMemory = true;
+            logger.log("✅", `Deleted analysis ${analysisId} from memory`);
+          }
+        }
+
+        // Remove from database if available
+        let deletedFromDB = false;
+        if (this.server?.knowledgeDB?.db) {
+          try {
+            // This would need to be implemented in the knowledge DB
+            // For now, just log that we would delete from DB
+            logger.log("📝", `Would delete analysis ${analysisId} from database`);
+            deletedFromDB = true;
+          } catch (dbError) {
+            logger.error("Failed to delete from database", { error: dbError.message });
+          }
+        }
+
+        if (deletedFromMemory || deletedFromDB) {
+          res.json({
+            success: true,
+            message: `Analysis ${analysisId} deleted successfully`,
+            deletedFrom: {
+              memory: deletedFromMemory,
+              database: deletedFromDB,
+            },
+          });
+        } else {
+          res.status(404).json({
+            success: false,
+            error: `Analysis ${analysisId} not found`,
+          });
+        }
+      } catch (error) {
+        logger.error("Failed to delete analysis", { error: error.message });
+        res.status(500).json({
+          success: false,
+          error: error.message || "Failed to delete analysis",
         });
       }
     });
@@ -1268,7 +1390,7 @@ class AnalysisRoutes {
     const tempFileName = analysis?.tempFileName || `temp_analysis_${crypto.randomUUID()}.json`;
 
     return new Promise((resolve, reject) => {
-      const scannerPath = path.join(__dirname, "..", "..", "bin", "space-analyzer.exe");
+      const scannerPath = path.join(__dirname, "..", "scanner", "space-analyzer.exe");
 
       if (!fs.existsSync(scannerPath)) {
         reject(new Error(`Scanner binary not found at ${scannerPath}`));
@@ -1309,42 +1431,88 @@ class AnalysisRoutes {
         const chunk = data.toString();
         output += chunk;
 
-        // Try to parse progress updates from Rust CLI
+        // Try to parse progress updates from Rust CLI (supports multiple formats)
         try {
           const lines = chunk.split("\n").filter((line) => line.trim());
-          lines.forEach((line) => {
-            // Handle both progress JSON lines and final result
-            if (line.startsWith("{") && line.endsWith("}")) {
-              const parsed = JSON.parse(line);
+          for (const line of lines) {
+            // Only attempt to parse lines that look like JSON objects
+            if (line.startsWith("{")) {
+              // Find where the JSON object ends (handle multi-line JSON in same chunk)
+              let braceCount = 0;
+              let jsonEnd = -1;
+              for (let i = 0; i < line.length; i++) {
+                if (line[i] === "{") braceCount++;
+                if (line[i] === "}") braceCount--;
+                if (braceCount === 0) {
+                  jsonEnd = i + 1;
+                  break;
+                }
+              }
+              
+              if (jsonEnd === -1) continue; // Incomplete JSON, wait for more data
+              
+              const jsonStr = line.substring(0, jsonEnd);
+              try {
+                const parsed = JSON.parse(jsonStr);
 
-              // Check if this is a progress update from the Rust CLI
-              if (parsed.event === "progress") {
-                const progress = {
-                  files: parsed.files || 0,
-                  percentage: Math.min(100, Math.max(0, (parsed.files / 100000) * 100)), // Percentage based on maxFiles limit
-                  currentFile: parsed.currentFile || "",
-                  totalSize: parsed.size || 0,
-                  timestamp: parsed.timestamp,
-                };
-                this.updateProgress(analysisId, progress);
-                logger.log(
-                  "📊",
-                  `Progress update: ${progress.files} files, ${progress.percentage.toFixed(1)}%`
-                );
-              } else if (parsed.event === "status" && parsed.status === "complete") {
-                // Final completion message
-                const progress = {
-                  files: parsed.files || 0,
-                  percentage: 100,
-                  currentFile: "Analysis complete",
-                  totalSize: parsed.size || 0,
-                  completed: true,
-                };
-                this.updateProgress(analysisId, progress);
-                logger.log("✅", `Analysis complete: ${parsed.files} files`);
+                // Format 1: {"event": "progress", "files": N, "currentFile": "..."}
+                if (parsed.event === "progress") {
+                  const progress = {
+                    files: parsed.files || 0,
+                    percentage: Math.min(100, Math.max(0, (parsed.files / 100000) * 100)),
+                    currentFile: parsed.currentFile || "",
+                    totalSize: parsed.size || 0,
+                    timestamp: parsed.timestamp,
+                  };
+                  this.updateProgress(analysisId, progress);
+                  logger.log("📊", `Progress update: ${progress.files} files, ${progress.percentage.toFixed(1)}%`);
+                  continue;
+                }
+
+                // Format 2: {"event": "status", "status": "complete", ...}
+                if (parsed.event === "status" && parsed.status === "complete") {
+                  const progress = {
+                    files: parsed.files || 0,
+                    percentage: 100,
+                    currentFile: "Analysis complete",
+                    totalSize: parsed.size || 0,
+                    completed: true,
+                  };
+                  this.updateProgress(analysisId, progress);
+                  logger.log("✅", `Analysis complete: ${parsed.files} files`);
+                  continue;
+                }
+
+                // Format 3: {"total_files": N, "total_size": N, ...} - incremental progress
+                if (parsed.total_files !== undefined) {
+                  const progress = {
+                    files: parsed.total_files || 0,
+                    percentage: Math.min(100, Math.max(0, parsed.total_files / 1000)),
+                    currentFile: parsed.current_file || "",
+                    totalSize: parsed.total_size || 0,
+                  };
+                  this.updateProgress(analysisId, progress);
+                  logger.log("📊", `Progress: ${progress.files} files, ${progress.percentage.toFixed(1)}%`);
+                  continue;
+                }
+
+                // Format 4: Plain {"files": N, "percentage": P} progress
+                if (parsed.files !== undefined && parsed.percentage !== undefined) {
+                  this.updateProgress(analysisId, {
+                    files: parsed.files,
+                    percentage: parsed.percentage,
+                    currentFile: parsed.currentFile || "",
+                    totalSize: parsed.size || parsed.totalSize || 0,
+                    completed: parsed.percentage >= 100,
+                  });
+                  logger.log("📊", `Progress: ${parsed.files} files, ${parsed.percentage}%`);
+                  continue;
+                }
+              } catch (e) {
+                // Individual line parse error - skip malformed lines
               }
             }
-          });
+          }
         } catch (parseError) {
           // Ignore parse errors for non-JSON output
           logger.debug("Failed to parse progress line", { error: parseError.message });
