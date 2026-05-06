@@ -3,7 +3,7 @@
     <header class="page-header">
       <div class="header-content">
         <h1>
-          <span class="icon">📊</span>
+          <BarChart3 class="icon" />
           PDF Reports
         </h1>
         <p class="subtitle">Generate and view professional PDF analysis reports</p>
@@ -11,7 +11,7 @@
       <div class="header-actions">
         <button :disabled="loading" class="btn btn-secondary" @click="refreshReports">
           <span v-if="loading" class="spinner" />
-          <span v-else>🔄 Refresh</span>
+          <span v-else><RefreshCw class="icon" /> Refresh</span>
         </button>
       </div>
     </header>
@@ -30,8 +30,10 @@
     <!-- Templates Section -->
     <section class="templates-section">
       <div class="section-header">
-        <h2>📄 Report Templates</h2>
-        <button class="btn btn-secondary" @click="showTemplateModal = true">+ New Template</button>
+        <h2><FileText class="icon" /> Report Templates</h2>
+        <button class="btn btn-secondary" @click="showTemplateModal = true">
+          <Plus class="icon" /> New Template
+        </button>
       </div>
 
       <div v-if="templates.length === 0" class="empty-state-small">
@@ -59,14 +61,14 @@
             <button class="btn btn-sm btn-primary" @click="useTemplate(template)">Use</button>
             <button class="btn btn-sm btn-secondary" @click="editTemplate(template)">Edit</button>
             <button class="btn btn-sm btn-secondary" @click="duplicateTemplate(template)">
-              Copy
+              <Settings class="icon" /> Copy
             </button>
             <button
               v-if="!template.is_default"
               class="btn btn-sm btn-danger"
               @click="deleteTemplate(template)"
             >
-              🗑️
+              <Trash2 class="icon" />
             </button>
           </div>
         </div>
@@ -75,10 +77,10 @@
 
     <!-- Generate Report Section -->
     <section class="generate-section report-generator">
-      <h2>Generate New Report</h2>
+      <h2><Sparkles class="icon" /> Generate New Report</h2>
       <div class="generate-cards">
         <div v-if="currentAnalysis" class="generate-card">
-          <h3>📁 Analysis Report</h3>
+          <h3><FileText class="icon" /> Analysis Report</h3>
           <p>Generate a comprehensive PDF report of your current directory analysis</p>
           <div class="analysis-info">
             <span class="badge">{{ formatBytes(currentAnalysis.totalSize) }}</span>
@@ -94,17 +96,16 @@
           </div>
           <button
             :disabled="generating.analysis"
-            class="btn btn-primary"
+            class="btn btn-primary generate-btn"
             data-action="generate"
             @click="generateAnalysisReport"
           >
-            <span v-if="generating.analysis" class="spinner" />
-            <span v-else>Generate Report</span>
+            <Sparkles class="icon" /> Generate Report
           </button>
         </div>
 
         <div v-if="currentAnalysis?.directory" class="generate-card">
-          <h3>🔍 Complexity Report</h3>
+          <h3><Palette class="icon" /> Complexity Report</h3>
           <p>Generate a code complexity analysis report for code files</p>
           <div class="analysis-info">
             <span class="badge">Code Analysis</span>
@@ -123,13 +124,12 @@
             class="btn btn-primary"
             @click="generateComplexityReport"
           >
-            <span v-if="generating.complexity" class="spinner" />
-            <span v-else>Generate Report</span>
+            <Sparkles class="icon" /> Generate Report
           </button>
         </div>
 
         <div v-if="!currentAnalysis" class="generate-card empty">
-          <h3>⚠️ No Analysis Available</h3>
+          <h3><Search class="icon" /> No Analysis Available</h3>
           <p>Please run a directory analysis first to generate reports</p>
           <router-link to="/" class="btn btn-secondary"> Go to Analysis </router-link>
         </div>
@@ -139,13 +139,13 @@
     <!-- Batch Export Section -->
     <section class="batch-section export">
       <div class="section-header">
-        <h2>🔄 Batch Export</h2>
+        <h2><Download class="icon" /> Batch Export</h2>
         <button
           :disabled="!analysisHistory.length"
           class="btn btn-secondary"
           @click="showBatchModal = true"
         >
-          + New Batch Job
+          <Plus class="icon" /> New Batch Job
         </button>
       </div>
 
@@ -176,16 +176,18 @@
               class="btn btn-sm btn-danger"
               @click="cancelBatchJob(job.id)"
             >
-              Cancel
+              <Trash2 class="icon" /> Cancel
             </button>
             <button
               v-if="job.status === 'completed' && job.output_files"
               class="btn btn-sm btn-primary"
               @click="downloadBatchResults(job)"
             >
-              Download
+              <Download class="icon" /> Download
             </button>
-            <button class="btn btn-sm btn-secondary" @click="deleteBatchJob(job.id)">🗑️</button>
+            <button class="btn btn-sm btn-secondary" @click="deleteBatchJob(job.id)">
+              <Trash2 class="icon" />
+            </button>
           </div>
         </div>
       </div>
@@ -194,15 +196,17 @@
     <!-- PDF Viewer Section -->
     <section v-if="currentReport" class="viewer-section">
       <div class="viewer-header">
-        <h2>📄 Report Viewer</h2>
+        <h2><FileText class="icon" /> Report Viewer</h2>
         <div class="viewer-actions">
           <a :href="currentReport.viewUrl" target="_blank" class="btn btn-secondary">
-            Open in New Tab
+            <Eye class="icon" /> Open in New Tab
           </a>
           <a :href="currentReport.downloadUrl" download class="btn btn-primary">
-            ⬇️ Download PDF
+            <Download class="icon" /> Download PDF
           </a>
-          <button class="btn btn-icon" @click="currentReport = null">✕</button>
+          <button class="btn btn-icon" @click="currentReport = null">
+            <Trash2 class="icon" />
+          </button>
         </div>
       </div>
       <div class="pdf-container">
@@ -218,7 +222,7 @@
 
     <!-- Reports List -->
     <section class="reports-list">
-      <h2>Generated Reports</h2>
+      <h2><FileText class="icon" /> Generated Reports</h2>
 
       <div v-if="loading && !reports.length" class="loading-state">
         <div class="spinner large" />
@@ -226,7 +230,9 @@
       </div>
 
       <div v-else-if="!reports.length" class="empty-state">
-        <div class="empty-icon">📭</div>
+        <div class="empty-icon">
+          <Search class="icon" />
+        </div>
         <h3>No Reports Yet</h3>
         <p>Generate your first report above to see it here</p>
       </div>
@@ -239,7 +245,9 @@
           :class="{ active: currentReport?.reportId === report.reportId }"
           @click="viewReport(report)"
         >
-          <div class="report-icon">📄</div>
+          <div class="report-icon">
+            <FileText class="icon" />
+          </div>
           <div class="report-info">
             <h4>{{ report.filename }}</h4>
             <p class="report-meta">
@@ -255,7 +263,7 @@
               aria-label="Preview report"
               @click.stop="openPreview(report)"
             >
-              <span aria-hidden="true">🔍</span>
+              <Search class="icon" />
               <span class="sr-only">Preview</span>
             </button>
             <button
@@ -264,7 +272,7 @@
               aria-label="View report"
               @click.stop="viewReport(report)"
             >
-              <span aria-hidden="true">👁️</span>
+              <Eye class="icon" />
               <span class="sr-only">View</span>
             </button>
             <a
@@ -275,7 +283,7 @@
               aria-label="Download report"
               @click.stop
             >
-              <span aria-hidden="true">⬇️</span>
+              <Download class="icon" />
               <span class="sr-only">Download</span>
             </a>
             <button
@@ -284,7 +292,7 @@
               aria-label="Delete report"
               @click.stop="deleteReport(report)"
             >
-              <span aria-hidden="true">🗑️</span>
+              <Trash2 class="icon" />
               <span class="sr-only">Delete</span>
             </button>
           </div>
@@ -302,7 +310,9 @@
       <div class="modal-container modal-large">
         <div class="modal-header">
           <h3>{{ editingTemplate?.id ? "Edit Template" : "Create New Template" }}</h3>
-          <button class="btn btn-icon" @click="closeTemplateModal">✕</button>
+          <button class="btn btn-icon" @click="closeTemplateModal">
+            <Trash2 class="icon" />
+          </button>
         </div>
         <div class="modal-body">
           <div class="form-group">
@@ -522,6 +532,19 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
+import {
+  BarChart3,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+  Search,
+  Eye,
+  Download,
+  Palette,
+  FileText,
+  Settings,
+  Plus,
+} from "lucide-vue-next";
 import AIReportSummary from "../../components/ai/AIReportSummary.vue";
 
 // State

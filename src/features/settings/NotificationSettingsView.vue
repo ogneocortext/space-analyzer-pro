@@ -1,7 +1,7 @@
 <template>
   <div class="notification-settings">
     <div class="settings-header">
-      <h2>🔔 Notification Settings</h2>
+      <h2><Bell class="header-icon" /> Notification Settings</h2>
       <p class="settings-subtitle">Customize how and when you receive notifications</p>
     </div>
 
@@ -93,9 +93,7 @@
         :class="`type-${type.key}`"
       >
         <div class="type-header">
-          <div class="type-icon">
-            {{ type.icon }}
-          </div>
+          <component :is="type.icon" class="type-icon" />
           <div class="type-info">
             <h4>{{ type.label }}</h4>
             <p>{{ type.description }}</p>
@@ -209,6 +207,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
+import { Bell, CheckCircle, XCircle, AlertTriangle, Info, BarChart3 } from "lucide-vue-next";
 import { useNotificationStore, type NotificationType } from "@/stores/notificationStore";
 
 const store = useNotificationStore();
@@ -217,34 +216,42 @@ onMounted(() => {
   store.initializeSettings();
 });
 
+const notificationTypeIcons: Record<NotificationType, typeof CheckCircle> = {
+  success: CheckCircle,
+  error: XCircle,
+  warning: AlertTriangle,
+  info: Info,
+  progress: BarChart3,
+};
+
 const notificationTypes = [
   {
     key: "success" as NotificationType,
-    icon: "✅",
+    icon: CheckCircle,
     label: "Success",
     description: "Operations completed successfully",
   },
   {
     key: "error" as NotificationType,
-    icon: "❌",
+    icon: XCircle,
     label: "Error",
     description: "Failures requiring attention",
   },
   {
     key: "warning" as NotificationType,
-    icon: "⚠️",
+    icon: AlertTriangle,
     label: "Warning",
     description: "Non-critical issues",
   },
   {
     key: "info" as NotificationType,
-    icon: "ℹ️",
+    icon: Info,
     label: "Info",
     description: "General updates and information",
   },
   {
     key: "progress" as NotificationType,
-    icon: "📊",
+    icon: BarChart3,
     label: "Progress",
     description: "Long-running operations",
   },

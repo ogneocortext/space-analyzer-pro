@@ -10,9 +10,7 @@
       aria-controls="notification-panel"
       @click="store.toggleCenter"
     >
-      <span class="bell-icon" :class="{ ringing: store.unreadCount > 0 }" aria-hidden="true"
-        >🔔</span
-      >
+      <Bell class="bell-icon" :class="{ ringing: store.unreadCount > 0 }" aria-hidden="true" />
       <span class="sr-only">Notifications</span>
       <span v-if="store.unreadCount > 0" class="unread-badge">
         {{ store.unreadCount > 99 ? "99+" : store.unreadCount }}
@@ -45,7 +43,7 @@
         <div class="toast-text">
           <!-- Icon -->
           <div v-if="notification.icon" class="toast-icon">
-            {{ notification.icon }}
+            <component :is="getNotificationIcon(notification.icon)" class="icon" />
           </div>
 
           <!-- Image Thumbnail -->
@@ -64,6 +62,7 @@
                 :aria-label="`Close ${notification.title} notification`"
                 @click="store.dismissNotification(notification.id)"
               >
+                <X class="icon" />
                 ✕
               </button>
             </div>
@@ -113,7 +112,7 @@
                 aria-label="Mark all notifications as read"
                 @click="store.markAllAsRead"
               >
-                ✓
+                <Check class="icon" />
               </button>
               <button
                 class="header-btn close-panel"
@@ -121,7 +120,7 @@
                 aria-label="Close notification panel"
                 @click="store.closeCenter"
               >
-                ✕
+                <X class="icon" />
               </button>
             </div>
 
@@ -216,8 +215,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useRouter } from "vue-router";
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import {
+  Bell,
+  Check,
+  X,
+  ChevronRight,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Info,
+  BarChart3,
+} from "lucide-vue-next";
 import {
   useNotificationStore,
   type Notification,
@@ -226,7 +235,19 @@ import {
 } from "@/stores/notificationStore";
 
 const store = useNotificationStore();
-const router = useRouter();
+
+// Icon mapping for notification types
+const iconMap: Record<string, typeof CheckCircle> = {
+  "check-circle": CheckCircle,
+  "x-circle": XCircle,
+  "alert-triangle": AlertTriangle,
+  info: Info,
+  "bar-chart-3": BarChart3,
+};
+
+const getNotificationIcon = (iconName: string) => {
+  return iconMap[iconName] || Info;
+};
 
 onMounted(() => {
   store.initializeSettings();
