@@ -1,13 +1,14 @@
 <template>
-  <div ref="containerRef" :class="['enhanced-analytics space-y-6', isAnimating ? 'animate-pulse' : '']">
+  <div
+    ref="containerRef"
+    :class="['enhanced-analytics space-y-6', isAnimating ? 'animate-pulse' : '']"
+  >
     <!-- Header -->
     <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
       <div class="flex items-center justify-between mb-6">
         <div>
           <h2 class="text-2xl font-bold text-gray-900">Enhanced Analytics</h2>
-          <p class="text-gray-600">
-            Comprehensive MoE analysis insights and performance metrics
-          </p>
+          <p class="text-gray-600">Comprehensive MoE analysis insights and performance metrics</p>
         </div>
         <div class="flex items-center space-x-2">
           <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
@@ -29,7 +30,7 @@
             'flex items-center space-x-2 px-4 py-2 border-b-2 font-medium text-sm transition-colors',
             selectedTab === tab.id
               ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
           ]"
         >
           <component :is="tab.icon" class="w-4 h-4" />
@@ -43,7 +44,9 @@
       <div v-if="selectedTab === 'overview'" class="space-y-6">
         <!-- Key Metrics Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div
+            class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow"
+          >
             <div class="flex items-center justify-between mb-4">
               <div class="p-2 bg-blue-100 rounded-lg">
                 <Activity class="w-5 h-5 text-blue-600" />
@@ -54,7 +57,9 @@
             <p class="text-xs text-gray-500 mt-1">Across all pages and models</p>
           </div>
 
-          <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div
+            class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow"
+          >
             <div class="flex items-center justify-between mb-4">
               <div class="p-2 bg-green-100 rounded-lg">
                 <CheckCircle class="w-5 h-5 text-green-600" />
@@ -67,7 +72,9 @@
             </p>
           </div>
 
-          <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div
+            class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow"
+          >
             <div class="flex items-center justify-between mb-4">
               <div class="p-2 bg-purple-100 rounded-lg">
                 <Clock class="w-5 h-5 text-purple-600" />
@@ -78,7 +85,9 @@
             <p class="text-xs text-gray-500 mt-1">Per analysis</p>
           </div>
 
-          <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow">
+          <div
+            class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm hover:shadow-md transition-shadow"
+          >
             <div class="flex items-center justify-between mb-4">
               <div class="p-2 bg-orange-100 rounded-lg">
                 <Zap class="w-5 h-5 text-orange-600" />
@@ -182,7 +191,8 @@
               <div>
                 <p class="font-medium text-yellow-900">Optimize Response Time</p>
                 <p class="text-sm text-yellow-700">
-                  Current average is {{ avgResponseTimeSeconds }}s - consider optimizing model selection
+                  Current average is {{ avgResponseTimeSeconds }}s - consider optimizing model
+                  selection
                 </p>
               </div>
             </div>
@@ -220,7 +230,10 @@
             >
               <div class="flex items-center space-x-3">
                 <div
-                  :class="['w-2 h-2 rounded-full', getModelInfo(model).success ? 'bg-green-500' : 'bg-red-500']"
+                  :class="[
+                    'w-2 h-2 rounded-full',
+                    getModelInfo(model).success ? 'bg-green-500' : 'bg-red-500',
+                  ]"
                 />
                 <div>
                   <p class="font-medium text-gray-900">{{ model }}</p>
@@ -229,9 +242,12 @@
               </div>
               <div class="text-right">
                 <p
-                  :class="['text-sm font-medium', getModelInfo(model).success ? 'text-green-600' : 'text-red-600']"
+                  :class="[
+                    'text-sm font-medium',
+                    getModelInfo(model).success ? 'text-green-600' : 'text-red-600',
+                  ]"
                 >
-                  {{ getModelInfo(model).success ? '✅ Working' : '⚠️ Issues' }}
+                  {{ getModelInfo(model).success ? "✅ Working" : "⚠️ Issues" }}
                 </p>
                 <p class="text-xs text-gray-500">{{ getModelInfo(model).avgTime }}s avg</p>
               </div>
@@ -329,10 +345,14 @@
             >
               Run Enhanced Analysis
             </button>
-            <button class="w-full p-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+            <button
+              class="w-full p-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+            >
               View Detailed Report
             </button>
-            <button class="w-full p-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+            <button
+              class="w-full p-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+            >
               Export Analytics Data
             </button>
           </div>
@@ -343,7 +363,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from "vue";
 import {
   BarChart3,
   PieChart,
@@ -357,7 +377,7 @@ import {
   Code,
   Eye,
   Layers,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface AnalyticsData {
   totalAnalyses: number;
@@ -386,28 +406,28 @@ const props = withDefaults(defineProps<EnhancedAnalyticsProps>(), {
     visionAnalyses: 6,
     codeAnalyses: 6,
     combinedAnalyses: 3,
-    pagesAnalyzed: ['Landing', 'Dashboard', 'Explorer'],
+    pagesAnalyzed: ["Landing", "Dashboard", "Explorer"],
     modelsUsed: [
-      'llava:7b',
-      'deepseek-coder:6.7b',
-      'codegemma:7b-instruct',
-      'qwen2.5-coder:7b-instruct',
-      'codellama:7b-python',
+      "llava:7b",
+      "deepseek-coder:6.7b",
+      "codegemma:7b-instruct",
+      "qwen2.5-coder:7b-instruct",
+      "codellama:7b-python",
     ],
     lastAnalysis: new Date().toISOString(),
   }),
   onRunAnalysis: () => {},
 });
 
-const selectedTab = ref<'overview' | 'performance' | 'models' | 'insights'>('overview');
+const selectedTab = ref<"overview" | "performance" | "models" | "insights">("overview");
 const isAnimating = ref(false);
 const containerRef = ref<HTMLDivElement | null>(null);
 
 const tabs = [
-  { id: 'overview', label: 'Overview', icon: BarChart3 },
-  { id: 'performance', label: 'Performance', icon: TrendingUp },
-  { id: 'models', label: 'Models', icon: Layers },
-  { id: 'insights', label: 'Insights', icon: Target },
+  { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "performance", label: "Performance", icon: TrendingUp },
+  { id: "models", label: "Models", icon: Layers },
+  { id: "insights", label: "Insights", icon: Target },
 ];
 
 const successRate = computed(() => {
@@ -422,14 +442,14 @@ const avgResponseTimeSeconds = computed(() => {
 
 const getModelInfo = (model: string) => {
   const modelData: Record<string, { type: string; success: boolean; avgTime: number }> = {
-    'llava:7b': { type: 'Vision', success: true, avgTime: 15.2 },
-    'deepseek-coder:6.7b': { type: 'Code', success: false, avgTime: 0 },
-    'codegemma:7b-instruct': { type: 'Combined', success: true, avgTime: 15.3 },
-    'qwen2.5-coder:7b-instruct': { type: 'Vision', success: true, avgTime: 15.5 },
-    'codellama:7b-python': { type: 'Code', success: true, avgTime: 31.4 },
+    "llava:7b": { type: "Vision", success: true, avgTime: 15.2 },
+    "deepseek-coder:6.7b": { type: "Code", success: false, avgTime: 0 },
+    "codegemma:7b-instruct": { type: "Combined", success: true, avgTime: 15.3 },
+    "qwen2.5-coder:7b-instruct": { type: "Vision", success: true, avgTime: 15.5 },
+    "codellama:7b-python": { type: "Code", success: true, avgTime: 31.4 },
   };
 
-  return modelData[model] || { type: 'Unknown', success: false, avgTime: 0 };
+  return modelData[model] || { type: "Unknown", success: false, avgTime: 0 };
 };
 
 // Animation on tab change

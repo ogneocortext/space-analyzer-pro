@@ -20,10 +20,7 @@
             <div class="tool-header">
               <span class="tool-icon">{{ getToolIcon(tool.category) }}</span>
               <h4>{{ tool.name }}</h4>
-              <span
-                class="tool-status"
-                :style="{ backgroundColor: getStatusColor(tool.status) }"
-              >
+              <span class="tool-status" :style="{ backgroundColor: getStatusColor(tool.status) }">
                 {{ tool.status }}
               </span>
             </div>
@@ -56,10 +53,7 @@
             </div>
             <div class="info-item">
               <span class="info-label">Status:</span>
-              <span
-                class="info-value"
-                :style="{ color: getStatusColor(selectedTool.status) }"
-              >
+              <span class="info-value" :style="{ color: getStatusColor(selectedTool.status) }">
                 {{ selectedTool.status }}
               </span>
             </div>
@@ -141,14 +135,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted } from "vue";
 
 interface DevTool {
   id: string;
   name: string;
   description: string;
-  category: 'api' | 'cli' | 'integration' | 'monitoring';
-  status: 'available' | 'beta' | 'planned';
+  category: "api" | "cli" | "integration" | "monitoring";
+  status: "available" | "beta" | "planned";
   lastUpdated: Date;
 }
 
@@ -161,49 +155,49 @@ const props = defineProps<DevelopmentPageProps>();
 
 const tools = ref<DevTool[]>([
   {
-    id: '1',
-    name: 'REST API',
-    description: 'Full REST API for programmatic access to Space Analyzer features',
-    category: 'api',
-    status: 'available',
+    id: "1",
+    name: "REST API",
+    description: "Full REST API for programmatic access to Space Analyzer features",
+    category: "api",
+    status: "available",
     lastUpdated: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
   },
   {
-    id: '2',
-    name: 'CLI Tool',
-    description: 'Command-line interface for automated file analysis and reporting',
-    category: 'cli',
-    status: 'beta',
+    id: "2",
+    name: "CLI Tool",
+    description: "Command-line interface for automated file analysis and reporting",
+    category: "cli",
+    status: "beta",
     lastUpdated: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
   },
   {
-    id: '3',
-    name: 'Webhooks',
-    description: 'Real-time notifications for file system events and analysis results',
-    category: 'integration',
-    status: 'planned',
+    id: "3",
+    name: "Webhooks",
+    description: "Real-time notifications for file system events and analysis results",
+    category: "integration",
+    status: "planned",
     lastUpdated: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
   },
   {
-    id: '4',
-    name: 'SDK',
-    description: 'Software Development Kit for building custom integrations',
-    category: 'integration',
-    status: 'planned',
+    id: "4",
+    name: "SDK",
+    description: "Software Development Kit for building custom integrations",
+    category: "integration",
+    status: "planned",
     lastUpdated: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
   },
   {
-    id: '5',
-    name: 'Metrics API',
-    description: 'Access to system metrics and performance data',
-    category: 'monitoring',
-    status: 'available',
+    id: "5",
+    name: "Metrics API",
+    description: "Access to system metrics and performance data",
+    category: "monitoring",
+    status: "available",
     lastUpdated: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
   },
 ]);
 
 const selectedTool = ref<DevTool | null>(null);
-const apiDocs = ref('');
+const apiDocs = ref("");
 
 onMounted(() => {
   if (props.analysisData) {
@@ -274,29 +268,29 @@ GET /search?q=filename
 
 const getToolIcon = (category: string) => {
   switch (category) {
-    case 'api':
-      return '🔌';
-    case 'cli':
-      return '💻';
-    case 'integration':
-      return '🔗';
-    case 'monitoring':
-      return '📊';
+    case "api":
+      return "🔌";
+    case "cli":
+      return "💻";
+    case "integration":
+      return "🔗";
+    case "monitoring":
+      return "📊";
     default:
-      return '🛠️';
+      return "🛠️";
   }
 };
 
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'available':
-      return '#10b981';
-    case 'beta':
-      return '#f59e0b';
-    case 'planned':
-      return '#6b7280';
+    case "available":
+      return "#10b981";
+    case "beta":
+      return "#f59e0b";
+    case "planned":
+      return "#6b7280";
     default:
-      return '#6b7280';
+      return "#6b7280";
   }
 };
 </script>

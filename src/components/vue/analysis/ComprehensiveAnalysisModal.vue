@@ -1,10 +1,17 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-gray-900 border border-gray-700 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+  <div
+    v-if="isOpen"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+  >
+    <div
+      class="bg-gray-900 border border-gray-700 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+    >
       <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-gray-700">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center">
+          <div
+            class="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center"
+          >
             <Settings class="w-6 h-6 text-white" />
           </div>
           <div>
@@ -67,7 +74,7 @@
                 'p-4 border rounded-lg cursor-pointer transition-all',
                 config.selectedAnalyzers.includes(analyzer.id)
                   ? 'border-cyan-500 bg-cyan-500/10'
-                  : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                  : 'border-gray-600 bg-gray-800 hover:border-gray-500',
               ]"
             >
               <div class="flex items-start gap-3">
@@ -76,7 +83,7 @@
                     'p-2 rounded-lg',
                     config.selectedAnalyzers.includes(analyzer.id)
                       ? 'bg-cyan-500/20'
-                      : 'bg-gray-700'
+                      : 'bg-gray-700',
                   ]"
                 >
                   <component
@@ -85,7 +92,7 @@
                       'w-4 h-4',
                       config.selectedAnalyzers.includes(analyzer.id)
                         ? 'text-cyan-400'
-                        : 'text-gray-400'
+                        : 'text-gray-400',
                     ]"
                   />
                 </div>
@@ -95,7 +102,7 @@
                       'font-medium text-sm',
                       config.selectedAnalyzers.includes(analyzer.id)
                         ? 'text-cyan-400'
-                        : 'text-white'
+                        : 'text-white',
                     ]"
                   >
                     {{ analyzer.name }}
@@ -185,7 +192,7 @@
         >
           <Loader2 v-if="isLoading" class="w-4 h-4 animate-spin" />
           <Play v-else class="w-4 h-4" />
-          {{ isLoading ? 'Starting Analysis...' : 'Start Analysis' }}
+          {{ isLoading ? "Starting Analysis..." : "Start Analysis" }}
         </button>
       </div>
     </div>
@@ -193,7 +200,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from "vue";
 import {
   X,
   Settings,
@@ -210,12 +217,12 @@ import {
   Scale,
   Play,
   Loader2,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface AnalysisConfig {
   projectPath: string;
   selectedAnalyzers: string[];
-  outputFormat: 'json' | 'text';
+  outputFormat: "json" | "text";
   saveResults?: string;
   progress: boolean;
   verbose: boolean;
@@ -233,85 +240,85 @@ const props = withDefaults(defineProps<ComprehensiveAnalysisModalProps>(), {
 });
 
 const config = ref<AnalysisConfig>({
-  projectPath: '',
-  selectedAnalyzers: ['dependency', 'quality', 'security', 'performance'],
-  outputFormat: 'json',
+  projectPath: "",
+  selectedAnalyzers: ["dependency", "quality", "security", "performance"],
+  outputFormat: "json",
   progress: true,
   verbose: true,
 });
 
 const ANALYZERS = [
   {
-    id: 'dependency',
-    name: 'Dependencies',
+    id: "dependency",
+    name: "Dependencies",
     icon: Package,
-    description: 'Inter-file dependencies and circular dependency detection',
+    description: "Inter-file dependencies and circular dependency detection",
   },
   {
-    id: 'quality',
-    name: 'Code Quality',
+    id: "quality",
+    name: "Code Quality",
     icon: Code,
-    description: 'Technical debt markers and code smells',
+    description: "Technical debt markers and code smells",
   },
   {
-    id: 'security',
-    name: 'Security',
+    id: "security",
+    name: "Security",
     icon: Shield,
-    description: 'Security vulnerabilities and risk assessment',
+    description: "Security vulnerabilities and risk assessment",
   },
   {
-    id: 'performance',
-    name: 'Performance',
+    id: "performance",
+    name: "Performance",
     icon: Zap,
-    description: 'Performance bottlenecks and optimization opportunities',
+    description: "Performance bottlenecks and optimization opportunities",
   },
   {
-    id: 'config',
-    name: 'Configuration',
+    id: "config",
+    name: "Configuration",
     icon: Settings,
-    description: 'Config patterns and environment analysis',
+    description: "Config patterns and environment analysis",
   },
   {
-    id: 'build',
-    name: 'Build & Deploy',
+    id: "build",
+    name: "Build & Deploy",
     icon: Hammer,
-    description: 'Build and deployment configuration analysis',
+    description: "Build and deployment configuration analysis",
   },
   {
-    id: 'docs',
-    name: 'Documentation',
+    id: "docs",
+    name: "Documentation",
     icon: FileText,
-    description: 'Documentation coverage and quality metrics',
+    description: "Documentation coverage and quality metrics",
   },
   {
-    id: 'test',
-    name: 'Testing',
+    id: "test",
+    name: "Testing",
     icon: TestTube,
-    description: 'Test coverage and organization patterns',
+    description: "Test coverage and organization patterns",
   },
   {
-    id: 'version',
-    name: 'Version Analysis',
+    id: "version",
+    name: "Version Analysis",
     icon: Package,
-    description: 'Dependency versions and outdated package detection',
+    description: "Dependency versions and outdated package detection",
   },
   {
-    id: 'org',
-    name: 'Organization',
+    id: "org",
+    name: "Organization",
     icon: Users,
-    description: 'Code organization patterns and architecture compliance',
+    description: "Code organization patterns and architecture compliance",
   },
   {
-    id: 'dev',
-    name: 'Developer Activity',
+    id: "dev",
+    name: "Developer Activity",
     icon: GitBranch,
-    description: 'Developer activity patterns and ownership information',
+    description: "Developer activity patterns and ownership information",
   },
   {
-    id: 'license',
-    name: 'License Analysis',
+    id: "license",
+    name: "License Analysis",
     icon: Scale,
-    description: 'License detection and compliance analysis',
+    description: "License detection and compliance analysis",
   },
 ];
 
@@ -331,29 +338,29 @@ const handleSelectNone = () => {
 
 const handleStartAnalysis = () => {
   if (!config.value.projectPath.trim()) {
-    alert('Please enter a project path');
+    alert("Please enter a project path");
     return;
   }
   if (config.value.selectedAnalyzers.length === 0) {
-    alert('Please select at least one analyzer');
+    alert("Please select at least one analyzer");
     return;
   }
   props.onStartAnalysis(config.value);
 };
 
 const generateCommand = () => {
-  const analyzers = config.value.selectedAnalyzers.join(',');
+  const analyzers = config.value.selectedAnalyzers.join(",");
   let command = `bin\\space-analyzer-cli.exe analyze "${config.value.projectPath}"`;
   command += ` --format ${config.value.outputFormat}`;
-  if (config.value.progress) command += ' --progress';
-  if (config.value.verbose) command += ' --verbose';
+  if (config.value.progress) command += " --progress";
+  if (config.value.verbose) command += " --verbose";
   if (config.value.saveResults) command += ` --output "${config.value.saveResults}"`;
   return command;
 };
 
 const copyCommand = () => {
   navigator.clipboard.writeText(generateCommand());
-  alert('Command copied to clipboard!');
+  alert("Command copied to clipboard!");
 };
 </script>
 

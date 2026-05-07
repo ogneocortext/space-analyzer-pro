@@ -3,7 +3,7 @@
  * Handles progress polling and tracking
  */
 
-import type { AnalysisProgress } from '../types';
+import type { AnalysisProgress } from "../types";
 
 export interface ProgressConfig {
   maxPollAttempts: number;
@@ -33,7 +33,7 @@ export class ProgressManager {
     onProgress: (progress: AnalysisProgress) => void
   ): Promise<void> {
     let pollAttempts = 0;
-    
+
     const pollProgress = async (): Promise<void> => {
       try {
         pollAttempts++;
@@ -41,37 +41,36 @@ export class ProgressManager {
 
         let progressResponse;
         try {
-          progressResponse = await fetch(
-            `${this.baseUrl}/api/progress/${analysisId}`,
-            {
-              signal: AbortSignal.timeout(this.config.timeout),
-            }
-          );
+          progressResponse = await fetch(`${this.baseUrl}/api/progress/${analysisId}`, {
+            signal: AbortSignal.timeout(this.config.timeout),
+          });
         } catch (fetchError) {
           console.error("❌ Progress fetch error:", fetchError);
           if (pollAttempts < this.config.maxPollAttempts) {
             setTimeout(pollProgress, this.config.pollInterval);
             return;
           } else {
-            throw new Error(`Progress polling failed after ${this.config.maxPollAttempts} attempts`);
+            throw new Error(
+              `Progress polling failed after ${this.config.maxPollAttempts} attempts`
+            );
           }
         }
 
         if (progressResponse.ok) {
           const progressData = await progressResponse.json();
           console.warn("📊 Progress poll response:", progressData);
-          
+
           // Validate progress data structure
-          if (!progressData || typeof progressData !== 'object') {
+          if (!progressData || typeof progressData !== "object") {
             console.warn("⚠️ Invalid progress data received");
             if (pollAttempts < this.config.maxPollAttempts) {
               setTimeout(pollProgress, this.config.pollInterval);
               return;
             }
           }
-          
+
           onProgress(this.normalizeProgressData(progressData));
-          
+
           // Check if analysis is complete
           const isComplete = this.isAnalysisComplete(progressData);
 
@@ -85,7 +84,9 @@ export class ProgressManager {
             console.warn("⏱️ Max polling attempts reached, stopping");
           }
         } else if (progressResponse.status === 404) {
-          console.warn("⚠️ Analysis not found (404) - stopping progress polling for stale analysis ID");
+          console.warn(
+            "⚠️ Analysis not found (404) - stopping progress polling for stale analysis ID"
+          );
           return;
         } else {
           console.warn("⚠️ Progress poll failed:", progressResponse.status);
@@ -98,7 +99,9 @@ export class ProgressManager {
         if (pollAttempts < this.config.maxPollAttempts) {
           setTimeout(pollProgress, this.config.pollInterval);
         } else {
-          throw new Error(`Progress polling failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          throw new Error(
+            `Progress polling failed: ${error instanceof Error ? error.message : "Unknown error"}`
+          );
         }
       }
     };
@@ -112,7 +115,7 @@ export class ProgressManager {
    */
   private normalizeProgressData(data: any): AnalysisProgress {
     return {
-      analysisId: data.analysisId || '',
+      analysisId: data.analysisId || "",
       files: Math.max(0, data.files || data.filesProcessed || 0),
       percentage: Math.min(100, Math.max(0, data.percentage || data.progress || 0)),
       currentFile: data.currentFile || data.current_file || "",
@@ -126,11 +129,13 @@ export class ProgressManager {
    */
   private isAnalysisComplete(data: any): boolean {
     const progressInfo = data?.progress || data;
-    return progressInfo?.status === "complete" || 
-           progressInfo?.completed || 
-           progressInfo?.status === "completed" ||
-           data?.status === "complete" ||
-           data?.completed;
+    return (
+      progressInfo?.status === "complete" ||
+      progressInfo?.completed ||
+      progressInfo?.status === "completed" ||
+      data?.status === "complete" ||
+      data?.completed
+    );
   }
 
   /**

@@ -21,11 +21,14 @@ export interface ToolDefinition {
     description: string;
     parameters: {
       type: "object";
-      properties: Record<string, {
-        type: string;
-        description: string;
-        enum?: string[];
-      }>;
+      properties: Record<
+        string,
+        {
+          type: string;
+          description: string;
+          enum?: string[];
+        }
+      >;
       required: string[];
     };
   };
@@ -55,19 +58,19 @@ class LocalToolRegistry {
   private registerDefaultTools(): void {
     // File system analysis tools
     this.registerFileSystemTools();
-    
+
     // Disk usage tools
     this.registerDiskUsageTools();
-    
+
     // System information tools
     this.registerSystemTools();
-    
+
     // Search and filtering tools
     this.registerSearchTools();
-    
+
     // Calculation tools
     this.registerCalculationTools();
-    
+
     this.initialized = true;
   }
 
@@ -81,7 +84,8 @@ class LocalToolRegistry {
         type: "function",
         function: {
           name: "analyze_directory",
-          description: "Analyze a directory's structure, size, and file distribution. Returns total size, file count, and subdirectory breakdown.",
+          description:
+            "Analyze a directory's structure, size, and file distribution. Returns total size, file count, and subdirectory breakdown.",
           parameters: {
             type: "object",
             properties: {
@@ -108,9 +112,9 @@ class LocalToolRegistry {
           const result = await this.callFileSystemAPI("analyze", args);
           return { success: true, data: result };
         } catch (error) {
-          return { 
-            success: false, 
-            error: `Failed to analyze directory: ${error instanceof Error ? error.message : "Unknown error"}` 
+          return {
+            success: false,
+            error: `Failed to analyze directory: ${error instanceof Error ? error.message : "Unknown error"}`,
           };
         }
       },
@@ -123,7 +127,8 @@ class LocalToolRegistry {
         type: "function",
         function: {
           name: "find_duplicates",
-          description: "Find duplicate files in a directory or across multiple directories. Returns groups of duplicate files with their paths and sizes.",
+          description:
+            "Find duplicate files in a directory or across multiple directories. Returns groups of duplicate files with their paths and sizes.",
           parameters: {
             type: "object",
             properties: {
@@ -137,7 +142,8 @@ class LocalToolRegistry {
               },
               hash_algorithm: {
                 type: "string",
-                description: "Hash algorithm for comparison: 'md5', 'sha256', or 'quick'. Default: 'quick'",
+                description:
+                  "Hash algorithm for comparison: 'md5', 'sha256', or 'quick'. Default: 'quick'",
               },
             },
             required: ["paths"],
@@ -149,9 +155,9 @@ class LocalToolRegistry {
           const result = await this.callFileSystemAPI("find_duplicates", args);
           return { success: true, data: result };
         } catch (error) {
-          return { 
-            success: false, 
-            error: `Failed to find duplicates: ${error instanceof Error ? error.message : "Unknown error"}` 
+          return {
+            success: false,
+            error: `Failed to find duplicates: ${error instanceof Error ? error.message : "Unknown error"}`,
           };
         }
       },
@@ -164,7 +170,8 @@ class LocalToolRegistry {
         type: "function",
         function: {
           name: "find_large_files",
-          description: "Find files larger than a specified size. Useful for identifying storage hogs.",
+          description:
+            "Find files larger than a specified size. Useful for identifying storage hogs.",
           parameters: {
             type: "object",
             properties: {
@@ -190,9 +197,9 @@ class LocalToolRegistry {
           const result = await this.callFileSystemAPI("find_large", args);
           return { success: true, data: result };
         } catch (error) {
-          return { 
-            success: false, 
-            error: `Failed to find large files: ${error instanceof Error ? error.message : "Unknown error"}` 
+          return {
+            success: false,
+            error: `Failed to find large files: ${error instanceof Error ? error.message : "Unknown error"}`,
           };
         }
       },
@@ -205,7 +212,8 @@ class LocalToolRegistry {
         type: "function",
         function: {
           name: "get_file_distribution",
-          description: "Get distribution of file types in a directory. Returns count and total size per file extension.",
+          description:
+            "Get distribution of file types in a directory. Returns count and total size per file extension.",
           parameters: {
             type: "object",
             properties: {
@@ -215,7 +223,8 @@ class LocalToolRegistry {
               },
               group_by: {
                 type: "string",
-                description: "Grouping method: 'extension', 'category', or 'size_range'. Default: 'extension'",
+                description:
+                  "Grouping method: 'extension', 'category', or 'size_range'. Default: 'extension'",
               },
             },
             required: ["path"],
@@ -227,9 +236,9 @@ class LocalToolRegistry {
           const result = await this.callFileSystemAPI("distribution", args);
           return { success: true, data: result };
         } catch (error) {
-          return { 
-            success: false, 
-            error: `Failed to get file distribution: ${error instanceof Error ? error.message : "Unknown error"}` 
+          return {
+            success: false,
+            error: `Failed to get file distribution: ${error instanceof Error ? error.message : "Unknown error"}`,
           };
         }
       },
@@ -247,13 +256,15 @@ class LocalToolRegistry {
         type: "function",
         function: {
           name: "get_disk_usage",
-          description: "Get disk usage information for a drive or path. Returns total, used, and free space.",
+          description:
+            "Get disk usage information for a drive or path. Returns total, used, and free space.",
           parameters: {
             type: "object",
             properties: {
               drive: {
                 type: "string",
-                description: "Drive letter (Windows) or mount point (Linux/Mac). Examples: 'C:', 'D:', '/'",
+                description:
+                  "Drive letter (Windows) or mount point (Linux/Mac). Examples: 'C:', 'D:', '/'",
               },
             },
             required: ["drive"],
@@ -265,9 +276,9 @@ class LocalToolRegistry {
           const result = await this.callFileSystemAPI("disk_usage", args);
           return { success: true, data: result };
         } catch (error) {
-          return { 
-            success: false, 
-            error: `Failed to get disk usage: ${error instanceof Error ? error.message : "Unknown error"}` 
+          return {
+            success: false,
+            error: `Failed to get disk usage: ${error instanceof Error ? error.message : "Unknown error"}`,
           };
         }
       },
@@ -280,7 +291,8 @@ class LocalToolRegistry {
         type: "function",
         function: {
           name: "get_cleanup_recommendations",
-          description: "Get AI-powered cleanup recommendations for a directory. Analyzes file patterns and suggests what can be safely deleted or archived.",
+          description:
+            "Get AI-powered cleanup recommendations for a directory. Analyzes file patterns and suggests what can be safely deleted or archived.",
           parameters: {
             type: "object",
             properties: {
@@ -310,9 +322,9 @@ class LocalToolRegistry {
           const result = await this.callFileSystemAPI("cleanup_recommendations", args);
           return { success: true, data: result };
         } catch (error) {
-          return { 
-            success: false, 
-            error: `Failed to get cleanup recommendations: ${error instanceof Error ? error.message : "Unknown error"}` 
+          return {
+            success: false,
+            error: `Failed to get cleanup recommendations: ${error instanceof Error ? error.message : "Unknown error"}`,
           };
         }
       },
@@ -325,7 +337,8 @@ class LocalToolRegistry {
         type: "function",
         function: {
           name: "find_old_files",
-          description: "Find files that haven't been accessed or modified in a specified time period.",
+          description:
+            "Find files that haven't been accessed or modified in a specified time period.",
           parameters: {
             type: "object",
             properties: {
@@ -339,7 +352,8 @@ class LocalToolRegistry {
               },
               access_type: {
                 type: "string",
-                description: "Type of time check: 'modified', 'accessed', or 'created'. Default: 'accessed'",
+                description:
+                  "Type of time check: 'modified', 'accessed', or 'created'. Default: 'accessed'",
               },
             },
             required: ["path"],
@@ -351,9 +365,9 @@ class LocalToolRegistry {
           const result = await this.callFileSystemAPI("find_old", args);
           return { success: true, data: result };
         } catch (error) {
-          return { 
-            success: false, 
-            error: `Failed to find old files: ${error instanceof Error ? error.message : "Unknown error"}` 
+          return {
+            success: false,
+            error: `Failed to find old files: ${error instanceof Error ? error.message : "Unknown error"}`,
           };
         }
       },
@@ -389,9 +403,9 @@ class LocalToolRegistry {
           const result = await this.callSystemAPI("info", args);
           return { success: true, data: result };
         } catch (error) {
-          return { 
-            success: false, 
-            error: `Failed to get system info: ${error instanceof Error ? error.message : "Unknown error"}` 
+          return {
+            success: false,
+            error: `Failed to get system info: ${error instanceof Error ? error.message : "Unknown error"}`,
           };
         }
       },
@@ -409,7 +423,8 @@ class LocalToolRegistry {
         type: "function",
         function: {
           name: "search_files",
-          description: "Search for files by name pattern (supports wildcards like *.jpg, document*.*)",
+          description:
+            "Search for files by name pattern (supports wildcards like *.jpg, document*.*)",
           parameters: {
             type: "object",
             properties: {
@@ -435,9 +450,9 @@ class LocalToolRegistry {
           const result = await this.callFileSystemAPI("search", args);
           return { success: true, data: result };
         } catch (error) {
-          return { 
-            success: false, 
-            error: `Failed to search files: ${error instanceof Error ? error.message : "Unknown error"}` 
+          return {
+            success: false,
+            error: `Failed to search files: ${error instanceof Error ? error.message : "Unknown error"}`,
           };
         }
       },
@@ -450,7 +465,8 @@ class LocalToolRegistry {
         type: "function",
         function: {
           name: "filter_by_category",
-          description: "Filter files by category: 'images', 'videos', 'documents', 'audio', 'archives', 'code', 'executables', 'temporary'",
+          description:
+            "Filter files by category: 'images', 'videos', 'documents', 'audio', 'archives', 'code', 'executables', 'temporary'",
           parameters: {
             type: "object",
             properties: {
@@ -476,9 +492,9 @@ class LocalToolRegistry {
           const result = await this.callFileSystemAPI("filter_category", args);
           return { success: true, data: result };
         } catch (error) {
-          return { 
-            success: false, 
-            error: `Failed to filter files: ${error instanceof Error ? error.message : "Unknown error"}` 
+          return {
+            success: false,
+            error: `Failed to filter files: ${error instanceof Error ? error.message : "Unknown error"}`,
           };
         }
       },
@@ -496,7 +512,8 @@ class LocalToolRegistry {
         type: "function",
         function: {
           name: "convert_size",
-          description: "Convert between size units (B, KB, MB, GB, TB). Returns all common formats.",
+          description:
+            "Convert between size units (B, KB, MB, GB, TB). Returns all common formats.",
           parameters: {
             type: "object",
             properties: {
@@ -516,7 +533,7 @@ class LocalToolRegistry {
       handler: async (args) => {
         const size = args.size as number;
         const fromUnit = (args.from_unit as string).toUpperCase();
-        
+
         const units = ["B", "KB", "MB", "GB", "TB"];
         const multipliers: Record<string, number> = {
           B: 1,
@@ -527,7 +544,7 @@ class LocalToolRegistry {
         };
 
         const bytes = size * (multipliers[fromUnit] || 1);
-        
+
         const result: Record<string, string> = {};
         for (const unit of units) {
           result[unit] = (bytes / multipliers[unit]).toFixed(2);
@@ -550,7 +567,8 @@ class LocalToolRegistry {
             properties: {
               operations: {
                 type: "array",
-                description: "Array of cleanup operations to estimate. Each should have 'type' and 'target_path'",
+                description:
+                  "Array of cleanup operations to estimate. Each should have 'type' and 'target_path'",
               },
             },
             required: ["operations"],
@@ -562,9 +580,9 @@ class LocalToolRegistry {
           const result = await this.callFileSystemAPI("estimate_savings", args);
           return { success: true, data: result };
         } catch (error) {
-          return { 
-            success: false, 
-            error: `Failed to estimate savings: ${error instanceof Error ? error.message : "Unknown error"}` 
+          return {
+            success: false,
+            error: `Failed to estimate savings: ${error instanceof Error ? error.message : "Unknown error"}`,
           };
         }
       },
@@ -584,7 +602,7 @@ class LocalToolRegistry {
    */
   getToolDefinitions(cloudAllowed = false): ToolDefinition[] {
     const definitions: ToolDefinition[] = [];
-    
+
     for (const [name, entry] of this.tools) {
       // Skip cloud-dependent tools if cloud is not allowed
       if (entry.requiresCloud && !cloudAllowed) {
@@ -592,7 +610,7 @@ class LocalToolRegistry {
       }
       definitions.push(entry.definition);
     }
-    
+
     return definitions;
   }
 
@@ -601,25 +619,25 @@ class LocalToolRegistry {
    */
   async executeTool(name: string, args: Record<string, unknown>): Promise<ToolResult> {
     const entry = this.tools.get(name);
-    
+
     if (!entry) {
       return { success: false, error: `Tool '${name}' not found` };
     }
 
     // Check if tool requires cloud and if we're in local-only mode
     if (entry.requiresCloud && ollamaRateLimiter.isLocalOnlyMode()) {
-      return { 
-        success: false, 
-        error: `Tool '${name}' requires Ollama Cloud but local-only mode is enabled` 
+      return {
+        success: false,
+        error: `Tool '${name}' requires Ollama Cloud but local-only mode is enabled`,
       };
     }
 
     try {
       return await entry.handler(args);
     } catch (error) {
-      return { 
-        success: false, 
-        error: `Tool execution failed: ${error instanceof Error ? error.message : "Unknown error"}` 
+      return {
+        success: false,
+        error: `Tool execution failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
   }
@@ -668,41 +686,141 @@ class LocalToolRegistry {
    * Call file system API (placeholder - to be implemented with actual Tauri/native APIs)
    */
   private async callFileSystemAPI(
-    operation: string, 
+    operation: string,
     args: Record<string, unknown>
   ): Promise<unknown> {
-    // This will be implemented to call your file system scanner
-    // For now, return a placeholder
     console.log(`[LocalToolRegistry] FileSystem API call: ${operation}`, args);
-    
-    // TODO: Implement actual calls to your file system scanner
-    // Example: return await invoke('file_system_operation', { operation, args });
-    
-    return { 
-      operation, 
-      args, 
-      status: "not_implemented",
-      note: "Implement with actual file system scanner APIs" 
-    };
+
+    try {
+      // Import Tauri desktop functions dynamically to avoid circular dependencies
+      const { useTauriDesktop } = await import("@/composables/useTauriDesktop");
+      const desktop = useTauriDesktop();
+
+      switch (operation) {
+        case "analyze_directory":
+          if (!args.path || typeof args.path !== "string") {
+            throw new Error("Path is required for directory analysis");
+          }
+          return await desktop.analyzeDirectory(args.path);
+
+        case "analyze_directory_with_progress":
+          if (!args.path || typeof args.path !== "string") {
+            throw new Error("Path is required for directory analysis with progress");
+          }
+          return await desktop.analyzeDirectoryWithProgress(args.path);
+
+        case "select_directory":
+          return await desktop.selectDirectory();
+
+        case "get_file_details":
+          if (!args.path || typeof args.path !== "string") {
+            throw new Error("Path is required for file details");
+          }
+          // Import invoke for direct Tauri command
+          const { invoke } = await import("@tauri-apps/api/core");
+          return await invoke("get_file_details", { path: args.path });
+
+        case "cancel_analysis":
+          return await desktop.cancelAnalysis();
+
+        default:
+          throw new Error(`Unsupported file system operation: ${operation}`);
+      }
+    } catch (error) {
+      console.error(`[LocalToolRegistry] FileSystem API error:`, error);
+      return {
+        operation,
+        args,
+        status: "error",
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   /**
-   * Call system API (placeholder - to be implemented with actual Tauri/native APIs)
+   * Call system API using Tauri desktop integration
    */
-  private async callSystemAPI(
-    operation: string, 
-    args: Record<string, unknown>
-  ): Promise<unknown> {
+  private async callSystemAPI(operation: string, args: Record<string, unknown>): Promise<unknown> {
     console.log(`[LocalToolRegistry] System API call: ${operation}`, args);
-    
-    // TODO: Implement actual system API calls
-    
-    return { 
-      operation, 
-      args, 
-      status: "not_implemented",
-      note: "Implement with actual system APIs" 
-    };
+
+    try {
+      // Import invoke for direct Tauri commands
+      const { invoke } = await import("@tauri-apps/api/core");
+
+      switch (operation) {
+        case "get_system_info":
+          return await invoke("get_system_info");
+
+        case "get_drive_info":
+          return await invoke("get_drive_info");
+
+        case "open_file":
+          if (!args.path || typeof args.path !== "string") {
+            throw new Error("Path is required for opening files");
+          }
+          return await invoke("open_file", { path: args.path });
+
+        case "open_in_explorer":
+          if (!args.path || typeof args.path !== "string") {
+            throw new Error("Path is required for opening in explorer");
+          }
+          return await invoke("open_in_explorer", { path: args.path });
+
+        case "show_in_folder":
+          if (!args.path || typeof args.path !== "string") {
+            throw new Error("Path is required for showing in folder");
+          }
+          return await invoke("show_in_folder", { path: args.path });
+
+        case "get_environment_variables":
+          return await invoke("get_environment_variables");
+
+        case "execute_command":
+          if (!args.command || typeof args.command !== "string") {
+            throw new Error("Command is required for execution");
+          }
+          return await invoke("execute_command", {
+            command: args.command,
+            args: args.args || [],
+            workingDir: args.workingDir || null,
+          });
+
+        case "read_file_content":
+          if (!args.path || typeof args.path !== "string") {
+            throw new Error("Path is required for reading file content");
+          }
+          return await invoke("read_file_content", {
+            path: args.path,
+            encoding: args.encoding || "utf-8",
+            maxLines: args.maxLines || 1000,
+          });
+
+        case "write_file_content":
+          if (!args.path || typeof args.path !== "string") {
+            throw new Error("Path is required for writing file content");
+          }
+          if (args.content === undefined) {
+            throw new Error("Content is required for writing file");
+          }
+          return await invoke("write_file_content", {
+            path: args.path,
+            content: args.content,
+            encoding: args.encoding || "utf-8",
+            append: args.append || false,
+          });
+
+        default:
+          throw new Error(`Unsupported system operation: ${operation}`);
+      }
+    } catch (error) {
+      console.error(`[LocalToolRegistry] System API error:`, error);
+      return {
+        operation,
+        args,
+        status: "error",
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 }
 

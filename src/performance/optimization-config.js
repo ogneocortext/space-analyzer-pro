@@ -293,7 +293,16 @@ export class PerformanceMonitor {
       } else if (value > config.good) {
         console.info(`ℹ️ Performance Note: ${name} could be optimized (${value}ms)`);
       } else {
-        console.warn(`✅ Performance Good: ${name} (${value}ms)`);
+        console.info(`✅ Performance Good: ${name} (${value}ms)`);
+      }
+    } else {
+      // Handle metrics without explicit thresholds
+      if (value > 1000) {
+        console.warn(`⚠️ Performance Issue: ${name} needs improvement (${value}ms)`);
+      } else if (value > 500) {
+        console.info(`ℹ️ Performance Note: ${name} could be optimized (${value}ms)`);
+      } else {
+        console.info(`✅ Performance Good: ${name} (${value}ms)`);
       }
     }
   }
@@ -483,3 +492,18 @@ if (typeof window !== "undefined") {
     resourceOptimizer.preloadCriticalResources();
   }
 }
+
+// Verify performance monitoring is active
+export const verifyPerformanceMonitoring = () => {
+  const metrics = performanceMonitor.getMetrics();
+  const isCollecting = metrics.size > 0;
+
+  console.log(`Performance monitoring status: ${isCollecting ? 'ACTIVE' : 'INACTIVE'}`);
+  console.log('Collected metrics:', Object.fromEntries(metrics));
+
+  return {
+    isActive: isCollecting,
+    metrics: Object.fromEntries(metrics),
+    observerCount: performanceMonitor.observers.size
+  };
+};

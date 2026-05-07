@@ -9,32 +9,32 @@ const selectedFolders = ref<Set<string>>(new Set());
 // Find empty folders from analysis data
 const emptyFolders = computed(() => {
   if (!store.analysisResult?.files) return [];
-  
+
   const files = store.analysisResult.files;
   const folderPaths = new Set<string>();
   const fileParentFolders = new Set<string>();
-  
+
   // Collect all folder paths and file parent paths
   files.forEach((file: any) => {
     const parts = file.path.split(/[\\/]/);
     const fullPath = parts.slice(0, -1).join("/");
-    
+
     // Add all parent folders of this file
     let currentPath = "";
     for (let i = 0; i < parts.length - 1; i++) {
       currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
       fileParentFolders.add(currentPath);
     }
-    
+
     // Also track the full folder path
     if (fullPath) {
       folderPaths.add(fullPath);
     }
   });
-  
+
   // Folders that exist in folderPaths but have no files directly in them
   // are considered "empty" (they may contain subfolders with files)
-  const potentiallyEmpty = Array.from(folderPaths).filter(folder => {
+  const potentiallyEmpty = Array.from(folderPaths).filter((folder) => {
     // Check if any file is DIRECTLY in this folder (not in subfolders)
     const hasDirectFiles = files.some((f: any) => {
       const parent = f.path.split(/[\\/]/).slice(0, -1).join("/");
@@ -42,10 +42,10 @@ const emptyFolders = computed(() => {
     });
     return !hasDirectFiles;
   });
-  
+
   // Sort by depth (deepest first for safer deletion)
   return potentiallyEmpty
-    .map(path => ({
+    .map((path) => ({
       path,
       depth: path.split("/").length,
       name: path.split("/").pop() || path,
@@ -56,7 +56,7 @@ const emptyFolders = computed(() => {
 // Stats
 const stats = computed(() => {
   if (!emptyFolders.value.length) return null;
-  
+
   return {
     total: emptyFolders.value.length,
     selected: selectedFolders.value.size,
@@ -72,7 +72,7 @@ function toggleSelection(path: string) {
 }
 
 function selectAll() {
-  emptyFolders.value.forEach(f => selectedFolders.value.add(f.path));
+  emptyFolders.value.forEach((f) => selectedFolders.value.add(f.path));
 }
 
 function clearSelection() {
@@ -86,12 +86,16 @@ function copyPath(path: string) {
 // Simulate deletion (in real app, this would call backend API)
 async function deleteSelected() {
   if (selectedFolders.value.size === 0) return;
-  
-  const confirmed = confirm(`Delete ${selectedFolders.value.size} empty folders?\n\nThis action cannot be undone.`);
+
+  const confirmed = confirm(
+    `Delete ${selectedFolders.value.size} empty folders?\n\nThis action cannot be undone.`
+  );
   if (!confirmed) return;
-  
+
   // In a real implementation, this would call the backend
-  alert(`Would delete ${selectedFolders.value.size} folders.\n(Backend deletion not implemented in demo)`);
+  alert(
+    `Would delete ${selectedFolders.value.size} folders.\n(Backend deletion not implemented in demo)`
+  );
   selectedFolders.value.clear();
 }
 </script>
@@ -124,18 +128,17 @@ async function deleteSelected() {
           <div class="text-sm text-slate-500">marked for deletion</div>
         </Card>
         <Card title="Action">
-          <Button
-            variant="danger"
-            :disabled="stats.selected === 0"
-            @click="deleteSelected"
-          >
+          <Button variant="danger" :disabled="stats.selected === 0" @click="deleteSelected">
             Delete Selected
           </Button>
         </Card>
       </div>
 
       <!-- Selection Actions -->
-      <div v-if="selectedFolders.size > 0" class="flex items-center gap-4 p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+      <div
+        v-if="selectedFolders.size > 0"
+        class="flex items-center gap-4 p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg"
+      >
         <span class="text-orange-400">{{ selectedFolders.size }} folders selected</span>
         <Button variant="secondary" size="sm" @click="clearSelection">Clear</Button>
       </div>
@@ -144,11 +147,15 @@ async function deleteSelected() {
       <Card title="Potentially Empty Folders">
         <div class="space-y-2">
           <!-- Header -->
-          <div class="flex items-center gap-4 p-2 text-sm font-medium text-slate-500 border-b border-slate-700">
+          <div
+            class="flex items-center gap-4 p-2 text-sm font-medium text-slate-500 border-b border-slate-700"
+          >
             <input
               type="checkbox"
               :checked="selectedFolders.size === emptyFolders.length && emptyFolders.length > 0"
-              @change="selectedFolders.size === emptyFolders.length ? clearSelection() : selectAll()"
+              @change="
+                selectedFolders.size === emptyFolders.length ? clearSelection() : selectAll()
+              "
               class="rounded border-slate-600 bg-slate-800"
             />
             <span class="flex-1">Folder Path</span>
@@ -172,9 +179,13 @@ async function deleteSelected() {
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
                 <span class="text-lg">📁</span>
-                <span class="font-medium text-slate-200 truncate" :title="folder.path">{{ folder.name }}</span>
+                <span class="font-medium text-slate-200 truncate" :title="folder.path">{{
+                  folder.name
+                }}</span>
               </div>
-              <div class="text-sm text-slate-500 truncate" :title="folder.path">{{ folder.path }}</div>
+              <div class="text-sm text-slate-500 truncate" :title="folder.path">
+                {{ folder.path }}
+              </div>
             </div>
             <span class="w-20 text-center text-sm text-slate-400">{{ folder.depth }}</span>
             <div class="w-20 text-right">

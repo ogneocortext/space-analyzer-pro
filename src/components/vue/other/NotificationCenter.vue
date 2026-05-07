@@ -232,7 +232,7 @@ import {
   type Notification,
   type NotificationAction,
   type NotificationType,
-} from "@/stores/notificationStore";
+} from "@/store";
 
 const store = useNotificationStore();
 

@@ -55,6 +55,16 @@ See [ERROR_TRACKER.md](docs/guides/ERROR_TRACKER.md) and [OLLAMA_INTEGRATION_SUM
 - **Featured Models** - Server-driven model recommendations (rate-limited)
 - **Tool Calling Support** - Function calling for advanced AI interactions
 
+#### 🤖 AI Chat Enhancement (v2.10.1)
+
+- **Database Integration** - AI chat now integrates with analysis database
+- **Context-Aware Responses** - AI can reference previous analyses and current storage state
+- **20 Prefilled Commands** - Specialized commands for file organization and analysis
+- **Smart Suggestions Panel** - Clickable suggestions when chat is empty
+- **Real-Time Integration** - Direct access to analysis database and JSON files
+- **Enhanced User Experience** - No need to manually provide analysis data
+- **Seamless Workflow** - AI leverages existing analysis data for better recommendations
+
 #### Lucide Icon Library
 
 - **Emoji Replacement** - All emojis replaced with Lucide icons for consistency

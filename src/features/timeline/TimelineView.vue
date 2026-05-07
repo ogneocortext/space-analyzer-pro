@@ -10,7 +10,7 @@ const selectedTimeRange = ref<"week" | "month" | "quarter" | "year">("month");
 // Generate timeline data from file modification dates
 const timelineData = computed(() => {
   if (!store.analysisResult?.files) return [];
-  
+
   const files = store.analysisResult.files;
   const now = Date.now();
   const ranges = {
@@ -19,18 +19,18 @@ const timelineData = computed(() => {
     quarter: 90 * 24 * 60 * 60 * 1000,
     year: 365 * 24 * 60 * 60 * 1000,
   };
-  
+
   const cutoff = now - ranges[selectedTimeRange.value];
-  
+
   // Group files by date
   const dateGroups = new Map();
-  
+
   files.forEach((file: any) => {
     const modified = new Date(file.modified).getTime();
     if (modified < cutoff) return;
-    
-    const dateKey = new Date(file.modified).toISOString().split('T')[0];
-    
+
+    const dateKey = new Date(file.modified).toISOString().split("T")[0];
+
     if (!dateGroups.has(dateKey)) {
       dateGroups.set(dateKey, {
         date: dateKey,
@@ -39,29 +39,32 @@ const timelineData = computed(() => {
         count: 0,
       });
     }
-    
+
     const group = dateGroups.get(dateKey);
     group.files.push(file);
     group.totalSize += file.size || 0;
     group.count += 1;
   });
-  
-  return Array.from(dateGroups.values())
-    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return Array.from(dateGroups.values()).sort(
+    (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
 });
 
 // Get activity intensity (files per day)
 const activityStats = computed(() => {
   if (timelineData.value.length === 0) return null;
-  
+
   const totalFiles = timelineData.value.reduce((sum: number, day: any) => sum + day.count, 0);
   const totalSize = timelineData.value.reduce((sum: number, day: any) => sum + day.totalSize, 0);
   const avgPerDay = totalFiles / timelineData.value.length;
-  
+
   // Find most active day
-  const mostActive = timelineData.value.reduce((max: any, day: any) => 
-    day.count > max.count ? day : max, timelineData.value[0]);
-  
+  const mostActive = timelineData.value.reduce(
+    (max: any, day: any) => (day.count > max.count ? day : max),
+    timelineData.value[0]
+  );
+
   return {
     totalFiles,
     totalSize,
@@ -116,7 +119,7 @@ function formatDate(dateStr: string): string {
           size="sm"
           @click="perspectiveMode = !perspectiveMode"
         >
-          {{ perspectiveMode ? '2D' : '3D' }} View
+          {{ perspectiveMode ? "2D" : "3D" }} View
         </Button>
       </div>
     </div>
@@ -131,19 +134,27 @@ function formatDate(dateStr: string): string {
       <!-- Activity Stats -->
       <div class="grid grid-cols-4 gap-4">
         <Card title="Files Modified">
-          <div class="text-2xl font-bold text-blue-400">{{ activityStats.totalFiles.toLocaleString() }}</div>
+          <div class="text-2xl font-bold text-blue-400">
+            {{ activityStats.totalFiles.toLocaleString() }}
+          </div>
           <div class="text-sm text-slate-500">in selected period</div>
         </Card>
         <Card title="Data Modified">
-          <div class="text-2xl font-bold text-purple-400">{{ formatSize(activityStats.totalSize) }}</div>
+          <div class="text-2xl font-bold text-purple-400">
+            {{ formatSize(activityStats.totalSize) }}
+          </div>
           <div class="text-sm text-slate-500">total size</div>
         </Card>
         <Card title="Avg Per Day">
-          <div class="text-2xl font-bold text-emerald-400">{{ activityStats.avgPerDay.toFixed(1) }}</div>
+          <div class="text-2xl font-bold text-emerald-400">
+            {{ activityStats.avgPerDay.toFixed(1) }}
+          </div>
           <div class="text-sm text-slate-500">files/day</div>
         </Card>
         <Card title="Most Active Day">
-          <div class="text-2xl font-bold text-orange-400">{{ formatDate(activityStats.mostActive.date) }}</div>
+          <div class="text-2xl font-bold text-orange-400">
+            {{ formatDate(activityStats.mostActive.date) }}
+          </div>
           <div class="text-sm text-slate-500">{{ activityStats.mostActive.count }} files</div>
         </Card>
       </div>
@@ -173,15 +184,18 @@ function formatDate(dateStr: string): string {
                 :style="{ height: getBarHeight(day.count, activityStats.mostActive.count) }"
               />
             </div>
-            
+
             <!-- Tooltip -->
-            <div class="opacity-0 group-hover:opacity-100 absolute bottom-full mb-2 left-1/2 -translate-x-1/2 
-                        bg-slate-800 px-2 py-1 rounded text-xs text-slate-200 whitespace-nowrap z-10 transition-opacity">
+            <div
+              class="opacity-0 group-hover:opacity-100 absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-800 px-2 py-1 rounded text-xs text-slate-200 whitespace-nowrap z-10 transition-opacity"
+            >
               {{ formatDate(day.date) }}: {{ day.count }} files
             </div>
-            
+
             <!-- Date label -->
-            <div class="text-xs text-slate-500 mt-2 text-center transform -rotate-45 origin-top-left truncate w-full">
+            <div
+              class="text-xs text-slate-500 mt-2 text-center transform -rotate-45 origin-top-left truncate w-full"
+            >
               {{ formatDate(day.date) }}
             </div>
           </div>
@@ -202,15 +216,28 @@ function formatDate(dateStr: string): string {
                 <div class="text-xs text-slate-500">files</div>
               </div>
               <div>
-                <div class="font-medium text-slate-200">{{ new Date(day.date).toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric' }) }}</div>
+                <div class="font-medium text-slate-200">
+                  {{
+                    new Date(day.date).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                    })
+                  }}
+                </div>
                 <div class="text-sm text-slate-400">{{ formatSize(day.totalSize) }} modified</div>
               </div>
             </div>
             <div class="text-right">
               <div class="text-sm text-slate-500">Sample files:</div>
               <div class="text-xs text-slate-400 truncate max-w-xs">
-                {{ day.files.slice(0, 2).map((f: any) => f.name).join(', ') }}
-                {{ day.files.length > 2 ? `+${day.files.length - 2} more` : '' }}
+                {{
+                  day.files
+                    .slice(0, 2)
+                    .map((f: any) => f.name)
+                    .join(", ")
+                }}
+                {{ day.files.length > 2 ? `+${day.files.length - 2} more` : "" }}
               </div>
             </div>
           </div>

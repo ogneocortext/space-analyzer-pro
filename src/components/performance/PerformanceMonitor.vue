@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { Card } from "@/design-system/components";
+import { Card } from "@/design-system";
 import type { PerformanceMetrics } from "@/services/analysis/AnalysisBridge";
 
 interface Props {

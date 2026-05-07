@@ -30,16 +30,15 @@
     <div
       :class="[
         'mb-6 p-4 rounded-lg border',
-        systemStatus.status === 'healthy' ? 'bg-green-900/20 border-green-800' :
-        systemStatus.status === 'warning' ? 'bg-yellow-900/20 border-yellow-800' :
-        'bg-red-900/20 border-red-800'
+        systemStatus.status === 'healthy'
+          ? 'bg-green-900/20 border-green-800'
+          : systemStatus.status === 'warning'
+            ? 'bg-yellow-900/20 border-yellow-800'
+            : 'bg-red-900/20 border-red-800',
       ]"
     >
       <div class="flex items-center gap-3">
-        <CheckCircle
-          v-if="systemStatus.status === 'healthy'"
-          class="w-5 h-5 text-green-400"
-        />
+        <CheckCircle v-if="systemStatus.status === 'healthy'" class="w-5 h-5 text-green-400" />
         <AlertTriangle
           v-else-if="systemStatus.status === 'warning'"
           class="w-5 h-5 text-yellow-400"
@@ -47,7 +46,9 @@
         <AlertTriangle v-else class="w-5 h-5 text-red-400" />
         <div>
           <p class="font-medium text-white">{{ systemStatus.message }}</p>
-          <p class="text-sm text-gray-400">Last checked: {{ systemStatus.lastCheck.toLocaleString() }}</p>
+          <p class="text-sm text-gray-400">
+            Last checked: {{ systemStatus.lastCheck.toLocaleString() }}
+          </p>
         </div>
       </div>
     </div>
@@ -104,7 +105,7 @@
             'flex items-center gap-3 p-4 rounded-lg border transition-colors',
             action.disabled
               ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed'
-              : 'bg-gray-800 border-gray-700 hover:border-blue-500 text-white'
+              : 'bg-gray-800 border-gray-700 hover:border-blue-500 text-white',
           ]"
         >
           <component :is="action.icon" class="w-5 h-5" />
@@ -126,10 +127,7 @@
           :key="activity.id"
           class="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg"
         >
-          <CheckCircle
-            v-if="activity.status === 'success'"
-            class="w-5 h-5 text-green-400"
-          />
+          <CheckCircle v-if="activity.status === 'success'" class="w-5 h-5 text-green-400" />
           <AlertTriangle
             v-else-if="activity.status === 'warning'"
             class="w-5 h-5 text-yellow-400"
@@ -146,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref } from "vue";
 import {
   LayoutDashboard,
   BrainCircuit,
@@ -170,7 +168,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface QuickAction {
   id: string;
@@ -183,89 +181,89 @@ interface QuickAction {
 }
 
 interface SystemStatus {
-  status: 'healthy' | 'warning' | 'error';
+  status: "healthy" | "warning" | "error";
   message: string;
   lastCheck: Date;
 }
 
 const systemStatus = ref<SystemStatus>({
-  status: 'healthy',
-  message: 'All systems operational',
+  status: "healthy",
+  message: "All systems operational",
   lastCheck: new Date(),
 });
 
-const searchQuery = ref('');
+const searchQuery = ref("");
 
 const recentActivity = ref<
   Array<{
     id: string;
     action: string;
     timestamp: Date;
-    status: 'success' | 'warning' | 'error';
+    status: "success" | "warning" | "error";
   }>
 >([
   {
-    id: '1',
-    action: 'Analysis completed',
+    id: "1",
+    action: "Analysis completed",
     timestamp: new Date(Date.now() - 60000),
-    status: 'success',
+    status: "success",
   },
   {
-    id: '2',
-    action: 'AI insights generated',
+    id: "2",
+    action: "AI insights generated",
     timestamp: new Date(Date.now() - 300000),
-    status: 'success',
+    status: "success",
   },
   {
-    id: '3',
-    action: 'Duplicate files detected',
+    id: "3",
+    action: "Duplicate files detected",
     timestamp: new Date(Date.now() - 600000),
-    status: 'warning',
+    status: "warning",
   },
   {
-    id: '4',
-    action: 'Storage optimization applied',
+    id: "4",
+    action: "Storage optimization applied",
     timestamp: new Date(Date.now() - 900000),
-    status: 'success',
+    status: "success",
   },
 ]);
 
 const quickActions: QuickAction[] = [
   {
-    id: '1',
-    label: 'Start Analysis',
-    description: 'Analyze your file system',
+    id: "1",
+    label: "Start Analysis",
+    description: "Analyze your file system",
     icon: Play,
     onClick: () => {
-      console.warn('Starting analysis...');
+      console.warn("Starting analysis...");
     },
   },
   {
-    id: '2',
-    label: 'AI Insights',
-    description: 'Get AI-powered recommendations',
+    id: "2",
+    label: "AI Insights",
+    description: "Get AI-powered recommendations",
     icon: BrainCircuit,
     onClick: () => {
-      console.warn('Opening AI insights...');
+      console.warn("Opening AI insights...");
     },
     beta: true,
   },
   {
-    id: '3',
-    label: 'File Browser',
-    description: 'Browse and manage files',
+    id: "3",
+    label: "File Browser",
+    description: "Browse and manage files",
     icon: Folder,
     onClick: () => {
-      console.warn('Opening file browser...');
+      console.warn("Opening file browser...");
     },
   },
   {
-    id: '4',
-    label: 'Settings',
-    description: 'Configure preferences',
+    id: "4",
+    label: "Settings",
+    description: "Configure preferences",
     icon: Settings,
     onClick: () => {
-      console.warn('Opening settings...');
+      console.warn("Opening settings...");
     },
   },
 ];
@@ -277,14 +275,14 @@ const formatTime = (date: Date): string => {
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
 
-  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
-  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-  return 'Just now';
+  if (days > 0) return `${days} day${days > 1 ? "s" : ""} ago`;
+  if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  if (minutes > 0) return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
+  return "Just now";
 };
 
 const refreshData = () => {
-  console.warn('Refreshing data...');
+  console.warn("Refreshing data...");
   systemStatus.value.lastCheck = new Date();
 };
 </script>

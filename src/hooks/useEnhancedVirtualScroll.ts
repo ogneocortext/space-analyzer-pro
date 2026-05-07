@@ -17,18 +17,24 @@ interface VirtualScrollReturn {
 }
 
 export const useEnhancedVirtualScroll = (options: VirtualScrollOptions): VirtualScrollReturn => {
-  const { items, estimateSize = () => 50, overscan = 5, enableDynamicSizing = false, bufferSize = 10 } = options;
-  
+  const {
+    items,
+    estimateSize = () => 50,
+    overscan = 5,
+    enableDynamicSizing = false,
+    bufferSize = 10,
+  } = options;
+
   const containerRef = ref<HTMLElement | null>(null);
   const scrollTop = ref(0);
   const containerHeight = ref(0);
   const startIndex = ref(0);
   const endIndex = ref(0);
-  
+
   const visibleItems = computed(() => {
     return items.slice(startIndex.value, endIndex.value);
   });
-  
+
   const totalSize = computed(() => {
     return items.reduce((sum, item, index) => {
       return sum + (estimateSize ? estimateSize(index) : 50);
@@ -37,14 +43,14 @@ export const useEnhancedVirtualScroll = (options: VirtualScrollOptions): Virtual
 
   const updateVisibleRange = () => {
     if (!containerRef.value) return;
-    
+
     const height = containerRef.value.clientHeight;
     containerHeight.value = height;
-    
+
     let accumulatedHeight = 0;
     let start = startIndex.value;
     let end = endIndex.value;
-    
+
     // Find start index
     for (let i = 0; i < items.length; i++) {
       const itemHeight = estimateSize ? estimateSize(i) : 50;
@@ -54,7 +60,7 @@ export const useEnhancedVirtualScroll = (options: VirtualScrollOptions): Virtual
       }
       accumulatedHeight += itemHeight;
     }
-    
+
     // Find end index
     accumulatedHeight = 0;
     for (let i = start; i < items.length; i++) {
@@ -65,19 +71,19 @@ export const useEnhancedVirtualScroll = (options: VirtualScrollOptions): Virtual
       }
       accumulatedHeight += itemHeight;
     }
-    
+
     startIndex.value = start;
     endIndex.value = Math.min(end + bufferSize, items.length);
   };
 
   const scrollToIndex = (index: number) => {
     if (!containerRef.value) return;
-    
+
     let offset = 0;
     for (let i = 0; i < index; i++) {
       offset += estimateSize ? estimateSize(i) : 50;
     }
-    
+
     containerRef.value.scrollTop = offset;
   };
 
@@ -94,14 +100,14 @@ export const useEnhancedVirtualScroll = (options: VirtualScrollOptions): Virtual
 
   onMounted(() => {
     if (containerRef.value) {
-      containerRef.value.addEventListener('scroll', handleScroll, { passive: true });
+      containerRef.value.addEventListener("scroll", handleScroll, { passive: true });
       updateVisibleRange();
     }
   });
 
   onUnmounted(() => {
     if (containerRef.value) {
-      containerRef.value.removeEventListener('scroll', handleScroll);
+      containerRef.value.removeEventListener("scroll", handleScroll);
     }
   });
 

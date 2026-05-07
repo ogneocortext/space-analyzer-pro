@@ -25,25 +25,9 @@
       </div>
 
       <div class="zoom-controls">
-        <button
-          data-testid="zoom-in"
-          @click="handleZoomIn"
-          class="zoom-btn"
-        >
-          ➕ Zoom In
-        </button>
-        <button
-          data-testid="zoom-out"
-          @click="handleZoomOut"
-          class="zoom-btn"
-        >
-          ➖ Zoom Out
-        </button>
-        <button
-          data-testid="reset-view"
-          @click="handleResetView"
-          class="zoom-btn"
-        >
+        <button data-testid="zoom-in" @click="handleZoomIn" class="zoom-btn">➕ Zoom In</button>
+        <button data-testid="zoom-out" @click="handleZoomOut" class="zoom-btn">➖ Zoom Out</button>
+        <button data-testid="reset-view" @click="handleResetView" class="zoom-btn">
           🔄 Reset View
         </button>
       </div>
@@ -61,13 +45,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref } from "vue";
 
 interface EnhancedNode3D {
   id: string;
   name: string;
   path: string;
-  type: 'file' | 'function' | 'class' | 'module' | 'component';
+  type: "file" | "function" | "class" | "module" | "component";
   size: number;
   color: string;
   metadata: {
@@ -82,7 +66,7 @@ interface EnhancedNode3D {
 interface EnhancedLink3D {
   source: string;
   target: string;
-  type: 'import' | 'require' | 'extends' | 'call';
+  type: "import" | "require" | "extends" | "call";
   strength: number;
   color: string;
 }
@@ -112,25 +96,25 @@ const handleNodeClick = (node: any) => {
 
 const handleNodeHover = (node: any | null) => {
   if (node) {
-    document.body.style.cursor = 'pointer';
+    document.body.style.cursor = "pointer";
   } else {
-    document.body.style.cursor = 'default';
+    document.body.style.cursor = "default";
   }
 };
 
 const handleZoomIn = () => {
   // Placeholder for zoom functionality
-  console.log('Zoom in');
+  console.log("Zoom in");
 };
 
 const handleZoomOut = () => {
   // Placeholder for zoom functionality
-  console.log('Zoom out');
+  console.log("Zoom out");
 };
 
 const handleResetView = () => {
   // Placeholder for reset view functionality
-  console.log('Reset view');
+  console.log("Reset view");
 };
 </script>
 

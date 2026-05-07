@@ -49,13 +49,18 @@ class DatabaseCore {
         const fileSizeMB = stats.size / (1024 * 1024);
         console.log(`📊 Database file size: ${fileSizeMB.toFixed(2)} MB`);
 
-        // Create backup if database is large
-        if (fileSizeMB > 100) {
+        // Skip backup during development for faster startup
+        const isDevelopment = process.env.NODE_ENV === "development";
+        const skipBackup = isDevelopment || process.env.SKIP_DB_BACKUP === "true";
+
+        if (fileSizeMB > 100 && !skipBackup) {
           const backupPath = this.dbPath + ".backup";
           if (!fs.existsSync(backupPath)) {
             console.log(`💾 Creating database backup: ${backupPath}`);
             fs.copyFileSync(this.dbPath, backupPath);
           }
+        } else if (skipBackup) {
+          console.log(`⚡ Skipping database backup for faster startup`);
         }
       }
 

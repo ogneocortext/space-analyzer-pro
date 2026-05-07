@@ -387,6 +387,47 @@ class AIRoutes {
         });
       }
     });
+
+    // AI Chat endpoint for conversational AI
+    this.router.post("/ai-chat", async (req, res) => {
+      const startTime = Date.now();
+      try {
+        const { message, context } = req.body;
+
+        if (!message) {
+          return res.status(400).json({ error: "Message is required" });
+        }
+
+        // Build chat context if provided
+        let chatContext = "";
+        if (context) {
+          chatContext = `Context: ${JSON.stringify(context)}\n\n`;
+        }
+
+        // Create a conversational prompt
+        const prompt = `${chatContext}User: ${message}\n\nAssistant:`;
+
+        // Use Ollama service for chat response
+        const response = await this.server.ollamaService.generate(
+          prompt,
+          null, // auto-select model
+          { temperature: 0.7, max_tokens: 1000 }
+        );
+
+        res.json({
+          success: true,
+          response: response.response,
+          message,
+          responseTime: Date.now() - startTime,
+        });
+      } catch (error) {
+        console.error("AI chat error:", error);
+        res.status(500).json({
+          error: error.message,
+          responseTime: Date.now() - startTime,
+        });
+      }
+    });
   }
 
   // Helper methods

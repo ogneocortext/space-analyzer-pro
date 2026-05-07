@@ -193,7 +193,7 @@ export interface HealthCheckResult {
 }
 
 // Analysis state types
-export type AnalysisStatus = 'idle' | 'starting' | 'analyzing' | 'complete' | 'error' | 'cancelled';
+export type AnalysisStatus = "idle" | "starting" | "analyzing" | "complete" | "error" | "cancelled";
 
 export interface AnalysisState {
   id: string;

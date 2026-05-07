@@ -15,7 +15,7 @@ const totalSavings = computed(() => {
 
 // High-impact recommendations
 const highImpactRecs = computed(() => {
-  return recommendations.value.filter(r => r.potentialSavings > 100 * 1024 * 1024); // > 100MB
+  return recommendations.value.filter((r) => r.potentialSavings > 100 * 1024 * 1024); // > 100MB
 });
 
 async function generateRecommendations() {
@@ -34,21 +34,22 @@ async function generateRecommendations() {
     const categories = store.analysisResult.categories || {};
 
     // 1. Old temp files
-    const tempFiles = files.filter((f: any) => 
-      f.name.match(/\.(tmp|temp|cache|log)$/i) ||
-      f.path.includes('temp') ||
-      f.path.includes('cache')
+    const tempFiles = files.filter(
+      (f: any) =>
+        f.name.match(/\.(tmp|temp|cache|log)$/i) ||
+        f.path.includes("temp") ||
+        f.path.includes("cache")
     );
     const tempSize = tempFiles.reduce((sum: number, f: any) => sum + (f.size || 0), 0);
     if (tempFiles.length > 0) {
       recs.push({
-        type: 'temp',
+        type: "temp",
         title: `Delete ${tempFiles.length} temporary files`,
-        description: 'Clear temporary and cache files that are safe to remove',
+        description: "Clear temporary and cache files that are safe to remove",
         potentialSavings: tempSize,
-        priority: 'high',
-        action: 'delete_temp',
-        fileCount: tempFiles.length
+        priority: "high",
+        action: "delete_temp",
+        fileCount: tempFiles.length,
       });
     }
 
@@ -60,46 +61,46 @@ async function generateRecommendations() {
     const oldSize = oldFiles.reduce((sum: number, f: any) => sum + (f.size || 0), 0);
     if (oldFiles.length > 0) {
       recs.push({
-        type: 'old',
+        type: "old",
         title: `Review ${oldFiles.length} large old files`,
-        description: 'Files over 100MB not accessed in over a year',
+        description: "Files over 100MB not accessed in over a year",
         potentialSavings: oldSize,
-        priority: 'medium',
-        action: 'review_old',
-        fileCount: oldFiles.length
+        priority: "medium",
+        action: "review_old",
+        fileCount: oldFiles.length,
       });
     }
 
     // 3. Duplicate check
     if (store.analysisResult.duplicateCount > 0) {
       recs.push({
-        type: 'duplicates',
+        type: "duplicates",
         title: `Clean up ${store.analysisResult.duplicateCount} duplicate files`,
         description: `Found ${store.analysisResult.duplicateGroups?.length || 0} duplicate groups wasting space`,
         potentialSavings: store.analysisResult.duplicateSize || 0,
-        priority: 'high',
-        action: 'view_duplicates',
-        fileCount: store.analysisResult.duplicateCount
+        priority: "high",
+        action: "view_duplicates",
+        fileCount: store.analysisResult.duplicateCount,
       });
     }
 
     // 4. Category-based suggestions
-    const mediaSize = categories['media']?.size || categories['images']?.size || 0;
-    if (mediaSize > 1024 * 1024 * 1024) { // > 1GB media
+    const mediaSize = categories["media"]?.size || categories["images"]?.size || 0;
+    if (mediaSize > 1024 * 1024 * 1024) {
+      // > 1GB media
       recs.push({
-        type: 'media',
-        title: 'Optimize media files',
+        type: "media",
+        title: "Optimize media files",
         description: `Compress or archive ${formatSize(mediaSize)} of media files`,
         potentialSavings: mediaSize * 0.3, // Assume 30% compression
-        priority: 'low',
-        action: 'optimize_media'
+        priority: "low",
+        action: "optimize_media",
       });
     }
 
     // Sort by potential savings
     recs.sort((a, b) => b.potentialSavings - a.potentialSavings);
     recommendations.value = recs;
-
   } catch (err) {
     error.value = err instanceof Error ? err.message : "Failed to generate recommendations";
     console.error("Recommendations error:", err);
@@ -118,24 +119,28 @@ function formatSize(bytes: number): string {
 
 function getPriorityColor(priority: string): string {
   switch (priority) {
-    case 'high': return 'text-red-400';
-    case 'medium': return 'text-yellow-400';
-    case 'low': return 'text-blue-400';
-    default: return 'text-slate-400';
+    case "high":
+      return "text-red-400";
+    case "medium":
+      return "text-yellow-400";
+    case "low":
+      return "text-blue-400";
+    default:
+      return "text-slate-400";
   }
 }
 
 function executeAction(action: string) {
   switch (action) {
-    case 'view_duplicates':
+    case "view_duplicates":
       // Navigate to duplicates view
       break;
-    case 'delete_temp':
+    case "delete_temp":
       // Show confirmation modal
-      alert('This would delete temporary files after confirmation');
+      alert("This would delete temporary files after confirmation");
       break;
     default:
-      console.log('Action:', action);
+      console.log("Action:", action);
   }
 }
 </script>
@@ -188,7 +193,7 @@ function executeAction(action: string) {
     <!-- Recommendations List -->
     <div v-if="recommendations.length > 0" class="space-y-4">
       <h2 class="text-xl font-semibold text-slate-200">Recommended Actions</h2>
-      
+
       <div
         v-for="(rec, index) in recommendations"
         :key="index"
@@ -198,7 +203,7 @@ function executeAction(action: string) {
           <div class="flex-1">
             <div class="flex items-center gap-2 mb-1">
               <h3 class="font-medium text-slate-200">{{ rec.title }}</h3>
-              <span 
+              <span
                 class="text-xs px-2 py-0.5 rounded-full bg-slate-700"
                 :class="getPriorityColor(rec.priority)"
               >
@@ -210,7 +215,7 @@ function executeAction(action: string) {
               {{ rec.fileCount }} files affected
             </div>
           </div>
-          
+
           <div class="flex items-center gap-4">
             <div class="text-right">
               <div class="text-lg font-semibold text-emerald-400">
@@ -218,11 +223,7 @@ function executeAction(action: string) {
               </div>
               <div class="text-xs text-slate-500">savings</div>
             </div>
-            <Button 
-              variant="secondary" 
-              size="sm"
-              @click="executeAction(rec.action)"
-            >
+            <Button variant="secondary" size="sm" @click="executeAction(rec.action)">
               Review
             </Button>
           </div>
@@ -231,10 +232,15 @@ function executeAction(action: string) {
     </div>
 
     <!-- Empty State -->
-    <div v-if="recommendations.length === 0 && !isLoading && store.analysisResult" class="p-8 text-center">
+    <div
+      v-if="recommendations.length === 0 && !isLoading && store.analysisResult"
+      class="p-8 text-center"
+    >
       <div class="text-5xl mb-4">🎉</div>
       <h2 class="text-xl font-semibold text-slate-200 mb-2">Storage Optimized!</h2>
-      <p class="text-slate-400">No cleanup recommendations found. Your storage is well-organized.</p>
+      <p class="text-slate-400">
+        No cleanup recommendations found. Your storage is well-organized.
+      </p>
     </div>
   </div>
 </template>

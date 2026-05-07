@@ -11,15 +11,29 @@
       </div>
       <div class="flex gap-2">
         <button
-          @click="onRefresh"
           class="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          @click="onRefresh"
         >
           <RefreshCw class="w-4 h-4" />
           <span>Refresh</span>
         </button>
         <button
-          @click="onExport"
+          class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          @click="handleSave"
+        >
+          <Database class="w-4 h-4" />
+          <span>Save</span>
+        </button>
+        <button
+          class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          @click="handleLoad"
+        >
+          <Upload class="w-4 h-4" />
+          <span>Load</span>
+        </button>
+        <button
           class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          @click="onExport"
         >
           <Download class="w-4 h-4" />
           <span>Export</span>
@@ -32,13 +46,13 @@
       <button
         v-for="filter in filters"
         :key="filter.id"
-        @click="selectedFilter = filter.id"
         :class="[
           'px-4 py-2 rounded-lg transition-colors',
           selectedFilter === filter.id
             ? 'bg-blue-600 text-white'
-            : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            : 'bg-gray-800 text-gray-300 hover:bg-gray-700',
         ]"
+        @click="selectedFilter = filter.id"
       >
         <component :is="filter.icon" class="w-4 h-4 inline mr-2" />
         {{ filter.label }}
@@ -53,7 +67,9 @@
         class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
       >
         <option value="all">All Pages</option>
-        <option v-for="page in uniquePages" :key="page" :value="page">{{ page }}</option>
+        <option v-for="page in uniquePages" :key="page" :value="page">
+          {{ page }}
+        </option>
       </select>
     </div>
 
@@ -66,17 +82,14 @@
       >
         <div class="flex items-start justify-between mb-3">
           <div class="flex items-center gap-3">
-            <div
-              :class="[
-                'p-2 rounded-lg',
-                result.success ? 'bg-green-500/20' : 'bg-red-500/20'
-              ]"
-            >
+            <div :class="['p-2 rounded-lg', result.success ? 'bg-green-500/20' : 'bg-red-500/20']">
               <CheckCircle v-if="result.success" class="w-5 h-5 text-green-400" />
               <AlertTriangle v-else class="w-5 h-5 text-red-400" />
             </div>
             <div>
-              <h3 class="font-semibold text-white">{{ result.title || result.page }}</h3>
+              <h3 class="font-semibold text-white">
+                {{ result.title || result.page }}
+              </h3>
               <div class="flex items-center gap-2 text-sm text-gray-400">
                 <component :is="getTypeIcon(result.type)" class="w-4 h-4" />
                 <span>{{ result.type }}</span>
@@ -88,8 +101,8 @@
           <div class="flex items-center gap-2">
             <span class="text-sm text-gray-400">{{ formatResponseTime(result.responseTime) }}</span>
             <button
-              @click="toggleExpand(result.id)"
               class="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+              @click="toggleExpand(result.id)"
             >
               <Eye v-if="!expandedResults.has(result.id)" class="w-4 h-4 text-gray-400" />
               <Eye v-else class="w-4 h-4 text-gray-400 rotate-180" />
@@ -98,7 +111,9 @@
         </div>
 
         <div v-if="expandedResults.has(result.id)" class="mt-3 pt-3 border-t border-gray-700">
-          <p class="text-sm text-gray-300">{{ result.analysis || 'No analysis available' }}</p>
+          <p class="text-sm text-gray-300">
+            {{ result.analysis || "No analysis available" }}
+          </p>
           <div class="mt-2 text-xs text-gray-500">
             {{ new Date(result.timestamp).toLocaleString() }}
           </div>
@@ -114,7 +129,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from "vue";
 import {
   BarChart3,
   Download,
@@ -125,21 +140,23 @@ import {
   TrendingUp,
   CheckCircle,
   AlertTriangle,
-} from 'lucide-vue-next';
+  Database,
+  Upload,
+} from "lucide-vue-next";
 
 export const RESULT_TYPES = {
-  ALL: 'all',
-  VISION: 'vision',
-  CODE: 'code',
-  COMBINED: 'combined',
+  ALL: "all",
+  VISION: "vision",
+  CODE: "code",
+  COMBINED: "combined",
 } as const;
 
 export type ResultTypeType = (typeof RESULT_TYPES)[keyof typeof RESULT_TYPES];
 
 export const ANALYSIS_TYPES = {
-  VISION: 'vision',
-  CODE: 'code',
-  COMBINED: 'combined',
+  VISION: "vision",
+  CODE: "code",
+  COMBINED: "combined",
 } as const;
 
 export type AnalysisTypeType = (typeof ANALYSIS_TYPES)[keyof typeof ANALYSIS_TYPES];
@@ -149,7 +166,7 @@ interface AnalysisResult {
   page: string;
   model: string;
   role: string;
-  type: 'vision' | 'code' | 'combined';
+  type: "vision" | "code" | "combined";
   success: boolean;
   analysis?: string;
   timestamp: string;
@@ -161,77 +178,81 @@ interface AnalysisResultsProps {
   results?: AnalysisResult[];
   onRefresh?: () => void;
   onExport?: () => void;
+  onSave?: (results: AnalysisResult[]) => void;
+  onLoad?: (results: AnalysisResult[]) => void;
 }
 
 const props = withDefaults(defineProps<AnalysisResultsProps>(), {
   results: () => [],
   onRefresh: () => {},
   onExport: () => {},
+  onSave: () => {},
+  onLoad: () => {},
 });
 
 const selectedFilter = ref<ResultTypeType>(RESULT_TYPES.ALL);
-const selectedPage = ref<string>('all');
+const selectedPage = ref<string>("all");
 const expandedResults = ref<Set<string>>(new Set());
 
 const filters = [
-  { id: RESULT_TYPES.ALL, label: 'All', icon: BarChart3 },
-  { id: RESULT_TYPES.VISION, label: 'Vision', icon: Eye },
-  { id: RESULT_TYPES.CODE, label: 'Code', icon: Code },
-  { id: RESULT_TYPES.COMBINED, label: 'Combined', icon: Layers },
+  { id: RESULT_TYPES.ALL, label: "All", icon: BarChart3 },
+  { id: RESULT_TYPES.VISION, label: "Vision", icon: Eye },
+  { id: RESULT_TYPES.CODE, label: "Code", icon: Code },
+  { id: RESULT_TYPES.COMBINED, label: "Combined", icon: Layers },
 ];
 
 const mockResults: AnalysisResult[] = [
   {
-    id: '1',
-    type: 'vision',
-    page: 'dashboard',
-    title: 'Dashboard UI Enhancement',
+    id: "1",
+    type: "vision",
+    page: "dashboard",
+    title: "Dashboard UI Enhancement",
     success: true,
     analysis:
-      'Implemented responsive design improvements with better accessibility features and enhanced user interactions.',
-    timestamp: '2026-01-19T02:03:58.114Z',
+      "Implemented responsive design improvements with better accessibility features and enhanced user interactions.",
+    timestamp: "2026-01-19T02:03:58.114Z",
     responseTime: 2341,
-    model: 'gpt-4-vision',
-    role: 'assistant',
+    model: "gpt-4-vision",
+    role: "assistant",
   },
   {
-    id: '2',
-    type: 'code',
-    page: 'neural',
-    title: 'Neural Network Performance',
+    id: "2",
+    type: "code",
+    page: "neural",
+    title: "Neural Network Performance",
     success: true,
     analysis:
-      'Optimized neural physics calculations with Web Workers, achieving 60fps animations and reduced memory usage.',
-    timestamp: '2026-01-19T02:03:58.114Z',
+      "Optimized neural physics calculations with Web Workers, achieving 60fps animations and reduced memory usage.",
+    timestamp: "2026-01-19T02:03:58.114Z",
     responseTime: 15678,
-    model: 'gpt-4',
-    role: 'assistant',
+    model: "gpt-4",
+    role: "assistant",
   },
   {
-    id: '3',
-    type: 'combined',
-    page: 'chat',
-    title: 'AI Chat Integration',
+    id: "3",
+    type: "combined",
+    page: "chat",
+    title: "AI Chat Integration",
     success: true,
     analysis:
-      'Successfully integrated drag-and-drop functionality for file analysis with natural language processing capabilities.',
-    timestamp: '2026-01-19T02:03:58.114Z',
+      "Successfully integrated drag-and-drop functionality for file analysis with natural language processing capabilities.",
+    timestamp: "2026-01-19T02:03:58.114Z",
     responseTime: 8934,
-    model: 'gpt-4-vision',
-    role: 'assistant',
+    model: "gpt-4-vision",
+    role: "assistant",
   },
   {
-    id: '4',
-    type: 'code',
-    page: 'development',
-    title: 'Code Quality Improvements',
+    id: "4",
+    type: "code",
+    page: "development",
+    title: "Code Quality Improvements",
     success: true,
     analysis:
-      'Code quality improvements implemented with proper error handling and performance monitoring. TypeScript strict mode enabled for better type safety.',
-    timestamp: '2026-01-19T02:03:58.114Z',
+      "Code quality improvements implemented with proper error handling and performance monitoring. TypeScript strict mode enabled for better type safety.",
+    timestamp: "2026-01-19T02:03:58.114Z",
     responseTime: 4567,
-    model: 'gpt-4',
-    role: 'assistant',
+    model: "gpt-4",
+    role: "assistant",
   },
 ];
 
@@ -241,7 +262,7 @@ const displayResults = computed(() => {
   return resultsToUse.filter((result) => {
     const filterMatch =
       selectedFilter.value === RESULT_TYPES.ALL || result.type === selectedFilter.value;
-    const pageMatch = selectedPage.value === 'all' || result.page === selectedPage.value;
+    const pageMatch = selectedPage.value === "all" || result.page === selectedPage.value;
     return filterMatch && pageMatch;
   });
 });
@@ -253,11 +274,11 @@ const uniquePages = computed(() => {
 
 const getTypeIcon = (type: string) => {
   switch (type) {
-    case 'vision':
+    case "vision":
       return Eye;
-    case 'code':
+    case "code":
       return Code;
-    case 'combined':
+    case "combined":
       return Layers;
     default:
       return TrendingUp;
@@ -274,6 +295,87 @@ const toggleExpand = (id: string) => {
     expandedResults.value.delete(id);
   } else {
     expandedResults.value.add(id);
+  }
+};
+
+const handleSave = () => {
+  try {
+    const resultsToSave = displayResults.value;
+    const saveData = {
+      results: resultsToSave,
+      timestamp: new Date().toISOString(),
+      version: "1.0",
+    };
+
+    // Save to localStorage
+    localStorage.setItem("analysis-results", JSON.stringify(saveData));
+
+    // Call parent onSave callback if provided
+    if (props.onSave) {
+      props.onSave(resultsToSave);
+    }
+
+    // Show success message
+    console.log(`Saved ${resultsToSave.length} analysis results to localStorage`);
+
+    // Optional: Show user feedback
+    alert(`Successfully saved ${resultsToSave.length} analysis results!`);
+  } catch (error) {
+    console.error("Failed to save analysis results:", error);
+    alert("Failed to save analysis results. Please try again.");
+  }
+};
+
+const handleLoad = () => {
+  try {
+    // Load from localStorage
+    const savedData = localStorage.getItem("analysis-results");
+
+    if (!savedData) {
+      alert("No saved analysis results found.");
+      return;
+    }
+
+    const parsedData = JSON.parse(savedData);
+
+    if (!parsedData.results || !Array.isArray(parsedData.results)) {
+      alert("Invalid saved data format.");
+      return;
+    }
+
+    // Validate and load results
+    const loadedResults: AnalysisResult[] = parsedData.results
+      .map((item: unknown) => {
+        // Basic validation
+        if (
+          typeof item === "object" &&
+          item !== null &&
+          "id" in item &&
+          "type" in item &&
+          "success" in item
+        ) {
+          return item as AnalysisResult;
+        }
+        return null;
+      })
+      .filter((item): item is AnalysisResult => item !== null);
+
+    if (loadedResults.length === 0) {
+      alert("No valid analysis results found in saved data.");
+      return;
+    }
+
+    // Call parent onLoad callback if provided
+    if (props.onLoad) {
+      props.onLoad(loadedResults);
+    }
+
+    // Show success message
+    console.log(`Loaded ${loadedResults.length} analysis results from localStorage`);
+    alert(`Successfully loaded ${loadedResults.length} analysis results!`);
+  } catch (error) {
+    console.error("Failed to load analysis results:", error);
+    alert("Failed to load analysis results. The data may be corrupted.");
   }
 };
 </script>

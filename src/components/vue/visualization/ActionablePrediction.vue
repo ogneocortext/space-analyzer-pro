@@ -38,25 +38,45 @@
         <!-- Header -->
         <div class="actionable-category-header">
           <div class="actionable-category-icon">
-            <component :is="getCategoryIcon(extractCategoryFromReasoning(insight.reasoning))" :size="16" />
+            <component
+              :is="getCategoryIcon(extractCategoryFromReasoning(insight.reasoning))"
+              :size="16"
+            />
           </div>
           <h4 class="actionable-category-title">
-            {{ extractCategoryFromReasoning(insight.reasoning).charAt(0).toUpperCase() + extractCategoryFromReasoning(insight.reasoning).slice(1) }} Category
+            {{
+              extractCategoryFromReasoning(insight.reasoning).charAt(0).toUpperCase() +
+              extractCategoryFromReasoning(insight.reasoning).slice(1)
+            }}
+            Category
           </h4>
           <div class="actionable-category-stats">
             <div class="actionable-stat-item">
               <span class="actionable-stat-label">Files</span>
-              <span class="actionable-stat-value">{{ getFilesByCategory(extractCategoryFromReasoning(insight.reasoning)).length }}</span>
+              <span class="actionable-stat-value">{{
+                getFilesByCategory(extractCategoryFromReasoning(insight.reasoning)).length
+              }}</span>
             </div>
             <div class="actionable-stat-item">
               <span class="actionable-stat-label">Total Size</span>
               <span class="actionable-stat-value">
-                {{ (getFilesByCategory(extractCategoryFromReasoning(insight.reasoning)).reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(1) }}MB
+                {{
+                  (
+                    getFilesByCategory(extractCategoryFromReasoning(insight.reasoning)).reduce(
+                      (sum, f) => sum + f.size,
+                      0
+                    ) /
+                    1024 /
+                    1024
+                  ).toFixed(1)
+                }}MB
               </span>
             </div>
             <div class="actionable-stat-item">
               <span class="actionable-stat-label">Large Files</span>
-              <span class="actionable-stat-value">{{ getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).length }}</span>
+              <span class="actionable-stat-value">{{
+                getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).length
+              }}</span>
             </div>
           </div>
         </div>
@@ -75,7 +95,10 @@
           <h5 class="actionable-actions-title">Recommended Actions</h5>
           <div class="actionable-actions-list">
             <div
-              v-for="(action, actionIndex) in getRecommendedActions(insight, extractCategoryFromReasoning(insight.reasoning))"
+              v-for="(action, actionIndex) in getRecommendedActions(
+                insight,
+                extractCategoryFromReasoning(insight.reasoning)
+              )"
               :key="actionIndex"
               class="actionable-action-item"
             >
@@ -91,17 +114,45 @@
                   {{ action.priority }}
                 </span>
                 <button
-                  @click="executeAction(action.type, extractCategoryFromReasoning(insight.reasoning), insight)"
-                  :disabled="selectedAction === `${action.type}-${extractCategoryFromReasoning(insight.reasoning)}` || analyzingDependencies"
+                  @click="
+                    executeAction(
+                      action.type,
+                      extractCategoryFromReasoning(insight.reasoning),
+                      insight
+                    )
+                  "
+                  :disabled="
+                    selectedAction ===
+                      `${action.type}-${extractCategoryFromReasoning(insight.reasoning)}` ||
+                    analyzingDependencies
+                  "
                   class="actionable-execute-btn"
                   :style="{
-                    background: selectedAction === `${action.type}-${extractCategoryFromReasoning(insight.reasoning)}` ? '#6b7280' : '#3b82f6',
-                    cursor: selectedAction === `${action.type}-${extractCategoryFromReasoning(insight.reasoning)}` || analyzingDependencies ? 'not-allowed' : 'pointer'
+                    background:
+                      selectedAction ===
+                      `${action.type}-${extractCategoryFromReasoning(insight.reasoning)}`
+                        ? '#6b7280'
+                        : '#3b82f6',
+                    cursor:
+                      selectedAction ===
+                        `${action.type}-${extractCategoryFromReasoning(insight.reasoning)}` ||
+                      analyzingDependencies
+                        ? 'not-allowed'
+                        : 'pointer',
                   }"
                 >
-                  <template v-if="selectedAction === `${action.type}-${extractCategoryFromReasoning(insight.reasoning)}`">
+                  <template
+                    v-if="
+                      selectedAction ===
+                      `${action.type}-${extractCategoryFromReasoning(insight.reasoning)}`
+                    "
+                  >
                     <div class="spinner" />
-                    {{ actionProgress[`${action.type}-${extractCategoryFromReasoning(insight.reasoning)}`] || 0 }}%
+                    {{
+                      actionProgress[
+                        `${action.type}-${extractCategoryFromReasoning(insight.reasoning)}`
+                      ] || 0
+                    }}%
                   </template>
                   <template v-else-if="analyzingDependencies">
                     <GitBranch :size="14" />
@@ -110,7 +161,11 @@
                   <template v-else>
                     <component :is="getActionIcon(action.type)" :size="16" />
                     Execute
-                    <Shield v-if="['delete', 'move', 'archive'].includes(action.type)" :size="12" style="margin-left: 0.25rem" />
+                    <Shield
+                      v-if="['delete', 'move', 'archive'].includes(action.type)"
+                      :size="12"
+                      style="margin-left: 0.25rem"
+                    />
                   </template>
                 </button>
               </div>
@@ -121,11 +176,14 @@
         <!-- High Impact Files Preview -->
         <div v-if="getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).length > 0">
           <h5 class="high-impact-title">
-            High Impact Files (Top {{ getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).length }})
+            High Impact Files (Top
+            {{ getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).length }})
           </h5>
           <div class="high-impact-files">
             <div
-              v-for="(file, fileIndex) in getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).slice(0, 5)"
+              v-for="(file, fileIndex) in getHighImpactFiles(
+                extractCategoryFromReasoning(insight.reasoning)
+              ).slice(0, 5)"
               :key="fileIndex"
               class="high-impact-file"
             >
@@ -133,8 +191,15 @@
               <span class="file-name">{{ file.path?.split(/[/\\]/).pop() || file.name }}</span>
               <span class="file-size">{{ (file.size / (1024 * 1024)).toFixed(1) }}MB</span>
             </div>
-            <div v-if="getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).length > 5" class="more-files">
-              ... and {{ getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).length - 5 }} more files
+            <div
+              v-if="getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).length > 5"
+              class="more-files"
+            >
+              ... and
+              {{
+                getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).length - 5
+              }}
+              more files
             </div>
           </div>
         </div>
@@ -144,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref } from "vue";
 import {
   AlertTriangle,
   GitBranch,
@@ -171,8 +236,8 @@ import {
   Code,
   HardDrive,
   Shield,
-} from 'lucide-vue-next';
-import DependencyImpactAnalyzer from './DependencyImpactAnalyzer.vue';
+} from "lucide-vue-next";
+import DependencyImpactAnalyzer from "./DependencyImpactAnalyzer.vue";
 
 interface PredictiveInsight {
   type: string;
@@ -202,17 +267,17 @@ const showDependencyAnalysis = ref(false);
 
 const getCategoryIcon = (category: string) => {
   switch (category.toLowerCase()) {
-    case 'documents':
+    case "documents":
       return FileText;
-    case 'images':
+    case "images":
       return Image;
-    case 'videos':
+    case "videos":
       return Video;
-    case 'audio':
+    case "audio":
       return Music;
-    case 'code':
+    case "code":
       return Code;
-    case 'executables':
+    case "executables":
       return HardDrive;
     default:
       return FileText;
@@ -221,15 +286,15 @@ const getCategoryIcon = (category: string) => {
 
 const getActionIcon = (action: string) => {
   switch (action) {
-    case 'cleanup':
+    case "cleanup":
       return Trash2;
-    case 'organize':
+    case "organize":
       return FolderOpen;
-    case 'archive':
+    case "archive":
       return Archive;
-    case 'move':
+    case "move":
       return Move;
-    case 'analyze':
+    case "analyze":
       return BrainCircuit;
     default:
       return Target;
@@ -239,15 +304,15 @@ const getActionIcon = (action: string) => {
 const extractCategoryFromReasoning = (reasoning: any): string => {
   const primaryFactor = reasoning.primaryFactor.toLowerCase();
   const categories = [
-    'documents',
-    'images',
-    'videos',
-    'audio',
-    'code',
-    'executables',
-    'system',
-    'temp',
-    'archives',
+    "documents",
+    "images",
+    "videos",
+    "audio",
+    "code",
+    "executables",
+    "system",
+    "temp",
+    "archives",
   ];
 
   for (const category of categories) {
@@ -265,7 +330,7 @@ const extractCategoryFromReasoning = (reasoning: any): string => {
     }
   }
 
-  return 'unknown';
+  return "unknown";
 };
 
 const getFilesByCategory = (category: string) => {
@@ -286,29 +351,30 @@ const executeAction = async (action: string, target: string, insight: Predictive
   actionProgress.value = { ...actionProgress.value, [`${action}-${target}`]: 0 };
 
   try {
-    if (['delete', 'move', 'archive'].includes(action)) {
+    if (["delete", "move", "archive"].includes(action)) {
       await analyzeDependencies(action, target, insight);
     }
 
     if (
       dependencyAnalysis.value &&
-      (dependencyAnalysis.value.overallRisk === 'critical' || dependencyAnalysis.value.overallRisk === 'high')
+      (dependencyAnalysis.value.overallRisk === "critical" ||
+        dependencyAnalysis.value.overallRisk === "high")
     ) {
       showDependencyAnalysis.value = true;
       return;
     }
 
     switch (action) {
-      case 'cleanup':
+      case "cleanup":
         await executeCleanup(target, insight);
         break;
-      case 'organize':
+      case "organize":
         await executeOrganization(target, insight);
         break;
-      case 'archive':
+      case "archive":
         await executeArchive(target, insight);
         break;
-      case 'analyze':
+      case "analyze":
         await executeAnalysis(target, insight);
         break;
       default:
@@ -329,9 +395,9 @@ const analyzeDependencies = async (action: string, target: string, insight: Pred
 
   try {
     // Placeholder for dependency analysis
-    console.log('Analyzing dependencies for', action, target);
+    console.log("Analyzing dependencies for", action, target);
   } catch (error) {
-    console.error('Failed to analyze dependencies:', error);
+    console.error("Failed to analyze dependencies:", error);
   } finally {
     analyzingDependencies.value = false;
   }
@@ -341,17 +407,26 @@ const executeActionWithConfirmation = async (action: string, alternative?: strin
   const actualAction = alternative || action;
 
   switch (actualAction) {
-    case 'cleanup':
-      await executeCleanup(dependencyAnalysis.value?.targetFiles[0]?.split('/')[0] || '', {} as any);
+    case "cleanup":
+      await executeCleanup(
+        dependencyAnalysis.value?.targetFiles[0]?.split("/")[0] || "",
+        {} as any
+      );
       break;
-    case 'organize':
-      await executeOrganization(dependencyAnalysis.value?.targetFiles[0]?.split('/')[0] || '', {} as any);
+    case "organize":
+      await executeOrganization(
+        dependencyAnalysis.value?.targetFiles[0]?.split("/")[0] || "",
+        {} as any
+      );
       break;
-    case 'archive':
-      await executeArchive(dependencyAnalysis.value?.targetFiles[0]?.split('/')[0] || '', {} as any);
+    case "archive":
+      await executeArchive(
+        dependencyAnalysis.value?.targetFiles[0]?.split("/")[0] || "",
+        {} as any
+      );
       break;
-    case 'move':
-      await executeMove(dependencyAnalysis.value?.targetFiles[0]?.split('/')[0] || '', {} as any);
+    case "move":
+      await executeMove(dependencyAnalysis.value?.targetFiles[0]?.split("/")[0] || "", {} as any);
       break;
     default:
       console.log(`Executing alternative action: ${actualAction}`);
@@ -419,51 +494,51 @@ const getRecommendedActions = (insight: PredictiveInsight, category: string) => 
     type: string;
     label: string;
     description: string;
-    priority: 'high' | 'medium' | 'low';
+    priority: "high" | "medium" | "low";
   }[] = [];
 
   switch (insight.type) {
-    case 'growth':
-      if (insight.reasoning.trendAnalysis?.direction === 'increasing') {
+    case "growth":
+      if (insight.reasoning.trendAnalysis?.direction === "increasing") {
         actions.push({
-          type: 'cleanup',
-          label: 'Smart Cleanup',
+          type: "cleanup",
+          label: "Smart Cleanup",
           description: `Remove unnecessary ${category} files to slow growth`,
-          priority: 'high',
+          priority: "high",
         });
         actions.push({
-          type: 'archive',
-          label: 'Archive Large Files',
+          type: "archive",
+          label: "Archive Large Files",
           description: `Move large ${category} files to archive storage`,
-          priority: 'medium',
+          priority: "medium",
         });
       }
       break;
 
-    case 'cleanup':
+    case "cleanup":
       actions.push({
-        type: 'cleanup',
-        label: 'Quick Cleanup',
+        type: "cleanup",
+        label: "Quick Cleanup",
         description: `Remove temp and unnecessary ${category} files`,
-        priority: 'high',
+        priority: "high",
       });
       break;
 
-    case 'organization':
+    case "organization":
       actions.push({
-        type: 'organize',
-        label: 'Auto-Organize',
+        type: "organize",
+        label: "Auto-Organize",
         description: `Create subfolders and organize ${category} files`,
-        priority: 'medium',
+        priority: "medium",
       });
       break;
 
-    case 'security':
+    case "security":
       actions.push({
-        type: 'analyze',
-        label: 'Security Scan',
+        type: "analyze",
+        label: "Security Scan",
         description: `Analyze ${category} files for security risks`,
-        priority: 'high',
+        priority: "high",
       });
       break;
   }

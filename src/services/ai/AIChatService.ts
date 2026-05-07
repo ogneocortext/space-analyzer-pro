@@ -93,13 +93,7 @@ export class AIChatService {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: [
-            {
-              role: "user",
-              content: message,
-              timestamp: new Date(),
-            },
-          ],
+          message,
           context,
           options: {
             enableSelfLearning: options.enableSelfLearning ?? true,

@@ -435,7 +435,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick } from "vue";
-import { abTestingFramework, ABTest, ABTestResults } from "@/store/abTestingFramework";
+import { abTestingFramework, ABTest, ABTestResults } from "@/store";
 
 interface ReportData {
   test: ABTest;

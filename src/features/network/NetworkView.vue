@@ -12,20 +12,20 @@ const viewMode = ref<"folders" | "types" | "duplicates">("folders");
 // Generate network nodes and links from file data
 const networkData = computed(() => {
   if (!store.analysisResult?.files) return { nodes: [], links: [] };
-  
+
   const files = store.analysisResult.files;
   const nodes: any[] = [];
   const links: any[] = [];
   const nodeMap = new Map();
-  
+
   if (viewMode.value === "folders") {
     // Group by parent folder
     const folderMap = new Map();
-    
+
     files.forEach((file: any) => {
       const parts = file.path.split(/[\\/]/);
       const parentPath = parts.slice(0, -1).join("/") || "root";
-      
+
       if (!folderMap.has(parentPath)) {
         folderMap.set(parentPath, {
           id: parentPath,
@@ -35,12 +35,12 @@ const networkData = computed(() => {
           type: "folder",
         });
       }
-      
+
       const folder = folderMap.get(parentPath);
       folder.size += file.size || 0;
       folder.fileCount += 1;
     });
-    
+
     // Create folder nodes
     folderMap.forEach((folder, path) => {
       nodes.push({
@@ -56,7 +56,7 @@ const networkData = computed(() => {
       });
       nodeMap.set(path, nodes[nodes.length - 1]);
     });
-    
+
     // Create parent-child links
     folderMap.forEach((folder, path) => {
       const parts = path.split("/");
@@ -74,10 +74,10 @@ const networkData = computed(() => {
   } else if (viewMode.value === "types") {
     // Group by file type
     const typeMap = new Map();
-    
+
     files.forEach((file: any) => {
-      const ext = file.name.split('.').pop()?.toLowerCase() || "no-ext";
-      
+      const ext = file.name.split(".").pop()?.toLowerCase() || "no-ext";
+
       if (!typeMap.has(ext)) {
         typeMap.set(ext, {
           id: ext,
@@ -87,12 +87,12 @@ const networkData = computed(() => {
           type: "filetype",
         });
       }
-      
+
       const type = typeMap.get(ext);
       type.size += file.size || 0;
       type.fileCount += 1;
     });
-    
+
     typeMap.forEach((type, ext) => {
       nodes.push({
         id: ext,
@@ -109,7 +109,7 @@ const networkData = computed(() => {
   } else {
     // Show duplicate relationships
     const dupGroups = store.analysisResult.duplicateGroups || [];
-    
+
     dupGroups.forEach((group: any, idx: number) => {
       const groupId = `group-${idx}`;
       nodes.push({
@@ -123,7 +123,7 @@ const networkData = computed(() => {
         vx: 0,
         vy: 0,
       });
-      
+
       group.files.forEach((file: any) => {
         const fileId = `file-${file.path}`;
         nodes.push({
@@ -136,7 +136,7 @@ const networkData = computed(() => {
           vx: 0,
           vy: 0,
         });
-        
+
         links.push({
           source: nodes[nodes.length - 1],
           target: nodes.find((n: any) => n.id === groupId),
@@ -145,7 +145,7 @@ const networkData = computed(() => {
       });
     });
   }
-  
+
   return { nodes, links };
 });
 
@@ -153,7 +153,7 @@ const networkData = computed(() => {
 function updateGraph() {
   const { nodes, links } = networkData.value;
   if (nodes.length === 0) return;
-  
+
   // Repulsion
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
@@ -161,36 +161,36 @@ function updateGraph() {
       const dy = nodes[j].y - nodes[i].y;
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
       const force = 5000 / (dist * dist);
-      
+
       nodes[i].vx -= (dx / dist) * force;
       nodes[i].vy -= (dy / dist) * force;
       nodes[j].vx += (dx / dist) * force;
       nodes[j].vy += (dy / dist) * force;
     }
   }
-  
+
   // Attraction (links)
   links.forEach((link: any) => {
     const dx = link.target.x - link.source.x;
     const dy = link.target.y - link.source.y;
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
     const force = (dist - 100) * 0.01 * link.strength;
-    
+
     link.source.vx += (dx / dist) * force;
     link.source.vy += (dy / dist) * force;
     link.target.vx -= (dx / dist) * force;
     link.target.vy -= (dy / dist) * force;
   });
-  
+
   // Center gravity
   nodes.forEach((node: any) => {
     node.vx += (400 - node.x) * 0.001;
     node.vy += (300 - node.y) * 0.001;
-    
+
     // Damping
     node.vx *= 0.9;
     node.vy *= 0.9;
-    
+
     // Update position
     node.x += node.vx;
     node.y += node.vy;
@@ -201,14 +201,14 @@ function updateGraph() {
 function render() {
   const canvas = canvasRef.value;
   if (!canvas) return;
-  
+
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
+
   const { nodes, links } = networkData.value;
-  
+
   // Draw links
   ctx.strokeStyle = "rgba(100, 116, 139, 0.3)";
   ctx.lineWidth = 1;
@@ -218,23 +218,23 @@ function render() {
     ctx.lineTo(link.target.x, link.target.y);
     ctx.stroke();
   });
-  
+
   // Draw nodes
   nodes.forEach((node: any) => {
     const radius = Math.max(10, Math.min(50, Math.sqrt(node.size) / 1000));
-    
+
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
     ctx.fillStyle = getNodeColor(node.type);
     ctx.fill();
-    
+
     // Selected highlight
     if (selectedNode.value?.id === node.id) {
       ctx.strokeStyle = "#60a5fa";
       ctx.lineWidth = 3;
       ctx.stroke();
     }
-    
+
     // Label
     ctx.fillStyle = "#e2e8f0";
     ctx.font = "12px sans-serif";
@@ -245,11 +245,16 @@ function render() {
 
 function getNodeColor(type: string): string {
   switch (type) {
-    case "folder": return "#3b82f6";
-    case "filetype": return "#10b981";
-    case "duplicate": return "#ef4444";
-    case "file": return "#f59e0b";
-    default: return "#64748b";
+    case "folder":
+      return "#3b82f6";
+    case "filetype":
+      return "#10b981";
+    case "duplicate":
+      return "#ef4444";
+    case "file":
+      return "#f59e0b";
+    default:
+      return "#64748b";
   }
 }
 
@@ -262,23 +267,23 @@ function animate() {
 function handleCanvasClick(e: MouseEvent) {
   const canvas = canvasRef.value;
   if (!canvas) return;
-  
+
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
-  
+
   const { nodes } = networkData.value;
   for (const node of nodes) {
     const dx = x - node.x;
     const dy = y - node.y;
     const radius = Math.max(10, Math.min(50, Math.sqrt(node.size) / 1000));
-    
+
     if (dx * dx + dy * dy < radius * radius) {
       selectedNode.value = node;
       return;
     }
   }
-  
+
   selectedNode.value = null;
 }
 

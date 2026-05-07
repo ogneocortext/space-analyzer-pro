@@ -48,19 +48,19 @@ export const usePerformanceMonitor = (): UsePerformanceMonitorReturn => {
     calculateFPS();
 
     // Get memory usage if available
-    if ('memory' in performance) {
+    if ("memory" in performance) {
       const memory = (performance as any).memory;
       metrics.value.memoryUsage = memory.usedJSHeapSize;
     }
 
     // Count components (simplified)
-    const components = document.querySelectorAll('[data-component]');
+    const components = document.querySelectorAll("[data-component]");
     metrics.value.componentCount = components.length;
   };
 
   const startMonitoring = () => {
     if (isMonitoring.value) return;
-    
+
     isMonitoring.value = true;
     frameCount.value = 0;
     lastFrameTime.value = performance.now();
@@ -69,7 +69,7 @@ export const usePerformanceMonitor = (): UsePerformanceMonitorReturn => {
       updateMetrics();
       animationFrameId = requestAnimationFrame(animate);
     };
-    
+
     animationFrameId = requestAnimationFrame(animate);
   };
 

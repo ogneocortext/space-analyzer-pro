@@ -3,7 +3,7 @@
  * Optimized for Ollama 0.23.0 localhost operation
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // ============================================================================
 // Ollama Model Schemas
@@ -33,7 +33,7 @@ export const OllamaModelSchema = z.object({
 // ============================================================================
 
 export const ChatMessageSchema = z.object({
-  role: z.enum(['user', 'assistant', 'system']),
+  role: z.enum(["user", "assistant", "system"]),
   content: z.string().min(1, "Message content is required"),
   timestamp: z.date().or(z.string().datetime()),
   model: z.string().optional(),
@@ -44,23 +44,29 @@ export const ChatRequestSchema = z.object({
   model: z.string().min(1, "Model name is required"),
   messages: z.array(ChatMessageSchema).min(1, "At least one message required"),
   stream: z.boolean().optional().default(false),
-  options: z.object({
-    temperature: z.number().min(0).max(2).optional(),
-    top_p: z.number().min(0).max(1).optional(),
-    top_k: z.number().int().positive().optional(),
-    num_ctx: z.number().int().positive().optional(),
-    num_predict: z.number().int().optional(),
-    stop: z.array(z.string()).optional(),
-    seed: z.number().int().optional(),
-  }).optional(),
-  tools: z.array(z.object({
-    type: z.literal('function'),
-    function: z.object({
-      name: z.string(),
-      description: z.string(),
-      parameters: z.record(z.any()),
-    }),
-  })).optional(), // Ollama 0.23.0 tool calling support
+  options: z
+    .object({
+      temperature: z.number().min(0).max(2).optional(),
+      top_p: z.number().min(0).max(1).optional(),
+      top_k: z.number().int().positive().optional(),
+      num_ctx: z.number().int().positive().optional(),
+      num_predict: z.number().int().optional(),
+      stop: z.array(z.string()).optional(),
+      seed: z.number().int().optional(),
+    })
+    .optional(),
+  tools: z
+    .array(
+      z.object({
+        type: z.literal("function"),
+        function: z.object({
+          name: z.string(),
+          description: z.string(),
+          parameters: z.record(z.string(), z.any()),
+        }),
+      })
+    )
+    .optional(), // Ollama 0.23.0 tool calling support
 });
 
 // ============================================================================
@@ -78,12 +84,16 @@ export const OllamaResponseSchema = z.object({
   context: z.array(z.number()).optional(),
   used_model: z.string().optional(),
   // Tool calling (Ollama 0.23.0+)
-  tool_calls: z.array(z.object({
-    function: z.object({
-      name: z.string(),
-      arguments: z.record(z.any()),
-    }),
-  })).optional(),
+  tool_calls: z
+    .array(
+      z.object({
+        function: z.object({
+          name: z.string(),
+          arguments: z.record(z.string(), z.any()),
+        }),
+      })
+    )
+    .optional(),
 });
 
 // ============================================================================
@@ -95,15 +105,17 @@ export const GenerateRequestSchema = z.object({
   prompt: z.string().min(1, "Prompt is required"),
   suffix: z.string().optional(),
   images: z.array(z.string()).optional(),
-  format: z.enum(['json']).optional(),
-  options: z.object({
-    temperature: z.number().min(0).max(2).optional(),
-    top_p: z.number().min(0).max(1).optional(),
-    top_k: z.number().int().positive().optional(),
-    num_ctx: z.number().int().positive().optional(),
-    num_predict: z.number().int().optional(),
-    seed: z.number().int().optional(),
-  }).optional(),
+  format: z.enum(["json"]).optional(),
+  options: z
+    .object({
+      temperature: z.number().min(0).max(2).optional(),
+      top_p: z.number().min(0).max(1).optional(),
+      top_k: z.number().int().positive().optional(),
+      num_ctx: z.number().int().positive().optional(),
+      num_predict: z.number().int().optional(),
+      seed: z.number().int().optional(),
+    })
+    .optional(),
   system: z.string().optional(),
   template: z.string().optional(),
   context: z.array(z.number()).optional(),
@@ -133,7 +145,7 @@ export const GenerateResponseSchema = z.object({
 export const EmbeddingRequestSchema = z.object({
   model: z.string().min(1),
   prompt: z.string().min(1),
-  options: z.record(z.any()).optional(),
+  options: z.record(z.string(), z.any()).optional(),
   keep_alive: z.union([z.string(), z.number()]).optional(),
 });
 
@@ -214,8 +226,8 @@ export const FeaturedModelsResponseSchema = z.object({
 // ============================================================================
 
 export const OllamaConfigSchema = z.object({
-  baseUrl: z.string().url().default('http://localhost:11434'),
-  defaultModel: z.string().min(1).default('qwen2.5-coder:7b-instruct'),
+  baseUrl: z.string().url().default("http://localhost:11434"),
+  defaultModel: z.string().min(1).default("qwen2.5-coder:7b-instruct"),
   defaultNumCtx: z.number().int().positive().min(1024).max(32768).default(4096),
   timeout: z.number().int().positive().default(30000),
   retries: z.number().int().nonnegative().default(3),
@@ -239,5 +251,7 @@ export type EmbeddingResponse = z.infer<typeof EmbeddingResponseSchema>;
 export type VisionAnalysisResult = z.infer<typeof VisionAnalysisResultSchema>;
 export type OpenClawSearchResult = z.infer<typeof OpenClawSearchResultSchema>;
 export type OpenClawSearchResponse = z.infer<typeof OpenClawSearchResponseSchema>;
+
 export type FeaturedModel = z.infer<typeof FeaturedModelSchema>;
+export type FeaturedModelsResponse = z.infer<typeof FeaturedModelsResponseSchema>;
 export type OllamaConfig = z.infer<typeof OllamaConfigSchema>;

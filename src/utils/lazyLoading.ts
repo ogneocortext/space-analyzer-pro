@@ -15,10 +15,9 @@ export const LazyComponent = <T extends any>(loaderFunc: () => Promise<{ default
 export const preloadComponents = async () => {
   try {
     // Preload dashboard components with correct paths
-    const { default: DashboardView } = await import("../components/vue/SpaceAnalyzerDashboard.vue");
-    const { default: AnalysisResults } =
-      await import("../components/vue/analysis/AnalysisResults.vue");
-    const { default: FileExplorer } = await import("../components/vue/browser/FileExplorer.vue");
+    const { default: DashboardView } = await import("../features/dashboard/DashboardView.vue");
+    const { default: AnalysisResults } = await import("../components/analysis/AnalysisResults.vue");
+    const { default: FileExplorer } = await import("../components/browser/FileExplorer.vue");
 
     return {
       DashboardView,

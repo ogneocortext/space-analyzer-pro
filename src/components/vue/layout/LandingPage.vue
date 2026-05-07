@@ -381,7 +381,7 @@ import {
   Box,
 } from "lucide-vue-next";
 import RealTimeFileScanner from "../RealTimeFileScanner.vue";
-import StorageGauge from "../StorageGauge.vue";
+import StorageGauge from "./StorageGauge.vue";
 import {
   analysisStoreKey,
   appStoreKey,

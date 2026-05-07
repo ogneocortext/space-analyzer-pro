@@ -22,7 +22,9 @@ export interface UseFileBrowserStateReturn {
   resetState: () => void;
 }
 
-export const useFileBrowserState = (initialState: Partial<FileBrowserState> = {}): UseFileBrowserStateReturn => {
+export const useFileBrowserState = (
+  initialState: Partial<FileBrowserState> = {}
+): UseFileBrowserStateReturn => {
   const state = ref<FileBrowserState>({
     searchQuery: "",
     sortBy: "name",
@@ -30,7 +32,7 @@ export const useFileBrowserState = (initialState: Partial<FileBrowserState> = {}
     filterType: "all",
     pageSize: 50,
     currentPage: 1,
-    ...initialState
+    ...initialState,
   });
 
   const totalPages = computed(() => Math.ceil(100 / state.value.pageSize)); // Assuming 100 total items

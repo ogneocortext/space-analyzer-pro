@@ -3,10 +3,8 @@
     <div class="status-header" @click="toggleExpanded">
       <span class="status-icon">☁️</span>
       <span class="status-text">Ollama Cloud</span>
-      <span class="usage-badge" :class="usageClass">
-        {{ usagePercent }}%
-      </span>
-      <span class="expand-icon">{{ expanded ? '▼' : '▶' }}</span>
+      <span class="usage-badge" :class="usageClass"> {{ usagePercent }}% </span>
+      <span class="expand-icon">{{ expanded ? "▼" : "▶" }}</span>
     </div>
 
     <div v-if="expanded" class="status-details">
@@ -44,18 +42,10 @@
 
       <!-- Actions -->
       <div class="status-actions">
-        <button
-          v-if="!isLocalOnly"
-          class="action-btn local-only"
-          @click="enableLocalOnly"
-        >
+        <button v-if="!isLocalOnly" class="action-btn local-only" @click="enableLocalOnly">
           🏠 Local Only Mode
         </button>
-        <button
-          v-else
-          class="action-btn cloud-enabled"
-          @click="disableLocalOnly"
-        >
+        <button v-else class="action-btn cloud-enabled" @click="disableLocalOnly">
           ☁️ Enable Cloud
         </button>
         <button class="action-btn" @click="refreshStats">🔄 Refresh</button>
@@ -97,13 +87,9 @@ const usageClass = computed(() => {
   return "ok";
 });
 
-const sessionUsagePercent = computed(() =>
-  Math.round(stats.value.sessionUsage * 100)
-);
+const sessionUsagePercent = computed(() => Math.round(stats.value.sessionUsage * 100));
 
-const weekUsagePercent = computed(() =>
-  Math.round(stats.value.weekUsage * 100)
-);
+const weekUsagePercent = computed(() => Math.round(stats.value.weekUsage * 100));
 
 const sessionUsageClass = computed(() => {
   if (stats.value.sessionUsage >= 0.9) return "critical";
@@ -139,7 +125,14 @@ function enableLocalOnly() {
 
 function disableLocalOnly() {
   // Reset to free tier config
-  Object.assign(ollamaRateLimiter, { config: { maxCallsPerSession: 50, maxCallsPerWeek: 200, minIntervalMs: 1000, warningThreshold: 0.8 } });
+  Object.assign(ollamaRateLimiter, {
+    config: {
+      maxCallsPerSession: 50,
+      maxCallsPerWeek: 200,
+      minIntervalMs: 1000,
+      warningThreshold: 0.8,
+    },
+  });
   refreshStats();
 }
 

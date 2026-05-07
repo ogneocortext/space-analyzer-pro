@@ -25,9 +25,9 @@ export interface RateLimitState {
 // Default free tier limits (conservative estimates)
 export const FREE_TIER_LIMITS: RateLimitConfig = {
   maxCallsPerSession: 50, // Conservative estimate for "light usage"
-  maxCallsPerWeek: 200,   // Conservative weekly limit
-  minIntervalMs: 1000,    // Minimum 1 second between calls
-  warningThreshold: 0.8,  // Warn at 80% usage
+  maxCallsPerWeek: 200, // Conservative weekly limit
+  minIntervalMs: 1000, // Minimum 1 second between calls
+  warningThreshold: 0.8, // Warn at 80% usage
 };
 
 // Local-only mode - no cloud calls allowed
@@ -117,14 +117,14 @@ class OllamaRateLimiter {
     if (sessionUsage >= this.config.warningThreshold) {
       console.warn(
         `[OllamaRateLimiter] Session usage at ${(sessionUsage * 100).toFixed(0)}% ` +
-        `(${this.state.callsThisSession}/${this.config.maxCallsPerSession} calls)`
+          `(${this.state.callsThisSession}/${this.config.maxCallsPerSession} calls)`
       );
     }
 
     if (weekUsage >= this.config.warningThreshold) {
       console.warn(
         `[OllamaRateLimiter] Weekly usage at ${(weekUsage * 100).toFixed(0)}% ` +
-        `(${this.state.callsThisWeek}/${this.config.maxCallsPerWeek} calls)`
+          `(${this.state.callsThisWeek}/${this.config.maxCallsPerWeek} calls)`
       );
     }
   }

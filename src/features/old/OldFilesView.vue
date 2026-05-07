@@ -12,11 +12,11 @@ const sortBy = ref<"size" | "date">("size");
 // Find old files
 const oldFiles = computed(() => {
   if (!store.analysisResult?.files) return [];
-  
+
   const now = Date.now();
   const thresholdMs = ageThreshold.value * 24 * 60 * 60 * 1000;
   const cutoff = now - thresholdMs;
-  
+
   return store.analysisResult.files
     .filter((f: any) => {
       const modified = new Date(f.modified).getTime();
@@ -37,10 +37,11 @@ const oldFiles = computed(() => {
 // Statistics
 const stats = computed(() => {
   if (!oldFiles.value.length) return null;
-  
+
   const totalSize = oldFiles.value.reduce((sum: number, f: any) => sum + (f.size || 0), 0);
-  const avgAge = oldFiles.value.reduce((sum: number, f: any) => sum + f.age, 0) / oldFiles.value.length;
-  
+  const avgAge =
+    oldFiles.value.reduce((sum: number, f: any) => sum + f.age, 0) / oldFiles.value.length;
+
   // Group by year
   const byYear: Record<string, number> = {};
   oldFiles.value.forEach((f: any) => {
@@ -48,7 +49,7 @@ const stats = computed(() => {
     const key = year >= 5 ? "5+ years" : year >= 2 ? "2-5 years" : "1-2 years";
     byYear[key] = (byYear[key] || 0) + 1;
   });
-  
+
   return {
     count: oldFiles.value.length,
     totalSize,
@@ -173,7 +174,9 @@ function formatAge(days: number): string {
           <div class="text-sm text-slate-500">of old files</div>
         </Card>
         <Card title="Potential Savings">
-          <div class="text-2xl font-bold text-emerald-400">{{ formatSize(stats.potentialSavings) }}</div>
+          <div class="text-2xl font-bold text-emerald-400">
+            {{ formatSize(stats.potentialSavings) }}
+          </div>
           <div class="text-sm text-slate-500">if archived/deleted</div>
         </Card>
       </div>
@@ -182,7 +185,9 @@ function formatAge(days: number): string {
       <Card v-if="stats?.byYear" title="Age Distribution">
         <div class="space-y-3">
           <div
-            v-for="[range, count] in Object.entries(stats.byYear).sort((a, b) => parseInt(b[0]) - parseInt(a[0]))"
+            v-for="[range, count] in Object.entries(stats.byYear).sort(
+              (a, b) => parseInt(b[0]) - parseInt(a[0])
+            )"
             :key="range"
             class="flex items-center gap-4"
           >
@@ -190,7 +195,7 @@ function formatAge(days: number): string {
             <div class="flex-1 h-4 bg-slate-800 rounded-full overflow-hidden">
               <div
                 class="h-full bg-orange-500 rounded-full"
-                :style="{ width: (count / stats.count * 100) + '%' }"
+                :style="{ width: (count / stats.count) * 100 + '%' }"
               />
             </div>
             <span class="w-16 text-right text-sm text-slate-300">{{ count }} files</span>
@@ -199,7 +204,10 @@ function formatAge(days: number): string {
       </Card>
 
       <!-- Selection Actions -->
-      <div v-if="selectedFiles.size > 0" class="flex items-center gap-4 p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
+      <div
+        v-if="selectedFiles.size > 0"
+        class="flex items-center gap-4 p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg"
+      >
         <span class="text-orange-400">{{ selectedFiles.size }} files selected</span>
         <Button variant="secondary" size="sm" @click="clearSelection">Clear</Button>
       </div>
@@ -208,7 +216,9 @@ function formatAge(days: number): string {
       <Card :title="`Old Files (${oldFiles.length})`">
         <div class="space-y-2 max-h-96 overflow-y-auto">
           <!-- Header -->
-          <div class="flex items-center gap-4 p-2 text-sm font-medium text-slate-500 border-b border-slate-700 sticky top-0 bg-slate-900">
+          <div
+            class="flex items-center gap-4 p-2 text-sm font-medium text-slate-500 border-b border-slate-700 sticky top-0 bg-slate-900"
+          >
             <input
               type="checkbox"
               :checked="selectedFiles.size === oldFiles.length && oldFiles.length > 0"
@@ -235,13 +245,18 @@ function formatAge(days: number): string {
               class="rounded border-slate-600 bg-slate-800"
             />
             <div class="flex-1 min-w-0">
-              <div class="font-medium text-slate-200 truncate" :title="file.name">{{ file.name }}</div>
+              <div class="font-medium text-slate-200 truncate" :title="file.name">
+                {{ file.name }}
+              </div>
               <div class="text-sm text-slate-500 truncate" :title="file.path">{{ file.path }}</div>
             </div>
             <span class="w-24 text-right font-medium text-slate-300">
               {{ formatSize(file.size) }}
             </span>
-            <span class="w-28 text-right text-sm" :class="file.age > 730 ? 'text-red-400' : 'text-orange-400'">
+            <span
+              class="w-28 text-right text-sm"
+              :class="file.age > 730 ? 'text-red-400' : 'text-orange-400'"
+            >
               {{ formatAge(file.age) }}
             </span>
             <div class="w-16 text-right">
@@ -259,12 +274,17 @@ function formatAge(days: number): string {
         <!-- Empty State -->
         <div v-if="oldFiles.length === 0" class="p-8 text-center">
           <p class="text-slate-400">🎉 No old files found!</p>
-          <p class="text-sm text-slate-500 mt-2">All files have been modified within {{ ageThreshold }} days.</p>
+          <p class="text-sm text-slate-500 mt-2">
+            All files have been modified within {{ ageThreshold }} days.
+          </p>
         </div>
       </Card>
 
       <!-- Recommendations -->
-      <div v-if="stats && stats.count > 0" class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+      <div
+        v-if="stats && stats.count > 0"
+        class="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg"
+      >
         <h3 class="font-medium text-blue-400 mb-2">💡 Recommendations</h3>
         <ul class="text-sm text-slate-400 space-y-1 list-disc list-inside">
           <li>Consider archiving files older than 2 years to cold storage</li>

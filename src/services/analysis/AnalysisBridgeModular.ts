@@ -3,19 +3,19 @@
  * Orchestrates all analysis bridge modules for better maintainability
  */
 
-import { AnalysisBridgeCore } from './analysis-bridge/core/AnalysisBridgeCore';
-import { PathValidator } from './analysis-bridge/utils/PathValidator';
-import { ProgressManager } from './analysis-bridge/managers/ProgressManager';
-import { SSEManager } from './analysis-bridge/managers/SSEManager';
-import { ResultsManager } from './analysis-bridge/managers/ResultsManager';
-import { ErrorHandler } from './analysis-bridge/utils/ErrorHandler';
-import type { 
-  AnalysisProgress, 
-  AnalysisResult, 
-  AnalysisOptions, 
+import { AnalysisBridgeCore } from "./analysis-bridge/core/AnalysisBridgeCore";
+import { PathValidator } from "./analysis-bridge/utils/PathValidator";
+import { ProgressManager } from "./analysis-bridge/managers/ProgressManager";
+import { SSEManager } from "./analysis-bridge/managers/SSEManager";
+import { ResultsManager } from "./analysis-bridge/managers/ResultsManager";
+import { ErrorHandler } from "./analysis-bridge/utils/ErrorHandler";
+import type {
+  AnalysisProgress,
+  AnalysisResult,
+  AnalysisOptions,
   BackendResponse,
-  BridgeError 
-} from './analysis-bridge/types';
+  BridgeError,
+} from "./analysis-bridge/types";
 
 export class AnalysisBridgeModular {
   private core: AnalysisBridgeCore;
@@ -43,14 +43,14 @@ export class AnalysisBridgeModular {
       response.id,
       response.meta?.taskId,
     ];
-    
+
     for (const id of possibleIds) {
-      if (id && typeof id === 'string' && id.trim().length > 0) {
+      if (id && typeof id === "string" && id.trim().length > 0) {
         console.log(`✅ Found analysis ID: ${id}`);
         return id.trim();
       }
     }
-    
+
     console.warn("⚠️ No analysis ID found in response:", response);
     return null;
   }
@@ -64,8 +64,8 @@ export class AnalysisBridgeModular {
     options?: AnalysisOptions
   ): Promise<{ result: AnalysisResult; analysisId: string }> {
     const context = this.errorHandler.createContext({
-      userAction: 'analyzeDirectoryWithProgress',
-      endpoint: '/api/analyze',
+      userAction: "analyzeDirectoryWithProgress",
+      endpoint: "/api/analyze",
     });
 
     return this.errorHandler.withErrorHandling(async () => {
@@ -73,14 +73,14 @@ export class AnalysisBridgeModular {
 
       // Validate and normalize path
       const normalizedPath = PathValidator.validateAndNormalizePath(path);
-      
+
       console.log("📂 Original path received:", path);
       console.log("📂 Normalized path for analysis:", normalizedPath);
       console.log("🌐 Using baseUrl:", this.core.config.baseUrl);
 
       // Start analysis
       const analysisId = await this.startAnalysis(normalizedPath, options);
-      
+
       // Set analysis ID for tracking
       if (typeof window !== "undefined") {
         (window as any).__currentAnalysisId = analysisId;
@@ -101,15 +101,12 @@ export class AnalysisBridgeModular {
   /**
    * Start analysis and return analysis ID
    */
-  private async startAnalysis(
-    normalizedPath: string,
-    options?: AnalysisOptions
-  ): Promise<string> {
+  private async startAnalysis(normalizedPath: string, options?: AnalysisOptions): Promise<string> {
     const requestBody = {
       directoryPath: normalizedPath,
-      options: { 
-        ai: true, 
-        media: true, 
+      options: {
+        ai: true,
+        media: true,
         useOllama: options?.useOllama !== false,
         ...options,
       },
@@ -137,7 +134,7 @@ export class AnalysisBridgeModular {
       console.error("❌ Analysis request failed:", error);
       throw this.errorHandler.createError(
         error.error || `Analysis failed: ${response.statusText}`,
-        'ANALYSIS_START_FAILED'
+        "ANALYSIS_START_FAILED"
       );
     }
 
@@ -146,14 +143,14 @@ export class AnalysisBridgeModular {
 
     // Extract and validate analysis ID
     const analysisId = this.extractAnalysisId(startResponse);
-    
+
     if (!analysisId) {
       throw this.errorHandler.createError(
         "Backend did not return an analysis ID",
-        'NO_ANALYSIS_ID'
+        "NO_ANALYSIS_ID"
       );
     }
-    
+
     console.log("📋 Analysis ID for progress tracking:", analysisId);
     return analysisId;
   }
@@ -186,14 +183,13 @@ export class AnalysisBridgeModular {
       );
 
       // Wait a bit to see if SSE connects
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       // If SSE hasn't received any updates and we haven't fallen back to polling, start polling
       if (!pollFallbackUsed) {
         console.log("🔄 Starting simultaneous polling as backup");
         this.startPollingFallback(analysisId, onProgress);
       }
-
     } catch (error) {
       console.warn("⚠️ SSE setup failed, using polling only:", error);
       this.startPollingFallback(analysisId, onProgress);
@@ -215,7 +211,7 @@ export class AnalysisBridgeModular {
       console.error("❌ Progress polling failed:", error);
       throw this.errorHandler.handleError(error as Error, {
         analysisId,
-        endpoint: '/api/progress',
+        endpoint: "/api/progress",
       });
     }
   }
@@ -233,7 +229,7 @@ export class AnalysisBridgeModular {
   async getResults(analysisId: string): Promise<AnalysisResult | null> {
     const context = this.errorHandler.createContext({
       analysisId,
-      endpoint: '/api/results',
+      endpoint: "/api/results",
     });
 
     return this.errorHandler.withErrorHandling(async () => {
@@ -247,21 +243,18 @@ export class AnalysisBridgeModular {
   async cancelAnalysis(analysisId: string): Promise<boolean> {
     const context = this.errorHandler.createContext({
       analysisId,
-      endpoint: '/api/analyze/cancel',
-      userAction: 'cancelAnalysis',
+      endpoint: "/api/analyze/cancel",
+      userAction: "cancelAnalysis",
     });
 
     return this.errorHandler.withErrorHandling(async () => {
       try {
-        const response = await fetch(
-          `${this.core.config.baseUrl}/api/analyze/cancel`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ analysisId }),
-            signal: AbortSignal.timeout(5000),
-          }
-        );
+        const response = await fetch(`${this.core.config.baseUrl}/api/analyze/cancel`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ analysisId }),
+          signal: AbortSignal.timeout(5000),
+        });
 
         return response.ok;
       } catch (error) {

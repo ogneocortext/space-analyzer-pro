@@ -6,7 +6,7 @@
 const fs = require("fs");
 const path = require("path");
 const Joi = require("joi");
-const ports = require(path.resolve(__dirname, "../../../config/ports.config.js"));
+const ports = require(path.resolve(__dirname, "../../../ports.config.cjs"));
 
 class ConfigService {
   constructor() {

@@ -32,10 +32,9 @@ export const useWorker = (): UseWorkerReturn => {
   const initializeWorker = () => {
     try {
       // Create worker from the analysis worker file
-      workerRef.value = new Worker(
-        new URL("../workers/analysisWorker.ts", import.meta.url),
-        { type: "module" }
-      );
+      workerRef.value = new Worker(new URL("../workers/analysisWorker.ts", import.meta.url), {
+        type: "module",
+      });
 
       // Create Comlink wrapper
       workerApiRef.value = Comlink.wrap<WorkerAPI>(workerRef.value);
@@ -43,7 +42,7 @@ export const useWorker = (): UseWorkerReturn => {
       // Setup worker event handlers
       workerRef.value.onmessage = (event) => {
         const { type, data } = event.data;
-        
+
         switch (type) {
           case "ready":
             isWorkerReady.value = true;
@@ -66,7 +65,6 @@ export const useWorker = (): UseWorkerReturn => {
         error.value = `Worker error: ${event.message}`;
         isWorkerReady.value = false;
       };
-
     } catch (err: any) {
       error.value = `Failed to initialize worker: ${err.message}`;
     }

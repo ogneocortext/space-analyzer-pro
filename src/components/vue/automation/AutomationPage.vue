@@ -16,10 +16,11 @@
               <span
                 class="status-dot"
                 :style="{
-                  backgroundColor: rules.filter((rule) => rule.enabled).length > 0 ? '#10b981' : '#ef4444'
+                  backgroundColor:
+                    rules.filter((rule) => rule.enabled).length > 0 ? '#10b981' : '#ef4444',
                 }"
               />
-              {{ rules.filter((rule) => rule.enabled).length > 0 ? 'Active' : 'Inactive' }}
+              {{ rules.filter((rule) => rule.enabled).length > 0 ? "Active" : "Inactive" }}
             </div>
           </div>
           <div class="status-card">
@@ -30,13 +31,13 @@
                 class="status-dot"
                 :style="{ backgroundColor: storageUsage > 80 ? '#ef4444' : '#10b981' }"
               />
-              {{ storageUsage > 80 ? 'High' : 'Normal' }}
+              {{ storageUsage > 80 ? "High" : "Normal" }}
             </div>
           </div>
           <div class="status-card">
             <h4>Last Run</h4>
             <div class="status-value">
-              {{ lastRun?.toLocaleString() || 'Never' }}
+              {{ lastRun?.toLocaleString() || "Never" }}
             </div>
             <div class="status-indicator">
               <span class="status-dot" style="background-color: #10b981" />
@@ -46,7 +47,7 @@
           <div class="status-card">
             <h4>Next Scheduled</h4>
             <div class="status-value">
-              {{ nextScheduled?.toLocaleString() || 'No scheduled tasks' }}
+              {{ nextScheduled?.toLocaleString() || "No scheduled tasks" }}
             </div>
             <div class="status-indicator">
               <span class="status-dot" style="background-color: #3b82f6" />
@@ -59,9 +60,7 @@
       <div class="rules-list">
         <div class="rules-header">
           <h3>Active Automations</h3>
-          <button class="add-rule-button" @click="isCreatingRule = true">
-            + Add Rule
-          </button>
+          <button class="add-rule-button" @click="isCreatingRule = true">+ Add Rule</button>
         </div>
 
         <div
@@ -76,18 +75,10 @@
             </div>
             <div class="rule-controls">
               <label class="switch">
-                <input
-                  type="checkbox"
-                  :checked="rule.enabled"
-                  @change="toggleRule(rule.id)"
-                />
+                <input type="checkbox" :checked="rule.enabled" @change="toggleRule(rule.id)" />
                 <span class="slider" />
               </label>
-              <button
-                class="delete-button"
-                @click="deleteRule(rule.id)"
-                title="Delete rule"
-              >
+              <button class="delete-button" @click="deleteRule(rule.id)" title="Delete rule">
                 🗑️
               </button>
             </div>
@@ -133,9 +124,7 @@
           </div>
           <div class="form-actions">
             <button class="form-button">Create Rule</button>
-            <button class="cancel-button" @click="isCreatingRule = false">
-              Cancel
-            </button>
+            <button class="cancel-button" @click="isCreatingRule = false">Cancel</button>
           </div>
         </div>
       </div>
@@ -168,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from "vue";
 
 interface AutomationRule {
   id: string;
@@ -190,41 +179,41 @@ const props = defineProps<AutomationPageProps>();
 
 const rules = ref<AutomationRule[]>([
   {
-    id: '1',
-    name: 'Auto Cleanup Temporary Files',
-    description: 'Remove temporary files older than 7 days',
-    trigger: 'Daily at 2:00 AM',
-    action: 'Delete files matching *.tmp, *.temp, *.cache',
+    id: "1",
+    name: "Auto Cleanup Temporary Files",
+    description: "Remove temporary files older than 7 days",
+    trigger: "Daily at 2:00 AM",
+    action: "Delete files matching *.tmp, *.temp, *.cache",
     enabled: true,
     lastRun: new Date(Date.now() - 24 * 60 * 60 * 1000),
     nextRun: new Date(Date.now() + 24 * 60 * 60 * 1000),
   },
   {
-    id: '2',
-    name: 'Duplicate File Detection',
-    description: 'Scan for and flag duplicate files',
-    trigger: 'Weekly on Sundays',
-    action: 'Generate duplicate file report',
+    id: "2",
+    name: "Duplicate File Detection",
+    description: "Scan for and flag duplicate files",
+    trigger: "Weekly on Sundays",
+    action: "Generate duplicate file report",
     enabled: true,
     lastRun: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     nextRun: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
   },
   {
-    id: '3',
-    name: 'Archive Old Files',
-    description: 'Move files older than 1 year to archive',
-    trigger: 'Monthly on 1st',
-    action: 'Archive files to external storage',
+    id: "3",
+    name: "Archive Old Files",
+    description: "Move files older than 1 year to archive",
+    trigger: "Monthly on 1st",
+    action: "Archive files to external storage",
     enabled: false,
     lastRun: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
     nextRun: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
   },
   {
-    id: '4',
-    name: 'Storage Usage Alert',
-    description: 'Alert when storage usage exceeds 80%',
-    trigger: 'Real-time monitoring',
-    action: 'Send notification and email',
+    id: "4",
+    name: "Storage Usage Alert",
+    description: "Alert when storage usage exceeds 80%",
+    trigger: "Real-time monitoring",
+    action: "Send notification and email",
     enabled: true,
     lastRun: new Date(Date.now() - 1 * 60 * 60 * 1000),
     nextRun: new Date(Date.now() + 1 * 60 * 60 * 1000),
@@ -242,8 +231,7 @@ const storageUsage = computed(() => {
 
 const lastRun = computed(() => {
   return rules.value.reduce(
-    (latest, rule) =>
-      rule.lastRun && (!latest || rule.lastRun > latest) ? rule.lastRun : latest,
+    (latest, rule) => (rule.lastRun && (!latest || rule.lastRun > latest) ? rule.lastRun : latest),
     null as Date | null
   );
 });

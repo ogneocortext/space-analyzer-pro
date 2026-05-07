@@ -7,7 +7,7 @@
         <div>
           <h2 class="text-xl font-semibold">AI Features</h2>
           <p class="text-sm text-gray-400">
-            {{ lastUpdate ? `Last updated: ${lastUpdate.toLocaleString()}` : 'Ready to analyze' }}
+            {{ lastUpdate ? `Last updated: ${lastUpdate.toLocaleString()}` : "Ready to analyze" }}
           </p>
         </div>
       </div>
@@ -34,7 +34,7 @@
           'flex items-center gap-2 px-4 py-2 border-b-2 transition-colors',
           activeTab === tab.id
             ? 'border-purple-500 text-purple-400'
-            : 'border-transparent text-gray-400 hover:text-gray-300'
+            : 'border-transparent text-gray-400 hover:text-gray-300',
         ]"
       >
         <component :is="tab.icon" class="w-4 h-4" />
@@ -67,9 +67,11 @@
           :key="index"
           :class="[
             'border rounded-lg p-4',
-            rec.priority === 'high' ? 'border-red-800 bg-red-900/10' :
-            rec.priority === 'medium' ? 'border-yellow-800 bg-yellow-900/10' :
-            'border-green-800 bg-green-900/10'
+            rec.priority === 'high'
+              ? 'border-red-800 bg-red-900/10'
+              : rec.priority === 'medium'
+                ? 'border-yellow-800 bg-yellow-900/10'
+                : 'border-green-800 bg-green-900/10',
           ]"
         >
           <div class="flex items-start justify-between mb-2">
@@ -78,9 +80,11 @@
                 :is="getPriorityIcon(rec.priority)"
                 :class="[
                   'w-5 h-5',
-                  rec.priority === 'high' ? 'text-red-400' :
-                  rec.priority === 'medium' ? 'text-yellow-400' :
-                  'text-green-400'
+                  rec.priority === 'high'
+                    ? 'text-red-400'
+                    : rec.priority === 'medium'
+                      ? 'text-yellow-400'
+                      : 'text-green-400',
                 ]"
               />
               <h3 class="font-semibold">{{ rec.title }}</h3>
@@ -88,16 +92,21 @@
             <span
               :class="[
                 'text-xs px-2 py-1 rounded',
-                rec.priority === 'high' ? 'bg-red-800 text-red-200' :
-                rec.priority === 'medium' ? 'bg-yellow-800 text-yellow-200' :
-                'bg-green-800 text-green-200'
+                rec.priority === 'high'
+                  ? 'bg-red-800 text-red-200'
+                  : rec.priority === 'medium'
+                    ? 'bg-yellow-800 text-yellow-200'
+                    : 'bg-green-800 text-green-200',
               ]"
             >
               {{ rec.priority }}
             </span>
           </div>
           <p class="text-sm text-gray-300 mb-3">{{ rec.description }}</p>
-          <div v-if="rec.potentialSavings" class="flex items-center gap-2 text-sm text-green-400 mb-3">
+          <div
+            v-if="rec.potentialSavings"
+            class="flex items-center gap-2 text-sm text-green-400 mb-3"
+          >
             <TrendingUp class="w-4 h-4" />
             <span>Potential savings: {{ formatFileSize(rec.potentialSavings) }}</span>
           </div>
@@ -137,7 +146,9 @@
             <Shield class="w-5 h-5 text-blue-400" />
             <p class="text-sm text-gray-400">Cache Hit Rate</p>
           </div>
-          <p class="text-2xl font-bold">{{ (performanceMetrics.cacheHitRate * 100).toFixed(1) }}%</p>
+          <p class="text-2xl font-bold">
+            {{ (performanceMetrics.cacheHitRate * 100).toFixed(1) }}%
+          </p>
         </div>
         <div class="bg-gray-800 rounded-lg p-4">
           <div class="flex items-center gap-2 mb-2">
@@ -185,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch } from "vue";
 import {
   BrainCircuit,
   Zap,
@@ -205,8 +216,8 @@ import {
   Star,
   Shield,
   Activity,
-} from 'lucide-vue-next';
-import { bridge } from '../../services/AnalysisBridge';
+} from "lucide-vue-next";
+import { bridge } from "../../services/AnalysisBridge";
 
 interface AIFeaturesPanelProps {
   directoryPath?: string;
@@ -242,13 +253,13 @@ const performanceMetrics = ref<PerformanceMetrics | null>(null);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const lastUpdate = ref<Date | null>(null);
-const activeTab = ref<'recommendations' | 'performance' | 'search'>('recommendations');
-const searchQuery = ref('');
+const activeTab = ref<"recommendations" | "performance" | "search">("recommendations");
+const searchQuery = ref("");
 
 const tabs = [
-  { id: 'recommendations' as const, label: 'Recommendations', icon: Star },
-  { id: 'performance' as const, label: 'Performance', icon: Activity },
-  { id: 'search' as const, label: 'Search', icon: Search },
+  { id: "recommendations" as const, label: "Recommendations", icon: Star },
+  { id: "performance" as const, label: "Performance", icon: Activity },
+  { id: "search" as const, label: "Search", icon: Search },
 ];
 
 const filteredRecommendations = computed(() => {
@@ -256,8 +267,7 @@ const filteredRecommendations = computed(() => {
   const query = searchQuery.value.toLowerCase();
   return recommendations.value.filter(
     (rec) =>
-      rec.title.toLowerCase().includes(query) ||
-      rec.description.toLowerCase().includes(query)
+      rec.title.toLowerCase().includes(query) || rec.description.toLowerCase().includes(query)
   );
 });
 
@@ -283,10 +293,10 @@ const loadRecommendations = async () => {
       recommendations.value = result.recommendations;
       lastUpdate.value = new Date();
     } else {
-      error.value = 'Failed to load recommendations';
+      error.value = "Failed to load recommendations";
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Unknown error';
+    error.value = err instanceof Error ? err.message : "Unknown error";
   } finally {
     isLoading.value = false;
   }
@@ -312,22 +322,22 @@ const loadPerformanceMetrics = async () => {
       lastUpdate.value = new Date();
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Unknown error';
+    error.value = err instanceof Error ? err.message : "Unknown error";
   }
 };
 
 const executeAction = (action: string) => {
-  console.warn('Executing action:', action);
+  console.warn("Executing action:", action);
   // Implement action execution logic
 };
 
 const getPriorityIcon = (priority: string) => {
   switch (priority) {
-    case 'high':
+    case "high":
       return AlertTriangle;
-    case 'medium':
+    case "medium":
       return Target;
-    case 'low':
+    case "low":
       return CheckCircle;
     default:
       return CheckCircle;
@@ -335,10 +345,10 @@ const getPriorityIcon = (priority: string) => {
 };
 
 const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 </script>

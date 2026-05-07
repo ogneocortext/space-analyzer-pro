@@ -3,19 +3,19 @@
     <div class="titlebar-left">
       <div class="app-icon">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <rect width="16" height="16" rx="3" fill="#6366f1"/>
-          <path d="M4 8L7 5L10 8L7 11L4 8Z" fill="white"/>
+          <rect width="16" height="16" rx="3" fill="#6366f1" />
+          <path d="M4 8L7 5L10 8L7 11L4 8Z" fill="white" />
         </svg>
       </div>
       <span class="app-title">{{ title }}</span>
     </div>
-    
+
     <div class="titlebar-center">
       <div class="search-box" v-if="showSearch">
         <Search class="search-icon" />
-        <input 
+        <input
           ref="searchInput"
-          type="text" 
+          type="text"
           placeholder="Search files, folders, or commands..."
           v-model="searchQuery"
           @keydown.enter="handleSearch"
@@ -26,40 +26,61 @@
         <kbd v-if="!searchQuery && !searchFocused" class="search-shortcut">Ctrl+K</kbd>
       </div>
     </div>
-    
+
     <div class="titlebar-right">
       <!-- Window Controls -->
-      <button 
-        class="window-control minimize"
-        @click="minimizeWindow"
-        title="Minimize"
-      >
+      <button class="window-control minimize" @click="minimizeWindow" title="Minimize">
         <svg width="10" height="10" viewBox="0 0 10 10">
-          <rect x="1" y="4" width="8" height="2" fill="currentColor"/>
+          <rect x="1" y="4" width="8" height="2" fill="currentColor" />
         </svg>
       </button>
-      
-      <button 
+
+      <button
         class="window-control maximize"
         @click="toggleMaximize"
         :title="isMaximized ? 'Restore' : 'Maximize'"
       >
         <svg v-if="!isMaximized" width="10" height="10" viewBox="0 0 10 10">
-          <rect x="1" y="1" width="8" height="8" stroke="currentColor" stroke-width="1" fill="none"/>
+          <rect
+            x="1"
+            y="1"
+            width="8"
+            height="8"
+            stroke="currentColor"
+            stroke-width="1"
+            fill="none"
+          />
         </svg>
         <svg v-else width="10" height="10" viewBox="0 0 10 10">
-          <rect x="2" y="1" width="7" height="7" stroke="currentColor" stroke-width="1" fill="none"/>
-          <rect x="1" y="2" width="7" height="7" stroke="currentColor" stroke-width="1" fill="none"/>
+          <rect
+            x="2"
+            y="1"
+            width="7"
+            height="7"
+            stroke="currentColor"
+            stroke-width="1"
+            fill="none"
+          />
+          <rect
+            x="1"
+            y="2"
+            width="7"
+            height="7"
+            stroke="currentColor"
+            stroke-width="1"
+            fill="none"
+          />
         </svg>
       </button>
-      
-      <button 
-        class="window-control close"
-        @click="closeWindow"
-        title="Close"
-      >
+
+      <button class="window-control close" @click="closeWindow" title="Close">
         <svg width="10" height="10" viewBox="0 0 10 10">
-          <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path
+            d="M1 1L9 9M9 1L1 9"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
         </svg>
       </button>
     </div>
@@ -67,105 +88,105 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { Search } from 'lucide-vue-next'
-import { getCurrentWindow } from '@tauri-apps/api/window'
+import { ref, onMounted, onUnmounted } from "vue";
+import { Search } from "lucide-vue-next";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 interface Props {
-  title?: string
-  showSearch?: boolean
+  title?: string;
+  showSearch?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  title: 'Space Analyzer Pro',
-  showSearch: true
-})
+  title: "Space Analyzer Pro",
+  showSearch: true,
+});
 
 const emit = defineEmits<{
-  search: [query: string]
-}>()
+  search: [query: string];
+}>();
 
-const searchQuery = ref('')
-const searchFocused = ref(false)
-const isMaximized = ref(false)
-const searchInput = ref<HTMLInputElement>()
+const searchQuery = ref("");
+const searchFocused = ref(false);
+const isMaximized = ref(false);
+const searchInput = ref<HTMLInputElement>();
 
-let mainWindow: any = null
+let mainWindow: any = null;
 
 onMounted(async () => {
   try {
-    mainWindow = getCurrentWindow()
-    isMaximized.value = await mainWindow.isMaximized()
+    mainWindow = getCurrentWindow();
+    isMaximized.value = await mainWindow.isMaximized();
   } catch (error) {
-    console.warn('Failed to get window handle:', error)
+    console.warn("Failed to get window handle:", error);
   }
-  
+
   // Global keyboard shortcuts
-  document.addEventListener('keydown', handleGlobalKeydown)
-})
+  document.addEventListener("keydown", handleGlobalKeydown);
+});
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleGlobalKeydown)
-})
+  document.removeEventListener("keydown", handleGlobalKeydown);
+});
 
 function handleGlobalKeydown(event: KeyboardEvent) {
   // Ctrl+K for search
-  if (event.ctrlKey && event.key === 'k') {
-    event.preventDefault()
-    searchInput.value?.focus()
+  if (event.ctrlKey && event.key === "k") {
+    event.preventDefault();
+    searchInput.value?.focus();
   }
-  
+
   // Escape to clear search
-  if (event.key === 'Escape' && searchFocused.value) {
-    clearSearch()
+  if (event.key === "Escape" && searchFocused.value) {
+    clearSearch();
   }
 }
 
 function handleSearch() {
   if (searchQuery.value.trim()) {
-    emit('search', searchQuery.value.trim())
+    emit("search", searchQuery.value.trim());
   }
 }
 
 function clearSearch() {
-  searchQuery.value = ''
-  searchInput.value?.blur()
+  searchQuery.value = "";
+  searchInput.value?.blur();
 }
 
 function onSearchFocus() {
-  searchFocused.value = true
+  searchFocused.value = true;
 }
 
 function onSearchBlur() {
-  searchFocused.value = false
+  searchFocused.value = false;
 }
 
 async function minimizeWindow() {
   try {
-    await mainWindow?.minimize()
+    await mainWindow?.minimize();
   } catch (error) {
-    console.error('Failed to minimize window:', error)
+    console.error("Failed to minimize window:", error);
   }
 }
 
 async function toggleMaximize() {
   try {
     if (isMaximized.value) {
-      await mainWindow?.unmaximize()
+      await mainWindow?.unmaximize();
     } else {
-      await mainWindow?.maximize()
+      await mainWindow?.maximize();
     }
-    isMaximized.value = !isMaximized.value
+    isMaximized.value = !isMaximized.value;
   } catch (error) {
-    console.error('Failed to toggle maximize:', error)
+    console.error("Failed to toggle maximize:", error);
   }
 }
 
 async function closeWindow() {
   try {
-    await mainWindow?.close()
+    await mainWindow?.close();
   } catch (error) {
-    console.error('Failed to close window:', error)
+    console.error("Failed to close window:", error);
   }
 }
 </script>
@@ -204,7 +225,7 @@ async function closeWindow() {
   font-size: 13px;
   font-weight: 500;
   color: #f1f5f9;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .titlebar-center {

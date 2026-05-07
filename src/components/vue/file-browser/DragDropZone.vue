@@ -22,7 +22,7 @@
           <div>
             <p class="text-blue-300 font-medium mb-2">Drop files here to analyze</p>
             <p class="text-blue-400/70 text-sm">
-              {{ multiple ? 'Drop multiple files' : 'Drop one file' }}
+              {{ multiple ? "Drop multiple files" : "Drop one file" }}
             </p>
             <p v-if="maxSize" class="text-blue-400/50 text-xs mt-1">
               Max size: {{ formatFileSize(maxSize) }}
@@ -43,10 +43,7 @@
           <div class="flex-1">
             <p class="text-red-300 text-sm">{{ state.error }}</p>
           </div>
-          <button
-            @click="clearError"
-            class="text-red-400 hover:text-red-300 transition-colors"
-          >
+          <button @click="clearError" class="text-red-400 hover:text-red-300 transition-colors">
             <X class="w-3 h-3" />
           </button>
         </div>
@@ -56,8 +53,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
-import { Upload, X, AlertCircle } from 'lucide-vue-next';
+import { ref, reactive } from "vue";
+import { Upload, X, AlertCircle } from "lucide-vue-next";
 
 interface DragDropZoneProps {
   onDrop: (files: File[], context?: string) => void;
@@ -70,7 +67,7 @@ interface DragDropZoneProps {
 }
 
 const props = withDefaults(defineProps<DragDropZoneProps>(), {
-  className: '',
+  className: "",
   disabled: false,
   accept: () => [],
   maxSize: 100 * 1024 * 1024, // 100MB default
@@ -166,8 +163,8 @@ const handleDragOver = (e: DragEvent) => {
 
   if (props.disabled) return;
 
-  if (e.dataTransfer?.dropEffect === 'copy') {
-    e.dataTransfer.dropEffect = 'copy';
+  if (e.dataTransfer?.dropEffect === "copy") {
+    e.dataTransfer.dropEffect = "copy";
   }
 };
 
@@ -184,8 +181,8 @@ const handleDrop = (e: DragEvent) => {
   dragCounter = 0;
 
   // Handle text drop
-  if (e.dataTransfer?.types.includes('text/plain') && props.onTextDrop) {
-    const text = e.dataTransfer.getData('text/plain');
+  if (e.dataTransfer?.types.includes("text/plain") && props.onTextDrop) {
+    const text = e.dataTransfer.getData("text/plain");
     if (text.trim()) {
       props.onTextDrop(text);
       return;
@@ -198,24 +195,25 @@ const handleDrop = (e: DragEvent) => {
 
     if (files.length > 0) {
       if (!props.multiple && files.length > 1) {
-        showError('Only one file can be dropped at a time');
+        showError("Only one file can be dropped at a time");
         return;
       }
 
-      const context = (e.target as HTMLElement)
-        .closest('[data-drop-context]')
-        ?.getAttribute('data-drop-context') || undefined;
+      const context =
+        (e.target as HTMLElement)
+          .closest("[data-drop-context]")
+          ?.getAttribute("data-drop-context") || undefined;
       props.onDrop(files, context);
     }
   }
 };
 
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
   const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const sizes = ["Bytes", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 </script>
 

@@ -58,7 +58,15 @@ const projections = computed(() => {
     nextMonth: currentSize * (1 + monthlyGrowth / 100),
     nextQuarter: currentSize * Math.pow(1 + monthlyGrowth / 100, 3),
     nextYear: currentSize * Math.pow(1 + monthlyGrowth / 100, 12),
-    fillDate: new Date(Date.now() + (100 * 1024 * 1024 * 1024 / (currentSize * monthlyGrowth / 100)) * 30 * 24 * 60 * 60 * 1000),
+    fillDate: new Date(
+      Date.now() +
+        ((100 * 1024 * 1024 * 1024) / ((currentSize * monthlyGrowth) / 100)) *
+          30 *
+          24 *
+          60 *
+          60 *
+          1000
+    ),
   };
 });
 
@@ -106,14 +114,32 @@ function formatDate(date: Date): string {
       <!-- Stats Overview -->
       <div class="grid grid-cols-4 gap-4">
         <Card title="Current Size">
-          <div class="text-3xl font-bold text-blue-400">{{ formatSize(currentStats?.totalSize || 0) }}</div>
-          <div class="text-sm" :class="currentStats?.sizeGrowth && currentStats.sizeGrowth > 0 ? 'text-red-400' : 'text-emerald-400'">
+          <div class="text-3xl font-bold text-blue-400">
+            {{ formatSize(currentStats?.totalSize || 0) }}
+          </div>
+          <div
+            class="text-sm"
+            :class="
+              currentStats?.sizeGrowth && currentStats.sizeGrowth > 0
+                ? 'text-red-400'
+                : 'text-emerald-400'
+            "
+          >
             {{ currentStats?.sizeGrowth?.toFixed(1) || 0 }}% from last month
           </div>
         </Card>
         <Card title="Total Files">
-          <div class="text-3xl font-bold text-purple-400">{{ currentStats?.totalFiles.toLocaleString() || 0 }}</div>
-          <div class="text-sm" :class="currentStats?.fileGrowth && currentStats.fileGrowth > 0 ? 'text-red-400' : 'text-emerald-400'">
+          <div class="text-3xl font-bold text-purple-400">
+            {{ currentStats?.totalFiles.toLocaleString() || 0 }}
+          </div>
+          <div
+            class="text-sm"
+            :class="
+              currentStats?.fileGrowth && currentStats.fileGrowth > 0
+                ? 'text-red-400'
+                : 'text-emerald-400'
+            "
+          >
             {{ currentStats?.fileGrowth?.toFixed(1) || 0 }}% from last month
           </div>
         </Card>
@@ -133,21 +159,28 @@ function formatDate(date: Date): string {
       <Card title="Storage Projections" v-if="projections">
         <div class="grid grid-cols-3 gap-4 mb-6">
           <div class="text-center">
-            <div class="text-2xl font-bold text-blue-400">{{ formatSize(projections.nextMonth) }}</div>
+            <div class="text-2xl font-bold text-blue-400">
+              {{ formatSize(projections.nextMonth) }}
+            </div>
             <div class="text-sm text-slate-500">Next Month</div>
           </div>
           <div class="text-center">
-            <div class="text-2xl font-bold text-purple-400">{{ formatSize(projections.nextQuarter) }}</div>
+            <div class="text-2xl font-bold text-purple-400">
+              {{ formatSize(projections.nextQuarter) }}
+            </div>
             <div class="text-sm text-slate-500">Next Quarter</div>
           </div>
           <div class="text-center">
-            <div class="text-2xl font-bold text-orange-400">{{ formatSize(projections.nextYear) }}</div>
+            <div class="text-2xl font-bold text-orange-400">
+              {{ formatSize(projections.nextYear) }}
+            </div>
             <div class="text-sm text-slate-500">Next Year</div>
           </div>
         </div>
         <div class="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded">
           <p class="text-sm text-yellow-300">
-            <span class="font-semibold">Storage Alert:</span> At current growth rate, you'll reach 100GB by {{ formatDate(projections.fillDate) }}
+            <span class="font-semibold">Storage Alert:</span> At current growth rate, you'll reach
+            100GB by {{ formatDate(projections.fillDate) }}
           </p>
         </div>
       </Card>
@@ -166,12 +199,18 @@ function formatDate(date: Date): string {
             </div>
             <div class="flex items-center gap-4">
               <div class="text-sm" :class="cat.growth > 0 ? 'text-red-400' : 'text-emerald-400'">
-                {{ cat.growth > 0 ? '+' : '' }}{{ cat.growth }}%
+                {{ cat.growth > 0 ? "+" : "" }}{{ cat.growth }}%
               </div>
               <div class="w-32 h-2 bg-slate-700 rounded-full overflow-hidden">
                 <div
                   class="h-full rounded-full"
-                  :class="cat.growth > 20 ? 'bg-red-500' : cat.growth > 0 ? 'bg-yellow-500' : 'bg-emerald-500'"
+                  :class="
+                    cat.growth > 20
+                      ? 'bg-red-500'
+                      : cat.growth > 0
+                        ? 'bg-yellow-500'
+                        : 'bg-emerald-500'
+                  "
                   :style="{ width: Math.min(Math.abs(cat.growth) * 2, 100) + '%' }"
                 />
               </div>
@@ -185,7 +224,9 @@ function formatDate(date: Date): string {
         <div class="h-48 flex items-center justify-center">
           <div class="text-center">
             <p class="text-slate-400 mb-2">📊 Growth visualization chart</p>
-            <p class="text-sm text-slate-500">Line chart showing {{ trendData.length }} months of storage history</p>
+            <p class="text-sm text-slate-500">
+              Line chart showing {{ trendData.length }} months of storage history
+            </p>
           </div>
         </div>
       </Card>

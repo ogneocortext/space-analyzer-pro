@@ -3,18 +3,20 @@
     <template #header-actions>
       <div class="desktop-header-actions">
         <!-- Notification Bell -->
-        <button 
+        <button
           class="header-action-btn"
           @click="toggleNotifications"
           :class="{ 'has-notifications': hasNotifications }"
           title="Notifications"
         >
           <Bell class="icon" />
-          <span v-if="notificationCount > 0" class="notification-count">{{ notificationCount }}</span>
+          <span v-if="notificationCount > 0" class="notification-count">{{
+            notificationCount
+          }}</span>
         </button>
-        
+
         <!-- Theme Toggle -->
-        <button 
+        <button
           class="header-action-btn"
           @click="toggleTheme"
           :title="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'"
@@ -22,19 +24,15 @@
           <Sun v-if="isDarkMode" class="icon" />
           <Moon v-else class="icon" />
         </button>
-        
+
         <!-- User Menu -->
         <div class="user-menu" ref="userMenuRef">
-          <button 
-            class="header-action-btn user-avatar"
-            @click="toggleUserMenu"
-            title="User menu"
-          >
+          <button class="header-action-btn user-avatar" @click="toggleUserMenu" title="User menu">
             <div class="avatar">
               <User class="icon" />
             </div>
           </button>
-          
+
           <div v-if="userMenuOpen" class="user-dropdown">
             <div class="dropdown-header">
               <span class="username">Desktop User</span>
@@ -58,95 +56,87 @@
         </div>
       </div>
     </template>
-    
+
     <router-view />
   </DesktopLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import {
-  Bell,
-  Sun,
-  Moon,
-  User,
-  Settings,
-  Info,
-  LogOut
-} from 'lucide-vue-next'
-import DesktopLayout from '@/components/vue/desktop/DesktopLayout.vue'
-import { useTauriDesktop } from '@/composables/useTauriDesktop'
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
+import { Bell, Sun, Moon, User, Settings, Info, LogOut } from "lucide-vue-next";
+import DesktopLayout from "@/components/vue/desktop/DesktopLayout.vue";
+import { useTauriDesktop } from "@/composables/useTauriDesktop";
 
-const router = useRouter()
-const { isTauri } = useTauriDesktop()
+const router = useRouter();
+const { isTauri } = useTauriDesktop();
 
 // Reactive state
-const userMenuOpen = ref(false)
-const hasNotifications = ref(true)
-const notificationCount = ref(3)
-const isDarkMode = ref(true)
-const userMenuRef = ref<HTMLElement>()
+const userMenuOpen = ref(false);
+const hasNotifications = ref(true);
+const notificationCount = ref(3);
+const isDarkMode = ref(true);
+const userMenuRef = ref<HTMLElement>();
 
 // Computed properties
-const currentYear = computed(() => new Date().getFullYear())
+const currentYear = computed(() => new Date().getFullYear());
 
 // Methods
 function toggleNotifications() {
   // Toggle notification panel
-  console.log('Toggle notifications')
-  hasNotifications.value = false
-  notificationCount.value = 0
+  console.log("Toggle notifications");
+  hasNotifications.value = false;
+  notificationCount.value = 0;
 }
 
 function toggleTheme() {
-  isDarkMode.value = !isDarkMode.value
+  isDarkMode.value = !isDarkMode.value;
   // Apply theme to document
-  document.documentElement.classList.toggle('light', !isDarkMode.value)
-  document.documentElement.classList.toggle('dark', isDarkMode.value)
+  document.documentElement.classList.toggle("light", !isDarkMode.value);
+  document.documentElement.classList.toggle("dark", isDarkMode.value);
 }
 
 function toggleUserMenu() {
-  userMenuOpen.value = !userMenuOpen.value
+  userMenuOpen.value = !userMenuOpen.value;
 }
 
 function openSettings() {
-  userMenuOpen.value = false
-  router.push('/settings')
+  userMenuOpen.value = false;
+  router.push("/settings");
 }
 
 function openAbout() {
-  userMenuOpen.value = false
+  userMenuOpen.value = false;
   // Show about dialog
-  console.log('Show about dialog')
+  console.log("Show about dialog");
 }
 
 async function exitApp() {
   if (isTauri.value) {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    const mainWindow = getCurrentWindow()
-    await mainWindow.close()
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const mainWindow = getCurrentWindow();
+    await mainWindow.close();
   } else {
-    window.close()
+    window.close();
   }
 }
 
 // Close user menu when clicking outside
 function handleClickOutside(event: MouseEvent) {
   if (userMenuRef.value && !userMenuRef.value.contains(event.target as Node)) {
-    userMenuOpen.value = false
+    userMenuOpen.value = false;
   }
 }
 
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
+  document.addEventListener("click", handleClickOutside);
   // Initialize theme
-  document.documentElement.classList.add('dark')
-})
+  document.documentElement.classList.add("dark");
+});
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
+  document.removeEventListener("click", handleClickOutside);
+});
 </script>
 
 <style scoped>

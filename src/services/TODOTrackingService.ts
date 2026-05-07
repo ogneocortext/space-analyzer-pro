@@ -1,11 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable no-undef */
-/* eslint-disable @typescript-eslint/no-floating-promises */
-/* eslint-disable preserve-caught-error */
 
 // TODO Tracking and Completion Workflow Service
 // Manages TODO items, tracks completion, and automates workflows
+
+import { validateTODOItem } from "@/utils/InputValidation";
 
 interface MockTODO {
   file: string;
@@ -119,8 +117,8 @@ export class TODOTrackingService {
   private todos: Map<string, TODOItem> = new Map();
   private workflows: Map<string, TODOWorkflow> = new Map();
   private templates: Map<string, WorkflowTemplate> = new Map();
-  private watchers: Map<string, Function[]> = new Map();
-  private autoAssignmentRules: any[] = [];
+  private watchers: Map<string, (() => void)[]> = new Map();
+  private autoAssignmentRules: Record<string, unknown>[] = [];
 
   constructor() {
     this.initializeTemplates();
@@ -850,6 +848,13 @@ export class TODOTrackingService {
   updateTODO(id: string, updates: Partial<TODOItem>): TODOItem | undefined {
     const todo = this.todos.get(id);
     if (!todo) return undefined;
+
+    // Validate updates before applying
+    const validation = validateTODOItem(updates);
+    if (!validation.isValid) {
+      console.error("TODO validation failed:", validation.errors);
+      throw new Error(`Invalid TODO data: ${validation.errors.join(", ")}`);
+    }
 
     const updatedTodo = { ...todo, ...updates, updatedAt: Date.now() };
     this.todos.set(id, updatedTodo);

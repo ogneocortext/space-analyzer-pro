@@ -44,7 +44,7 @@
           v-if="item.change !== undefined"
           :class="[
             'data-change flex items-center justify-center gap-1 mt-2',
-            item.change >= 0 ? 'positive' : 'negative'
+            item.change >= 0 ? 'positive' : 'negative',
           ]"
         >
           <TrendingUp v-if="item.change >= 0" class="w-3 h-3" />
@@ -53,10 +53,7 @@
         </div>
 
         <!-- Expandable Description -->
-        <div
-          v-if="expandable && item.description"
-          class="mt-3 pt-3 border-t border-slate-700"
-        >
+        <div v-if="expandable && item.description" class="mt-3 pt-3 border-t border-slate-700">
           <button
             class="expand-toggle w-full text-xs"
             @click.stop="toggleExpanded(item.id)"
@@ -64,7 +61,7 @@
             :aria-expanded="expandedItems.has(item.id) ? 'true' : 'false'"
             :aria-controls="`description-${item.id}`"
           >
-            {{ expandedItems.has(item.id) ? 'Show less' : 'Show more' }}
+            {{ expandedItems.has(item.id) ? "Show less" : "Show more" }}
           </button>
 
           <div
@@ -83,14 +80,14 @@
         Total: {{ formatValue(data.reduce((sum, item) => sum + item.value, 0)) }}
       </div>
       <div class="text-slate-400">
-        Sorted: {{ sortOrder === 'asc' ? 'Low to High' : 'High to Low' }}
+        Sorted: {{ sortOrder === "asc" ? "Low to High" : "High to Low" }}
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from "vue";
 import {
   FolderOpen,
   File,
@@ -99,7 +96,7 @@ import {
   TrendingDown,
   ChevronDown,
   ChevronUp,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface DataItem {
   id: string;
@@ -122,12 +119,12 @@ interface EnhancedDataGridProps {
 
 const props = withDefaults(defineProps<EnhancedDataGridProps>(), {
   expandable: false,
-  className: '',
+  className: "",
   onItemClick: undefined,
 });
 
 const expandedItems = ref<Set<string>>(new Set());
-const sortOrder = ref<'asc' | 'desc'>('desc');
+const sortOrder = ref<"asc" | "desc">("desc");
 
 const toggleExpanded = (id: string) => {
   const newExpanded = new Set(expandedItems.value);
@@ -140,13 +137,13 @@ const toggleExpanded = (id: string) => {
 };
 
 const toggleSort = () => {
-  sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+  sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
 };
 
 const sortedData = computed(() => {
   return [...props.data].sort((a, b) => {
     const comparison = a.value - b.value;
-    return sortOrder.value === 'asc' ? comparison : -comparison;
+    return sortOrder.value === "asc" ? comparison : -comparison;
   });
 });
 
@@ -164,32 +161,29 @@ const formatValue = (value: number) => {
 const getIcon = (item: DataItem) => {
   if (item.icon) return item.icon;
 
-  if (
-    item.name.toLowerCase().includes('folder') ||
-    item.name.toLowerCase().includes('directory')
-  ) {
+  if (item.name.toLowerCase().includes("folder") || item.name.toLowerCase().includes("directory")) {
     return FolderOpen;
-  } else if (item.name.toLowerCase().includes('file')) {
+  } else if (item.name.toLowerCase().includes("file")) {
     return File;
   } else if (
-    item.name.toLowerCase().includes('storage') ||
-    item.name.toLowerCase().includes('disk')
+    item.name.toLowerCase().includes("storage") ||
+    item.name.toLowerCase().includes("disk")
   ) {
     return HardDrive;
   }
 
-  return 'div';
+  return "div";
 };
 
 const handleKeyDown = (e: KeyboardEvent, item: DataItem) => {
-  if (e.key === 'Enter' || e.key === ' ') {
+  if (e.key === "Enter" || e.key === " ") {
     e.preventDefault();
     props.onItemClick?.(item);
   }
 };
 
 const handleExpandKeyDown = (e: KeyboardEvent, id: string) => {
-  if (e.key === 'Enter' || e.key === ' ') {
+  if (e.key === "Enter" || e.key === " ") {
     e.stopPropagation();
     e.preventDefault();
     toggleExpanded(id);

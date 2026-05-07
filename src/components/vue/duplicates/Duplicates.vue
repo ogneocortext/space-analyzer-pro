@@ -106,11 +106,15 @@
     <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-6">
       <h2 class="text-xl font-semibold text-white mb-4">Actions</h2>
       <div class="flex gap-4">
-        <button class="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+        <button
+          class="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+        >
           <Trash2 class="w-5 h-5" />
           <span>Delete All Duplicates</span>
         </button>
-        <button class="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+        <button
+          class="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+        >
           <Copy class="w-5 h-5" />
           <span>Export Report</span>
         </button>
@@ -120,7 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { Copy, Trash2, CheckCircle, AlertTriangle, HardDrive } from 'lucide-vue-next';
+import { Copy, Trash2, CheckCircle, AlertTriangle, HardDrive } from "lucide-vue-next";
 
 interface DuplicatesProps {
   analysisData?: any;

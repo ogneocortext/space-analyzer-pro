@@ -9,16 +9,10 @@
           </div>
           <div class="headerText">
             <h2 class="title">Select Directory for Analysis</h2>
-            <p class="subtitle">
-              Choose a directory to analyze with AI-powered insights
-            </p>
+            <p class="subtitle">Choose a directory to analyze with AI-powered insights</p>
           </div>
         </div>
-        <button
-          @click="onClose"
-          class="closeButton"
-          aria-label="Close directory picker"
-        >
+        <button @click="onClose" class="closeButton" aria-label="Close directory picker">
           <X :size="20" />
         </button>
       </div>
@@ -41,7 +35,7 @@
                 :class="[
                   'directoryButton',
                   !directory.isAccessible ? 'disabled' : '',
-                  (customPath || currentPath) === directory.path ? 'selected' : ''
+                  (customPath || currentPath) === directory.path ? 'selected' : '',
                 ]"
                 :title="directory.description"
               >
@@ -172,13 +166,11 @@
           <div class="platformInfo">
             <Monitor :size="14" class="platformIcon" />
             <span class="platformText">
-              {{ platform === 'windows' ? 'Windows' : platform === 'macos' ? 'macOS' : 'Linux' }}
+              {{ platform === "windows" ? "Windows" : platform === "macos" ? "macOS" : "Linux" }}
             </span>
           </div>
           <div class="footerActions">
-            <button @click="onClose" class="cancelButton">
-              Cancel
-            </button>
+            <button @click="onClose" class="cancelButton">Cancel</button>
             <button
               @click="handleSelect"
               :disabled="loading || (!customPath && !currentPath)"
@@ -201,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from "vue";
 import {
   FolderOpen,
   X,
@@ -214,7 +206,7 @@ import {
   Monitor,
   Globe,
   Terminal,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface DirectoryPickerProps {
   isOpen: boolean;
@@ -226,185 +218,185 @@ interface DirectoryPickerProps {
 interface DirectoryEntry {
   name: string;
   path: string;
-  type: 'directory' | 'drive' | 'special';
+  type: "directory" | "drive" | "special";
   icon: any;
   description?: string;
   isAccessible?: boolean;
 }
 
 const props = withDefaults(defineProps<DirectoryPickerProps>(), {
-  initialPath: '',
+  initialPath: "",
 });
 
 const currentPath = ref(props.initialPath);
-const customPath = ref('');
-const error = ref('');
+const customPath = ref("");
+const error = ref("");
 const loading = ref(false);
-const platform = ref<'windows' | 'macos' | 'linux'>('windows');
+const platform = ref<"windows" | "macos" | "linux">("windows");
 const inputRef = ref<HTMLInputElement | null>(null);
 
 // Detect platform on mount
 onMounted(() => {
   const detectPlatform = () => {
     const userAgent = navigator.userAgent.toLowerCase();
-    if (userAgent.includes('win')) return 'windows';
-    if (userAgent.includes('mac')) return 'macos';
-    if (userAgent.includes('linux')) return 'linux';
-    return 'windows'; // default fallback
+    if (userAgent.includes("win")) return "windows";
+    if (userAgent.includes("mac")) return "macos";
+    if (userAgent.includes("linux")) return "linux";
+    return "windows"; // default fallback
   };
   platform.value = detectPlatform();
 });
 
 const placeholder = computed(() => {
   switch (platform.value) {
-    case 'windows':
-      return 'C:\\Users\\YourName\\Documents';
-    case 'macos':
-      return '/Users/username/Documents';
-    case 'linux':
-      return '/home/username/Documents';
+    case "windows":
+      return "C:\\Users\\YourName\\Documents";
+    case "macos":
+      return "/Users/username/Documents";
+    case "linux":
+      return "/home/username/Documents";
     default:
-      return 'Enter path';
+      return "Enter path";
   }
 });
 
 // Platform-specific directory configurations
 const directories = computed<DirectoryEntry[]>(() => {
   switch (platform.value) {
-    case 'windows':
+    case "windows":
       return [
         {
-          name: 'Documents',
-          path: 'C:\\Users\\%USERNAME%\\Documents',
-          type: 'directory',
+          name: "Documents",
+          path: "C:\\Users\\%USERNAME%\\Documents",
+          type: "directory",
           icon: Folder,
-          description: 'User documents folder',
+          description: "User documents folder",
           isAccessible: true,
         },
         {
-          name: 'Desktop',
-          path: 'C:\\Users\\%USERNAME%\\Desktop',
-          type: 'directory',
+          name: "Desktop",
+          path: "C:\\Users\\%USERNAME%\\Desktop",
+          type: "directory",
           icon: Monitor,
-          description: 'Desktop folder',
+          description: "Desktop folder",
           isAccessible: true,
         },
         {
-          name: 'Downloads',
-          path: 'C:\\Users\\%USERNAME%\\Downloads',
-          type: 'directory',
+          name: "Downloads",
+          path: "C:\\Users\\%USERNAME%\\Downloads",
+          type: "directory",
           icon: FolderOpen,
-          description: 'Downloaded files',
+          description: "Downloaded files",
           isAccessible: true,
         },
         {
-          name: 'Local Disk (C:)',
-          path: 'C:\\',
-          type: 'drive',
+          name: "Local Disk (C:)",
+          path: "C:\\",
+          type: "drive",
           icon: HardDrive,
-          description: 'Primary system drive',
+          description: "Primary system drive",
           isAccessible: true,
         },
         {
-          name: 'Projects (D:)',
-          path: 'D:\\Projects',
-          type: 'directory',
+          name: "Projects (D:)",
+          path: "D:\\Projects",
+          type: "directory",
           icon: Folder,
-          description: 'Projects directory on D drive',
+          description: "Projects directory on D drive",
           isAccessible: false,
         },
         {
-          name: 'Source Code',
-          path: '.\\src',
-          type: 'directory',
+          name: "Source Code",
+          path: ".\\src",
+          type: "directory",
           icon: Terminal,
-          description: 'Current source directory',
+          description: "Current source directory",
           isAccessible: true,
         },
       ];
-    case 'macos':
+    case "macos":
       return [
         {
-          name: 'Documents',
-          path: '/Users/%USERNAME%/Documents',
-          type: 'directory',
+          name: "Documents",
+          path: "/Users/%USERNAME%/Documents",
+          type: "directory",
           icon: Folder,
-          description: 'User documents folder',
+          description: "User documents folder",
           isAccessible: true,
         },
         {
-          name: 'Desktop',
-          path: '/Users/%USERNAME%/Desktop',
-          type: 'directory',
+          name: "Desktop",
+          path: "/Users/%USERNAME%/Desktop",
+          type: "directory",
           icon: Monitor,
-          description: 'Desktop folder',
+          description: "Desktop folder",
           isAccessible: true,
         },
         {
-          name: 'Downloads',
-          path: '/Users/%USERNAME%/Downloads',
-          type: 'directory',
+          name: "Downloads",
+          path: "/Users/%USERNAME%/Downloads",
+          type: "directory",
           icon: FolderOpen,
-          description: 'Downloaded files',
+          description: "Downloaded files",
           isAccessible: true,
         },
         {
-          name: 'Applications',
-          path: '/Applications',
-          type: 'directory',
+          name: "Applications",
+          path: "/Applications",
+          type: "directory",
           icon: Globe,
-          description: 'Installed applications',
+          description: "Installed applications",
           isAccessible: true,
         },
         {
-          name: 'Home Directory',
-          path: '/Users/%USERNAME%',
-          type: 'directory',
+          name: "Home Directory",
+          path: "/Users/%USERNAME%",
+          type: "directory",
           icon: Home,
-          description: 'User home directory',
+          description: "User home directory",
           isAccessible: true,
         },
       ];
-    case 'linux':
+    case "linux":
       return [
         {
-          name: 'Documents',
-          path: '/home/%USERNAME%/Documents',
-          type: 'directory',
+          name: "Documents",
+          path: "/home/%USERNAME%/Documents",
+          type: "directory",
           icon: Folder,
-          description: 'User documents folder',
+          description: "User documents folder",
           isAccessible: true,
         },
         {
-          name: 'Desktop',
-          path: '/home/%USERNAME%/Desktop',
-          type: 'directory',
+          name: "Desktop",
+          path: "/home/%USERNAME%/Desktop",
+          type: "directory",
           icon: Monitor,
-          description: 'Desktop folder',
+          description: "Desktop folder",
           isAccessible: true,
         },
         {
-          name: 'Downloads',
-          path: '/home/%USERNAME%/Downloads',
-          type: 'directory',
+          name: "Downloads",
+          path: "/home/%USERNAME%/Downloads",
+          type: "directory",
           icon: FolderOpen,
-          description: 'Downloaded files',
+          description: "Downloaded files",
           isAccessible: true,
         },
         {
-          name: 'Home Directory',
-          path: '/home/%USERNAME%',
-          type: 'directory',
+          name: "Home Directory",
+          path: "/home/%USERNAME%",
+          type: "directory",
           icon: Home,
-          description: 'User home directory',
+          description: "User home directory",
           isAccessible: true,
         },
         {
-          name: 'Root Filesystem',
-          path: '/',
-          type: 'special',
+          name: "Root Filesystem",
+          path: "/",
+          type: "special",
           icon: Globe,
-          description: 'Root filesystem',
+          description: "Root filesystem",
           isAccessible: true,
         },
       ];
@@ -415,17 +407,17 @@ const directories = computed<DirectoryEntry[]>(() => {
 
 const handleOpenExplorer = async () => {
   try {
-    error.value = '';
+    error.value = "";
     await handleNativeFilePicker();
   } catch (err) {
-    console.error('Error opening file picker:', err);
-    error.value = 'Failed to open file picker. Please enter path manually.';
+    console.error("Error opening file picker:", err);
+    error.value = "Failed to open file picker. Please enter path manually.";
   }
 };
 
 const validatePath = (path: string): boolean => {
-  if (!path || path.trim() === '') {
-    error.value = 'Please enter a valid path';
+  if (!path || path.trim() === "") {
+    error.value = "Please enter a valid path";
     return false;
   }
 
@@ -435,21 +427,21 @@ const validatePath = (path: string): boolean => {
   const isJustSpaces = /^\s*$/.test(trimmedPath);
 
   if (hasInvalidChars || isTooShort || isJustSpaces) {
-    error.value = 'Path contains invalid characters or is too short';
+    error.value = "Path contains invalid characters or is too short";
     return false;
   }
 
   const platformCheck = (() => {
     switch (platform.value) {
-      case 'windows':
+      case "windows":
         return (
           /^[A-Za-z]:[\\/]?.*$/i.test(trimmedPath) ||
           /^\\\\[^\\]+\\.*/.test(trimmedPath) ||
           /^\.?[\\/]?.*/.test(trimmedPath) ||
           /^[a-zA-Z0-9_][a-zA-Z0-9_\s\-]*$/.test(trimmedPath)
         );
-      case 'macos':
-      case 'linux':
+      case "macos":
+      case "linux":
         return (
           /^\/.*$/.test(trimmedPath) ||
           /^~.*$/.test(trimmedPath) ||
@@ -464,14 +456,14 @@ const validatePath = (path: string): boolean => {
   if (!platformCheck) {
     const platformHint = (() => {
       switch (platform.value) {
-        case 'windows':
-          return 'Examples: C:\\Users\\Documents, Documents, .\\src, or \\\\server\\share';
-        case 'macos':
-          return 'Examples: /Users/username/Documents, ~/Documents, Documents, or ./src';
-        case 'linux':
-          return 'Examples: /home/username/Documents, ~/Documents, Documents, or ./src';
+        case "windows":
+          return "Examples: C:\\Users\\Documents, Documents, .\\src, or \\\\server\\share";
+        case "macos":
+          return "Examples: /Users/username/Documents, ~/Documents, Documents, or ./src";
+        case "linux":
+          return "Examples: /home/username/Documents, ~/Documents, Documents, or ./src";
         default:
-          return 'Enter a valid path for your system';
+          return "Enter a valid path for your system";
       }
     })();
     error.value = `Invalid path format. ${platformHint}`;
@@ -483,55 +475,55 @@ const validatePath = (path: string): boolean => {
 
 const handleDirectorySelect = async (directoryEntry: DirectoryEntry) => {
   if (!directoryEntry.isAccessible) {
-    error.value = 'This directory is not accessible on this system';
+    error.value = "This directory is not accessible on this system";
     return;
   }
 
   currentPath.value = directoryEntry.path;
   customPath.value = directoryEntry.path;
-  error.value = '';
+  error.value = "";
 };
 
 const handleCustomPathChange = () => {
-  error.value = '';
+  error.value = "";
 };
 
 const handleNativeFilePicker = async () => {
   try {
     loading.value = true;
-    error.value = '';
+    error.value = "";
 
-    if ('showDirectoryPicker' in window) {
+    if ("showDirectoryPicker" in window) {
       const directoryHandle = await (window as any).showDirectoryPicker({
-        mode: 'read',
+        mode: "read",
       });
 
       const path = await getDirectoryPath(directoryHandle);
       currentPath.value = path;
       customPath.value = path;
-      console.log('Selected directory via File System Access API:', path);
+      console.log("Selected directory via File System Access API:", path);
     } else {
-      const input = document.createElement('input');
-      input.type = 'file';
+      const input = document.createElement("input");
+      input.type = "file";
       (input as any).webkitdirectory = true;
       (input as any).directory = true;
       (input as any).mozdirectory = true;
 
-      input.addEventListener('change', (e: any) => {
+      input.addEventListener("change", (e: any) => {
         const file = e.target.files[0];
         if (file) {
           const path = file.webkitRelativePath || file.name;
           currentPath.value = path;
           customPath.value = path;
-          console.log('Selected directory via input element:', path);
+          console.log("Selected directory via input element:", path);
         }
       });
 
       input.click();
     }
   } catch (err) {
-    console.error('Failed to open native file picker:', err);
-    error.value = 'Failed to open file picker. Please enter path manually.';
+    console.error("Failed to open native file picker:", err);
+    error.value = "Failed to open file picker. Please enter path manually.";
   } finally {
     loading.value = false;
   }
@@ -547,7 +539,7 @@ const getDirectoryPath = async (directoryHandle: any): Promise<string> => {
       const pathParts: string[] = [];
       let currentHandle = directoryHandle;
 
-      while (currentHandle && currentHandle.name !== '/') {
+      while (currentHandle && currentHandle.name !== "/") {
         pathParts.unshift(currentHandle.name);
         if (currentHandle.parent) {
           currentHandle = await currentHandle.parent();
@@ -556,13 +548,13 @@ const getDirectoryPath = async (directoryHandle: any): Promise<string> => {
         }
       }
 
-      return '/' + pathParts.join('/');
+      return "/" + pathParts.join("/");
     }
 
-    return directoryHandle.name || 'Unknown';
+    return directoryHandle.name || "Unknown";
   } catch (err) {
-    console.warn('Could not resolve directory path:', err);
-    return directoryHandle.name || 'Unknown';
+    console.warn("Could not resolve directory path:", err);
+    return directoryHandle.name || "Unknown";
   }
 };
 
@@ -574,17 +566,17 @@ const handleSelect = async () => {
   }
 
   loading.value = true;
-  error.value = '';
+  error.value = "";
 
   try {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     props.onSelect(pathToUse);
     props.onClose();
-    console.log('Directory selected for analysis:', pathToUse);
+    console.log("Directory selected for analysis:", pathToUse);
   } catch (err) {
-    console.error('Directory selection failed:', err);
-    error.value = 'Failed to access directory. Please check path and try again.';
+    console.error("Directory selection failed:", err);
+    error.value = "Failed to access directory. Please check path and try again.";
   } finally {
     loading.value = false;
   }
@@ -592,9 +584,9 @@ const handleSelect = async () => {
 
 const formatPath = (path: string): string => {
   return path
-    .replace(/%USERNAME%/g, platform.value === 'windows' ? 'User' : 'username')
-    .replace(/C:\\\\/g, 'C:\\')
-    .replace(/\\\\/g, '\\');
+    .replace(/%USERNAME%/g, platform.value === "windows" ? "User" : "username")
+    .replace(/C:\\\\/g, "C:\\")
+    .replace(/\\\\/g, "\\");
 };
 </script>
 

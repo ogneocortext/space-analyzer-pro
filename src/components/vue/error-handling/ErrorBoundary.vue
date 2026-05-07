@@ -1,7 +1,12 @@
 <template>
   <slot v-if="!hasError" />
-  <div v-else class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-    <div class="max-w-2xl w-full bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl shadow-2xl overflow-hidden">
+  <div
+    v-else
+    class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4"
+  >
+    <div
+      class="max-w-2xl w-full bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl shadow-2xl overflow-hidden"
+    >
       <!-- Error Header -->
       <div class="bg-red-500/20 border-b border-red-500/30 p-6">
         <div class="flex items-center gap-4">
@@ -11,7 +16,11 @@
           <div class="flex-1">
             <h1 class="text-2xl font-bold text-white">Application Error</h1>
             <p class="text-red-200 mt-1">
-              {{ isolate ? 'This component has been isolated due to an error.' : 'Something went wrong in the application.' }}
+              {{
+                isolate
+                  ? "This component has been isolated due to an error."
+                  : "Something went wrong in the application."
+              }}
             </p>
           </div>
         </div>
@@ -32,7 +41,7 @@
           <div class="bg-white/5 rounded-lg p-4 border border-white/10">
             <div class="text-sm text-slate-300 mb-1">Component</div>
             <div class="font-mono text-sm text-white truncate">
-              {{ componentName || 'Unknown' }}
+              {{ componentName || "Unknown" }}
             </div>
           </div>
         </div>
@@ -54,7 +63,9 @@
             <ExternalLink class="w-4 h-4 text-blue-400" />
             <span class="text-sm text-slate-300">Stack Trace</span>
           </div>
-          <div class="text-white font-mono text-xs bg-black/30 p-3 rounded border border-white/10 max-h-40 overflow-auto">
+          <div
+            class="text-white font-mono text-xs bg-black/30 p-3 rounded border border-white/10 max-h-40 overflow-auto"
+          >
             {{ errorStack }}
           </div>
         </div>
@@ -104,8 +115,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onErrorCaptured } from 'vue';
-import { AlertTriangle, RefreshCw, Bug, ExternalLink } from 'lucide-vue-next';
+import { ref, onErrorCaptured } from "vue";
+import { AlertTriangle, RefreshCw, Bug, ExternalLink } from "lucide-vue-next";
 
 interface ErrorBoundaryProps {
   isolate?: boolean;
@@ -118,19 +129,19 @@ const props = withDefaults(defineProps<ErrorBoundaryProps>(), {
 
 const hasError = ref(false);
 const error = ref<Error | null>(null);
-const errorStack = ref<string>('');
-const errorId = ref('');
-const componentName = ref('');
+const errorStack = ref<string>("");
+const errorId = ref("");
+const componentName = ref("");
 
 onErrorCaptured((err, instance, info) => {
   hasError.value = true;
   error.value = err;
-  errorStack.value = err.stack || '';
+  errorStack.value = err.stack || "";
   errorId.value = `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  componentName.value = info || 'Unknown';
+  componentName.value = info || "Unknown";
 
   // Log error details for debugging
-  console.error('ErrorBoundary caught an error:', {
+  console.error("ErrorBoundary caught an error:", {
     error: err.message,
     stack: err.stack,
     info,
@@ -149,9 +160,9 @@ onErrorCaptured((err, instance, info) => {
 const handleReset = () => {
   hasError.value = false;
   error.value = null;
-  errorStack.value = '';
-  errorId.value = '';
-  componentName.value = '';
+  errorStack.value = "";
+  errorId.value = "";
+  componentName.value = "";
 };
 
 const handleReload = () => {
@@ -159,6 +170,6 @@ const handleReload = () => {
 };
 
 const handleGoHome = () => {
-  window.location.href = '/';
+  window.location.href = "/";
 };
 </script>

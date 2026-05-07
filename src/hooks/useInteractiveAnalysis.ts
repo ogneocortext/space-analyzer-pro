@@ -19,7 +19,9 @@ export interface UseInteractiveAnalysisReturn {
   setAnalysisDepth: (depth: number) => void;
 }
 
-export const useInteractiveAnalysis = (options: UseInteractiveAnalysisOptions = {}): UseInteractiveAnalysisReturn => {
+export const useInteractiveAnalysis = (
+  options: UseInteractiveAnalysisOptions = {}
+): UseInteractiveAnalysisReturn => {
   const analysisStore = useAnalysisStore();
   const isAnalyzing = ref(false);
   const currentPath = ref("");
@@ -28,10 +30,10 @@ export const useInteractiveAnalysis = (options: UseInteractiveAnalysisOptions = 
 
   const quickAnalyze = async (path: string): Promise<void> => {
     if (!path) return;
-    
+
     isAnalyzing.value = true;
     currentPath.value = path;
-    
+
     try {
       if (options.onQuickAnalysis) {
         await options.onQuickAnalysis(path);
@@ -53,7 +55,7 @@ export const useInteractiveAnalysis = (options: UseInteractiveAnalysisOptions = 
       } else {
         // Default action handler
         console.log("Executing action:", action, params);
-        
+
         // Example action implementations
         switch (action) {
           case "delete":

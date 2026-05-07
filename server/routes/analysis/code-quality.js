@@ -3,13 +3,15 @@
  * ESLint integration and static analysis endpoints
  */
 
-const AnalysisController = require("../../controllers/AnalysisController");
-
 class CodeQualityRoutes {
   constructor(server, router) {
     this.server = server;
     this.router = router;
-    this.analysisController = new AnalysisController(server);
+    // Use shared controller instance from server to avoid multiple instances
+    this.analysisController = server.analysisController || new AnalysisController(server);
+    if (!server.analysisController) {
+      server.analysisController = this.analysisController;
+    }
     this.setupRoutes();
   }
 
@@ -90,7 +92,8 @@ class CodeQualityRoutes {
         // Return installation commands
         const installCommands = {
           eslint: "npm install --save-dev eslint",
-          typescript: "npm install --save-dev typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin",
+          typescript:
+            "npm install --save-dev typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin",
           security: "npm install --save-dev eslint-plugin-security",
           sonarjs: "npm install --save-dev eslint-plugin-sonarjs",
           complexity: "npm install --save-dev complexity-report",
@@ -99,7 +102,9 @@ class CodeQualityRoutes {
         res.json({
           success: true,
           message: "Run these commands in your project directory to install tools",
-          commands: tools ? tools.map((t) => installCommands[t]).filter(Boolean) : Object.values(installCommands),
+          commands: tools
+            ? tools.map((t) => installCommands[t]).filter(Boolean)
+            : Object.values(installCommands),
           allTools: installCommands,
         });
       } catch (error) {

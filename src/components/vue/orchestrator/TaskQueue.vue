@@ -43,30 +43,21 @@
         <div class="priority-bar">
           <span class="priority-label high">High</span>
           <div class="bar-container">
-            <div
-              class="bar-fill high"
-              :style="{ width: priorityPercentages.high + '%' }"
-            ></div>
+            <div class="bar-fill high" :style="{ width: priorityPercentages.high + '%' }"></div>
           </div>
           <span class="priority-count">{{ stats.byPriority.high }}</span>
         </div>
         <div class="priority-bar">
           <span class="priority-label normal">Normal</span>
           <div class="bar-container">
-            <div
-              class="bar-fill normal"
-              :style="{ width: priorityPercentages.normal + '%' }"
-            ></div>
+            <div class="bar-fill normal" :style="{ width: priorityPercentages.normal + '%' }"></div>
           </div>
           <span class="priority-count">{{ stats.byPriority.normal }}</span>
         </div>
         <div class="priority-bar">
           <span class="priority-label low">Low</span>
           <div class="bar-container">
-            <div
-              class="bar-fill low"
-              :style="{ width: priorityPercentages.low + '%' }"
-            ></div>
+            <div class="bar-fill low" :style="{ width: priorityPercentages.low + '%' }"></div>
           </div>
           <span class="priority-count">{{ stats.byPriority.low }}</span>
         </div>
@@ -99,9 +90,7 @@
     <!-- Task List -->
     <div class="task-list">
       <h4>Tasks ({{ tasks.length }} shown)</h4>
-      <div v-if="tasks.length === 0" class="empty-state">
-        No tasks found
-      </div>
+      <div v-if="tasks.length === 0" class="empty-state">No tasks found</div>
       <div
         v-for="task in tasks"
         :key="task.id"
@@ -118,38 +107,34 @@
           </span>
         </div>
 
-        <div v-if="task.data?.directory" class="task-path">
-          📁 {{ task.data.directory }}
-        </div>
+        <div v-if="task.data?.directory" class="task-path">📁 {{ task.data.directory }}</div>
 
         <div class="task-meta">
           <span v-if="task.createdAt">Created: {{ formatTime(task.createdAt) }}</span>
           <span v-if="task.assignedAgent">Agent: {{ task.assignedAgent }}</span>
-          <span v-if="task.result">Result: {{ task.result.success ? '✅ Success' : '❌ Failed' }}</span>
+          <span v-if="task.result"
+            >Result: {{ task.result.success ? "✅ Success" : "❌ Failed" }}</span
+          >
         </div>
 
-        <div v-if="task.error" class="task-error">
-          ⚠️ {{ task.error }}
-        </div>
+        <div v-if="task.error" class="task-error">⚠️ {{ task.error }}</div>
 
         <div class="task-actions" v-if="task.status === 'pending' || task.status === 'active'">
           <button @click="cancelTask(task.id)" class="btn-cancel" :disabled="cancelling">
-            {{ cancelling ? 'Cancelling...' : 'Cancel Task' }}
+            {{ cancelling ? "Cancelling..." : "Cancel Task" }}
           </button>
         </div>
       </div>
     </div>
 
     <!-- Error -->
-    <div v-if="error" class="error-message">
-      ❌ {{ error }}
-    </div>
+    <div v-if="error" class="error-message">❌ {{ error }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { AnalysisBridge } from '@/services/AnalysisBridge';
+import { ref, computed, onMounted } from "vue";
+import { AnalysisBridge } from "@/services/AnalysisBridge";
 
 interface Task {
   id: string;
@@ -179,10 +164,10 @@ const stats = ref({
     high: 0,
     normal: 0,
     low: 0,
-    background: 0
-  }
+    background: 0,
+  },
 });
-const statusFilter = ref('all');
+const statusFilter = ref("all");
 const error = ref<string | null>(null);
 const cancelling = ref(false);
 
@@ -194,14 +179,14 @@ const priorityPercentages = computed(() => {
     high: (stats.value.byPriority.high / total) * 100,
     normal: (stats.value.byPriority.normal / total) * 100,
     low: (stats.value.byPriority.low / total) * 100,
-    background: (stats.value.byPriority.background / total) * 100
+    background: (stats.value.byPriority.background / total) * 100,
   };
 });
 
 // Methods
 const priorityClass = (priority: number): string => {
-  const classes = ['critical', 'high', 'normal', 'low', 'background'];
-  return classes[priority] || 'normal';
+  const classes = ["critical", "high", "normal", "low", "background"];
+  return classes[priority] || "normal";
 };
 
 const formatTime = (timestamp: string): string => {
@@ -212,25 +197,25 @@ const fetchTasks = async () => {
   try {
     error.value = null;
     const result = await analysisBridge.getTaskQueue(
-      statusFilter.value as 'all' | 'pending' | 'active' | 'completed' | 'failed',
+      statusFilter.value as "all" | "pending" | "active" | "completed" | "failed",
       50
     );
     tasks.value = result.tasks;
     stats.value = result.stats;
   } catch (err: any) {
-    error.value = err.message || 'Failed to fetch tasks';
+    error.value = err.message || "Failed to fetch tasks";
   }
 };
 
 const cancelTask = async (taskId: string) => {
-  if (!confirm('Are you sure you want to cancel this task?')) return;
+  if (!confirm("Are you sure you want to cancel this task?")) return;
 
   cancelling.value = true;
   try {
     await analysisBridge.cancelTask(taskId);
     await fetchTasks();
   } catch (err: any) {
-    error.value = err.message || 'Failed to cancel task';
+    error.value = err.message || "Failed to cancel task";
   } finally {
     cancelling.value = false;
   }
@@ -274,14 +259,22 @@ h4 {
   padding: 16px;
   border-radius: 8px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-left: 4px solid #ddd;
 }
 
-.stat-card.pending { border-left-color: #ffc107; }
-.stat-card.active { border-left-color: #007acc; }
-.stat-card.completed { border-left-color: #28a745; }
-.stat-card.failed { border-left-color: #dc3545; }
+.stat-card.pending {
+  border-left-color: #ffc107;
+}
+.stat-card.active {
+  border-left-color: #007acc;
+}
+.stat-card.completed {
+  border-left-color: #28a745;
+}
+.stat-card.failed {
+  border-left-color: #dc3545;
+}
 
 .stat-value {
   font-size: 1.8rem;
@@ -321,11 +314,21 @@ h4 {
   text-transform: uppercase;
 }
 
-.priority-label.critical { color: #dc3545; }
-.priority-label.high { color: #fd7e14; }
-.priority-label.normal { color: #007acc; }
-.priority-label.low { color: #6c757d; }
-.priority-label.background { color: #adb5bd; }
+.priority-label.critical {
+  color: #dc3545;
+}
+.priority-label.high {
+  color: #fd7e14;
+}
+.priority-label.normal {
+  color: #007acc;
+}
+.priority-label.low {
+  color: #6c757d;
+}
+.priority-label.background {
+  color: #adb5bd;
+}
 
 .bar-container {
   flex: 1;
@@ -341,11 +344,21 @@ h4 {
   transition: width 0.3s ease;
 }
 
-.bar-fill.critical { background: #dc3545; }
-.bar-fill.high { background: #fd7e14; }
-.bar-fill.normal { background: #007acc; }
-.bar-fill.low { background: #6c757d; }
-.bar-fill.background { background: #adb5bd; }
+.bar-fill.critical {
+  background: #dc3545;
+}
+.bar-fill.high {
+  background: #fd7e14;
+}
+.bar-fill.normal {
+  background: #007acc;
+}
+.bar-fill.low {
+  background: #6c757d;
+}
+.bar-fill.background {
+  background: #adb5bd;
+}
 
 .priority-count {
   width: 40px;
@@ -400,14 +413,22 @@ h4 {
   background: white;
   padding: 16px;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-left: 4px solid #ddd;
 }
 
-.task-item.pending { border-left-color: #ffc107; }
-.task-item.active { border-left-color: #007acc; }
-.task-item.completed { border-left-color: #28a745; }
-.task-item.failed { border-left-color: #dc3545; }
+.task-item.pending {
+  border-left-color: #ffc107;
+}
+.task-item.active {
+  border-left-color: #007acc;
+}
+.task-item.completed {
+  border-left-color: #28a745;
+}
+.task-item.failed {
+  border-left-color: #dc3545;
+}
 
 .task-header {
   display: flex;
@@ -431,11 +452,26 @@ h4 {
   text-transform: uppercase;
 }
 
-.task-priority.critical { background: #f8d7da; color: #721c24; }
-.task-priority.high { background: #fff3cd; color: #856404; }
-.task-priority.normal { background: #e7f3ff; color: #007acc; }
-.task-priority.low { background: #e9ecef; color: #495057; }
-.task-priority.background { background: #f8f9fa; color: #6c757d; }
+.task-priority.critical {
+  background: #f8d7da;
+  color: #721c24;
+}
+.task-priority.high {
+  background: #fff3cd;
+  color: #856404;
+}
+.task-priority.normal {
+  background: #e7f3ff;
+  color: #007acc;
+}
+.task-priority.low {
+  background: #e9ecef;
+  color: #495057;
+}
+.task-priority.background {
+  background: #f8f9fa;
+  color: #6c757d;
+}
 
 .task-status {
   padding: 2px 8px;
@@ -445,10 +481,22 @@ h4 {
   text-transform: uppercase;
 }
 
-.task-status.pending { background: #fff3cd; color: #856404; }
-.task-status.active { background: #e7f3ff; color: #007acc; }
-.task-status.completed { background: #d4edda; color: #155724; }
-.task-status.failed { background: #f8d7da; color: #721c24; }
+.task-status.pending {
+  background: #fff3cd;
+  color: #856404;
+}
+.task-status.active {
+  background: #e7f3ff;
+  color: #007acc;
+}
+.task-status.completed {
+  background: #d4edda;
+  color: #155724;
+}
+.task-status.failed {
+  background: #f8d7da;
+  color: #721c24;
+}
 
 .task-path {
   font-size: 0.9rem;

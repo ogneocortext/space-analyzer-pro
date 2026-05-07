@@ -13,11 +13,11 @@ export function initializeApp() {
 }
 
 // Auto-initialize if this script is loaded directly
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   // Set up global error handling for install hook
-  window.addEventListener('error', (event) => {
-    if (event.filename && event.filename.includes('installHook.js')) {
-      console.error('[ERROR] Install hook error:', event.error);
+  window.addEventListener("error", (event) => {
+    if (event.filename && event.filename.includes("installHook.js")) {
+      console.error("[ERROR] Install hook error:", event.error);
     }
   });
 

@@ -3,23 +3,29 @@
     <!-- Hard Links Overview -->
     <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
       <h2 class="text-xl font-semibold text-white mb-4">Hard Links Analysis</h2>
-      
+
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-slate-700/50 rounded-lg p-4 text-center">
-          <div class="text-3xl font-bold text-blue-400">{{ hardLinkStats.totalLinks.toLocaleString() }}</div>
+          <div class="text-3xl font-bold text-blue-400">
+            {{ hardLinkStats.totalLinks.toLocaleString() }}
+          </div>
           <div class="text-sm text-slate-400 mt-1">Total Hard Links</div>
         </div>
-        
+
         <div class="bg-slate-700/50 rounded-lg p-4 text-center">
-          <div class="text-3xl font-bold text-emerald-400">{{ hardLinkStats.uniqueFiles.toLocaleString() }}</div>
+          <div class="text-3xl font-bold text-emerald-400">
+            {{ hardLinkStats.uniqueFiles.toLocaleString() }}
+          </div>
           <div class="text-sm text-slate-400 mt-1">Unique Files</div>
         </div>
-        
+
         <div class="bg-slate-700/50 rounded-lg p-4 text-center">
-          <div class="text-3xl font-bold text-amber-400">{{ formatBytes(hardLinkStats.spaceSavings) }}</div>
+          <div class="text-3xl font-bold text-amber-400">
+            {{ formatBytes(hardLinkStats.spaceSavings) }}
+          </div>
           <div class="text-sm text-slate-400 mt-1">Space Saved</div>
         </div>
-        
+
         <div class="bg-slate-700/50 rounded-lg p-4 text-center">
           <div class="text-3xl font-bold text-purple-400">{{ hardLinkStats.avgLinksPerFile }}</div>
           <div class="text-sm text-slate-400 mt-1">Avg Links/File</div>
@@ -30,15 +36,23 @@
       <div class="bg-slate-700/30 rounded-lg p-4">
         <h3 class="text-white font-medium mb-4">Hard Links Distribution</h3>
         <div class="space-y-3">
-          <div v-for="(count, range) in hardLinksByRange" :key="range" class="flex items-center gap-4">
+          <div
+            v-for="(count, range) in hardLinksByRange"
+            :key="range"
+            class="flex items-center gap-4"
+          >
             <span class="text-slate-400 text-sm w-24">{{ range }}</span>
             <div class="flex-1 bg-slate-800 rounded-full h-6 relative overflow-hidden">
               <div
                 class="h-full bg-blue-500 rounded-full transition-all duration-500"
                 :style="{ width: `${((count / hardLinkStats.totalLinks) * 100).toFixed(1)}%` }"
               >
-                <span class="absolute inset-0 flex items-center justify-center text-xs text-white font-medium">
-                  {{ count.toLocaleString() }} ({{ ((count / hardLinkStats.totalLinks) * 100).toFixed(1) }}%)
+                <span
+                  class="absolute inset-0 flex items-center justify-center text-xs text-white font-medium"
+                >
+                  {{ count.toLocaleString() }} ({{
+                    ((count / hardLinkStats.totalLinks) * 100).toFixed(1)
+                  }}%)
                 </span>
               </div>
             </div>
@@ -48,9 +62,12 @@
     </div>
 
     <!-- Hard Link Groups -->
-    <div v-if="hardLinkGroups.length > 0" class="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+    <div
+      v-if="hardLinkGroups.length > 0"
+      class="bg-slate-800/50 rounded-xl p-6 border border-slate-700"
+    >
       <h2 class="text-xl font-semibold text-white mb-4">Hard Link Groups</h2>
-      
+
       <div class="space-y-4">
         <div
           v-for="group in hardLinkGroups.slice(0, 10)"
@@ -64,15 +81,21 @@
               </div>
               <div>
                 <h4 class="text-white font-medium">{{ group.baseName }}</h4>
-                <p class="text-slate-400 text-sm">{{ group.links.length }} links • {{ formatBytes(group.fileSize) }}</p>
+                <p class="text-slate-400 text-sm">
+                  {{ group.links.length }} links • {{ formatBytes(group.fileSize) }}
+                </p>
               </div>
             </div>
             <div class="text-right">
-              <div class="text-emerald-400 font-medium">{{ formatBytes(group.spaceSaved) }} saved</div>
-              <div class="text-slate-400 text-xs">{{ (group.spaceSaved / group.fileSize * 100).toFixed(1) }}% reduction</div>
+              <div class="text-emerald-400 font-medium">
+                {{ formatBytes(group.spaceSaved) }} saved
+              </div>
+              <div class="text-slate-400 text-xs">
+                {{ ((group.spaceSaved / group.fileSize) * 100).toFixed(1) }}% reduction
+              </div>
             </div>
           </div>
-          
+
           <div class="space-y-2">
             <div
               v-for="link in group.links"
@@ -89,9 +112,12 @@
     </div>
 
     <!-- Top Space Saving Files -->
-    <div v-if="topSpaceSavers.length > 0" class="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+    <div
+      v-if="topSpaceSavers.length > 0"
+      class="bg-slate-800/50 rounded-xl p-6 border border-slate-700"
+    >
       <h2 class="text-xl font-semibold text-white mb-4">Top Space Saving Files</h2>
-      
+
       <div class="space-y-3">
         <div
           v-for="file in topSpaceSavers"
@@ -111,7 +137,9 @@
             </div>
           </div>
           <div class="text-right">
-            <div class="text-emerald-400 font-medium">{{ (file.spaceSaved / file.fileSize * 100).toFixed(1) }}%</div>
+            <div class="text-emerald-400 font-medium">
+              {{ ((file.spaceSaved / file.fileSize) * 100).toFixed(1) }}%
+            </div>
             <div class="text-slate-400 text-xs">reduction</div>
           </div>
         </div>
@@ -119,9 +147,12 @@
     </div>
 
     <!-- Hard Links by Directory -->
-    <div v-if="Object.keys(hardLinksByDirectory).length > 0" class="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
+    <div
+      v-if="Object.keys(hardLinksByDirectory).length > 0"
+      class="bg-slate-800/50 rounded-xl p-6 border border-slate-700"
+    >
       <h2 class="text-xl font-semibold text-white mb-4">Hard Links by Directory</h2>
-      
+
       <div class="space-y-3">
         <div
           v-for="(stats, dir) in hardLinksByDirectory"
@@ -140,7 +171,9 @@
             </div>
           </div>
           <div class="text-right">
-            <div class="text-emerald-400 font-medium">{{ (stats.spaceSaved / stats.totalSize * 100).toFixed(1) }}%</div>
+            <div class="text-emerald-400 font-medium">
+              {{ ((stats.spaceSaved / stats.totalSize) * 100).toFixed(1) }}%
+            </div>
             <div class="text-slate-400 text-xs">of directory size</div>
           </div>
         </div>
@@ -148,19 +181,26 @@
     </div>
 
     <!-- No Hard Links Message -->
-    <div v-if="hardLinkStats.totalLinks === 0" class="bg-slate-800/50 rounded-xl p-6 border border-slate-700 text-center">
-      <div class="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center mx-auto mb-4">
+    <div
+      v-if="hardLinkStats.totalLinks === 0"
+      class="bg-slate-800/50 rounded-xl p-6 border border-slate-700 text-center"
+    >
+      <div
+        class="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center mx-auto mb-4"
+      >
         <LinkIcon class="w-8 h-8 text-slate-500" />
       </div>
       <h3 class="text-xl font-medium text-white mb-2">No Hard Links Found</h3>
-      <p class="text-slate-400">This analysis didn't detect any hard links in the scanned directory.</p>
+      <p class="text-slate-400">
+        This analysis didn't detect any hard links in the scanned directory.
+      </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { LinkIcon, HardDrive, Folder } from 'lucide-vue-next';
+import { computed } from "vue";
+import { LinkIcon, HardDrive, Folder } from "lucide-vue-next";
 
 interface FileWithHardLink {
   name: string;
@@ -180,36 +220,36 @@ const props = defineProps<{
 
 // Hard link statistics
 const hardLinkStats = computed(() => {
-  const hardLinkedFiles = props.files.filter(f => f.is_hard_link);
+  const hardLinkedFiles = props.files.filter((f) => f.is_hard_link);
   const totalLinks = hardLinkedFiles.reduce((acc, f) => acc + (f.hard_link_count || 1), 0);
   const uniqueFiles = hardLinkedFiles.length;
   const spaceSavings = props.hardLinkSavings || 0;
-  const avgLinksPerFile = uniqueFiles > 0 ? (totalLinks / uniqueFiles).toFixed(1) : '0';
+  const avgLinksPerFile = uniqueFiles > 0 ? (totalLinks / uniqueFiles).toFixed(1) : "0";
 
   return {
     totalLinks,
     uniqueFiles,
     spaceSavings,
-    avgLinksPerFile
+    avgLinksPerFile,
   };
 });
 
 // Hard links distribution by link count
 const hardLinksByRange = computed(() => {
   const ranges = {
-    '2 links': 0,
-    '3-5 links': 0,
-    '6-10 links': 0,
-    '11+ links': 0
+    "2 links": 0,
+    "3-5 links": 0,
+    "6-10 links": 0,
+    "11+ links": 0,
   };
 
-  props.files.forEach(file => {
+  props.files.forEach((file) => {
     if (file.is_hard_link && file.hard_link_count) {
       const count = file.hard_link_count;
-      if (count === 2) ranges['2 links']++;
-      else if (count >= 3 && count <= 5) ranges['3-5 links']++;
-      else if (count >= 6 && count <= 10) ranges['6-10 links']++;
-      else if (count >= 11) ranges['11+ links']++;
+      if (count === 2) ranges["2 links"]++;
+      else if (count >= 3 && count <= 5) ranges["3-5 links"]++;
+      else if (count >= 6 && count <= 10) ranges["6-10 links"]++;
+      else if (count >= 11) ranges["11+ links"]++;
     }
   });
 
@@ -219,20 +259,20 @@ const hardLinksByRange = computed(() => {
 // Hard link groups (files with same hash)
 const hardLinkGroups = computed(() => {
   const groups: Record<string, any> = {};
-  
-  props.files.forEach(file => {
+
+  props.files.forEach((file) => {
     if (file.is_hard_link && file.file_hash) {
       if (!groups[file.file_hash]) {
         groups[file.file_hash] = {
           hash: file.file_hash,
           baseName: file.name,
           fileSize: file.size,
-          links: []
+          links: [],
         };
       }
       groups[file.file_hash].links.push({
         path: file.path,
-        modified: file.modified
+        modified: file.modified,
       });
     }
   });
@@ -241,7 +281,7 @@ const hardLinkGroups = computed(() => {
   return Object.values(groups)
     .map((group: any) => ({
       ...group,
-      spaceSaved: group.fileSize * (group.links.length - 1)
+      spaceSaved: group.fileSize * (group.links.length - 1),
     }))
     .sort((a, b) => b.spaceSaved - a.spaceSaved);
 });
@@ -251,10 +291,10 @@ const topSpaceSavers = computed(() => {
   return hardLinkGroups.value
     .map((group: any) => ({
       name: group.baseName,
-      path: group.links[0]?.path || '',
+      path: group.links[0]?.path || "",
       fileSize: group.fileSize,
       linkCount: group.links.length,
-      spaceSaved: group.spaceSaved
+      spaceSaved: group.spaceSaved,
     }))
     .sort((a, b) => b.spaceSaved - a.spaceSaved)
     .slice(0, 10);
@@ -263,8 +303,8 @@ const topSpaceSavers = computed(() => {
 // Hard links by directory
 const hardLinksByDirectory = computed(() => {
   const dirStats: Record<string, any> = {};
-  
-  props.files.forEach(file => {
+
+  props.files.forEach((file) => {
     if (file.is_hard_link) {
       const dir = getDirectoryName(file.path);
       if (!dirStats[dir]) {
@@ -272,11 +312,11 @@ const hardLinksByDirectory = computed(() => {
           linkCount: 0,
           spaceSaved: 0,
           totalSize: 0,
-          fileCount: 0
+          fileCount: 0,
         };
       }
-      
-      dirStats[dir].linkCount += (file.hard_link_count || 1);
+
+      dirStats[dir].linkCount += file.hard_link_count || 1;
       dirStats[dir].spaceSaved += file.size * ((file.hard_link_count || 1) - 1);
       dirStats[dir].totalSize += file.size;
       dirStats[dir].fileCount++;
@@ -300,17 +340,17 @@ function formatBytes(bytes: number): string {
 }
 
 function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return 'N/A';
+  if (!dateString) return "N/A";
   try {
     const date = new Date(dateString);
     return date.toLocaleDateString();
   } catch {
-    return 'Invalid date';
+    return "Invalid date";
   }
 }
 
 function getDirectoryName(filePath: string): string {
   const parts = filePath.split(/[\\/]/);
-  return parts.slice(0, -1).join('/') || 'Root';
+  return parts.slice(0, -1).join("/") || "Root";
 }
 </script>

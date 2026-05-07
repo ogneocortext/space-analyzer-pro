@@ -1,6 +1,8 @@
 import { createRouter, createWebHashHistory } from "vue-router";
 import DashboardView from "../features/dashboard/DashboardView.vue";
 import ScanView from "../features/scanning/ScanView.vue";
+import SettingsView from "../features/settings/SettingsView.vue";
+import DuplicateFinderView from "../features/duplicates/DuplicateFinderView.vue";
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -28,7 +30,7 @@ const router = createRouter({
     {
       path: "/settings",
       name: "settings",
-      component: () => import("../features/settings/SettingsView.vue"),
+      component: SettingsView,
     },
     {
       path: "/settings/notifications",
@@ -38,7 +40,7 @@ const router = createRouter({
     {
       path: "/duplicates",
       name: "duplicates",
-      component: () => import("../features/duplicates/DuplicateFinderView.vue"),
+      component: DuplicateFinderView,
     },
     {
       path: "/cleanup",

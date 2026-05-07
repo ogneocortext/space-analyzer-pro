@@ -24,7 +24,9 @@
           <button
             @click="toggleExpanded(error.id)"
             class="p-1 hover:bg-black/20 rounded transition-colors"
-            :aria-label="expandedErrors.has(error.id) ? 'Collapse error details' : 'Expand error details'"
+            :aria-label="
+              expandedErrors.has(error.id) ? 'Collapse error details' : 'Expand error details'
+            "
           >
             <Info class="w-4 h-4" />
           </button>
@@ -58,7 +60,7 @@
                 'px-3 py-1.5 text-xs font-medium rounded transition-colors',
                 action.primary
                   ? 'bg-current/20 hover:bg-current/30 text-current'
-                  : 'bg-white/10 hover:bg-white/20 text-current'
+                  : 'bg-white/10 hover:bg-white/20 text-current',
               ]"
             >
               {{ action.label }}
@@ -81,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from "vue";
 import {
   AlertTriangle,
   X,
@@ -93,15 +95,15 @@ import {
   Shield,
   Wifi,
   WifiOff,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 enum ErrorType {
-  NETWORK = 'network',
-  BACKEND = 'backend',
-  ANALYSIS = 'analysis',
-  PERMISSION = 'permission',
-  TIMEOUT = 'timeout',
-  VALIDATION = 'validation',
+  NETWORK = "network",
+  BACKEND = "backend",
+  ANALYSIS = "analysis",
+  PERMISSION = "permission",
+  TIMEOUT = "timeout",
+  VALIDATION = "validation",
 }
 
 interface RecoveryAction {
@@ -128,11 +130,11 @@ interface ErrorDisplayProps {
 }
 
 const props = withDefaults(defineProps<ErrorDisplayProps>(), {
-  className: '',
+  className: "",
 });
 
 const expandedErrors = ref<Set<string>>(new Set());
-const isDevelopment = computed(() => process.env.NODE_ENV === 'development');
+const isDevelopment = computed(() => process.env.NODE_ENV === "development");
 
 const toggleExpanded = (errorId: string) => {
   if (expandedErrors.value.has(errorId)) {
@@ -164,38 +166,38 @@ const getErrorIcon = (type: ErrorType) => {
 const getErrorTitle = (type: ErrorType) => {
   switch (type) {
     case ErrorType.NETWORK:
-      return 'Connection Error';
+      return "Connection Error";
     case ErrorType.BACKEND:
-      return 'Backend Error';
+      return "Backend Error";
     case ErrorType.ANALYSIS:
-      return 'Analysis Error';
+      return "Analysis Error";
     case ErrorType.PERMISSION:
-      return 'Permission Error';
+      return "Permission Error";
     case ErrorType.TIMEOUT:
-      return 'Timeout Error';
+      return "Timeout Error";
     case ErrorType.VALIDATION:
-      return 'Validation Error';
+      return "Validation Error";
     default:
-      return 'Error';
+      return "Error";
   }
 };
 
 const getErrorColor = (type: ErrorType) => {
   switch (type) {
     case ErrorType.NETWORK:
-      return 'border-red-500/50 bg-red-500/10 text-red-400';
+      return "border-red-500/50 bg-red-500/10 text-red-400";
     case ErrorType.BACKEND:
-      return 'border-orange-500/50 bg-orange-500/10 text-orange-400';
+      return "border-orange-500/50 bg-orange-500/10 text-orange-400";
     case ErrorType.ANALYSIS:
-      return 'border-yellow-500/50 bg-yellow-500/10 text-yellow-400';
+      return "border-yellow-500/50 bg-yellow-500/10 text-yellow-400";
     case ErrorType.PERMISSION:
-      return 'border-purple-500/50 bg-purple-500/10 text-purple-400';
+      return "border-purple-500/50 bg-purple-500/10 text-purple-400";
     case ErrorType.TIMEOUT:
-      return 'border-blue-500/50 bg-blue-500/10 text-blue-400';
+      return "border-blue-500/50 bg-blue-500/10 text-blue-400";
     case ErrorType.VALIDATION:
-      return 'border-pink-500/50 bg-pink-500/10 text-pink-400';
+      return "border-pink-500/50 bg-pink-500/10 text-pink-400";
     default:
-      return 'border-gray-500/50 bg-gray-500/10 text-gray-400';
+      return "border-gray-500/50 bg-gray-500/10 text-gray-400";
   }
 };
 
@@ -204,7 +206,7 @@ const formatTimestamp = (timestamp: Date) => {
   const diffMs = now.getTime() - timestamp.getTime();
   const diffMins = Math.floor(diffMs / 60000);
 
-  if (diffMins < 1) return 'Just now';
+  if (diffMins < 1) return "Just now";
   if (diffMins < 60) return `${diffMins}m ago`;
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24) return `${diffHours}h ago`;
@@ -215,7 +217,7 @@ const handleRecoveryAction = async (error: AppError, action: () => void | Promis
   try {
     await action();
   } catch (recoveryError) {
-    console.error('Recovery action failed:', recoveryError);
+    console.error("Recovery action failed:", recoveryError);
   }
 };
 </script>

@@ -98,7 +98,7 @@ export function useLazyImages() {
 }
 
 // Memory management composable
-export function useMemoryCache(maxSize = 100) {
+export function useMemoryCache() {
   const memoryManager = new MemoryManager();
   const cacheSize = ref(0);
 

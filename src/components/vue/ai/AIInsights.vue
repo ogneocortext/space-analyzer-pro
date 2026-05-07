@@ -65,8 +65,8 @@
             <div>
               <h4 class="text-green-400 font-medium mb-1">Storage Optimization</h4>
               <p class="text-slate-300 text-sm">
-                Based on your usage patterns, consolidating small files could save approximately
-                2.3 GB of storage space.
+                Based on your usage patterns, consolidating small files could save approximately 2.3
+                GB of storage space.
               </p>
             </div>
           </div>
@@ -78,8 +78,8 @@
             <div>
               <h4 class="text-blue-400 font-medium mb-1">Backup Strategy</h4>
               <p class="text-slate-300 text-sm">
-                Your backup frequency analysis suggests optimizing to weekly incremental backups
-                for critical project files.
+                Your backup frequency analysis suggests optimizing to weekly incremental backups for
+                critical project files.
               </p>
             </div>
           </div>
@@ -91,8 +91,8 @@
             <div>
               <h4 class="text-purple-400 font-medium mb-1">Performance Insights</h4>
               <p class="text-slate-300 text-sm">
-                Large media files are impacting load times. Consider moving them to external
-                storage or implementing lazy loading.
+                Large media files are impacting load times. Consider moving them to external storage
+                or implementing lazy loading.
               </p>
             </div>
           </div>
@@ -122,7 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { Brain, Sparkles, TrendingUp, AlertTriangle } from 'lucide-vue-next';
+import { Brain, Sparkles, TrendingUp, AlertTriangle } from "lucide-vue-next";
 
 interface AIInsightsProps {
   analysisData?: any;

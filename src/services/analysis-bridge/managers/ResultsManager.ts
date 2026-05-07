@@ -3,7 +3,7 @@
  * Handles results polling and retrieval
  */
 
-import type { AnalysisResult } from '../types';
+import type { AnalysisResult } from "../types";
 
 export interface ResultsConfig {
   maxAttempts: number;
@@ -30,9 +30,7 @@ export class ResultsManager {
   /**
    * Enhanced results polling with better error handling
    */
-  async pollForResults(
-    analysisId: string
-  ): Promise<AnalysisResult> {
+  async pollForResults(analysisId: string): Promise<AnalysisResult> {
     console.log(`📊 Starting results polling for analysis: ${analysisId}`);
 
     for (let attempts = 1; attempts <= this.config.maxAttempts; attempts++) {
@@ -41,16 +39,13 @@ export class ResultsManager {
 
         let resultsResponse;
         try {
-          resultsResponse = await fetch(
-            `${this.baseUrl}/api/results/${analysisId}`,
-            {
-              signal: AbortSignal.timeout(this.config.timeout),
-            }
-          );
+          resultsResponse = await fetch(`${this.baseUrl}/api/results/${analysisId}`, {
+            signal: AbortSignal.timeout(this.config.timeout),
+          });
         } catch (fetchError) {
           console.error("❌ Results fetch error:", fetchError);
           if (attempts < this.config.maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, this.config.pollInterval));
+            await new Promise((resolve) => setTimeout(resolve, this.config.pollInterval));
             continue;
           } else {
             throw new Error(`Results polling failed after ${this.config.maxAttempts} attempts`);
@@ -63,7 +58,7 @@ export class ResultsManager {
 
           // Validate and normalize results
           const normalizedResults = this.normalizeResults(results, analysisId);
-          
+
           console.log("✅ Results retrieved successfully");
           return normalizedResults;
         }
@@ -92,21 +87,22 @@ export class ResultsManager {
         } else {
           throw new Error(`Results endpoint error: ${resultsResponse.status} - ${errorText}`);
         }
-
       } catch (error) {
-        if (error instanceof Error && error.message.includes('Analysis not found')) {
+        if (error instanceof Error && error.message.includes("Analysis not found")) {
           throw error; // Re-throw stale analysis errors
         }
-        
+
         console.error("❌ Results polling error:", error);
         if (attempts === this.config.maxAttempts) {
-          throw new Error(`Results polling failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          throw new Error(
+            `Results polling failed: ${error instanceof Error ? error.message : "Unknown error"}`
+          );
         }
       }
 
       // Wait before next attempt
       if (attempts < this.config.maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, this.config.pollInterval));
+        await new Promise((resolve) => setTimeout(resolve, this.config.pollInterval));
       }
     }
 
@@ -143,7 +139,7 @@ export class ResultsManager {
   async areResultsAvailable(analysisId: string): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/api/results/${analysisId}`, {
-        method: 'HEAD',
+        method: "HEAD",
         signal: AbortSignal.timeout(5000),
       });
 
@@ -203,8 +199,8 @@ export class ResultsManager {
         metadata: {
           analysisId,
           timestamp: new Date().toISOString(),
-          path: results.directory || results.path || '',
-          version: '2.8.1',
+          path: results.directory || results.path || "",
+          version: "2.8.1",
         },
       };
     }
@@ -250,8 +246,8 @@ export class ResultsManager {
       metadata: {
         analysisId,
         timestamp: new Date().toISOString(),
-        path: data.directory || data.path || '',
-        version: '2.8.1',
+        path: data.directory || data.path || "",
+        version: "2.8.1",
       },
     };
   }
@@ -262,7 +258,7 @@ export class ResultsManager {
   async deleteResults(analysisId: string): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/api/results/${analysisId}`, {
-        method: 'DELETE',
+        method: "DELETE",
         signal: AbortSignal.timeout(5000),
       });
 

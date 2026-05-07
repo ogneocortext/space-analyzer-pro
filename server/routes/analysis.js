@@ -15,7 +15,11 @@ class AnalysisRoutes {
   constructor(server) {
     this.server = server;
     this.router = express.Router();
-    this.analysisController = new AnalysisController(server);
+    // Use shared controller instance from server to avoid multiple instances
+    this.analysisController = server.analysisController || new AnalysisController(server);
+    if (!server.analysisController) {
+      server.analysisController = this.analysisController;
+    }
     logger.log("🚀", "AnalysisRoutes initialized [v2.8.2-code-quality]");
     this.setupRoutes();
   }
@@ -70,7 +74,13 @@ class AnalysisRoutes {
 
       const scannerProcess = spawn(
         scannerPath,
-        ["--max-files", "5000", "--output", path.join(__dirname, "../../temp", tempFileName), directoryPath],
+        [
+          "--max-files",
+          "5000",
+          "--output",
+          path.join(__dirname, "../../temp", tempFileName),
+          directoryPath,
+        ],
         {
           stdio: ["pipe", "pipe", "pipe"],
         }
@@ -136,28 +146,34 @@ class AnalysisRoutes {
       if (line.trim()) {
         try {
           const progressData = JSON.parse(line);
-          
+
           // This is the final result - scan is complete
           if (progressData.files && progressData.categories) {
             logger.log("📊", `Scan complete: ${progressData.files?.length || 0} files`);
-            
+
             // Update with final results
             analysisEntry.filesScanned = progressData.files?.length || 0;
             analysisEntry.totalSize = progressData.apparent_size || 0;
             analysisEntry.progress = 100;
             analysisEntry.status = "complete";
             analysisEntry.completedAt = Date.now();
-            
+
             this.server.activeAnalyses.set(analysisId, analysisEntry);
             return;
           }
-          
+
           // Check for incremental file counts
           if (progressData.total_files !== undefined) {
             analysisEntry.filesScanned = progressData.total_files || 0;
-            analysisEntry.progress = Math.min(100, Math.round((progressData.total_files / 100000) * 100));
+            analysisEntry.progress = Math.min(
+              100,
+              Math.round((progressData.total_files / 100000) * 100)
+            );
             this.server.activeAnalyses.set(analysisId, analysisEntry);
-            logger.log("📊", `Progress: ${analysisEntry.progress}% - ${analysisEntry.filesScanned} files`);
+            logger.log(
+              "📊",
+              `Progress: ${analysisEntry.progress}% - ${analysisEntry.filesScanned} files`
+            );
           }
         } catch (e) {
           // Not JSON, ignore
@@ -172,19 +188,22 @@ class AnalysisRoutes {
    */
   startProgressPolling(analysisId, analysisState) {
     console.log(`[PROGRESS] Starting real progress tracker for ${analysisId}`);
-    
+
     const iv = setInterval(() => {
       const st = this.server.activeAnalyses?.get(analysisId);
-      if (!st) { clearInterval(iv); return; }
-      
+      if (!st) {
+        clearInterval(iv);
+        return;
+      }
+
       // Only emit events - don't overwrite real scanner data with fake values
       // The actual progress is updated by handleScannerData from scanner stderr/stdout
-      
+
       // If scanner hasn't provided data yet, keep initial state
       if (st.filesScanned === 0 && st.progress === 0) {
         st.currentFile = "Preparing scanner...";
       }
-      
+
       // Emit progress event for SSE subscribers
       if (this.server.eventEmitter) {
         this.server.eventEmitter.emit("progress", {
@@ -195,19 +214,21 @@ class AnalysisRoutes {
           status: st.status || "running",
         });
       }
-      
+
       // Log real progress data from scanner
       if (st.filesScanned > 0) {
-        console.log(`[PROGRESS] ${analysisId}: ${st.progress}% - ${st.filesScanned} files scanned - ${st.currentFile}`);
+        console.log(
+          `[PROGRESS] ${analysisId}: ${st.progress}% - ${st.filesScanned} files scanned - ${st.currentFile}`
+        );
       }
-      
+
       // Clear interval if analysis is done
       if (st.status === "complete" || st.status === "error") {
         console.log(`[PROGRESS] ${analysisId} finished with status: ${st.status}`);
         clearInterval(iv);
       }
     }, 500);
-    
+
     const cur = this.server.activeAnalyses?.get(analysisId);
     if (cur) cur.progressInterval = iv;
   }
@@ -381,7 +402,7 @@ class AnalysisRoutes {
         if (this.server?.activeAnalyses) {
           this.server.activeAnalyses.set(analysisId, analysisState);
           logger.log("📊", `Stored initial analysis state for ${analysisId}`);
-          
+
           // Start progress polling
           console.log(`[ANALYZE] Starting progress polling for ${analysisId}`);
           this.startProgressPolling(analysisId, analysisState);
@@ -1448,9 +1469,9 @@ class AnalysisRoutes {
                   break;
                 }
               }
-              
+
               if (jsonEnd === -1) continue; // Incomplete JSON, wait for more data
-              
+
               const jsonStr = line.substring(0, jsonEnd);
               try {
                 const parsed = JSON.parse(jsonStr);
@@ -1465,7 +1486,10 @@ class AnalysisRoutes {
                     timestamp: parsed.timestamp,
                   };
                   this.updateProgress(analysisId, progress);
-                  logger.log("📊", `Progress update: ${progress.files} files, ${progress.percentage.toFixed(1)}%`);
+                  logger.log(
+                    "📊",
+                    `Progress update: ${progress.files} files, ${progress.percentage.toFixed(1)}%`
+                  );
                   continue;
                 }
 
@@ -1492,7 +1516,10 @@ class AnalysisRoutes {
                     totalSize: parsed.total_size || 0,
                   };
                   this.updateProgress(analysisId, progress);
-                  logger.log("📊", `Progress: ${progress.files} files, ${progress.percentage.toFixed(1)}%`);
+                  logger.log(
+                    "📊",
+                    `Progress: ${progress.files} files, ${progress.percentage.toFixed(1)}%`
+                  );
                   continue;
                 }
 

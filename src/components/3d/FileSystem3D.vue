@@ -131,7 +131,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
-import { useSelfLearningStore } from "@/store/selfLearning";
+import { useSelfLearningStore } from "@/store";
 
 interface FileNode {
   id: string;
@@ -919,19 +919,88 @@ const startAnimationLoop = () => {
 };
 
 const cleanup = () => {
+  // Cancel animation frame
   if (animationId) {
     cancelAnimationFrame(animationId);
+    animationId = 0;
   }
 
+  // Remove event listeners
   window.removeEventListener("resize", handleResize);
 
-  if (renderer) {
-    renderer.dispose();
+  if (canvas.value) {
+    canvas.value.removeEventListener("click", handleMouseClick);
+    canvas.value.removeEventListener("mousemove", handleMouseMove);
   }
 
+  // Dispose of all Three.js objects in the scene
+  if (scene) {
+    // Recursively dispose of all objects
+    const disposeObject = (obj: THREE.Object3D) => {
+      if (obj instanceof THREE.Mesh) {
+        // Dispose geometry
+        if (obj.geometry) {
+          obj.geometry.dispose();
+        }
+
+        // Dispose material
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((material) => material.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      }
+
+      // Remove all children
+      while (obj.children.length > 0) {
+        disposeObject(obj.children[0]);
+        obj.remove(obj.children[0]);
+      }
+    };
+
+    // Dispose all objects in scene
+    while (scene.children.length > 0) {
+      const child = scene.children[0];
+      disposeObject(child);
+      scene.remove(child);
+    }
+  }
+
+  // Dispose of renderer and its resources
+  if (renderer) {
+    renderer.dispose();
+    // Clear render target
+    if (renderer.domElement) {
+      renderer.domElement.width = 1;
+      renderer.domElement.height = 1;
+    }
+  }
+
+  // Dispose of controls
   if (controls) {
     controls.dispose();
   }
+
+  // Dispose of font if loaded
+  if (font) {
+    // Font doesn't have explicit dispose method, but clear reference
+    font = null;
+  }
+
+  // Clear references
+  scene = null;
+  camera = null;
+  renderer = null;
+  controls = null;
+
+  // Clear node map
+  nodeMap.clear();
+
+  // Reset reactive state
+  selectedNode.value = null;
+  fileSystemData.value = null;
 };
 
 const formatBytes = (bytes: number): string => {

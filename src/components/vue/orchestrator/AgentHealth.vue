@@ -32,22 +32,19 @@
         :class="{
           'is-available': agent.isAvailable,
           'is-busy': agent.state === 'BUSY',
-          'is-unhealthy': agent.circuitBreaker.state === 'OPEN'
+          'is-unhealthy': agent.circuitBreaker.state === 'OPEN',
         }"
       >
         <div class="agent-header">
           <div class="agent-name">
-            <span class="agent-icon">{{ agent.type === 'process' ? '⚙️' : '🔧' }}</span>
+            <span class="agent-icon">{{ agent.type === "process" ? "⚙️" : "🔧" }}</span>
             {{ agent.name }}
           </div>
           <div class="agent-badges">
             <span class="badge state" :class="agent.state.toLowerCase()">
               {{ agent.state }}
             </span>
-            <span
-              class="badge circuit-breaker"
-              :class="agent.circuitBreaker.state.toLowerCase()"
-            >
+            <span class="badge circuit-breaker" :class="agent.circuitBreaker.state.toLowerCase()">
               {{ agent.circuitBreaker.state }}
             </span>
             <span v-if="agent.isAvailable" class="badge available">✅ Ready</span>
@@ -124,15 +121,13 @@
     </div>
 
     <!-- Error -->
-    <div v-if="error" class="error-message">
-      ❌ {{ error }}
-    </div>
+    <div v-if="error" class="error-message">❌ {{ error }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { AnalysisBridge } from '@/services/AnalysisBridge';
+import { ref, onMounted, onUnmounted } from "vue";
+import { AnalysisBridge } from "@/services/AnalysisBridge";
 
 interface Agent {
   id: string;
@@ -169,7 +164,7 @@ const summary = ref({
   available: 0,
   busy: 0,
   unhealthy: 0,
-  idle: 0
+  idle: 0,
 });
 const error = ref<string | null>(null);
 let refreshTimer: number | null = null;
@@ -180,7 +175,7 @@ const formatTime = (timestamp: string): string => {
   const now = new Date();
   const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (diff < 60) return 'just now';
+  if (diff < 60) return "just now";
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return `${Math.floor(diff / 86400)}d ago`;
@@ -193,7 +188,7 @@ const fetchHealth = async () => {
     agents.value = health.agents;
     summary.value = health.summary;
   } catch (err: any) {
-    error.value = err.message || 'Failed to fetch agent health';
+    error.value = err.message || "Failed to fetch agent health";
   }
 };
 
@@ -242,14 +237,22 @@ h4 {
   padding: 16px;
   border-radius: 8px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-left: 4px solid #ddd;
 }
 
-.summary-card.total { border-left-color: #007acc; }
-.summary-card.available { border-left-color: #28a745; }
-.summary-card.busy { border-left-color: #ffc107; }
-.summary-card.unhealthy { border-left-color: #dc3545; }
+.summary-card.total {
+  border-left-color: #007acc;
+}
+.summary-card.available {
+  border-left-color: #28a745;
+}
+.summary-card.busy {
+  border-left-color: #ffc107;
+}
+.summary-card.unhealthy {
+  border-left-color: #dc3545;
+}
 
 .summary-value {
   font-size: 2rem;
@@ -273,13 +276,20 @@ h4 {
   background: white;
   border-radius: 8px;
   padding: 16px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-left: 4px solid #ddd;
 }
 
-.agent-card.is-available { border-left-color: #28a745; }
-.agent-card.is-busy { border-left-color: #ffc107; }
-.agent-card.is-unhealthy { border-left-color: #dc3545; background: #fff5f5; }
+.agent-card.is-available {
+  border-left-color: #28a745;
+}
+.agent-card.is-busy {
+  border-left-color: #ffc107;
+}
+.agent-card.is-unhealthy {
+  border-left-color: #dc3545;
+  background: #fff5f5;
+}
 
 .agent-header {
   display: flex;
@@ -314,14 +324,32 @@ h4 {
   text-transform: uppercase;
 }
 
-.badge.state.idle { background: #e7f3ff; color: #007acc; }
-.badge.state.busy { background: #fff3cd; color: #856404; }
+.badge.state.idle {
+  background: #e7f3ff;
+  color: #007acc;
+}
+.badge.state.busy {
+  background: #fff3cd;
+  color: #856404;
+}
 
-.badge.circuit-breaker.closed { background: #d4edda; color: #155724; }
-.badge.circuit-breaker.open { background: #f8d7da; color: #721c24; }
-.badge.circuit-breaker.half-open { background: #fff3cd; color: #856404; }
+.badge.circuit-breaker.closed {
+  background: #d4edda;
+  color: #155724;
+}
+.badge.circuit-breaker.open {
+  background: #f8d7da;
+  color: #721c24;
+}
+.badge.circuit-breaker.half-open {
+  background: #fff3cd;
+  color: #856404;
+}
 
-.badge.available { background: #d4edda; color: #155724; }
+.badge.available {
+  background: #d4edda;
+  color: #155724;
+}
 
 /* Circuit Breaker Details */
 .circuit-breaker-details {
@@ -350,7 +378,9 @@ h4 {
   color: #333;
 }
 
-.cb-value.text-danger { color: #dc3545; }
+.cb-value.text-danger {
+  color: #dc3545;
+}
 
 /* Agent Metrics */
 .agent-metrics {
@@ -379,7 +409,9 @@ h4 {
   color: #333;
 }
 
-.metric-value.text-danger { color: #dc3545; }
+.metric-value.text-danger {
+  color: #dc3545;
+}
 
 /* Legend */
 .legend {
@@ -408,9 +440,15 @@ h4 {
   border-radius: 50%;
 }
 
-.legend-dot.closed { background: #28a745; }
-.legend-dot.open { background: #dc3545; }
-.legend-dot.half-open { background: #ffc107; }
+.legend-dot.closed {
+  background: #28a745;
+}
+.legend-dot.open {
+  background: #dc3545;
+}
+.legend-dot.half-open {
+  background: #ffc107;
+}
 
 /* Error */
 .error-message {

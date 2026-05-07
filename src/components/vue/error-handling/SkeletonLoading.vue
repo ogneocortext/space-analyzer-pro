@@ -1,7 +1,10 @@
 <template>
   <div>
     <!-- Base Skeleton Component -->
-    <div v-if="variant === 'text'" :class="[baseClasses, variantClasses, animationClasses, className]">
+    <div
+      v-if="variant === 'text'"
+      :class="[baseClasses, variantClasses, animationClasses, className]"
+    >
       <div
         v-for="index in lines"
         :key="index"
@@ -33,12 +36,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Loader2 } from 'lucide-vue-next';
+import { computed } from "vue";
+import { Loader2 } from "lucide-vue-next";
 
 interface Props {
   className?: string;
-  variant?: 'text' | 'rectangular' | 'circular';
+  variant?: "text" | "rectangular" | "circular";
   width?: string | number;
   height?: string | number;
   lines?: number;
@@ -46,17 +49,17 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  className: '',
-  variant: 'rectangular',
-  width: '100%',
-  height: '1rem',
+  className: "",
+  variant: "rectangular",
+  width: "100%",
+  height: "1rem",
   lines: 1,
   animate: true,
 });
 
-const baseClasses = 'skeleton';
+const baseClasses = "skeleton";
 const variantClasses = computed(() => `skeleton-${props.variant}`);
-const animationClasses = computed(() => (props.animate ? 'skeleton-animate' : ''));
+const animationClasses = computed(() => (props.animate ? "skeleton-animate" : ""));
 </script>
 
 <style scoped>

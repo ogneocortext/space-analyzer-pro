@@ -1,48 +1,71 @@
 import { defineStore } from "pinia";
-import { ref, watch } from "vue";
-import { AnalysisBridge } from "@/services/analysis/AnalysisBridge";
+import { ref, watch, onMounted } from "vue";
+import { AnalysisBridge, FileInfo as BridgeFileInfo } from "@/services/analysis/AnalysisBridge";
 import { useDebugLogger } from "@/services/DebugLogger";
 
 // Initialize logger for analysis store
 const logger = useDebugLogger("AnalysisStore");
 
+// Type definitions
+interface AnalysisData {
+  file_analysis?: {
+    files: Array<BridgeFileInfo>;
+  };
+  [key: string]: unknown;
+}
+
+interface ProgressData {
+  files: number;
+  percentage: number;
+  currentFile: string;
+  completed: boolean;
+  totalSize: number;
+}
+
+interface DebugLogEntry {
+  timestamp: string;
+  tag: string;
+  data: unknown[];
+}
+
 // Legacy window logger for backwards compatibility
-const log = (tag: string, ...args: any[]) => {
+const log = (tag: string, ...args: unknown[]) => {
   logger.info(tag, ...args);
   // Also save to window for inspection
   const timestamp = new Date().toISOString();
-  const entry = { timestamp, tag, data: args };
+  const entry: DebugLogEntry = { timestamp, tag, data: args };
   if (typeof window !== "undefined") {
-    (window as any).__debugLogs = (window as any).__debugLogs || [];
-    (window as any).__debugLogs.push(entry);
+    const globalWindow = window as unknown as {
+      __debugLogs?: DebugLogEntry[];
+      __TAURI__?: unknown;
+    };
+    globalWindow.__debugLogs = globalWindow.__debugLogs || [];
+    globalWindow.__debugLogs.push(entry);
   }
 };
 
 export const useAnalysisStore = defineStore("analysis", () => {
-  const path = ref(
-    localStorage.getItem("lastPath") || "E:\\Self Built Web and Mobile Apps\\Space Analyzer"
-  );
+  const defaultPath =
+    import.meta.env?.VITE_DEFAULT_PATH || "E:\\Self Built Web and Mobile Apps\\Space Analyzer";
+  const path = ref(localStorage.getItem("lastPath") || defaultPath);
   const status = ref("idle");
   const progress = ref(0);
   const isAnalysisRunning = ref(false);
   const isLoading = ref(false);
   const currentAnalysisId = ref<string | null>(null);
   // Data will be fetched from database - don't store in localStorage
-  const data = ref<any>(null);
+  const data = ref<AnalysisData | null>(null);
   const error = ref<string | null>(null);
   const useAI = ref(false);
-  const scannedFiles = ref<any[]>([]);
+  const scannedFiles = ref<BridgeFileInfo[]>([]);
   const recentlyScannedFiles = ref<string[]>([]);
-  const progressData = ref({
+  const progressData = ref<ProgressData>({
     files: 0,
     percentage: 0,
     currentFile: "",
-    completed: false as boolean | undefined,
+    completed: false,
     totalSize: 0,
   });
-  // Initialize backend status - in Tauri mode, set to ok by default
-  const isTauriMode = typeof window !== "undefined" && !!(window as any).__TAURI__;
-  const backendStatus = ref(isTauriMode ? { ok: true } : null);
   const abortController = ref<AbortController | null>(null);
   const analysisStartTime = ref<number | null>(null);
 
@@ -87,7 +110,10 @@ export const useAnalysisStore = defineStore("analysis", () => {
 
   // Register store update function for WebSocket updates
   if (typeof window !== "undefined") {
-    (window as any).__updateStoreProgress = updateProgressFromWebSocket;
+    const globalWindow = window as unknown as {
+      __updateStoreProgress?: (progressInfo: ProgressData) => void;
+    };
+    globalWindow.__updateStoreProgress = updateProgressFromWebSocket;
   }
 
   // Cancel ongoing analysis
@@ -128,9 +154,12 @@ export const useAnalysisStore = defineStore("analysis", () => {
     progress.value = 0;
 
     // Clean up any stored unsubscribe functions
-    if (typeof window !== "undefined" && (window as any).__analysisUnsubscribe) {
-      (window as any).__analysisUnsubscribe();
-      (window as any).__analysisUnsubscribe = null;
+    if (typeof window !== "undefined") {
+      const globalWindow = window as unknown as { __analysisUnsubscribe?: (() => void) | null };
+      if (globalWindow.__analysisUnsubscribe) {
+        globalWindow.__analysisUnsubscribe();
+        globalWindow.__analysisUnsubscribe = null;
+      }
     }
   }
 
@@ -192,7 +221,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
       currentAnalysisId.value = analysisId;
 
       log("RESULT", result);
-      data.value = result;
+      data.value = result as unknown as AnalysisData;
       // Populate scannedFiles from result for RealTimeFileScanner
       if (result?.file_analysis?.files && Array.isArray(result.file_analysis.files)) {
         scannedFiles.value = result.file_analysis.files;
@@ -204,7 +233,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
 
       // Save only the path for next time - data is stored in database
       localStorage.setItem("lastPath", path.value);
-    } catch (err) {
+    } catch (err: unknown) {
       log("ERROR", err);
       error.value = err instanceof Error ? err.message : "Analysis failed";
       status.value = "error";
@@ -265,7 +294,39 @@ export const useAnalysisStore = defineStore("analysis", () => {
     const savedPath = localStorage.getItem("lastPath");
     if (savedPath) {
       path.value = savedPath;
-      await fetchAnalysisFromDB(savedPath);
+      const dbAnalysis = await fetchAnalysisFromDB(savedPath);
+
+      // Only load sample data if no previous scan data exists at all
+      if (!dbAnalysis) {
+        // Try to find any existing analysis data in the database
+        try {
+          const allAnalyses = await getAnalysisHistory();
+          if (allAnalyses && allAnalyses.length > 0) {
+            // Load the most recent analysis
+            data.value = allAnalyses[0];
+            log("PREVIOUS_SCAN_LOADED", "Loaded most recent scan data");
+            return;
+          }
+        } catch (error) {
+          log("HISTORY_LOAD_ERROR", "Failed to load analysis history", error);
+        }
+
+        // Only load sample data as last resort
+        try {
+          const sampleResponse = await fetch("/sample-analysis-data.json");
+          if (sampleResponse.ok) {
+            const sampleData = await sampleResponse.json();
+            if (sampleData.success) {
+              data.value = sampleData.analysis;
+              log("SAMPLE_DATA_LOADED", "Loaded sample analysis data (no previous scans found)");
+            }
+          }
+        } catch (error) {
+          log("SAMPLE_DATA_ERROR", "Failed to load sample data", error);
+        }
+      }
+    } else {
+      log("PREVIOUS_SCAN_LOADED", "Loaded previous analysis from database");
     }
   };
 
@@ -315,7 +376,7 @@ export const useAnalysisStore = defineStore("analysis", () => {
               log("PROGRESS_POLL", "Updated progress from backend", progressData.value);
             }
           }
-        } catch (error) {
+        } catch (error: unknown) {
           log("PROGRESS_POLL_ERROR", "Failed to fetch progress", error);
         }
       }
@@ -347,6 +408,81 @@ export const useAnalysisStore = defineStore("analysis", () => {
     }
   });
 
+  // Persistence functions
+  const saveToStorage = () => {
+    try {
+      const storeData = {
+        path: path.value,
+        status: status.value,
+        data: data.value,
+        useAI: useAI.value,
+        scannedFiles: scannedFiles.value,
+        recentlyScannedFiles: recentlyScannedFiles.value,
+        progressData: progressData.value,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Save to localStorage
+      localStorage.setItem("analysis-store", JSON.stringify(storeData));
+
+      log("STORAGE_SAVE", "Analysis store saved to localStorage");
+    } catch (error) {
+      log("STORAGE_SAVE_ERROR", "Failed to save analysis store", error);
+    }
+  };
+
+  const loadFromStorage = () => {
+    try {
+      const savedData = localStorage.getItem("analysis-store");
+
+      if (!savedData) {
+        log("STORAGE_LOAD", "No saved analysis store data found");
+        return;
+      }
+
+      const parsedData = JSON.parse(savedData);
+
+      // Restore state with validation
+      if (parsedData.path) path.value = parsedData.path;
+      if (parsedData.status) status.value = parsedData.status;
+      if (parsedData.data) data.value = parsedData.data;
+      if (parsedData.useAI !== undefined) useAI.value = parsedData.useAI;
+      if (parsedData.scannedFiles) scannedFiles.value = parsedData.scannedFiles;
+      if (parsedData.recentlyScannedFiles)
+        recentlyScannedFiles.value = parsedData.recentlyScannedFiles;
+      if (parsedData.progressData) progressData.value = parsedData.progressData;
+
+      log("STORAGE_LOAD", "Analysis store loaded from localStorage", {
+        timestamp: parsedData.timestamp,
+      });
+    } catch (error) {
+      log("STORAGE_LOAD_ERROR", "Failed to load analysis store", error);
+    }
+  };
+
+  const clearStorage = () => {
+    try {
+      localStorage.removeItem("analysis-store");
+      log("STORAGE_CLEAR", "Analysis store cleared from localStorage");
+    } catch (error) {
+      log("STORAGE_CLEAR_ERROR", "Failed to clear analysis store", error);
+    }
+  };
+
+  // Auto-save on important state changes
+  watch(
+    [path, data, useAI, scannedFiles, progressData],
+    () => {
+      saveToStorage();
+    },
+    { deep: true }
+  );
+
+  // Load from storage on initialization
+  onMounted(() => {
+    loadFromStorage();
+  });
+
   return {
     path,
     status,
@@ -366,6 +502,9 @@ export const useAnalysisStore = defineStore("analysis", () => {
     checkBackend,
     reset,
     initialize,
+    saveToStorage,
+    loadFromStorage,
+    clearStorage,
     fetchAnalysisFromDB,
     getAnalysisHistory,
     updateProgressFromWebSocket,

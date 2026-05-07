@@ -1,7 +1,10 @@
 <template>
   <div
     v-if="isRunning || progress > 0"
-    :class="['bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4 sm:p-6 shadow-2xl', className]"
+    :class="[
+      'bg-slate-800/50 backdrop-blur border border-slate-700 rounded-xl p-4 sm:p-6 shadow-2xl',
+      className,
+    ]"
   >
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
@@ -12,7 +15,7 @@
         <div>
           <h3 class="text-lg font-semibold text-white">Analysis in Progress</h3>
           <p class="text-sm text-slate-400">
-            {{ analysisId ? `ID: ${analysisId.slice(-8)}` : 'Processing directory' }}
+            {{ analysisId ? `ID: ${analysisId.slice(-8)}` : "Processing directory" }}
           </p>
         </div>
       </div>
@@ -29,11 +32,11 @@
               'px-2 py-1 text-xs rounded transition-colors',
               currentSpeed === speed
                 ? 'bg-blue-500 text-white'
-                : 'text-slate-400 hover:text-white hover:bg-slate-600'
+                : 'text-slate-400 hover:text-white hover:bg-slate-600',
             ]"
             :aria-label="`Set speed to ${speed}`"
           >
-            {{ speed === 'slow' ? '🐢' : speed === 'normal' ? '🚶' : '🏃' }}
+            {{ speed === "slow" ? "🐢" : speed === "normal" ? "🚶" : "🏃" }}
           </button>
         </div>
 
@@ -111,7 +114,9 @@
     <!-- Detailed Stats Grid -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
       <div class="text-center">
-        <div class="text-lg font-semibold text-white">{{ (processedFiles || 0).toLocaleString() }}</div>
+        <div class="text-lg font-semibold text-white">
+          {{ (processedFiles || 0).toLocaleString() }}
+        </div>
         <div class="text-xs text-slate-400">Files Processed</div>
       </div>
 
@@ -143,7 +148,11 @@
     <div class="border-t border-slate-700 pt-4">
       <h4 class="text-sm font-medium text-white mb-3">Analysis Stages</h4>
       <div class="space-y-2">
-        <div v-for="(stage, index) in ANALYSIS_STAGES" :key="stage.name" class="flex items-center space-x-3">
+        <div
+          v-for="(stage, index) in ANALYSIS_STAGES"
+          :key="stage.name"
+          class="flex items-center space-x-3"
+        >
           <div class="flex-shrink-0">
             <CheckCircle v-if="isStageCompleted(stage, index)" :size="16" class="text-green-400" />
             <component
@@ -163,7 +172,7 @@
                     ? 'text-green-400'
                     : isStageActive(stage, index)
                       ? 'text-blue-400'
-                      : 'text-slate-400'
+                      : 'text-slate-400',
                 ]"
               >
                 {{ stage.name }}
@@ -185,15 +194,16 @@
     <div v-if="isDevelopment" class="border-t border-slate-700 pt-4 mt-4">
       <h4 class="text-xs font-medium text-slate-400 mb-2">Debug Info</h4>
       <div class="text-xs text-slate-500 font-mono">
-        Progress: {{ progress.toFixed(2) }}% | Elapsed: {{ formatElapsedTime(elapsedTime) }} | Stage:
-        {{ currentStage?.name || 'Unknown' }}
+        Progress: {{ progress.toFixed(2) }}% | Elapsed: {{ formatElapsedTime(elapsedTime) }} |
+        Stage:
+        {{ currentStage?.name || "Unknown" }}
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import {
   Clock,
   FileSearch,
@@ -207,7 +217,7 @@ import {
   Loader2,
   RefreshCw,
   AlertTriangle,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface AnalysisProgressProps {
   isRunning: boolean;
@@ -221,9 +231,9 @@ interface AnalysisProgressProps {
   onCancel?: () => void;
   onPause?: () => void;
   onResume?: () => void;
-  onSpeedChange?: (speed: 'slow' | 'normal' | 'fast') => void;
+  onSpeedChange?: (speed: "slow" | "normal" | "fast") => void;
   onDepthChange?: (depth: number) => void;
-  currentSpeed?: 'slow' | 'normal' | 'fast';
+  currentSpeed?: "slow" | "normal" | "fast";
   currentDepth?: number;
   realtimeData?: any;
   className?: string;
@@ -239,39 +249,39 @@ interface ProgressStage {
 const props = withDefaults(defineProps<AnalysisProgressProps>(), {
   totalFiles: 0,
   processedFiles: 0,
-  currentSpeed: 'normal',
+  currentSpeed: "normal",
   currentDepth: 5,
-  className: '',
+  className: "",
 });
 
 const ANALYSIS_STAGES: ProgressStage[] = [
   {
-    name: 'Initializing',
-    description: 'Setting up analysis environment',
+    name: "Initializing",
+    description: "Setting up analysis environment",
     icon: Activity,
     estimatedDuration: 5,
   },
   {
-    name: 'Directory Scan',
-    description: 'Scanning directory structure',
+    name: "Directory Scan",
+    description: "Scanning directory structure",
     icon: FileSearch,
     estimatedDuration: 30,
   },
   {
-    name: 'File Analysis',
-    description: 'Analyzing individual files',
+    name: "File Analysis",
+    description: "Analyzing individual files",
     icon: HardDrive,
     estimatedDuration: 120,
   },
   {
-    name: 'Dependency Analysis',
-    description: 'Building file relationships',
+    name: "Dependency Analysis",
+    description: "Building file relationships",
     icon: Activity,
     estimatedDuration: 45,
   },
   {
-    name: 'Finalizing',
-    description: 'Generating insights and reports',
+    name: "Finalizing",
+    description: "Generating insights and reports",
     icon: CheckCircle,
     estimatedDuration: 15,
   },
@@ -282,7 +292,7 @@ const elapsedTime = ref(0);
 const isPaused = ref(false);
 let interval: number | null = null;
 
-const isDevelopment = computed(() => process.env.NODE_ENV === 'development');
+const isDevelopment = computed(() => process.env.NODE_ENV === "development");
 
 const currentStage = computed(() => {
   const stageIndex = Math.floor((props.progress / 100) * ANALYSIS_STAGES.length);
@@ -311,57 +321,57 @@ const formatElapsedTime = (ms: number): string => {
 };
 
 const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
+  if (bytes === 0) return "0 B";
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 };
 
 const getProgressColor = () => {
-  if (props.progress < 25) return 'bg-blue-500';
-  if (props.progress < 50) return 'bg-yellow-500';
-  if (props.progress < 75) return 'bg-orange-500';
-  return 'bg-green-500';
+  if (props.progress < 25) return "bg-blue-500";
+  if (props.progress < 50) return "bg-yellow-500";
+  if (props.progress < 75) return "bg-orange-500";
+  return "bg-green-500";
 };
 
 const getStatusColor = () => {
-  if (!props.isRunning) return 'text-gray-400';
-  if (props.progress < 25) return 'text-blue-400';
-  if (props.progress < 50) return 'text-yellow-400';
-  if (props.progress < 75) return 'text-orange-400';
-  return 'text-green-400';
+  if (!props.isRunning) return "text-gray-400";
+  if (props.progress < 25) return "text-blue-400";
+  if (props.progress < 50) return "text-yellow-400";
+  if (props.progress < 75) return "text-orange-400";
+  return "text-green-400";
 };
 
 const getMeaningfulStatus = () => {
   if (
     props.status &&
-    (props.status.includes('🔍') ||
-      props.status.includes('🧠') ||
-      props.status.includes('🤖') ||
-      props.status.includes('💡') ||
-      props.status.includes('📊') ||
-      props.status.includes('✅'))
+    (props.status.includes("🔍") ||
+      props.status.includes("🧠") ||
+      props.status.includes("🤖") ||
+      props.status.includes("💡") ||
+      props.status.includes("📊") ||
+      props.status.includes("✅"))
   ) {
     return props.status;
   }
 
   if (
     props.status &&
-    (props.status.includes('Scanning:') ||
-      props.status.includes('Analyzing:') ||
-      props.status.includes('Found') ||
-      props.status.includes('Generating') ||
-      props.status.includes('Finalizing'))
+    (props.status.includes("Scanning:") ||
+      props.status.includes("Analyzing:") ||
+      props.status.includes("Found") ||
+      props.status.includes("Generating") ||
+      props.status.includes("Finalizing"))
   ) {
     return props.status;
   }
 
-  if (props.progress >= 0 && props.progress < 25) return '🔍 Scanning directory structure...';
-  if (props.progress >= 25 && props.progress < 75) return '🤖 Running AI categorization...';
-  if (props.progress >= 75 && props.progress < 90) return '💡 Generating AI recommendations...';
-  if (props.progress >= 90 && props.progress < 100) return '📊 Finalizing analysis results...';
-  if (props.progress >= 100) return '✅ Analysis complete!';
+  if (props.progress >= 0 && props.progress < 25) return "🔍 Scanning directory structure...";
+  if (props.progress >= 25 && props.progress < 75) return "🤖 Running AI categorization...";
+  if (props.progress >= 75 && props.progress < 90) return "💡 Generating AI recommendations...";
+  if (props.progress >= 90 && props.progress < 100) return "📊 Finalizing analysis results...";
+  if (props.progress >= 100) return "✅ Analysis complete!";
 
   return currentStage.value.description;
 };

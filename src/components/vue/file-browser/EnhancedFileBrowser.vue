@@ -14,7 +14,7 @@
           @click="viewState.viewMode = 'list'"
           :class="[
             'p-2 rounded-lg transition-colors',
-            viewState.viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'
+            viewState.viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400',
           ]"
         >
           <List class="w-4 h-4" />
@@ -23,7 +23,7 @@
           @click="viewState.viewMode = 'grid'"
           :class="[
             'p-2 rounded-lg transition-colors',
-            viewState.viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'
+            viewState.viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400',
           ]"
         >
           <Grid3X3 class="w-4 h-4" />
@@ -74,7 +74,7 @@
             class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white hover:bg-gray-600 transition-colors"
           >
             <ArrowUpDown class="w-4 h-4" />
-            <span>{{ viewState.sortOrder === 'asc' ? 'Ascending' : 'Descending' }}</span>
+            <span>{{ viewState.sortOrder === "asc" ? "Ascending" : "Descending" }}</span>
           </button>
         </div>
         <div>
@@ -96,12 +96,12 @@
             @click="viewState.showHidden = !viewState.showHidden"
             :class="[
               'w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors',
-              viewState.showHidden ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
+              viewState.showHidden ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300',
             ]"
           >
             <Eye v-if="viewState.showHidden" class="w-4 h-4" />
             <EyeOff v-else class="w-4 h-4" />
-            <span>{{ viewState.showHidden ? 'Show Hidden' : 'Hide Hidden' }}</span>
+            <span>{{ viewState.showHidden ? "Show Hidden" : "Hide Hidden" }}</span>
           </button>
         </div>
       </div>
@@ -117,7 +117,7 @@
           @click="selectFile(file.path)"
           :class="[
             'flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-700 transition-colors',
-            viewState.selectedFiles.has(file.path) ? 'bg-blue-600/20' : ''
+            viewState.selectedFiles.has(file.path) ? 'bg-blue-600/20' : '',
           ]"
         >
           <File class="w-5 h-5 text-gray-400 flex-shrink-0" />
@@ -127,7 +127,9 @@
           </div>
           <div class="flex items-center gap-4 flex-shrink-0">
             <span class="text-sm text-gray-400">{{ formatSize(file.size) }}</span>
-            <span class="text-xs px-2 py-1 bg-gray-700 rounded text-gray-300">{{ file.category }}</span>
+            <span class="text-xs px-2 py-1 bg-gray-700 rounded text-gray-300">{{
+              file.category
+            }}</span>
           </div>
         </div>
       </div>
@@ -140,7 +142,7 @@
           @click="selectFile(file.path)"
           :class="[
             'bg-gray-700 rounded-lg p-4 cursor-pointer hover:bg-gray-600 transition-colors',
-            viewState.selectedFiles.has(file.path) ? 'ring-2 ring-blue-500' : ''
+            viewState.selectedFiles.has(file.path) ? 'ring-2 ring-blue-500' : '',
           ]"
         >
           <File class="w-8 h-8 text-gray-400 mx-auto mb-2" />
@@ -159,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from "vue";
 import {
   Search,
   Filter,
@@ -181,7 +183,7 @@ import {
   EyeOff,
   Download,
   Trash2,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface FileData {
   name: string;
@@ -210,17 +212,17 @@ const props = withDefaults(defineProps<EnhancedFileBrowserProps>(), {
 const showAdvancedFilters = ref(false);
 
 const viewState = ref({
-  searchQuery: '',
-  sortBy: 'name' as 'name' | 'size' | 'modified' | 'category' | 'extension',
-  sortOrder: 'asc' as 'asc' | 'desc',
+  searchQuery: "",
+  sortBy: "name" as "name" | "size" | "modified" | "category" | "extension",
+  sortOrder: "asc" as "asc" | "desc",
   filters: {
     categories: [] as string[],
     extensions: [] as string[],
     sizeRange: [0, Number.MAX_SAFE_INTEGER] as [number, number],
     dateRange: [null, null] as [Date | null, Date | null],
   },
-  viewMode: 'list' as 'list' | 'grid' | 'tree' | 'compact',
-  groupBy: 'none' as 'none' | 'category' | 'extension' | 'size' | 'folder',
+  viewMode: "list" as "list" | "grid" | "tree" | "compact",
+  groupBy: "none" as "none" | "category" | "extension" | "size" | "folder",
   showHidden: false,
   selectedFiles: new Set<string>(),
   expandedGroups: new Set<string>(),
@@ -267,35 +269,35 @@ const sortedFiles = computed(() => {
     let comparison = 0;
 
     switch (viewState.value.sortBy) {
-      case 'name':
+      case "name":
         comparison = a.name.localeCompare(b.name);
         break;
-      case 'size':
+      case "size":
         comparison = a.size - b.size;
         break;
-      case 'modified':
+      case "modified":
         comparison = (a.modified?.getTime() || 0) - (b.modified?.getTime() || 0);
         break;
-      case 'category':
+      case "category":
         comparison = a.category.localeCompare(b.category);
         break;
-      case 'extension':
+      case "extension":
         comparison = a.extension.localeCompare(b.extension);
         break;
     }
 
-    return viewState.value.sortOrder === 'asc' ? comparison : -comparison;
+    return viewState.value.sortOrder === "asc" ? comparison : -comparison;
   });
 
   return result;
 });
 
 const formatSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B';
+  if (bytes === 0) return "0 B";
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 };
 
 const selectFile = (path: string) => {

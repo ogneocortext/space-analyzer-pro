@@ -62,42 +62,8 @@ export interface OllamaResponse {
   context?: any;
   used_model?: string;
 }
-
-export interface ChatMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-  timestamp: Date;
-  model?: string;
-  images?: string[]; // Base64 encoded images for vision models
-}
-
-export interface VisionAnalysisResult {
-  description: string;
-  objects: Array<{
-    name: string;
-    confidence: number;
-    bbox?: [number, number, number, number];
-  }>;
-  text_detected?: string[];
-  scene_type?: string;
-  colors: {
-    dominant: string[];
-    palette: string[];
-  };
-  technical_details?: {
-    resolution: string;
-    aspect_ratio: string;
-    estimated_quality: string;
-  };
-  file_analysis?: {
-    type: string;
-    relevance_score: number;
-    insights: string[];
-  };
-}
-
 class OllamaService {
-  private baseUrl: string;
+  private baseUrl: string = "/api/ollama";
   private models: OllamaModel[] = [];
   private currentModel: string = "qwen2.5-coder:7b-instruct";
   private defaultNumCtx: number;
@@ -989,3 +955,4 @@ Provide a helpful, accurate answer based on the context. If the context doesn't 
 
 export const ollamaService = new OllamaService();
 export default ollamaService;
+

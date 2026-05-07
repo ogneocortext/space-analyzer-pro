@@ -1,95 +1,95 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import DesktopLayout from '@/components/vue/desktop/DesktopLayout.vue'
-import DesktopAppShell from '@/layout/DesktopAppShell.vue'
+import { createRouter, createWebHistory } from "vue-router";
+import DesktopLayout from "@/components/vue/desktop/DesktopLayout.vue";
+import DesktopAppShell from "@/layout/DesktopAppShell.vue";
 
 // Desktop-specific imports
-import DesktopAnalysisPanel from '@/components/vue/desktop/DesktopAnalysisPanel.vue'
-import DesktopFileBrowser from '@/components/vue/desktop/DesktopFileBrowser.vue'
+import DesktopAnalysisPanel from "@/components/vue/desktop/DesktopAnalysisPanel.vue";
+import DesktopFileBrowser from "@/components/vue/desktop/DesktopFileBrowser.vue";
 
 // Regular imports (shared with web)
-import Dashboard from '@/components/vue/Dashboard.vue'
-import ScanView from '@/components/vue/Scan.vue'
-import ReportsView from '@/components/vue/Reports.vue'
-import SettingsView from '@/components/vue/Settings.vue'
+import Dashboard from "@/components/vue/Dashboard.vue";
+import ScanView from "@/components/vue/Scan.vue";
+import ReportsView from "@/components/vue/Reports.vue";
+import SettingsView from "@/components/vue/Settings.vue";
 
 const desktopRoutes = [
   {
-    path: '/',
-    name: 'DesktopDashboard',
+    path: "/",
+    name: "DesktopDashboard",
     component: Dashboard,
     meta: {
-      title: 'Dashboard - Space Analyzer Pro',
+      title: "Dashboard - Space Analyzer Pro",
       requiresDesktop: true,
-      icon: 'LayoutDashboard'
-    }
+      icon: "LayoutDashboard",
+    },
   },
   {
-    path: '/browser',
-    name: 'DesktopFileBrowser',
+    path: "/browser",
+    name: "DesktopFileBrowser",
     component: DesktopFileBrowser,
     meta: {
-      title: 'File Browser - Space Analyzer Pro',
+      title: "File Browser - Space Analyzer Pro",
       requiresDesktop: true,
-      icon: 'FolderOpen'
-    }
+      icon: "FolderOpen",
+    },
   },
   {
-    path: '/scan',
-    name: 'DesktopScan',
+    path: "/scan",
+    name: "DesktopScan",
     component: DesktopAnalysisPanel,
     meta: {
-      title: 'Scan - Space Analyzer Pro',
+      title: "Scan - Space Analyzer Pro",
       requiresDesktop: true,
-      icon: 'Scan'
-    }
+      icon: "Scan",
+    },
   },
   {
-    path: '/reports',
-    name: 'DesktopReports',
+    path: "/reports",
+    name: "DesktopReports",
     component: ReportsView,
     meta: {
-      title: 'Reports - Space Analyzer Pro',
+      title: "Reports - Space Analyzer Pro",
       requiresDesktop: true,
-      icon: 'FileText'
-    }
+      icon: "FileText",
+    },
   },
   {
-    path: '/settings',
-    name: 'DesktopSettings',
+    path: "/settings",
+    name: "DesktopSettings",
     component: SettingsView,
     meta: {
-      title: 'Settings - Space Analyzer Pro',
+      title: "Settings - Space Analyzer Pro",
       requiresDesktop: true,
-      icon: 'Settings'
-    }
+      icon: "Settings",
+    },
   },
   // Desktop-specific routes
   {
-    path: '/desktop',
-    name: 'DesktopHome',
-    redirect: '/'
+    path: "/desktop",
+    name: "DesktopHome",
+    redirect: "/",
   },
   {
-    path: '/desktop/analysis',
-    name: 'DesktopAnalysis',
+    path: "/desktop/analysis",
+    name: "DesktopAnalysis",
     component: DesktopAnalysisPanel,
     meta: {
-      title: 'Desktop Analysis - Space Analyzer Pro',
-      requiresDesktop: true
-    }
-  }
-]
+      title: "Desktop Analysis - Space Analyzer Pro",
+      requiresDesktop: true,
+    },
+  },
+];
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
-      path: '/',
+      path: "/",
       component: DesktopAppShell,
-      children: desktopRoutes
-    }
-  ]
-})
+      children: desktopRoutes,
+    },
+  ],
+});
 
 // Navigation guard for desktop routes
 router.beforeEach((to, from, next) => {
@@ -98,27 +98,27 @@ router.beforeEach((to, from, next) => {
     // In a real implementation, you might check if running in Tauri
     // For now, we'll allow access to all routes
   }
-  
+
   // Update document title
   if (to.meta?.title) {
-    document.title = to.meta.title as string
+    document.title = to.meta.title as string;
   }
-  
-  next()
-})
 
-export default router
+  next();
+});
+
+export default router;
 
 // Helper function to get desktop navigation items
 export function getDesktopNavigation() {
-  return desktopRoutes.map(route => ({
-    name: route.name?.toString().replace('Desktop', '') || 'Unknown',
+  return desktopRoutes.map((route) => ({
+    name: route.name?.toString().replace("Desktop", "") || "Unknown",
     path: route.path,
-    icon: route.meta?.icon as string || 'LayoutDashboard'
-  }))
+    icon: (route.meta?.icon as string) || "LayoutDashboard",
+  }));
 }
 
 // Helper function to check if route is desktop-specific
 export function isDesktopRoute(path: string): boolean {
-  return desktopRoutes.some(route => route.path === path)
+  return desktopRoutes.some((route) => route.path === path);
 }

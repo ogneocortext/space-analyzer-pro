@@ -7,13 +7,13 @@ export const useBackendHealth = () => {
 
   const checkBackend = async () => {
     try {
-      const response = await fetch('/api/health');
+      const response = await fetch("/api/health");
       const data = await response.json();
-      
-      isBackendOnline.value = data.status === 'ok';
+
+      isBackendOnline.value = data.status === "ok";
       lastChecked.value = new Date();
     } catch (error) {
-      console.error('Backend health check failed:', error);
+      console.error("Backend health check failed:", error);
       isBackendOnline.value = false;
       lastChecked.value = new Date();
     }
@@ -22,10 +22,10 @@ export const useBackendHealth = () => {
   const startHealthChecks = () => {
     // Check immediately
     checkBackend();
-    
+
     // Then check every 30 seconds
     const interval = setInterval(checkBackend, 30000);
-    
+
     return () => {
       clearInterval(interval);
     };
@@ -33,7 +33,7 @@ export const useBackendHealth = () => {
 
   onMounted(() => {
     const stopHealthChecks = startHealthChecks();
-    
+
     onUnmounted(() => {
       stopHealthChecks();
     });

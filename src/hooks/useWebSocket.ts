@@ -20,7 +20,7 @@ export const useWebSocket = (url: string): UseWebSocketReturn => {
   const connect = () => {
     try {
       ws.value = new WebSocket(url);
-      
+
       ws.value.onopen = () => {
         isConnected.value = true;
       };
@@ -30,7 +30,7 @@ export const useWebSocket = (url: string): UseWebSocketReturn => {
           const message = JSON.parse(event.data);
           lastMessage.value = message;
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          console.error("Failed to parse WebSocket message:", error);
         }
       };
 
@@ -39,11 +39,11 @@ export const useWebSocket = (url: string): UseWebSocketReturn => {
       };
 
       ws.value.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.error("WebSocket error:", error);
         isConnected.value = false;
       };
     } catch (error) {
-      console.error('Failed to create WebSocket:', error);
+      console.error("Failed to create WebSocket:", error);
     }
   };
 

@@ -17,11 +17,7 @@
 
       <!-- Directory List -->
       <div v-if="directories.length > 0" class="directory-list">
-        <div
-          v-for="(dir, index) in directories"
-          :key="index"
-          class="directory-item"
-        >
+        <div v-for="(dir, index) in directories" :key="index" class="directory-item">
           <span class="dir-number">{{ index + 1 }}.</span>
           <span class="dir-path">{{ dir }}</span>
           <button @click="removeDirectory(index)" class="btn-remove">×</button>
@@ -65,22 +61,19 @@
         </div>
       </div>
 
-      <button
-        @click="startBatch"
-        :disabled="directories.length === 0 || loading"
-        class="btn-start"
-      >
-        {{ loading ? `Analyzing ${progress.current}/${directories.length}...` : `Start Batch Analysis (${directories.length} directories)` }}
+      <button @click="startBatch" :disabled="directories.length === 0 || loading" class="btn-start">
+        {{
+          loading
+            ? `Analyzing ${progress.current}/${directories.length}...`
+            : `Start Batch Analysis (${directories.length} directories)`
+        }}
       </button>
     </div>
 
     <!-- Progress -->
     <div v-if="loading" class="progress-section">
       <div class="progress-bar">
-        <div
-          class="progress-fill"
-          :style="{ width: progress.percentage + '%' }"
-        ></div>
+        <div class="progress-fill" :style="{ width: progress.percentage + '%' }"></div>
       </div>
       <div class="progress-stats">
         <span>{{ progress.current }} / {{ directories.length }} completed</span>
@@ -107,11 +100,15 @@
           <span class="summary-label">Total Time</span>
         </div>
         <div class="summary-item">
-          <span class="summary-value">{{ formatSize(results.batch.aggregateStats.totalSize) }}</span>
+          <span class="summary-value">{{
+            formatSize(results.batch.aggregateStats.totalSize)
+          }}</span>
           <span class="summary-label">Total Size</span>
         </div>
         <div class="summary-item">
-          <span class="summary-value">{{ formatNumber(results.batch.aggregateStats.totalFiles) }}</span>
+          <span class="summary-value">{{
+            formatNumber(results.batch.aggregateStats.totalFiles)
+          }}</span>
           <span class="summary-label">Total Files</span>
         </div>
       </div>
@@ -127,7 +124,7 @@
         >
           <div class="result-header">
             <span class="result-number">{{ index + 1 }}</span>
-            <span class="result-status">{{ result.success ? '✅' : '❌' }}</span>
+            <span class="result-status">{{ result.success ? "✅" : "❌" }}</span>
             <span class="result-path">{{ result.directory }}</span>
             <span class="result-duration">{{ result.duration }}ms</span>
           </div>
@@ -144,11 +141,7 @@
       <!-- Errors -->
       <div v-if="results.errors && results.errors.length > 0" class="errors-section">
         <h5>Failed Directories</h5>
-        <div
-          v-for="(error, index) in results.errors"
-          :key="index"
-          class="error-item"
-        >
+        <div v-for="(error, index) in results.errors" :key="index" class="error-item">
           <span class="error-path">{{ error.directory }}</span>
           <span class="error-message">{{ error.error }}</span>
         </div>
@@ -156,15 +149,13 @@
     </div>
 
     <!-- Error -->
-    <div v-if="error" class="error-message">
-      ❌ {{ error }}
-    </div>
+    <div v-if="error" class="error-message">❌ {{ error }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
-import { AnalysisBridge } from '@/services/AnalysisBridge';
+import { ref, reactive } from "vue";
+import { AnalysisBridge } from "@/services/AnalysisBridge";
 
 interface BatchResult {
   batch: {
@@ -196,7 +187,7 @@ interface BatchResult {
 // State
 const analysisBridge = new AnalysisBridge();
 const directories = ref<string[]>([]);
-const newDirectory = ref('');
+const newDirectory = ref("");
 const loading = ref(false);
 const error = ref<string | null>(null);
 const results = ref<BatchResult | null>(null);
@@ -205,27 +196,27 @@ const options = reactive({
   priority: 2, // NORMAL
   concurrency: 3,
   useOllama: false,
-  parallel: true
+  parallel: true,
 });
 
 const progress = reactive({
   current: 0,
-  percentage: 0
+  percentage: 0,
 });
 
 // Methods
 const addDirectory = () => {
   if (!newDirectory.value) return;
   if (directories.value.length >= 20) {
-    error.value = 'Maximum 20 directories allowed';
+    error.value = "Maximum 20 directories allowed";
     return;
   }
   if (directories.value.includes(newDirectory.value)) {
-    error.value = 'Directory already in list';
+    error.value = "Directory already in list";
     return;
   }
   directories.value.push(newDirectory.value);
-  newDirectory.value = '';
+  newDirectory.value = "";
   error.value = null;
 };
 
@@ -240,7 +231,7 @@ const formatDuration = (ms: number): string => {
 };
 
 const formatSize = (bytes: number): string => {
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const units = ["B", "KB", "MB", "GB", "TB"];
   let size = bytes;
   let unitIndex = 0;
   while (size >= 1024 && unitIndex < units.length - 1) {
@@ -280,7 +271,7 @@ const startBatch = async () => {
 
     results.value = result;
   } catch (err: any) {
-    error.value = err.message || 'Batch analysis failed';
+    error.value = err.message || "Batch analysis failed";
   } finally {
     loading.value = false;
   }

@@ -30,11 +30,7 @@
         placeholder="Ask about AI models in this directory..."
         class="qa-input"
       />
-      <button
-        type="submit"
-        class="primary-btn"
-        :disabled="loading || !question.trim()"
-      >
+      <button type="submit" class="primary-btn" :disabled="loading || !question.trim()">
         <span v-if="loading" class="loading-spinner loading-spinner-compact" />
         <Send v-else :size="18" />
       </button>
@@ -44,10 +40,8 @@
     <div v-if="answer && !answer.error" class="qa-answer">
       <div class="answer-header">
         <CheckCircle :size="16" class="answer-icon-success" />
-        <span>{{ answer.intent?.replace(/_/g, ' ').toUpperCase() }}</span>
-        <span v-if="answer.cached" class="cached-badge">
-          <Clock :size="12" /> Cached
-        </span>
+        <span>{{ answer.intent?.replace(/_/g, " ").toUpperCase() }}</span>
+        <span v-if="answer.cached" class="cached-badge"> <Clock :size="12" /> Cached </span>
       </div>
       <div class="answer-content">
         <pre class="answer-content-pre">{{ answer.answer }}</pre>
@@ -75,8 +69,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { MessageSquare, Send, Sparkles, Clock, CheckCircle } from 'lucide-vue-next';
+import { ref } from "vue";
+import { MessageSquare, Send, Sparkles, Clock, CheckCircle } from "lucide-vue-next";
 
 interface AIModelQAProps {
   bridge: any;
@@ -86,17 +80,17 @@ interface AIModelQAProps {
 
 const props = defineProps<AIModelQAProps>();
 
-const question = ref('');
+const question = ref("");
 const answer = ref<any>(null);
 const loading = ref(false);
 const history = ref<Array<{ question: string; answer: any; timestamp: Date }>>([]);
 
 const suggestedQuestions = [
-  'How much space do AI models use?',
-  'What frameworks are detected?',
-  'How can I optimize these models?',
-  'What is safetensors format?',
-  'How do I use these AI models?',
+  "How much space do AI models use?",
+  "What frameworks are detected?",
+  "How can I optimize these models?",
+  "What is safetensors format?",
+  "How do I use these AI models?",
 ];
 
 const handleSubmit = async (e: Event) => {
@@ -108,9 +102,9 @@ const handleSubmit = async (e: Event) => {
     const result = await props.bridge.aiModelQA(question.value, props.directory, props.analysisId);
     answer.value = result;
     history.value.push({ question: question.value, answer: result, timestamp: new Date() });
-    question.value = '';
+    question.value = "";
   } catch (error) {
-    console.error('Q&A error:', error);
+    console.error("Q&A error:", error);
     answer.value = { error: (error as Error).message };
   } finally {
     loading.value = false;

@@ -53,7 +53,7 @@
               @click="toggleSetting(setting.key)"
               :class="[
                 'relative w-12 h-6 rounded-full transition-colors focus-enhanced',
-                settings[setting.key] ? 'bg-blue-600' : 'bg-slate-600'
+                settings[setting.key] ? 'bg-blue-600' : 'bg-slate-600',
               ]"
               role="switch"
               :aria-checked="settings[setting.key] ? 'true' : 'false'"
@@ -62,10 +62,13 @@
               <div
                 :class="[
                   'absolute top-1 w-4 h-4 bg-white rounded-full transition-transform',
-                  settings[setting.key] ? 'translate-x-6' : 'translate-x-1'
+                  settings[setting.key] ? 'translate-x-6' : 'translate-x-1',
                 ]"
               />
-              <Check v-if="settings[setting.key]" class="absolute top-1 right-1 w-2 h-2 text-white" />
+              <Check
+                v-if="settings[setting.key]"
+                class="absolute top-1 right-1 w-2 h-2 text-white"
+              />
             </button>
           </div>
         </div>
@@ -104,8 +107,8 @@
         <div>
           <h4 class="font-semibold text-white mb-1">Accessibility Information</h4>
           <p class="text-sm text-slate-300 mb-2">
-            These settings help customize Space Analyzer for different accessibility needs.
-            Changes are saved automatically and will persist across sessions.
+            These settings help customize Space Analyzer for different accessibility needs. Changes
+            are saved automatically and will persist across sessions.
           </p>
           <div class="text-xs text-slate-400">
             <p>• Settings are stored locally in your browser</p>
@@ -119,7 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted } from "vue";
 import {
   Eye,
   EyeOff,
@@ -136,7 +139,7 @@ import {
   Zap,
   Check,
   X,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface AccessibilitySettingsProps {
   onBack?: () => void;
@@ -144,7 +147,7 @@ interface AccessibilitySettingsProps {
 }
 
 const props = withDefaults(defineProps<AccessibilitySettingsProps>(), {
-  className: '',
+  className: "",
 });
 
 const settings = ref({
@@ -175,61 +178,61 @@ const defaultSettings = {
 
 const settingsCategories = [
   {
-    title: 'Visual',
+    title: "Visual",
     icon: Eye,
     settings: [
-      { key: 'highContrast' as keyof typeof settings.value, label: 'High Contrast', icon: Palette },
-      { key: 'largeText' as keyof typeof settings.value, label: 'Large Text', icon: Type },
-      { key: 'darkMode' as keyof typeof settings.value, label: 'Dark Mode', icon: Moon },
+      { key: "highContrast" as keyof typeof settings.value, label: "High Contrast", icon: Palette },
+      { key: "largeText" as keyof typeof settings.value, label: "Large Text", icon: Type },
+      { key: "darkMode" as keyof typeof settings.value, label: "Dark Mode", icon: Moon },
       {
-        key: 'visualIndicators' as keyof typeof settings.value,
-        label: 'Visual Indicators',
+        key: "visualIndicators" as keyof typeof settings.value,
+        label: "Visual Indicators",
         icon: Monitor,
       },
     ],
   },
   {
-    title: 'Interaction',
+    title: "Interaction",
     icon: MousePointer,
     settings: [
-      { key: 'reducedMotion' as keyof typeof settings.value, label: 'Reduced Motion', icon: Zap },
+      { key: "reducedMotion" as keyof typeof settings.value, label: "Reduced Motion", icon: Zap },
       {
-        key: 'keyboardNavigation' as keyof typeof settings.value,
-        label: 'Keyboard Navigation',
+        key: "keyboardNavigation" as keyof typeof settings.value,
+        label: "Keyboard Navigation",
         icon: Keyboard,
       },
-      { key: 'focusVisible' as keyof typeof settings.value, label: 'Focus Indicators', icon: Eye },
-      { key: 'tooltipsEnabled' as keyof typeof settings.value, label: 'Tooltips', icon: EyeOff },
+      { key: "focusVisible" as keyof typeof settings.value, label: "Focus Indicators", icon: Eye },
+      { key: "tooltipsEnabled" as keyof typeof settings.value, label: "Tooltips", icon: EyeOff },
     ],
   },
   {
-    title: 'Assistive',
+    title: "Assistive",
     icon: Volume2,
     settings: [
       {
-        key: 'screenReader' as keyof typeof settings.value,
-        label: 'Screen Reader Mode',
+        key: "screenReader" as keyof typeof settings.value,
+        label: "Screen Reader Mode",
         icon: Volume2,
       },
-      { key: 'soundEffects' as keyof typeof settings.value, label: 'Sound Effects', icon: VolumeX },
+      { key: "soundEffects" as keyof typeof settings.value, label: "Sound Effects", icon: VolumeX },
     ],
   },
 ];
 
 const getSettingDescription = (key: string) => {
   const descriptions: Record<string, string> = {
-    highContrast: 'Increase contrast for better visibility',
-    largeText: 'Increase font size for readability',
-    darkMode: 'Switch between light and dark themes',
-    visualIndicators: 'Show visual feedback for actions',
-    reducedMotion: 'Minimize animations and transitions',
-    keyboardNavigation: 'Enable keyboard shortcuts',
-    focusVisible: 'Show focus indicators',
-    tooltipsEnabled: 'Display helpful tooltips',
-    screenReader: 'Optimize for screen readers',
-    soundEffects: 'Enable audio feedback',
+    highContrast: "Increase contrast for better visibility",
+    largeText: "Increase font size for readability",
+    darkMode: "Switch between light and dark themes",
+    visualIndicators: "Show visual feedback for actions",
+    reducedMotion: "Minimize animations and transitions",
+    keyboardNavigation: "Enable keyboard shortcuts",
+    focusVisible: "Show focus indicators",
+    tooltipsEnabled: "Display helpful tooltips",
+    screenReader: "Optimize for screen readers",
+    soundEffects: "Enable audio feedback",
   };
-  return descriptions[key] || '';
+  return descriptions[key] || "";
 };
 
 const toggleSetting = (key: keyof typeof settings.value) => {
@@ -265,47 +268,47 @@ const applySettingsToDocument = () => {
 
   // High contrast
   if (settings.value.highContrast) {
-    root.classList.add('high-contrast');
+    root.classList.add("high-contrast");
   } else {
-    root.classList.remove('high-contrast');
+    root.classList.remove("high-contrast");
   }
 
   // Reduced motion
   if (settings.value.reducedMotion) {
-    root.classList.add('reduced-motion');
+    root.classList.add("reduced-motion");
   } else {
-    root.classList.remove('reduced-motion');
+    root.classList.remove("reduced-motion");
   }
 
   // Large text
   if (settings.value.largeText) {
-    root.classList.add('large-text');
+    root.classList.add("large-text");
   } else {
-    root.classList.remove('large-text');
+    root.classList.remove("large-text");
   }
 
   // Dark mode
   if (settings.value.darkMode) {
-    root.classList.add('dark-mode');
+    root.classList.add("dark-mode");
   } else {
-    root.classList.remove('dark-mode');
+    root.classList.remove("dark-mode");
   }
 
   // Focus visible
   if (settings.value.focusVisible) {
-    root.classList.add('focus-visible-enabled');
+    root.classList.add("focus-visible-enabled");
   } else {
-    root.classList.remove('focus-visible-enabled');
+    root.classList.remove("focus-visible-enabled");
   }
 };
 
 onMounted(() => {
-  const savedSettings = localStorage.getItem('accessibility-settings');
+  const savedSettings = localStorage.getItem("accessibility-settings");
   if (savedSettings) {
     try {
       settings.value = JSON.parse(savedSettings);
     } catch (error) {
-      console.error('Failed to load accessibility settings:', error);
+      console.error("Failed to load accessibility settings:", error);
     }
   }
   applySettingsToDocument();
@@ -314,7 +317,7 @@ onMounted(() => {
 watch(
   settings,
   (newSettings) => {
-    localStorage.setItem('accessibility-settings', JSON.stringify(newSettings));
+    localStorage.setItem("accessibility-settings", JSON.stringify(newSettings));
     applySettingsToDocument();
   },
   { deep: true }

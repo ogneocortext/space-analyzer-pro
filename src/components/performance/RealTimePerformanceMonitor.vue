@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { Card } from "@/design-system/components";
+import { Card } from "@/design-system";
 import { Activity, HardDrive, Cpu, MemoryStick, Clock, TrendingUp } from "lucide-vue-next";
 
 interface RealTimeMetrics {

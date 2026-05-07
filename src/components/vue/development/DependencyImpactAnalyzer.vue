@@ -117,7 +117,7 @@
             :class="['execute-action-btn', loading ? 'loading' : '']"
           >
             <Zap :size="14" />
-            {{ loading ? 'Processing...' : `Execute ${alt.action}` }}
+            {{ loading ? "Processing..." : `Execute ${alt.action}` }}
           </button>
         </div>
       </div>
@@ -133,16 +133,14 @@
         >
           <EyeOff v-if="showDetails" :size="14" />
           <Eye v-else :size="14" />
-          {{ showDetails ? 'Hide' : 'Show' }} Details
+          {{ showDetails ? "Hide" : "Show" }} Details
         </button>
       </div>
 
       <div v-if="showDetails" class="impact-details-content">
         <!-- Direct Impacts -->
         <div v-if="analysis.directImpacts.length > 0">
-          <h5 class="impact-type-title">
-            Direct Impacts ({{ analysis.directImpacts.length }})
-          </h5>
+          <h5 class="impact-type-title">Direct Impacts ({{ analysis.directImpacts.length }})</h5>
           <div class="impact-list">
             <ImpactCard
               v-for="(impact, index) in analysis.directImpacts"
@@ -209,11 +207,7 @@
         <div v-if="selectedImpact.benefits.length > 0" class="selected-impact-benefits">
           <div class="selected-impact-benefits-title">Benefits</div>
           <div class="selected-impact-benefits-list">
-            <div
-              v-for="(benefit, index) in selectedImpact.benefits"
-              :key="index"
-              class="benefit"
-            >
+            <div v-for="(benefit, index) in selectedImpact.benefits" :key="index" class="benefit">
               <CheckCircle :size="12" class="benefit-icon" />
               {{ benefit }}
             </div>
@@ -229,7 +223,7 @@
         :disabled="loading || analysis.overallRisk === 'critical'"
         :class="[
           'execute-action-btn',
-          loading || analysis.overallRisk === 'critical' ? 'disabled' : ''
+          loading || analysis.overallRisk === 'critical' ? 'disabled' : '',
         ]"
       >
         <template v-if="loading">
@@ -251,7 +245,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from "vue";
 import {
   AlertTriangle,
   CheckCircle,
@@ -262,12 +256,12 @@ import {
   Zap,
   Eye,
   EyeOff,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface DependencyImpact {
   file: string;
-  impact: 'critical' | 'high' | 'medium' | 'low' | 'none';
-  riskLevel: 'critical' | 'high' | 'medium' | 'low' | 'none';
+  impact: "critical" | "high" | "medium" | "low" | "none";
+  riskLevel: "critical" | "high" | "medium" | "low" | "none";
   reason: string;
   consequences: string[];
   benefits: string[];
@@ -276,7 +270,7 @@ interface DependencyImpact {
 
 interface AlternativeAction {
   action: string;
-  risk: 'critical' | 'high' | 'medium' | 'low' | 'none';
+  risk: "critical" | "high" | "medium" | "low" | "none";
   description: string;
   benefits: string[];
 }
@@ -284,7 +278,7 @@ interface AlternativeAction {
 interface PredictiveDependencyAnalysis {
   action: string;
   targetFiles: string[];
-  overallRisk: 'critical' | 'high' | 'medium' | 'low' | 'none';
+  overallRisk: "critical" | "high" | "medium" | "low" | "none";
   directImpacts: DependencyImpact[];
   cascadingImpacts: DependencyImpact[];
   recommendations: string[];
@@ -315,79 +309,79 @@ const totalAffectedFiles = computed(() => {
 const criticalImpacts = computed(() => {
   if (!props.analysis) return 0;
   return [...props.analysis.directImpacts, ...props.analysis.cascadingImpacts].filter(
-    (i) => i.riskLevel === 'critical'
+    (i) => i.riskLevel === "critical"
   ).length;
 });
 
 const highImpacts = computed(() => {
   if (!props.analysis) return 0;
   return [...props.analysis.directImpacts, ...props.analysis.cascadingImpacts].filter(
-    (i) => i.riskLevel === 'high'
+    (i) => i.riskLevel === "high"
   ).length;
 });
 
-const getRiskColor = (risk: 'critical' | 'high' | 'medium' | 'low' | 'none') => {
+const getRiskColor = (risk: "critical" | "high" | "medium" | "low" | "none") => {
   switch (risk) {
-    case 'critical':
-      return '#ef4444';
-    case 'high':
-      return '#f59e0b';
-    case 'medium':
-      return '#3b82f6';
-    case 'low':
-      return '#22c55e';
-    case 'none':
-      return '#6b7280';
+    case "critical":
+      return "#ef4444";
+    case "high":
+      return "#f59e0b";
+    case "medium":
+      return "#3b82f6";
+    case "low":
+      return "#22c55e";
+    case "none":
+      return "#6b7280";
     default:
-      return '#6b7280';
+      return "#6b7280";
   }
 };
 
-const getRiskBackground = (risk: 'critical' | 'high' | 'medium' | 'low' | 'none') => {
+const getRiskBackground = (risk: "critical" | "high" | "medium" | "low" | "none") => {
   switch (risk) {
-    case 'critical':
-      return 'rgba(239, 68, 68, 0.1)';
-    case 'high':
-      return 'rgba(245, 158, 11, 0.1)';
-    case 'medium':
-      return 'rgba(59, 130, 246, 0.1)';
-    case 'low':
-      return 'rgba(34, 197, 94, 0.1)';
-    case 'none':
-      return 'rgba(107, 114, 128, 0.1)';
+    case "critical":
+      return "rgba(239, 68, 68, 0.1)";
+    case "high":
+      return "rgba(245, 158, 11, 0.1)";
+    case "medium":
+      return "rgba(59, 130, 246, 0.1)";
+    case "low":
+      return "rgba(34, 197, 94, 0.1)";
+    case "none":
+      return "rgba(107, 114, 128, 0.1)";
     default:
-      return 'rgba(107, 114, 128, 0.1)';
+      return "rgba(107, 114, 128, 0.1)";
   }
 };
 
-const getRiskIconComponent = (risk: 'critical' | 'high' | 'medium' | 'low' | 'none') => {
+const getRiskIconComponent = (risk: "critical" | "high" | "medium" | "low" | "none") => {
   switch (risk) {
-    case 'critical':
+    case "critical":
       return XCircle;
-    case 'high':
+    case "high":
       return AlertTriangle;
-    case 'medium':
+    case "medium":
       return Info;
-    case 'low':
+    case "low":
       return CheckCircle;
-    case 'none':
+    case "none":
       return CheckCircle;
     default:
       return Info;
   }
 };
 
-const getImpactIconComponent = (impact: 'critical' | 'high' | 'medium' | 'low' | 'none') => {
+const getImpactIconComponent = (impact: "critical" | "high" | "medium" | "low" | "none") => {
   switch (impact) {
-    case 'critical':
+    case "critical":
       return XCircle;
-    case 'high':
+    case "high":
       return AlertTriangle;
-    case 'medium':
+    case "medium":
       return Info;
-    case 'low':
+    case "low":
       return CheckCircle;
-    case 'none':
+    case "none":
       return CheckCircle;
     default:
       return Info;
@@ -396,13 +390,13 @@ const getImpactIconComponent = (impact: 'critical' | 'high' | 'medium' | 'low' |
 </script>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
+import { defineComponent } from "vue";
 
 export default defineComponent({
-  name: 'DependencyImpactAnalyzer',
+  name: "DependencyImpactAnalyzer",
   components: {
     ImpactCard: defineComponent({
-      name: 'ImpactCard',
+      name: "ImpactCard",
       props: {
         impact: {
           type: Object as () => DependencyImpact,
@@ -417,7 +411,7 @@ export default defineComponent({
           default: false,
         },
       },
-      emits: ['select'],
+      emits: ["select"],
       template: `
         <div
           @click="$emit('select', impact)"
@@ -442,34 +436,36 @@ export default defineComponent({
         </div>
       `,
       setup() {
-        const getRiskColor = (risk: 'critical' | 'high' | 'medium' | 'low' | 'none') => {
+        const getRiskColor = (risk: "critical" | "high" | "medium" | "low" | "none") => {
           switch (risk) {
-            case 'critical':
-              return '#ef4444';
-            case 'high':
-              return '#f59e0b';
-            case 'medium':
-              return '#3b82f6';
-            case 'low':
-              return '#22c55e';
-            case 'none':
-              return '#6b7280';
+            case "critical":
+              return "#ef4444";
+            case "high":
+              return "#f59e0b";
+            case "medium":
+              return "#3b82f6";
+            case "low":
+              return "#22c55e";
+            case "none":
+              return "#6b7280";
             default:
-              return '#6b7280';
+              return "#6b7280";
           }
         };
 
-        const getImpactIconComponent = (impact: 'critical' | 'high' | 'medium' | 'low' | 'none') => {
+        const getImpactIconComponent = (
+          impact: "critical" | "high" | "medium" | "low" | "none"
+        ) => {
           switch (impact) {
-            case 'critical':
+            case "critical":
               return XCircle;
-            case 'high':
+            case "high":
               return AlertTriangle;
-            case 'medium':
+            case "medium":
               return Info;
-            case 'low':
+            case "low":
               return CheckCircle;
-            case 'none':
+            case "none":
               return CheckCircle;
             default:
               return Info;

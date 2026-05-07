@@ -8,7 +8,7 @@ export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
 
   const processedGraph = computed(() => {
     if (!dependencyGraph.value) return null;
-    
+
     // Process the dependency graph for visualization
     return {
       nodes: dependencyGraph.value.nodes || [],
@@ -17,22 +17,22 @@ export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
         totalNodes: dependencyGraph.value.nodes?.length || 0,
         totalEdges: dependencyGraph.value.edges?.length || 0,
         circularDependencies: dependencyGraph.value.circular?.length || 0,
-      }
+      },
     };
   });
 
   const analyzeDependencies = () => {
     if (!analysisData) return;
-    
+
     isLoading.value = true;
     error.value = null;
-    
+
     try {
       // Simple dependency analysis based on imports
       const dependencies = new Map<string, Set<string>>();
       const nodes: any[] = [];
       const edges: any[] = [];
-      
+
       // Analyze files for import relationships
       if (analysisData.files) {
         analysisData.files.forEach((file: any) => {
@@ -40,15 +40,15 @@ export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
           nodes.push({
             id: nodeId,
             name: file.name,
-            type: 'file',
+            type: "file",
             size: file.size || 0,
           });
-          
+
           // Extract imports from file content (simplified)
           if (file.content) {
             const importRegex = /import.*from\s+['"]([^'"]+)['"]/g;
             const imports = file.content.match(importRegex) || [];
-            
+
             imports.forEach((imp: string) => {
               if (!dependencies.has(nodeId)) {
                 dependencies.set(nodeId, new Set());
@@ -57,40 +57,43 @@ export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
             });
           }
         });
-        
+
         // Create edges from dependencies
         dependencies.forEach((deps, from) => {
           deps.forEach((to) => {
             edges.push({
               from,
               to,
-              type: 'import',
+              type: "import",
             });
           });
         });
       }
-      
+
       dependencyGraph.value = {
         nodes,
         edges,
         circular: [], // Simplified circular detection
       };
-      
     } catch (err: any) {
-      error.value = err.message || 'Failed to analyze dependencies';
+      error.value = err.message || "Failed to analyze dependencies";
     } finally {
       isLoading.value = false;
     }
   };
 
   // Auto-analyze when analysis data changes
-  watch(analysisData, (newData) => {
-    if (newData) {
-      analyzeDependencies();
-    } else {
-      dependencyGraph.value = null;
-    }
-  }, { immediate: true });
+  watch(
+    analysisData,
+    (newData) => {
+      if (newData) {
+        analyzeDependencies();
+      } else {
+        dependencyGraph.value = null;
+      }
+    },
+    { immediate: true }
+  );
 
   return {
     dependencyGraph: processedGraph,

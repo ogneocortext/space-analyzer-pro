@@ -28,7 +28,7 @@ import {
   ChevronRight,
   Loader2,
 } from "lucide-vue-next";
-import { useAnalysisStore } from "@/store/analysis";
+import { useAnalysisStore } from "@/store";
 import Button from "@/design-system/components/Button.vue";
 
 const store = useAnalysisStore();
