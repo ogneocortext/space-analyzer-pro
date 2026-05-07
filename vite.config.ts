@@ -17,7 +17,9 @@ export default defineConfig({
     host: true,
     open: false, // Don't auto-open browser
     cors: true,
-
+    hmr: {
+      overlay: false, // Disable HMR overlay for faster startup
+    },
     // Proxy API requests to backend server
     proxy: {
       "/api": {
@@ -28,17 +30,24 @@ export default defineConfig({
     },
   },
 
-  // Simplified build configuration
+  // Optimized build configuration for faster startup
   build: {
     outDir: "dist",
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["vue", "vue-router", "pinia"],
+        manualChunks: (id: string) => {
+          if (id.includes("node_modules")) {
+            if (id.includes("vue") || id.includes("vue-router") || id.includes("pinia")) {
+              return "vendor";
+            }
+            return "vendor-other";
+          }
         },
       },
     },
+    target: "esnext",
+    minify: "esbuild",
   },
 
   // Optimized dependency pre-bundling

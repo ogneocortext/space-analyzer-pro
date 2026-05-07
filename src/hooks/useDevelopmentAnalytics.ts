@@ -36,12 +36,12 @@ export const useDevelopmentAnalytics = (): UseDevelopmentAnalyticsReturn => {
 
   const analyzeCodeDuplication = () => {
     // Simplified code duplication analysis
-    const files = document.querySelectorAll('script[src]');
+    const files = document.querySelectorAll("script[src]");
     const fileContents: string[] = [];
-    
+
     files.forEach((file) => {
       const src = (file as HTMLScriptElement).src;
-      if (src && !src.includes('node_modules')) {
+      if (src && !src.includes("node_modules")) {
         fileContents.push(`File: ${src}`);
       }
     });
@@ -49,7 +49,7 @@ export const useDevelopmentAnalytics = (): UseDevelopmentAnalyticsReturn => {
     // Simple duplication detection
     const duplicates = [];
     const seenFiles = new Set<string>();
-    
+
     for (let i = 0; i < fileContents.length; i++) {
       for (let j = i + 1; j < fileContents.length; j++) {
         const similarity = calculateSimilarity(fileContents[i], fileContents[j]);
@@ -64,7 +64,8 @@ export const useDevelopmentAnalytics = (): UseDevelopmentAnalyticsReturn => {
     }
 
     const totalDuplicatedLines = duplicates.reduce((sum, dup) => sum + dup.lines, 0);
-    const overallDuplication = fileContents.length > 0 ? (totalDuplicatedLines / (fileContents.length * 50)) * 100 : 0;
+    const overallDuplication =
+      fileContents.length > 0 ? (totalDuplicatedLines / (fileContents.length * 50)) * 100 : 0;
 
     codeDuplication.value = {
       duplicates,
@@ -77,11 +78,11 @@ export const useDevelopmentAnalytics = (): UseDevelopmentAnalyticsReturn => {
     // Simple similarity calculation
     const words1 = str1.split(/\s+/);
     const words2 = str2.split(/\s+/);
-    const commonWords = words1.filter(word => words2.includes(word));
-    
+    const commonWords = words1.filter((word) => words2.includes(word));
+
     if (words1.length === 0 && words2.length === 0) return 1;
     if (words1.length === 0 || words2.length === 0) return 0;
-    
+
     return (2 * commonWords.length) / (words1.length + words2.length);
   };
 
@@ -95,11 +96,12 @@ export const useDevelopmentAnalytics = (): UseDevelopmentAnalyticsReturn => {
 
     // Generate recommendations
     if (codeDuplication.value.overallDuplication > 10) {
-      report.recommendations.push('Consider refactoring duplicated code');
+      report.recommendations.push("Consider refactoring duplicated code");
     }
-    
-    if (performanceMetrics.value.memoryUsage > 100000000) { // 100MB
-      report.recommendations.push('Memory usage is high, consider optimization');
+
+    if (performanceMetrics.value.memoryUsage > 100000000) {
+      // 100MB
+      report.recommendations.push("Memory usage is high, consider optimization");
     }
 
     return JSON.stringify(report, null, 2);

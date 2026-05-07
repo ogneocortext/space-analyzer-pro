@@ -2,6 +2,7 @@
 import { ref, computed } from "vue";
 import { useAnalysisStore } from "../../store/analysis";
 import { Card, Button } from "../../design-system/components";
+import AIChatInterface from "../../components/vue/ai/AIChatInterface.vue";
 
 const store = useAnalysisStore();
 const searchQuery = ref("");
@@ -27,7 +28,7 @@ async function performSemanticSearch() {
   if (searchHistory.value.length > 5) searchHistory.value.pop();
 
   // Simulate AI processing delay
-  await new Promise(r => setTimeout(r, 800));
+  await new Promise((r) => setTimeout(r, 800));
 
   const files = store.analysisResult.files || [];
   const query = searchQuery.value.toLowerCase();
@@ -36,7 +37,7 @@ async function performSemanticSearch() {
   searchResults.value = files
     .filter((f: any) => {
       const text = `${f.name} ${f.path} ${f.category}`.toLowerCase();
-      
+
       // Handle different query types
       if (query.includes("large") || query.includes("big")) {
         return f.size > 100 * 1024 * 1024; // > 100MB
@@ -52,7 +53,7 @@ async function performSemanticSearch() {
         const age = Date.now() - new Date(f.modified).getTime();
         return age < 30 * 24 * 60 * 60 * 1000;
       }
-      
+
       return text.includes(query);
     })
     .slice(0, 20)
@@ -95,11 +96,7 @@ function formatSize(bytes: number): string {
         class="flex-1 px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
         @keyup.enter="performSemanticSearch"
       />
-      <Button
-        variant="primary"
-        :loading="isSearching"
-        @click="performSemanticSearch"
-      >
+      <Button variant="primary" :loading="isSearching" @click="performSemanticSearch">
         {{ isSearching ? "Searching..." : "Search" }}
       </Button>
     </div>
@@ -150,8 +147,12 @@ function formatSize(bytes: number): string {
           class="p-3 bg-slate-800/50 rounded-lg flex items-center justify-between hover:bg-slate-800 transition-colors"
         >
           <div class="flex-1 min-w-0">
-            <p class="font-medium text-slate-200 truncate">{{ file.name }}</p>
-            <p class="text-sm text-slate-500 truncate">{{ file.path }}</p>
+            <p class="font-medium text-slate-200 truncate">
+              {{ file.name }}
+            </p>
+            <p class="text-sm text-slate-500 truncate">
+              {{ file.path }}
+            </p>
             <div class="flex gap-3 mt-1 text-xs text-slate-400">
               <span>{{ formatSize(file.size) }}</span>
               <span>{{ file.category }}</span>
@@ -159,7 +160,10 @@ function formatSize(bytes: number): string {
             </div>
           </div>
           <div class="text-right ml-4">
-            <div class="text-sm font-medium" :class="file.relevance > 80 ? 'text-emerald-400' : 'text-yellow-400'">
+            <div
+              class="text-sm font-medium"
+              :class="file.relevance > 80 ? 'text-emerald-400' : 'text-yellow-400'"
+            >
               {{ file.relevance.toFixed(0) }}% match
             </div>
           </div>
@@ -170,7 +174,18 @@ function formatSize(bytes: number): string {
     <!-- No Results -->
     <div v-if="searchQuery && !isSearching && searchResults.length === 0" class="p-8 text-center">
       <p class="text-slate-400">No files match your search.</p>
-      <p class="text-sm text-slate-500 mt-2">Try different keywords or check if you have scan data.</p>
+      <p class="text-sm text-slate-500 mt-2">
+        Try different keywords or check if you have scan data.
+      </p>
+    </div>
+
+    <!-- AI Chat Interface -->
+    <div class="mt-8">
+      <AIChatInterface
+        :analysis-data="store.analysisResult"
+        :files="store.analysisResult?.files || []"
+        :categories="store.analysisResult?.categories || {}"
+      />
     </div>
   </div>
 </template>

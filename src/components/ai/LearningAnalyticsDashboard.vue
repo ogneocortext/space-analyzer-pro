@@ -188,8 +188,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { useSelfLearningStore } from "@/store/selfLearning";
-import { indexedDBPersistence } from "@/store/indexedDBPersistence";
+import { useSelfLearningStore } from "@/store";
+import { indexedDBPersistence } from "@/store";
 
 interface AnalyticsData {
   totalPatterns: number;

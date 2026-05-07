@@ -39,7 +39,7 @@ export const useStreamingChat = (): UseStreamingChatReturn => {
       // Add user message
       messages.value.push({
         id: Date.now().toString(),
-        role: 'user',
+        role: "user",
         content: message,
         timestamp: new Date(),
       });
@@ -48,20 +48,19 @@ export const useStreamingChat = (): UseStreamingChatReturn => {
       await aiService.value.sendMessage(message, (chunk: StreamingChunk) => {
         // Handle streaming chunk
         const lastMessage = messages.value[messages.value.length - 1];
-        if (lastMessage && lastMessage.role === 'assistant') {
+        if (lastMessage && lastMessage.role === "assistant") {
           lastMessage.content += chunk.content;
         } else {
           messages.value.push({
             id: Date.now().toString(),
-            role: 'assistant',
+            role: "assistant",
             content: chunk.content,
             timestamp: new Date(),
           });
         }
       });
-
     } catch (err: any) {
-      error.value = err.message || 'Failed to send message';
+      error.value = err.message || "Failed to send message";
     } finally {
       isLoading.value = false;
     }

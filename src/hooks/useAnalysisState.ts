@@ -26,13 +26,15 @@ export interface UseAnalysisStateReturn {
 export const useAnalysisState = (): UseAnalysisStateReturn => {
   const analysisStore = useAnalysisStore();
 
-  const state = computed((): AnalysisState => ({
-    path: analysisStore.currentFile || "",
-    status: analysisStore.isAnalyzing ? "analyzing" : "idle",
-    progress: analysisStore.analysisProgress,
-    data: analysisStore.analysisResult,
-    error: analysisStore.analysisError,
-  }));
+  const state = computed(
+    (): AnalysisState => ({
+      path: analysisStore.currentFile || "",
+      status: analysisStore.isAnalyzing ? "analyzing" : "idle",
+      progress: analysisStore.analysisProgress,
+      data: analysisStore.analysisResult,
+      error: analysisStore.analysisError,
+    })
+  );
 
   const isAnalyzing = computed(() => analysisStore.isAnalyzing);
   const hasData = computed(() => !!analysisStore.analysisResult);

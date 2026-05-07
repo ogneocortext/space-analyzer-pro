@@ -1340,9 +1340,13 @@ export class AnalysisBridge {
         }
 
         const results = await resultsResponse.json();
-        
+
         // Check if analysis is complete and has results
-        if (results.success && results.status === "complete" && (results.data || results.totalFiles > 0)) {
+        if (
+          results.success &&
+          results.status === "complete" &&
+          (results.data || results.totalFiles > 0)
+        ) {
           isComplete = true;
           console.warn("✅ Analysis complete, returning results");
           return {
@@ -1352,7 +1356,11 @@ export class AnalysisBridge {
         }
 
         // Log progress from results endpoint
-        if (results.status === "scanning" || results.status === "running" || results.progress !== undefined) {
+        if (
+          results.status === "scanning" ||
+          results.status === "running" ||
+          results.progress !== undefined
+        ) {
           console.log(
             `⏳ Analysis still in progress: ${results.status || "unknown"} (${results.progress || 0}%)`
           );

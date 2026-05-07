@@ -26,7 +26,7 @@ export interface CategoryPrediction {
 export interface CleanupRecommendation {
   file_path: string;
   confidence: number;
-  action: 'delete' | 'archive' | 'review';
+  action: "delete" | "archive" | "review";
   reason: string;
 }
 
@@ -50,7 +50,7 @@ export interface MLModelStatus {
 export interface AIServiceHealth {
   success: boolean;
   node: string;
-  ai_service: 'healthy' | 'degraded' | 'unavailable';
+  ai_service: "healthy" | "degraded" | "unavailable";
   ai_service_url: string;
   error?: string;
 }
@@ -60,7 +60,7 @@ class PythonAIService {
 
   constructor() {
     // Use the Node.js backend proxy, not directly to Python service
-    this.baseUrl = '/api/ai';
+    this.baseUrl = "/api/ai";
   }
 
   /**
@@ -91,16 +91,16 @@ class PythonAIService {
    */
   async predictCategory(fileData: FileData): Promise<CategoryPrediction> {
     const response = await fetch(`${this.baseUrl}/predict/category`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(fileData),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to predict category');
+      throw new Error(error.error || "Failed to predict category");
     }
 
     const data = await response.json();
@@ -112,16 +112,16 @@ class PythonAIService {
    */
   async predictCategoriesBatch(files: FileData[]): Promise<CategoryPrediction[]> {
     const response = await fetch(`${this.baseUrl}/predict/categories-batch`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ files }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to batch predict categories');
+      throw new Error(error.error || "Failed to batch predict categories");
     }
 
     const data = await response.json();
@@ -133,16 +133,16 @@ class PythonAIService {
    */
   async predictCleanup(analysis: DirectoryAnalysis): Promise<CleanupRecommendation[]> {
     const response = await fetch(`${this.baseUrl}/predict/cleanup`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(analysis),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to get cleanup recommendations');
+      throw new Error(error.error || "Failed to get cleanup recommendations");
     }
 
     const data = await response.json();
@@ -154,16 +154,16 @@ class PythonAIService {
    */
   async trainCategorizer(files: FileData[]): Promise<{ message: string; files_count: number }> {
     const response = await fetch(`${this.baseUrl}/train/categorizer`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ files }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to train categorizer');
+      throw new Error(error.error || "Failed to train categorizer");
     }
 
     return response.json();
@@ -172,18 +172,20 @@ class PythonAIService {
   /**
    * Train the cleanup predictor model
    */
-  async trainCleanupPredictor(analyses: DirectoryAnalysis[]): Promise<{ message: string; analyses_count: number }> {
+  async trainCleanupPredictor(
+    analyses: DirectoryAnalysis[]
+  ): Promise<{ message: string; analyses_count: number }> {
     const response = await fetch(`${this.baseUrl}/train/cleanup-predictor`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ analyses }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to train cleanup predictor');
+      throw new Error(error.error || "Failed to train cleanup predictor");
     }
 
     return response.json();
@@ -202,9 +204,9 @@ class PythonAIService {
     const now = Date.now() / 1000;
     return {
       path: file.path,
-      name: file.name || file.path.split('/').pop() || 'unknown',
+      name: file.name || file.path.split("/").pop() || "unknown",
       size: file.size,
-      extension: file.extension || file.path.split('.').pop() || '',
+      extension: file.extension || file.path.split(".").pop() || "",
       modified_time: file.modified_time || now,
     };
   }
@@ -214,17 +216,17 @@ class PythonAIService {
    */
   static getCategoryIcon(category: string): string {
     const icons: Record<string, string> = {
-      documents: '📄',
-      images: '🖼️',
-      videos: '🎬',
-      audio: '🎵',
-      archives: '📦',
-      code: '💻',
-      data: '📊',
-      executables: '⚙️',
-      other: '📁',
+      documents: "📄",
+      images: "🖼️",
+      videos: "🎬",
+      audio: "🎵",
+      archives: "📦",
+      code: "💻",
+      data: "📊",
+      executables: "⚙️",
+      other: "📁",
     };
-    return icons[category] || '📁';
+    return icons[category] || "📁";
   }
 
   /**
@@ -232,20 +234,20 @@ class PythonAIService {
    */
   static getActionIcon(action: string): string {
     const icons: Record<string, string> = {
-      delete: '🗑️',
-      archive: '📦',
-      review: '👀',
+      delete: "🗑️",
+      archive: "📦",
+      review: "👀",
     };
-    return icons[action] || '❓';
+    return icons[action] || "❓";
   }
 
   /**
    * Get confidence color based on score
    */
   static getConfidenceColor(confidence: number): string {
-    if (confidence >= 0.8) return 'text-green-500';
-    if (confidence >= 0.6) return 'text-yellow-500';
-    return 'text-red-500';
+    if (confidence >= 0.8) return "text-green-500";
+    if (confidence >= 0.6) return "text-yellow-500";
+    return "text-red-500";
   }
 }
 

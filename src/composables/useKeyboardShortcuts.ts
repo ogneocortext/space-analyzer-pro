@@ -1,5 +1,5 @@
 import { onMounted, onUnmounted } from "vue";
-import { useRouter, useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 import { useTauriDesktop } from "./useTauriDesktop";
 import { useDebugLogger } from "@/services/DebugLogger";
 
@@ -14,7 +14,7 @@ interface Shortcut {
 
 export function useKeyboardShortcuts() {
   const router = useRouter();
-  const route = useRoute();
+  
   const { isTauri, selectDirectory, analyzeDirectoryWithProgress, cancelAnalysis } =
     useTauriDesktop();
 

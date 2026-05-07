@@ -170,13 +170,19 @@ async function deleteFile(filePath: string, hash: string) {
       </Button>
     </div>
 
-    <div v-if="error" class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3">
+    <div
+      v-if="error"
+      class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3"
+    >
       <AlertCircle class="w-5 h-5 text-red-400" />
       <p class="text-red-400 text-sm">{{ error }}</p>
     </div>
 
     <!-- Success Message -->
-    <div v-if="successMessage" class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+    <div
+      v-if="successMessage"
+      class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg"
+    >
       <p class="text-emerald-400 text-sm">{{ successMessage }}</p>
     </div>
 

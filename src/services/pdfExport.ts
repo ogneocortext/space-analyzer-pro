@@ -85,7 +85,11 @@ export function exportToPDF(data: AnalysisResult, filename?: string): void {
       doc.addPage();
       y = margin;
     }
-    doc.text(`${category}: ${stats.count.toLocaleString()} files (${formatBytes(stats.size)})`, margin, y);
+    doc.text(
+      `${category}: ${stats.count.toLocaleString()} files (${formatBytes(stats.size)})`,
+      margin,
+      y
+    );
     y += 6;
   });
   y += 10;
@@ -112,7 +116,11 @@ export function exportToPDF(data: AnalysisResult, filename?: string): void {
       doc.addPage();
       y = margin;
     }
-    doc.text(`.${ext}: ${stats.count.toLocaleString()} files (${formatBytes(stats.size)})`, margin, y);
+    doc.text(
+      `.${ext}: ${stats.count.toLocaleString()} files (${formatBytes(stats.size)})`,
+      margin,
+      y
+    );
     y += 6;
   });
   y += 15;
@@ -129,9 +137,7 @@ export function exportToPDF(data: AnalysisResult, filename?: string): void {
     doc.text("Largest Files (Top 20)", margin, y);
     y += 10;
 
-    const sortedFiles = [...data.files]
-      .sort((a, b) => (b.size || 0) - (a.size || 0))
-      .slice(0, 20);
+    const sortedFiles = [...data.files].sort((a, b) => (b.size || 0) - (a.size || 0)).slice(0, 20);
 
     doc.setFontSize(8);
     sortedFiles.forEach((file) => {
@@ -151,7 +157,9 @@ export function exportToPDF(data: AnalysisResult, filename?: string): void {
     doc.setPage(i);
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    doc.text(`Space Analyzer Pro - Page ${i} of ${totalPages}`, pageWidth / 2, 285, { align: "center" });
+    doc.text(`Space Analyzer Pro - Page ${i} of ${totalPages}`, pageWidth / 2, 285, {
+      align: "center",
+    });
   }
 
   // Save

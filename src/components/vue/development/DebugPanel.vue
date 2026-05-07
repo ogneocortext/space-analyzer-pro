@@ -1,5 +1,8 @@
 <template>
-  <div v-if="visible" class="fixed bottom-4 right-4 z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-xl">
+  <div
+    v-if="visible"
+    class="fixed bottom-4 right-4 z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-xl"
+  >
     <!-- Toggle Button -->
     <button
       @click="isExpanded = !isExpanded"
@@ -7,9 +10,7 @@
     >
       <Bug :size="16" />
       <span class="text-sm font-medium">Debug Panel</span>
-      <span :class="['transform transition-transform', isExpanded ? 'rotate-180' : '']">
-        ▼
-      </span>
+      <span :class="['transform transition-transform', isExpanded ? 'rotate-180' : '']"> ▼ </span>
     </button>
 
     <!-- Panel Content -->
@@ -20,12 +21,12 @@
           @click="isMonitoring = !isMonitoring"
           :class="[
             'flex items-center gap-1 px-2 py-1 rounded text-xs text-white transition-colors',
-            isMonitoring ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'
+            isMonitoring ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700',
           ]"
         >
           <Pause v-if="isMonitoring" :size="12" />
           <Play v-else :size="12" />
-          {{ isMonitoring ? 'Pause' : 'Monitor' }}
+          {{ isMonitoring ? "Pause" : "Monitor" }}
         </button>
 
         <button
@@ -66,18 +67,12 @@
         <h4 class="text-sm font-semibold text-gray-300 mb-2">Performance Metrics</h4>
         <div class="bg-gray-800 rounded p-2 text-xs">
           <div v-if="Object.keys(metrics).length > 0">
-            <div
-              v-for="(value, key) in metrics"
-              :key="key"
-              class="flex justify-between py-1"
-            >
+            <div v-for="(value, key) in metrics" :key="key" class="flex justify-between py-1">
               <span class="text-gray-400">{{ key }}:</span>
               <span class="text-green-400 font-mono">{{ value.toFixed(2) }}ms</span>
             </div>
           </div>
-          <div v-else class="text-gray-500">
-            No metrics available. Start monitoring.
-          </div>
+          <div v-else class="text-gray-500">No metrics available. Start monitoring.</div>
         </div>
       </div>
 
@@ -94,9 +89,7 @@
               {{ log }}
             </div>
           </div>
-          <div v-else class="text-gray-500">
-            No logs yet.
-          </div>
+          <div v-else class="text-gray-500">No logs yet.</div>
         </div>
       </div>
 
@@ -105,10 +98,8 @@
         <h4 class="text-sm font-semibold text-gray-300 mb-2">System Info</h4>
         <div class="bg-gray-800 rounded p-2 text-xs text-gray-400">
           <div>URL: {{ window.location.href }}</div>
-          <div>User Agent: {{ navigator.userAgent.split(' ').slice(-2).join(' ') }}</div>
-          <div>
-            Viewport: {{ window.innerWidth }}x{{ window.innerHeight }}
-          </div>
+          <div>User Agent: {{ navigator.userAgent.split(" ").slice(-2).join(" ") }}</div>
+          <div>Viewport: {{ window.innerWidth }}x{{ window.innerHeight }}</div>
         </div>
       </div>
     </div>
@@ -116,8 +107,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
-import { Bug, Play, Pause, RotateCcw, Trash2, Download, Eye } from 'lucide-vue-next';
+import { ref, watch, onMounted, onUnmounted } from "vue";
+import { Bug, Play, Pause, RotateCcw, Trash2, Download, Eye } from "lucide-vue-next";
 
 interface DebugPanelProps {
   visible?: boolean;
@@ -140,12 +131,12 @@ const addLog = (message: string) => {
 
 const handleClearLogs = () => {
   logs.value = [];
-  addLog('Logs cleared');
+  addLog("Logs cleared");
 };
 
 const handleClearMetrics = () => {
   metrics.value = {};
-  addLog('Performance metrics cleared');
+  addLog("Performance metrics cleared");
 };
 
 const handleExportLogs = () => {
@@ -157,26 +148,26 @@ const handleExportLogs = () => {
     url: window.location.href,
   };
 
-  const blob = new Blob([JSON.stringify(logData, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(logData, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   a.download = `space-analyzer-debug-${Date.now()}.json`;
   a.click();
   URL.revokeObjectURL(url);
 
-  addLog('Debug data exported');
+  addLog("Debug data exported");
 };
 
 const handleViewLocalStorage = () => {
   try {
-    const performanceMetrics = localStorage.getItem('performance-metrics');
+    const performanceMetrics = localStorage.getItem("performance-metrics");
     if (performanceMetrics) {
       const data = JSON.parse(performanceMetrics);
       addLog(`Found ${data.length} stored performance metrics`);
       console.table(data);
     } else {
-      addLog('No stored performance metrics found');
+      addLog("No stored performance metrics found");
     }
   } catch (error) {
     addLog(`Error reading localStorage: ${error}`);

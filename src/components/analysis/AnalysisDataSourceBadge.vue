@@ -4,9 +4,7 @@
     <div v-if="dataSource === 'real'" class="badge badge-real" :title="tooltip">
       <span class="icon">✅</span>
       <span class="text">Real Analysis Data</span>
-      <span v-if="toolsUsed.length" class="tools">
-        ({{ toolsUsed.join(', ') }})
-      </span>
+      <span v-if="toolsUsed.length" class="tools"> ({{ toolsUsed.join(", ") }}) </span>
     </div>
 
     <!-- Simulated Data Badge -->
@@ -19,7 +17,7 @@
         @click="onInstallClick"
         :disabled="isInstalling"
       >
-        {{ isInstalling ? 'Installing...' : 'Install Tools' }}
+        {{ isInstalling ? "Installing..." : "Install Tools" }}
       </button>
     </div>
 
@@ -27,13 +25,8 @@
     <div v-else-if="error" class="badge badge-error" :title="error">
       <span class="icon">❌</span>
       <span class="text">Analysis Failed</span>
-      <button
-        v-if="showRetryButton"
-        class="retry-btn"
-        @click="onRetryClick"
-        :disabled="isRetrying"
-      >
-        {{ isRetrying ? 'Retrying...' : 'Retry' }}
+      <button v-if="showRetryButton" class="retry-btn" @click="onRetryClick" :disabled="isRetrying">
+        {{ isRetrying ? "Retrying..." : "Retry" }}
       </button>
     </div>
 
@@ -46,10 +39,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed } from "vue";
 
 interface Props {
-  dataSource: 'real' | 'simulated' | 'error' | 'unknown';
+  dataSource: "real" | "simulated" | "error" | "unknown";
   toolsUsed?: string[];
   error?: string;
   showInstallButton?: boolean;
@@ -63,26 +56,26 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  (e: 'install'): void;
-  (e: 'retry'): void;
+  (e: "install"): void;
+  (e: "retry"): void;
 }>();
 
 const isInstalling = ref(false);
 const isRetrying = ref(false);
 
 const tooltip = computed(() => {
-  if (props.dataSource === 'real') {
-    return `Analysis performed using: ${props.toolsUsed.join(', ')}`;
+  if (props.dataSource === "real") {
+    return `Analysis performed using: ${props.toolsUsed.join(", ")}`;
   }
-  if (props.dataSource === 'simulated') {
-    return 'This data is simulated for demonstration. Install ESLint to get real analysis.';
+  if (props.dataSource === "simulated") {
+    return "This data is simulated for demonstration. Install ESLint to get real analysis.";
   }
-  return '';
+  return "";
 });
 
 const onInstallClick = async () => {
   isInstalling.value = true;
-  emit('install');
+  emit("install");
   // Reset after 3 seconds
   setTimeout(() => {
     isInstalling.value = false;
@@ -91,7 +84,7 @@ const onInstallClick = async () => {
 
 const onRetryClick = async () => {
   isRetrying.value = true;
-  emit('retry');
+  emit("retry");
   // Reset after 3 seconds
   setTimeout(() => {
     isRetrying.value = false;

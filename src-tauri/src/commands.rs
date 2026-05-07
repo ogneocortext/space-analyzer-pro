@@ -492,3 +492,149 @@ pub fn get_drives() -> Result<Vec<DriveInfo>, String> {
     Ok(drives)
 }
 
+#[tauri::command]
+pub fn open_file(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &path])
+            .spawn()
+            .map_err(|e| format!("Failed to open file: {}", e))?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open file: {}", e))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_in_explorer(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg("/select,")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open explorer: {}", e))?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open file manager: {}", e))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn show_in_folder(path: String) -> Result<(), String> {
+    let parent_path = std::path::Path::new(&path)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .ok_or("Invalid path".to_string())?;
+
+    open_in_explorer(parent_path)
+}
+
+#[tauri::command]
+pub fn get_environment_variables() -> Result<std::collections::HashMap<String, String>, String> {
+    let mut env_vars = std::collections::HashMap::new();
+
+    // Common environment variables that are safe to expose
+    let safe_vars = [
+        "PATH", "HOME", "USER", "USERNAME", "COMPUTERNAME",
+        "TEMP", "TMP", "APPDATA", "PROGRAMFILES", "PROGRAMFILES(X86)"
+    ];
+
+    for var_name in safe_vars.iter() {
+        if let Ok(value) = std::env::var(var_name) {
+            env_vars.insert(var_name.to_string(), value);
+        }
+    }
+
+    Ok(env_vars)
+}
+
+#[tauri::command]
+pub async fn execute_command(
+    command: String,
+    args: Option<Vec<String>>,
+    working_dir: Option<String>
+) -> Result<String, String> {
+    let args = args.unwrap_or_default();
+    let working_dir = working_dir.unwrap_or_else(|| ".".to_string());
+
+    let output = std::process::Command::new(&command)
+        .args(&args)
+        .current_dir(&working_dir)
+        .output()
+        .map_err(|e| format!("Failed to execute command: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!("Command failed with exit code: {}", output.status));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if !stderr.is_empty() {
+        return Err(format!("Command produced errors: {}", stderr));
+    }
+
+    Ok(stdout.to_string())
+}
+
+#[tauri::command]
+pub fn read_file_content(
+    path: String,
+    _encoding: Option<String>,
+    max_lines: Option<usize>
+) -> Result<String, String> {
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read file: {}", e))?;
+
+    let lines: Vec<&str> = content.lines().collect();
+    let max_lines = max_lines.unwrap_or(usize::MAX);
+    let limited_lines: Vec<&str> = lines.into_iter().take(max_lines).collect();
+
+    Ok(limited_lines.join("\n"))
+}
+
+#[tauri::command]
+pub fn write_file_content(
+    path: String,
+    content: String,
+    _encoding: Option<String>,
+    append: Option<bool>
+) -> Result<(), String> {
+    use std::io::Write;
+
+    let append = append.unwrap_or(false);
+    let path_obj = std::path::Path::new(&path);
+
+    if append {
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path_obj)
+            .map_err(|e| format!("Failed to open file for appending: {}", e))?;
+
+        file.write_all(content.as_bytes())
+            .map_err(|e| format!("Failed to write to file: {}", e))?;
+    } else {
+        std::fs::write(&path_obj, content.as_bytes())
+            .map_err(|e| format!("Failed to write file: {}", e))?;
+    }
+
+    Ok(())
+}
+

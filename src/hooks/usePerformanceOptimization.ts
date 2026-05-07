@@ -21,7 +21,9 @@ export interface UsePerformanceOptimizationReturn {
   resetMetrics: () => void;
 }
 
-export const usePerformanceOptimization = (initialConfig: Partial<PerformanceConfig> = {}): UsePerformanceOptimizationReturn => {
+export const usePerformanceOptimization = (
+  initialConfig: Partial<PerformanceConfig> = {}
+): UsePerformanceOptimizationReturn => {
   const config = ref<PerformanceConfig>({
     maxNodes: 10000,
     maxConnections: 1000,
@@ -29,7 +31,7 @@ export const usePerformanceOptimization = (initialConfig: Partial<PerformanceCon
     enableVirtualization: true,
     enableGPUAcceleration: true,
     cacheSize: 1000,
-    ...initialConfig
+    ...initialConfig,
   });
 
   const metrics = ref<PerformanceMetrics>({
@@ -60,13 +62,13 @@ export const usePerformanceOptimization = (initialConfig: Partial<PerformanceCon
     calculateFPS();
 
     // Get memory usage if available
-    if ('memory' in performance) {
+    if ("memory" in performance) {
       const memory = (performance as any).memory;
       metrics.value.memoryUsage = memory.usedJSHeapSize;
     }
 
     // Count components
-    const components = document.querySelectorAll('[data-component]');
+    const components = document.querySelectorAll("[data-component]");
     metrics.value.componentCount = components.length;
 
     // Update render time (simplified)
@@ -75,11 +77,13 @@ export const usePerformanceOptimization = (initialConfig: Partial<PerformanceCon
 
   const optimizeForDataset = (dataSize: number) => {
     // Auto-adjust performance settings based on dataset size
-    if (dataSize > 1000000) { // > 1M files
+    if (dataSize > 1000000) {
+      // > 1M files
       config.value.maxNodes = 5000;
       config.value.enableVirtualization = true;
       config.value.cacheSize = 500;
-    } else if (dataSize > 100000) { // > 100K files
+    } else if (dataSize > 100000) {
+      // > 100K files
       config.value.maxNodes = 10000;
       config.value.enableVirtualization = true;
       config.value.cacheSize = 1000;

@@ -140,10 +140,7 @@
               </div>
 
               <div class="mt-6 pt-4 border-t border-slate-700">
-                <button
-                  class="btn-ai-insights w-full"
-                  @click="onNavigate('ai-insights')"
-                >
+                <button class="btn-ai-insights w-full" @click="onNavigate('ai-insights')">
                   <BrainCircuit class="w-5 h-5" />
                   <span class="font-semibold">View All AI Insights</span>
                 </button>
@@ -157,11 +154,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { BrainCircuit, BarChart3, FolderOpen, TrendingUp } from 'lucide-vue-next';
-import EnhancedChart from './EnhancedChart.vue';
-import EnhancedDataGrid from './EnhancedDataGrid.vue';
-import AccessibilitySettings from '../accessibility/AccessibilitySettings.vue';
+import { ref } from "vue";
+import { BrainCircuit, BarChart3, FolderOpen, TrendingUp } from "lucide-vue-next";
+import EnhancedChart from "./EnhancedChart.vue";
+import EnhancedDataGrid from "./EnhancedDataGrid.vue";
+import AccessibilitySettings from "../accessibility/AccessibilitySettings.vue";
 
 interface EnhancedDashboardLayoutProps {
   currentPage: string;
@@ -170,62 +167,62 @@ interface EnhancedDashboardLayoutProps {
 }
 
 const props = withDefaults(defineProps<EnhancedDashboardLayoutProps>(), {
-  className: '',
+  className: "",
 });
 
 // Sample data for demonstration
 const storageData = [
-  { name: 'Documents', value: 152342345, change: 12.5, color: '#3b82f6' },
-  { name: 'Media', value: 892345678, change: -3.2, color: '#10b981' },
-  { name: 'Applications', value: 456789012, change: 8.7, color: '#f59e0b' },
-  { name: 'System', value: 123456789, change: 2.1, color: '#ef4444' },
+  { name: "Documents", value: 152342345, change: 12.5, color: "#3b82f6" },
+  { name: "Media", value: 892345678, change: -3.2, color: "#10b981" },
+  { name: "Applications", value: 456789012, change: 8.7, color: "#f59e0b" },
+  { name: "System", value: 123456789, change: 2.1, color: "#ef4444" },
 ];
 
 const fileAnalysisData = [
   {
-    id: '1',
-    name: 'Large Files',
+    id: "1",
+    name: "Large Files",
     value: 456789012,
     change: 15.3,
-    description: 'Files larger than 100MB that may impact storage performance',
+    description: "Files larger than 100MB that may impact storage performance",
   },
   {
-    id: '2',
-    name: 'Duplicates',
+    id: "2",
+    name: "Duplicates",
     value: 234567890,
     change: -8.2,
-    description: 'Duplicate files that can be safely removed to free space',
+    description: "Duplicate files that can be safely removed to free space",
   },
   {
-    id: '3',
-    name: 'Temporary Files',
+    id: "3",
+    name: "Temporary Files",
     value: 123456789,
     change: 5.1,
-    description: 'Temporary and cache files that can be cleaned up',
+    description: "Temporary and cache files that can be cleaned up",
   },
   {
-    id: '4',
-    name: 'Archives',
+    id: "4",
+    name: "Archives",
     value: 98765432,
     change: 2.8,
-    description: 'Compressed archives and backup files',
+    description: "Compressed archives and backup files",
   },
 ];
 
 const performanceMetrics = [
-  { name: 'CPU Usage', value: 67, change: -5.2, color: '#8b5cf6' },
-  { name: 'Memory', value: 82, change: 12.1, color: '#06b6d4' },
-  { name: 'Disk I/O', value: 45, change: 8.7, color: '#84cc16' },
-  { name: 'Network', value: 23, change: -2.3, color: '#f97316' },
+  { name: "CPU Usage", value: 67, change: -5.2, color: "#8b5cf6" },
+  { name: "Memory", value: 82, change: 12.1, color: "#06b6d4" },
+  { name: "Disk I/O", value: 45, change: 8.7, color: "#84cc16" },
+  { name: "Network", value: 23, change: -2.3, color: "#f97316" },
 ];
 
 const handleDataPointClick = (data: any) => {
-  console.log('Data point clicked:', data);
+  console.log("Data point clicked:", data);
   // Navigate to detailed view or show modal
 };
 
 const handleItemClick = (item: any) => {
-  console.log('Item clicked:', item);
+  console.log("Item clicked:", item);
   // Navigate to detailed analysis
 };
 </script>

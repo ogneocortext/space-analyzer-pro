@@ -212,7 +212,16 @@
 </template>
 
 <script setup lang="ts">
-import { Code, FileText, GitBranch, Terminal, Bug, CheckCircle, AlertTriangle, Cpu } from 'lucide-vue-next';
+import {
+  Code,
+  FileText,
+  GitBranch,
+  Terminal,
+  Bug,
+  CheckCircle,
+  AlertTriangle,
+  Cpu,
+} from "lucide-vue-next";
 
 interface DevelopmentProps {
   analysisData?: any;

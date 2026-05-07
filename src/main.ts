@@ -2,6 +2,7 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import router from "./router";
 import App from "./App.vue";
+import { useAnalysisStore } from "./store/analysis";
 
 // Import global styles and initialization
 import "./styles/index.css";
@@ -11,47 +12,47 @@ import { vueErrorHandler } from "./services/errorTracking";
 
 console.warn("Starting Vue app...");
 
-// Prevent browser extension interference
-if (typeof window !== "undefined") {
-  // Only block extensions in browser, not during Vite build
-  if (process.env.NODE_ENV === "production") {
-    // Override chrome API completely
-    (window as any).chrome = {
-      runtime: {
-        connect: () => {
-          throw new Error("BLOCKED");
-        },
-        sendMessage: () => {
-          throw new Error("BLOCKED");
-        },
-        onMessage: { addListener: () => {}, removeListener: () => {} },
-        getManifest: () => ({}),
-        id: "blocked",
-        getURL: () => "",
-        onConnect: { addListener: () => {}, removeListener: () => {} },
-        onInstalled: { addListener: () => {}, removeListener: () => {} },
-        onSuspend: { addListener: () => {}, removeListener: () => {} },
-        onSuspendCanceled: { addListener: () => {}, removeListener: () => {} },
-        onStartup: { addListener: () => {}, removeListener: () => {} },
+// Only apply browser extension blocking in production
+if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
+  // Override chrome API completely
+  (window as Record<string, unknown>).chrome = {
+    runtime: {
+      connect: () => {
+        throw new Error("BLOCKED");
       },
-      storage: { local: {}, sync: {}, managed: {} },
-      tabs: { query: () => [], sendMessage: () => {} },
-      i18n: { getMessage: () => "" },
-      webNavigation: { getFrame: () => {}, getAllFrames: () => [] },
-    };
+      sendMessage: () => {
+        throw new Error("BLOCKED");
+      },
+      onMessage: { addListener: () => {}, removeListener: () => {} },
+      getManifest: () => ({}),
+      id: "blocked",
+      getURL: () => "",
+      onConnect: { addListener: () => {}, removeListener: () => {} },
+      onInstalled: { addListener: () => {}, removeListener: () => {} },
+      onSuspend: { addListener: () => {}, removeListener: () => {} },
+      onSuspendCanceled: { addListener: () => {}, removeListener: () => {} },
+      onStartup: { addListener: () => {}, removeListener: () => {} },
+    } as Record<string, unknown>,
+    storage: { local: {}, sync: {}, managed: {} } as Record<string, unknown>,
+    tabs: { query: () => [], sendMessage: () => {} } as Record<string, unknown>,
+    i18n: { getMessage: () => "" } as Record<string, unknown>,
+    webNavigation: { getFrame: () => {}, getAllFrames: () => [] } as Record<string, unknown>,
+  };
 
-    // Freeze chrome object to prevent modifications
-    Object.defineProperty(window, "chrome", {
-      value: (window as any).chrome,
-      writable: false,
-      configurable: false,
-      enumerable: false,
-    });
-  }
+  // Freeze chrome object to prevent modifications
+  Object.defineProperty(window, "chrome", {
+    value: (window as Record<string, unknown>).chrome,
+    writable: false,
+    configurable: false,
+    enumerable: false,
+  });
+}
 
+// Only apply extension blocking in production
+if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
   // Block extension scripts from injecting
   const originalCreateElement = document.createElement;
-  document.createElement = function (tagName, ...args) {
+  document.createElement = function (tagName: string, ...args: unknown[]) {
     const element = originalCreateElement.call(this, tagName, ...args);
     if (tagName === "script") {
       Object.defineProperty(element, "src", {
@@ -70,9 +71,9 @@ if (typeof window !== "undefined") {
   };
 
   // Override all error handling to suppress extension errors
-  const suppressExtensionErrors = (error, event) => {
-    const message = error?.message || error || "";
-    const filename = error?.filename || event?.filename || "";
+  const suppressExtensionErrors = (error: Error | Event | unknown, event?: Event) => {
+    const message = (error as Error)?.message || String(error) || "";
+    const filename = (error as Error)?.filename || event?.filename || "";
 
     const extensionPatterns = [
       "chrome-extension://",
@@ -116,14 +117,22 @@ if (typeof window !== "undefined") {
   );
 
   // Override global error handlers
-  (window as any).onerror = function (message, source, lineno, colno, error) {
+  (window as Record<string, EventHandler>).onerror = function (
+    message: string | Event,
+    source?: string,
+    lineno?: number,
+    colno?: number,
+    error?: Error
+  ) {
     if (suppressExtensionErrors(error, { filename: source })) {
       return true;
     }
     return false;
   };
 
-  (window as any).onunhandledrejection = function (event) {
+  (window as Record<string, EventHandler>).onunhandledrejection = function (
+    event: PromiseRejectionEvent
+  ) {
     if (suppressExtensionErrors(event.reason, event)) {
       event.preventDefault();
       return true;
@@ -135,7 +144,7 @@ if (typeof window !== "undefined") {
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
 
-  console.error = function (...args) {
+  console.error = function (...args: unknown[]) {
     const message = args.join(" ");
     if (suppressExtensionErrors(message, {})) {
       return; // Completely suppress
@@ -143,7 +152,7 @@ if (typeof window !== "undefined") {
     return originalConsoleError.apply(console, args);
   };
 
-  console.warn = function (...args) {
+  console.warn = function (...args: unknown[]) {
     const message = args.join(" ");
     if (suppressExtensionErrors(message, {})) {
       return; // Completely suppress
@@ -153,7 +162,7 @@ if (typeof window !== "undefined") {
 
   // Block content script connections and extension messaging
   const originalPostMessage = window.postMessage;
-  window.postMessage = function (...args: any[]) {
+  window.postMessage = function (...args: unknown[]) {
     if (args[1] && typeof args[1] === "string" && args[1].includes("chrome-extension://")) {
       console.warn("Blocked browser extension postMessage");
       return;
@@ -169,10 +178,14 @@ if (typeof window !== "undefined") {
     }
     return originalPostMessage.apply(this, args);
   };
+}
 
-  // Block extension storage access
-  if ((window as any).chrome?.storage) {
-    (window as any).chrome.storage = {
+// Block extension storage access
+if ((window as Record<string, unknown>).chrome?.storage) {
+  const currentChrome = (window as Record<string, unknown>).chrome as Record<string, unknown>;
+  (window as Record<string, unknown>).chrome = {
+    ...currentChrome,
+    storage: {
       local: {
         get: () => Promise.resolve({}),
         set: () => Promise.resolve(),
@@ -185,19 +198,29 @@ if (typeof window !== "undefined") {
         remove: () => Promise.resolve(),
         clear: () => Promise.resolve(),
       },
-    };
-  }
-
-  // Override addEventListener to block extension events
-  const originalAddEventListener = window.addEventListener;
-  window.addEventListener = function (type: string, listener: any, options?: any) {
-    if (type === "message" && listener.toString().includes("chrome-extension://")) {
-      console.warn("Blocked extension event listener");
-      return;
-    }
-    return originalAddEventListener.call(this, type, listener, options);
-  };
+      managed: {
+        get: () => Promise.resolve({}),
+        set: () => Promise.resolve(),
+        remove: () => Promise.resolve(),
+        clear: () => Promise.resolve(),
+      },
+    },
+  } as Record<string, unknown>;
 }
+
+// Override addEventListener to block extension events
+const originalAddEventListener = window.addEventListener;
+window.addEventListener = function (
+  type: string,
+  listener: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions
+) {
+  if (type === "message" && listener.toString().includes("chrome-extension://")) {
+    console.warn("Blocked extension event listener");
+    return;
+  }
+  return originalAddEventListener.call(this, type, listener, options);
+};
 
 // Create app instance
 const app = createApp(App);
@@ -214,6 +237,10 @@ app.config.warnHandler = (msg, instance, trace) => {
 
 app.use(pinia);
 app.use(router);
+
+// Initialize stores
+const analysisStore = useAnalysisStore();
+analysisStore.initialize();
 
 app.mount("#app");
 

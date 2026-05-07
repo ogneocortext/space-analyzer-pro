@@ -20,14 +20,16 @@ export interface UseResponsiveDesignReturn {
   updateBreakpoints: (newBreakpoints: Partial<Breakpoints>) => void;
 }
 
-export const useResponsiveDesign = (customBreakpoints: Partial<Breakpoints> = {}): UseResponsiveDesignReturn => {
+export const useResponsiveDesign = (
+  customBreakpoints: Partial<Breakpoints> = {}
+): UseResponsiveDesignReturn => {
   const defaultBreakpoints: Breakpoints = {
     xs: 320,
     sm: 640,
     md: 768,
     lg: 1024,
     xl: 1280,
-    ...customBreakpoints
+    ...customBreakpoints,
   };
 
   const windowWidth = ref(window.innerWidth);
@@ -36,16 +38,16 @@ export const useResponsiveDesign = (customBreakpoints: Partial<Breakpoints> = {}
 
   const currentBreakpoint = computed((): keyof Breakpoints => {
     const width = windowWidth.value;
-    if (width < breakpoints.value.sm) return 'xs';
-    if (width < breakpoints.value.md) return 'sm';
-    if (width < breakpoints.value.lg) return 'md';
-    if (width < breakpoints.value.xl) return 'lg';
-    return 'xl';
+    if (width < breakpoints.value.sm) return "xs";
+    if (width < breakpoints.value.md) return "sm";
+    if (width < breakpoints.value.lg) return "md";
+    if (width < breakpoints.value.xl) return "lg";
+    return "xl";
   });
 
-  const isMobile = computed(() => ['xs', 'sm'].includes(currentBreakpoint.value));
-  const isTablet = computed(() => currentBreakpoint.value === 'md');
-  const isDesktop = computed(() => ['lg', 'xl'].includes(currentBreakpoint.value));
+  const isMobile = computed(() => ["xs", "sm"].includes(currentBreakpoint.value));
+  const isTablet = computed(() => currentBreakpoint.value === "md");
+  const isDesktop = computed(() => ["lg", "xl"].includes(currentBreakpoint.value));
 
   const updateBreakpoints = (newBreakpoints: Partial<Breakpoints>) => {
     breakpoints.value = { ...breakpoints.value, ...newBreakpoints };
@@ -57,12 +59,12 @@ export const useResponsiveDesign = (customBreakpoints: Partial<Breakpoints> = {}
   };
 
   onMounted(() => {
-    window.addEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
     handleResize();
   });
 
   onUnmounted(() => {
-    window.removeEventListener('resize', handleResize);
+    window.removeEventListener("resize", handleResize);
   });
 
   return {

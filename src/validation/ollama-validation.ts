@@ -3,7 +3,7 @@
  * Runtime type guards and safe parsers for Ollama 0.23.0
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 import {
   OllamaModelSchema,
   OllamaResponseSchema,
@@ -25,7 +25,7 @@ import {
   type OpenClawSearchResponse,
   type FeaturedModelsResponse,
   type OllamaConfig,
-} from './ollama-schemas';
+} from "./ollama-schemas";
 
 // ============================================================================
 // Validation Result Type
@@ -53,7 +53,7 @@ export function validateOllamaModel(data: unknown): ValidationResult<OllamaModel
   return {
     success: false,
     error: result.error,
-    message: formatZodError(result.error, 'OllamaModel'),
+    message: formatZodError(result.error, "OllamaModel"),
   };
 }
 
@@ -69,7 +69,7 @@ export function validateOllamaModels(data: unknown): ValidationResult<OllamaMode
   return {
     success: false,
     error: result.error,
-    message: formatZodError(result.error, 'OllamaModel[]'),
+    message: formatZodError(result.error, "OllamaModel[]"),
   };
 }
 
@@ -84,7 +84,7 @@ export function validateOllamaResponse(data: unknown): ValidationResult<OllamaRe
   return {
     success: false,
     error: result.error,
-    message: formatZodError(result.error, 'OllamaResponse'),
+    message: formatZodError(result.error, "OllamaResponse"),
   };
 }
 
@@ -99,7 +99,7 @@ export function validateChatRequest(data: unknown): ValidationResult<ChatRequest
   return {
     success: false,
     error: result.error,
-    message: formatZodError(result.error, 'ChatRequest'),
+    message: formatZodError(result.error, "ChatRequest"),
   };
 }
 
@@ -114,7 +114,7 @@ export function validateGenerateRequest(data: unknown): ValidationResult<Generat
   return {
     success: false,
     error: result.error,
-    message: formatZodError(result.error, 'GenerateRequest'),
+    message: formatZodError(result.error, "GenerateRequest"),
   };
 }
 
@@ -129,7 +129,7 @@ export function validateGenerateResponse(data: unknown): ValidationResult<Genera
   return {
     success: false,
     error: result.error,
-    message: formatZodError(result.error, 'GenerateResponse'),
+    message: formatZodError(result.error, "GenerateResponse"),
   };
 }
 
@@ -144,7 +144,7 @@ export function validateEmbeddingResponse(data: unknown): ValidationResult<Embed
   return {
     success: false,
     error: result.error,
-    message: formatZodError(result.error, 'EmbeddingResponse'),
+    message: formatZodError(result.error, "EmbeddingResponse"),
   };
 }
 
@@ -159,7 +159,7 @@ export function validateVisionAnalysis(data: unknown): ValidationResult<VisionAn
   return {
     success: false,
     error: result.error,
-    message: formatZodError(result.error, 'VisionAnalysisResult'),
+    message: formatZodError(result.error, "VisionAnalysisResult"),
   };
 }
 
@@ -174,7 +174,7 @@ export function validateOpenClawSearch(data: unknown): ValidationResult<OpenClaw
   return {
     success: false,
     error: result.error,
-    message: formatZodError(result.error, 'OpenClawSearchResponse'),
+    message: formatZodError(result.error, "OpenClawSearchResponse"),
   };
 }
 
@@ -189,7 +189,7 @@ export function validateFeaturedModels(data: unknown): ValidationResult<Featured
   return {
     success: false,
     error: result.error,
-    message: formatZodError(result.error, 'FeaturedModelsResponse'),
+    message: formatZodError(result.error, "FeaturedModelsResponse"),
   };
 }
 
@@ -204,7 +204,7 @@ export function validateOllamaConfig(data: unknown): ValidationResult<OllamaConf
   return {
     success: false,
     error: result.error,
-    message: formatZodError(result.error, 'OllamaConfig'),
+    message: formatZodError(result.error, "OllamaConfig"),
   };
 }
 
@@ -241,12 +241,12 @@ export function parseChatRequest(data: unknown): ChatRequest {
  * Format Zod error into human-readable message
  */
 function formatZodError(error: z.ZodError, context: string): string {
-  const issues = error.issues.map(issue => {
-    const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
+  const issues = error.issues.map((issue) => {
+    const path = issue.path.length > 0 ? issue.path.join(".") : "root";
     return `  - ${path}: ${issue.message}`;
   });
-  
-  return `Validation failed for ${context}:\n${issues.join('\n')}`;
+
+  return `Validation failed for ${context}:\n${issues.join("\n")}`;
 }
 
 /**
@@ -254,11 +254,11 @@ function formatZodError(error: z.ZodError, context: string): string {
  */
 export function isOllamaResponse(data: unknown): data is Record<string, unknown> {
   return (
-    typeof data === 'object' &&
+    typeof data === "object" &&
     data !== null &&
-    'model' in data &&
-    'response' in data &&
-    'done' in data
+    "model" in data &&
+    "response" in data &&
+    "done" in data
   );
 }
 
@@ -275,28 +275,28 @@ export function isStreamComplete(data: unknown): boolean {
  */
 export function extractOllamaError(error: unknown): string {
   if (error instanceof z.ZodError) {
-    return formatZodError(error, 'Ollama API Response');
+    return formatZodError(error, "Ollama API Response");
   }
-  
+
   if (error instanceof Error) {
     return error.message;
   }
-  
-  if (typeof error === 'string') {
+
+  if (typeof error === "string") {
     return error;
   }
-  
-  if (typeof error === 'object' && error !== null) {
+
+  if (typeof error === "object" && error !== null) {
     const errorObj = error as Record<string, unknown>;
-    if ('error' in errorObj && typeof errorObj.error === 'string') {
+    if ("error" in errorObj && typeof errorObj.error === "string") {
       return errorObj.error;
     }
-    if ('message' in errorObj && typeof errorObj.message === 'string') {
+    if ("message" in errorObj && typeof errorObj.message === "string") {
       return errorObj.message;
     }
   }
-  
-  return 'Unknown Ollama error';
+
+  return "Unknown Ollama error";
 }
 
 // ============================================================================
@@ -309,8 +309,8 @@ export function extractOllamaError(error: unknown): string {
 export function isLocalhostOllama(url: string): boolean {
   try {
     const parsed = new URL(url);
-    const isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
-    const isOllamaPort = parsed.port === '11434' || parsed.port === '';
+    const isLocalhost = ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
+    const isOllamaPort = parsed.port === "11434" || parsed.port === "";
     return isLocalhost && isOllamaPort;
   } catch {
     return false;
@@ -322,8 +322,8 @@ export function isLocalhostOllama(url: string): boolean {
  */
 export function getLocalhostOllamaConfig(): OllamaConfig {
   return {
-    baseUrl: 'http://localhost:11434',
-    defaultModel: 'qwen2.5-coder:7b-instruct',
+    baseUrl: "http://localhost:11434",
+    defaultModel: "qwen2.5-coder:7b-instruct",
     defaultNumCtx: 4096,
     timeout: 30000,
     retries: 3,

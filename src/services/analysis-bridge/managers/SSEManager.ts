@@ -3,7 +3,7 @@
  * Handles Server-Sent Events for real-time progress updates
  */
 
-import type { AnalysisProgress } from '../types';
+import type { AnalysisProgress } from "../types";
 
 export interface SSEConfig {
   maxReconnectAttempts: number;
@@ -37,17 +37,17 @@ export class SSEManager {
 
     const url = `${this.baseUrl}/api/progress/stream/${analysisId}`;
     console.log(`[SSE] Connecting to: ${url}`);
-    
+
     let eventSource: EventSource | null = null;
     let reconnectAttempts = 0;
     let isActive = true;
-    
+
     const createEventSource = (): void => {
       if (!isActive) return;
 
       try {
         eventSource = new EventSource(url);
-        
+
         // Set connection timeout
         const timeoutId = setTimeout(() => {
           if (eventSource?.readyState === EventSource.CONNECTING) {
@@ -56,7 +56,7 @@ export class SSEManager {
             handleConnectionError();
           }
         }, this.config.connectionTimeout);
-        
+
         eventSource.onopen = () => {
           clearTimeout(timeoutId);
           console.log(`[SSE] Connection opened for ${analysisId}`);
@@ -69,7 +69,7 @@ export class SSEManager {
             console.log(`[SSE] Progress update:`, data);
 
             // Validate progress data
-            if (!data || typeof data !== 'object') {
+            if (!data || typeof data !== "object") {
               console.warn(`[SSE] Invalid progress data received`);
               return;
             }
@@ -94,24 +94,27 @@ export class SSEManager {
           console.error("[SSE] SSE error:", error);
 
           // Attempt reconnection if not exceeded max attempts
-          if (reconnectAttempts < this.config.maxReconnectAttempts && 
-              eventSource?.readyState === EventSource.CLOSED && 
-              isActive) {
+          if (
+            reconnectAttempts < this.config.maxReconnectAttempts &&
+            eventSource?.readyState === EventSource.CLOSED &&
+            isActive
+          ) {
             reconnectAttempts++;
-            console.log(`[SSE] Attempting reconnection ${reconnectAttempts}/${this.config.maxReconnectAttempts}`);
+            console.log(
+              `[SSE] Attempting reconnection ${reconnectAttempts}/${this.config.maxReconnectAttempts}`
+            );
             setTimeout(createEventSource, this.config.reconnectDelay * reconnectAttempts);
             return;
           }
 
           handleConnectionError();
         };
-
       } catch (error) {
         console.error("[SSE] Failed to create EventSource:", error);
         if (onError) onError(`Failed to create SSE connection: ${error}`);
       }
     };
-    
+
     const handleConnectionError = (): void => {
       if (onError) {
         onError(`SSE connection error for ${analysisId} after ${reconnectAttempts} attempts`);
@@ -155,10 +158,12 @@ export class SSEManager {
    * Check if analysis is complete based on SSE data
    */
   private isAnalysisComplete(data: any): boolean {
-    return data.completed || 
-           data.status === "complete" || 
-           data.status === "completed" || 
-           data.status === "failed";
+    return (
+      data.completed ||
+      data.status === "complete" ||
+      data.status === "completed" ||
+      data.status === "failed"
+    );
   }
 
   /**
@@ -175,7 +180,7 @@ export class SSEManager {
       // Set timeout for connection test
       timeoutId = setTimeout(() => {
         eventSource?.close();
-        resolve({ connected: false, error: 'Connection timeout' });
+        resolve({ connected: false, error: "Connection timeout" });
       }, 5000);
 
       eventSource.onopen = () => {
@@ -187,7 +192,7 @@ export class SSEManager {
       eventSource.onerror = () => {
         clearTimeout(timeoutId);
         eventSource?.close();
-        resolve({ connected: false, error: 'Connection failed' });
+        resolve({ connected: false, error: "Connection failed" });
       };
     });
   }
@@ -195,10 +200,10 @@ export class SSEManager {
   /**
    * Get SSE connection status
    */
-  getConnectionStatus(analysisId: string): 'connecting' | 'open' | 'closed' | 'error' {
+  getConnectionStatus(analysisId: string): "connecting" | "open" | "closed" | "error" {
     // This would need to be implemented with state tracking
     // For now, return a placeholder
-    return 'closed';
+    return "closed";
   }
 
   /**
@@ -206,6 +211,6 @@ export class SSEManager {
    */
   closeAllConnections(): void {
     // This would need to be implemented with connection tracking
-    console.log('[SSE] Closing all connections');
+    console.log("[SSE] Closing all connections");
   }
 }

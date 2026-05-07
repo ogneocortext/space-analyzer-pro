@@ -8,8 +8,8 @@ export class PathValidator {
    * Enhanced path validation and normalization
    */
   static validateAndNormalizePath(path: string): string {
-    if (!path || typeof path !== 'string') {
-      throw new Error('Invalid path: path must be a non-empty string');
+    if (!path || typeof path !== "string") {
+      throw new Error("Invalid path: path must be a non-empty string");
     }
 
     // First, clean the path by removing quotes and whitespace
@@ -49,19 +49,20 @@ export class PathValidator {
 
     for (const pattern of traversalPatterns) {
       if (pattern.test(path)) {
-        throw new Error('Security error: Path traversal detected');
+        throw new Error("Security error: Path traversal detected");
       }
     }
 
     // Check for suspicious characters
     const suspiciousChars = /[<>:"|?*\x00-\x1f]/;
     if (suspiciousChars.test(path)) {
-      throw new Error('Security error: Invalid characters in path');
+      throw new Error("Security error: Invalid characters in path");
     }
 
     // Check for extremely long paths
-    if (path.length > 260) { // Windows MAX_PATH limit
-      throw new Error('Security error: Path too long');
+    if (path.length > 260) {
+      // Windows MAX_PATH limit
+      throw new Error("Security error: Path too long");
     }
   }
 
@@ -73,7 +74,7 @@ export class PathValidator {
     const windowsPattern = /^[a-zA-Z]:[/\\]/;
     // Unix absolute path pattern (e.g., /home/user)
     const unixPattern = /^\//;
-    
+
     return windowsPattern.test(path) || unixPattern.test(path);
   }
 
@@ -83,12 +84,12 @@ export class PathValidator {
   private static normalizeRelativePath(path: string): string {
     // Remove leading ./ and ../
     let normalizedPath = path.replace(/^\.\//, "").replace(/^\.\.\//, "");
-    
+
     // If it doesn't start with ., add current directory context
     if (!normalizedPath.startsWith(".")) {
       normalizedPath = `./${normalizedPath}`;
     }
-    
+
     return normalizedPath;
   }
 
@@ -97,7 +98,7 @@ export class PathValidator {
    */
   static extractDirectoryName(path: string): string {
     const normalizedPath = this.validateAndNormalizePath(path);
-    
+
     if (this.isAbsolutePath(normalizedPath)) {
       // For absolute paths, get the last component
       const parts = normalizedPath.split(/[/\\]/);
@@ -117,11 +118,11 @@ export class PathValidator {
       // This is a basic client-side validation
       // Server-side validation should be performed for actual existence checks
       const normalizedPath = this.validateAndNormalizePath(path);
-      
+
       // Basic checks that would indicate obvious invalid paths
       if (normalizedPath.length === 0) return false;
-      if (normalizedPath === '.' || normalizedPath === './') return false;
-      
+      if (normalizedPath === "." || normalizedPath === "./") return false;
+
       return true; // Assume valid for client-side
     } catch (error) {
       return false;
@@ -131,23 +132,23 @@ export class PathValidator {
   /**
    * Get path type (file vs directory)
    */
-  static getPathType(path: string): 'file' | 'directory' | 'unknown' {
+  static getPathType(path: string): "file" | "directory" | "unknown" {
     try {
       const normalizedPath = this.validateAndNormalizePath(path);
-      
+
       // Basic heuristic: if path ends with slash or separator, it's likely a directory
-      if (normalizedPath.endsWith('/') || normalizedPath.endsWith('\\')) {
-        return 'directory';
+      if (normalizedPath.endsWith("/") || normalizedPath.endsWith("\\")) {
+        return "directory";
       }
-      
+
       // If path has an extension, it's likely a file
       if (/\.[^.\/\\]+$/.test(normalizedPath)) {
-        return 'file';
+        return "file";
       }
-      
-      return 'unknown';
+
+      return "unknown";
     } catch (error) {
-      return 'unknown';
+      return "unknown";
     }
   }
 }

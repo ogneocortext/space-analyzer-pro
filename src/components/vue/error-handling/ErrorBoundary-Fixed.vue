@@ -4,23 +4,19 @@
       <AlertTriangle :size="48" />
     </div>
     <h3 class="error-title">Component Error</h3>
-    <p class="error-message">
-      The application encountered an unexpected error.
-    </p>
+    <p class="error-message">The application encountered an unexpected error.</p>
     <details v-if="showErrorDetails" class="error-details">
       <summary>Error Details</summary>
       <pre class="error-stack">{{ error?.stack }}</pre>
     </details>
-    <button @click="resetError" class="retry-button">
-      Try Again
-    </button>
+    <button @click="resetError" class="retry-button">Try Again</button>
   </div>
   <slot v-else />
 </template>
 
 <script setup lang="ts">
-import { ref, onErrorCaptured } from 'vue';
-import { AlertTriangle } from 'lucide-vue-next';
+import { ref, onErrorCaptured } from "vue";
+import { AlertTriangle } from "lucide-vue-next";
 
 interface Props {
   fallback?: any;
@@ -35,7 +31,7 @@ const hasError = ref(false);
 const error = ref<Error | null>(null);
 
 onErrorCaptured((err: Error) => {
-  console.error('ErrorBoundary caught an error:', err);
+  console.error("ErrorBoundary caught an error:", err);
   hasError.value = true;
   error.value = err;
   return false;

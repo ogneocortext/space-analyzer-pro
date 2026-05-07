@@ -18,50 +18,51 @@ export const useKeyboardNavigation = () => {
 
   const shortcuts = ref<KeyboardShortcut[]>([
     {
-      key: 'n',
+      key: "n",
       ctrl: true,
       action: () => {
         // Navigate to next file
-        console.log('Navigate to next file');
+        console.log("Navigate to next file");
       },
-      description: 'Next file'
+      description: "Next file",
     },
     {
-      key: 'p',
+      key: "p",
       ctrl: true,
       action: () => {
         // Navigate to previous file
-        console.log('Navigate to previous file');
+        console.log("Navigate to previous file");
       },
-      description: 'Previous file'
+      description: "Previous file",
     },
     {
-      key: 'f',
+      key: "f",
       ctrl: true,
       action: () => {
         // Focus search
-        console.log('Focus search');
+        console.log("Focus search");
       },
-      description: 'Focus search'
+      description: "Focus search",
     },
     {
-      key: 'Escape',
+      key: "Escape",
       action: () => {
         // Cancel current operation
-        console.log('Cancel operation');
+        console.log("Cancel operation");
       },
-      description: 'Cancel operation'
-    }
+      description: "Cancel operation",
+    },
   ]);
 
   const handleKeyDown = (event: KeyboardEvent) => {
     const { key, ctrlKey, altKey, shiftKey } = event;
-    
-    const shortcut = shortcuts.value.find(s => 
-      s.key.toLowerCase() === key.toLowerCase() &&
-      !!s.ctrl === ctrlKey &&
-      !!s.alt === altKey &&
-      !!s.shift === shiftKey
+
+    const shortcut = shortcuts.value.find(
+      (s) =>
+        s.key.toLowerCase() === key.toLowerCase() &&
+        !!s.ctrl === ctrlKey &&
+        !!s.alt === altKey &&
+        !!s.shift === shiftKey
     );
 
     if (shortcut) {
@@ -71,18 +72,18 @@ export const useKeyboardNavigation = () => {
       } catch (error) {
         errorStore.addError({
           message: `Keyboard shortcut failed: ${shortcut.description}`,
-          type: 'error'
+          type: "error",
         });
       }
     }
   };
 
   onMounted(() => {
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
   });
 
   onUnmounted(() => {
-    document.removeEventListener('keydown', handleKeyDown);
+    document.removeEventListener("keydown", handleKeyDown);
   });
 
   return {
@@ -91,10 +92,10 @@ export const useKeyboardNavigation = () => {
       shortcuts.value.push(shortcut);
     },
     removeShortcut: (key: string) => {
-      const index = shortcuts.value.findIndex(s => s.key === key);
+      const index = shortcuts.value.findIndex((s) => s.key === key);
       if (index > -1) {
         shortcuts.value.splice(index, 1);
       }
-    }
+    },
   };
 };

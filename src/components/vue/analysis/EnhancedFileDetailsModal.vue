@@ -27,8 +27,8 @@
                 <p class="text-slate-400 text-sm mb-2">{{ selectedFile.path }}</p>
                 <div class="flex items-center gap-4 text-sm">
                   <span class="text-emerald-400">{{ formatBytes(selectedFile.size) }}</span>
-                  <span class="text-blue-400">{{ selectedFile.extension || 'No extension' }}</span>
-                  <span class="text-purple-400">{{ selectedFile.category || 'Unknown' }}</span>
+                  <span class="text-blue-400">{{ selectedFile.extension || "No extension" }}</span>
+                  <span class="text-purple-400">{{ selectedFile.category || "Unknown" }}</span>
                 </div>
               </div>
             </div>
@@ -46,15 +46,15 @@
                 </div>
                 <div class="flex justify-between">
                   <span class="text-slate-400">Extension:</span>
-                  <span class="text-white">{{ selectedFile.extension || 'N/A' }}</span>
+                  <span class="text-white">{{ selectedFile.extension || "N/A" }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-slate-400">Category:</span>
-                  <span class="text-white">{{ selectedFile.category || 'Unknown' }}</span>
+                  <span class="text-white">{{ selectedFile.category || "Unknown" }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-slate-400">Owner:</span>
-                  <span class="text-white">{{ selectedFile.owner || 'N/A' }}</span>
+                  <span class="text-white">{{ selectedFile.owner || "N/A" }}</span>
                 </div>
               </div>
             </div>
@@ -66,34 +66,43 @@
                 <div class="flex justify-between items-center">
                   <span class="text-slate-400">Compressed:</span>
                   <span :class="selectedFile.is_compressed ? 'text-emerald-400' : 'text-slate-500'">
-                    {{ selectedFile.is_compressed ? 'Yes' : 'No' }}
+                    {{ selectedFile.is_compressed ? "Yes" : "No" }}
                   </span>
                 </div>
-                <div v-if="selectedFile.is_compressed && selectedFile.compressed_size" class="flex justify-between">
+                <div
+                  v-if="selectedFile.is_compressed && selectedFile.compressed_size"
+                  class="flex justify-between"
+                >
                   <span class="text-slate-400">Compressed Size:</span>
-                  <span class="text-emerald-400">{{ formatBytes(selectedFile.compressed_size) }}</span>
+                  <span class="text-emerald-400">{{
+                    formatBytes(selectedFile.compressed_size)
+                  }}</span>
                 </div>
                 <div class="flex justify-between items-center">
                   <span class="text-slate-400">Sparse File:</span>
                   <span :class="selectedFile.is_sparse ? 'text-amber-400' : 'text-slate-500'">
-                    {{ selectedFile.is_sparse ? 'Yes' : 'No' }}
+                    {{ selectedFile.is_sparse ? "Yes" : "No" }}
                   </span>
                 </div>
                 <div class="flex justify-between items-center">
                   <span class="text-slate-400">Hard Link:</span>
                   <span :class="selectedFile.is_hard_link ? 'text-blue-400' : 'text-slate-500'">
-                    {{ selectedFile.is_hard_link ? 'Yes' : 'No' }}
+                    {{ selectedFile.is_hard_link ? "Yes" : "No" }}
                   </span>
                 </div>
                 <div class="flex justify-between items-center">
                   <span class="text-slate-400">Reparse Point:</span>
-                  <span :class="selectedFile.is_reparse_point ? 'text-purple-400' : 'text-slate-500'">
-                    {{ selectedFile.is_reparse_point ? 'Yes' : 'No' }}
+                  <span
+                    :class="selectedFile.is_reparse_point ? 'text-purple-400' : 'text-slate-500'"
+                  >
+                    {{ selectedFile.is_reparse_point ? "Yes" : "No" }}
                   </span>
                 </div>
                 <div v-if="selectedFile.reparse_tag" class="flex justify-between">
                   <span class="text-slate-400">Reparse Tag:</span>
-                  <span class="text-purple-400 text-xs">0x{{ selectedFile.reparse_tag?.toString(16) }}</span>
+                  <span class="text-purple-400 text-xs"
+                    >0x{{ selectedFile.reparse_tag?.toString(16) }}</span
+                  >
                 </div>
               </div>
             </div>
@@ -137,7 +146,9 @@
               <h4 class="text-white font-medium mb-3">File Hash</h4>
               <div class="text-sm">
                 <div class="text-slate-400 mb-1">SHA-256:</div>
-                <div class="text-white font-mono text-xs break-all">{{ selectedFile.file_hash }}</div>
+                <div class="text-white font-mono text-xs break-all">
+                  {{ selectedFile.file_hash }}
+                </div>
               </div>
             </div>
           </div>
@@ -194,7 +205,7 @@
               </div>
               <div class="text-right">
                 <div class="text-emerald-400 text-sm">{{ formatBytes(file.size) }}</div>
-                <div class="text-slate-500 text-xs">{{ file.extension || 'no ext' }}</div>
+                <div class="text-slate-500 text-xs">{{ file.extension || "no ext" }}</div>
               </div>
             </div>
           </div>
@@ -205,8 +216,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { X, File, FolderOpen } from 'lucide-vue-next';
+import { ref, computed } from "vue";
+import { X, File, FolderOpen } from "lucide-vue-next";
 
 interface FileAttributes {
   name: string;
@@ -240,23 +251,24 @@ const emit = defineEmits<{
   fileSelected: [file: FileAttributes];
 }>();
 
-const searchQuery = ref('');
+const searchQuery = ref("");
 const selectedFile = ref<FileAttributes | null>(props.selectedFile || null);
 
 const filteredFiles = computed(() => {
   if (!searchQuery.value) return props.files;
   const query = searchQuery.value.toLowerCase();
-  return props.files.filter(file => 
-    file.name.toLowerCase().includes(query) ||
-    file.path.toLowerCase().includes(query) ||
-    file.extension?.toLowerCase().includes(query) ||
-    file.category?.toLowerCase().includes(query)
+  return props.files.filter(
+    (file) =>
+      file.name.toLowerCase().includes(query) ||
+      file.path.toLowerCase().includes(query) ||
+      file.extension?.toLowerCase().includes(query) ||
+      file.category?.toLowerCase().includes(query)
   );
 });
 
 function selectFile(file: FileAttributes) {
   selectedFile.value = file;
-  emit('fileSelected', file);
+  emit("fileSelected", file);
 }
 
 function formatBytes(bytes: number): string {
@@ -268,12 +280,12 @@ function formatBytes(bytes: number): string {
 }
 
 function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return 'N/A';
+  if (!dateString) return "N/A";
   try {
     const date = new Date(dateString);
     return date.toLocaleString();
   } catch {
-    return 'Invalid date';
+    return "Invalid date";
   }
 }
 
@@ -281,11 +293,11 @@ function openFileLocation() {
   if (selectedFile.value) {
     // Extract directory path from file path
     const path = selectedFile.value.path;
-    const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+    const lastSlash = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
     const directory = lastSlash > 0 ? path.substring(0, lastSlash) : path;
-    
+
     // In a real implementation, this would open the file explorer
-    console.log('Opening location:', directory);
+    console.log("Opening location:", directory);
     alert(`Would open: ${directory}`);
   }
 }
@@ -293,7 +305,7 @@ function openFileLocation() {
 function copyFilePath() {
   if (selectedFile.value) {
     navigator.clipboard.writeText(selectedFile.value.path).then(() => {
-      console.log('Path copied to clipboard');
+      console.log("Path copied to clipboard");
     });
   }
 }
@@ -301,9 +313,9 @@ function copyFilePath() {
 function exportFileDetails() {
   if (selectedFile.value) {
     const dataStr = JSON.stringify(selectedFile.value, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
     link.download = `file-details-${selectedFile.value.name}-${Date.now()}.json`;
     link.click();

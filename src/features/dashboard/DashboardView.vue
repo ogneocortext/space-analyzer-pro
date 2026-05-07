@@ -45,12 +45,22 @@
       <h2 class="text-2xl font-semibold text-white mb-2">No Data Available</h2>
       <p class="text-slate-400 mb-6">Run an analysis to see your storage dashboard</p>
       <button
-        class="bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+        class="bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-2 px-6 rounded-lg transition-colors mb-8"
         aria-label="Start analysis"
         @click="navigateToLanding"
       >
         Start Analysis
       </button>
+
+      <!-- AI Chat Interface - Always Available -->
+      <div class="w-full max-w-4xl mt-8">
+        <h3 class="text-xl font-semibold text-white mb-4">🤖 AI Assistant</h3>
+        <p class="text-slate-400 mb-6">
+          Chat with our AI assistant to learn about file organization, get storage tips, or explore
+          features
+        </p>
+        <AIChatInterface :analysis-data="null" :files="[]" :categories="{}" />
+      </div>
     </div>
 
     <!-- Dashboard Content -->
@@ -141,7 +151,9 @@
           <div class="text-3xl font-bold text-white">
             {{ getCompressedFilesCount() }}
           </div>
-          <div class="text-xs text-slate-500 mt-1">{{ getCompressedSizeSavings() }}</div>
+          <div class="text-xs text-slate-500 mt-1">
+            {{ getCompressedSizeSavings() }}
+          </div>
         </div>
 
         <div
@@ -513,7 +525,7 @@
                     <div
                       class="w-2 h-2 rounded-full"
                       :class="analysisStore.data.usn_journal_id ? 'bg-emerald-500' : 'bg-slate-500'"
-                    ></div>
+                    />
                     {{ analysisStore.data.usn_journal_id ? "Available" : "Not Used" }}
                   </div>
                   <div v-if="analysisStore.data.usn_journal_id" class="text-xs text-slate-400">
@@ -533,7 +545,7 @@
                     <div
                       class="w-2 h-2 rounded-full"
                       :class="analysisStore.data.mft_scanned ? 'bg-emerald-500' : 'bg-slate-500'"
-                    ></div>
+                    />
                     {{ analysisStore.data.mft_scanned ? "Enabled" : "Disabled" }}
                   </div>
                   <div class="flex items-center gap-2">
@@ -542,7 +554,7 @@
                       :class="
                         analysisStore.data.hard_links_enumerated ? 'bg-emerald-500' : 'bg-slate-500'
                       "
-                    ></div>
+                    />
                     {{
                       analysisStore.data.hard_links_enumerated
                         ? "Hard Links Enumerated"
@@ -555,6 +567,21 @@
           </div>
         </div>
       </Transition>
+
+      <!-- AI Chat Interface - Available with Data -->
+      <div class="mt-8">
+        <div class="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
+          <h3 class="text-xl font-semibold text-white mb-2">🤖 AI Storage Assistant</h3>
+          <p class="text-slate-400 mb-4">
+            Get personalized insights about your storage data and organization tips
+          </p>
+          <AIChatInterface
+            :analysis-data="analysisStore.data"
+            :files="analysisStore.data?.files || []"
+            :categories="analysisStore.data?.categories || {}"
+          />
+        </div>
+      </div>
 
       <!-- Enhanced File Details Modal -->
       <EnhancedFileDetailsModal
@@ -583,12 +610,13 @@ import {
   X,
   File,
 } from "lucide-vue-next";
-import StorageGauge from "../StorageGauge.vue";
-import EnhancedFileDetailsModal from "../analysis/EnhancedFileDetailsModal.vue";
-import FileAttributesVisualization from "../analysis/FileAttributesVisualization.vue";
-import TimestampAnalysis from "../analysis/TimestampAnalysis.vue";
-import HardLinksAnalysis from "../analysis/HardLinksAnalysis.vue";
-import { analysisStoreKey, getCategoryColorKey } from "../../../types/injection";
+import StorageGauge from "../../components/vue/StorageGauge.vue";
+import EnhancedFileDetailsModal from "../../components/vue/analysis/EnhancedFileDetailsModal.vue";
+import FileAttributesVisualization from "../../components/analysis/FileAttributesVisualization.vue";
+import TimestampAnalysis from "../../components/analysis/TimestampAnalysis.vue";
+import HardLinksAnalysis from "../../components/analysis/HardLinksAnalysis.vue";
+import AIChatInterface from "../../components/vue/ai/AIChatInterface.vue";
+import { analysisStoreKey, getCategoryColorKey } from "../../types/injection";
 
 interface CategoryData {
   size: number;
@@ -598,8 +626,20 @@ interface CategoryData {
 }
 
 const router = useRouter();
-const analysisStore = inject(analysisStoreKey)!;
-const getCategoryColor = inject(getCategoryColorKey)!;
+const analysisStore = inject(analysisStoreKey, {
+  data: null,
+  isLoading: false,
+  error: null,
+  totalSize: 0,
+  totalFiles: 0,
+  categories: {},
+  files: [],
+  large_files: [],
+  optimization_suggestions: [],
+  nodes: [],
+  edges: [],
+});
+const getCategoryColor = inject(getCategoryColorKey, () => "#60a5fa");
 const selectedCategory = ref<string | null>(null);
 const showFileDetails = ref(false);
 const showSizeDetails = ref(false);

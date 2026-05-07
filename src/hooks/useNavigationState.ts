@@ -29,7 +29,7 @@ export const useNavigationState = (): UseNavigationStateReturn => {
 
   const navigateTo = (view: ViewType) => {
     isLoading.value = true;
-    
+
     // Simulate navigation delay
     setTimeout(() => {
       currentView.value = view;

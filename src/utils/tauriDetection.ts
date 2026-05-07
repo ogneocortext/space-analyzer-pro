@@ -4,8 +4,8 @@
 
 // Check if running in Tauri desktop mode
 export const isTauri = (): boolean => {
-  if (typeof window !== 'undefined' && (window as any).__TAURI__) {
-    console.warn('🖥️ Tauri mode detected');
+  if (typeof window !== "undefined" && (window as any).__TAURI__) {
+    console.warn("🖥️ Tauri mode detected");
     return true;
   }
   return false;
@@ -15,9 +15,9 @@ export const isTauri = (): boolean => {
 export const safeFetch = async (url: string, options?: RequestInit): Promise<Response> => {
   if (isTauri()) {
     console.warn(`🖥️ Skipping HTTP request in Tauri mode: ${url}`);
-    throw new Error('HTTP requests not supported in Tauri desktop mode');
+    throw new Error("HTTP requests not supported in Tauri desktop mode");
   }
-  
+
   return fetch(url, options);
 };
 

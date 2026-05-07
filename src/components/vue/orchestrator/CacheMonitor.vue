@@ -8,7 +8,7 @@
         <div class="metric-value">{{ formatPercent(cacheMetrics.hitRate) }}</div>
         <div class="metric-label">Hit Rate</div>
         <div class="metric-trend" :class="hitRateTrend">
-          {{ hitRateTrend === 'good' ? '✅' : hitRateTrend === 'warning' ? '⚠️' : '❌' }}
+          {{ hitRateTrend === "good" ? "✅" : hitRateTrend === "warning" ? "⚠️" : "❌" }}
         </div>
       </div>
 
@@ -63,9 +63,7 @@
           <span class="help-text">Maximum number of cached directory analyses</span>
         </div>
 
-        <button @click="refreshMetrics" class="btn-refresh">
-          🔄 Refresh Metrics
-        </button>
+        <button @click="refreshMetrics" class="btn-refresh">🔄 Refresh Metrics</button>
       </div>
     </div>
 
@@ -74,10 +72,12 @@
       <h4>💡 Performance Tips</h4>
       <ul>
         <li v-if="cacheMetrics.hitRate < 0.5">
-          ⚠️ <strong>Low hit rate:</strong> Consider increasing cache TTL if you frequently re-scan the same directories
+          ⚠️ <strong>Low hit rate:</strong> Consider increasing cache TTL if you frequently re-scan
+          the same directories
         </li>
         <li v-if="cacheMetrics.evictions > 10">
-          ⚠️ <strong>High evictions:</strong> Increase max cache size to retain more directory analyses
+          ⚠️ <strong>High evictions:</strong> Increase max cache size to retain more directory
+          analyses
         </li>
         <li v-if="cacheMetrics.size >= cacheMetrics.maxSize * 0.9">
           ⚠️ <strong>Cache full:</strong> Consider increasing max size or invalidating old entries
@@ -92,15 +92,13 @@
     </div>
 
     <!-- Error Display -->
-    <div v-if="error" class="error-message">
-      ❌ {{ error }}
-    </div>
+    <div v-if="error" class="error-message">❌ {{ error }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { AnalysisBridge } from '@/services/AnalysisBridge';
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { AnalysisBridge } from "@/services/AnalysisBridge";
 
 // Props
 const props = defineProps<{
@@ -110,8 +108,8 @@ const props = defineProps<{
 
 // Emits
 const emit = defineEmits<{
-  (e: 'metrics-updated', metrics: CacheMetrics): void;
-  (e: 'config-updated', config: CacheConfig): void;
+  (e: "metrics-updated", metrics: CacheMetrics): void;
+  (e: "config-updated", config: CacheConfig): void;
 }>;
 
 // State
@@ -122,7 +120,7 @@ const cacheMetrics = ref<CacheMetrics>({
   evictions: 0,
   size: 0,
   maxSize: 50,
-  hitRate: 0
+  hitRate: 0,
 });
 
 const selectedTTL = ref(600000); // 10 minutes default
@@ -134,9 +132,9 @@ let refreshTimer: number | null = null;
 // Computed
 const hitRateTrend = computed(() => {
   const rate = cacheMetrics.value.hitRate;
-  if (rate >= 0.8) return 'good';
-  if (rate >= 0.5) return 'warning';
-  return 'bad';
+  if (rate >= 0.8) return "good";
+  if (rate >= 0.5) return "warning";
+  return "bad";
 });
 
 const cacheUtilization = computed(() => {
@@ -146,7 +144,7 @@ const cacheUtilization = computed(() => {
 
 // Methods
 const formatPercent = (value: number): string => {
-  return (value * 100).toFixed(1) + '%';
+  return (value * 100).toFixed(1) + "%";
 };
 
 const fetchMetrics = async () => {
@@ -154,26 +152,23 @@ const fetchMetrics = async () => {
     error.value = null;
     const metrics = await analysisBridge.getCacheMetrics();
     cacheMetrics.value = metrics;
-    emit('metrics-updated', metrics);
+    emit("metrics-updated", metrics);
   } catch (err: any) {
-    error.value = err.message || 'Failed to fetch cache metrics';
-    console.error('Cache metrics error:', err);
+    error.value = err.message || "Failed to fetch cache metrics";
+    console.error("Cache metrics error:", err);
   }
 };
 
 const updateConfig = async () => {
   try {
     error.value = null;
-    const result = await analysisBridge.configureCache(
-      selectedTTL.value,
-      selectedMaxSize.value
-    );
-    emit('config-updated', result.config);
+    const result = await analysisBridge.configureCache(selectedTTL.value, selectedMaxSize.value);
+    emit("config-updated", result.config);
     // Refresh to show updated config
     await fetchMetrics();
   } catch (err: any) {
-    error.value = err.message || 'Failed to update cache config';
-    console.error('Cache config error:', err);
+    error.value = err.message || "Failed to update cache config";
+    console.error("Cache config error:", err);
   }
 };
 
@@ -219,7 +214,10 @@ interface CacheConfig {
   padding: 20px;
   background: var(--bg-secondary, #f5f5f5);
   border-radius: 12px;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 h3 {
@@ -246,7 +244,7 @@ h4 {
   padding: 16px;
   border-radius: 8px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: relative;
 }
 
@@ -269,9 +267,15 @@ h4 {
   font-size: 1.2rem;
 }
 
-.metric-trend.good { color: #28a745; }
-.metric-trend.warning { color: #ffc107; }
-.metric-trend.bad { color: #dc3545; }
+.metric-trend.good {
+  color: #28a745;
+}
+.metric-trend.warning {
+  color: #ffc107;
+}
+.metric-trend.bad {
+  color: #dc3545;
+}
 
 .progress-bar {
   width: 100%;

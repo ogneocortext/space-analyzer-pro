@@ -5,11 +5,13 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -59,16 +61,16 @@ html, body {
   --desktop-accent: #22c55e;
   --desktop-danger: #ef4444;
   --desktop-warning: #f59e0b;
-  
+
   --desktop-bg-primary: #0f172a;
   --desktop-bg-secondary: #1e293b;
   --desktop-bg-tertiary: #334155;
-  
+
   --desktop-text-primary: #f1f5f9;
   --desktop-text-secondary: #cbd5e1;
   --desktop-text-tertiary: #94a3b8;
   --desktop-text-muted: #64748b;
-  
+
   --desktop-border: #334155;
   --desktop-border-light: #475569;
 }
@@ -274,8 +276,12 @@ html, body {
 }
 
 @keyframes desktop-spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Button styles for desktop */
@@ -362,7 +368,7 @@ html, body {
   background: var(--desktop-bg-tertiary);
   border: 1px solid var(--desktop-border);
   border-radius: 4px;
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: "Consolas", "Monaco", monospace;
   font-size: 11px;
   color: var(--desktop-text-secondary);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -373,7 +379,7 @@ html, body {
   .desktop-layout .desktop-sidebar {
     width: 240px;
   }
-  
+
   .desktop-layout .desktop-sidebar.collapsed {
     width: 50px;
   }
@@ -388,11 +394,11 @@ html, body {
     z-index: 999;
     transition: left 0.3s ease;
   }
-  
+
   .desktop-layout .desktop-sidebar.open {
     left: 0;
   }
-  
+
   .desktop-layout .desktop-main {
     margin-left: 0;
   }
@@ -407,11 +413,15 @@ html, body {
 
 /* Dark/light theme transitions */
 .desktop-layout {
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 .desktop-layout * {
-  transition: border-color 0.3s ease, background-color 0.3s ease;
+  transition:
+    border-color 0.3s ease,
+    background-color 0.3s ease;
 }
 
 /* Performance optimizations */
@@ -435,7 +445,7 @@ html, body {
   .desktop-layout .desktop-statusbar {
     display: none;
   }
-  
+
   .desktop-layout .desktop-main {
     margin: 0;
   }

@@ -37,10 +37,13 @@
           </div>
           <div class="w-full bg-slate-700 rounded-full h-6 overflow-hidden">
             <div
-              :class="['h-full transition-all duration-300', hoveredItem === item.name ? 'brightness-110' : '']"
+              :class="[
+                'h-full transition-all duration-300',
+                hoveredItem === item.name ? 'brightness-110' : '',
+              ]"
               :style="{
                 width: `${(item.value / maxValue) * 100}%`,
-                backgroundColor: item.color || '#3b82f6'
+                backgroundColor: item.color || '#3b82f6',
               }"
             />
           </div>
@@ -50,10 +53,7 @@
       <div v-else-if="type === 'pie'" class="relative">
         <div class="w-48 h-48 mx-auto">
           <svg viewBox="0 0 100 100" class="w-full h-full">
-            <g
-              v-for="(item, index) in data"
-              :key="item.name"
-            >
+            <g v-for="(item, index) in data" :key="item.name">
               <circle
                 cx="50"
                 cy="50"
@@ -64,7 +64,10 @@
                 :stroke-dasharray="`${getPieAngle(item)} ${360 - getPieAngle(item)}`"
                 :stroke-dashoffset="`-${getPreviousAngles(index)}`"
                 transform="rotate(-90 50 50)"
-                :class="['cursor-pointer transition-all duration-300', hoveredItem === item.name ? 'opacity-80' : '']"
+                :class="[
+                  'cursor-pointer transition-all duration-300',
+                  hoveredItem === item.name ? 'opacity-80' : '',
+                ]"
                 @mousemove="(e) => handleMouseMove(e, item)"
                 @mouseleave="handleMouseLeave"
                 @click="handleItemClick(item)"
@@ -83,7 +86,7 @@
         :style="{
           left: `${tooltip.x}px`,
           top: `${tooltip.y - 40}px`,
-          transform: 'translateX(-50%)'
+          transform: 'translateX(-50%)',
         }"
         v-html="tooltip.content"
       />
@@ -91,18 +94,14 @@
 
     <!-- Legend -->
     <div v-if="showLegend" class="chart-legend">
-      <div
-        v-for="item in data"
-        :key="item.name"
-        class="legend-item"
-      >
+      <div v-for="item in data" :key="item.name" class="legend-item">
         <div class="legend-color" :style="{ backgroundColor: item.color || '#3b82f6' }" />
         <span>{{ item.name }}</span>
         <span
           v-if="item.change !== undefined"
           :class="['data-change', item.change >= 0 ? 'positive' : 'negative']"
         >
-          {{ item.change >= 0 ? '+' : '' }}{{ item.change }}%
+          {{ item.change >= 0 ? "+" : "" }}{{ item.change }}%
         </span>
       </div>
     </div>
@@ -110,8 +109,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { BarChart3, PieChart, TrendingUp, Info } from 'lucide-vue-next';
+import { ref, computed } from "vue";
+import { BarChart3, PieChart, TrendingUp, Info } from "lucide-vue-next";
 
 interface ChartData {
   name: string;
@@ -124,7 +123,7 @@ interface EnhancedChartProps {
   title: string;
   subtitle?: string;
   data: ChartData[];
-  type: 'bar' | 'pie' | 'line';
+  type: "bar" | "pie" | "line";
   showLegend?: boolean;
   showTooltip?: boolean;
   className?: string;
@@ -134,7 +133,7 @@ interface EnhancedChartProps {
 const props = withDefaults(defineProps<EnhancedChartProps>(), {
   showLegend: true,
   showTooltip: true,
-  className: '',
+  className: "",
   onDataPointClick: undefined,
 });
 
@@ -146,7 +145,7 @@ const tooltip = ref<{
 }>({
   x: 0,
   y: 0,
-  content: '',
+  content: "",
   visible: false,
 });
 
@@ -185,7 +184,7 @@ const handleMouseMove = (e: MouseEvent, item: ChartData) => {
   const content = `
     <div class="font-semibold">${item.name}</div>
     <div class="text-sm">Value: ${item.value.toLocaleString()}</div>
-    ${item.change !== undefined ? `<div class="text-xs ${item.change >= 0 ? 'text-green-400' : 'text-red-400'}">Change: ${item.change >= 0 ? '+' : ''}${item.change}%</div>` : ''}
+    ${item.change !== undefined ? `<div class="text-xs ${item.change >= 0 ? "text-green-400" : "text-red-400"}">Change: ${item.change >= 0 ? "+" : ""}${item.change}%</div>` : ""}
   `;
 
   tooltip.value = { x, y, content, visible: true };
@@ -205,11 +204,11 @@ const handleItemClick = (item: ChartData) => {
 
 const getChartIcon = () => {
   switch (props.type) {
-    case 'bar':
+    case "bar":
       return BarChart3;
-    case 'pie':
+    case "pie":
       return PieChart;
-    case 'line':
+    case "line":
       return TrendingUp;
     default:
       return BarChart3;

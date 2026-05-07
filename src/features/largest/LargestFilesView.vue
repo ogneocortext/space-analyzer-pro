@@ -11,7 +11,7 @@ const selectedFiles = ref<Set<string>>(new Set());
 // Get largest files sorted by size
 const largestFiles = computed(() => {
   if (!store.analysisResult?.files) return [];
-  
+
   return store.analysisResult.files
     .filter((f: any) => (f.size || 0) >= minSize.value)
     .sort((a: any, b: any) => (b.size || 0) - (a.size || 0))
@@ -25,10 +25,10 @@ const largestFiles = computed(() => {
 // Statistics
 const stats = computed(() => {
   if (!largestFiles.value.length) return null;
-  
+
   const totalSize = largestFiles.value.reduce((sum: number, f: any) => sum + (f.size || 0), 0);
   const avgSize = totalSize / largestFiles.value.length;
-  
+
   return {
     count: largestFiles.value.length,
     totalSize,
@@ -68,31 +68,31 @@ async function copyPath(path: string) {
 
 // Get file icon based on extension
 function getFileIcon(name: string): string {
-  const ext = name.split('.').pop()?.toLowerCase() || '';
+  const ext = name.split(".").pop()?.toLowerCase() || "";
   const icons: Record<string, string> = {
-    pdf: '📄',
-    doc: '📝',
-    docx: '📝',
-    xls: '📊',
-    xlsx: '📊',
-    ppt: '📊',
-    pptx: '📊',
-    jpg: '🖼️',
-    jpeg: '🖼️',
-    png: '🖼️',
-    gif: '🖼️',
-    mp4: '🎬',
-    mov: '🎬',
-    avi: '🎬',
-    mp3: '🎵',
-    wav: '🎵',
-    zip: '📦',
-    rar: '📦',
-    exe: '⚙️',
-    dll: '⚙️',
-    iso: '💿',
+    pdf: "📄",
+    doc: "📝",
+    docx: "📝",
+    xls: "📊",
+    xlsx: "📊",
+    ppt: "📊",
+    pptx: "📊",
+    jpg: "🖼️",
+    jpeg: "🖼️",
+    png: "🖼️",
+    gif: "🖼️",
+    mp4: "🎬",
+    mov: "🎬",
+    avi: "🎬",
+    mp3: "🎵",
+    wav: "🎵",
+    zip: "📦",
+    rar: "📦",
+    exe: "⚙️",
+    dll: "⚙️",
+    iso: "💿",
   };
-  return icons[ext] || '📄';
+  return icons[ext] || "📄";
 }
 
 function formatSize(bytes: number): string {
@@ -167,7 +167,10 @@ function formatDate(dateStr: string): string {
       </div>
 
       <!-- Selection Actions -->
-      <div v-if="selectedFiles.size > 0" class="flex items-center gap-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+      <div
+        v-if="selectedFiles.size > 0"
+        class="flex items-center gap-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg"
+      >
         <span class="text-blue-400">{{ selectedFiles.size }} files selected</span>
         <Button variant="secondary" size="sm" @click="clearSelection">Clear</Button>
       </div>
@@ -176,7 +179,9 @@ function formatDate(dateStr: string): string {
       <Card :title="`Top ${displayCount} Largest Files`">
         <div class="space-y-2">
           <!-- Header -->
-          <div class="flex items-center gap-4 p-2 text-sm font-medium text-slate-500 border-b border-slate-700">
+          <div
+            class="flex items-center gap-4 p-2 text-sm font-medium text-slate-500 border-b border-slate-700"
+          >
             <input
               type="checkbox"
               :checked="selectedFiles.size === largestFiles.length && largestFiles.length > 0"
@@ -207,14 +212,21 @@ function formatDate(dateStr: string): string {
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
                 <span class="text-lg">{{ getFileIcon(file.name) }}</span>
-                <span class="font-medium text-slate-200 truncate" :title="file.name">{{ file.name }}</span>
+                <span class="font-medium text-slate-200 truncate" :title="file.name">{{
+                  file.name
+                }}</span>
               </div>
               <div class="text-sm text-slate-500 truncate" :title="file.path">{{ file.path }}</div>
             </div>
-            <span class="w-24 text-right font-medium" :class="file.size > 1024 * 1024 * 1024 ? 'text-red-400' : 'text-slate-200'">
+            <span
+              class="w-24 text-right font-medium"
+              :class="file.size > 1024 * 1024 * 1024 ? 'text-red-400' : 'text-slate-200'"
+            >
               {{ formatSize(file.size) }}
             </span>
-            <span class="w-24 text-right text-sm text-slate-400">{{ formatDate(file.modified) }}</span>
+            <span class="w-24 text-right text-sm text-slate-400">{{
+              formatDate(file.modified)
+            }}</span>
             <div class="w-20 text-right">
               <button
                 class="text-slate-400 hover:text-blue-400 transition-colors"

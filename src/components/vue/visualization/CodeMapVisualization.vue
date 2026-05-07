@@ -40,10 +40,7 @@
         </div>
 
         <!-- Filter -->
-        <select
-          v-model="filterType"
-          class="filter-select"
-        >
+        <select v-model="filterType" class="filter-select">
           <option value="all">All Items</option>
           <option value="issues">Issues Only</option>
           <option value="connections">Connections Only</option>
@@ -120,9 +117,7 @@
           <Database v-else :size="16" />
           {{ selectedNode.name }}
         </h4>
-        <button @click="selectedNode = null" class="close-btn">
-          ×
-        </button>
+        <button @click="selectedNode = null" class="close-btn">×</button>
       </div>
 
       <div class="details-content">
@@ -163,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from "vue";
 import {
   Network,
   ZoomIn,
@@ -177,7 +172,7 @@ import {
   FileText,
   Code,
   Database,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface CodeMapVisualizationProps {
   files: any[];
@@ -190,7 +185,7 @@ interface CodeMapVisualizationProps {
 interface CodeMapNode {
   id: string;
   name: string;
-  type: 'file' | 'function' | 'class' | 'variable' | 'import' | 'export';
+  type: "file" | "function" | "class" | "variable" | "import" | "export";
   filePath: string;
   group: string;
   size: number;
@@ -206,8 +201,8 @@ interface CodeMapNode {
 interface CodeMapLink {
   source: string;
   target: string;
-  type: 'import' | 'export' | 'call' | 'reference';
-  strength: 'strong' | 'medium' | 'weak';
+  type: "import" | "export" | "call" | "reference";
+  strength: "strong" | "medium" | "weak";
   color: string;
 }
 
@@ -224,8 +219,8 @@ const props = withDefaults(defineProps<CodeMapVisualizationProps>(), {
 });
 
 const data = ref<CodeMapData>({ nodes: [], links: [] });
-const searchTerm = ref('');
-const filterType = ref<'all' | 'issues' | 'connections'>('all');
+const searchTerm = ref("");
+const filterType = ref<"all" | "issues" | "connections">("all");
 const selectedNode = ref<CodeMapNode | null>(null);
 const zoom = ref(1);
 const loading = ref(true);
@@ -256,7 +251,7 @@ const filteredData = computed(() => {
     );
   }
 
-  if (filterType.value === 'issues') {
+  if (filterType.value === "issues") {
     filteredNodes = filteredNodes.filter((node) =>
       Object.values(node.issues).some((count) => count > 0)
     );
@@ -265,7 +260,7 @@ const filteredData = computed(() => {
     filteredLinks = filteredLinks.filter(
       (link) => nodeIds.has(link.source) && nodeIds.has(link.target)
     );
-  } else if (filterType.value === 'connections') {
+  } else if (filterType.value === "connections") {
     const connectedNodeIds = new Set(filteredLinks.flatMap((link) => [link.source, link.target]));
     filteredNodes = filteredNodes.filter((node) => connectedNodeIds.has(node.id));
   }
@@ -281,11 +276,11 @@ onMounted(() => {
     try {
       const codeFiles = props.files.filter(
         (f) =>
-          f.path.endsWith('.js') ||
-          f.path.endsWith('.jsx') ||
-          f.path.endsWith('.ts') ||
-          f.path.endsWith('.tsx') ||
-          f.path.endsWith('.py')
+          f.path.endsWith(".js") ||
+          f.path.endsWith(".jsx") ||
+          f.path.endsWith(".ts") ||
+          f.path.endsWith(".tsx") ||
+          f.path.endsWith(".py")
       );
 
       // Placeholder for actual dependency analysis
@@ -295,12 +290,12 @@ onMounted(() => {
       for (const file of codeFiles) {
         nodes.push({
           id: file.path,
-          name: file.path.split(/[/\\]/).pop() || '',
-          type: 'file',
+          name: file.path.split(/[/\\]/).pop() || "",
+          type: "file",
           filePath: file.path,
-          group: 'files',
+          group: "files",
           size: 20,
-          color: '#3b82f6',
+          color: "#3b82f6",
           issues: {
             unusedImports: 0,
             missingImports: 0,
@@ -319,7 +314,7 @@ onMounted(() => {
         deadCode: 0,
       };
     } catch (error) {
-      console.error('Failed to process code map data:', error);
+      console.error("Failed to process code map data:", error);
     } finally {
       loading.value = false;
     }
@@ -345,12 +340,12 @@ const handleExport = () => {
   if (!svgElement) return;
 
   const svgData = new XMLSerializer().serializeToString(svgElement);
-  const blob = new Blob([svgData], { type: 'image/svg+xml' });
+  const blob = new Blob([svgData], { type: "image/svg+xml" });
   const url = URL.createObjectURL(blob);
 
-  const link = document.createElement('a');
+  const link = document.createElement("a");
   link.href = url;
-  link.download = 'code-map.svg';
+  link.download = "code-map.svg";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

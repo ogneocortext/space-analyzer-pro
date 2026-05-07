@@ -10,7 +10,7 @@ import {
 interface FileOperationsOptions {
   initialFiles?: any[];
   enableCache?: boolean;
-  defaultSort?: 'name' | 'size' | 'date' | 'type';
+  defaultSort?: "name" | "size" | "date" | "type";
 }
 
 interface UseFileOperationsReturn {
@@ -34,50 +34,51 @@ interface UseFileOperationsReturn {
 }
 
 export const useFileOperations = (options: FileOperationsOptions = {}): UseFileOperationsReturn => {
-  const { initialFiles = [], enableCache = true, defaultSort = 'name' } = options;
-  
+  const { initialFiles = [], enableCache = true, defaultSort = "name" } = options;
+
   const files = ref<TransformedFileData[]>([]);
   const filteredFiles = ref<TransformedFileData[]>([]);
   const selectedFiles = ref<string[]>([]);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
-  const searchTerm = ref('');
+  const searchTerm = ref("");
   const sortBy = ref(defaultSort);
-  const filterType = ref('all');
+  const filterType = ref("all");
 
   // Computed filtered and sorted files
   const processedFiles = computed(() => {
     let result = [...files.value];
-    
+
     // Apply search filter
     if (searchTerm.value) {
-      result = result.filter(file => 
-        file.name.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
-        file.path.toLowerCase().includes(searchTerm.value.toLowerCase())
+      result = result.filter(
+        (file) =>
+          file.name.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+          file.path.toLowerCase().includes(searchTerm.value.toLowerCase())
       );
     }
-    
+
     // Apply type filter
-    if (filterType.value !== 'all') {
-      result = result.filter(file => file.type === filterType.value);
+    if (filterType.value !== "all") {
+      result = result.filter((file) => file.type === filterType.value);
     }
-    
+
     // Apply sorting
     result.sort((a, b) => {
       switch (sortBy.value) {
-        case 'name':
+        case "name":
           return a.name.localeCompare(b.name);
-        case 'size':
+        case "size":
           return b.size - a.size;
-        case 'date':
+        case "date":
           return new Date(b.modified).getTime() - new Date(a.modified).getTime();
-        case 'type':
+        case "type":
           return a.type.localeCompare(b.type);
         default:
           return a.name.localeCompare(b.name);
       }
     });
-    
+
     return result;
   });
 
@@ -93,7 +94,7 @@ export const useFileOperations = (options: FileOperationsOptions = {}): UseFileO
   };
 
   const selectAllFiles = () => {
-    const allFileIds = filteredFiles.value.map(file => file.id);
+    const allFileIds = filteredFiles.value.map((file) => file.id);
     selectedFiles.value = allFileIds;
   };
 
@@ -104,23 +105,23 @@ export const useFileOperations = (options: FileOperationsOptions = {}): UseFileO
   const deleteFiles = async (fileIds: string[]): Promise<void> => {
     isLoading.value = true;
     error.value = null;
-    
+
     try {
       // Delete files logic here
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
+
       // Remove from files array
-      files.value = files.value.filter(file => !fileIds.includes(file.id));
-      
+      files.value = files.value.filter((file) => !fileIds.includes(file.id));
+
       // Clear selection
-      selectedFiles.value = selectedFiles.value.filter(id => !fileIds.includes(id));
-      
+      selectedFiles.value = selectedFiles.value.filter((id) => !fileIds.includes(id));
+
       // Clear cache entries
       if (enableCache) {
-        fileIds.forEach(id => fileCache.delete(id));
+        fileIds.forEach((id) => fileCache.delete(id));
       }
     } catch (err: any) {
-      error.value = err.message || 'Failed to delete files';
+      error.value = err.message || "Failed to delete files";
     } finally {
       isLoading.value = false;
     }
@@ -129,32 +130,32 @@ export const useFileOperations = (options: FileOperationsOptions = {}): UseFileO
   const moveFiles = async (fileIds: string[], targetPath: string): Promise<void> => {
     isLoading.value = true;
     error.value = null;
-    
+
     try {
       // Move files logic here
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
+
       // Update file paths in files array
-      files.value = files.value.map(file => {
+      files.value = files.value.map((file) => {
         if (fileIds.includes(file.id)) {
           return {
             ...file,
             path: `${targetPath}/${file.name}`,
-            modified: new Date().toISOString()
+            modified: new Date().toISOString(),
           };
         }
         return file;
       });
-      
+
       // Clear selection
-      selectedFiles.value = selectedFiles.value.filter(id => !fileIds.includes(id));
-      
+      selectedFiles.value = selectedFiles.value.filter((id) => !fileIds.includes(id));
+
       // Clear cache entries
       if (enableCache) {
-        fileIds.forEach(id => fileCache.delete(id));
+        fileIds.forEach((id) => fileCache.delete(id));
       }
     } catch (err: any) {
-      error.value = err.message || 'Failed to move files';
+      error.value = err.message || "Failed to move files";
     } finally {
       isLoading.value = false;
     }
@@ -175,13 +176,13 @@ export const useFileOperations = (options: FileOperationsOptions = {}): UseFileO
   const refreshFiles = async (): Promise<void> => {
     isLoading.value = true;
     error.value = null;
-    
+
     try {
       // Refresh files logic here
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
       // This would typically fetch fresh file data from the backend
     } catch (err: any) {
-      error.value = err.message || 'Failed to refresh files';
+      error.value = err.message || "Failed to refresh files";
     } finally {
       isLoading.value = false;
     }

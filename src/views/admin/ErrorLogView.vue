@@ -98,6 +98,7 @@ const showCharts = ref<boolean>(true);
 const selectedErrors = ref<Set<string>>(new Set());
 const bulkActions = ref<boolean>(false);
 const errorCategories = ref<string[]>(["Critical", "Warning", "Info", "Debug"]);
+const activeCategories = ref<string[]>(["Critical", "Warning", "Info", "Debug"]);
 const performanceMetrics = ref<any>(null);
 const systemHealth = ref<any>(null);
 
@@ -117,6 +118,25 @@ const filteredErrors = computed(() => {
   // Filter by type
   if (filterType.value !== "all") {
     filtered = filtered.filter((e) => e.type === filterType.value);
+  }
+
+  // Filter by category
+  if (
+    activeCategories.value.length > 0 &&
+    activeCategories.value.length < errorCategories.value.length
+  ) {
+    filtered = filtered.filter((e) => {
+      // Map error types to categories
+      let category = "Info";
+      if (e.type === "uncaughtException" || e.type === "unhandledRejection") {
+        category = "Critical";
+      } else if (e.type === "error" || (e.statusCode && e.statusCode >= 400)) {
+        category = "Warning";
+      } else if (e.type === "debug") {
+        category = "Debug";
+      }
+      return activeCategories.value.includes(category);
+    });
   }
 
   // Filter by severity (critical vs regular errors)
@@ -313,6 +333,78 @@ const handleBulkDelete = async () => {
   }
 };
 
+const handleBulkArchive = async () => {
+  if (selectedErrors.value.size === 0) return;
+
+  if (!confirm(`Are you sure you want to archive ${selectedErrors.value.size} selected errors?`))
+    return;
+
+  try {
+    // In Tauri mode, use native commands
+    if (isTauri()) {
+      console.warn("🖥️ Tauri mode detected - using native error archive");
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("archive_errors", {
+        errorIds: Array.from(selectedErrors.value),
+      });
+    } else {
+      const response = await fetch("/api/errors/archive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ errorIds: Array.from(selectedErrors.value) }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Archive failed: ${response.statusText}`);
+      }
+    }
+
+    selectedErrors.value.clear();
+    logger.info(`Archived ${selectedErrors.value.size} errors`);
+  } catch (err) {
+    logger.error("Failed to archive errors", { error: err });
+    alert("Failed to archive errors: " + (err instanceof Error ? err.message : "Unknown error"));
+  }
+};
+
+const handleBulkResolve = async () => {
+  if (selectedErrors.value.size === 0) return;
+
+  if (
+    !confirm(
+      `Are you sure you want to mark ${selectedErrors.value.size} selected errors as resolved?`
+    )
+  )
+    return;
+
+  try {
+    // In Tauri mode, use native commands
+    if (isTauri()) {
+      console.warn("🖥️ Tauri mode detected - using native error resolve");
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("resolve_errors", {
+        errorIds: Array.from(selectedErrors.value),
+      });
+    } else {
+      const response = await fetch("/api/errors/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ errorIds: Array.from(selectedErrors.value) }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Resolve failed: ${response.statusText}`);
+      }
+    }
+
+    selectedErrors.value.clear();
+    logger.info(`Resolved ${selectedErrors.value.size} errors`);
+  } catch (err) {
+    logger.error("Failed to resolve errors", { error: err });
+    alert("Failed to resolve errors: " + (err instanceof Error ? err.message : "Unknown error"));
+  }
+};
+
 const copyErrorDetails = (error: ErrorEntry) => {
   const errorText = `Error ID: ${error.id}
 Type: ${error.type}
@@ -395,10 +487,25 @@ const exportSelectedErrors = async () => {
   }
 };
 
+const applyFilters = () => {
+  logger.debug("Applying filters", { activeCategories: activeCategories.value });
+  // This function will be called by the computed property filteredErrors
+  // The actual filtering logic is handled in the computed property
+};
+
 const toggleCategoryFilter = (category: string) => {
-  // Placeholder for category filter functionality
   logger.debug("Toggle category filter", { category });
-  // TODO: Implement category filtering logic
+
+  // Toggle category in active filters
+  const index = activeCategories.value.indexOf(category);
+  if (index > -1) {
+    activeCategories.value.splice(index, 1);
+  } else {
+    activeCategories.value.push(category);
+  }
+
+  // Update filtered errors
+  applyFilters();
 };
 
 const viewDetails = (err: ErrorEntry) => {
@@ -556,33 +663,50 @@ onUnmounted(() => {
           </select>
         </div>
 
+        <!-- Category Filters -->
+        <div class="category-filters">
+          <div class="category-filter-label">Categories:</div>
+          <div class="category-buttons">
+            <button
+              v-for="category in errorCategories"
+              :key="category"
+              :class="{ 'category-btn': true, active: activeCategories.includes(category) }"
+              :variant="activeCategories.includes(category) ? 'primary' : 'secondary'"
+              size="sm"
+              @click="toggleCategoryFilter(category)"
+            >
+              {{ category }}
+            </button>
+          </div>
+        </div>
+
         <!-- Action Buttons -->
         <div class="action-buttons">
-          <Button @click="showAdvancedFilters = !showAdvancedFilters" variant="secondary" size="sm">
+          <Button variant="secondary" size="sm" @click="showAdvancedFilters = !showAdvancedFilters">
             <Filter class="w-4 h-4" />
             Advanced
           </Button>
 
           <Button
-            @click="toggleAutoRefresh"
             :variant="autoRefresh ? 'primary' : 'secondary'"
             size="sm"
+            @click="toggleAutoRefresh"
           >
             <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': autoRefresh }" />
             {{ autoRefresh ? "Auto" : "Manual" }}
           </Button>
 
-          <Button @click="fetchErrors" :disabled="loading" variant="secondary" size="sm">
+          <Button :disabled="loading" variant="secondary" size="sm" @click="fetchErrors">
             <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
             Refresh
           </Button>
 
-          <Button @click="exportErrors" variant="secondary" size="sm">
+          <Button variant="secondary" size="sm" @click="exportErrors">
             <Download class="w-4 h-4" />
             Export
           </Button>
 
-          <Button @click="handleClearErrors" variant="danger" size="sm">
+          <Button variant="danger" size="sm" @click="handleClearErrors">
             <Trash2 class="w-4 h-4" />
             Clear
           </Button>
@@ -600,9 +724,9 @@ onUnmounted(() => {
               <Button
                 v-for="range in ['1h', '24h', '7d', '30d']"
                 :key="range"
-                @click="selectedTimeRange = range"
                 :variant="selectedTimeRange === range ? 'primary' : 'secondary'"
                 size="sm"
+                @click="selectedTimeRange = range"
               >
                 {{
                   range === "1h"
@@ -623,9 +747,9 @@ onUnmounted(() => {
               <Button
                 v-for="category in errorCategories"
                 :key="category"
-                @click="toggleCategoryFilter(category)"
                 variant="secondary"
                 size="sm"
+                @click="toggleCategoryFilter(category)"
               >
                 {{ category }}
               </Button>
@@ -649,12 +773,14 @@ onUnmounted(() => {
     <div class="stats-dashboard">
       <!-- Main Stats Cards -->
       <div class="stats-grid">
-        <Card class="stat-card critical" v-if="errorStats.critical > 0">
+        <Card v-if="errorStats.critical > 0" class="stat-card critical">
           <div class="stat-header">
             <AlertTriangle class="stat-icon" />
             <span class="stat-label">Critical Errors</span>
           </div>
-          <div class="stat-value">{{ errorStats.critical }}</div>
+          <div class="stat-value">
+            {{ errorStats.critical }}
+          </div>
           <div class="stat-change negative">
             <TrendingUp class="w-3 h-3" />
             +{{ Math.floor(Math.random() * 10) }}% from last hour
@@ -666,7 +792,9 @@ onUnmounted(() => {
             <Activity class="stat-icon" />
             <span class="stat-label">Recent Errors</span>
           </div>
-          <div class="stat-value">{{ errorStats.recent }}</div>
+          <div class="stat-value">
+            {{ errorStats.recent }}
+          </div>
           <div class="stat-change">
             <Clock class="w-3 h-3" />
             Last hour
@@ -678,7 +806,9 @@ onUnmounted(() => {
             <Database class="stat-icon" />
             <span class="stat-label">Total Errors</span>
           </div>
-          <div class="stat-value">{{ errorStats.total }}</div>
+          <div class="stat-value">
+            {{ errorStats.total }}
+          </div>
           <div class="stat-change">
             <Calendar class="w-3 h-3" />
             Last 7 days
@@ -702,7 +832,7 @@ onUnmounted(() => {
       <Card v-if="showCharts" class="chart-card">
         <div class="chart-header">
           <h3>Error Distribution</h3>
-          <Button @click="showCharts = !showCharts" variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" @click="showCharts = !showCharts">
             <EyeOff v-if="showCharts" class="w-4 h-4" />
             <Eye v-else class="w-4 h-4" />
           </Button>
@@ -713,15 +843,15 @@ onUnmounted(() => {
             <p>Error distribution chart would be displayed here</p>
             <div class="chart-legend">
               <div class="legend-item critical">
-                <div class="legend-color"></div>
+                <div class="legend-color" />
                 <span>Critical ({{ errorSeverityDistribution.critical }})</span>
               </div>
               <div class="legend-item warning">
-                <div class="legend-color"></div>
+                <div class="legend-color" />
                 <span>Warning ({{ errorSeverityDistribution.warning }})</span>
               </div>
               <div class="legend-item info">
-                <div class="legend-color"></div>
+                <div class="legend-color" />
                 <span>Info ({{ errorSeverityDistribution.info }})</span>
               </div>
             </div>
@@ -733,22 +863,30 @@ onUnmounted(() => {
     <!-- Stats -->
     <div v-if="stats" class="stats-grid">
       <Card class="stat-card">
-        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-value">
+          {{ stats.total }}
+        </div>
         <div class="stat-label">Total Errors (7 days)</div>
       </Card>
 
-      <Card class="stat-card critical" v-if="stats.critical > 0">
-        <div class="stat-value text-red-400">{{ stats.critical }}</div>
+      <Card v-if="stats.critical > 0" class="stat-card critical">
+        <div class="stat-value text-red-400">
+          {{ stats.critical }}
+        </div>
         <div class="stat-label">Critical Errors</div>
       </Card>
 
       <Card class="stat-card">
-        <div class="stat-value">{{ Object.keys(stats.byType).length }}</div>
+        <div class="stat-value">
+          {{ Object.keys(stats.byType).length }}
+        </div>
         <div class="stat-label">Error Types</div>
       </Card>
 
       <Card class="stat-card">
-        <div class="stat-value">{{ Object.keys(stats.bySource).length }}</div>
+        <div class="stat-value">
+          {{ Object.keys(stats.bySource).length }}
+        </div>
         <div class="stat-label">Sources</div>
       </Card>
     </div>
@@ -759,16 +897,24 @@ onUnmounted(() => {
       <div v-if="hasSelectedErrors" class="bulk-actions-bar">
         <div class="bulk-actions-left">
           <span class="selected-count">{{ selectedErrors.size }} errors selected</span>
-          <Button @click="selectAllErrors" variant="secondary" size="sm">
+          <Button variant="secondary" size="sm" @click="selectAllErrors">
             {{ selectedErrors.size === paginatedErrors.length ? "Deselect All" : "Select All" }}
           </Button>
         </div>
         <div class="bulk-actions-right">
-          <Button @click="exportSelectedErrors" variant="secondary" size="sm">
+          <Button variant="secondary" size="sm" @click="exportSelectedErrors">
             <Download class="w-4 h-4" />
             Export Selected
           </Button>
-          <Button @click="handleBulkDelete" variant="danger" size="sm">
+          <Button variant="secondary" size="sm" @click="handleBulkArchive">
+            <Database class="w-4 h-4" />
+            Archive Selected
+          </Button>
+          <Button variant="success" size="sm" @click="handleBulkResolve">
+            <CheckCircle class="w-4 h-4" />
+            Resolve Selected
+          </Button>
+          <Button variant="danger" size="sm" @click="handleBulkDelete">
             <Trash2 class="w-4 h-4" />
             Delete Selected
           </Button>
@@ -789,7 +935,7 @@ onUnmounted(() => {
           <p>
             {{ searchTerm ? "No errors match your search criteria" : "No errors have been logged" }}
           </p>
-          <Button v-if="searchTerm" @click="searchTerm = ''" variant="secondary">
+          <Button v-if="searchTerm" variant="secondary" @click="searchTerm = ''">
             Clear Search
           </Button>
         </div>
@@ -836,10 +982,10 @@ onUnmounted(() => {
               {{ formatDate(err.timestamp) }}
             </div>
             <div class="error-actions" @click.stop>
-              <Button @click="copyErrorDetails(err)" variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" @click="copyErrorDetails(err)">
                 <Copy class="w-3 h-3" />
               </Button>
-              <Button @click="viewDetails(err)" variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" @click="viewDetails(err)">
                 <Eye class="w-3 h-3" />
               </Button>
             </div>
@@ -875,7 +1021,7 @@ onUnmounted(() => {
 
         <!-- Stack Trace Section -->
         <div v-if="err.stack" class="stack-section">
-          <button @click.stop="toggleStack(err.id)" class="stack-toggle">
+          <button class="stack-toggle" @click.stop="toggleStack(err.id)">
             <component
               :is="expandedStacks.has(err.id) ? ChevronDown : ChevronRight"
               class="w-4 h-4"
@@ -897,10 +1043,10 @@ onUnmounted(() => {
         </div>
         <div class="pagination-controls">
           <Button
-            @click="changePage(currentPage - 1)"
             :disabled="currentPage === 1"
             variant="secondary"
             size="sm"
+            @click="changePage(currentPage - 1)"
           >
             <ChevronLeft class="w-4 h-4" />
             Previous
@@ -910,28 +1056,28 @@ onUnmounted(() => {
             <Button
               v-for="page in Math.min(5, totalPages)"
               :key="page"
-              @click="changePage(page)"
               :variant="page === currentPage ? 'primary' : 'secondary'"
               size="sm"
+              @click="changePage(page)"
             >
               {{ page }}
             </Button>
             <span v-if="totalPages > 5" class="page-ellipsis">...</span>
             <Button
               v-if="totalPages > 5"
-              @click="changePage(totalPages)"
               :variant="totalPages === currentPage ? 'primary' : 'secondary'"
               size="sm"
+              @click="changePage(totalPages)"
             >
               {{ totalPages }}
             </Button>
           </div>
 
           <Button
-            @click="changePage(currentPage + 1)"
             :disabled="currentPage === totalPages"
             variant="secondary"
             size="sm"
+            @click="changePage(currentPage + 1)"
           >
             Next
             <ChevronRight class="w-4 h-4" />
@@ -945,7 +1091,7 @@ onUnmounted(() => {
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h2>Error Details</h2>
-          <Button @click="showDetails = false" variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" @click="showDetails = false">
             <X class="w-4 h-4" />
           </Button>
         </div>
@@ -999,7 +1145,9 @@ onUnmounted(() => {
 
           <div class="detail-section">
             <h3>Message</h3>
-            <div class="message-box">{{ selectedError.message }}</div>
+            <div class="message-box">
+              {{ selectedError.message }}
+            </div>
           </div>
 
           <div v-if="selectedError.stack" class="detail-section">
@@ -1029,9 +1177,44 @@ onUnmounted(() => {
   margin-bottom: 2rem;
   gap: 2rem;
   background: #1e293b;
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  border: 1px solid #334155;
+}
+
+/* Category Filters */
+.category-filters {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.category-filter-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+.category-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.category-btn {
+  transition: all 0.2s ease;
+  border: 1px solid #374151;
+}
+
+.category-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.category-btn.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
 }
 
 .header-left {

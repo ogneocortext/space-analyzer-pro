@@ -208,7 +208,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
 import { Bell, CheckCircle, XCircle, AlertTriangle, Info, BarChart3 } from "lucide-vue-next";
-import { useNotificationStore, type NotificationType } from "@/stores/notificationStore";
+import { useNotificationStore, type NotificationType } from "@/store";
 
 const store = useNotificationStore();
 

@@ -58,7 +58,9 @@
 /* Cards and Interactive Elements */
 .card-gpu {
   transform: translateZ(0);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   will-change: transform;
   contain: layout paint;
 }
@@ -71,7 +73,9 @@
 /* Buttons with GPU Acceleration */
 .btn-gpu {
   transform: translateZ(0);
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
   will-change: transform;
 }
 

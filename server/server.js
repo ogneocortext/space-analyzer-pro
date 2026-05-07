@@ -244,6 +244,14 @@ class SpaceAnalyzerServer {
     };
   }
 
+  /**
+   * Create Ollama service for AI chat functionality
+   */
+  createOllamaService() {
+    const OllamaService = require("./services/OllamaService");
+    return OllamaService; // The service is already instantiated in the module
+  }
+
   setupSecurity() {
     this.app.use(
       helmet({
@@ -323,6 +331,7 @@ class SpaceAnalyzerServer {
       analysisResults: new Map(),
       isValidPath,
       normalizePath,
+      ollamaService: this.createOllamaService(),
     };
 
     // Load analysis history from database on startup

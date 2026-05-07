@@ -20,19 +20,19 @@
         <div class="control-group">
           <h3>Layout Options</h3>
           <div class="layout-buttons">
-            <button @click="setLayout('tree')" :class="{ active: currentLayout === 'tree' }">
+            <button :class="{ active: currentLayout === 'tree' }" @click="setLayout('tree')">
               Tree
             </button>
-            <button @click="setLayout('sphere')" :class="{ active: currentLayout === 'sphere' }">
+            <button :class="{ active: currentLayout === 'sphere' }" @click="setLayout('sphere')">
               Sphere
             </button>
             <button
-              @click="setLayout('cylinder')"
               :class="{ active: currentLayout === 'cylinder' }"
+              @click="setLayout('cylinder')"
             >
               Cylinder
             </button>
-            <button @click="setLayout('spiral')" :class="{ active: currentLayout === 'spiral' }">
+            <button :class="{ active: currentLayout === 'spiral' }" @click="setLayout('spiral')">
               Spiral
             </button>
           </div>
@@ -42,19 +42,19 @@
           <h3>View Options</h3>
           <div class="view-options">
             <label>
-              <input type="checkbox" v-model="showFileLabels" />
+              <input v-model="showFileLabels" type="checkbox" />
               Show File Labels
             </label>
             <label>
-              <input type="checkbox" v-model="showDirectoryLabels" />
+              <input v-model="showDirectoryLabels" type="checkbox" />
               Show Directory Labels
             </label>
             <label>
-              <input type="checkbox" v-model="autoRotate" />
+              <input v-model="autoRotate" type="checkbox" />
               Auto Rotate
             </label>
             <label>
-              <input type="checkbox" v-model="wireframe" />
+              <input v-model="wireframe" type="checkbox" />
               Wireframe Mode
             </label>
           </div>
@@ -66,43 +66,127 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { defineAsyncComponent } from "vue";
-import ErrorBoundary from "@/components/shared/ErrorBoundary.vue";
-import SkeletonLoader from "@/components/shared/SkeletonLoader.vue";
+import ErrorBoundary from "@/components/ErrorBoundary.vue";
+import FileSystem3D from "@/components/3d/FileSystem3D.vue";
 
-// Lazy load the 3D component with error boundary
-const FileSystem3D = defineAsyncComponent({
-  loader: () => import("@/components/3d/FileSystem3D.vue"),
-  loadingComponent: SkeletonLoader,
-  errorComponent: ErrorBoundary,
-  delay: 200,
-  timeout: 30000,
-});
+// Define emits
+const emit = defineEmits<{
+  "node-selected": [node: any];
+  "node-opened": [node: any];
+}>();
 
-// Props and state
 const rootPath = ref("C:\\");
-const maxDepth = ref(5);
+const maxDepth = ref(3);
 const maxNodes = ref(1000);
 const currentLayout = ref("tree");
 const showFileLabels = ref(true);
 const showDirectoryLabels = ref(true);
 const autoRotate = ref(false);
 const wireframe = ref(false);
-
-// Methods
-const setLayout = (layout: string) => {
-  currentLayout.value = layout;
-  // Emit layout change to FileSystem3D component
-};
-
-const handleNodeSelected = (node: any) => {
-  // Node selection handled by FileSystem3D component
-  // TODO: Implement selection handling if needed
-};
+const selectedNode = ref<any>(null);
 
 const handleNodeOpened = (node: any) => {
-  // Node open handled by FileSystem3D component
-  // TODO: Implement open handling if needed
+  // Implement open handling with directory expansion
+  if (!node) return;
+
+  console.warn(`[FileSystem3DView] Node opened:`, node);
+
+  // Emit open event for parent components
+  emit("node-opened", node);
+
+  // If it's a directory, expand it
+  if (node.type === "directory") {
+    expandDirectory(node);
+  }
+
+  // If it's a file, try to open it with system default
+  if (node.type === "file") {
+    openFileWithSystem(node);
+  }
+};
+
+// Helper function to show file details
+const showFileDetails = (node: any) => {
+  console.warn(`[FileSystem3DView] Showing file details for:`, node);
+
+  // Create a simple file details modal/popup
+  const details = {
+    name: node.name || "Unknown",
+    path: node.path || "",
+    type: node.type || "unknown",
+    size: node.size ? formatFileSize(node.size) : "Unknown",
+    modified: node.modified ? new Date(node.modified).toLocaleString() : "Unknown",
+    created: node.created ? new Date(node.created).toLocaleString() : "Unknown",
+  };
+
+  // For now, show details in console - in a real implementation,
+  // this would open a modal or update a details panel
+  console.table(details);
+  alert(
+    `File Details:\nName: ${details.name}\nPath: ${details.path}\nSize: ${details.size}\nModified: ${details.modified}`
+  );
+};
+
+// Helper function to format file size
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
+
+// Helper function to prepare directory expansion
+const prepareDirectoryExpansion = (node: any) => {
+  console.warn(`[FileSystem3DView] Preparing directory expansion for:`, node);
+
+  // Set loading state and prepare for expansion
+  if (node.path) {
+    console.log(`[FileSystem3DView] Loading directory contents for: ${node.path}`);
+    // In a real implementation, this would:
+    // 1. Show loading indicator
+    // 2. Preload directory metadata
+    // 3. Prepare 3D scene for new nodes
+    // 4. Cache directory structure for faster access
+  }
+};
+
+// Helper function to expand directory
+const expandDirectory = async (node: any) => {
+  console.warn(`[FileSystem3DView] Expanding directory:`, node);
+
+  try {
+    // Import Tauri desktop functions dynamically
+    const { invoke } = await import("@tauri-apps/api/core");
+
+    // Get directory contents
+    const contents = await invoke("analyze_directory", { path: node.path });
+
+    console.log(`[FileSystem3DView] Directory expanded:`, contents);
+
+    // In a real implementation, this would:
+    // 1. Update 3D visualization with new nodes
+    // 2. Animate the expansion
+    // 3. Update navigation tree
+    // 4. Emit event to parent components
+
+    return contents;
+  } catch (error) {
+    console.error(`[FileSystem3DView] Failed to expand directory:`, error);
+    throw error;
+  }
+};
+
+// Helper function to open file with system default
+const openFileWithSystem = async (node: any) => {
+  console.warn(`[FileSystem3DView] Opening file with system:`, node);
+  try {
+    // Import Tauri desktop functions dynamically
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("open_file", { path: node.path });
+  } catch (error) {
+    console.error(`[FileSystem3DView] Failed to open file:`, error);
+  }
 };
 </script>
 

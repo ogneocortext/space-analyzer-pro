@@ -9,25 +9,26 @@ const activeTab = ref<"overview" | "patterns" | "code">("overview");
 // Smart Insights computed from analysis data
 const insights = computed(() => {
   if (!store.analysisResult) return null;
-  
+
   const files = store.analysisResult.files || [];
   const totalSize = store.analysisResult.totalSize || 0;
-  
+
   // Usage patterns
   const extensions = files.reduce((acc: any, f: any) => {
-    const ext = f.name.split('.').pop()?.toLowerCase() || 'no-extension';
+    const ext = f.name.split(".").pop()?.toLowerCase() || "no-extension";
     acc[ext] = (acc[ext] || 0) + 1;
     return acc;
   }, {});
-  
+
   const topExtensions = Object.entries(extensions)
-    .sort(([,a]: any, [,b]: any) => b - a)
+    .sort(([, a]: any, [, b]: any) => b - a)
     .slice(0, 5);
-  
+
   // File age distribution
   const now = Date.now();
   const ageGroups = {
-    recent: files.filter((f: any) => now - new Date(f.modified).getTime() < 7 * 24 * 60 * 60 * 1000).length,
+    recent: files.filter((f: any) => now - new Date(f.modified).getTime() < 7 * 24 * 60 * 60 * 1000)
+      .length,
     month: files.filter((f: any) => {
       const age = now - new Date(f.modified).getTime();
       return age >= 7 * 24 * 60 * 60 * 1000 && age < 30 * 24 * 60 * 60 * 1000;
@@ -36,26 +37,27 @@ const insights = computed(() => {
       const age = now - new Date(f.modified).getTime();
       return age >= 30 * 24 * 60 * 60 * 1000 && age < 90 * 24 * 60 * 60 * 1000;
     }).length,
-    old: files.filter((f: any) => now - new Date(f.modified).getTime() >= 90 * 24 * 60 * 60 * 1000).length,
+    old: files.filter((f: any) => now - new Date(f.modified).getTime() >= 90 * 24 * 60 * 60 * 1000)
+      .length,
   };
-  
+
   // Code analysis (for code files)
-  const codeFiles = files.filter((f: any) => 
-    ['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'cpp', 'h', 'rs', 'go'].includes(
-      f.name.split('.').pop()?.toLowerCase()
+  const codeFiles = files.filter((f: any) =>
+    ["js", "ts", "jsx", "tsx", "py", "java", "cpp", "h", "rs", "go"].includes(
+      f.name.split(".").pop()?.toLowerCase()
     )
   );
-  
+
   const codeStats = {
     totalLines: codeFiles.length * 150, // Estimate
     languages: codeFiles.reduce((acc: any, f: any) => {
-      const ext = f.name.split('.').pop()?.toLowerCase();
+      const ext = f.name.split(".").pop()?.toLowerCase();
       acc[ext] = (acc[ext] || 0) + 1;
       return acc;
     }, {}),
     largestFile: codeFiles.sort((a: any, b: any) => b.size - a.size)[0],
   };
-  
+
   return {
     topExtensions,
     ageGroups,
@@ -68,31 +70,31 @@ const insights = computed(() => {
 // Predictions based on trends
 const predictions = computed(() => {
   if (!insights.value) return [];
-  
+
   const preds = [];
   const { ageGroups, totalFiles } = insights.value;
-  
+
   // Storage prediction
   const oldRatio = ageGroups.old / totalFiles;
   if (oldRatio > 0.3) {
     preds.push({
-      type: 'warning',
+      type: "warning",
       title: `${Math.round(oldRatio * 100)}% of files are 3+ months old`,
-      action: 'Review old files for archival',
-      impact: 'high',
+      action: "Review old files for archival",
+      impact: "high",
     });
   }
-  
+
   // Recent activity
   if (ageGroups.recent > totalFiles * 0.1) {
     preds.push({
-      type: 'info',
-      title: 'High recent activity detected',
-      action: 'Recent files may need backup',
-      impact: 'medium',
+      type: "info",
+      title: "High recent activity detected",
+      action: "Recent files may need backup",
+      impact: "medium",
     });
   }
-  
+
   return preds;
 });
 
@@ -121,7 +123,11 @@ function formatSize(bytes: number): string {
         v-for="tab in ['overview', 'patterns', 'code']"
         :key="tab"
         class="px-4 py-2 font-medium capitalize transition-colors"
-        :class="activeTab === tab ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-400 hover:text-slate-200'"
+        :class="
+          activeTab === tab
+            ? 'text-blue-400 border-b-2 border-blue-400'
+            : 'text-slate-400 hover:text-slate-200'
+        "
         @click="activeTab = tab as any"
       >
         {{ tab }}
@@ -144,18 +150,29 @@ function formatSize(bytes: number): string {
             v-for="pred in predictions"
             :key="pred.title"
             class="p-4 rounded-lg border"
-            :class="pred.type === 'warning' ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-blue-500/10 border-blue-500/20'"
+            :class="
+              pred.type === 'warning'
+                ? 'bg-yellow-500/10 border-yellow-500/20'
+                : 'bg-blue-500/10 border-blue-500/20'
+            "
           >
             <div class="flex items-start justify-between">
               <div>
-                <h3 class="font-medium" :class="pred.type === 'warning' ? 'text-yellow-400' : 'text-blue-400'">
+                <h3
+                  class="font-medium"
+                  :class="pred.type === 'warning' ? 'text-yellow-400' : 'text-blue-400'"
+                >
                   {{ pred.title }}
                 </h3>
                 <p class="text-sm text-slate-400 mt-1">{{ pred.action }}</p>
               </div>
               <span
                 class="text-xs px-2 py-1 rounded-full"
-                :class="pred.impact === 'high' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'"
+                :class="
+                  pred.impact === 'high'
+                    ? 'bg-red-500/20 text-red-400'
+                    : 'bg-yellow-500/20 text-yellow-400'
+                "
               >
                 {{ pred.impact }} impact
               </span>
@@ -166,13 +183,19 @@ function formatSize(bytes: number): string {
         <!-- Key Stats -->
         <div class="grid grid-cols-3 gap-4">
           <Card title="Average File Size">
-            <div class="text-2xl font-bold text-blue-400">{{ formatSize(insights.avgFileSize) }}</div>
+            <div class="text-2xl font-bold text-blue-400">
+              {{ formatSize(insights.avgFileSize) }}
+            </div>
           </Card>
           <Card title="Total Files">
-            <div class="text-2xl font-bold text-purple-400">{{ insights.totalFiles.toLocaleString() }}</div>
+            <div class="text-2xl font-bold text-purple-400">
+              {{ insights.totalFiles.toLocaleString() }}
+            </div>
           </Card>
           <Card title="File Types">
-            <div class="text-2xl font-bold text-emerald-400">{{ insights.topExtensions.length }}</div>
+            <div class="text-2xl font-bold text-emerald-400">
+              {{ insights.topExtensions.length }}
+            </div>
           </Card>
         </div>
       </div>
@@ -193,7 +216,7 @@ function formatSize(bytes: number): string {
                   <div class="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
                     <div
                       class="h-full bg-blue-500 rounded-full"
-                      :style="{ width: (count / insights.totalFiles * 100) + '%' }"
+                      :style="{ width: (count / insights.totalFiles) * 100 + '%' }"
                     />
                   </div>
                   <span class="text-sm text-slate-400 w-12 text-right">{{ count }}</span>
@@ -233,16 +256,24 @@ function formatSize(bytes: number): string {
             <div class="space-y-4">
               <div>
                 <div class="text-sm text-slate-500">Estimated Lines of Code</div>
-                <div class="text-2xl font-bold text-blue-400">{{ insights.codeStats.totalLines.toLocaleString() }}</div>
+                <div class="text-2xl font-bold text-blue-400">
+                  {{ insights.codeStats.totalLines.toLocaleString() }}
+                </div>
               </div>
               <div>
                 <div class="text-sm text-slate-500">Languages Detected</div>
-                <div class="text-2xl font-bold text-purple-400">{{ Object.keys(insights.codeStats.languages).length }}</div>
+                <div class="text-2xl font-bold text-purple-400">
+                  {{ Object.keys(insights.codeStats.languages).length }}
+                </div>
               </div>
               <div v-if="insights.codeStats.largestFile">
                 <div class="text-sm text-slate-500">Largest Code File</div>
-                <div class="text-sm font-medium text-slate-300 truncate">{{ insights.codeStats.largestFile.name }}</div>
-                <div class="text-xs text-slate-500">{{ formatSize(insights.codeStats.largestFile.size) }}</div>
+                <div class="text-sm font-medium text-slate-300 truncate">
+                  {{ insights.codeStats.largestFile.name }}
+                </div>
+                <div class="text-xs text-slate-500">
+                  {{ formatSize(insights.codeStats.largestFile.size) }}
+                </div>
               </div>
             </div>
           </Card>
@@ -250,7 +281,9 @@ function formatSize(bytes: number): string {
           <Card title="Languages Breakdown">
             <div class="space-y-2">
               <div
-                v-for="[lang, count] in Object.entries(insights.codeStats.languages).sort(([,a]: any, [,b]: any) => b - a).slice(0, 8)"
+                v-for="[lang, count] in Object.entries(insights.codeStats.languages)
+                  .sort(([, a]: any, [, b]: any) => b - a)
+                  .slice(0, 8)"
                 :key="lang"
                 class="flex items-center justify-between p-2 bg-slate-800/50 rounded"
               >

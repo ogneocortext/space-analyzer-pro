@@ -246,9 +246,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from "vue";
-import { debounce } from "@/utils/performanceEnhancements";
-import { indexedDBPersistence } from "@/store/indexedDBPersistence";
-import { adaptiveLearningRate } from "@/store/adaptiveLearningRate";
+import { debounce } from "@/utils";
+import { indexedDBPersistence } from "@/store";
+import { adaptiveLearningRate } from "@/store";
 
 interface ChartData {
   labels: string[];

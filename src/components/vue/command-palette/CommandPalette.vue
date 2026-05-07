@@ -37,11 +37,7 @@
             </div>
 
             <div v-else>
-              <div
-                v-for="(commands, category) in groupedCommands"
-                :key="category"
-                class="mb-4"
-              >
+              <div v-for="(commands, category) in groupedCommands" :key="category" class="mb-4">
                 <div class="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                   {{ category }}
                 </div>
@@ -54,7 +50,7 @@
                       'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors',
                       getGlobalIndex(command) === selectedIndex
                         ? 'bg-blue-600 text-white'
-                        : 'hover:bg-gray-700 text-gray-300'
+                        : 'hover:bg-gray-700 text-gray-300',
                     ]"
                   >
                     <component :is="command.icon" class="w-5 h-5 flex-shrink-0" />
@@ -69,7 +65,9 @@
           </div>
 
           <!-- Footer -->
-          <div class="flex items-center justify-between px-4 py-2 border-t border-gray-700 text-xs text-gray-400">
+          <div
+            class="flex items-center justify-between px-4 py-2 border-t border-gray-700 text-xs text-gray-400"
+          >
             <div class="flex items-center gap-4">
               <div class="flex items-center gap-1">
                 <kbd class="px-1.5 py-0.5 bg-gray-700 rounded">↑↓</kbd>
@@ -92,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import {
   Search,
   Command,
@@ -104,7 +102,7 @@ import {
   FolderSearch,
   BarChart3,
   Zap,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface CommandItem {
   id: string;
@@ -124,14 +122,14 @@ interface CommandPaletteProps {
 }
 
 const props = withDefaults(defineProps<CommandPaletteProps>(), {
-  placeholder: 'Search commands...',
+  placeholder: "Search commands...",
 });
 
 const emit = defineEmits<{
   close: [];
 }>();
 
-const query = ref('');
+const query = ref("");
 const selectedIndex = ref(0);
 const inputRef = ref<HTMLInputElement | null>(null);
 const paletteRef = ref<HTMLDivElement | null>(null);
@@ -177,22 +175,25 @@ const getGlobalIndex = (command: CommandItem): number => {
 
 const handleKeyDown = (e: KeyboardEvent) => {
   switch (e.key) {
-    case 'ArrowDown':
+    case "ArrowDown":
       e.preventDefault();
-      selectedIndex.value = selectedIndex.value < filteredCommands.value.length - 1 ? selectedIndex.value + 1 : selectedIndex.value;
+      selectedIndex.value =
+        selectedIndex.value < filteredCommands.value.length - 1
+          ? selectedIndex.value + 1
+          : selectedIndex.value;
       break;
-    case 'ArrowUp':
+    case "ArrowUp":
       e.preventDefault();
       selectedIndex.value = selectedIndex.value > 0 ? selectedIndex.value - 1 : selectedIndex.value;
       break;
-    case 'Enter':
+    case "Enter":
       e.preventDefault();
       if (filteredCommands.value[selectedIndex.value]) {
         filteredCommands.value[selectedIndex.value].action();
         props.onClose();
       }
       break;
-    case 'Escape':
+    case "Escape":
       e.preventDefault();
       props.onClose();
       break;
@@ -205,7 +206,7 @@ const executeCommand = (command: CommandItem) => {
 };
 
 const handleGlobalKeydown = (e: KeyboardEvent) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+  if ((e.ctrlKey || e.metaKey) && e.key === "k") {
     e.preventDefault();
     if (props.isOpen) {
       props.onClose();
@@ -233,11 +234,11 @@ watch(
 );
 
 onMounted(() => {
-  document.addEventListener('keydown', handleGlobalKeydown);
+  document.addEventListener("keydown", handleGlobalKeydown);
 });
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleGlobalKeydown);
+  document.removeEventListener("keydown", handleGlobalKeydown);
 });
 </script>
 

@@ -12,18 +12,18 @@ export const useAnalysisData = (directoryPath: string | null) => {
 
   const analyzeDirectory = async (path: string) => {
     if (!path) return;
-    
+
     isLoading.value = true;
     error.value = null;
-    
+
     try {
       // Import bridge dynamically to avoid circular dependencies
       const { bridge } = await import("../services/AnalysisBridge");
-      
+
       const result = await bridge.analyzeDirectoryWithProgress(path, (progress) => {
         console.log("Analysis progress:", progress);
       });
-      
+
       analysisResult.value = result.result;
     } catch (err: any) {
       error.value = err.message || "Analysis failed";
@@ -38,11 +38,15 @@ export const useAnalysisData = (directoryPath: string | null) => {
   };
 
   // Watch for directory path changes
-  watch(directoryPath, (newPath) => {
-    if (newPath) {
-      analyzeDirectory(newPath);
-    }
-  }, { immediate: true });
+  watch(
+    directoryPath,
+    (newPath) => {
+      if (newPath) {
+        analyzeDirectory(newPath);
+      }
+    },
+    { immediate: true }
+  );
 
   return {
     analysisData,

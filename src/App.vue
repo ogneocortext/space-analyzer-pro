@@ -10,11 +10,9 @@ import AppShell from "./layout/AppShell.vue";
 import DesktopAppShell from "./layout/DesktopAppShell.vue";
 import { useAnalysisStore } from "./store/analysis";
 import { useTauriDesktop } from "./composables/useTauriDesktop";
-import { useKeyboardShortcuts } from "./composables/useKeyboardShortcuts";
 
 const store = useAnalysisStore();
 const { isTauri } = useTauriDesktop();
-const { shortcuts } = useKeyboardShortcuts();
 
 const shellComponent = computed(() => {
   return isTauri.value ? DesktopAppShell : AppShell;

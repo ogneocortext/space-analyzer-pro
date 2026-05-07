@@ -1,246 +1,244 @@
 <template>
-  <div class="streamlined-ai-chat">
-    <!-- Clean Header -->
-    <header class="chat-header">
-      <div class="header-left">
-        <div class="ai-avatar">
-          <Brain :size="20" />
-        </div>
-        <div class="header-info">
-          <h3>AI Assistant</h3>
-          <p>File analysis & optimization</p>
-        </div>
-      </div>
-
-      <div class="header-right">
-        <div v-if="hasVisionModels" class="status-badge vision-ready">
-          <Eye :size="14" />
-          <span>Vision</span>
-        </div>
-
-        <div v-if="isAnalyzingImage" class="status-badge analyzing">
-          <Camera :size="14" class="pulse" />
-          <span>Analyzing</span>
+  <ErrorBoundary
+    :on-error="handleChatError"
+    :max-retries="2"
+    fallback-message="AI chat interface encountered an error"
+  >
+    <div class="streamlined-ai-chat">
+      <!-- Clean Header -->
+      <header class="chat-header">
+        <div class="header-left">
+          <div class="ai-avatar">
+            <Brain :size="20" />
+          </div>
+          <div class="header-info">
+            <h3>AI Assistant</h3>
+            <p>File analysis & optimization</p>
+          </div>
         </div>
 
-        <button
-          class="icon-btn"
-          @click="showAdvancedControls = !showAdvancedControls"
-          aria-label="More options"
-        >
-          <MoreVertical :size="18" />
-        </button>
-      </div>
-    </header>
+        <div class="header-right">
+          <div v-if="hasVisionModels" class="status-badge vision-ready">
+            <Eye :size="14" />
+            <span>Vision</span>
+          </div>
 
-    <!-- Messages Area -->
-    <div class="messages-container">
-      <div
-        v-for="message in messages"
-        :key="message.id"
-        :class="['message', message.type]"
-      >
-        <div class="message-avatar">
-          <User v-if="message.type === 'user'" :size="16" />
-          <Bot v-else :size="16" />
+          <div v-if="isAnalyzingImage" class="status-badge analyzing">
+            <Camera :size="14" class="pulse" />
+            <span>Analyzing</span>
+          </div>
+
+          <button
+            class="icon-btn"
+            aria-label="More options"
+            @click="showAdvancedControls = !showAdvancedControls"
+          >
+            <MoreVertical :size="18" />
+          </button>
         </div>
+      </header>
 
-        <div class="message-content">
-          <p>{{ message.content }}</p>
+      <!-- Messages Area -->
+      <div class="messages-container">
+        <div v-for="message in messages" :key="message.id" :class="['message', message.type]">
+          <div class="message-avatar">
+            <User v-if="message.type === 'user'" :size="16" />
+            <Bot v-else :size="16" />
+          </div>
 
-          <div v-if="message.attachments" class="message-attachments">
-            <div
-              v-for="(attachment, index) in message.attachments"
-              :key="index"
-              class="attachment"
-            >
-              <div v-if="attachment.type === 'image'" class="image-attachment">
-                <img
-                  :src="attachment.data.url"
-                  :alt="attachment.name"
-                  class="attachment-image"
-                />
-                <div v-if="attachment.data.hasAIAnalysis" class="ai-badge">
-                  <Eye :size="12" />
-                  <span>AI analyzed</span>
+          <div class="message-content">
+            <p>{{ message.content }}</p>
+
+            <div v-if="message.attachments" class="message-attachments">
+              <div
+                v-for="(attachment, index) in message.attachments"
+                :key="index"
+                class="attachment"
+              >
+                <div v-if="attachment.type === 'image'" class="image-attachment">
+                  <img :src="attachment.data.url" :alt="attachment.name" class="attachment-image" />
+                  <div v-if="attachment.data.hasAIAnalysis" class="ai-badge">
+                    <Eye :size="12" />
+                    <span>AI analyzed</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div v-if="message.hasAIAnalysis" class="ai-analysis-indicator">
-            <Sparkles :size="12" />
-            <span>Vision analysis</span>
+            <div v-if="message.hasAIAnalysis" class="ai-analysis-indicator">
+              <Sparkles :size="12" />
+              <span>Vision analysis</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div v-if="isTyping" class="typing-indicator">
-        <div class="typing-dots">
-          <span></span>
-          <span></span>
-          <span></span>
+        <div v-if="isTyping" class="typing-indicator">
+          <div class="typing-dots">
+            <span />
+            <span />
+            <span />
+          </div>
         </div>
+
+        <div ref="messagesEndRef" />
       </div>
 
-      <div ref="messagesEndRef" />
-    </div>
+      <!-- Smart Actions Panel -->
+      <div v-if="availableActions.length > 0" class="actions-panel">
+        <div class="actions-header">
+          <Sparkles :size="16" />
+          <span>Smart Actions</span>
+          <button
+            class="close-btn"
+            aria-label="Close actions"
+            title="Close actions"
+            @click="showSuggestions = false"
+          >
+            <X :size="14" />
+          </button>
+        </div>
 
-    <!-- Smart Actions Panel -->
-    <div v-if="availableActions.length > 0" class="actions-panel">
-      <div class="actions-header">
-        <Sparkles :size="16" />
-        <span>Smart Actions</span>
-        <button
-          class="close-btn"
-          @click="showSuggestions = false"
-          aria-label="Close actions"
-          title="Close actions"
+        <!-- Group actions by category -->
+        <div
+          v-for="category in ['optimization', 'organization', 'cleanup']"
+          :key="category"
+          class="action-category"
         >
-          <X :size="14" />
-        </button>
+          <div v-if="getCategoryActions(category).length > 0">
+            <h4 class="category-title">
+              {{
+                category === "optimization"
+                  ? "🚀 Optimization"
+                  : category === "organization"
+                    ? "📁 Organization"
+                    : "🧹 Cleanup"
+              }}
+            </h4>
+            <div class="actions-grid">
+              <button
+                v-for="action in getCategoryActions(category)"
+                :key="action.id"
+                class="action-button"
+                :title="action.description"
+                @click="executeSmartAction(action.id)"
+              >
+                <span class="action-icon">{{ action.icon }}</span>
+                <span class="action-name">{{ action.name }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Group actions by category -->
-      <div
-        v-for="category in ['optimization', 'organization', 'cleanup']"
-        :key="category"
-        class="action-category"
-      >
-        <div v-if="getCategoryActions(category).length > 0">
-          <h4 class="category-title">
-            {{
-              category === 'optimization'
-                ? '🚀 Optimization'
-                : category === 'organization'
-                  ? '📁 Organization'
-                  : '🧹 Cleanup'
-            }}
-          </h4>
-          <div class="actions-grid">
+      <!-- Smart Suggestions -->
+      <div v-if="showSuggestions && messages.length === 1" class="suggestions-panel">
+        <div class="suggestions-header">
+          <Sparkles :size="16" />
+          <span>Quick questions</span>
+          <button
+            class="close-btn"
+            aria-label="Close suggestions"
+            title="Close suggestions"
+            @click="showSuggestions = false"
+          >
+            <X :size="14" />
+          </button>
+        </div>
+        <div class="suggestions-grid">
+          <button
+            v-for="(suggestion, index) in quickSuggestions"
+            :key="index"
+            class="suggestion-chip"
+            @click="inputValue = suggestion"
+          >
+            {{ suggestion }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Clean Input Area -->
+      <div class="input-area">
+        <div class="input-container">
+          <!-- Hidden file input -->
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept="image/*"
+            class="hidden-file-input"
+            aria-label="Upload image for analysis"
+            title="Upload image for AI analysis"
+            @change="handleFileUpload"
+          />
+
+          <!-- Left controls - minimal -->
+          <div class="input-left">
             <button
-              v-for="action in getCategoryActions(category)"
-              :key="action.id"
-              class="action-button"
-              @click="executeSmartAction(action.id)"
-              :title="action.description"
+              class="control-btn"
+              aria-label="Upload image"
+              title="Upload image for analysis"
+              @click="fileInputRef?.click()"
             >
-              <span class="action-icon">{{ action.icon }}</span>
-              <span class="action-name">{{ action.name }}</span>
+              <Paperclip :size="18" />
+            </button>
+
+            <button
+              v-if="textToSpeechEnabled"
+              class="control-btn"
+              :aria-label="isRecording ? 'Stop recording' : 'Start voice input'"
+              :title="isRecording ? 'Stop recording' : 'Voice input'"
+              @click="toggleVoiceRecording"
+            >
+              <MicOff v-if="isRecording" :size="18" />
+              <Mic v-else :size="18" />
+            </button>
+          </div>
+
+          <!-- Main input -->
+          <input
+            ref="inputRef"
+            v-model="inputValue"
+            type="text"
+            placeholder="Ask about your files..."
+            class="message-input"
+            aria-label="Type your message"
+            title="Type your message to ask about files"
+            @keypress="handleKeyPress"
+          />
+
+          <!-- Right controls - minimal -->
+          <div class="input-right">
+            <button
+              v-if="inputValue.trim()"
+              class="send-btn"
+              aria-label="Send message"
+              @click="handleSendMessage"
+            >
+              <Send :size="18" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Advanced controls - collapsible -->
+        <div v-if="showAdvancedControls" class="advanced-controls">
+          <div class="control-group">
+            <label for="voice-output">Voice Output</label>
+            <button
+              :class="['toggle-btn', textToSpeechEnabled ? 'active' : '']"
+              :aria-label="textToSpeechEnabled ? 'Disable voice output' : 'Enable voice output'"
+              :title="textToSpeechEnabled ? 'Disable voice output' : 'Enable voice output'"
+              @click="textToSpeechEnabled = !textToSpeechEnabled"
+            >
+              <Volume2 :size="16" />
             </button>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Smart Suggestions -->
-    <div v-if="showSuggestions && messages.length === 1" class="suggestions-panel">
-      <div class="suggestions-header">
-        <Sparkles :size="16" />
-        <span>Quick questions</span>
-        <button
-          class="close-btn"
-          @click="showSuggestions = false"
-          aria-label="Close suggestions"
-          title="Close suggestions"
-        >
-          <X :size="14" />
-        </button>
-      </div>
-      <div class="suggestions-grid">
-        <button
-          v-for="(suggestion, index) in quickSuggestions"
-          :key="index"
-          class="suggestion-chip"
-          @click="inputValue = suggestion"
-        >
-          {{ suggestion }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Clean Input Area -->
-    <div class="input-area">
-      <div class="input-container">
-        <!-- Hidden file input -->
-        <input
-          ref="fileInputRef"
-          type="file"
-          accept="image/*"
-          @change="handleFileUpload"
-          class="hidden-file-input"
-          aria-label="Upload image for analysis"
-          title="Upload image for AI analysis"
-        />
-
-        <!-- Left controls - minimal -->
-        <div class="input-left">
-          <button
-            class="control-btn"
-            @click="fileInputRef?.click()"
-            aria-label="Upload image"
-            title="Upload image for analysis"
-          >
-            <Paperclip :size="18" />
-          </button>
-
-          <button
-            v-if="textToSpeechEnabled"
-            class="control-btn"
-            @click="toggleVoiceRecording"
-            :aria-label="isRecording ? 'Stop recording' : 'Start voice input'"
-            :title="isRecording ? 'Stop recording' : 'Voice input'"
-          >
-            <MicOff v-if="isRecording" :size="18" />
-            <Mic v-else :size="18" />
-          </button>
-        </div>
-
-        <!-- Main input -->
-        <input
-          ref="inputRef"
-          v-model="inputValue"
-          type="text"
-          @keypress="handleKeyPress"
-          placeholder="Ask about your files..."
-          class="message-input"
-          aria-label="Type your message"
-          title="Type your message to ask about files"
-        />
-
-        <!-- Right controls - minimal -->
-        <div class="input-right">
-          <button
-            v-if="inputValue.trim()"
-            class="send-btn"
-            @click="handleSendMessage"
-            aria-label="Send message"
-          >
-            <Send :size="18" />
-          </button>
-        </div>
-      </div>
-
-      <!-- Advanced controls - collapsible -->
-      <div v-if="showAdvancedControls" class="advanced-controls">
-        <div class="control-group">
-          <label for="voice-output">Voice Output</label>
-          <button
-            :class="['toggle-btn', textToSpeechEnabled ? 'active' : '']"
-            @click="textToSpeechEnabled = !textToSpeechEnabled"
-            :aria-label="textToSpeechEnabled ? 'Disable voice output' : 'Enable voice output'"
-            :title="textToSpeechEnabled ? 'Disable voice output' : 'Enable voice output'"
-          >
-            <Volume2 :size="16" />
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
+  </ErrorBoundary>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue';
+import { ref, onMounted, nextTick, watch } from "vue";
 import {
   Send,
   Bot,
@@ -262,15 +260,17 @@ import {
   Filter,
   Settings,
   HelpCircle,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
+import ErrorBoundary from "@/components/error/ErrorBoundary.vue";
+import { AIChatService } from "@/services/ai/AIChatService";
 
 interface ChatMessage {
   id: string;
-  type: 'user' | 'assistant';
+  type: "user" | "assistant";
   content: string;
   timestamp: Date;
   attachments?: Array<{
-    type: 'file' | 'image';
+    type: "file" | "image";
     name: string;
     data: any;
   }>;
@@ -281,6 +281,8 @@ interface AIChatInterfaceProps {
   analysisData: any;
   files: Array<any>;
   categories?: { [key: string]: { count: number; size: number } };
+  previousAnalyses?: Array<any>;
+  currentAnalysisId?: string;
   onExecuteAction?: (action: string, params: any) => Promise<void>;
   availableActions?: Array<{
     id: string;
@@ -296,7 +298,7 @@ const props = withDefaults(defineProps<AIChatInterfaceProps>(), {
 });
 
 const messages = ref<ChatMessage[]>([]);
-const inputValue = ref('');
+const inputValue = ref("");
 const isRecording = ref(false);
 const textToSpeechEnabled = ref(false);
 const showAdvancedControls = ref(false);
@@ -311,10 +313,32 @@ const inputRef = ref<HTMLInputElement | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
 const quickSuggestions = [
-  'Show me the largest files',
+  "Show me the largest files",
   "What's taking up the most space?",
-  'Help me organize my files',
-  'Analyze storage patterns',
+  "Help me organize my files",
+  "Analyze storage patterns",
+  "Find duplicate files in my system",
+  "Suggest cleanup candidates",
+  "Create folder structure for file types",
+  "Analyze disk usage trends",
+  "Generate storage optimization plan",
+  "Scan for large unused files",
+  "Check file permission issues",
+  "Compress old files automatically",
+  "Set up automated backup system",
+  "Monitor storage health and alerts",
+  "Analyze my current directory structure",
+  "Find files by size or type",
+  "Generate file organization report",
+  "Create smart folders based on content",
+  "Identify potential storage optimizations",
+  "Set up file monitoring and alerts",
+  "Review my previous analysis results",
+  "Compare current storage with last month",
+  "Suggest optimizations based on usage patterns",
+  "Generate cleanup recommendations",
+  "Create automated organization rules",
+  "Set up smart file categorization",
 ];
 
 const getCategoryActions = (category: string) => {
@@ -324,24 +348,53 @@ const getCategoryActions = (category: string) => {
 const toggleVoiceRecording = async () => {
   if (!isRecording.value) {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      
-      mediaRecorder.start();
-      isRecording.value = true;
+      // Check for speech recognition support
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          console.log('Voice recording completed');
+      if (!SpeechRecognition) {
+        console.warn("Speech recognition not supported in this browser");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = "en-US";
+
+      recognition.onstart = () => {
+        isRecording.value = true;
+        console.log("🎤 Speech recognition started");
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript.trim()) {
+          inputValue.value = transcript;
+          console.log("🎯 Speech recognized:", transcript);
+
+          // Auto-send after recognition
+          setTimeout(() => {
+            handleSendMessage();
+          }, 500);
         }
       };
 
-      setTimeout(() => {
-        mediaRecorder.stop();
+      recognition.onerror = (event: any) => {
+        console.error("❌ Speech recognition error:", event.error);
         isRecording.value = false;
-      }, 5000);
+      };
+
+      recognition.onend = () => {
+        isRecording.value = false;
+        console.log("🔇 Speech recognition ended");
+      };
+
+      // Start recognition
+      recognition.start();
     } catch (error) {
-      console.error('Voice recording failed:', error);
+      console.error("❌ Voice recognition failed:", error);
+      isRecording.value = false;
     }
   } else {
     isRecording.value = false;
@@ -355,20 +408,20 @@ const handleFileUpload = async (event: Event) => {
 
   const file = files[0];
 
-  if (file.type.startsWith('image/')) {
+  if (file.type.startsWith("image/")) {
     isAnalyzingImage.value = true;
 
     try {
       const base64Data = await fileToBase64(file);
-      
+
       const userMessage: ChatMessage = {
         id: Date.now().toString(),
-        type: 'user',
+        type: "user",
         content: `Uploaded image: ${file.name}`,
         timestamp: new Date(),
         attachments: [
           {
-            type: 'image',
+            type: "image",
             name: file.name,
             data: {
               url: URL.createObjectURL(file),
@@ -380,22 +433,23 @@ const handleFileUpload = async (event: Event) => {
 
       const aiMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: 'Image analysis completed. The image has been processed for file management context.',
+        type: "assistant",
+        content:
+          "Image analysis completed. The image has been processed for file management context.",
         timestamp: new Date(),
         hasAIAnalysis: true,
       };
 
       messages.value.push(userMessage, aiMessage);
     } catch (error) {
-      console.error('Image analysis failed:', error);
+      console.error("Image analysis failed:", error);
     } finally {
       isAnalyzingImage.value = false;
     }
   }
 
   if (fileInputRef.value) {
-    fileInputRef.value.value = '';
+    fileInputRef.value.value = "";
   }
 };
 
@@ -416,7 +470,7 @@ const executeSmartAction = async (actionId: string, params: any = {}) => {
 
     const confirmationMessage: ChatMessage = {
       id: Date.now().toString(),
-      type: 'assistant',
+      type: "assistant",
       content: `✅ Executed action: ${actionId}`,
       timestamp: new Date(),
       hasAIAnalysis: true,
@@ -424,11 +478,11 @@ const executeSmartAction = async (actionId: string, params: any = {}) => {
 
     messages.value.push(confirmationMessage);
   } catch (error: any) {
-    console.error('Action execution failed:', error);
+    console.error("Action execution failed:", error);
 
     const errorMessage: ChatMessage = {
       id: Date.now().toString(),
-      type: 'assistant',
+      type: "assistant",
       content: `❌ Failed to execute action: ${actionId}. Error: ${error.message}`,
       timestamp: new Date(),
       hasAIAnalysis: true,
@@ -441,17 +495,17 @@ const executeSmartAction = async (actionId: string, params: any = {}) => {
 const parseActionCommands = (message: string) => {
   const actions: Array<{ id: string; params: any }> = [];
 
-  if (message.toLowerCase().includes('compress images')) {
-    actions.push({ id: 'compress_images', params: {} });
+  if (message.toLowerCase().includes("compress images")) {
+    actions.push({ id: "compress_images", params: {} });
   }
-  if (message.toLowerCase().includes('remove duplicates')) {
-    actions.push({ id: 'remove_duplicates', params: {} });
+  if (message.toLowerCase().includes("remove duplicates")) {
+    actions.push({ id: "remove_duplicates", params: {} });
   }
-  if (message.toLowerCase().includes('archive old files')) {
-    actions.push({ id: 'archive_old_files', params: {} });
+  if (message.toLowerCase().includes("archive old files")) {
+    actions.push({ id: "archive_old_files", params: {} });
   }
-  if (message.toLowerCase().includes('organize by type')) {
-    actions.push({ id: 'organize_by_type', params: {} });
+  if (message.toLowerCase().includes("organize by type")) {
+    actions.push({ id: "organize_by_type", params: {} });
   }
 
   return actions;
@@ -466,39 +520,81 @@ const handleSendMessage = async () => {
     // Add user message
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      type: 'user',
+      type: "user",
       content: inputValue.value,
       timestamp: new Date(),
     };
     messages.value.push(userMessage);
 
-    // Simulate AI response
+    // Get real AI response
     isTyping.value = true;
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    const aiMessage: ChatMessage = {
-      id: (Date.now() + 1).toString(),
-      type: 'assistant',
-      content: `I understand you're asking about: "${inputValue.value}". Based on your file analysis, I can help you with storage optimization and file organization.`,
-      timestamp: new Date(),
-    };
-    messages.value.push(aiMessage);
+    isStreaming.value = true;
+
+    try {
+      const aiService = AIChatService.getInstance();
+      const response = await aiService.sendMessage(
+        inputValue.value,
+        {
+          analysisData: props.analysisData,
+          files: props.files,
+          categories: props.categories,
+          previousAnalyses: props.previousAnalyses || [],
+          currentAnalysisId: props.currentAnalysisId,
+        },
+        {
+          enableSelfLearning: true,
+          enableOllama: true,
+          analysisDepth: "comprehensive",
+          modelPreference: "auto",
+        }
+      );
+
+      const aiMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content:
+          response.response ||
+          response.response.summary ||
+          response.response.recommendations?.join("\n") ||
+          "I've processed your request.",
+        timestamp: new Date(),
+        hasAIAnalysis: true,
+      };
+      messages.value.push(aiMessage);
+
+      console.log("✅ AI response received:", response);
+    } catch (error) {
+      console.error("❌ AI service failed:", error);
+
+      // Fallback response if AI service fails
+      const fallbackMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: "I'm having trouble connecting to the AI service. Please try again later.",
+        timestamp: new Date(),
+        hasAIAnalysis: true,
+      };
+      messages.value.push(fallbackMessage);
+    }
+
     isTyping.value = false;
+    isStreaming.value = false;
 
     // Execute any detected actions
     for (const action of actions) {
       await executeSmartAction(action.id, action.params);
     }
 
-    inputValue.value = '';
+    inputValue.value = "";
   } catch (error) {
-    console.error('❌ Message sending failed:', error);
+    console.error("❌ Message sending failed:", error);
     isTyping.value = false;
+    isStreaming.value = false;
   }
 };
 
 const handleKeyPress = (e: KeyboardEvent) => {
-  if (e.key === 'Enter') {
+  if (e.key === "Enter") {
     handleSendMessage();
   }
 };
@@ -506,22 +602,38 @@ const handleKeyPress = (e: KeyboardEvent) => {
 // Auto-scroll to bottom
 watch(messages, () => {
   nextTick(() => {
-    messagesEndRef.value?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.value?.scrollIntoView({ behavior: "smooth" });
   });
 });
 
 onMounted(() => {
+  const handleChatError = (error: Error, errorInfo: unknown) => {
+    console.error("AI Chat Interface Error:", error, errorInfo);
+
+    // Log error for debugging
+    if (typeof window !== "undefined") {
+      const globalWindow = window as unknown as {
+        __errorLogs?: Array<{ timestamp: string; error: string; info: unknown }>;
+      };
+      globalWindow.__errorLogs = globalWindow.__errorLogs || [];
+      globalWindow.__errorLogs.push({
+        timestamp: new Date().toISOString(),
+        error: error.message,
+        info: errorInfo,
+      });
+    }
+  };
+
   const initializeServices = async () => {
     try {
       // Check voice support
-      const hasVoiceSupport =
-        'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
-      const hasTextToSpeech = 'speechSynthesis' in window;
+      const hasVoiceSupport = "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
+      const hasTextToSpeech = "speechSynthesis" in window;
       textToSpeechEnabled.value = hasTextToSpeech;
 
-      console.log('🚀 Streamlined AI Chat initialized');
+      console.log("🚀 Streamlined AI Chat initialized");
     } catch (error) {
-      console.error('Initialization failed:', error);
+      console.error("Initialization failed:", error);
     }
   };
 
@@ -531,220 +643,400 @@ onMounted(() => {
 
 <style scoped>
 .streamlined-ai-chat {
-  @apply flex flex-col h-full bg-slate-900/50 border border-slate-700 rounded-lg overflow-hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgb(51, 65, 85);
+  border-radius: 0.5rem;
+  overflow: hidden;
 }
 
 .chat-header {
-  @apply flex items-center justify-between p-4 border-b border-slate-700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid rgb(51, 65, 85);
 }
 
 .header-left {
-  @apply flex items-center gap-3;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .ai-avatar {
-  @apply w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400;
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: rgba(59, 130, 246, 0.2);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgb(96, 165, 250);
 }
 
 .header-info h3 {
-  @apply text-white font-semibold;
+  color: white;
+  font-weight: 600;
 }
 
 .header-info p {
-  @apply text-sm text-gray-400;
+  font-size: 0.875rem;
+  color: rgb(156, 163, 175);
 }
 
 .header-right {
-  @apply flex items-center gap-2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .status-badge {
-  @apply flex items-center gap-1 px-2 py-1 rounded-full text-xs;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
 }
 
 .status-badge.vision-ready {
-  @apply bg-green-500/20 text-green-400;
+  background-color: rgba(34, 197, 94, 0.2);
+  color: rgb(74, 222, 128);
 }
 
 .status-badge.analyzing {
-  @apply bg-yellow-500/20 text-yellow-400;
+  background-color: rgba(234, 179, 8, 0.2);
+  color: rgb(250, 204, 21);
 }
 
 .pulse {
-  @apply animate-pulse;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .icon-btn {
-  @apply p-2 text-gray-400 hover:text-white transition-colors;
+  padding: 0.5rem;
+  color: rgb(156, 163, 175);
+  transition: color 0.2s;
+}
+
+.icon-btn:hover {
+  color: white;
 }
 
 .messages-container {
-  @apply flex-1 overflow-y-auto p-4 space-y-4;
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .message {
-  @apply flex gap-3;
+  display: flex;
+  gap: 0.75rem;
 }
 
 .message.user {
-  @apply flex-row-reverse;
+  flex-direction: row-reverse;
 }
 
 .message-avatar {
-  @apply w-8 h-8 rounded-full flex items-center justify-center shrink-0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .message.user .message-avatar {
-  @apply bg-blue-500/20 text-blue-400;
+  background-color: rgba(59, 130, 246, 0.2);
+  color: rgb(96, 165, 250);
 }
 
 .message.assistant .message-avatar {
-  @apply bg-purple-500/20 text-purple-400;
+  background-color: rgba(168, 85, 247, 0.2);
+  color: rgb(196, 181, 253);
 }
 
 .message-content {
-  @apply max-w-[70%];
+  max-width: 70%;
 }
 
 .message.user .message-content {
-  @apply bg-blue-600/20 rounded-lg p-3;
+  background-color: rgba(37, 99, 235, 0.2);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
 }
 
 .message.assistant .message-content {
-  @apply bg-slate-700/50 rounded-lg p-3;
+  background-color: rgba(51, 65, 85, 0.5);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
 }
 
 .message-content p {
-  @apply text-white text-sm;
+  color: white;
+  font-size: 0.875rem;
 }
 
 .message-attachments {
-  @apply mt-2 space-y-2;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .image-attachment {
-  @apply relative;
+  position: relative;
 }
 
 .attachment-image {
-  @apply max-w-full rounded-lg;
+  max-width: 100%;
+  border-radius: 0.5rem;
 }
 
 .ai-badge {
-  @apply absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs;
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background-color: rgba(34, 197, 94, 0.2);
+  color: rgb(74, 222, 128);
+  border-radius: 9999px;
+  font-size: 0.75rem;
 }
 
 .ai-analysis-indicator {
-  @apply flex items-center gap-1 mt-2 text-xs text-purple-400;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: rgb(196, 181, 253);
 }
 
 .typing-indicator {
-  @apply flex items-center gap-2 p-3 bg-slate-700/50 rounded-lg w-fit;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: rgba(51, 65, 85, 0.5);
+  border-radius: 0.5rem;
+  width: fit-content;
 }
 
 .typing-dots {
-  @apply flex gap-1;
+  display: flex;
+  gap: 0.25rem;
 }
 
 .typing-dots span {
-  @apply w-2 h-2 bg-gray-400 rounded-full animate-bounce;
+  width: 0.5rem;
+  height: 0.5rem;
+  background-color: rgb(156, 163, 175);
+  border-radius: 50%;
+  animation: bounce 1s infinite;
 }
 
 .typing-dots span:nth-child(2) {
-  @apply animation-delay-200;
+  animation-delay: 0.1s;
 }
 
 .typing-dots span:nth-child(3) {
-  @apply animation-delay-400;
+  animation-delay: 0.2s;
+}
+
+@keyframes bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.3);
+  }
 }
 
 .actions-panel,
 .suggestions-panel {
-  @apply p-4 bg-slate-800/50 border-t border-slate-700;
+  padding: 1rem;
+  background-color: rgba(30, 41, 59, 0.5);
+  border-top: 1px solid rgb(51, 65, 85);
 }
 
 .actions-header,
 .suggestions-header {
-  @apply flex items-center justify-between mb-3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
 }
 
 .actions-header span,
 .suggestions-header span {
-  @apply text-sm font-semibold text-white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: white;
 }
 
 .close-btn {
-  @apply p-1 text-gray-400 hover:text-white transition-colors;
+  padding: 0.25rem;
+  color: rgb(156, 163, 175);
+  transition: color 0.2s;
+}
+
+.close-btn:hover {
+  color: white;
 }
 
 .action-category {
-  @apply mb-4;
+  margin-bottom: 1rem;
 }
 
 .category-title {
-  @apply text-sm font-semibold text-gray-400 mb-2;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(156, 163, 175);
+  margin-bottom: 0.5rem;
 }
 
 .actions-grid,
 .suggestions-grid {
-  @apply grid grid-cols-2 md:grid-cols-3 gap-2;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .actions-grid,
+  .suggestions-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .action-button,
 .suggestion-chip {
-  @apply px-3 py-2 bg-slate-700/50 hover:bg-slate-700 text-white text-sm rounded-lg transition-colors text-left;
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(51, 65, 85, 0.5);
+  color: white;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s;
+  text-align: left;
+}
+
+.action-button:hover,
+.suggestion-chip:hover {
+  background-color: rgb(51, 65, 85);
 }
 
 .action-icon {
-  @apply mr-2;
+  margin-right: 0.5rem;
 }
 
 .input-area {
-  @apply p-4 border-t border-slate-700;
+  padding: 1rem;
+  border-top: 1px solid rgb(51, 65, 85);
 }
 
 .input-container {
-  @apply flex items-center gap-2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .hidden-file-input {
-  @apply hidden;
+  display: none;
 }
 
 .input-left,
 .input-right {
-  @apply flex items-center gap-2;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .control-btn {
-  @apply p-2 text-gray-400 hover:text-white transition-colors;
+  padding: 0.5rem;
+  color: rgb(156, 163, 175);
+  transition: color 0.2s;
+}
+
+.control-btn:hover {
+  color: white;
 }
 
 .message-input {
-  @apply flex-1 px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500;
+  flex: 1;
+  padding: 0.5rem 1rem;
+  background-color: rgba(51, 65, 85, 0.5);
+  border: 1px solid rgb(71, 85, 105);
+  border-radius: 0.5rem;
+  color: white;
+}
+
+.message-input::placeholder {
+  color: rgb(156, 163, 175);
+}
+
+.message-input:focus {
+  outline: none;
+  border-color: rgb(59, 130, 246);
 }
 
 .send-btn {
-  @apply p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors;
+  padding: 0.5rem;
+  background-color: rgb(37, 99, 235);
+  color: white;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.send-btn:hover {
+  background-color: rgb(29, 78, 216);
 }
 
 .advanced-controls {
-  @apply mt-3 p-3 bg-slate-800/50 rounded-lg;
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background-color: rgba(30, 41, 59, 0.5);
+  border-radius: 0.5rem;
 }
 
 .control-group {
-  @apply flex items-center justify-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .control-group label {
-  @apply text-sm text-gray-400;
+  font-size: 0.875rem;
+  color: rgb(156, 163, 175);
 }
 
 .toggle-btn {
-  @apply p-2 bg-slate-700 text-gray-400 rounded-lg transition-colors;
+  padding: 0.5rem;
+  background-color: rgb(51, 65, 85);
+  color: rgb(156, 163, 175);
+  border-radius: 0.5rem;
+  transition: color 0.2s;
+}
+
+.toggle-btn:hover {
+  color: white;
 }
 
 .toggle-btn.active {
-  @apply bg-blue-600 text-white;
+  background-color: rgb(37, 99, 235);
+  color: white;
 }
 </style>

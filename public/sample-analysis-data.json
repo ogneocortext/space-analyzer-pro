@@ -1,0 +1,103 @@
+{
+  "success": true,
+  "analysis": {
+    "path": "E:\\Self Built Web and Mobile Apps\\Space Analyzer",
+    "totalSize": 52428800,
+    "totalFiles": 1250,
+    "totalDirectories": 85,
+    "categories": {
+      "Documents": {
+        "size": 10485760,
+        "count": 320,
+        "files": [
+          { "name": "README.md", "size": 2048, "path": "README.md" },
+          { "name": "CHANGELOG.md", "size": 4096, "path": "CHANGELOG.md" },
+          { "name": "package.json", "size": 1024, "path": "package.json" }
+        ]
+      },
+      "Images": {
+        "size": 20971520,
+        "count": 450,
+        "files": [
+          { "name": "screenshot.png", "size": 102400, "path": "screenshot.png" },
+          { "name": "icon.svg", "size": 2048, "path": "icon.svg" }
+        ]
+      },
+      "Code": {
+        "size": 15728640,
+        "count": 380,
+        "files": [
+          { "name": "main.ts", "size": 3072, "path": "src/main.ts" },
+          { "name": "App.vue", "size": 4096, "path": "src/App.vue" },
+          { "name": "index.js", "size": 2048, "path": "src/index.js" }
+        ]
+      },
+      "Other": {
+        "size": 5242880,
+        "count": 100,
+        "files": [
+          { "name": "config.txt", "size": 512, "path": "config.txt" }
+        ]
+      }
+    },
+    "files": [
+      {
+        "name": "main.ts",
+        "path": "src/main.ts",
+        "size": 3072,
+        "modified": "2024-05-06T10:00:00Z",
+        "created": "2024-01-15T10:30:00Z",
+        "is_compressed": false,
+        "is_sparse": false,
+        "is_reparse_point": false,
+        "has_ads": false,
+        "is_hard_link": false
+      },
+      {
+        "name": "App.vue",
+        "path": "src/App.vue",
+        "size": 4096,
+        "modified": "2024-05-02T14:20:00Z",
+        "created": "2024-01-15T10:30:00Z",
+        "is_compressed": false,
+        "is_sparse": false,
+        "is_reparse_point": false,
+        "has_ads": false,
+        "is_hard_link": false
+      },
+      {
+        "name": "package.json",
+        "path": "package.json",
+        "size": 1024,
+        "modified": "2024-04-15T09:15:00Z",
+        "created": "2024-01-20T16:45:00Z",
+        "is_compressed": false,
+        "is_sparse": false,
+        "is_reparse_point": false,
+        "has_ads": false,
+        "is_hard_link": false
+      }
+    ],
+    "hard_link_count": 15,
+    "hard_link_savings": 1048576,
+    "analysis_time_ms": 2500,
+    "analysis_date": "2024-05-06T10:00:00Z",
+    "strategy": "standard",
+    "mft_scanned": true,
+    "hard_links_enumerated": true,
+    "usn_journal_id": "sample-journal-id",
+    "last_usn": "sample-last-usn",
+    "ai_insights": {
+      "optimization_suggestions": [
+        "Consider removing duplicate files to save space",
+        "Large video files could be compressed",
+        "Old log files can be archived or deleted"
+      ],
+      "large_files": [
+        "src/assets/large-video.mp4",
+        "node_modules/package1.tar.gz",
+        "build/output.zip"
+      ]
+    }
+  }
+}

@@ -54,11 +54,15 @@
                     <span class="metric-label">Overall Duplication</span>
                   </div>
                   <div class="metric">
-                    <span class="metric-value">{{ duplicationData.similarFiles?.length || 0 }}</span>
+                    <span class="metric-value">{{
+                      duplicationData.similarFiles?.length || 0
+                    }}</span>
                     <span class="metric-label">Similar Files</span>
                   </div>
                   <div class="metric">
-                    <span class="metric-value">{{ duplicationData.totalDuplicatedLines || 0 }}</span>
+                    <span class="metric-value">{{
+                      duplicationData.totalDuplicatedLines || 0
+                    }}</span>
                     <span class="metric-label">Duplicated Lines</span>
                   </div>
                 </div>
@@ -99,11 +103,7 @@
                   <h4>File Similarity Analysis</h4>
                   <div class="bar-chart-placeholder">
                     <div class="bar-chart">
-                      <div
-                        v-for="i in 5"
-                        :key="i"
-                        class="bar-group"
-                      >
+                      <div v-for="i in 5" :key="i" class="bar-group">
                         <div class="bar" style="background: #3b82f6; height: 60%" />
                         <div class="bar" style="background: #10b981; height: 40%" />
                       </div>
@@ -229,7 +229,9 @@
                     <span class="metric-label">Total Dependencies</span>
                   </div>
                   <div class="metric">
-                    <span class="metric-value">{{ dependencyData.unusedDependencies?.length || 0 }}</span>
+                    <span class="metric-value">{{
+                      dependencyData.unusedDependencies?.length || 0
+                    }}</span>
                     <span class="metric-label">Unused</span>
                   </div>
                   <div class="metric">
@@ -303,7 +305,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted } from "vue";
 import {
   Code2,
   TrendingUp,
@@ -313,7 +315,7 @@ import {
   Zap,
   Target,
   BarChart3,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 interface DevelopmentAnalyticsProps {
   projectPath: string;
@@ -321,7 +323,7 @@ interface DevelopmentAnalyticsProps {
 
 const props = defineProps<DevelopmentAnalyticsProps>();
 
-const activeTab = ref<'duplication' | 'performance' | 'dependencies'>('duplication');
+const activeTab = ref<"duplication" | "performance" | "dependencies">("duplication");
 const isAnalyzing = ref(false);
 
 const duplicationData = ref<any>(null);
@@ -337,10 +339,13 @@ onMounted(() => {
 
       duplicationData.value = {
         overallDuplication: 12.5,
-        similarFiles: [{ similarity: 0.85, lines: 150 }, { similarity: 0.72, lines: 200 }],
+        similarFiles: [
+          { similarity: 0.85, lines: 150 },
+          { similarity: 0.72, lines: 200 },
+        ],
         totalDuplicatedLines: 350,
         duplicationRanges: { low: 5, medium: 3, high: 2, critical: 1 },
-        recommendations: ['Extract common utility functions', 'Create shared components'],
+        recommendations: ["Extract common utility functions", "Create shared components"],
       };
 
       performanceData.value = {
@@ -348,7 +353,7 @@ onMounted(() => {
         averageBundleSize: 2400000,
         optimizationScore: 78,
         buildHistory: [{ buildTime: 45000, bundleSize: 2400000, optimizationScore: 78 }],
-        recommendations: ['Enable code splitting', 'Optimize asset loading'],
+        recommendations: ["Enable code splitting", "Optimize asset loading"],
       };
 
       dependencyData.value = {
@@ -358,10 +363,10 @@ onMounted(() => {
         productionDependencies: 30,
         devDependencies: 15,
         securityIssues: [],
-        recommendations: ['Update outdated packages', 'Remove unused dependencies'],
+        recommendations: ["Update outdated packages", "Remove unused dependencies"],
       };
     } catch (error) {
-      console.error('Analysis failed:', error);
+      console.error("Analysis failed:", error);
     } finally {
       isAnalyzing.value = false;
     }

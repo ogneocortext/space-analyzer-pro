@@ -4,7 +4,7 @@
       'drag-drop-container',
       className,
       isDragOver ? 'drag-over' : '',
-      disabled ? 'disabled' : ''
+      disabled ? 'disabled' : '',
     ]"
   >
     <!-- Hidden file input -->
@@ -38,7 +38,7 @@
           <div class="drag-text">
             <h3>Drop files here or click to browse</h3>
             <p>
-              {{ multiple ? 'Drop multiple files' : 'Drop a single file' }}
+              {{ multiple ? "Drop multiple files" : "Drop a single file" }}
               <span v-if="maxFileSize"> (max {{ formatFileSize(maxFileSize) }})</span>
             </p>
           </div>
@@ -52,11 +52,7 @@
         <h4>Files to Analyze ({{ draggedFiles.length }})</h4>
         <div class="queue-actions">
           <template v-if="!isAnalyzing">
-            <button
-              @click="analyzeFiles"
-              class="analyze-btn"
-              :disabled="draggedFiles.length === 0"
-            >
+            <button @click="analyzeFiles" class="analyze-btn" :disabled="draggedFiles.length === 0">
               <File :size="16" />
               Analyze All
             </button>
@@ -94,15 +90,11 @@
             </div>
             <div v-if="draggedFile.status === 'error'" class="status-error">
               <AlertCircle :size="16" />
-              {{ draggedFile.error || 'Failed' }}
+              {{ draggedFile.error || "Failed" }}
             </div>
           </div>
 
-          <button
-            v-if="!isAnalyzing"
-            @click="removeFile(draggedFile.id)"
-            class="remove-btn"
-          >
+          <button v-if="!isAnalyzing" @click="removeFile(draggedFile.id)" class="remove-btn">
             <X :size="14" />
           </button>
         </div>
@@ -112,8 +104,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Upload, File, X, AlertCircle, CheckCircle } from 'lucide-vue-next';
+import { ref } from "vue";
+import { Upload, File, X, AlertCircle, CheckCircle } from "lucide-vue-next";
 
 interface DragDropProps {
   onFilesAnalyzed?: (results: any) => void;
@@ -129,15 +121,15 @@ interface DragDropProps {
 interface DraggedFile {
   file: File;
   id: string;
-  status: 'pending' | 'analyzing' | 'completed' | 'error';
+  status: "pending" | "analyzing" | "completed" | "error";
   result?: any;
   error?: string;
 }
 
 const props = withDefaults(defineProps<DragDropProps>(), {
-  className: '',
+  className: "",
   multiple: true,
-  acceptedTypes: () => ['*/*'],
+  acceptedTypes: () => ["*/*"],
   maxFileSize: 100 * 1024 * 1024, // 100MB
   disabled: false,
   onFilesAnalyzed: undefined,
@@ -163,9 +155,9 @@ const validateFiles = (files: FileList): DraggedFile[] => {
       return;
     }
 
-    if (props.acceptedTypes[0] !== '*/*') {
+    if (props.acceptedTypes[0] !== "*/*") {
       const fileType = file.type || getFileExtension(file.name);
-      if (!props.acceptedTypes.some((type) => fileType.includes(type.replace('*/*', '')))) {
+      if (!props.acceptedTypes.some((type) => fileType.includes(type.replace("*/*", "")))) {
         errors.push(`${file.name} has unsupported type (${fileType})`);
         return;
       }
@@ -174,12 +166,12 @@ const validateFiles = (files: FileList): DraggedFile[] => {
     validFiles.push({
       file,
       id: Math.random().toString(36).substr(2, 9),
-      status: 'pending',
+      status: "pending",
     });
   });
 
   if (errors.length > 0) {
-    console.error('File validation errors:', errors);
+    console.error("File validation errors:", errors);
   }
 
   return validFiles;
@@ -219,7 +211,7 @@ const handleFileSelect = (e: Event) => {
   draggedFiles.value = [...draggedFiles.value, ...validFiles].slice(0, props.multiple ? 10 : 1);
 
   if (fileInputRef.value) {
-    fileInputRef.value.value = '';
+    fileInputRef.value.value = "";
   }
 };
 
@@ -236,19 +228,19 @@ const analyzeFiles = async () => {
       const draggedFile = draggedFiles.value[i];
 
       draggedFiles.value = draggedFiles.value.map((f) =>
-        f.id === draggedFile.id ? { ...f, status: 'analyzing' } : f
+        f.id === draggedFile.id ? { ...f, status: "analyzing" } : f
       );
 
       analysisProgress.value = (i / draggedFiles.value.length) * 100;
 
       const formData = new FormData();
-      formData.append('file', draggedFile.file);
-      formData.append('fileName', draggedFile.file.name);
-      formData.append('fileSize', draggedFile.file.size.toString());
+      formData.append("file", draggedFile.file);
+      formData.append("fileName", draggedFile.file.name);
+      formData.append("fileSize", draggedFile.file.size.toString());
 
       try {
-        const response = await fetch('/api/analyze/file', {
-          method: 'POST',
+        const response = await fetch("/api/analyze/file", {
+          method: "POST",
           body: formData,
         });
 
@@ -258,14 +250,14 @@ const analyzeFiles = async () => {
           results.push(result.data);
 
           draggedFiles.value = draggedFiles.value.map((f) =>
-            f.id === draggedFile.id ? { ...f, status: 'completed', result: result.data } : f
+            f.id === draggedFile.id ? { ...f, status: "completed", result: result.data } : f
           );
         } else {
-          throw new Error(result.error || 'Analysis failed');
+          throw new Error(result.error || "Analysis failed");
         }
       } catch (error: any) {
         draggedFiles.value = draggedFiles.value.map((f) =>
-          f.id === draggedFile.id ? { ...f, status: 'error', error: error.message } : f
+          f.id === draggedFile.id ? { ...f, status: "error", error: error.message } : f
         );
       }
     }
@@ -280,7 +272,7 @@ const analyzeFiles = async () => {
       isAnalyzing.value = false;
     }, 2000);
   } catch (error) {
-    console.error('Analysis error:', error);
+    console.error("Analysis error:", error);
     isAnalyzing.value = false;
     analysisProgress.value = 0;
   }
@@ -297,7 +289,7 @@ const clearFiles = () => {
 };
 
 const formatFileSize = (bytes: number): string => {
-  const units = ['B', 'KB', 'MB', 'GB'];
+  const units = ["B", "KB", "MB", "GB"];
   let size = bytes;
   let unitIndex = 0;
 
@@ -310,7 +302,7 @@ const formatFileSize = (bytes: number): string => {
 };
 
 const getFileExtension = (filename: string): string => {
-  return filename.split('.').pop()?.toLowerCase() || '';
+  return filename.split(".").pop()?.toLowerCase() || "";
 };
 </script>
 
