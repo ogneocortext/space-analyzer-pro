@@ -3,7 +3,6 @@
  * Works in both web mode (API) and Tauri desktop mode (commands)
  */
 import { ref, computed } from "vue";
-import { invoke } from "@tauri-apps/api/core";
 import { useDebugLogger } from "@/services/DebugLogger";
 
 const logger = useDebugLogger("ErrorLogs");
@@ -34,6 +33,20 @@ const isTauri = (): boolean => {
   return !!(window as any).__TAURI__;
 };
 
+// Conditional Tauri import
+let invoke: any = null;
+const loadTauri = async () => {
+  if (!invoke && isTauri()) {
+    try {
+      const tauri = await import("@tauri-apps/api/core");
+      invoke = tauri.invoke;
+    } catch (err) {
+      console.error("Failed to load Tauri API:", err);
+    }
+  }
+  return invoke;
+};
+
 export function useErrorLogs() {
   const errors = ref<ErrorLogEntry[]>([]);
   const stats = ref<ErrorStats | null>(null);
@@ -48,7 +61,12 @@ export function useErrorLogs() {
     try {
       if (isTauri()) {
         // Tauri desktop mode
-        const tauriErrors = await invoke<
+        const tauriInvoke = await loadTauri();
+        if (!tauriInvoke) {
+          throw new Error("Tauri API not available");
+        }
+
+        const tauriErrors = await tauriInvoke<
           Array<{
             id: string;
             timestamp: string;
@@ -61,7 +79,7 @@ export function useErrorLogs() {
           }>
         >("get_error_logs", { limit });
 
-        errors.value = tauriErrors.map((e) => ({
+        errors.value = tauriErrors.map((e: any) => ({
           id: e.id,
           timestamp: e.timestamp,
           type: e.error_type,
@@ -85,6 +103,8 @@ export function useErrorLogs() {
     } catch (err) {
       error.value = err instanceof Error ? err.message : "Failed to load errors";
       logger.error("Failed to fetch errors", { error: err });
+      // Set empty array as fallback
+      errors.value = [];
     } finally {
       loading.value = false;
     }
@@ -95,7 +115,12 @@ export function useErrorLogs() {
     try {
       if (isTauri()) {
         // Tauri desktop mode - build stats from errors
-        const tauriStats = await invoke<{ total: number; recent: number }>("get_error_stats");
+        const tauriInvoke = await loadTauri();
+        if (!tauriInvoke) {
+          throw new Error("Tauri API not available");
+        }
+
+        const tauriStats = await tauriInvoke<{ total: number; recent: number }>("get_error_stats");
 
         // Build stats from current errors
         const byType: Record<string, number> = {};
@@ -139,7 +164,11 @@ export function useErrorLogs() {
   const clearErrors = async (): Promise<void> => {
     try {
       if (isTauri()) {
-        await invoke("clear_error_logs");
+        const tauriInvoke = await loadTauri();
+        if (!tauriInvoke) {
+          throw new Error("Tauri API not available");
+        }
+        await tauriInvoke("clear_error_logs");
       } else {
         const response = await fetch("/api/errors/clear", { method: "DELETE" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -157,7 +186,11 @@ export function useErrorLogs() {
   const deleteErrors = async (ids: string[]): Promise<void> => {
     try {
       if (isTauri()) {
-        await invoke("delete_error_logs", { ids });
+        const tauriInvoke = await loadTauri();
+        if (!tauriInvoke) {
+          throw new Error("Tauri API not available");
+        }
+        await tauriInvoke("delete_error_logs", { ids });
       } else {
         const response = await fetch("/api/errors/bulk-delete", {
           method: "DELETE",
@@ -181,7 +214,11 @@ export function useErrorLogs() {
 
     try {
       if (isTauri()) {
-        await invoke("report_error", {
+        const tauriInvoke = await loadTauri();
+        if (!tauriInvoke) {
+          throw new Error("Tauri API not available");
+        }
+        await tauriInvoke("report_error", {
           error: {
             id,
             timestamp,
@@ -227,6 +264,6 @@ export function useErrorLogs() {
     clearErrors,
     deleteErrors,
     reportError,
-    isTauri: isTauri(),
+    isTauri,
   };
 }

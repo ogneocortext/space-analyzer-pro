@@ -50,6 +50,13 @@ export interface ScanConfig {
   include_hidden: boolean;
   follow_symlinks: boolean;
   json_progress: boolean;
+  // USN Journal status
+  usn_journal_used: boolean;
+  usn_journal_id?: number;
+  last_usn?: number;
+  // MFT scanning status
+  mft_scanning_enabled: boolean;
+  hard_links_enumerated: boolean;
 }
 
 export interface SummaryStats {
@@ -461,7 +468,7 @@ export class AnalysisBridge {
       }
 
       // Use basic analysis endpoint for stability
-      const response = await this.fetchWithRetry(`${this.baseUrl}/api/analyze`, {
+      const response = await this.fetchWithRetry(`${this.baseUrl}/api/v1/analysis/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1102,16 +1109,16 @@ export class AnalysisBridge {
     console.warn("📂 Normalized path for analysis:", normalizedPath);
     console.warn("🌐 Using baseUrl:", this.baseUrl);
 
-    // Start the analysis using /api/analyze endpoint
+    // Start analysis using /api/analysis/analyze endpoint
     console.warn("🚀 Sending analysis request...");
-    console.warn("📡 Request URL:", `${this.baseUrl}/api/analyze`);
+    console.warn("📡 Request URL:", `${this.baseUrl}/api/analysis/analyze`);
     console.warn("📡 Request body:", {
       directoryPath: normalizedPath,
       options: { ai: true, media: true },
     });
 
     const analyzeResponse = await this.fetchWithRetry(
-      `${this.baseUrl}/api/analyze`,
+      `${this.baseUrl}/api/analysis/analyze`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1191,7 +1198,7 @@ export class AnalysisBridge {
           console.warn(`🔄 Progress poll attempt ${pollAttempts}/${maxPollAttempts}`);
 
           const progressResponse = await fetch(
-            `${this.baseUrl}/api/progress/${immediateAnalysisId}`
+            `${this.baseUrl}/api/v1/progress/${immediateAnalysisId}`
           );
           if (progressResponse.ok) {
             const progressData = await progressResponse.json();
@@ -2035,7 +2042,7 @@ export class AnalysisBridge {
   ): () => void {
     this.log("info", `Subscribing to progress for analysis: ${analysisId}`);
 
-    const url = `${this.baseUrl}/api/progress/stream/${analysisId}`;
+    const url = `${this.baseUrl}/api/v1/progress/stream/${analysisId}`;
     console.warn(`[SSE Frontend] Connecting to: ${url}`);
     const eventSource = new EventSource(url);
 

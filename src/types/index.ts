@@ -1,51 +1,41 @@
-// Basic type definitions for Space Analyzer
+/**
+ * Unified type exports for Space Analyzer
+ * Consolidates all type definitions into clean, organized exports
+ */
 
-export interface AnalysisData {
-  files: FileData[];
-  categories: CategoryData;
-  totalSize: number;
-  totalFiles: number;
-  scanTime?: number;
-  directoryPath?: string;
-}
+// Core types
+export * from "./core";
 
-export interface FileData {
-  path: string;
-  name: string;
-  size: number;
-  extension?: string;
-  category?: string;
-  modified?: string;
-  created?: string;
-  accessed?: string;
-  type?: "file" | "directory";
-}
+// Domain-specific types
+export * from "./ai-integration";
+export * from "./enhanced";
+export * from "./frontend";
 
-export interface CategoryData {
-  [categoryName: string]: {
-    count: number;
-    size: number;
-    files?: FileData[];
-  };
-}
+// Legacy exports for backward compatibility
+export type { FileData, CategoryData, NeuralViewProps } from "./index.d";
 
-export interface NeuralViewProps {
-  data: {
-    nodes: Array<{
-      id: string;
-      x: number;
-      y: number;
-      size: number;
-      type: string;
-      connections: string[];
-    }>;
-    connections: Array<{
-      from: string;
-      to: string;
-      strength: number;
-      type: string;
-    }>;
-  };
-  isLoading?: boolean;
-  error?: string | null;
-}
+// Re-export commonly used interfaces
+export type {
+  BaseEntity,
+  FileEntity,
+  AnalysisResult,
+  AIInsight,
+  AnalysisError,
+  PerformanceMetrics,
+  AppConfig,
+  NotificationConfig,
+  PrivacyConfig,
+  PerformanceConfig,
+  AIConfig,
+  BaseEvent,
+  SystemEvent,
+  UserEvent,
+  AnalysisEvent,
+  AIEvent,
+  ServiceStatus,
+  ServiceDependency,
+  ProgressInfo,
+  FileInfo,
+  CategorySummary,
+  AppError,
+} from "./core";

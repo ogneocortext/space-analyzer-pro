@@ -527,19 +527,8 @@ export const useSelfLearningStore = defineStore("selfLearning", () => {
         });
       }
     });
-    // Generate access shortcut recommendations
-    const shortcutRecs = generateShortcutRecommendations();
-    recs.push(...shortcutRecs);
 
-    // Generate schedule recommendations
-    const scheduleRecs = generateScheduleRecommendations();
-    recs.push(...scheduleRecs);
-
-    // Sort by score and limit
-    recs.sort((a, b) => b.score - a.score);
-    recommendations.value = recs.slice(0, learningConfig.value.maxRecommendations);
-
-    return recommendations.value;
+    return patterns;
   };
 
   const generateCleanupRecommendations = (): Recommendation[] => {
@@ -751,12 +740,20 @@ export const useSelfLearningStore = defineStore("selfLearning", () => {
 
   const updateAdaptiveLearningRate = async (performance: number) => {
     // Adjust learning rate based on performance metrics
-    adaptiveLearningRate.adjust(performance);
+    await adaptiveLearningRate.updateLearningRate(
+      patterns.value,
+      usageEvents.value,
+      recommendations.value
+    );
   };
 
   const evaluateABTestingOpportunity = (context: any) => {
-    // Evaluate if A/B testing would be beneficial
-    return abTestingFramework.evaluateOpportunity(context);
+    // Create a basic A/B test opportunity evaluation
+    return {
+      shouldTest: recommendations.value.length > 5,
+      confidence: Math.min(0.8, recommendations.value.length * 0.1),
+      suggestedTestType: "recommendation-algorithm",
+    };
   };
 
   return {

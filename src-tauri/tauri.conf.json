@@ -15,15 +15,18 @@
         "title": "Space Analyzer Pro",
         "width": 1400,
         "height": 900,
-        "minWidth": 1000,
-        "minHeight": 700,
+        "minWidth": 1200,
+        "minHeight": 800,
         "center": true,
         "resizable": true,
         "maximizable": true,
         "decorations": false,
         "transparent": true,
         "shadow": true,
-        "theme": "Dark"
+        "theme": "System",
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay",
+        "skipTaskbar": false
       }
     ],
     "security": {
@@ -32,7 +35,8 @@
     "trayIcon": {
       "iconPath": "icons/icon.png",
       "tooltip": "Space Analyzer Pro",
-      "menuOnLeftClick": true
+      "menuOnLeftClick": true,
+      "iconAsTemplate": true
     }
   },
   "bundle": {
@@ -40,7 +44,7 @@
     "targets": ["nsis", "msi"],
     "resources": {
       "../bin": "bin",
-      "../scanner.node": "scanner.node"
+      "scanner.node": "scanner.node"
     },
     "windows": {
       "webviewInstallMode": {
@@ -61,7 +65,33 @@
   },
   "plugins": {
     "shell": {
-      "open": true
+      "open": true,
+      "scope": ["fs", "dialog", "notification", "globalShortcut"]
+    },
+    "fs": {
+      "all": true,
+      "readFile": true,
+      "writeFile": true,
+      "readDir": true,
+      "copyFile": true,
+      "createDir": true,
+      "removeDir": true,
+      "removeFile": true,
+      "renameFile": true
+    },
+    "dialog": {
+      "all": true,
+      "open": true,
+      "save": true,
+      "message": true,
+      "ask": true,
+      "confirm": true
+    },
+    "notification": {
+      "all": true
+    },
+    "globalShortcut": {
+      "all": true
     }
   }
 }

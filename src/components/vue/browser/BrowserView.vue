@@ -1,29 +1,42 @@
 <template>
   <div data-testid="browser-view" class="p-6 lg:p-8 bg-slate-900 min-h-screen">
-    <!-- Header -->
+    <!-- Enhanced Header -->
     <div class="mb-6">
       <div class="flex items-center justify-between mb-4">
         <div>
           <h1 class="text-3xl font-bold text-white mb-2">File Browser</h1>
           <p class="text-slate-400">Navigate and explore your analyzed files</p>
         </div>
-        <button
-          class="bg-slate-700 hover:bg-slate-600 text-white text-sm py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
-          aria-label="Back to landing"
-          @click="navigateToLanding"
-        >
-          <ArrowLeft :size="16" aria-hidden="true" />
-          Back
-        </button>
+        <div class="flex items-center gap-3">
+          <button
+            class="bg-slate-700 hover:bg-slate-600 text-white text-sm py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+            aria-label="Back to landing"
+            @click="navigateToLanding"
+          >
+            ← Back
+          </button>
+          <button
+            v-if="analysisStore.data"
+            class="bg-cyan-500 hover:bg-cyan-600 text-white text-sm py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+            aria-label="Refresh analysis"
+            @click="refreshAnalysis"
+          >
+            🔄 Refresh
+          </button>
+          <button
+            v-if="analysisStore.data"
+            class="bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+            aria-label="Export analysis"
+            @click="exportAnalysis"
+          >
+            ⬇ Export
+          </button>
+        </div>
       </div>
 
       <!-- Search Bar -->
       <div class="relative">
-        <Search
-          class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"
-          :size="20"
-          aria-hidden="true"
-        />
+        <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400">🔍</span>
         <input
           v-model="searchQuery"
           type="text"
@@ -39,7 +52,7 @@
       v-if="!analysisStore.data"
       class="flex flex-col items-center justify-center py-16 text-center"
     >
-      <FolderOpen :size="64" class="text-slate-600 mb-4" aria-hidden="true" />
+      <div class="text-slate-600 mb-4 text-4xl">📂</div>
       <h2 class="text-2xl font-semibold text-white mb-2">No Data Available</h2>
       <p class="text-slate-400 mb-6">Run an analysis to browse your files</p>
       <button
@@ -111,8 +124,7 @@
             class="grid grid-cols-12 gap-4 px-6 py-3 hover:bg-slate-700/50 transition-colors items-center"
           >
             <div class="col-span-6 flex items-center gap-3">
-              <Folder v-if="item.isDirectory" class="text-cyan-400" :size="20" aria-hidden="true" />
-              <File v-else class="text-slate-400" :size="20" aria-hidden="true" />
+              📁 v-if="item.isDirectory" class="text-cyan-400" 📄 v-else class="text-slate-400"
               <span class="text-white truncate">{{ item.name }}</span>
             </div>
             <div class="col-span-2 text-slate-400 text-sm">
@@ -129,7 +141,7 @@
                 title="Enter directory"
                 @click="enterDirectory(item.path)"
               >
-                <ChevronRight :size="16" aria-hidden="true" />
+                →
               </button>
               <button
                 class="text-slate-400 hover:text-slate-300 transition-colors"
@@ -137,7 +149,7 @@
                 title="Reveal in explorer"
                 @click="revealInExplorer(item.path)"
               >
-                <ExternalLink :size="16" aria-hidden="true" />
+                🔗
               </button>
             </div>
           </div>
@@ -177,15 +189,7 @@
 <script setup lang="ts">
 import { ref, computed, inject } from "vue";
 import { useRouter } from "vue-router";
-import {
-  Folder,
-  File,
-  Search,
-  ArrowLeft,
-  ChevronRight,
-  ExternalLink,
-  FolderOpen,
-} from "lucide-vue-next";
+// Using emoji icons instead of Lucide to avoid import issues
 import { analysisStoreKey } from "../../../types/injection";
 
 interface FileItem {
@@ -225,7 +229,7 @@ const allFiles = computed((): FileItem[] => {
   const baseDir = analysisStore.data.directoryPath || "";
 
   // If backend doesn't return individual files, create mock structure from categories
-  if (analysisStore.data.files.length === 0 && analysisStore.data.categories) {
+  if (analysisStore.data.files?.length === 0 && analysisStore.data.categories) {
     Object.entries(analysisStore.data.categories).forEach(([category, data]: [string, any]) => {
       const count = data.count || 0;
       for (let i = 0; i < Math.min(count, 10); i++) {
@@ -238,7 +242,7 @@ const allFiles = computed((): FileItem[] => {
         });
       }
     });
-  } else {
+  } else if (analysisStore.data.files) {
     // Use actual files from analysis
     analysisStore.data.files.forEach((file: any) => {
       files.push({
@@ -324,6 +328,29 @@ const totalSize = computed(() => {
 
 const navigateToLanding = () => {
   router.push("/");
+};
+
+const refreshAnalysis = () => {
+  // Reload current analysis data
+  if (analysisStore.data) {
+    const currentAnalysis = { ...analysisStore.data };
+    analysisStore.data = currentAnalysis;
+  }
+};
+
+const exportAnalysis = () => {
+  if (analysisStore.data) {
+    const dataStr = JSON.stringify(analysisStore.data, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `analysis-${new Date().toISOString().split("T")[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 };
 
 const navigateToPath = (index: number) => {

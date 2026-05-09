@@ -50,15 +50,19 @@ class SpaceAnalyzerServer {
     this.initialize();
   }
 
-  initialize() {
+  async initialize() {
+    const startTime = Date.now();
+
     this.setupSecurity();
     this.setupRateLimiting();
     this.setupMiddleware();
-    this.setupDatabase().then(() => {
-      this.setupRoutes();
-      this.setupErrorHandling();
-      this.setupHealthChecks();
-    });
+    await this.setupDatabase();
+    await this.setupRoutes();
+    this.setupErrorHandling();
+    this.setupHealthChecks();
+
+    const initTime = Date.now() - startTime;
+    console.log(`🚀 Space Analyzer server initialized in ${initTime}ms`);
   }
 
   /**
@@ -73,11 +77,12 @@ class SpaceAnalyzerServer {
       const clientIp = req.ip || req.connection.remoteAddress || "unknown";
       const now = Date.now();
 
-      // Use Node.js 26 Map.prototype.getOrInsert() for cleaner code
-      const entry = this.rateLimitStore.getOrInsert(clientIp, () => ({
-        count: 0,
-        resetTime: now + WINDOW_MS,
-      }));
+      // Check if entry exists, create if not
+      let entry = this.rateLimitStore.get(clientIp);
+      if (!entry) {
+        entry = { count: 0, resetTime: now + WINDOW_MS };
+        this.rateLimitStore.set(clientIp, entry);
+      }
 
       // Reset if window has passed
       if (now > entry.resetTime) {
@@ -107,9 +112,8 @@ class SpaceAnalyzerServer {
     setInterval(
       () => {
         const now = Date.now();
-        // Use Iterator.prototype methods for efficient filtering
-        const expiredEntries = this.rateLimitStore
-          .entries()
+        // Filter expired entries - convert iterator to array first
+        const expiredEntries = Array.from(this.rateLimitStore.entries())
           .filter(([, entry]) => now > entry.resetTime)
           .map(([ip]) => ip);
 
@@ -125,36 +129,32 @@ class SpaceAnalyzerServer {
    * Initialize database connection
    */
   async setupDatabase() {
-    // Use Promise.try() for consistent error handling
-    return Promise.try(async () => {
-      console.log("🔄 Initializing database...");
+    try {
       const KnowledgeDatabase = require("./KnowledgeDatabase");
 
       // Ensure data directory exists
       const dataDir = path.join(__dirname, "data");
       if (!fs.existsSync(dataDir)) {
-        console.log(`📁 Creating data directory: ${dataDir}`);
         fs.mkdirSync(dataDir, { recursive: true });
       }
 
       const dbPath = path.join(dataDir, "space-analyzer.db");
-      console.log(`📚 Database path: ${dbPath}`);
-
       this.knowledgeDB = new KnowledgeDatabase(dbPath);
 
       // Properly await database initialization to prevent race conditions
       await this.knowledgeDB.initialize();
 
-      if (this.knowledgeDB.db) {
-        console.log("✅ Database initialized successfully");
+      // Check if database was properly initialized
+      if (this.knowledgeDB && this.knowledgeDB.db) {
+        console.log("✅ Database initialized and ready");
       } else {
         console.warn("⚠️ Database initialization failed, using in-memory fallback");
         this.knowledgeDB = null;
       }
-    }).catch((error) => {
+    } catch (error) {
       console.error("❌ Database initialization error:", error.message);
       this.knowledgeDB = null;
-    });
+    }
   }
 
   /**
@@ -319,8 +319,8 @@ class SpaceAnalyzerServer {
     });
   }
 
-  setupRoutes() {
-    console.log("🔄 Setting up routes...");
+  async setupRoutes() {
+    // Routes setup - logging consolidated in summary
 
     // Create server object for RoutesManager with all expected properties
     const mockServer = {
@@ -334,28 +334,39 @@ class SpaceAnalyzerServer {
       ollamaService: this.createOllamaService(),
     };
 
-    // Load analysis history from database on startup
-    if (this.knowledgeDB?.db) {
-      console.log("📚 Loading analysis history from database...");
-      this.knowledgeDB
-        .getAnalysisHistory(100, 0)
-        .then((historyData) => {
-          const history = historyData.analyses || historyData;
-          if (Array.isArray(history)) {
-            history.forEach((analysis) => {
-              mockServer.analysisResults.set(analysis.id || analysis.analysisId, {
-                ...analysis,
-                status: "completed",
-                completedAt: analysis.lastAnalyzed || analysis.last_analyzed,
-              });
+    // Lazy load analysis history - only load when first requested
+    mockServer.loadAnalysisHistory = async () => {
+      if (!this.knowledgeDB?.db) {
+        console.log("⚠️ Database not available for history loading");
+        return;
+      }
+
+      // Check if history is already loaded
+      if (mockServer.analysisResults.size > 0) {
+        console.log(
+          `📚 Analysis history already loaded (${mockServer.analysisResults.size} analyses)`
+        );
+        return;
+      }
+
+      console.log("📚 Loading analysis history from database (lazy load)...");
+      try {
+        const historyData = await this.knowledgeDB.getAnalysisHistory(100, 0);
+        const history = historyData.analyses || historyData;
+        if (Array.isArray(history)) {
+          history.forEach((analysis) => {
+            mockServer.analysisResults.set(analysis.id || analysis.analysisId, {
+              ...analysis,
+              status: "completed",
+              completedAt: analysis.lastAnalyzed || analysis.last_analyzed,
             });
-            console.log(`✅ Loaded ${history.length} analyses from database`);
-          }
-        })
-        .catch((err) => {
-          console.log("⚠️ Could not load history:", err.message);
-        });
-    }
+          });
+          console.log(`✅ Loaded ${history.length} analyses from database`);
+        }
+      } catch (err) {
+        console.log("⚠️ Could not load history:", err.message);
+      }
+    };
 
     // Add memory limit for analysisResults (LRU cleanup)
     const originalSet = mockServer.analysisResults.set.bind(mockServer.analysisResults);
@@ -418,35 +429,6 @@ class SpaceAnalyzerServer {
       }
     });
 
-    // Add fallback analysis health endpoint before RoutesManager
-    this.app.get("/api/analysis/health", (req, res) => {
-      try {
-        const os = require("os");
-        res.json({
-          success: true,
-          status: "healthy",
-          timestamp: Temporal.Now.plainDateTimeISO().toString(),
-          system: {
-            platform: os.platform(),
-            arch: os.arch(),
-            uptime: os.uptime(),
-            memory: {
-              total: os.totalmem(),
-              free: os.freemem(),
-              used: os.totalmem() - os.freemem(),
-            },
-          },
-        });
-      } catch (error) {
-        console.error("Analysis health error:", error);
-        res.status(500).json({
-          success: false,
-          error: "Failed to get analysis health",
-          message: error.message,
-        });
-      }
-    });
-
     // Add fallback AI status endpoint before RoutesManager
     this.app.get("/api/ai/status", (req, res) => {
       try {
@@ -462,60 +444,6 @@ class SpaceAnalyzerServer {
         res.status(500).json({
           success: false,
           error: "Failed to get AI status",
-          message: error.message,
-        });
-      }
-    });
-
-    // Add fallback files list endpoint before RoutesManager
-    this.app.get("/api/files/list", (req, res) => {
-      try {
-        const queryPath = req.query.path || "C:\\";
-        res.json({
-          success: true,
-          path: queryPath,
-          files: [],
-          note: "Fallback files endpoint - file system access temporarily limited",
-        });
-      } catch (error) {
-        console.error("Files list error:", error);
-        res.status(500).json({
-          success: false,
-          error: "Failed to list files",
-          message: error.message,
-        });
-      }
-    });
-
-    // Add fallback system info endpoint before RoutesManager
-    this.app.get("/api/system/info", (req, res) => {
-      try {
-        const os = require("os");
-        res.json({
-          success: true,
-          timestamp: Temporal.Now.plainDateTimeISO().toString(),
-          system: {
-            platform: os.platform(),
-            arch: os.arch(),
-            hostname: os.hostname(),
-            uptime: os.uptime(),
-            loadavg: os.loadavg(),
-            totalmem: os.totalmem(),
-            freemem: os.freemem(),
-            cpus: os.cpus().length,
-            networkInterfaces: os.networkInterfaces(),
-          },
-          node: {
-            version: process.version,
-            pid: process.pid,
-            memoryUsage: process.memoryUsage(),
-          },
-        });
-      } catch (error) {
-        console.error("System info error:", error);
-        res.status(500).json({
-          success: false,
-          error: "Failed to get system info",
           message: error.message,
         });
       }
@@ -567,39 +495,35 @@ class SpaceAnalyzerServer {
 
     // Use RoutesManager for all /api routes first
     const routesManager = new RoutesManager(mockServer);
+
+    // Wait for all routes to initialize before mounting
+    await routesManager.waitForInitialization();
     routesManager.mountAll(this.app);
 
     // Catch-all for undefined /api routes - return helpful error (must be after routes are mounted)
-    this.app.all("/api", (req, res) => {
-      res.status(404).json({
-        success: false,
-        error: "API endpoint not specified",
-        message: "Please use a specific endpoint like /api/analysis/start, /api/ai/status, etc.",
-        availableEndpoints: [
-          { path: "/api/analysis/start", method: "POST", description: "Start directory analysis" },
-          {
-            path: "/api/analysis/current",
-            method: "GET",
-            description: "Get current analysis status",
-          },
-          { path: "/api/ai/status", method: "GET", description: "Get AI service status" },
-          { path: "/api/ai/chat", method: "POST", description: "Send message to AI" },
-          { path: "/api/system/info", method: "GET", description: "Get system information" },
-          { path: "/api/debug/routes", method: "GET", description: "List all available routes" },
-        ],
-      });
-    });
-
-    // Catch-all for undefined /api/* routes (must be after routes are mounted)
-    this.app.use((req, res, next) => {
-      if (req.path.startsWith("/api/") && !res.headersSent) {
+    this.app.use("/api", (req, res, next) => {
+      // Only handle exact /api path, not /api/* paths
+      if (req.path === "/api" || req.path === "/api/") {
         res.status(404).json({
           success: false,
-          error: "API endpoint not found",
-          path: req.path,
-          method: req.method,
-          message: "The requested API endpoint does not exist",
-          suggestion: "Check /api/debug/routes for available endpoints",
+          error: "API endpoint not specified",
+          message: "Please use a specific endpoint like /api/analysis/start, /api/ai/status, etc.",
+          availableEndpoints: [
+            {
+              path: "/api/analysis/start",
+              method: "POST",
+              description: "Start directory analysis",
+            },
+            {
+              path: "/api/analysis/current",
+              method: "GET",
+              description: "Get current analysis status",
+            },
+            { path: "/api/ai/status", method: "GET", description: "Get AI service status" },
+            { path: "/api/ai/chat", method: "POST", description: "Send message to AI" },
+            { path: "/api/system/info", method: "GET", description: "Get system information" },
+            { path: "/api/debug/routes", method: "GET", description: "List all available routes" },
+          ],
         });
       } else {
         next();
@@ -614,14 +538,17 @@ class SpaceAnalyzerServer {
     }
 
     // Serve frontend (catch-all for non-API routes - SPA fallback)
-    this.app.get("/{*path}", (req, res) => {
-      // Skip API routes
+    // Use middleware-based catch-all to avoid path-to-regexp compatibility issues
+    // This middleware MUST NOT intercept API routes - let them fall through to the 404 handler
+    this.app.use((req, res, next) => {
+      // Skip all API routes completely
       if (req.path.startsWith("/api/")) {
-        return res.status(404).json({
-          success: false,
-          error: "API endpoint not found",
-          path: req.path,
-        });
+        return next();
+      }
+      
+      // Only handle GET/HEAD requests for SPA routing
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        return next();
       }
 
       const indexPath = path.join(__dirname, "..", "dist", "index.html");
@@ -673,14 +600,21 @@ class SpaceAnalyzerServer {
     });
 
     // CORS preflight handler for all API routes
-    this.app.options("/api/{*path}", (req, res) => {
-      res.header("Access-Control-Allow-Origin", "*");
-      res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-      res.header(
-        "Access-Control-Allow-Headers",
-        "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-      );
-      res.sendStatus(200);
+    // Use app.use middleware to avoid path-to-regexp compatibility issues with newer versions
+    this.app.use((req, res, next) => {
+      if (!req.path.startsWith("/api/")) {
+        return next();
+      }
+      if (req.method === "OPTIONS") {
+        res.header("Access-Control-Allow-Origin", "*");
+        res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+        res.header(
+          "Access-Control-Allow-Headers",
+          "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+        );
+        return res.sendStatus(200);
+      }
+      next();
     });
 
     // Root API info endpoint
@@ -707,8 +641,13 @@ class SpaceAnalyzerServer {
   }
 
   setupErrorHandling() {
-    // 404 handler
-    this.app.use((req, res) => {
+    // 404 handler for non-API routes only
+    this.app.use((req, res, next) => {
+      // Skip API routes - let them be handled by mounted routes
+      if (req.path.startsWith("/api/")) {
+        return next();
+      }
+
       res.status(404).json({
         success: false,
         error: "Not Found",
@@ -716,9 +655,9 @@ class SpaceAnalyzerServer {
       });
     });
 
-    // Global error handler using Promise.try() for consistent async error handling
+    // Global error handler with Promise.resolve().then() for consistent async error handling
     this.app.use(async (error, req, res, next) => {
-      await Promise.try(async () => {
+      await Promise.resolve().then(async () => {
         await this.errorLogger.logRequestError(error, req, res);
 
         const isDev = process.env.NODE_ENV === "development";
@@ -857,8 +796,16 @@ class SpaceAnalyzerServer {
   }
 }
 
-// Start server
+// Start server with async initialization
 const app = new SpaceAnalyzerServer();
-app.start();
+app
+  .initialize()
+  .then(() => {
+    app.start();
+  })
+  .catch((error) => {
+    console.error("❌ Failed to initialize server:", error);
+    process.exit(1);
+  });
 
 module.exports = SpaceAnalyzerServer;

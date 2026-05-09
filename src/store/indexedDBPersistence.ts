@@ -72,7 +72,9 @@ export class IndexedDBPersistence {
 
     // Save new patterns
     for (const pattern of patterns) {
-      await store.add(pattern);
+      // Clone and serialize pattern to avoid DataCloneError
+      const serializedPattern = JSON.parse(JSON.stringify(pattern));
+      await store.add(serializedPattern);
     }
 
     return new Promise((resolve, reject) => {
@@ -102,7 +104,9 @@ export class IndexedDBPersistence {
 
     // Save events (append mode - don't clear existing)
     for (const event of events) {
-      await store.add(event);
+      // Clone and serialize event to avoid DataCloneError
+      const serializedEvent = JSON.parse(JSON.stringify(event));
+      await store.add(serializedEvent);
     }
 
     return new Promise((resolve, reject) => {

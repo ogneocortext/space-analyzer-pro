@@ -1,403 +1,368 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { computed, onMounted, onUnmounted, watch } from "vue";
 import { useAnalysisStore } from "../../store/analysis";
-import { Card, Button } from "../../design-system/components";
+import { Button } from "../../design-system/components";
+import NetworkGraph from "../../components/network/NetworkGraph.vue";
+import NetworkAnalytics from "../../components/network/NetworkAnalytics.vue";
+import NetworkControls from "../../components/network/NetworkControls.vue";
+import { HelpCircle } from "lucide-vue-next";
+import Tooltip from "../../components/ui/Tooltip.vue";
+import {
+  useNetworkVisualization,
+  type NetworkNode,
+  type NetworkSettings,
+} from "../../composables/useNetworkVisualization";
 
 const store = useAnalysisStore();
-const canvasRef = ref<HTMLCanvasElement | null>(null);
-const animationFrame = ref<number | null>(null);
-const selectedNode = ref<any>(null);
-const viewMode = ref<"folders" | "types" | "duplicates">("folders");
 
-// Generate network nodes and links from file data
+// Use network visualization composable
+const {
+  nodes,
+  links,
+  selectedNode,
+  hoveredNode,
+  isLoading,
+  viewMode,
+  settings,
+  generateNetworkData,
+  selectNode,
+  clearSelection,
+  resetGraph,
+  exportNetwork,
+} = useNetworkVisualization();
+
+// Generate network data from analysis store
 const networkData = computed(() => {
   if (!store.analysisResult?.files) return { nodes: [], links: [] };
 
-  const files = store.analysisResult.files;
-  const nodes: any[] = [];
-  const links: any[] = [];
-  const nodeMap = new Map();
-
-  if (viewMode.value === "folders") {
-    // Group by parent folder
-    const folderMap = new Map();
-
-    files.forEach((file: any) => {
-      const parts = file.path.split(/[\\/]/);
-      const parentPath = parts.slice(0, -1).join("/") || "root";
-
-      if (!folderMap.has(parentPath)) {
-        folderMap.set(parentPath, {
-          id: parentPath,
-          name: parts[parts.length - 2] || "root",
-          size: 0,
-          fileCount: 0,
-          type: "folder",
-        });
-      }
-
-      const folder = folderMap.get(parentPath);
-      folder.size += file.size || 0;
-      folder.fileCount += 1;
-    });
-
-    // Create folder nodes
-    folderMap.forEach((folder, path) => {
-      nodes.push({
-        id: path,
-        name: folder.name,
-        size: folder.size,
-        fileCount: folder.fileCount,
-        type: "folder",
-        x: Math.random() * 800,
-        y: Math.random() * 600,
-        vx: 0,
-        vy: 0,
-      });
-      nodeMap.set(path, nodes[nodes.length - 1]);
-    });
-
-    // Create parent-child links
-    folderMap.forEach((folder, path) => {
-      const parts = path.split("/");
-      if (parts.length > 1) {
-        const parentPath = parts.slice(0, -1).join("/") || "root";
-        if (nodeMap.has(parentPath)) {
-          links.push({
-            source: nodeMap.get(parentPath),
-            target: nodeMap.get(path),
-            strength: 0.5,
-          });
-        }
-      }
-    });
-  } else if (viewMode.value === "types") {
-    // Group by file type
-    const typeMap = new Map();
-
-    files.forEach((file: any) => {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "no-ext";
-
-      if (!typeMap.has(ext)) {
-        typeMap.set(ext, {
-          id: ext,
-          name: `.${ext}`,
-          size: 0,
-          fileCount: 0,
-          type: "filetype",
-        });
-      }
-
-      const type = typeMap.get(ext);
-      type.size += file.size || 0;
-      type.fileCount += 1;
-    });
-
-    typeMap.forEach((type, ext) => {
-      nodes.push({
-        id: ext,
-        name: type.name,
-        size: type.size,
-        fileCount: type.fileCount,
-        type: "filetype",
-        x: Math.random() * 800,
-        y: Math.random() * 600,
-        vx: 0,
-        vy: 0,
-      });
-    });
-  } else {
-    // Show duplicate relationships
-    const dupGroups = store.analysisResult.duplicateGroups || [];
-
-    dupGroups.forEach((group: any, idx: number) => {
-      const groupId = `group-${idx}`;
-      nodes.push({
-        id: groupId,
-        name: `Duplicate ${idx + 1}`,
-        size: group.size,
-        fileCount: group.fileCount,
-        type: "duplicate",
-        x: Math.random() * 800,
-        y: Math.random() * 600,
-        vx: 0,
-        vy: 0,
-      });
-
-      group.files.forEach((file: any) => {
-        const fileId = `file-${file.path}`;
-        nodes.push({
-          id: fileId,
-          name: file.name,
-          size: file.size,
-          type: "file",
-          x: Math.random() * 800,
-          y: Math.random() * 600,
-          vx: 0,
-          vy: 0,
-        });
-
-        links.push({
-          source: nodes[nodes.length - 1],
-          target: nodes.find((n: any) => n.id === groupId),
-          strength: 1,
-        });
-      });
-    });
-  }
-
-  return { nodes, links };
+  return generateNetworkData(store.analysisResult.files, viewMode.value);
 });
 
-// Force-directed graph simulation
-function updateGraph() {
-  const { nodes, links } = networkData.value;
-  if (nodes.length === 0) return;
-
-  // Repulsion
-  for (let i = 0; i < nodes.length; i++) {
-    for (let j = i + 1; j < nodes.length; j++) {
-      const dx = nodes[j].x - nodes[i].x;
-      const dy = nodes[j].y - nodes[i].y;
-      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-      const force = 5000 / (dist * dist);
-
-      nodes[i].vx -= (dx / dist) * force;
-      nodes[i].vy -= (dy / dist) * force;
-      nodes[j].vx += (dx / dist) * force;
-      nodes[j].vy += (dy / dist) * force;
+// Watch for view mode changes and regenerate network
+watch(
+  viewMode,
+  () => {
+    if (store.analysisResult?.files) {
+      const { nodes: newNodes, links: newLinks } = generateNetworkData(
+        store.analysisResult.files,
+        viewMode.value
+      );
+      // Update the composable's reactive data
+      nodes.value = newNodes;
+      links.value = newLinks;
     }
-  }
+  },
+  { immediate: true }
+);
 
-  // Attraction (links)
-  links.forEach((link: any) => {
-    const dx = link.target.x - link.source.x;
-    const dy = link.target.y - link.source.y;
-    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-    const force = (dist - 100) * 0.01 * link.strength;
-
-    link.source.vx += (dx / dist) * force;
-    link.source.vy += (dy / dist) * force;
-    link.target.vx -= (dx / dist) * force;
-    link.target.vy -= (dy / dist) * force;
-  });
-
-  // Center gravity
-  nodes.forEach((node: any) => {
-    node.vx += (400 - node.x) * 0.001;
-    node.vy += (300 - node.y) * 0.001;
-
-    // Damping
-    node.vx *= 0.9;
-    node.vy *= 0.9;
-
-    // Update position
-    node.x += node.vx;
-    node.y += node.vy;
-  });
-}
-
-// Render graph
-function render() {
-  const canvas = canvasRef.value;
-  if (!canvas) return;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const { nodes, links } = networkData.value;
-
-  // Draw links
-  ctx.strokeStyle = "rgba(100, 116, 139, 0.3)";
-  ctx.lineWidth = 1;
-  links.forEach((link: any) => {
-    ctx.beginPath();
-    ctx.moveTo(link.source.x, link.source.y);
-    ctx.lineTo(link.target.x, link.target.y);
-    ctx.stroke();
-  });
-
-  // Draw nodes
-  nodes.forEach((node: any) => {
-    const radius = Math.max(10, Math.min(50, Math.sqrt(node.size) / 1000));
-
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = getNodeColor(node.type);
-    ctx.fill();
-
-    // Selected highlight
-    if (selectedNode.value?.id === node.id) {
-      ctx.strokeStyle = "#60a5fa";
-      ctx.lineWidth = 3;
-      ctx.stroke();
+// Watch for analysis result changes
+watch(
+  () => store.analysisResult?.files,
+  (newFiles) => {
+    if (newFiles) {
+      const { nodes: newNodes, links: newLinks } = generateNetworkData(newFiles, viewMode.value);
+      nodes.value = newNodes;
+      links.value = newLinks;
     }
+  },
+  { immediate: true }
+);
 
-    // Label
-    ctx.fillStyle = "#e2e8f0";
-    ctx.font = "12px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(node.name.substring(0, 15), node.x, node.y + radius + 15);
-  });
-}
+// Handle network events
+const handleNodeClick = (_node: NetworkNode) => {
+  selectNode(_node);
+};
 
-function getNodeColor(type: string): string {
-  switch (type) {
-    case "folder":
-      return "#3b82f6";
-    case "filetype":
-      return "#10b981";
-    case "duplicate":
-      return "#ef4444";
-    case "file":
-      return "#f59e0b";
-    default:
-      return "#64748b";
-  }
-}
+const handleViewModeChange = (mode: "folders" | "types" | "duplicates") => {
+  viewMode.value = mode;
+};
 
-function animate() {
-  updateGraph();
-  render();
-  animationFrame.value = requestAnimationFrame(animate);
-}
+const handleSettingsChange = (newSettings: NetworkSettings) => {
+  settings.value = newSettings;
+};
 
-function handleCanvasClick(e: MouseEvent) {
-  const canvas = canvasRef.value;
-  if (!canvas) return;
+const handleGraphReset = () => {
+  resetGraph();
+};
 
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+const handleNetworkExport = () => {
+  exportNetwork();
+};
 
-  const { nodes } = networkData.value;
-  for (const node of nodes) {
-    const dx = x - node.x;
-    const dy = y - node.y;
-    const radius = Math.max(10, Math.min(50, Math.sqrt(node.size) / 1000));
-
-    if (dx * dx + dy * dy < radius * radius) {
-      selectedNode.value = node;
-      return;
-    }
-  }
-
-  selectedNode.value = null;
-}
-
+// Lifecycle
 onMounted(() => {
-  animate();
+  // Initialize with existing data
+  if (store.analysisResult?.files) {
+    const { nodes: initialNodes, links: initialLinks } = generateNetworkData(
+      store.analysisResult.files,
+      viewMode.value
+    );
+    nodes.value = initialNodes;
+    links.value = initialLinks;
+  }
 });
 
 onUnmounted(() => {
-  if (animationFrame.value) {
-    cancelAnimationFrame(animationFrame.value);
-  }
+  // Cleanup handled by composable
 });
-
-function formatSize(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-}
 </script>
 
 <template>
-  <div class="space-y-6 max-w-6xl mx-auto">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-100">Network Graph</h1>
-        <p class="text-slate-400 mt-1">Visualize file relationships and dependencies</p>
-      </div>
-      <div class="flex gap-2">
-        <Button
-          v-for="mode in ['folders', 'types', 'duplicates']"
-          :key="mode"
-          :variant="viewMode === mode ? 'primary' : 'secondary'"
-          size="sm"
-          @click="viewMode = mode as any"
-        >
-          {{ mode.charAt(0).toUpperCase() + mode.slice(1) }}
-        </Button>
-      </div>
-    </div>
+  <div class="min-h-screen bg-slate-900">
+    <div class="max-w-7xl mx-auto p-6 space-y-6">
+      <!-- Modern Header -->
+      <header class="bg-slate-800 rounded-xl p-6 shadow-xl border border-slate-700">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold text-white mb-2">Network Analysis</h1>
+            <p class="text-slate-400 text-lg">Interactive file relationship visualization</p>
+          </div>
 
-    <!-- No Data -->
-    <div v-if="!store.analysisResult" class="p-8 text-center">
-      <p class="text-slate-400 mb-4">No scan data available. Please scan a directory first.</p>
-      <Button variant="secondary" @click="$router.push('/scan')">Go to Scanner</Button>
-    </div>
+          <!-- View Mode Selector -->
+          <div class="flex gap-3">
+            <Tooltip
+              content="Choose how to visualize your file network. Each mode shows different aspects of your file system relationships."
+              position="bottom"
+            >
+              <div class="flex items-center space-x-2 mb-2">
+                <HelpCircle class="w-4 h-4 text-slate-400 cursor-help" />
+                <span class="text-sm text-slate-400">View Mode</span>
+              </div>
+            </Tooltip>
+            <Tooltip
+              v-for="mode in [
+                {
+                  value: 'folders',
+                  label: 'Folders',
+                  icon: 'folder',
+                  tooltip: 'Shows directory hierarchy and parent-child folder relationships',
+                },
+                {
+                  value: 'types',
+                  label: 'File Types',
+                  icon: 'document',
+                  tooltip: 'Groups files by extension to show storage distribution',
+                },
+                {
+                  value: 'duplicates',
+                  label: 'Duplicates',
+                  icon: 'copy',
+                  tooltip: 'Highlights duplicate files and wasted space',
+                },
+              ]"
+              :key="mode.value"
+              :content="mode.tooltip"
+              :title="mode.label"
+              position="bottom"
+            >
+              <button
+                :key="mode.value"
+                :class="[
+                  'px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105',
+                  viewMode === mode.value
+                    ? 'bg-linear-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600',
+                ]"
+                :content="mode.tooltip"
+                :title="mode.label"
+                position="bottom"
+              >
+                <button
+                  :class="[
+                    'px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105',
+                    viewMode === mode.value
+                      ? 'bg-linear-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600',
+                  ]"
+                  @click="handleViewModeChange(mode.value)"
+                >
+                  <div class="flex items-center space-x-2">
+                    <div
+                      class="w-5 h-5 rounded"
+                      :class="{
+                        'bg-blue-200': mode.value === 'folders',
+                        'bg-emerald-200': mode.value === 'types',
+                        'bg-red-200': mode.value === 'duplicates',
+                      }"
+                    />
+                    <span>{{ mode.label }}</span>
+                  </div>
+                </button>
+              </button>
+            </Tooltip>
+          </div>
+        </div>
+      </header>
 
-    <template v-else>
-      <div class="grid grid-cols-3 gap-6">
-        <!-- Graph Canvas -->
-        <Card title="Force-Directed Graph" class="col-span-2">
-          <canvas
-            ref="canvasRef"
-            width="800"
-            height="500"
-            class="w-full h-[500px] bg-slate-800/50 rounded cursor-pointer"
-            @click="handleCanvasClick"
+      <!-- No Data State -->
+      <div v-if="!store.analysisResult" class="bg-slate-800 rounded-xl p-12 text-center">
+        <div class="max-w-md mx-auto">
+          <div
+            class="w-24 h-24 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-6"
+          >
+            <svg
+              class="w-12 h-12 text-slate-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2z"
+              />
+            </svg>
+          </div>
+          <h2 class="text-2xl font-semibold text-white mb-3">No Data Available</h2>
+          <p class="text-slate-400 mb-6">
+            Scan a directory to visualize file relationships and network patterns
+          </p>
+          <Button variant="primary" size="lg" class="px-8 py-3" @click="$router.push('/scan')">
+            Start Scanning
+          </Button>
+        </div>
+      </div>
+
+      <!-- Main Network View -->
+      <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Network Graph -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Network Controls -->
+          <NetworkControls
+            @view-mode-change="handleViewModeChange"
+            @settings-change="handleSettingsChange"
+            @reset-graph="handleGraphReset"
+            @export-network="handleNetworkExport"
           />
-          <div class="flex gap-4 mt-4 text-sm">
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span class="text-slate-400">Folders</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
-              <span class="text-slate-400">File Types</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-3 h-3 rounded-full bg-red-500"></div>
-              <span class="text-slate-400">Duplicates</span>
-            </div>
-          </div>
-        </Card>
 
-        <!-- Selected Node Info -->
-        <Card :title="selectedNode ? 'Selected Node' : 'Node Information'">
-          <div v-if="selectedNode" class="space-y-4">
-            <div>
-              <div class="text-sm text-slate-500">Name</div>
-              <div class="font-medium text-slate-200">{{ selectedNode.name }}</div>
+          <!-- Network Graph -->
+          <div class="bg-slate-800 rounded-xl shadow-xl border border-slate-700 overflow-hidden">
+            <div class="p-4 border-b border-slate-700">
+              <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-white flex items-center">
+                  <span class="w-3 h-3 bg-blue-500 rounded-full mr-3" />
+                  Network Graph
+                </h2>
+                <Tooltip
+                  content="Interactive visualization of your file system network. Click and drag nodes to rearrange, scroll to zoom."
+                  position="top"
+                >
+                  <div class="flex items-center space-x-2">
+                    <HelpCircle class="w-4 h-4 text-slate-400 cursor-help" />
+                    <span class="text-sm text-slate-400">
+                      {{ networkData.nodes.length }} nodes •
+                      {{ networkData.links.length }} connections
+                    </span>
+                  </div>
+                </Tooltip>
+              </div>
             </div>
-            <div>
-              <div class="text-sm text-slate-500">Type</div>
-              <div class="font-medium text-slate-200 capitalize">{{ selectedNode.type }}</div>
-            </div>
-            <div>
-              <div class="text-sm text-slate-500">Size</div>
-              <div class="font-medium text-slate-200">{{ formatSize(selectedNode.size) }}</div>
-            </div>
-            <div>
-              <div class="text-sm text-slate-500">Files</div>
-              <div class="font-medium text-slate-200">{{ selectedNode.fileCount || 1 }}</div>
-            </div>
-          </div>
-          <div v-else class="text-slate-500 text-center py-8">
-            Click a node in the graph to see details
-          </div>
-        </Card>
-      </div>
 
-      <!-- Stats -->
-      <div class="grid grid-cols-3 gap-4">
-        <Card title="Total Nodes">
-          <div class="text-2xl font-bold text-blue-400">{{ networkData.nodes.length }}</div>
-        </Card>
-        <Card title="Connections">
-          <div class="text-2xl font-bold text-emerald-400">{{ networkData.links.length }}</div>
-        </Card>
-        <Card title="View Mode">
-          <div class="text-2xl font-bold text-purple-400 capitalize">{{ viewMode }}</div>
-        </Card>
+            <NetworkGraph
+              :nodes="nodes"
+              :links="links"
+              :is-loading="isLoading"
+              class="h-[600px]"
+              @node-click="handleNodeClick"
+              @node-select="handleNodeSelect"
+            />
+          </div>
+        </div>
+
+        <!-- Analytics Panel -->
+        <div class="space-y-6">
+          <NetworkAnalytics :nodes="nodes" :links="links" />
+
+          <!-- Selected Node Details -->
+          <div
+            v-if="selectedNode"
+            class="bg-slate-800 rounded-xl p-6 shadow-xl border border-slate-700"
+          >
+            <h3 class="text-lg font-semibold text-white mb-4 flex items-center">
+              <div
+                class="w-4 h-4 rounded-full mr-3"
+                :class="{
+                  'bg-blue-500': selectedNode.type === 'folder',
+                  'bg-emerald-500': selectedNode.type === 'filetype',
+                  'bg-red-500': selectedNode.type === 'duplicate',
+                  'bg-orange-500': selectedNode.type === 'file',
+                }"
+              />
+              Selected Node
+            </h3>
+
+            <div class="space-y-4">
+              <div>
+                <div class="text-sm text-slate-400 mb-1">Name</div>
+                <div class="text-white font-medium">
+                  {{ selectedNode.name }}
+                </div>
+              </div>
+
+              <div>
+                <div class="text-sm text-slate-400 mb-1">Type</div>
+                <div class="text-white font-medium capitalize">
+                  {{ selectedNode.type }}
+                </div>
+              </div>
+
+              <div>
+                <div class="text-sm text-slate-400 mb-1">Size</div>
+                <div class="text-white font-medium">
+                  {{
+                    selectedNode.size > 0
+                      ? (selectedNode.size / 1024 / 1024).toFixed(2) + " GB"
+                      : "0 B"
+                  }}
+                </div>
+              </div>
+
+              <div v-if="selectedNode.fileCount">
+                <div class="text-sm text-slate-400 mb-1">Files</div>
+                <div class="text-white font-medium">
+                  {{ selectedNode.fileCount }}
+                </div>
+              </div>
+
+              <div v-if="selectedNode.connections" class="pt-4">
+                <div class="text-sm text-slate-400 mb-1">Connections</div>
+                <div class="text-white font-medium">
+                  {{ selectedNode.connections }}
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-700">
+              <Button variant="secondary" class="w-full" @click="clearSelection">
+                Clear Selection
+              </Button>
+            </div>
+          </div>
+
+          <!-- Quick Stats -->
+          <div
+            v-if="!selectedNode"
+            class="bg-slate-800 rounded-xl p-6 shadow-xl border border-slate-700"
+          >
+            <h3 class="text-lg font-semibold text-white mb-4">Quick Stats</h3>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-blue-400">
+                  {{ networkData.nodes.length }}
+                </div>
+                <div class="text-sm text-slate-400">Total Nodes</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-emerald-400">
+                  {{ networkData.links.length }}
+                </div>
+                <div class="text-sm text-slate-400">Connections</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </template>
+    </div>
   </div>
 </template>

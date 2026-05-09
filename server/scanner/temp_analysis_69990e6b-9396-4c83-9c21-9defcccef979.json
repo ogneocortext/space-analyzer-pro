@@ -1,0 +1,118 @@
+{
+  "total_files": 4,
+  "total_size": 98,
+  "files": [
+    {
+      "name": "test1.txt",
+      "path": "e:/Self Built Web and Mobile Apps/Space Analyzer/test_scan_directory\\test1.txt",
+      "size": 13,
+      "extension": "txt",
+      "category": "Documents",
+      "modified": "2026-05-02T19:14:28+00:00",
+      "created": "2026-05-02T19:14:26+00:00",
+      "accessed": "2026-05-07T07:00:00+00:00",
+      "file_hash": null,
+      "is_hard_link": false,
+      "has_ads": false,
+      "ads_count": 0,
+      "is_compressed": false,
+      "compressed_size": null,
+      "is_sparse": false,
+      "is_reparse_point": false,
+      "reparse_tag": null,
+      "owner": "SID@0x2a247f158c4"
+    },
+    {
+      "name": "test3.json",
+      "path": "e:/Self Built Web and Mobile Apps/Space Analyzer/test_scan_directory\\test3.json",
+      "size": 13,
+      "extension": "json",
+      "category": "Config",
+      "modified": "2026-05-02T19:14:28+00:00",
+      "created": "2026-05-02T19:14:26+00:00",
+      "accessed": "2026-05-07T07:00:00+00:00",
+      "file_hash": null,
+      "is_hard_link": false,
+      "has_ads": false,
+      "ads_count": 0,
+      "is_compressed": false,
+      "compressed_size": null,
+      "is_sparse": false,
+      "is_reparse_point": false,
+      "reparse_tag": null,
+      "owner": "SID@0x2a247f16d14"
+    },
+    {
+      "name": "test2.txt",
+      "path": "e:/Self Built Web and Mobile Apps/Space Analyzer/test_scan_directory\\test2.txt",
+      "size": 13,
+      "extension": "txt",
+      "category": "Documents",
+      "modified": "2026-05-02T19:14:28+00:00",
+      "created": "2026-05-02T19:14:26+00:00",
+      "accessed": "2026-05-07T07:00:00+00:00",
+      "file_hash": null,
+      "is_hard_link": false,
+      "has_ads": false,
+      "ads_count": 0,
+      "is_compressed": false,
+      "compressed_size": null,
+      "is_sparse": false,
+      "is_reparse_point": false,
+      "reparse_tag": null,
+      "owner": "SID@0x2a247f15cd4"
+    },
+    {
+      "name": "large_test.txt",
+      "path": "e:/Self Built Web and Mobile Apps/Space Analyzer/test_scan_directory\\large_test.txt",
+      "size": 59,
+      "extension": "txt",
+      "category": "Documents",
+      "modified": "2026-05-02T19:14:28+00:00",
+      "created": "2026-05-02T19:14:26+00:00",
+      "accessed": "2026-05-07T07:00:00+00:00",
+      "file_hash": null,
+      "is_hard_link": false,
+      "has_ads": false,
+      "ads_count": 0,
+      "is_compressed": false,
+      "compressed_size": null,
+      "is_sparse": false,
+      "is_reparse_point": false,
+      "reparse_tag": null,
+      "owner": "SID@0x2a247f160e4"
+    }
+  ],
+  "categories": {
+    "Documents": {
+      "count": 3,
+      "size": 85
+    },
+    "Config": {
+      "count": 1,
+      "size": 13
+    }
+  },
+  "extension_stats": {
+    "txt": {
+      "count": 3,
+      "size": 85
+    },
+    "json": {
+      "count": 1,
+      "size": 13
+    }
+  },
+  "analysis_time_ms": 19,
+  "directory_path": "e:/Self Built Web and Mobile Apps/Space Analyzer/test_scan_directory",
+  "duplicate_groups": [],
+  "duplicate_count": 0,
+  "duplicate_size": 0,
+  "hard_link_count": 0,
+  "hard_link_savings": 0,
+  "apparent_size": 98,
+  "usn_journal_id": null,
+  "last_usn": null,
+  "mft_scanned": false,
+  "hard_links_enumerated": false
+}

@@ -22,36 +22,101 @@ class RoutesManager {
   constructor(server) {
     this.server = server;
     this.routes = {};
-    this.initializeRoutes();
+    this.routeCache = new Map(); // Cache for route modules
+    this.initializationPromise = this.initializeRoutes();
   }
 
-  initializeRoutes() {
-    // Initialize all route modules
-    console.log("🔄 Initializing route modules...");
-    this.routes.analysis = new AnalysisRoutes(this.server);
-    console.log("  ✅ AnalysisRoutes loaded");
-    this.routes.ai = new AIRoutes(this.server);
-    console.log("  ✅ AIRoutes loaded");
-    this.routes.aiService = new AIServiceRoutes(this.server);
-    console.log("  ✅ AIServiceRoutes loaded");
-    this.routes.files = new FileRoutes(this.server);
-    console.log("  ✅ FileRoutes loaded");
-    this.routes.exports = new ExportRoutes(this.server);
-    this.routes.complexity = new ComplexityRoutes(this.server);
-    this.routes.reports = new ReportsRoutes(this.server);
-    this.routes.settings = new SettingsRoutes(this.server);
-    console.log("  ✅ SettingsRoutes loaded");
-    this.routes.orchestrate = new OrchestrateRoutes(this.server);
-    this.routes.system = new SystemRoutes(this.server);
-    console.log("  ✅ SystemRoutes loaded");
-    this.routes.errors = new ErrorRoutes(this.server);
-    console.log("  ✅ ErrorRoutes loaded");
-    this.routes.learning = new LearningRoutes(this.server);
-    console.log("  ✅ LearningRoutes loaded");
-    this.routes.nlp = new NLPRoutes(this.server);
-    console.log("  ✅ NLPRoutes loaded");
-    this.routes.aiModels = new AIModelsRoutes(this.server);
-    console.log("  ✅ AIModelsRoutes loaded");
+  async waitForInitialization() {
+    return this.initializationPromise;
+  }
+
+  async initializeRoutes() {
+    // Initialize all route modules in parallel for faster startup
+    console.log("🔄 Initializing route modules in parallel...");
+
+    const routeModules = [
+      { name: "analysis", Module: AnalysisRoutes },
+      { name: "ai", Module: AIRoutes },
+      { name: "aiService", Module: AIServiceRoutes },
+      { name: "files", Module: FileRoutes },
+      { name: "exports", Module: ExportRoutes },
+      { name: "complexity", Module: ComplexityRoutes },
+      { name: "reports", Module: ReportsRoutes },
+      { name: "settings", Module: SettingsRoutes },
+      { name: "orchestrate", Module: OrchestrateRoutes },
+      { name: "system", Module: SystemRoutes },
+      { name: "errors", Module: ErrorRoutes },
+      { name: "learning", Module: LearningRoutes },
+      { name: "nlp", Module: NLPRoutes },
+      { name: "aiModels", Module: AIModelsRoutes },
+    ];
+
+    // Initialize all routes in parallel with caching
+    const initializationPromises = routeModules.map(async ({ name, Module }) => {
+      try {
+        // Force reload analysis routes to clear cache
+        const cacheKey = `${name}_${Module.name}`;
+        let route = null;
+
+        if (name === "analysis") {
+          // Force reload analysis routes
+          this.routeCache.delete(cacheKey);
+          route = new Module(this.server);
+          this.routeCache.set(cacheKey, route);
+          console.log(`🔄 Reloaded route module: ${name}`);
+        } else {
+          // Check cache first for other routes
+          route = this.routeCache.get(cacheKey);
+
+          if (!route) {
+            // Create new route instance if not cached
+            route = new Module(this.server);
+            this.routeCache.set(cacheKey, route);
+            console.log(`📦 Cached route module: ${name}`);
+          } else {
+            console.log(`⚡ Using cached route: ${name}`);
+          }
+        }
+
+        return { name, route, success: true, fromCache: false };
+      } catch (error) {
+        console.error(`❌ Failed to initialize ${name}:`, error.message);
+        return { name, error, success: false };
+      }
+    });
+
+    // Wait for all routes to initialize
+    const results = await Promise.all(initializationPromises);
+
+    // Store successful route initializations
+    const successfulRoutes = [];
+    const failedRoutes = [];
+    const cachedRoutes = [];
+
+    results.forEach(({ name, route, error, success, fromCache }) => {
+      if (success && route) {
+        this.routes[name] = route;
+        successfulRoutes.push(name);
+        if (fromCache) {
+          cachedRoutes.push(name);
+        }
+      } else if (error) {
+        failedRoutes.push({ name, error });
+      }
+    });
+
+    // Log summary with cache statistics
+    const cacheHitRate =
+      cachedRoutes.length > 0
+        ? Math.round((cachedRoutes.length / successfulRoutes.length) * 100)
+        : 0;
+    console.log(
+      ` Initialized ${successfulRoutes.length}/${routeModules.length} route modules (${cachedRoutes.length} from cache, ${cacheHitRate}% hit rate)`
+    );
+
+    if (failedRoutes.length > 0) {
+      console.log(` Failed routes: ${failedRoutes.map((r) => `${r.name}: ${r.error?.message || r.error}`).join(", ")}`);
+    }
   }
 
   mountAll(app) {
@@ -72,11 +137,9 @@ class RoutesManager {
     app.use("/api", this.routes.aiModels.getRouter());
 
     console.log("✅ All API routes mounted successfully");
-    console.log("📍 AI Service routes available at: /api/ai/*");
-    console.log("📍 Error routes available at: /api/errors/*");
-    console.log("📍 Learning routes available at: /api/learning/*");
-    console.log("📍 NLP routes available at: /api/nlp/*");
-    console.log("📍 AI Models routes available at: /api/ai-models/*");
+    console.log(
+      "📍 API endpoints: /api/analysis/*, /api/ai/*, /api/errors/*, /api/learning/*, /api/nlp/*, /api/ai-models/*"
+    );
   }
 
   // Access to individual route modules if needed

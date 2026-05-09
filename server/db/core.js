@@ -44,24 +44,25 @@ class DatabaseCore {
       }
 
       // Check database file size and backup if needed
+      let fileSizeMB = 0;
       if (fs.existsSync(this.dbPath)) {
         const stats = fs.statSync(this.dbPath);
-        const fileSizeMB = stats.size / (1024 * 1024);
+        fileSizeMB = stats.size / (1024 * 1024);
         console.log(`📊 Database file size: ${fileSizeMB.toFixed(2)} MB`);
+      }
 
-        // Skip backup during development for faster startup
-        const isDevelopment = process.env.NODE_ENV === "development";
-        const skipBackup = isDevelopment || process.env.SKIP_DB_BACKUP === "true";
+      // Skip backup during development for faster startup
+      const isDevelopment = process.env.NODE_ENV === "development";
+      const skipBackup = isDevelopment || process.env.SKIP_DB_BACKUP === "true";
 
-        if (fileSizeMB > 100 && !skipBackup) {
-          const backupPath = this.dbPath + ".backup";
-          if (!fs.existsSync(backupPath)) {
-            console.log(`💾 Creating database backup: ${backupPath}`);
-            fs.copyFileSync(this.dbPath, backupPath);
-          }
-        } else if (skipBackup) {
-          console.log(`⚡ Skipping database backup for faster startup`);
+      if (fs.existsSync(this.dbPath) && fileSizeMB > 100 && !skipBackup) {
+        const backupPath = this.dbPath + ".backup";
+        if (!fs.existsSync(backupPath)) {
+          console.log(`💾 Creating database backup: ${backupPath}`);
+          fs.copyFileSync(this.dbPath, backupPath);
         }
+      } else if (skipBackup) {
+        console.log(`⚡ Skipping database backup for faster startup`);
       }
 
       // Open database with async/await to prevent race conditions

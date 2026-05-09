@@ -33,14 +33,15 @@ class AIRoutes {
 
         res.json({
           success: true,
-          insights: response.response,
+          insights: response?.response || "No insights available",
           query,
           responseTime: Date.now() - startTime,
         });
       } catch (error) {
         console.error("AI insights error:", error);
         res.status(500).json({
-          error: error.message,
+          success: false,
+          error: error.message || "AI insights request failed",
           responseTime: Date.now() - startTime,
         });
       }
@@ -53,18 +54,18 @@ class AIRoutes {
         const { filePath, maxChars = 5000, model = "phi4-mini:latest" } = req.body;
 
         if (!filePath) {
-          return res.status(400).json({ error: "filePath is required" });
+          return res.status(400).json({ success: false, error: "filePath is required" });
         }
 
         // Validate file path
         if (!this.server.isValidPath(filePath)) {
-          return res.status(400).json({ error: "Invalid file path" });
+          return res.status(400).json({ success: false, error: "Invalid file path" });
         }
 
         // Check if file exists
         const fs = require("fs");
         if (!fs.existsSync(filePath)) {
-          return res.status(404).json({ error: "File not found" });
+          return res.status(404).json({ success: false, error: "File not found" });
         }
 
         // Get file stats for hash
@@ -398,14 +399,26 @@ class AIRoutes {
           return res.status(400).json({ error: "Message is required" });
         }
 
-        // Build chat context if provided
+        // Build enhanced chat context if provided
         let chatContext = "";
         if (context) {
-          chatContext = `Context: ${JSON.stringify(context)}\n\n`;
+          // Extract relevant analysis data for better context
+          const analysisContext = this.buildEnhancedAnalysisContext(context);
+          chatContext = `Analysis Context: ${JSON.stringify(analysisContext, null, 2)}\n\n`;
         }
 
-        // Create a conversational prompt
-        const prompt = `${chatContext}User: ${message}\n\nAssistant:`;
+        // Create a conversational prompt with better instructions
+        const prompt = `${chatContext}You are an AI assistant specializing in file system analysis and storage optimization.
+
+User: ${message}
+
+Instructions:
+- If the user asks about their analysis data, use the provided Analysis Context
+- If no analysis data is available or it's null/empty, politely explain that you need to run an analysis first
+- Provide helpful insights about file organization, storage optimization, and system analysis
+- Be conversational and helpful
+
+Assistant:`;
 
         // Use Ollama service for chat response
         const response = await this.server.ollamaService.generate(
@@ -431,6 +444,59 @@ class AIRoutes {
   }
 
   // Helper methods
+  buildEnhancedAnalysisContext(context) {
+    // Extract and structure analysis data for better AI understanding
+    const analysisData = context.analysisData;
+    const files = context.files || [];
+    const categories = context.categories || {};
+
+    if (!analysisData || analysisData === null) {
+      return {
+        hasAnalysisData: false,
+        message: "No analysis data available. Please run a file system analysis first.",
+        totalFiles: files.length,
+        totalSize: files.reduce((sum, file) => sum + (file.size || 0), 0),
+        categories: categories,
+        suggestions: [
+          "Run a directory analysis to get detailed insights",
+          "Check the scanning feature to analyze your storage",
+          "Use the file browser to explore your system",
+        ],
+      };
+    }
+
+    return {
+      hasAnalysisData: true,
+      summary: {
+        totalFiles: analysisData.files?.length || files.length || 0,
+        totalSize: analysisData.totalSize || 0,
+        directory: analysisData.directory || analysisData.scan_config?.path || "Unknown",
+        scanDate: analysisData.timestamp || new Date().toISOString(),
+        analysisId: analysisData.analysisId || context.currentAnalysisId,
+      },
+      categories: analysisData.categories || categories,
+      fileTypes: analysisData.extensions || {},
+      largestFiles: (analysisData.files || files)
+        .sort((a, b) => (b.size || 0) - (a.size || 0))
+        .slice(0, 10)
+        .map((f) => ({
+          name: f.name || f.path,
+          size: f.size,
+          type: f.extension || f.type,
+        })),
+      insights: {
+        duplicateFiles: analysisData.duplicates || [],
+        largeFiles: (analysisData.files || files).filter((f) => (f.size || 0) > 100 * 1024 * 1024), // > 100MB
+        oldFiles: (analysisData.files || files).filter((f) => {
+          const fileDate = new Date(f.modified || f.lastModified || Date.now());
+          const sixMonthsAgo = new Date();
+          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+          return fileDate < sixMonthsAgo;
+        }),
+      },
+    };
+  }
+
   async buildAnalysisContext(analysisData) {
     return {
       totalFiles: analysisData.files?.length || 0,

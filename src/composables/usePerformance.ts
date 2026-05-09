@@ -41,7 +41,7 @@ export function usePerformanceMonitor(componentName: string) {
 export function useVirtualScroll(options: {
   itemHeight: number;
   containerHeight: number;
-  items: any[];
+  items: unknown[];
 }) {
   const scrollTop = ref(0);
   const scroller = new VirtualScroller(options.containerHeight, options.itemHeight);
@@ -200,8 +200,11 @@ export function usePerformanceMetrics() {
 
   const measureMemory = () => {
     if ("memory" in performance) {
-      const memory = (performance as any).memory;
-      metrics.value.memoryUsage = Math.round(memory.usedJSHeapSize / 1024 / 1024); // MB
+      const perfMemory = (performance as Performance & { memory?: { usedJSHeapSize: number } })
+        .memory;
+      if (perfMemory) {
+        metrics.value.memoryUsage = Math.round(perfMemory.usedJSHeapSize / 1024 / 1024); // MB
+      }
     }
   };
 

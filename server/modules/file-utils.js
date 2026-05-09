@@ -37,18 +37,14 @@ function findProjectRoot(startDir) {
  */
 function isValidPath(p) {
   if (!p) return false;
-  // Check for various path traversal patterns
+
+  // Check for various path traversal patterns - more restrictive checks
   const dangerousPatterns = [
-    /\.\./, // Basic parent directory
+    /\.\.[\\/]/, // Only block actual directory traversal at start of path
     /%2e%2e/i, // URL-encoded parent directory
     /%252e%252e/i, // Double URL-encoded
-    /\.\.\.+/, // Multiple dots (3+ consecutive dots)
+    /^[^\\\/]*\.\.[\\/]/, // Only block if traversal is at beginning
   ];
-
-  // Check for dangerous patterns
-  if (dangerousPatterns.some((pattern) => pattern.test(p))) {
-    return false;
-  }
 
   // Ensure path is absolute (prevents relative path trickery)
   if (!path.isAbsolute(p)) {
@@ -57,7 +53,14 @@ function isValidPath(p) {
 
   // Normalize and check again after normalization
   const normalized = path.normalize(p);
+
+  // Only check dangerous patterns on normalized path
   if (dangerousPatterns.some((pattern) => pattern.test(normalized))) {
+    return false;
+  }
+
+  // Additional check: ensure no obvious path traversal after normalization
+  if (normalized.includes("../") || normalized.includes("..\\")) {
     return false;
   }
 

@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import ErrorBoundary from "@/components/ErrorBoundary.vue";
+import ErrorBoundary from "@/components/error/ErrorBoundary.vue";
 import FileSystem3D from "@/components/3d/FileSystem3D.vue";
 
 // Define emits

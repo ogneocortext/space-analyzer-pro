@@ -3,68 +3,83 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <BarChart3 class="w-6 h-6 text-blue-400" />
+        <BarChart3 class="w-6 h-6 text-blue-400" aria-hidden="true" />
         <div>
-          <h2 class="text-xl font-semibold">Analysis Results</h2>
-          <p class="text-sm text-gray-400">{{ displayResults.length }} results found</p>
+          <h2 id="results-heading" class="text-xl font-semibold">Analysis Results</h2>
+          <p class="text-sm text-gray-400" aria-live="polite">
+            {{ displayResults.length }} results found
+          </p>
         </div>
       </div>
-      <div class="flex gap-2">
+      <div class="flex gap-2" role="toolbar" aria-label="Analysis actions">
         <button
-          class="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+          class="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          aria-label="Refresh analysis results"
+          title="Refresh results"
           @click="onRefresh"
         >
-          <RefreshCw class="w-4 h-4" />
+          <RefreshCw class="w-4 h-4" aria-hidden="true" />
           <span>Refresh</span>
         </button>
         <button
-          class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
+          aria-label="Save analysis results to database"
+          title="Save results"
           @click="handleSave"
         >
-          <Database class="w-4 h-4" />
+          <Database class="w-4 h-4" aria-hidden="true" />
           <span>Save</span>
         </button>
         <button
-          class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500"
+          aria-label="Load saved analysis results"
+          title="Load results"
           @click="handleLoad"
         >
-          <Upload class="w-4 h-4" />
+          <Upload class="w-4 h-4" aria-hidden="true" />
           <span>Load</span>
         </button>
         <button
-          class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          aria-label="Export analysis results"
+          title="Export results"
           @click="onExport"
         >
-          <Download class="w-4 h-4" />
+          <Download class="w-4 h-4" aria-hidden="true" />
           <span>Export</span>
         </button>
       </div>
     </div>
 
     <!-- Filters -->
-    <div class="flex gap-2 flex-wrap">
+    <div class="flex gap-2 flex-wrap" role="group" aria-label="Filter analysis results">
       <button
         v-for="filter in filters"
         :key="filter.id"
         :class="[
-          'px-4 py-2 rounded-lg transition-colors',
+          'px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500',
           selectedFilter === filter.id
             ? 'bg-blue-600 text-white'
             : 'bg-gray-800 text-gray-300 hover:bg-gray-700',
         ]"
+        :aria-pressed="selectedFilter === filter.id"
+        :aria-label="`Filter by ${filter.label}`"
+        :title="`Filter results by ${filter.label}`"
         @click="selectedFilter = filter.id"
       >
-        <component :is="filter.icon" class="w-4 h-4 inline mr-2" />
+        <component :is="filter.icon" class="w-4 h-4 inline mr-2" aria-hidden="true" />
         {{ filter.label }}
       </button>
     </div>
 
     <!-- Page Filter -->
     <div class="flex gap-2 items-center">
-      <label class="text-sm text-gray-400">Page:</label>
+      <label for="page-select" class="text-sm text-gray-400">Page:</label>
       <select
+        id="page-select"
         v-model="selectedPage"
-        class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+        class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        aria-label="Select page to filter results"
       >
         <option value="all">All Pages</option>
         <option v-for="page in uniquePages" :key="page" :value="page">
@@ -74,26 +89,34 @@
     </div>
 
     <!-- Results List -->
-    <div class="space-y-3">
+    <div class="space-y-3" role="list" aria-label="Analysis results">
       <div
         v-for="result in displayResults"
         :key="result.id"
-        class="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-colors"
+        class="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-colors focus-within:border-blue-500"
+        role="listitem"
+        tabindex="0"
+        :aria-label="`Analysis result: ${result.title || result.page}, ${result.type}, ${result.model}`"
+        @keydown.enter="selectResult(result)"
+        @keydown.space="selectResult(result)"
       >
         <div class="flex items-start justify-between mb-3">
           <div class="flex items-center gap-3">
-            <div :class="['p-2 rounded-lg', result.success ? 'bg-green-500/20' : 'bg-red-500/20']">
+            <div
+              :class="['p-2 rounded-lg', result.success ? 'bg-green-500/20' : 'bg-red-500/20']"
+              aria-hidden="true"
+            >
               <CheckCircle v-if="result.success" class="w-5 h-5 text-green-400" />
               <AlertTriangle v-else class="w-5 h-5 text-red-400" />
             </div>
             <div>
-              <h3 class="font-semibold text-white">
+              <h3 :id="`result-${result.id}`" class="font-semibold text-white">
                 {{ result.title || result.page }}
               </h3>
               <div class="flex items-center gap-2 text-sm text-gray-400">
-                <component :is="getTypeIcon(result.type)" class="w-4 h-4" />
+                <component :is="getTypeIcon(result.type)" class="w-4 h-4" aria-hidden="true" />
                 <span>{{ result.type }}</span>
-                <span>•</span>
+                <span aria-hidden="true">•</span>
                 <span>{{ result.model }}</span>
               </div>
             </div>

@@ -3,16 +3,16 @@
     <div class="dashboard-header">
       <h3>📊 Learning Analytics Dashboard</h3>
       <div class="header-controls">
-        <select v-model="selectedTimeRange" @change="refreshData" class="time-range-select">
+        <select v-model="selectedTimeRange" class="time-range-select" @change="refreshData">
           <option value="1h">Last Hour</option>
           <option value="24h">Last 24 Hours</option>
           <option value="7d">Last 7 Days</option>
           <option value="30d">Last 30 Days</option>
         </select>
-        <button aria-label="Refresh" @click="refreshData" class="btn btn-primary" tabindex="0">
+        <button aria-label="Refresh" class="btn btn-primary" tabindex="0" @click="refreshData">
           🔄 Refresh
         </button>
-        <button aria-label="Export" @click="exportData" class="btn btn-outline" tabindex="0">
+        <button aria-label="Export" class="btn btn-outline" tabindex="0" @click="exportData">
           📥 Export
         </button>
       </div>
@@ -24,7 +24,7 @@
         <div class="metric-card">
           <h4>🧠 Learning Status</h4>
           <div class="metric-value">
-            <span :class="['status-indicator', learningStatus]"></span>
+            <span :class="['status-indicator', learningStatus]" />
             {{ learningStatusText }}
           </div>
           <div class="metric-detail">Active for {{ formatDuration(activeLearningTime) }}</div>
@@ -32,7 +32,9 @@
 
         <div class="metric-card">
           <h4>📈 Patterns Detected</h4>
-          <div class="metric-value">{{ totalPatterns }}</div>
+          <div class="metric-value">
+            {{ totalPatterns }}
+          </div>
           <div class="metric-detail">{{ highConfidencePatterns }} high confidence</div>
         </div>
 
@@ -56,7 +58,7 @@
       <div class="chart-section">
         <h4>📊 Pattern Detection Over Time</h4>
         <div class="chart-container">
-          <canvas ref="patternChart" class="analytics-chart"></canvas>
+          <canvas ref="patternChart" class="analytics-chart" />
         </div>
       </div>
 
@@ -68,17 +70,14 @@
             <span class="label">Acceptance Rate:</span>
             <span class="value">{{ Math.round(acceptanceRate * 100) }}%</span>
             <div class="progress-bar">
-              <div class="progress-fill" :style="{ width: `${acceptanceRate * 100}%` }"></div>
+              <div class="progress-fill" :style="{ width: `${acceptanceRate * 100}%` }" />
             </div>
           </div>
           <div class="performance-item">
             <span class="label">Dismissal Rate:</span>
             <span class="value">{{ Math.round(dismissalRate * 100) }}%</span>
             <div class="progress-bar">
-              <div
-                class="progress-fill dismissal"
-                :style="{ width: `${dismissalRate * 100}%` }"
-              ></div>
+              <div class="progress-fill dismissal" :style="{ width: `${dismissalRate * 100}%` }" />
             </div>
           </div>
           <div class="performance-item">
@@ -102,7 +101,7 @@
               <span class="percentage">{{ Math.round(type.percentage) }}%</span>
             </div>
             <div class="confidence-bar">
-              <div class="confidence-fill" :style="{ width: `${type.avgConfidence * 100}%` }"></div>
+              <div class="confidence-fill" :style="{ width: `${type.avgConfidence * 100}%` }" />
             </div>
           </div>
         </div>
@@ -114,7 +113,9 @@
         <div class="timeline-container">
           <div class="timeline-events">
             <div v-for="event in recentLearningEvents" :key="event.id" class="timeline-event">
-              <div class="event-time">{{ formatTime(event.timestamp) }}</div>
+              <div class="event-time">
+                {{ formatTime(event.timestamp) }}
+              </div>
               <div class="event-content">
                 <span class="event-type">{{ event.type }}</span>
                 <span class="event-description">{{ event.description }}</span>
@@ -125,7 +126,7 @@
       </div>
 
       <!-- A/B Test Results -->
-      <div class="chart-section" v-if="abTestResults.length > 0">
+      <div v-if="abTestResults.length > 0" class="chart-section">
         <h4>🧪 A/B Test Results</h4>
         <div class="ab-test-grid">
           <div v-for="test in abTestResults" :key="test.id" class="ab-test-item">
@@ -179,8 +180,8 @@
     </div>
 
     <!-- Real-time Updates -->
-    <div class="real-time-indicator" v-if="isRealTimeActive">
-      <span class="pulse"></span>
+    <div v-if="isRealTimeActive" class="real-time-indicator">
+      <span class="pulse" />
       Real-time updates active
     </div>
   </div>
@@ -188,8 +189,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
-import { useSelfLearningStore } from "@/store";
-import { indexedDBPersistence } from "@/store";
+import { useSelfLearningStore } from "@/store/selfLearning";
+import { indexedDBPersistence } from "@/store/indexedDBPersistence";
 
 interface AnalyticsData {
   totalPatterns: number;
@@ -278,8 +279,22 @@ const highConfidencePatterns = computed(
 );
 const modelAccuracy = computed(() => selfLearningStore.getModelAccuracy());
 
+// Expose analytics data properties to template
+const totalRecommendations = computed(() => analyticsData.value.totalRecommendations);
+const currentLearningRate = computed(() => analyticsData.value.currentLearningRate);
+const learningRateTrend = computed(() => analyticsData.value.learningRateTrend);
+const acceptanceRate = computed(() => analyticsData.value.acceptanceRate);
+const dismissalRate = computed(() => analyticsData.value.dismissalRate);
+const avgResponseTime = computed(() => analyticsData.value.avgResponseTime);
+const patternTypes = computed(() => analyticsData.value.patternTypes);
+const recentLearningEvents = computed(() => analyticsData.value.recentLearningEvents);
+const abTestResults = computed(() => analyticsData.value.abTestResults);
+const averageRating = computed(() => analyticsData.value.averageRating);
+const totalFeedback = computed(() => analyticsData.value.totalFeedback);
+const feedbackResponseRate = computed(() => analyticsData.value.feedbackResponseRate);
+
 // Real-time updates
-let updateInterval: NodeJS.Timeout | null = null;
+let updateInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
   // Ensure self-learning system is started
@@ -326,7 +341,7 @@ const seedDemoDataIfEmpty = async () => {
     const demoPatterns = [
       {
         id: "demo-pattern-1",
-        type: "file-access",
+        type: "file-access" as const,
         description: "Frequent access to documents folder",
         confidence: 0.85,
         frequency: 12,
@@ -336,7 +351,7 @@ const seedDemoDataIfEmpty = async () => {
       },
       {
         id: "demo-pattern-2",
-        type: "directory-preference",
+        type: "directory-preference" as const,
         description: "Preference for project directories",
         confidence: 0.78,
         frequency: 8,
@@ -346,7 +361,7 @@ const seedDemoDataIfEmpty = async () => {
       },
       {
         id: "demo-pattern-3",
-        type: "cleanup-habit",
+        type: "cleanup-habit" as const,
         description: "Regular cleanup of temp files",
         confidence: 0.92,
         frequency: 6,
@@ -356,7 +371,7 @@ const seedDemoDataIfEmpty = async () => {
       },
       {
         id: "demo-pattern-4",
-        type: "time-pattern",
+        type: "time-pattern" as const,
         description: "Peak activity during afternoon hours",
         confidence: 0.73,
         frequency: 15,
@@ -408,14 +423,17 @@ const seedDemoDataIfEmpty = async () => {
 
     // Generate demo usage events
     const eventTypes = ["file-access", "directory-navigation", "cleanup-action"];
+    const usageEvents = [];
     for (let i = 0; i < 50; i++) {
-      await indexedDBPersistence.saveUsageEvent({
-        type: eventTypes[i % eventTypes.length],
+      usageEvents.push({
+        id: `demo-event-${i}`,
+        type: eventTypes[i % eventTypes.length] as any,
         timestamp: new Date(Date.now() - i * 2 * 60 * 60 * 1000),
         data: { demo: true, index: i },
         context: { source: "demo-seed" },
       });
     }
+    await indexedDBPersistence.saveUsageEvents(usageEvents);
 
     console.log("✅ Demo data seeded successfully");
   }
@@ -673,17 +691,34 @@ const drawSimpleChart = (
 const exportData = async () => {
   try {
     const data = await indexedDBPersistence.exportData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `learning-analytics-${new Date().toISOString().split("T")[0]}.json`;
-    a.click();
+    // Show format selection dialog
+    const format = prompt("Select export format:\ncsv\nexcel\npdf\njson", "json");
+    const filename = prompt("Enter filename (optional):", `analytics-export-${Date.now()}`);
 
-    URL.revokeObjectURL(url);
+    if (format && filename) {
+      // Import ExportService dynamically
+      const { ExportService } = await import("../../services/ExportService.js");
+
+      switch (format.toLowerCase()) {
+        case "csv":
+          ExportService.exportToCSV(data, filename);
+          break;
+        case "excel":
+          ExportService.exportToExcel(data, filename);
+          break;
+        case "pdf":
+          ExportService.exportToPDF(data, filename);
+          break;
+        case "json":
+        default:
+          ExportService.exportToJSON(data, filename);
+          break;
+      }
+    }
   } catch (error) {
-    console.error("Failed to export analytics data:", error);
+    console.error("Export failed:", error);
+    alert("Export failed. Please try again.");
   }
 };
 

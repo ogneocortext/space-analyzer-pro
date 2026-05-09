@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use tauri::Emitter;
 use std::io::ErrorKind;
+use std::path::{Path, Component, PathBuf};
 
 /// Structured error types for user-friendly error handling
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -137,6 +138,67 @@ pub struct DriveInfo {
 
 static CANCEL_FLAG: AtomicBool = AtomicBool::new(false);
 
+/// Validate and sanitize file paths to prevent path traversal attacks
+fn validate_path(path: &str) -> Result<String, TauriError> {
+    let path_obj = Path::new(path);
+
+    // Check for dangerous path traversal patterns
+    if path.contains("..") || path.contains("~") || path.contains('\0') {
+        return Err(TauriError::OperationFailed {
+            operation: "path validation".to_string(),
+            message: "Path contains potentially dangerous characters".to_string(),
+            suggestion: "Use absolute paths without traversal characters".to_string(),
+        });
+    }
+
+    // Check path length
+    if path.len() > 4096 {
+        return Err(TauriError::OperationFailed {
+            operation: "path validation".to_string(),
+            message: "Path exceeds maximum length".to_string(),
+            suggestion: "Use shorter path names".to_string(),
+        });
+    }
+
+    // Normalize path and ensure it's absolute
+    let normalized = match std::fs::canonicalize(path) {
+        Ok(p) => p,
+        Err(_) => {
+            // If canonicalization fails, try to normalize manually
+            let mut components = Vec::new();
+            for component in path_obj.components() {
+                match component {
+                    Component::RootDir | Component::CurDir => {
+                        // Skip these
+                    }
+                    Component::ParentDir => {
+                        return Err(TauriError::OperationFailed {
+                            operation: "path validation".to_string(),
+                            message: "Path traversal detected".to_string(),
+                            suggestion: "Use absolute paths without '..' components".to_string(),
+                        });
+                    }
+                    Component::Normal(c) => {
+                        components.push(c);
+                    }
+                    Component::Prefix(_) => {
+                        return Err(TauriError::OperationFailed {
+                            operation: "path validation".to_string(),
+                            message: "Invalid path prefix".to_string(),
+                            suggestion: "Use standard file paths".to_string(),
+                        });
+                    }
+                }
+            }
+
+            // Reconstruct safe path
+            Path::new("/").join(components.iter().collect::<PathBuf>())
+        }
+    };
+
+    Ok(normalized.to_string_lossy().to_string())
+}
+
 // In-memory error log storage for desktop mode
 use std::sync::Mutex;
 use once_cell::sync::Lazy;
@@ -166,27 +228,30 @@ const MAX_ERROR_LOGS: usize = 1000;
 pub fn analyze_directory(path: String) -> Result<DirectoryAnalysis, TauriError> {
     let start_time = Instant::now();
 
+    // Validate and sanitize path
+    let safe_path = validate_path(&path)?;
+
     // Validate path exists
-    if !std::path::Path::new(&path).exists() {
+    if !std::path::Path::new(&safe_path).exists() {
         return Err(TauriError::PathNotFound {
-            path: path.clone(),
-            suggestion: format!("Check if the path '{}' exists and is accessible", path),
+            path: safe_path.clone(),
+            suggestion: format!("Check if the path '{}' exists and is accessible", safe_path),
         });
     }
 
     // Validate path is a directory
-    if !std::path::Path::new(&path).is_dir() {
+    if !std::path::Path::new(&safe_path).is_dir() {
         return Err(TauriError::NotADirectory {
-            path: path.clone(),
+            path: safe_path.clone(),
             suggestion: "The specified path is not a directory. Please select a folder to analyze.".to_string(),
         });
     }
 
     let mut analysis = DirectoryAnalysis::default();
-    analysis.path = path.clone();
+    analysis.path = safe_path.clone();
 
     let scanner = FileScanner::new();
-    match scanner.scan_directory_sync(&path) {
+    match scanner.scan_directory_sync(&safe_path) {
         Ok(result) => {
             analysis.total_files = result.total_files;
             analysis.total_directories = result.total_directories;
@@ -201,7 +266,7 @@ pub fn analyze_directory(path: String) -> Result<DirectoryAnalysis, TauriError> 
             eprintln!("Scan error in analyze_directory: {}", e);
             Err(TauriError::OperationFailed {
                 operation: "scan".to_string(),
-                message: e,
+                message: e.to_string(),
                 suggestion: "Please try again with a different directory or contact support".to_string(),
             })
         }
@@ -217,6 +282,12 @@ pub async fn analyze_directory_with_progress(
     use std::time::{Instant, SystemTime};
 
     let start_time = Instant::now();
+
+    // Validate and sanitize path
+    let safe_path = match validate_path(&path) {
+        Ok(p) => p,
+        Err(e) => return Err(e.user_message()),
+    };
 
     CANCEL_FLAG.store(false, Ordering::Relaxed);
 

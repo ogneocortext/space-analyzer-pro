@@ -3008,6 +3008,7 @@ version = "2.8.9"
 dependencies = [
  "anyhow",
  "chrono",
+ "once_cell",
  "serde",
  "serde_json",
  "tauri",

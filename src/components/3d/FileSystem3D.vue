@@ -825,7 +825,9 @@ const focusNode = () => {
       const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
 
       camera.position.lerpVectors(startPosition, targetPosition, easeProgress);
-      controls.target.copy(selectedNode.value!.position);
+      if (selectedNode.value?.position) {
+        controls.target.copy(selectedNode.value.position);
+      }
       controls.update();
 
       if (progress < 1) {
@@ -991,16 +993,19 @@ const cleanup = () => {
 
   // Clear references
   scene = null;
-  camera = null;
-  renderer = null;
-  controls = null;
-
   // Clear node map
   nodeMap.clear();
 
   // Reset reactive state
   selectedNode.value = null;
   fileSystemData.value = null;
+
+  // Clear Three.js references
+  scene = null;
+  camera = null;
+  renderer = null;
+  controls = null;
+  font = null;
 };
 
 const formatBytes = (bytes: number): string => {

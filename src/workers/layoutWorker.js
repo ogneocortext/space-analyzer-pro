@@ -288,7 +288,7 @@ function calculateLayoutScore(layoutData, constraints) {
   let score = 0;
 
   // Node distribution score
-  const positions = layoutData.map((item) => item.position);
+  const positions = layoutData.filter((item) => item && item.position).map((item) => item.position);
   const distributionScore = calculateDistributionScore(positions);
   score += distributionScore * 0.3;
 
@@ -338,6 +338,9 @@ function calculateOverlapPenalty(layoutData) {
       const node1 = layoutData[i];
       const node2 = layoutData[j];
 
+      // Skip if nodes don't have positions
+      if (!node1?.position || !node2?.position) continue;
+
       const distance = calculateDistance(node1.position, node2.position);
       const minDistance = (node1.size + node2.size) * 1.5;
 
@@ -385,10 +388,12 @@ function analyzeLayoutPerformance(layoutData, cameraPosition) {
   };
 
   // Calculate distances from camera
-  const distances = layoutData.map((item) => {
-    const distance = calculateDistance(item.position, cameraPosition);
-    return distance;
-  });
+  const distances = layoutData
+    .filter((item) => item && item.position)
+    .map((item) => {
+      const distance = calculateDistance(item.position, cameraPosition);
+      return distance;
+    });
 
   analysis.minDistance = Math.min(...distances);
   analysis.maxDistance = Math.max(...distances);

@@ -15,7 +15,7 @@ const emptyFolders = computed(() => {
   const fileParentFolders = new Set<string>();
 
   // Collect all folder paths and file parent paths
-  files.forEach((file: any) => {
+  files.forEach((file: { path: string }) => {
     const parts = file.path.split(/[\\/]/);
     const fullPath = parts.slice(0, -1).join("/");
 
@@ -36,7 +36,7 @@ const emptyFolders = computed(() => {
   // are considered "empty" (they may contain subfolders with files)
   const potentiallyEmpty = Array.from(folderPaths).filter((folder) => {
     // Check if any file is DIRECTLY in this folder (not in subfolders)
-    const hasDirectFiles = files.some((f: any) => {
+    const hasDirectFiles = files.some((f: { path: string }) => {
       const parent = f.path.split(/[\\/]/).slice(0, -1).join("/");
       return parent === folder;
     });
@@ -92,10 +92,59 @@ async function deleteSelected() {
   );
   if (!confirmed) return;
 
-  // In a real implementation, this would call the backend
-  alert(
-    `Would delete ${selectedFolders.value.size} folders.\n(Backend deletion not implemented in demo)`
-  );
+  // Call backend to delete folders
+  try {
+    const response = await fetch("/api/folders/delete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        folders: Array.from(selectedFolders.value),
+      }),
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) {
+        selectedFolders.value.clear();
+        // Show success message
+        const successMessage = document.createElement("div");
+        successMessage.className =
+          "fixed top-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50";
+        successMessage.innerHTML = `
+          <div class="p-4">
+            <h3 class="font-bold text-lg mb-2">Folders Deleted Successfully</h3>
+            <p>Deleted ${result.deletedCount || selectedFolders.value.size} empty folders.</p>
+          </div>
+        `;
+        document.body.appendChild(successMessage);
+        setTimeout(() => {
+          document.body.removeChild(successMessage);
+        }, 3000);
+      } else {
+        throw new Error(result.message || "Failed to delete folders");
+      }
+    } else {
+      throw new Error("Failed to connect to backend");
+    }
+  } catch (error) {
+    console.error("Error deleting folders:", error);
+    // Show error message
+    const errorMessage = document.createElement("div");
+    errorMessage.className =
+      "fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50";
+    errorMessage.innerHTML = `
+      <div class="p-4">
+        <h3 class="font-bold text-lg mb-2">Deletion Failed</h3>
+        <p>Failed to delete folders: ${(error as Error).message}</p>
+      </div>
+    `;
+    document.body.appendChild(errorMessage);
+    setTimeout(() => {
+      document.body.removeChild(errorMessage);
+    }, 5000);
+  }
   selectedFolders.value.clear();
 }
 </script>
@@ -113,18 +162,22 @@ async function deleteSelected() {
     <!-- No Data -->
     <div v-if="!store.analysisResult" class="p-8 text-center">
       <p class="text-slate-400 mb-4">No scan data available. Please scan a directory first.</p>
-      <Button variant="secondary" @click="$router.push('/scan')">Go to Scanner</Button>
+      <Button variant="secondary" @click="$router.push('/scan')"> Go to Scanner </Button>
     </div>
 
     <template v-else>
       <!-- Stats -->
       <div v-if="stats" class="grid grid-cols-3 gap-4">
         <Card title="Empty Folders Found">
-          <div class="text-2xl font-bold text-orange-400">{{ stats.total }}</div>
+          <div class="text-2xl font-bold text-orange-400">
+            {{ stats.total }}
+          </div>
           <div class="text-sm text-slate-500">directories without files</div>
         </Card>
         <Card title="Selected">
-          <div class="text-2xl font-bold text-blue-400">{{ stats.selected }}</div>
+          <div class="text-2xl font-bold text-blue-400">
+            {{ stats.selected }}
+          </div>
           <div class="text-sm text-slate-500">marked for deletion</div>
         </Card>
         <Card title="Action">
@@ -140,7 +193,7 @@ async function deleteSelected() {
         class="flex items-center gap-4 p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg"
       >
         <span class="text-orange-400">{{ selectedFolders.size }} folders selected</span>
-        <Button variant="secondary" size="sm" @click="clearSelection">Clear</Button>
+        <Button variant="secondary" size="sm" @click="clearSelection"> Clear </Button>
       </div>
 
       <!-- Folder List -->
@@ -153,10 +206,10 @@ async function deleteSelected() {
             <input
               type="checkbox"
               :checked="selectedFolders.size === emptyFolders.length && emptyFolders.length > 0"
+              class="rounded border-slate-600 bg-slate-800"
               @change="
                 selectedFolders.size === emptyFolders.length ? clearSelection() : selectAll()
               "
-              class="rounded border-slate-600 bg-slate-800"
             />
             <span class="flex-1">Folder Path</span>
             <span class="w-20 text-center">Depth</span>
@@ -173,8 +226,8 @@ async function deleteSelected() {
             <input
               type="checkbox"
               :checked="selectedFolders.has(folder.path)"
-              @change="toggleSelection(folder.path)"
               class="rounded border-slate-600 bg-slate-800"
+              @change="toggleSelection(folder.path)"
             />
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">

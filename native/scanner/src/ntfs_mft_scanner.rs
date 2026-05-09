@@ -178,7 +178,11 @@ impl NtfsMftScanner {
             if !success {
                 let error = unsafe { GetLastError() };
                 if error != ERROR_HANDLE_EOF {
-                    let win_err = WindowsError::new(error, "Read MFT");
+                    let volume_path = self.volume_info.as_ref()
+                        .map(|info| info.volume_path.clone())
+                        .unwrap_or_else(|| "Unknown".to_string());
+                    let win_err = WindowsError::new(error, "Read MFT")
+                        .with_path(&volume_path);
                     eprintln!("MFT Scanner: {}", win_err.format_error());
                     return Err(format!("{} (Suggestion: {})", win_err.format_error(), win_err.suggestion()));
                 }

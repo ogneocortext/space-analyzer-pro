@@ -4,6 +4,7 @@ import * as d3 from "d3";
 import { useAnalysisStore } from "../../store/analysis";
 import { useSelfLearningStore } from "../../store/selfLearning";
 import { Card, Button } from "../../design-system/components";
+import { getCategoryColor } from "../../utils/dataTransformers";
 
 const store = useAnalysisStore();
 const selfLearningStore = useSelfLearningStore();
@@ -62,20 +63,6 @@ const treemapData = computed(() => {
 
   return Object.values(root.children).map(processNode);
 });
-
-// Get color based on category
-function getCategoryColor(category: string): string {
-  const colors: Record<string, string> = {
-    media: "#f59e0b",
-    images: "#f59e0b",
-    videos: "#ef4444",
-    documents: "#3b82f6",
-    code: "#10b981",
-    archives: "#8b5cf6",
-    other: "#64748b",
-  };
-  return colors[category] || colors.other;
-}
 
 // D3.js treemap rendering
 function renderD3Treemap() {
@@ -443,30 +430,30 @@ const handleItemClick = (item: any) => {
     <!-- No Data -->
     <div v-if="!store.analysisResult" class="p-8 text-center">
       <p class="text-slate-400 mb-4">No scan data available. Please scan a directory first.</p>
-      <Button variant="secondary" @click="$router.push('/scan')">Go to Scanner</Button>
+      <Button variant="secondary" @click="$router.push('/scan')"> Go to Scanner </Button>
     </div>
 
     <template v-else>
       <!-- Legend -->
       <div class="flex flex-wrap gap-4 text-sm legend">
         <div class="flex items-center gap-2">
-          <div class="w-4 h-4 rounded" style="background: #f59e0b"></div>
+          <div class="w-4 h-4 rounded" style="background: #f59e0b" />
           <span class="text-slate-400">Media</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-4 h-4 rounded" style="background: #ef4444"></div>
+          <div class="w-4 h-4 rounded" style="background: #ef4444" />
           <span class="text-slate-400">Videos</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-4 h-4 rounded" style="background: #3b82f6"></div>
+          <div class="w-4 h-4 rounded" style="background: #3b82f6" />
           <span class="text-slate-400">Documents</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-4 h-4 rounded" style="background: #10b981"></div>
+          <div class="w-4 h-4 rounded" style="background: #10b981" />
           <span class="text-slate-400">Code</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-4 h-4 rounded" style="background: #8b5cf6"></div>
+          <div class="w-4 h-4 rounded" style="background: #8b5cf6" />
           <span class="text-slate-400">Archives</span>
         </div>
       </div>
@@ -478,7 +465,7 @@ const handleItemClick = (item: any) => {
           v-if="renderMode === 'svg' || renderMode === 'hybrid'"
           class="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden"
         >
-          <svg ref="svgRef" class="w-full cursor-move"></svg>
+          <svg ref="svgRef" class="w-full cursor-move" />
         </div>
 
         <!-- Canvas Treemap -->
@@ -486,7 +473,7 @@ const handleItemClick = (item: any) => {
           v-else-if="renderMode === 'canvas'"
           class="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden"
         >
-          <canvas ref="canvasRef" class="w-full cursor-pointer"></canvas>
+          <canvas ref="canvasRef" class="w-full cursor-pointer" />
         </div>
 
         <!-- Fallback Grid View -->
@@ -500,8 +487,12 @@ const handleItemClick = (item: any) => {
             @mouseover="hoveredItem = item"
             @mouseleave="hoveredItem = null"
           >
-            <div class="text-white font-medium truncate">{{ item.name }}</div>
-            <div class="text-white/80 text-sm">{{ formatSize(item.size) }}</div>
+            <div class="text-white font-medium truncate">
+              {{ item.name }}
+            </div>
+            <div class="text-white/80 text-sm">
+              {{ formatSize(item.size) }}
+            </div>
             <div class="text-white/60 text-xs">{{ item.percentage.toFixed(1) }}%</div>
           </div>
         </div>
@@ -512,20 +503,28 @@ const handleItemClick = (item: any) => {
         <div class="grid grid-cols-3 gap-4">
           <div>
             <div class="text-sm text-slate-500">Name</div>
-            <div class="font-medium text-slate-200">{{ hoveredItem.name }}</div>
+            <div class="font-medium text-slate-200">
+              {{ hoveredItem.name }}
+            </div>
           </div>
           <div>
             <div class="text-sm text-slate-500">Size</div>
-            <div class="font-medium text-slate-200">{{ formatSize(hoveredItem.size) }}</div>
+            <div class="font-medium text-slate-200">
+              {{ formatSize(hoveredItem.size) }}
+            </div>
           </div>
           <div>
             <div class="text-sm text-slate-500">Files</div>
-            <div class="font-medium text-slate-200">{{ hoveredItem.fileCount }}</div>
+            <div class="font-medium text-slate-200">
+              {{ hoveredItem.fileCount }}
+            </div>
           </div>
         </div>
         <div class="mt-4">
           <div class="text-sm text-slate-500">Path</div>
-          <div class="font-mono text-sm text-slate-300">{{ hoveredItem.path }}</div>
+          <div class="font-mono text-sm text-slate-300">
+            {{ hoveredItem.path }}
+          </div>
         </div>
         <div class="mt-4">
           <div class="text-sm text-slate-500">Percentage of Total</div>

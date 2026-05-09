@@ -115,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onErrorCaptured } from "vue";
+import { ref, onErrorCaptured, onMounted, onUnmounted } from "vue";
 import { AlertTriangle, RefreshCw, Bug, ExternalLink } from "lucide-vue-next";
 
 interface ErrorBoundaryProps {
@@ -133,25 +133,56 @@ const errorStack = ref<string>("");
 const errorId = ref("");
 const componentName = ref("");
 
-onErrorCaptured((err, instance, info) => {
+// Enhanced error handler for both sync and async errors
+const handleError = (err: Error, context?: string) => {
   hasError.value = true;
   error.value = err;
   errorStack.value = err.stack || "";
   errorId.value = `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  componentName.value = info || "Unknown";
+  componentName.value = context || "Async Operation";
 
   // Log error details for debugging
   console.error("ErrorBoundary caught an error:", {
     error: err.message,
     stack: err.stack,
-    info,
+    context,
     errorId: errorId.value,
   });
 
   // Call custom error handler if provided
   if (props.onError) {
-    props.onError(err, instance, info);
+    props.onError(err, null, context || "Async Error");
   }
+};
+
+// Handle unhandled promise rejections
+const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+  event.preventDefault(); // Prevent default browser behavior
+  const error = event.reason instanceof Error ? event.reason : new Error(String(event.reason));
+  handleError(error, "Unhandled Promise Rejection");
+};
+
+// Handle global JavaScript errors
+const handleGlobalError = (event: ErrorEvent) => {
+  event.preventDefault();
+  const error = event.error instanceof Error ? event.error : new Error(event.message);
+  handleError(error, "Global JavaScript Error");
+};
+
+// Set up global error handlers when component mounts
+onMounted(() => {
+  window.addEventListener("unhandledrejection", handleUnhandledRejection);
+  window.addEventListener("error", handleGlobalError);
+});
+
+// Clean up global error handlers when component unmounts
+onUnmounted(() => {
+  window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+  window.removeEventListener("error", handleGlobalError);
+});
+
+onErrorCaptured((err, instance, info) => {
+  handleError(err, info);
 
   // Prevent error from propagating further
   return false;

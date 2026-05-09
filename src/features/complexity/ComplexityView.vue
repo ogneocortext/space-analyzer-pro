@@ -15,6 +15,11 @@ const filesNeedingRefactoring = ref<any[]>([]);
 const selectedLanguage = ref<string>("all");
 const selectedGrade = ref<string>("all");
 const sortBy = ref<"complexity" | "maintainability" | "lines" | "grade">("complexity");
+const searchQuery = ref<string>("");
+const analysisProgress = ref<number>(0);
+const selectedFile = ref<any>(null);
+const showFileDetails = ref<boolean>(false);
+const expandedFiles = ref<Set<string>>(new Set());
 
 // Load complexity data on mount
 onMounted(async () => {
@@ -26,40 +31,46 @@ onMounted(async () => {
 // Load complexity data from API
 async function loadComplexityData() {
   loading.value = true;
+  analysisProgress.value = 0;
   try {
-    const result = await api.get("/complexity/summary", {
-      directory: store.analysisResult.directory,
+    analysisProgress.value = 25;
+    const result = await (api as any).get("/complexity/summary", {
+      directory: store.analysisResult?.directory,
     });
 
     if (result.success) {
       const data = result.data;
       summary.value = data.summary;
       filesNeedingRefactoring.value = data.filesNeedingRefactoring || [];
+      analysisProgress.value = 50;
 
       // Load detailed metrics
-      const metricsResponse = await api.get("/complexity/metrics", {
-        directory: store.analysisResult.directory,
+      const metricsResponse = await (api as any).get("/complexity/metrics", {
+        directory: store.analysisResult?.directory,
         limit: 100,
       });
 
       if (metricsResponse.success) {
         const metricsData = metricsResponse.data;
         complexityData.value = metricsData.metrics || [];
+        analysisProgress.value = 100;
       }
     }
   } catch (err) {
     console.error("Failed to load complexity data:", err);
   } finally {
     loading.value = false;
+    analysisProgress.value = 0;
   }
 }
 
 // Run complexity analysis
 async function analyzeComplexity() {
   analyzing.value = true;
+  analysisProgress.value = 0;
   try {
-    const result = await api.post("/complexity/analyze", {
-      directory: store.analysisResult.directory,
+    const result = await (api as any).post("/complexity/analyze", {
+      directory: store.analysisResult?.directory,
       includeMetrics: true,
       includeRecommendations: true,
     });
@@ -72,12 +83,24 @@ async function analyzeComplexity() {
     console.error("Failed to analyze complexity:", err);
   } finally {
     analyzing.value = false;
+    analysisProgress.value = 0;
   }
 }
 
 // Filtered and sorted files
 const filteredFiles = computed(() => {
   let files = complexityData.value;
+
+  // Filter by search query
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase();
+    files = files.filter(
+      (f) =>
+        f.file_path.toLowerCase().includes(query) ||
+        f.language?.toLowerCase().includes(query) ||
+        f.complexity_grade?.toLowerCase().includes(query)
+    );
+  }
 
   // Filter by language
   if (selectedLanguage.value !== "all") {
@@ -98,9 +121,10 @@ const filteredFiles = computed(() => {
         return a.maintainability_index - b.maintainability_index;
       case "lines":
         return b.lines_of_code - a.lines_of_code;
-      case "grade":
-        const gradeOrder = { F: 0, D: 1, C: 2, B: 3, A: 4 };
+      case "grade": {
+        const gradeOrder: Record<string, number> = { F: 0, D: 1, C: 2, B: 3, A: 4 };
         return (gradeOrder[b.complexity_grade] || 0) - (gradeOrder[a.complexity_grade] || 0);
+      }
       default:
         return 0;
     }
@@ -171,6 +195,77 @@ function getPriorityLabel(priority: string): string {
   };
   return labels[priority] || priority;
 }
+
+function getGradeDescription(grade: string): string {
+  const descriptions: Record<string, string> = {
+    A: "Excellent code quality (0-10 CC)",
+    B: "Good code quality (11-20 CC)",
+    C: "Fair code quality (21-40 CC)",
+    D: "Poor code quality (41-60 CC)",
+    F: "Critical code quality (>60 CC)",
+  };
+  return descriptions[grade] || "Unknown grade";
+}
+
+// Helper functions for UX improvements
+function toggleFileExpansion(filePath: string) {
+  if (expandedFiles.value.has(filePath)) {
+    expandedFiles.value.delete(filePath);
+  } else {
+    expandedFiles.value.add(filePath);
+  }
+}
+
+function showFileDetailsModal(file: any) {
+  selectedFile.value = file;
+  showFileDetails.value = true;
+}
+
+function closeFileDetails() {
+  selectedFile.value = null;
+  showFileDetails.value = false;
+}
+
+function exportToCSV() {
+  const headers = [
+    "File Path",
+    "Language",
+    "Grade",
+    "Cyclomatic Complexity",
+    "Maintainability Index",
+    "Lines of Code",
+    "Function Count",
+    "Max Function Length",
+  ];
+  const rows = filteredFiles.value.map((file) => [
+    file.file_path,
+    file.language || "Unknown",
+    file.complexity_grade || "N/A",
+    file.cyclomatic_complexity || 0,
+    file.maintainability_index?.toFixed(2) || 0,
+    file.lines_of_code || 0,
+    file.function_count || 0,
+    file.max_function_length || 0,
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${cell}"`).join(","))
+    .join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `complexity-analysis-${new Date().toISOString().split("T")[0]}.csv`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+}
+
+function openFile(file: any) {
+  // This would typically open the file in an editor or viewer
+  console.error("Opening file:", file.file_path);
+  // Implementation depends on your file opening mechanism
+}
 </script>
 
 <template>
@@ -179,8 +274,8 @@ function getPriorityLabel(priority: string): string {
       <h1 class="text-2xl font-bold text-slate-100">Code Complexity Analysis</h1>
       <Button
         variant="primary"
-        @click="analyzeComplexity"
         :disabled="analyzing || !store.analysisResult?.directory"
+        @click="analyzeComplexity"
       >
         <span v-if="analyzing">Analyzing...</span>
         <span v-else>Run Analysis</span>
@@ -191,8 +286,17 @@ function getPriorityLabel(priority: string): string {
     <div v-if="loading" class="text-center py-12">
       <div
         class="inline-block animate-spin w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full mb-4"
-      ></div>
-      <p class="text-slate-400">Loading complexity data...</p>
+      />
+      <p class="text-slate-400 mb-2">Loading complexity data...</p>
+      <div v-if="analysisProgress > 0" class="w-64 mx-auto">
+        <div class="bg-slate-800 rounded-full h-2 overflow-hidden">
+          <div
+            class="bg-violet-500 h-full transition-all duration-300"
+            :style="{ width: `${analysisProgress}%` }"
+          />
+        </div>
+        <p class="text-xs text-slate-500 mt-1">{{ analysisProgress }}% complete</p>
+      </div>
     </div>
 
     <!-- Empty State -->
@@ -217,8 +321,8 @@ function getPriorityLabel(priority: string): string {
       <p class="text-slate-500 mb-4">Run complexity analysis to see code quality metrics</p>
       <Button
         variant="primary"
-        @click="analyzeComplexity"
         :disabled="analyzing || !store.analysisResult?.directory"
+        @click="analyzeComplexity"
       >
         <span v-if="analyzing">Analyzing...</span>
         <span v-else>Analyze Code</span>
@@ -230,7 +334,9 @@ function getPriorityLabel(priority: string): string {
       <Card padding="md" class="bg-slate-900 border-slate-800">
         <div class="text-center">
           <p class="text-sm text-slate-400 mb-1">Files Analyzed</p>
-          <p class="text-3xl font-bold text-slate-100">{{ formatNumber(summary?.total_files) }}</p>
+          <p class="text-3xl font-bold text-slate-100">
+            {{ formatNumber(summary?.total_files) }}
+          </p>
         </div>
       </Card>
 
@@ -297,7 +403,7 @@ function getPriorityLabel(priority: string): string {
                   class="h-full rounded-full transition-all"
                   :class="getGradeColor(grade)"
                   :style="{ width: `${(count / (summary?.total_files || 1)) * 100}%` }"
-                ></div>
+                />
               </div>
             </div>
             <span class="text-sm text-slate-400 w-12 text-right">{{ count }}</span>
@@ -330,7 +436,7 @@ function getPriorityLabel(priority: string): string {
                   class="h-full rounded-full transition-all"
                   :class="getPriorityColor(priority).split(' ')[0].replace('text-', 'bg-')"
                   :style="{ width: `${(count / (summary?.total_files || 1)) * 100}%` }"
-                ></div>
+                />
               </div>
             </div>
             <span class="text-sm text-slate-400 w-12 text-right">{{ count }}</span>
@@ -367,8 +473,12 @@ function getPriorityLabel(priority: string): string {
           class="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg"
         >
           <div class="flex-1 min-w-0">
-            <p class="font-medium text-slate-200 truncate">{{ file.file_path.split("/").pop() }}</p>
-            <p class="text-xs text-slate-500 truncate">{{ file.file_path }}</p>
+            <p class="font-medium text-slate-200 truncate">
+              {{ file.file_path.split("/").pop() }}
+            </p>
+            <p class="text-xs text-slate-500 truncate">
+              {{ file.file_path }}
+            </p>
           </div>
           <div class="flex items-center gap-3 ml-4">
             <span
@@ -386,119 +496,227 @@ function getPriorityLabel(priority: string): string {
       </div>
     </Card>
 
-    <!-- Filters -->
+    <!-- Search and Filters -->
     <Card v-if="complexityData.length > 0" padding="sm" class="bg-slate-900 border-slate-800">
-      <div class="flex flex-wrap gap-4 items-center">
-        <div class="flex items-center gap-2">
-          <label class="text-sm text-slate-400">Language:</label>
-          <select
-            v-model="selectedLanguage"
-            class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200"
+      <div class="space-y-4">
+        <!-- Search Bar -->
+        <div class="relative">
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search files by name, language, or grade..."
+            class="w-full bg-slate-800 border-slate-700 rounded-lg px-4 py-2 pl-10 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
+          />
+          <svg
+            class="absolute left-3 top-2.5 w-4 h-4 text-slate-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <option v-for="lang in languages" :key="lang" :value="lang">
-              {{ lang === "all" ? "All Languages" : lang }}
-            </option>
-          </select>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
         </div>
 
-        <div class="flex items-center gap-2">
-          <label class="text-sm text-slate-400">Grade:</label>
-          <select
-            v-model="selectedGrade"
-            class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200"
-          >
-            <option value="all">All Grades</option>
-            <option value="A">A (Excellent)</option>
-            <option value="B">B (Good)</option>
-            <option value="C">C (Fair)</option>
-            <option value="D">D (Poor)</option>
-            <option value="F">F (Critical)</option>
-          </select>
-        </div>
+        <!-- Filters Row -->
+        <div class="flex flex-wrap gap-4 items-center">
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-slate-400">Language:</label>
+            <select
+              v-model="selectedLanguage"
+              class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200"
+            >
+              <option v-for="lang in languages" :key="lang" :value="lang">
+                {{ lang === "all" ? "All Languages" : lang }}
+              </option>
+            </select>
+          </div>
 
-        <div class="flex items-center gap-2">
-          <label class="text-sm text-slate-400">Sort By:</label>
-          <select
-            v-model="sortBy"
-            class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200"
-          >
-            <option value="complexity">Cyclomatic Complexity</option>
-            <option value="maintainability">Maintainability Index</option>
-            <option value="lines">Lines of Code</option>
-            <option value="grade">Grade</option>
-          </select>
-        </div>
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-slate-400">Grade:</label>
+            <select
+              v-model="selectedGrade"
+              class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200"
+            >
+              <option value="all">All Grades</option>
+              <option value="A">A (Excellent)</option>
+              <option value="B">B (Good)</option>
+              <option value="C">C (Fair)</option>
+              <option value="D">D (Poor)</option>
+              <option value="F">F (Critical)</option>
+            </select>
+          </div>
 
-        <div class="ml-auto text-sm text-slate-400">
-          Showing {{ filteredFiles.length }} of {{ complexityData.length }} files
+          <div class="flex items-center gap-2">
+            <label class="text-sm text-slate-400">Sort By:</label>
+            <select
+              v-model="sortBy"
+              class="bg-slate-800 border-slate-700 rounded px-3 py-1 text-sm text-slate-200"
+            >
+              <option value="complexity">Cyclomatic Complexity</option>
+              <option value="maintainability">Maintainability Index</option>
+              <option value="lines">Lines of Code</option>
+              <option value="grade">Grade</option>
+            </select>
+          </div>
+
+          <div class="ml-auto flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              :disabled="filteredFiles.length === 0"
+              @click="exportToCSV"
+            >
+              Export CSV
+            </Button>
+            <div class="text-sm text-slate-400">
+              {{ filteredFiles.length }} of {{ complexityData.length }} files
+            </div>
+          </div>
         </div>
       </div>
     </Card>
 
     <!-- Complexity Table -->
     <Card v-if="filteredFiles.length > 0" padding="md" class="bg-slate-900 border-slate-800">
-      <h3 class="text-lg font-semibold text-slate-200 mb-4">Detailed Complexity Metrics</h3>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold text-slate-200">Detailed Complexity Metrics</h3>
+        <div class="text-xs text-slate-500">
+          <span class="inline-flex items-center gap-1">
+            <span class="w-2 h-2 bg-emerald-500 rounded-full" /> Good
+          </span>
+          <span class="inline-flex items-center gap-1 ml-3">
+            <span class="w-2 h-2 bg-yellow-500 rounded-full" /> Fair
+          </span>
+          <span class="inline-flex items-center gap-1 ml-3">
+            <span class="w-2 h-2 bg-red-500 rounded-full" /> Poor
+          </span>
+        </div>
+      </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-slate-800">
-              <th class="text-left py-2 px-3 text-slate-400 font-medium">File</th>
-              <th class="text-center py-2 px-3 text-slate-400 font-medium">Language</th>
-              <th class="text-center py-2 px-3 text-slate-400 font-medium">Grade</th>
-              <th class="text-center py-2 px-3 text-slate-400 font-medium">Complexity</th>
-              <th class="text-center py-2 px-3 text-slate-400 font-medium">Maintainability</th>
-              <th class="text-center py-2 px-3 text-slate-400 font-medium">Lines</th>
-              <th class="text-center py-2 px-3 text-slate-400 font-medium">Functions</th>
-              <th class="text-center py-2 px-3 text-slate-400 font-medium">Max Function</th>
+              <th class="text-left py-3 px-3 text-slate-400 font-medium">File</th>
+              <th class="text-center py-3 px-3 text-slate-400 font-medium">Language</th>
+              <th class="text-center py-3 px-3 text-slate-400 font-medium">Grade</th>
+              <th class="text-center py-3 px-3 text-slate-400 font-medium">Complexity</th>
+              <th class="text-center py-3 px-3 text-slate-400 font-medium">Maintainability</th>
+              <th class="text-center py-3 px-3 text-slate-400 font-medium">Lines</th>
+              <th class="text-center py-3 px-3 text-slate-400 font-medium">Functions</th>
+              <th class="text-center py-3 px-3 text-slate-400 font-medium">Max Function</th>
+              <th class="text-center py-3 px-3 text-slate-400 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr
               v-for="file in filteredFiles.slice(0, 50)"
               :key="file.file_path"
-              class="border-b border-slate-800/50 hover:bg-slate-800/30"
+              class="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
             >
-              <td class="py-2 px-3">
-                <p class="font-medium text-slate-200 truncate max-w-xs">
-                  {{ file.file_path.split("/").pop() }}
-                </p>
-                <p class="text-xs text-slate-500 truncate max-w-xs">{{ file.file_path }}</p>
+              <td class="py-3 px-3">
+                <div class="max-w-xs">
+                  <p class="font-medium text-slate-200 truncate" :title="file.file_path">
+                    {{ file.file_path.split("/").pop() }}
+                  </p>
+                  <p class="text-xs text-slate-500 truncate" :title="file.file_path">
+                    {{ file.file_path }}
+                  </p>
+                </div>
               </td>
-              <td class="py-2 px-3 text-center">
-                <span class="px-2 py-0.5 bg-slate-800 rounded text-xs text-slate-400 capitalize">
+              <td class="py-3 px-3 text-center">
+                <span class="px-2 py-1 bg-slate-800 rounded text-xs text-slate-400 capitalize">
                   {{ file.language }}
                 </span>
               </td>
-              <td class="py-2 px-3 text-center">
+              <td class="py-3 px-3 text-center">
                 <span
-                  class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-sm font-bold text-white"
+                  class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold text-white"
                   :class="getGradeColor(file.complexity_grade)"
+                  :title="`Grade ${file.complexity_grade}: ${getGradeDescription(file.complexity_grade)}`"
                 >
                   {{ file.complexity_grade }}
                 </span>
               </td>
-              <td class="py-2 px-3 text-center">
-                <span :class="file.cyclomatic_complexity > 30 ? 'text-red-400' : 'text-slate-300'">
+              <td class="py-3 px-3 text-center">
+                <span
+                  :class="
+                    file.cyclomatic_complexity > 30 ? 'text-red-400 font-medium' : 'text-slate-300'
+                  "
+                  :title="`Cyclomatic Complexity: ${file.cyclomatic_complexity}`"
+                >
                   {{ file.cyclomatic_complexity }}
                 </span>
               </td>
-              <td class="py-2 px-3 text-center">
+              <td class="py-3 px-3 text-center">
                 <span
-                  :class="file.maintainability_index < 50 ? 'text-red-400' : 'text-emerald-400'"
+                  :class="
+                    file.maintainability_index < 50
+                      ? 'text-red-400 font-medium'
+                      : 'text-emerald-400'
+                  "
+                  :title="`Maintainability Index: ${file.maintainability_index?.toFixed(1)}`"
                 >
                   {{ file.maintainability_index?.toFixed(0) }}
                 </span>
               </td>
-              <td class="py-2 px-3 text-center text-slate-300">
+              <td class="py-3 px-3 text-center text-slate-300">
                 {{ formatNumber(file.lines_of_code) }}
               </td>
-              <td class="py-2 px-3 text-center text-slate-300">
+              <td class="py-3 px-3 text-center text-slate-300">
                 {{ file.function_count }}
               </td>
-              <td class="py-2 px-3 text-center">
-                <span :class="file.max_function_length > 50 ? 'text-orange-400' : 'text-slate-300'">
+              <td class="py-3 px-3 text-center">
+                <span
+                  :class="
+                    file.max_function_length > 50 ? 'text-orange-400 font-medium' : 'text-slate-300'
+                  "
+                  :title="`Max Function Length: ${file.max_function_length} lines`"
+                >
                   {{ file.max_function_length }}
                 </span>
+              </td>
+              <td class="py-3 px-3 text-center">
+                <div class="flex items-center justify-center gap-2">
+                  <button
+                    class="text-violet-400 hover:text-violet-300 transition-colors"
+                    title="View Details"
+                    @click="showFileDetailsModal(file)"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    class="text-slate-400 hover:text-slate-300 transition-colors"
+                    title="Open File"
+                    @click="openFile(file)"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -508,5 +726,113 @@ function getPriorityLabel(priority: string): string {
         Showing first 50 files. Use filters to narrow results.
       </div>
     </Card>
+
+    <!-- File Details Modal -->
+    <div
+      v-if="showFileDetails && selectedFile"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+    >
+      <div
+        class="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto"
+      >
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-xl font-semibold text-slate-100">File Details</h3>
+          <button
+            class="text-slate-400 hover:text-slate-300 transition-colors"
+            @click="closeFileDetails"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <h4 class="text-sm font-medium text-slate-400 mb-1">File Path</h4>
+            <p class="text-slate-200 font-mono text-sm">
+              {{ selectedFile.file_path }}
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <h4 class="text-sm font-medium text-slate-400 mb-1">Language</h4>
+              <p class="text-slate-200">
+                {{ selectedFile.language || "Unknown" }}
+              </p>
+            </div>
+            <div>
+              <h4 class="text-sm font-medium text-slate-400 mb-1">Complexity Grade</h4>
+              <div class="flex items-center gap-2">
+                <span
+                  class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold text-white"
+                  :class="getGradeColor(selectedFile.complexity_grade)"
+                >
+                  {{ selectedFile.complexity_grade }}
+                </span>
+                <span class="text-slate-200">{{
+                  getGradeDescription(selectedFile.complexity_grade)
+                }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <h4 class="text-sm font-medium text-slate-400 mb-1">Cyclomatic Complexity</h4>
+              <p
+                class="text-2xl font-bold"
+                :class="selectedFile.cyclomatic_complexity > 30 ? 'text-red-400' : 'text-slate-200'"
+              >
+                {{ selectedFile.cyclomatic_complexity }}
+              </p>
+            </div>
+            <div>
+              <h4 class="text-sm font-medium text-slate-400 mb-1">Maintainability Index</h4>
+              <p
+                class="text-2xl font-bold"
+                :class="
+                  selectedFile.maintainability_index < 50 ? 'text-red-400' : 'text-emerald-400'
+                "
+              >
+                {{ selectedFile.maintainability_index?.toFixed(1) }}
+              </p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4">
+            <div>
+              <h4 class="text-sm font-medium text-slate-400 mb-1">Lines of Code</h4>
+              <p class="text-slate-200">
+                {{ formatNumber(selectedFile.lines_of_code) }}
+              </p>
+            </div>
+            <div>
+              <h4 class="text-sm font-medium text-slate-400 mb-1">Function Count</h4>
+              <p class="text-slate-200">
+                {{ selectedFile.function_count }}
+              </p>
+            </div>
+            <div>
+              <h4 class="text-sm font-medium text-slate-400 mb-1">Max Function Length</h4>
+              <p class="text-slate-200">{{ selectedFile.max_function_length }} lines</p>
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-slate-800">
+            <div class="flex items-center gap-4">
+              <Button variant="primary" @click="openFile(selectedFile)"> Open File </Button>
+              <Button variant="secondary" @click="closeFileDetails"> Close </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

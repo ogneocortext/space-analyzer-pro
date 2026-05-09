@@ -1,35 +1,66 @@
 <template>
-  <div v-if="store.isAnalysisRunning" class="flex items-center gap-3">
+  <div
+    v-if="store.isAnalysisRunning"
+    class="flex items-center gap-3"
+    role="status"
+    aria-live="polite"
+  >
     <!-- Background Task Indicator -->
     <div
       class="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg"
+      role="progressbar"
+      :aria-valuenow="store.progress"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-label="Analysis progress"
     >
       <div class="relative">
-        <Activity class="w-4 h-4 text-blue-400 animate-pulse" />
-        <div class="absolute -top-1 -right-1 w-2 h-2 bg-blue-400 rounded-full animate-ping"></div>
+        <Activity class="w-4 h-4 text-blue-400 animate-pulse" aria-hidden="true" />
+        <div
+          class="absolute -top-1 -right-1 w-2 h-2 bg-blue-400 rounded-full animate-ping"
+          aria-hidden="true"
+        />
       </div>
       <div class="flex flex-col min-w-0">
-        <span class="text-xs font-medium text-blue-300">Scanning in Progress</span>
+        <span class="text-xs font-medium text-blue-300" aria-live="polite"
+          >Scanning in Progress</span
+        >
         <div class="flex items-center gap-2">
-          <div class="flex-1 w-24 bg-slate-700 rounded-full h-1.5 overflow-hidden">
+          <div
+            class="flex-1 w-24 bg-slate-700 rounded-full h-1.5 overflow-hidden"
+            aria-hidden="true"
+          >
             <div
               class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full transition-all duration-300 ease-out"
               :style="{ width: `${store.progress}%` }"
-            ></div>
+            />
           </div>
-          <span class="text-xs text-slate-400">{{ store.progress }}%</span>
+          <span class="text-xs text-slate-400" aria-label="Progress percentage"
+            >{{ store.progress }}%</span
+          >
         </div>
       </div>
     </div>
 
     <!-- Quick Actions Dropdown -->
-    <div class="relative" ref="dropdownRef">
+    <div ref="dropdownRef" class="relative">
       <button
-        @click="toggleDropdown"
         class="p-2 hover:bg-slate-800 rounded-lg transition-colors"
         :class="{ 'bg-slate-800': dropdownOpen }"
+        :aria-expanded="dropdownOpen"
+        aria-haspopup="true"
+        aria-label="Analysis actions menu"
+        tabindex="0"
+        @click="toggleDropdown"
+        @keydown.enter="toggleDropdown"
+        @keydown.space.prevent="toggleDropdown"
+        @keydown.escape="closeDropdown"
       >
-        <ChevronDown class="w-4 h-4 text-slate-400" :class="{ 'rotate-180': dropdownOpen }" />
+        <ChevronDown
+          class="w-4 h-4 text-slate-400"
+          :class="{ 'rotate-180': dropdownOpen }"
+          aria-hidden="true"
+        />
       </button>
 
       <!-- Dropdown Menu -->
@@ -75,15 +106,15 @@
         <div class="p-2">
           <div class="space-y-1">
             <button
-              @click="goToScanPage"
               class="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 rounded-md transition-colors text-left"
+              @click="goToScanPage"
             >
               <Eye class="w-4 h-4" />
               View Scan Details
             </button>
             <button
-              @click="cancelAnalysis"
               class="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-md transition-colors text-left"
+              @click="cancelAnalysis"
             >
               <X class="w-4 h-4" />
               Cancel Analysis
@@ -108,6 +139,10 @@ const dropdownRef = ref<HTMLElement>();
 
 const toggleDropdown = () => {
   dropdownOpen.value = !dropdownOpen.value;
+};
+
+const closeDropdown = () => {
+  dropdownOpen.value = false;
 };
 
 const goToScanPage = () => {

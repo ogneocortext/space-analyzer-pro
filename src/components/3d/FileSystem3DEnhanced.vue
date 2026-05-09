@@ -6,11 +6,11 @@
       <div class="control-group">
         <h4>🎮 Navigation</h4>
         <div class="control-buttons">
-          <button @click="resetCamera" class="btn btn-primary">🏠 Reset</button>
-          <button @click="flyToSelected" class="btn btn-secondary" :disabled="!selectedNode">
+          <button class="btn btn-primary" @click="resetCamera">🏠 Reset</button>
+          <button class="btn btn-secondary" :disabled="!selectedNode" @click="flyToSelected">
             🎯 Focus
           </button>
-          <button @click="toggleAutoRotate" class="btn btn-outline">
+          <button class="btn btn-outline" @click="toggleAutoRotate">
             🔄 {{ autoRotate ? "Stop" : "Start" }}
           </button>
         </div>
@@ -21,23 +21,23 @@
         <h4>🔍 View Options</h4>
         <div class="view-options">
           <label class="checkbox-label">
-            <input type="checkbox" v-model="showFileLabels" @change="updateLabels" />
+            <input v-model="showFileLabels" type="checkbox" @change="updateLabels" />
             File Labels
           </label>
           <label class="checkbox-label">
-            <input type="checkbox" v-model="showDirectoryLabels" @change="updateLabels" />
+            <input v-model="showDirectoryLabels" type="checkbox" @change="updateLabels" />
             Directory Labels
           </label>
           <label class="checkbox-label">
-            <input type="checkbox" v-model="colorBySize" @change="updateColors" />
+            <input v-model="colorBySize" type="checkbox" @change="updateColors" />
             Color by Size
           </label>
           <label class="checkbox-label">
-            <input type="checkbox" v-model="colorByType" @change="updateColors" />
+            <input v-model="colorByType" type="checkbox" @change="updateColors" />
             Color by Type
           </label>
           <label class="checkbox-label">
-            <input type="checkbox" v-model="showHeatMap" @change="updateHeatMap" />
+            <input v-model="showHeatMap" type="checkbox" @change="updateHeatMap" />
             Activity Heat Map
           </label>
         </div>
@@ -50,11 +50,11 @@
           <label>
             Zoom:
             <input
+              v-model="zoomLevel"
               type="range"
               min="0.1"
               max="3"
               step="0.1"
-              v-model="zoomLevel"
               @input="updateZoom"
             />
             {{ zoomLevel.toFixed(1) }}x
@@ -62,11 +62,11 @@
           <label>
             Node Size:
             <input
+              v-model="nodeSize"
               type="range"
               min="0.5"
               max="2"
               step="0.1"
-              v-model="nodeSize"
               @input="updateNodeSize"
             />
             {{ nodeSize.toFixed(1) }}x
@@ -88,11 +88,11 @@
         <h4>🔍 Search & Filter</h4>
         <div class="search-controls">
           <input
-            type="text"
             v-model="searchQuery"
-            @input="handleSearch"
+            type="text"
             placeholder="Search files..."
             class="search-input"
+            @input="handleSearch"
           />
           <select v-model="filterType" @change="applyFilters">
             <option value="all">All Files</option>
@@ -109,21 +109,21 @@
         <h4>⚡ Performance</h4>
         <div class="performance-controls">
           <label class="checkbox-label">
-            <input type="checkbox" v-model="enableLOD" @change="updateLOD" />
+            <input v-model="enableLOD" type="checkbox" @change="updateLOD" />
             Level of Detail
           </label>
           <label class="checkbox-label">
-            <input type="checkbox" v-model="enableFrustumCulling" />
+            <input v-model="enableFrustumCulling" type="checkbox" />
             Frustum Culling
           </label>
           <label>
             Max Nodes:
             <input
-              type="number"
               v-model="maxNodes"
-              @change="updateMaxNodes"
+              type="number"
               min="100"
               max="10000"
+              @change="updateMaxNodes"
             />
           </label>
         </div>
@@ -163,8 +163,8 @@
         <span
           v-for="(crumb, index) in breadcrumbs"
           :key="index"
-          @click="navigateToBreadcrumb(crumb.path)"
           class="breadcrumb-item"
+          @click="navigateToBreadcrumb(crumb.path)"
         >
           {{ crumb.name }}
           <span v-if="index < breadcrumbs.length - 1" class="breadcrumb-separator">/</span>
@@ -174,14 +174,14 @@
 
     <!-- Main 3D Viewport -->
     <div class="viewport-container">
-      <div ref="viewport" class="viewport"></div>
+      <div ref="viewport" class="viewport" />
 
       <!-- Loading Overlay -->
       <div v-if="loading" class="loading-overlay">
-        <div class="loading-spinner"></div>
+        <div class="loading-spinner" />
         <p>Loading 3D File System...</p>
         <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: loadingProgress + '%' }"></div>
+          <div class="progress-fill" :style="{ width: loadingProgress + '%' }" />
         </div>
       </div>
 
@@ -189,12 +189,15 @@
       <div
         v-if="showContextMenu"
         class="context-menu"
-        :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
+        :style="{
+          left: (contextMenuPosition?.x || 0) + 'px',
+          top: (contextMenuPosition?.y || 0) + 'px',
+        }"
       >
         <div class="context-menu-item" @click="openFile">📂 Open</div>
         <div class="context-menu-item" @click="renameFile">✏️ Rename</div>
         <div class="context-menu-item" @click="deleteFile">🗑️ Delete</div>
-        <div class="context-menu-separator"></div>
+        <div class="context-menu-separator" />
         <div class="context-menu-item" @click="copyPath">📋 Copy Path</div>
         <div class="context-menu-item" @click="showProperties">ℹ️ Properties</div>
       </div>
@@ -206,8 +209,8 @@
           <div
             v-for="result in searchResults.slice(0, 10)"
             :key="result.id"
-            @click="focusNode(result)"
             class="result-item"
+            @click="focusNode(result)"
           >
             📄 {{ result.name }}
           </div>
@@ -227,7 +230,7 @@
           <div class="shortcut-item"><kbd>Delete</kbd> Delete Selected</div>
           <div class="shortcut-item"><kbd>Escape</kbd> Clear Selection</div>
         </div>
-        <button @click="showHelp = false" class="btn btn-primary">Close</button>
+        <button class="btn btn-primary" @click="showHelp = false">Close</button>
       </div>
     </div>
   </div>
@@ -241,19 +244,11 @@ import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
 
 // Types
-interface FileNode {
+interface SearchResults {
   id: string;
   name: string;
   path: string;
-  type: "file" | "directory";
-  size: number;
-  modified: Date;
-  children?: FileNode[];
-  position?: THREE.Vector3;
-  mesh?: THREE.Mesh;
-  label?: THREE.Mesh;
-  visible?: boolean;
-  lodLevel?: number;
+  node: ExtendedFileNode;
 }
 
 interface Breadcrumb {
@@ -261,11 +256,19 @@ interface Breadcrumb {
   path: string;
 }
 
-interface SearchResults {
+interface ExtendedFileNode {
   id: string;
   name: string;
   path: string;
-  node: FileNode;
+  type: "file" | "directory";
+  size: number;
+  modified: Date;
+  children?: ExtendedFileNode[];
+  position?: THREE.Vector3;
+  mesh?: THREE.Mesh;
+  label?: THREE.Mesh;
+  visible?: boolean;
+  lodLevel?: number;
 }
 
 // Props
@@ -277,8 +280,8 @@ const props = defineProps<{
 
 // Emits
 const emit = defineEmits<{
-  nodeSelected: [node: FileNode];
-  nodeOpened: [node: FileNode];
+  (event: "nodeSelected", node: ExtendedFileNode): void;
+  (event: "nodeOpened", node: ExtendedFileNode): void;
 }>();
 
 // Reactive State
@@ -291,8 +294,8 @@ const searchResults = ref<SearchResults[]>([]);
 const showContextMenu = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const showHelp = ref(false);
-const selectedNode = ref<FileNode>();
-const selectedNodes = ref<Set<FileNode>>(new Set());
+const selectedNode = ref<ExtendedFileNode>();
+const selectedNodes = ref<Set<ExtendedFileNode>>(new Set());
 
 // 3D Scene Objects
 let scene: THREE.Scene;
@@ -322,8 +325,8 @@ const nodeSize = ref(1);
 const layoutType = ref("tree");
 
 // Data
-const fileSystemData = ref<FileNode>();
-const nodeMap = new Map<string, FileNode>();
+const fileSystemData = ref<ExtendedFileNode>();
+const nodeMap = new Map<string, ExtendedFileNode>();
 const totalFiles = ref(0);
 const totalDirectories = ref(0);
 const totalSize = ref(0);
@@ -448,14 +451,14 @@ const loadFont = async () => {
 };
 
 // Enhanced Node Size Calculation
-const calculateNodeSize = (node: FileNode, baseSize: number): number => {
+const calculateNodeSize = (node: ExtendedFileNode, baseSize: number): number => {
   const sizeMultiplier = Math.log(node.size + 1) / Math.log(1024);
   const depthMultiplier = node.path.split("/").length / 10;
   return baseSize * (0.5 + sizeMultiplier * 0.5) * (1 + depthMultiplier * 0.2);
 };
 
 // Enhanced Color Calculation
-const getNodeColor = (node: FileNode): THREE.Color => {
+const getNodeColor = (node: ExtendedFileNode): THREE.Color => {
   if (showHeatMap.value) {
     // Heat map coloring based on activity
     const activity = getNodeActivity(node);
@@ -507,7 +510,7 @@ const getFileTypeColor = (extension: string): THREE.Color => {
 };
 
 // Get Node Activity (for heat map)
-const getNodeActivity = (node: FileNode): number => {
+const getNodeActivity = (node: ExtendedFileNode): number => {
   // Simulated activity based on file age and size
   const age = Date.now() - node.modified.getTime();
   const ageFactor = Math.max(0, 1 - age / (1000 * 60 * 60 * 24 * 30)); // 30 days
@@ -516,7 +519,7 @@ const getNodeActivity = (node: FileNode): number => {
 };
 
 // Create PBR Material
-const createPBRMaterial = (node: FileNode): THREE.MeshStandardMaterial => {
+const createPBRMaterial = (node: ExtendedFileNode): THREE.MeshStandardMaterial => {
   const color = getNodeColor(node);
   return new THREE.MeshStandardMaterial({
     color,
@@ -529,6 +532,7 @@ const createPBRMaterial = (node: FileNode): THREE.MeshStandardMaterial => {
 };
 
 // Level of Detail System
+// Handle LOD updates properly
 const updateLOD = () => {
   if (!enableLOD.value) return;
 
@@ -550,7 +554,7 @@ const updateLOD = () => {
 };
 
 // Update Node LOD
-const updateNodeLOD = (node: FileNode, lodLevel: number) => {
+const updateNodeLOD = (node: ExtendedFileNode, lodLevel: number) => {
   if (!node.mesh) return;
 
   // Update geometry complexity based on LOD
@@ -601,8 +605,8 @@ const loadFileSystemData = async () => {
 };
 
 // Generate Mock File System
-const generateMockFileSystem = (): FileNode => {
-  const root: FileNode = {
+const generateMockFileSystem = (): ExtendedFileNode => {
+  const root: ExtendedFileNode = {
     id: "root",
     name: "C:\\",
     path: "C:\\",
@@ -624,7 +628,7 @@ const generateMockFileSystem = (): FileNode => {
   ];
 
   dirs.forEach((dirName, dirIndex) => {
-    const dir: FileNode = {
+    const dir: ExtendedFileNode = {
       id: `dir-${dirIndex}`,
       name: dirName,
       path: `C:\\${dirName}`,
@@ -635,7 +639,7 @@ const generateMockFileSystem = (): FileNode => {
     };
 
     files.forEach((fileName, fileIndex) => {
-      const file: FileNode = {
+      const file: ExtendedFileNode = {
         id: `file-${dirIndex}-${fileIndex}`,
         name: fileName,
         path: `C:\\${dirName}\\${fileName}`,
@@ -653,12 +657,12 @@ const generateMockFileSystem = (): FileNode => {
 };
 
 // Update Statistics
-const updateStatistics = (root: FileNode) => {
+const updateStatistics = (root: ExtendedFileNode) => {
   let files = 0;
   let dirs = 0;
   let size = 0;
 
-  const traverse = (node: FileNode) => {
+  const traverse = (node: ExtendedFileNode) => {
     if (node.type === "file") {
       files++;
       size += node.size;
@@ -721,9 +725,9 @@ const create3DVisualization = async () => {
 };
 
 // Enhanced Tree Layout
-const createTreeLayout = async (root: FileNode) => {
+const createTreeLayout = async (root: ExtendedFileNode) => {
   const createNode = (
-    node: FileNode,
+    node: ExtendedFileNode,
     depth: number = 0,
     angle: number = 0,
     radius: number = 0
@@ -773,7 +777,7 @@ const createTreeLayout = async (root: FileNode) => {
       const childRadius = depth === 0 ? 0 : radius + 4;
 
       node.children.forEach((child, index) => {
-        const childAngle = angle + (index - node.children!.length / 2) * childAngleStep;
+        const childAngle = angle + (index - (node.children.length || 0) / 2) * childAngleStep;
         createNode(child, depth + 1, childAngle, childRadius);
       });
     }
@@ -782,8 +786,194 @@ const createTreeLayout = async (root: FileNode) => {
   createNode(root);
 };
 
+// Enhanced Sphere Layout
+const createSphereLayout = async (root: ExtendedFileNode) => {
+  const createNode = (
+    node: ExtendedFileNode,
+    depth: number = 0,
+    index: number = 0,
+    total: number = 1
+  ): void => {
+    const size = calculateNodeSize(node, nodeSize.value);
+    const geometry =
+      node.type === "directory"
+        ? new THREE.SphereGeometry(size * 1.5, 16, 16)
+        : new THREE.BoxGeometry(size, size, size);
+
+    const material = createPBRMaterial(node);
+    const mesh = new THREE.Mesh(geometry, material);
+
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    // Position on sphere surface
+    const phi = Math.acos(-1 + (2 * index) / total);
+    const theta = Math.sqrt(total * Math.PI) * phi;
+
+    const radius = 20 + depth * 5;
+    const x = radius * Math.sin(phi) * Math.cos(theta);
+    const y = radius * Math.cos(phi);
+    const z = radius * Math.sin(phi) * Math.sin(theta);
+
+    mesh.position.set(x, y, z);
+
+    node.position = mesh.position;
+    node.mesh = mesh;
+    node.visible = true;
+    mesh.userData = { node };
+
+    scene.add(mesh);
+    nodeMap.set(node.id, node);
+
+    // Create label
+    createLabel(node);
+
+    // Process children
+    if (node.children && depth < (props.maxDepth || 5)) {
+      (node.children || []).forEach((child, childIndex) => {
+        createNode(
+          child,
+          depth + 1,
+          index + total + childIndex,
+          total + (node.children.length || 0)
+        );
+      });
+    }
+  };
+
+  const flattenNodes = (node: ExtendedFileNode, index: number = 0): void => {
+    createNode(node, 0, index, 1);
+    if (node.children) {
+      (node.children || []).forEach((child) => flattenNodes(child, index + 1));
+    }
+  };
+
+  flattenNodes(root);
+};
+
+// Enhanced Cylinder Layout
+const createCylinderLayout = async (root: ExtendedFileNode) => {
+  const createNode = (
+    node: ExtendedFileNode,
+    depth: number = 0,
+    angle: number = 0,
+    height: number = 0
+  ): void => {
+    const size = calculateNodeSize(node, nodeSize.value);
+    const geometry =
+      node.type === "directory"
+        ? new THREE.SphereGeometry(size * 1.5, 16, 16)
+        : new THREE.BoxGeometry(size, size, size);
+
+    const material = createPBRMaterial(node);
+    const mesh = new THREE.Mesh(geometry, material);
+
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    // Position on cylinder
+    const radius = 15 + depth * 3;
+    const x = radius * Math.cos(angle);
+    const z = radius * Math.sin(angle);
+    mesh.position.set(x, height, z);
+
+    node.position = mesh.position;
+    node.mesh = mesh;
+    node.visible = true;
+    mesh.userData = { node };
+
+    scene.add(mesh);
+    nodeMap.set(node.id, node);
+
+    // Create label
+    createLabel(node);
+
+    // Process children
+    if (node.children && depth < (props.maxDepth || 5)) {
+      const childAngleStep = (Math.PI * 2) / (node.children.length || 1);
+      const childHeight = height - 3;
+
+      (node.children || []).forEach((child, index) => {
+        const childAngle = angle + (index - (node.children.length || 0) / 2) * childAngleStep;
+        createNode(child, depth + 1, childAngle, childHeight);
+      });
+    }
+  };
+
+  const processLevel = (nodes: ExtendedFileNode[], height: number): void => {
+    const angleStep = (Math.PI * 2) / (nodes.length || 1);
+    (nodes || []).forEach((node, index) => {
+      createNode(node, 0, index * angleStep, height);
+    });
+  };
+
+  const flattenAndArrange = (node: ExtendedFileNode, level: number = 0): void => {
+    if (node.children && level < (props.maxDepth || 5)) {
+      processLevel(node.children, -level * 3);
+      (node.children || []).forEach((child) => flattenAndArrange(child, level + 1));
+    } else {
+      createNode(node, 0, 0, -level * 3);
+    }
+  };
+
+  flattenAndArrange(root);
+};
+
+// Enhanced Spiral Layout
+const createSpiralLayout = async (root: ExtendedFileNode) => {
+  const createNode = (node: ExtendedFileNode, depth: number = 0, index: number = 0): void => {
+    const size = calculateNodeSize(node, nodeSize.value);
+    const geometry =
+      node.type === "directory"
+        ? new THREE.SphereGeometry(size * 1.5, 16, 16)
+        : new THREE.BoxGeometry(size, size, size);
+
+    const material = createPBRMaterial(node);
+    const mesh = new THREE.Mesh(geometry, material);
+
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    // Position on spiral
+    const angle = index * 0.5;
+    const radius = 5 + index * 0.8;
+    const height = -depth * 2;
+
+    const x = radius * Math.cos(angle);
+    const z = radius * Math.sin(angle);
+    mesh.position.set(x, height, z);
+
+    node.position = mesh.position;
+    node.mesh = mesh;
+    node.visible = true;
+    mesh.userData = { node };
+
+    scene.add(mesh);
+    nodeMap.set(node.id, node);
+
+    // Create label
+    createLabel(node);
+
+    // Process children
+    if (node.children && depth < (props.maxDepth || 5)) {
+      (node.children || []).forEach((child, childIndex) => {
+        createNode(child, depth + 1, index + childIndex + 1);
+      });
+    }
+  };
+
+  const flattenNodes = (node: ExtendedFileNode, index: number = 0): void => {
+    createNode(node, 0, index);
+    if (node.children) {
+      (node.children || []).forEach((child) => flattenNodes(child, index + 1));
+    }
+  };
+
+  flattenNodes(root);
+};
+
 // Create Label with Enhanced Fallback
-const createLabel = (node: FileNode) => {
+const createLabel = (node: ExtendedFileNode): void => {
   if (!font) return;
 
   const shouldShow =
@@ -908,8 +1098,8 @@ const isFileType = (extension: string | undefined, type: string): boolean => {
 };
 
 // Focus on Node
-const focusNode = (node: FileNode) => {
-  if (!node.position) return;
+const focusNode = (node: ExtendedFileNode) => {
+  if (!node || !node.position) return;
 
   selectedNode.value = node;
   flyToPosition(node.position);
@@ -917,6 +1107,8 @@ const focusNode = (node: FileNode) => {
 
 // Fly to Position
 const flyToPosition = (targetPosition: THREE.Vector3) => {
+  if (!targetPosition) return;
+
   const startPosition = camera.position.clone();
   const targetPositionClone = targetPosition.clone();
   targetPositionClone.z += 20; // Offset camera
@@ -961,6 +1153,7 @@ const toggleAutoRotate = () => {
 };
 
 // Update Functions
+// Update functions with proper references
 const updateLabels = () => {
   // Recreate all labels
   nodeMap.forEach((node) => {
@@ -999,16 +1192,17 @@ const updateLayout = () => {
   create3DVisualization();
 };
 
-const updateLOD = () => {
+const updateLODFunction = () => {
   // LOD is handled in animation loop
 };
 
 const updateMaxNodes = () => {
   // Limit nodes if necessary
-  if (nodeMap.size > props.maxNodes) {
+  const maxNodesLimit = props.maxNodes || 1000;
+  if (nodeMap.size > maxNodesLimit) {
     // Keep only the most important nodes
     const nodes = Array.from(nodeMap.values());
-    const importantNodes = nodes.sort((a, b) => b.size - a.size).slice(0, props.maxNodes);
+    const importantNodes = nodes.sort((a, b) => b.size - a.size).slice(0, maxNodesLimit);
 
     clearScene();
     importantNodes.forEach((node) => {
@@ -1128,7 +1322,7 @@ const handleMouseClick = (event: MouseEvent) => {
 
   if (intersects.length > 0) {
     const clickedMesh = intersects[0].object;
-    const clickedNode = clickedMesh.userData.node as FileNode;
+    const clickedNode = clickedMesh.userData.node as ExtendedFileNode;
 
     selectedNode.value = clickedNode;
     emit("nodeSelected", clickedNode);
@@ -1164,6 +1358,7 @@ onUnmounted(() => {
   // Cleanup
   if (animationId) {
     cancelAnimationFrame(animationId);
+    animationId = null;
   }
 
   window.removeEventListener("resize", handleResize);
@@ -1171,14 +1366,73 @@ onUnmounted(() => {
   viewport.value?.removeEventListener("click", handleMouseClick);
   viewport.value?.removeEventListener("contextmenu", handleRightClick);
 
-  // Dispose Three.js objects
+  // Dispose Three.js objects properly
+  if (scene) {
+    // Dispose all objects in scene recursively
+    const disposeScene = (obj: THREE.Object3D) => {
+      if (obj instanceof THREE.Mesh) {
+        // Dispose geometry
+        if (obj.geometry) {
+          obj.geometry.dispose();
+        }
+
+        // Dispose material(s)
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((material) => material.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+
+        // Dispose textures
+        if (obj.material && (obj.material as any).map) {
+          (obj.material as any).map.dispose();
+        }
+      }
+
+      // Recursively dispose children
+      while (obj.children.length > 0) {
+        const child = obj.children[0];
+        disposeScene(child);
+        obj.remove(child);
+      }
+    };
+
+    // Dispose all scene objects
+    while (scene.children.length > 0) {
+      disposeScene(scene.children[0]);
+      scene.remove(scene.children[0]);
+    }
+  }
+
+  // Dispose renderer and its resources
   if (renderer) {
     renderer.dispose();
+    // Force clear render targets
+    if (renderer.domElement) {
+      renderer.domElement.width = 1;
+      renderer.domElement.height = 1;
+    }
+  }
+
+  // Dispose controls
+  if (controls) {
+    controls.dispose();
   }
 
   // Clear object pools
   geometryPool.forEach((geometry) => geometry.dispose());
   materialPool.forEach((material) => material.dispose());
+  geometryPool.clear();
+  materialPool.clear();
+
+  // Clear references
+  scene = null;
+  camera = null;
+  renderer = null;
+  controls = null;
+  font = null;
 });
 </script>
 
