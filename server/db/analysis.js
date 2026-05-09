@@ -11,6 +11,50 @@ class AnalysisDatabase {
 
   setDatabase(db) {
     this.db = db;
+
+    // Create indexes for better query performance
+    this.createIndexes();
+  }
+
+  /**
+   * Create database indexes for performance optimization
+   */
+  createIndexes() {
+    if (!this.db) return;
+
+    const indexes = [
+      // Index for directory path lookups
+      `CREATE INDEX IF NOT EXISTS idx_analyses_directory_path ON analyses(directory_path)`,
+
+      // Index for analysis ID lookups
+      `CREATE INDEX IF NOT EXISTS idx_analyses_id ON analyses(id)`,
+
+      // Index for analysis files lookup
+      `CREATE INDEX IF NOT EXISTS idx_analysis_files_analysis_id ON analysis_files(analysis_id)`,
+
+      // Index for file path lookups
+      `CREATE INDEX IF NOT EXISTS idx_analysis_files_file_path ON analysis_files(file_path)`,
+
+      // Index for file category filtering
+      `CREATE INDEX IF NOT EXISTS idx_analysis_files_category ON analysis_files(file_category)`,
+
+      // Index for file extension filtering
+      `CREATE INDEX IF NOT EXISTS idx_analysis_files_extension ON analysis_files(file_extension)`,
+
+      // Composite index for sorting by size
+      `CREATE INDEX IF NOT EXISTS idx_analysis_files_size ON analysis_files(file_size DESC)`,
+
+      // Index for last_analyzed sorting
+      `CREATE INDEX IF NOT EXISTS idx_analyses_last_analyzed ON analyses(last_analyzed DESC)`,
+    ];
+
+    indexes.forEach((sql) => {
+      this.db.run(sql, (err) => {
+        if (err) {
+          console.warn("Failed to create index:", err.message);
+        }
+      });
+    });
   }
 
   /**
@@ -133,6 +177,58 @@ class AnalysisDatabase {
       const sql = "SELECT * FROM analyses WHERE directory_path = ?";
 
       this.db.get(sql, [normalizedPath], (err, row) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        if (row && row.analysis_data_compressed) {
+          row.analysis_data = this.core.decompressData(row.analysis_data_compressed);
+        }
+
+        resolve(row);
+      });
+    });
+  }
+
+  /**
+   * Get analysis by ID
+   */
+  getAnalysisById(analysisId) {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
+    return new Promise((resolve, reject) => {
+      const sql = "SELECT * FROM analyses WHERE id = ?";
+
+      this.db.get(sql, [analysisId], (err, row) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        if (row && row.analysis_data_compressed) {
+          row.analysis_data = this.core.decompressData(row.analysis_data_compressed);
+        }
+
+        resolve(row);
+      });
+    });
+  }
+
+  /**
+   * Get the most recent analysis
+   */
+  getLatestAnalysis() {
+    if (!this.db) {
+      return Promise.reject(new Error("Database not initialized"));
+    }
+
+    return new Promise((resolve, reject) => {
+      const sql = "SELECT * FROM analyses ORDER BY created_at DESC LIMIT 1";
+
+      this.db.get(sql, [], (err, row) => {
         if (err) {
           reject(err);
           return;

@@ -479,9 +479,11 @@ export const useAnalysisStore = defineStore("analysis", () => {
   );
 
   // Load from storage on initialization
-  onMounted(() => {
-    loadFromStorage();
-  });
+  // Note: onMounted in Pinia stores works differently than in components
+  // We'll initialize in the initialize method instead
+  // onMounted(() => {
+  //   loadFromStorage();
+  // });
 
   return {
     path,

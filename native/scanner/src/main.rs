@@ -10,6 +10,7 @@ use rayon::prelude::*;
 use crossbeam::channel::bounded;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+mod windows_errors;
 mod windows_advanced;
 use windows_advanced::advanced as win_adv;
 mod ntfs_mft_scanner;
@@ -195,6 +196,13 @@ struct ScanConfig {
     include_hidden: bool,
     follow_symlinks: bool,
     json_progress: bool,
+    // USN Journal status
+    usn_journal_used: bool,
+    usn_journal_id: Option<u64>,
+    last_usn: Option<i64>,
+    // MFT scanning status
+    mft_scanning_enabled: bool,
+    hard_links_enumerated: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -682,6 +690,11 @@ impl Cli {
                 include_hidden: false,
                 follow_symlinks: false,
                 json_progress: self.json_progress,
+                usn_journal_used: false,
+                usn_journal_id: None,
+                last_usn: None,
+                mft_scanning_enabled: false,
+                hard_links_enumerated: false,
             },
             summary: SummaryStats {
                 total_files,
@@ -916,6 +929,11 @@ impl Cli {
                 include_hidden: false,
                 follow_symlinks: false,
                 json_progress: self.json_progress,
+                usn_journal_used: false,
+                usn_journal_id: None,
+                last_usn: None,
+                mft_scanning_enabled: false,
+                hard_links_enumerated: false,
             },
             summary: SummaryStats {
                 total_files,
@@ -1099,6 +1117,11 @@ let analysis_time = start_time.elapsed();
                 include_hidden: false,
                 follow_symlinks: false,
                 json_progress: self.json_progress,
+                usn_journal_used: false,
+                usn_journal_id: None,
+                last_usn: None,
+                mft_scanning_enabled: false,
+                hard_links_enumerated: false,
             },
             summary: SummaryStats {
                 total_files,
@@ -1226,7 +1249,7 @@ let analysis_time = start_time.elapsed();
             Some(name) => name.to_string(),
             None => {
                 // Handle non-UTF8 filenames
-                self.add_warning("invalid_filename", path, "Filename contains invalid UTF-8 characters", metadata.len());
+                self.add_warning("invalid_filename", &path.to_string_lossy(), "Filename contains invalid UTF-8 characters", metadata.len() as usize);
                 entry.file_name().to_string_lossy().to_string()
             }
         };
@@ -1235,7 +1258,7 @@ let analysis_time = start_time.elapsed();
         let file_path_str = match path.to_str() {
             Some(path_str) => path_str.to_string(),
             None => {
-                self.add_warning("invalid_path", path, "Path contains invalid UTF-8 characters", metadata.len());
+                self.add_warning("invalid_path", &path.to_string_lossy(), "Path contains invalid UTF-8 characters", metadata.len() as usize);
                 path.to_string_lossy().to_string()
             }
         };
@@ -1706,6 +1729,21 @@ let analysis_time = start_time.elapsed();
         duplicate_groups.sort_by(|a, b| b.wasted_space.cmp(&a.wasted_space));
 
         (duplicate_groups, duplicate_count, duplicate_size)
+    }
+
+    fn add_warning(&self, warning_type: &str, path: &str, message: &str, size: usize) {
+        if self.json_progress {
+            let warning = serde_json::json!({
+                "event": "warning",
+                "type": warning_type,
+                "path": path,
+                "message": message,
+                "size": size
+            });
+            eprintln!("{}", warning);
+        } else if !self.quiet {
+            eprintln!("Warning: {} - {} ({} bytes)", warning_type, message, size);
+        }
     }
 }
 

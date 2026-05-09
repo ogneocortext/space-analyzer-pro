@@ -262,37 +262,40 @@ class ScanController {
         console.warn(`Could not read partial results for checkpoint: ${error.message}`);
       }
     }
+  }
 
-// Move to history
-this.scanHistory.set(scanId, scan);
-this.activeScans.delete(scanId);
+  async saveCheckpoint(scanId, checkpointData) {
+    try {
+      const checkpointDir = path.join(__dirname, ".checkpoints");
+      await fs.mkdir(checkpointDir, { recursive: true });
 
-// Clean up checkpoint
-await this.deleteCheckpoint(scanId);
+      const checkpointFile = path.join(checkpointDir, `${scanId}.json`);
+      await fs.writeFile(checkpointFile, JSON.stringify(checkpointData, null, 2));
+    } catch (error) {
+      console.warn(`Failed to save checkpoint ${scanId}:`, error.message);
+    }
+  }
 
-return scan;
-}
+  async loadCheckpoint(scanId) {
+    try {
+      const checkpointFile = path.join(__dirname, ".checkpoints", `${scanId}.json`);
+      const exists = await fs
+        .access(checkpointFile)
+        .then(() => true)
+        .catch(() => false);
 
-async updateProgress(scanId, progressData) {
-const scan = this.activeScans.get(scanId);
-if (!scan) {
-  return; // Scan might have been paused or stopped
-}
+      if (exists) {
+        const content = await fs.readFile(checkpointFile, "utf8");
+        return JSON.parse(content);
+      }
+    } catch (error) {
+      console.warn(`Failed to load checkpoint ${scanId}:`, error.message);
+    }
+    return null;
+  }
 
-// Update progress
-scan.progress = {
-  ...scan.progress,
-  ...progressData,
-};
-
-// Create periodic checkpoints for long-running scans
-if (scan.status === "running" && Date.now() - (scan.lastCheckpoint || 0) > 30000) {
-  // Every 30 seconds
-  const checkpointData = await this.createCheckpoint(scan);
-  scan.checkpointData = checkpointData;
-  scan.lastCheckpoint = Date.now();
-  await this.saveCheckpoint(scanId, checkpointData);
-}
+  async deleteCheckpoint(scanId) {
+    try {
       const checkpointFile = path.join(__dirname, ".checkpoints", `${scanId}.json`);
       await fs.unlink(checkpointFile);
     } catch (error) {

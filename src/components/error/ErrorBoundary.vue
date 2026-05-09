@@ -2,7 +2,7 @@
   <div v-if="!hasError" class="error-boundary">
     <slot />
   </div>
-  
+
   <div v-else class="error-fallback">
     <div class="error-container">
       <div class="error-icon">
@@ -12,11 +12,11 @@
         <h3>Something went wrong</h3>
         <p>{{ errorMessage }}</p>
         <div class="error-actions">
-          <button @click="retry" class="btn btn-primary">
+          <button class="btn btn-primary" @click="retry">
             <RefreshCw :size="16" />
             Retry
           </button>
-          <button @click="reportError" class="btn btn-secondary">
+          <button class="btn btn-secondary" @click="reportError">
             <Bug :size="16" />
             Report Issue
           </button>
@@ -25,11 +25,8 @@
           <summary>Error Details</summary>
           <pre>{{ errorStack }}</pre>
         </details>
-        <button 
-          @click="showDetails = !showDetails" 
-          class="btn btn-outline btn-sm"
-        >
-          {{ showDetails ? 'Hide' : 'Show' }} Details
+        <button class="btn btn-outline btn-sm" @click="showDetails = !showDetails">
+          {{ showDetails ? "Hide" : "Show" }} Details
         </button>
       </div>
     </div>
@@ -37,8 +34,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onErrorCaptured, onMounted } from 'vue';
-import { AlertTriangle, RefreshCw, Bug } from 'lucide-vue-next';
+import { ref, onErrorCaptured, onMounted, onUnmounted } from "vue";
+import { AlertTriangle, RefreshCw, Bug } from "lucide-vue-next";
 
 interface Props {
   fallbackMessage?: string;
@@ -47,8 +44,8 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  fallbackMessage: 'An unexpected error occurred while rendering this component.',
-  maxRetries: 3
+  fallbackMessage: "An unexpected error occurred while rendering this component.",
+  maxRetries: 3,
 });
 
 const emit = defineEmits<{
@@ -57,18 +54,38 @@ const emit = defineEmits<{
 }>();
 
 const hasError = ref(false);
-const errorMessage = ref('');
-const errorStack = ref('');
+const errorMessage = ref("");
+const errorStack = ref("");
 const retryCount = ref(0);
 const showDetails = ref(false);
+let asyncErrorHandler: ((event: PromiseRejectionEvent) => void) | null = null;
+
+const handleAsyncError = (event: PromiseRejectionEvent) => {
+  console.error("ErrorBoundary caught async error:", event.reason);
+
+  const error = event.reason instanceof Error ? event.reason : new Error(String(event.reason));
+
+  hasError.value = true;
+  errorMessage.value = props.fallbackMessage;
+  errorStack.value = error.stack || `Async error: ${event.reason}`;
+
+  emit("error", error, { type: "unhandledRejection", reason: event.reason });
+
+  if (props.onError) {
+    props.onError(error, { type: "unhandledRejection", reason: event.reason });
+  }
+
+  // Prevent the default browser behavior
+  event.preventDefault();
+};
 
 const retry = () => {
   if (retryCount.value < props.maxRetries) {
     hasError.value = false;
-    errorMessage.value = '';
-    errorStack.value = '';
+    errorMessage.value = "";
+    errorStack.value = "";
     retryCount.value++;
-    emit('retry');
+    emit("retry");
   }
 };
 
@@ -80,41 +97,41 @@ const reportError = () => {
     userAgent: navigator.userAgent,
     url: window.location.href,
     timestamp: new Date().toISOString(),
-    retryCount: retryCount.value
+    retryCount: retryCount.value,
   };
 
   // Log to console for development
-  console.error('Error Boundary Report:', errorReport);
+  console.error("Error Boundary Report:", errorReport);
 
   // Store in localStorage for potential later reporting
-  const reports = JSON.parse(localStorage.getItem('errorReports') || '[]');
+  const reports = JSON.parse(localStorage.getItem("errorReports") || "[]");
   reports.push(errorReport);
-  localStorage.setItem('errorReports', JSON.stringify(reports.slice(-10))); // Keep last 10 reports
+  localStorage.setItem("errorReports", JSON.stringify(reports.slice(-10))); // Keep last 10 reports
 
   // Try to send to error tracking service if available
   try {
     if (window.navigator.sendBeacon) {
-      const blob = new Blob([JSON.stringify(errorReport)], { type: 'application/json' });
-      navigator.sendBeacon('/api/error-report', blob);
+      const blob = new Blob([JSON.stringify(errorReport)], { type: "application/json" });
+      navigator.sendBeacon("/api/error-report", blob);
     }
   } catch (e) {
-    console.warn('Failed to send error report:', e);
+    console.warn("Failed to send error report:", e);
   }
 };
 
 onErrorCaptured((error: Error, instance, info) => {
-  console.error('Error Boundary caught error:', error, info);
-  
+  console.error("Error Boundary caught error:", error, info);
+
   hasError.value = true;
   errorMessage.value = props.fallbackMessage;
-  errorStack.value = error.stack || 'No stack trace available';
-  
-  emit('error', error, info);
-  
+  errorStack.value = error.stack || "No stack trace available";
+
+  emit("error", error, info);
+
   if (props.onError) {
     props.onError(error, info);
   }
-  
+
   // Prevent error from propagating
   return false;
 });
@@ -122,7 +139,19 @@ onErrorCaptured((error: Error, instance, info) => {
 onMounted(() => {
   // Reset error state when component is remounted
   if (hasError.value) {
-    console.log('Error boundary remounted after error');
+    console.log("Error boundary remounted after error");
+  }
+
+  // Register async error handler
+  asyncErrorHandler = handleAsyncError;
+  window.addEventListener("unhandledrejection", asyncErrorHandler);
+});
+
+onUnmounted(() => {
+  // Clean up async error handler
+  if (asyncErrorHandler) {
+    window.removeEventListener("unhandledrejection", asyncErrorHandler);
+    asyncErrorHandler = null;
   }
 });
 </script>

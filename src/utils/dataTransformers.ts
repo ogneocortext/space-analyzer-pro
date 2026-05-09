@@ -338,22 +338,52 @@ const categorizeFile = (filename: string, type: string): string => {
   return "Other";
 };
 
-const getCategoryColor = (category: string): string => {
-  const colors = {
-    Directory: "#3b82f6",
-    Image: "#10b981",
-    Video: "#f59e0b",
-    Audio: "#8b5cf6",
-    Document: "#ef4444",
-    Code: "#06b6d4",
-    Archive: "#84cc16",
-    Executable: "#f97316",
-    System: "#6b7280",
-    Configuration: "#ec4899",
-    Other: "#6b7280",
+export const getCategoryColor = (category: string): string => {
+  // Normalize category name to handle different casing and naming conventions
+  const normalizedCategory = category.toLowerCase().trim();
+
+  const colors: Record<string, string> = {
+    // Directory/Folder
+    directory: "#3b82f6",
+    folder: "#3b82f6",
+
+    // Images
+    image: "#10b981",
+    images: "#10b981",
+
+    // Videos
+    video: "#f59e0b",
+    videos: "#f59e0b",
+    media: "#f59e0b",
+
+    // Audio
+    audio: "#8b5cf6",
+
+    // Documents
+    document: "#ef4444",
+    documents: "#ef4444",
+
+    // Code
+    code: "#06b6d4",
+
+    // Archives
+    archive: "#84cc16",
+    archives: "#84cc16",
+
+    // Executables
+    executable: "#f97316",
+
+    // System
+    system: "#6b7280",
+
+    // Configuration
+    configuration: "#ec4899",
+
+    // Other/Fallback
+    other: "#6b7280",
   };
 
-  return colors[category as keyof typeof colors] || colors.Other;
+  return colors[normalizedCategory] || colors.other;
 };
 
 const formatFileSize = (bytes: number): string => {

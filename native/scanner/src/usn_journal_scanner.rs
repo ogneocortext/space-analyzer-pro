@@ -163,6 +163,9 @@ impl UsnJournalScanner {
         };
 
         if !success {
+            let volume_path = self.journal_info.as_ref()
+                .map(|info| info.volume_path.clone())
+                .unwrap_or_else(|| "Unknown".to_string());
             let win_err = WindowsError::new(unsafe { GetLastError() }, "Query USN journal")
                 .with_path(&volume_path);
             eprintln!("USN Journal: {}", win_err.format_error());

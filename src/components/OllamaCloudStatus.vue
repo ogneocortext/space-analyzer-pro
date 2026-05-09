@@ -1,54 +1,135 @@
 <template>
-  <div v-if="showStatus" class="ollama-cloud-status">
-    <div class="status-header" @click="toggleExpanded">
-      <span class="status-icon">☁️</span>
+  <div
+    v-if="showStatus"
+    class="ollama-cloud-status"
+    role="region"
+    aria-label="Ollama Cloud Usage Status"
+  >
+    <div
+      class="status-header"
+      :aria-expanded="expanded"
+      aria-controls="status-details"
+      role="button"
+      tabindex="0"
+      @click="toggleExpanded"
+      @keydown.enter="toggleExpanded"
+      @keydown.space.prevent="toggleExpanded"
+      @keydown.escape="expanded = false"
+    >
+      <span class="status-icon" aria-hidden="true">☁️</span>
       <span class="status-text">Ollama Cloud</span>
-      <span class="usage-badge" :class="usageClass"> {{ usagePercent }}% </span>
-      <span class="expand-icon">{{ expanded ? "▼" : "▶" }}</span>
+      <span
+        class="usage-badge"
+        :class="usageClass"
+        :aria-label="`Usage: ${usagePercent} percent`"
+        role="status"
+      >
+        {{ usagePercent }}%
+      </span>
+      <span
+        class="expand-icon"
+        :aria-label="expanded ? 'Collapse details' : 'Expand details'"
+        aria-hidden="true"
+        >{{ expanded ? "▼" : "▶" }}</span
+      >
     </div>
 
-    <div v-if="expanded" class="status-details">
+    <div
+      v-if="expanded"
+      id="status-details"
+      class="status-details"
+      role="region"
+      aria-label="Usage Details"
+    >
       <!-- Session Usage -->
       <div class="usage-bar-container">
         <div class="usage-label">
           <span>Session (5h)</span>
-          <span>{{ stats.callsThisSession }}/{{ stats.sessionLimit }}</span>
+          <span
+            :aria-label="`Session usage: ${stats.callsThisSession} of ${stats.sessionLimit} calls`"
+            >{{ stats.callsThisSession }}/{{ stats.sessionLimit }}</span
+          >
         </div>
-        <div class="usage-bar">
+        <div
+          class="usage-bar"
+          role="progressbar"
+          :aria-valuenow="sessionUsagePercent"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-label="Session usage percentage"
+        >
           <div
             class="usage-fill"
             :class="sessionUsageClass"
             :style="{ width: `${Math.min(sessionUsagePercent, 100)}%` }"
+            aria-hidden="true"
           />
         </div>
-        <div class="usage-reset">Resets in {{ stats.timeUntilSessionReset }}</div>
+        <div class="usage-reset" aria-live="polite">
+          Resets in {{ stats.timeUntilSessionReset }}
+        </div>
       </div>
 
       <!-- Weekly Usage -->
       <div class="usage-bar-container">
         <div class="usage-label">
           <span>Weekly</span>
-          <span>{{ stats.callsThisWeek }}/{{ stats.weekLimit }}</span>
+          <span :aria-label="`Weekly usage: ${stats.callsThisWeek} of ${stats.weekLimit} calls`"
+            >{{ stats.callsThisWeek }}/{{ stats.weekLimit }}</span
+          >
         </div>
-        <div class="usage-bar">
+        <div
+          class="usage-bar"
+          role="progressbar"
+          :aria-valuenow="weekUsagePercent"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-label="Weekly usage percentage"
+        >
           <div
             class="usage-fill"
             :class="weekUsageClass"
             :style="{ width: `${Math.min(weekUsagePercent, 100)}%` }"
+            aria-hidden="true"
           />
         </div>
-        <div class="usage-reset">Resets in {{ stats.timeUntilWeekReset }}</div>
+        <div class="usage-reset" aria-live="polite">Resets in {{ stats.timeUntilWeekReset }}</div>
       </div>
 
       <!-- Actions -->
-      <div class="status-actions">
-        <button v-if="!isLocalOnly" class="action-btn local-only" @click="enableLocalOnly">
+      <div class="status-actions" role="group" aria-label="Cloud Settings Actions">
+        <button
+          v-if="!isLocalOnly"
+          class="action-btn local-only"
+          aria-label="Enable local only mode to prevent cloud API calls"
+          tabindex="0"
+          @click="enableLocalOnly"
+          @keydown.enter="enableLocalOnly"
+          @keydown.space.prevent="enableLocalOnly"
+        >
           🏠 Local Only Mode
         </button>
-        <button v-else class="action-btn cloud-enabled" @click="disableLocalOnly">
+        <button
+          v-else
+          class="action-btn cloud-enabled"
+          aria-label="Enable cloud API access"
+          tabindex="0"
+          @click="disableLocalOnly"
+          @keydown.enter="disableLocalOnly"
+          @keydown.space.prevent="disableLocalOnly"
+        >
           ☁️ Enable Cloud
         </button>
-        <button class="action-btn" @click="refreshStats">🔄 Refresh</button>
+        <button
+          class="action-btn"
+          aria-label="Refresh usage statistics"
+          tabindex="0"
+          @click="refreshStats"
+          @keydown.enter="refreshStats"
+          @keydown.space.prevent="refreshStats"
+        >
+          🔄 Refresh
+        </button>
       </div>
 
       <!-- Warning -->

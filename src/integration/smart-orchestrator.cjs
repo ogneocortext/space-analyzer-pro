@@ -13,13 +13,13 @@ class SmartOrchestrator {
     constructor() {
         this.tools = {
             cpp: {
-                executable: path.join(__dirname, '../../bin/cpp-wrapper-fixed.cjs'),
+                executable: path.join(__dirname, '../../src/cpp/native-scanner/native-scanner.js'),
                 strengths: ['speed', 'basic-analysis', 'large-directories'],
                 cost: 1,
                 available: false
             },
             rust: {
-                executable: path.join(__dirname, '../../bin/rust-wrapper-real.cjs'),
+                executable: path.join(__dirname, '../../src/cpp/native-scanner/rust-scanner.js'),
                 strengths: ['media-analysis', 'ai-files', 'categorization'],
                 cost: 1.2,
                 available: false
@@ -31,7 +31,7 @@ class SmartOrchestrator {
                 available: false
             }
         };
-        
+
         this.cache = new Map();
         this.loadBalancer = new LoadBalancer();
         this.initializeTools();
@@ -58,7 +58,7 @@ class SmartOrchestrator {
 
     async analyzeDirectory(directory, options = {}) {
         const cacheKey = this.generateCacheKey(directory, options);
-        
+
         // Check cache first
         if (this.cache.has(cacheKey)) {
             console.log('📋 Using cached results...');
@@ -71,10 +71,10 @@ class SmartOrchestrator {
 
         // Execute analysis with minimal redundancy
         const results = await this.executeStrategy(strategy, directory, options);
-        
+
         // Cache results
         this.cache.set(cacheKey, results);
-        
+
         return results;
     }
 
@@ -113,7 +113,7 @@ class SmartOrchestrator {
         }
 
         // Default: use best available tool
-        const bestTool = availableTools.reduce((best, current) => 
+        const bestTool = availableTools.reduce((best, current) =>
             current.cost < best.cost ? current : best
         );
 
@@ -137,10 +137,10 @@ class SmartOrchestrator {
         // Execute each tool in the strategy (minimal redundancy)
         for (const toolName of strategy.tools) {
             console.log(`🔧 Executing ${toolName} analysis...`);
-            
+
             const toolResult = await this.executeTool(toolName, directory, options);
             results.results[toolName] = toolResult;
-            
+
             // If this is the first tool, use it as primary
             if (!results.primary) {
                 results.primary = toolName;
@@ -154,13 +154,13 @@ class SmartOrchestrator {
 
         // Add orchestrator insights
         results.insights = this.generateInsights(results);
-        
+
         return results;
     }
 
     async executeTool(toolName, directory, options) {
         const tool = this.tools[toolName];
-        
+
         if (toolName === 'node') {
             return await this.executeNodeAnalysis(directory, options);
         } else {
@@ -169,6 +169,18 @@ class SmartOrchestrator {
     }
 
     async executeCLIAnalysis(tool, directory, options) {
+        // Handle special select_directory action
+        if (options.action === 'select_directory') {
+            // For directory selection, return mock successful result
+            return {
+                tool: tool.name,
+                totalFiles: 0,
+                totalSize: 0,
+                analysisTime: 0,
+                action: 'select_directory_completed'
+            };
+        }
+
         const args = [directory];
         if (options.json) {
             args.push('--json', `analysis-${tool.name}.json`);
@@ -179,23 +191,48 @@ class SmartOrchestrator {
     }
 
     async executeNodeAnalysis(directory, options) {
-        // Mock AI analysis (would call real Node.js server)
-        return {
-            tool: 'node',
-            totalFiles: 172783,
-            totalSize: 52800000000,
-            analysisTime: 25000,
-            aiInsights: [
-                'High concentration of AI/ML files detected',
-                'Media files suggest content generation pipeline',
-                'Development environment well-structured'
-            ],
-            recommendations: [
-                'Consider optimizing AI model storage',
-                'Implement automated media processing',
-                'Set up AI model versioning'
-            ]
-        };
+        // Real AI analysis - call Node.js server
+        try {
+            const response = await fetch('http://localhost:8080/api/ai/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    directory,
+                    options: {
+                        includeInsights: true,
+                        includeRecommendations: true,
+                        ...options
+                    }
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                return {
+                    tool: 'node',
+                    totalFiles: result.totalFiles || 0,
+                    totalSize: result.totalSize || 0,
+                    analysisTime: result.analysisTime || 0,
+                    aiInsights: result.insights || [],
+                    recommendations: result.recommendations || []
+                };
+            } else {
+                throw new Error(`AI analysis failed: ${response.statusText}`);
+            }
+        } catch (error) {
+            console.error('Node.js AI analysis error:', error);
+            // Fallback to basic analysis
+            return {
+                tool: 'node',
+                totalFiles: 0,
+                totalSize: 0,
+                analysisTime: 0,
+                aiInsights: ['Analysis temporarily unavailable'],
+                recommendations: ['Please try again later']
+            };
+        }
     }
 
     parseCLIOutput(output, toolName) {
@@ -230,12 +267,12 @@ class SmartOrchestrator {
     parseSize(sizeStr) {
         const units = { 'B': 1, 'KB': 1024, 'MB': 1024*1024, 'GB': 1024*1024*1024, 'TB': 1024*1024*1024*1024 };
         const match = sizeStr.match(/^([\d.]+)\s*([A-Z]+)$/);
-        
+
         if (match) {
             const [, size, unit] = match;
             return Math.round(parseFloat(size) * (units[unit] || 1));
         }
-        
+
         return 0;
     }
 
@@ -251,7 +288,7 @@ class SmartOrchestrator {
 
     generateInsights(results) {
         const insights = [];
-        
+
         // Performance insights
         if (results.results.cpp && results.results.rust) {
             const cppTime = results.results.cpp.analysisTime;
@@ -334,11 +371,11 @@ class LoadBalancer {
     selectTool(availableTools, requirements) {
         // Simple round-robin with preference based on requirements
         this.metrics.total_requests++;
-        
+
         for (const tool of availableTools) {
             this.metrics.tool_usage[tool] = (this.metrics.tool_usage[tool] || 0) + 1;
         }
-        
+
         return availableTools[0]; // Simplified - would use more sophisticated logic
     }
 }
@@ -377,7 +414,7 @@ if (require.main === module) {
                 console.log(`📊 Files: ${results.summary.totalFiles.toLocaleString()}`);
                 console.log(`💾 Size: ${(results.summary.totalSize / (1024 * 1024 * 1024)).toFixed(2)} GB`);
                 console.log(`⏱️ Time: ${results.summary.analysisTime}ms`);
-                
+
                 if (results.insights.length > 0) {
                     console.log('\n💡 Insights:');
                     results.insights.forEach(insight => console.log(`  • ${insight}`));

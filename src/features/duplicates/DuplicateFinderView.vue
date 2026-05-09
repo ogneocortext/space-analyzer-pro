@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useAnalysisStore } from "../../store/analysis";
 import { Card, Button } from "../../design-system/components";
 import { Trash2, ExternalLink, AlertCircle } from "lucide-vue-next";
@@ -10,6 +10,31 @@ const isDeleting = ref<string | null>(null);
 const duplicateData = ref<any>(null);
 const error = ref("");
 const successMessage = ref("");
+
+// Load the most recent analysis data when component mounts
+onMounted(async () => {
+  if (!store.analysisResult) {
+    try {
+      // Try to load the most recent analysis from the backend
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/history/latest`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.analysis) {
+          store.analysisResult = data.analysis;
+          store.filesScanned = data.analysis.totalFiles || 0;
+          store.isAnalyzing = false;
+          store.analysisProgress = 100;
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load latest analysis:", err);
+      // Don't show error to user, just log it
+    }
+  }
+});
 
 // Stats computed from duplicate data
 const stats = computed(() => {
@@ -42,15 +67,19 @@ async function analyzeDuplicates() {
   error.value = "";
 
   try {
-    // Get the analysis ID from the store
-    const analysisId = store.analysisResult.analysisId || "latest";
+    // Get the analysis data from the store
+    const analysisData = store.analysisResult;
+
+    // Use the scan config path or generate a path from the analysis
+    const path = analysisData.scan_config?.path || analysisData.directory || "";
+    const analysisId = analysisData.analysisId;
 
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/analysis/${analysisId}/duplicates`,
+      `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/analysis/${analysisId}/duplicates`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: store.analysisResult.path }),
+        body: JSON.stringify({ path }),
       }
     );
 
@@ -175,7 +204,9 @@ async function deleteFile(filePath: string, hash: string) {
       class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3"
     >
       <AlertCircle class="w-5 h-5 text-red-400" />
-      <p class="text-red-400 text-sm">{{ error }}</p>
+      <p class="text-red-400 text-sm">
+        {{ error }}
+      </p>
     </div>
 
     <!-- Success Message -->
@@ -183,7 +214,9 @@ async function deleteFile(filePath: string, hash: string) {
       v-if="successMessage"
       class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg"
     >
-      <p class="text-emerald-400 text-sm">{{ successMessage }}</p>
+      <p class="text-emerald-400 text-sm">
+        {{ successMessage }}
+      </p>
     </div>
 
     <!-- No Analysis Warning -->
@@ -195,19 +228,27 @@ async function deleteFile(filePath: string, hash: string) {
     <!-- Stats Overview -->
     <div v-if="stats" class="grid grid-cols-4 gap-4">
       <Card title="Duplicate Files">
-        <div class="text-3xl font-bold text-red-400">{{ stats.totalDuplicates }}</div>
+        <div class="text-3xl font-bold text-red-400">
+          {{ stats.totalDuplicates }}
+        </div>
         <div class="text-sm text-slate-500">files found</div>
       </Card>
       <Card title="Duplicate Groups">
-        <div class="text-3xl font-bold text-orange-400">{{ stats.totalGroups }}</div>
+        <div class="text-3xl font-bold text-orange-400">
+          {{ stats.totalGroups }}
+        </div>
         <div class="text-sm text-slate-500">unique sets</div>
       </Card>
       <Card title="Wasted Space">
-        <div class="text-3xl font-bold text-yellow-400">{{ formatSize(stats.wastedSpace) }}</div>
+        <div class="text-3xl font-bold text-yellow-400">
+          {{ formatSize(stats.wastedSpace) }}
+        </div>
         <div class="text-sm text-slate-500">can be freed</div>
       </Card>
       <Card title="Total Scanned">
-        <div class="text-3xl font-bold text-blue-400">{{ stats.totalFiles.toLocaleString() }}</div>
+        <div class="text-3xl font-bold text-blue-400">
+          {{ stats.totalFiles.toLocaleString() }}
+        </div>
         <div class="text-sm text-slate-500">files analyzed</div>
       </Card>
     </div>
@@ -223,8 +264,12 @@ async function deleteFile(filePath: string, hash: string) {
         >
           <div class="flex items-start justify-between">
             <div>
-              <h3 class="font-medium text-slate-200">{{ rec.title }}</h3>
-              <p class="text-sm text-slate-400 mt-1">{{ rec.description }}</p>
+              <h3 class="font-medium text-slate-200">
+                {{ rec.title }}
+              </h3>
+              <p class="text-sm text-slate-400 mt-1">
+                {{ rec.description }}
+              </p>
             </div>
             <div class="text-right">
               <div class="text-lg font-semibold text-emerald-400">
@@ -276,24 +321,24 @@ async function deleteFile(filePath: string, hash: string) {
                   <span class="text-slate-500">{{ formatDate(file.modified) }}</span>
                   <div class="flex items-center gap-1">
                     <button
-                      @click="revealFile(file.path)"
                       class="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded transition-colors"
                       title="Reveal in Explorer"
+                      @click="revealFile(file.path)"
                     >
                       <ExternalLink class="w-4 h-4" />
                     </button>
                     <button
-                      @click="deleteFile(file.path, group.hash)"
                       :disabled="isDeleting === file.path"
                       class="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
                       :class="{ 'opacity-50 cursor-not-allowed': isDeleting === file.path }"
                       title="Delete File"
+                      @click="deleteFile(file.path, group.hash)"
                     >
                       <Trash2 v-if="isDeleting !== file.path" class="w-4 h-4" />
                       <div
                         v-else
                         class="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"
-                      ></div>
+                      />
                     </button>
                   </div>
                 </div>

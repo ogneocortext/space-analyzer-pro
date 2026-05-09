@@ -2,20 +2,7 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAnalysisStore } from "../../store/analysis";
-import {
-  Clock,
-  FolderOpen,
-  HardDrive,
-  FileText,
-  Calendar,
-  X,
-  Eye,
-  Download,
-  RefreshCw,
-  Search,
-  Filter,
-  ChevronRight,
-} from "lucide-vue-next";
+import { X, Eye, Search, Filter } from "lucide-vue-next";
 import { Card, Button } from "../../design-system/components";
 
 const router = useRouter();
@@ -63,19 +50,30 @@ const fetchAnalysisHistory = async () => {
       }
     } catch (storeError) {
       console.warn("Store method failed, using direct API call:", storeError);
-      const response = await fetch("/api/history");
+      try {
+        const response = await fetch("/api/analysis/history");
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+        if (!response.ok) {
+          if (response.status === 404) {
+            console.warn("API endpoint not found, showing empty state");
+            analyses.value = [];
+            return;
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (data.success) {
-        analyses.value = data.analyses || [];
-        console.log(`✅ Loaded ${analyses.value.length} analyses from API`);
-      } else {
-        throw new Error(data.error || "Failed to fetch analysis history");
+        if (data.success) {
+          analyses.value = data.analyses || [];
+          console.log(`✅ Loaded ${analyses.value.length} analyses from API`);
+        } else {
+          throw new Error(data.error || "Failed to fetch analysis history");
+        }
+      } catch (apiError) {
+        console.warn("API call failed, showing empty state:", apiError);
+        analyses.value = [];
+        // Don't throw error, just show empty state
       }
     }
   } catch (err) {
@@ -228,7 +226,7 @@ onMounted(() => {
     <div class="header">
       <div class="header-content">
         <div class="flex items-center gap-3">
-          <Clock class="w-6 h-6 text-blue-400" />
+          <span class="text-blue-400 text-xl">🕐</span>
           <h1 class="text-2xl font-bold text-slate-100">Scan History</h1>
         </div>
         <p class="text-slate-400 mt-1">View and manage your previous directory scans</p>
@@ -245,11 +243,11 @@ onMounted(() => {
           />
         </div>
         <Button :disabled="loading" variant="secondary" @click="fetchAnalysisHistory">
-          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
+          <span class="inline-block w-4 h-4" :class="{ 'animate-spin': loading }">🔄</span>
           Refresh
         </Button>
         <Button variant="primary" @click="router.push('/scan')">
-          <FolderOpen class="w-4 h-4" />
+          <span class="inline-block w-4 h-4">📁</span>
           New Scan
         </Button>
       </div>
@@ -273,7 +271,7 @@ onMounted(() => {
     <!-- Loading State -->
     <div v-else-if="loading" class="loading-state">
       <div class="loading-content">
-        <RefreshCw class="w-8 h-8 animate-spin text-blue-400" />
+        <span class="inline-block w-8 h-8 animate-spin text-blue-400">🔄</span>
         <h3>Loading Scan History</h3>
         <p>Please wait while we fetch your previous scans...</p>
       </div>
@@ -282,11 +280,11 @@ onMounted(() => {
     <!-- Empty State -->
     <div v-else-if="sortedAnalyses.length === 0" class="empty-state">
       <div class="empty-content">
-        <Clock class="w-16 h-16 text-slate-600" />
+        <span class="text-slate-600 text-6xl">🕐</span>
         <h3>No Scan History</h3>
         <p>You haven't performed any scans yet. Start your first scan to see it here.</p>
         <Button variant="primary" @click="router.push('/scan')">
-          <FolderOpen class="w-4 h-4" />
+          <span class="inline-block w-4 h-4">📁</span>
           Start First Scan
         </Button>
       </div>
@@ -328,17 +326,17 @@ onMounted(() => {
           <div class="card-content">
             <div class="stats-grid">
               <div class="stat-item">
-                <FileText class="w-4 h-4 text-blue-400" />
+                <span class="text-blue-400 text-sm">📄</span>
                 <span class="stat-value">{{ analysis.totalFiles || 0 }}</span>
                 <span class="stat-label">Files</span>
               </div>
               <div class="stat-item">
-                <HardDrive class="w-4 h-4 text-green-400" />
+                <span class="text-green-400 text-sm">💾</span>
                 <span class="stat-value">{{ formatFileSize(analysis.totalSize || 0) }}</span>
                 <span class="stat-label">Total Size</span>
               </div>
               <div class="stat-item">
-                <Calendar class="w-4 h-4 text-purple-400" />
+                <span class="text-purple-400 text-sm">📅</span>
                 <span class="stat-value">{{
                   formatDate(analysis.lastAnalyzed || analysis.startTime)
                 }}</span>
@@ -352,7 +350,7 @@ onMounted(() => {
                 View Analysis
               </Button>
               <Button variant="secondary" size="sm" @click.stop="viewAnalysis(analysis)">
-                <ChevronRight class="w-4 h-4" />
+                <span class="inline-block w-4 h-4">→</span>
                 Details
               </Button>
               <Button variant="danger" size="sm" @click.stop="deleteAnalysis(analysis)">

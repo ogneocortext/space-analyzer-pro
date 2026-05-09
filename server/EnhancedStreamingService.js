@@ -1,9 +1,10 @@
 /**
  * Enhanced Streaming Implementation with Retry Logic
- * Implements robust streaming with automatic fallback and retry mechanisms
+ * Uses Node.js stream.Readable instead of Web ReadableStream API
  */
 
 const { EventEmitter } = require('events');
+const { Readable } = require('stream');
 
 class EnhancedStreamingService extends EventEmitter {
     constructor() {
@@ -25,7 +26,8 @@ class EnhancedStreamingService extends EventEmitter {
             retryCount: 0,
             lastError: null,
             startTime: Date.now(),
-            provider: options.provider || 'ollama'
+            provider: options.provider || 'ollama',
+            destroyed: false
         };
 
         this.activeStreams.set(streamId, streamConfig);
@@ -38,39 +40,40 @@ class EnhancedStreamingService extends EventEmitter {
     }
 
     async executeStream(streamConfig) {
-        const { request, options, provider } = streamConfig;
+        const { request, options, id } = streamConfig;
         
-        // Create Server-Sent Events stream
-        const stream = new ReadableStream({
-            start(controller) {
-                this.setupStreamController(controller, streamConfig);
+        // Create Node.js Readable stream
+        const stream = new Readable({
+            objectMode: false,
+            read() {
+                // Push will be called from processStreamingRequest
+                // This is a passive readable stream
             },
-            cancel() {
-                this.cleanupStream(streamConfig.id);
+            destroy(err, callback) {
+                this.cleanupStream(id);
+                callback(err);
             }
         });
+
+        // Start the streaming process
+        this.processStreamingRequest(stream, request, options, streamConfig)
+            .then(() => {
+                if (!stream.destroyed) {
+                    stream.push(null);
+                    this.emit('streamCompleted', id);
+                }
+            })
+            .catch((error) => {
+                if (!stream.destroyed) {
+                    stream.destroy(error);
+                    this.emit('streamError', id, error);
+                }
+            });
 
         return stream;
     }
 
-    setupStreamController(controller, streamConfig) {
-        const { request, options } = streamConfig;
-        
-        // Start the streaming process
-        this.processStreamingRequest(request, options)
-            .then(() => {
-                // Stream completed successfully
-                controller.close();
-                this.emit('streamCompleted', streamConfig.id);
-            })
-            .catch((error) => {
-                // Stream failed
-                controller.error(error);
-                this.emit('streamError', streamConfig.id, error);
-            });
-    }
-
-    async processStreamingRequest(request, options) {
+    async processStreamingRequest(stream, request, options, streamConfig) {
         const { messages, context } = request;
         const aiManager = require('./OpenSourceAIManager');
         
@@ -83,100 +86,145 @@ class EnhancedStreamingService extends EventEmitter {
 
             // Handle streaming response
             if (response.body) {
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                
-                while (true) {
-                    const { done, value } = await reader.read();
-                    
-                    if (done) break;
-                    
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-                    
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            
-                            if (data === '[DONE]') {
-                                this.emit('streamEnd');
-                                return;
+                // If response is a Node.js Readable stream
+                if (response.body instanceof Readable || response.body.readable) {
+                    for await (const chunk of response.body) {
+                        if (streamConfig.destroyed) break;
+                        const decoded = chunk.toString();
+                        const lines = decoded.split('\n');
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    stream.push(JSON.stringify(parsed) + '\n');
+                                } catch {
+                                    stream.push(data + '\n');
+                                }
                             }
-                            
-                            try {
-                                const parsed = JSON.parse(data);
-                                this.emit('streamChunk', parsed);
-                            } catch (e) {
-                                // Skip invalid JSON
-                                continue;
+                        }
+                    }
+                } else if (typeof response.body.getReader === 'function') {
+                    // Web API ReadableStream format
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    
+                    while (true) {
+                        if (streamConfig.destroyed) break;
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    stream.push(JSON.stringify(parsed) + '\n');
+                                } catch {
+                                    stream.push(data + '\n');
+                                }
                             }
                         }
                     }
                 }
+            } else if (response.data) {
+                // Handle non-streaming response format
+                stream.push(JSON.stringify(response.data) + '\n');
             }
-            
         } catch (error) {
-            throw new Error(`Streaming request failed: ${error.message}`);
+            streamConfig.lastError = error;
+            throw error;
         }
     }
 
     async handleStreamError(streamConfig, error) {
-        const { retryCount } = streamConfig;
+        const { id, retryCount, options } = streamConfig;
         
-        if (retryCount < this.retryConfig.maxRetries) {
-            // Calculate retry delay with exponential backoff
+        if (retryCount < this.retryConfig.maxRetries && !streamConfig.destroyed) {
+            streamConfig.retryCount++;
+            
+            // Calculate delay with exponential backoff
             const delay = Math.min(
                 this.retryConfig.baseDelay * Math.pow(this.retryConfig.backoffFactor, retryCount),
                 this.retryConfig.maxDelay
             );
             
-            console.log(`🔄 Retrying stream ${streamConfig.id} in ${delay}ms (attempt ${retryCount + 1})`);
+            this.emit('streamRetry', id, retryCount + 1, delay);
             
             // Wait before retry
             await new Promise(resolve => setTimeout(resolve, delay));
             
-            // Update retry count
-            streamConfig.retryCount++;
-            streamConfig.lastError = error;
-            
-            // Try again
-            try {
-                return await this.executeStream(streamConfig);
-            } catch (retryError) {
-                return await this.handleStreamError(streamConfig, retryError);
-            }
-        } else {
-            // Max retries exceeded
-            console.error(`❌ Stream ${streamConfig.id} failed after ${this.retryConfig.maxRetries} retries`);
-            throw error;
+            // Retry the stream
+            return this.executeStream(streamConfig);
         }
+        
+        // Max retries exceeded or stream destroyed
+        this.cleanupStream(id);
+        this.emit('streamFailed', id, error);
+        throw error;
     }
 
     cleanupStream(streamId) {
-        this.activeStreams.delete(streamId);
-        this.emit('streamCleanup', streamId);
+        const streamConfig = this.activeStreams.get(streamId);
+        if (streamConfig) {
+            streamConfig.destroyed = true;
+            this.activeStreams.delete(streamId);
+            this.emit('streamCleaned', streamId);
+        }
     }
 
-    getActiveStreams() {
-        return Array.from(this.activeStreams.values()).map(config => ({
-            id: config.id,
-            provider: config.provider,
-            retryCount: config.retryCount,
-            startTime: config.startTime,
-            duration: Date.now() - config.startTime
-        }));
+    /**
+     * Destroy a stream by ID
+     */
+    destroyStream(streamId) {
+        const streamConfig = this.activeStreams.get(streamId);
+        if (streamConfig) {
+            streamConfig.destroyed = true;
+            this.activeStreams.delete(streamId);
+            this.emit('streamDestroyed', streamId);
+        }
     }
 
-    async healthCheck() {
-        const aiManager = require('./OpenSourceAIManager');
-        const status = aiManager.getProviderStatus();
+    /**
+     * Destroy all active streams
+     */
+    destroyAllStreams() {
+        for (const [id] of this.activeStreams) {
+            this.destroyStream(id);
+        }
+        this.removeAllListeners();
+    }
+
+    /**
+     * Get stream status
+     */
+    getStreamStatus(streamId) {
+        const config = this.activeStreams.get(streamId);
+        if (!config) return null;
         
         return {
-            streaming: true,
-            activeStreams: this.activeStreams.size,
-            providerStatus: status,
-            retryConfig: this.retryConfig
+            id: config.id,
+            active: !config.destroyed,
+            retryCount: config.retryCount,
+            startTime: config.startTime,
+            provider: config.provider,
+            lastError: config.lastError?.message || null
         };
+    }
+
+    /**
+     * Get all active stream statuses
+     */
+    getAllStreamStatuses() {
+        const statuses = [];
+        for (const [id] of this.activeStreams) {
+            statuses.push(this.getStreamStatus(id));
+        }
+        return statuses;
     }
 }
 

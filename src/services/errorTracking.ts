@@ -32,6 +32,7 @@ class ErrorTracker {
   private isTauri = (): boolean => !!(window as any).__TAURI__;
   private lastErrors = new Set<string>(); // For deduplication
   private maxDedupeSize = 100;
+  private isCapturing = false; // Prevent recursive errors
 
   constructor() {
     this.setupGlobalHandlers();
@@ -77,64 +78,79 @@ class ErrorTracker {
   captureError(error: Error | string, context: ErrorContext = {}): string {
     if (!this.isEnabled) return "";
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    const errorType = error instanceof Error ? error.name : "Error";
+    // Prevent recursive error tracking
+    if (this.isCapturing) return "";
+    this.isCapturing = true;
 
-    // Deduplication: skip if same error was recently reported
-    const dedupeKey = `${errorType}:${errorMessage}:${context.component || ""}`;
-    if (this.lastErrors.has(dedupeKey)) {
+    try {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      const errorType = error instanceof Error ? error.name : "Error";
+
+      // Deduplication: skip if same error was recently reported
+      const dedupeKey = `${errorType}:${errorMessage}:${context.component || ""}`;
+      if (this.lastErrors.has(dedupeKey)) {
+        return "";
+      }
+
+      this.lastErrors.add(dedupeKey);
+      if (this.lastErrors.size > this.maxDedupeSize) {
+        const first = this.lastErrors.values().next().value;
+        this.lastErrors.delete(first);
+      }
+
+      // Clear dedupe after 5 minutes
+      setTimeout(() => this.lastErrors.delete(dedupeKey), 300000);
+
+      const report: ErrorReport = {
+        type: errorType,
+        message: errorMessage,
+        stack: errorStack,
+        url: window.location.href,
+        timestamp: new Date().toISOString(),
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        },
+        component: context.component,
+        action: context.action,
+        metadata: {
+          ...context.metadata,
+          userAgent: navigator.userAgent,
+          language: navigator.language,
+          platform: navigator.platform,
+        },
+      };
+
+      // Add to buffer
+      this.buffer.push(report);
+
+      // Keep buffer size limited
+      if (this.buffer.length > this.bufferSize) {
+        this.buffer.shift();
+      }
+
+      // Log to console in development
+      if (import.meta.env.DEV) {
+        console.error("[ErrorTracker]", errorType + ":", errorMessage, context);
+      }
+
+      // Flush immediately for critical errors
+      if (this.isCriticalError(error)) {
+        this.flushBuffer();
+      }
+
+      return report.timestamp;
+    } catch (err) {
+      // If something goes wrong during error capture, log it but don't crash
+      if (import.meta.env.DEV) {
+        console.error("[ErrorTracker] Failed to capture error:", err);
+      }
       return "";
+    } finally {
+      // Always reset the capturing flag
+      this.isCapturing = false;
     }
-
-    this.lastErrors.add(dedupeKey);
-    if (this.lastErrors.size > this.maxDedupeSize) {
-      const first = this.lastErrors.values().next().value;
-      this.lastErrors.delete(first);
-    }
-
-    // Clear dedupe after 5 minutes
-    setTimeout(() => this.lastErrors.delete(dedupeKey), 300000);
-
-    const report: ErrorReport = {
-      type: errorType,
-      message: errorMessage,
-      stack: errorStack,
-      url: window.location.href,
-      timestamp: new Date().toISOString(),
-      viewport: {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      },
-      component: context.component,
-      action: context.action,
-      metadata: {
-        ...context.metadata,
-        userAgent: navigator.userAgent,
-        language: navigator.language,
-        platform: navigator.platform,
-      },
-    };
-
-    // Add to buffer
-    this.buffer.push(report);
-
-    // Keep buffer size limited
-    if (this.buffer.length > this.bufferSize) {
-      this.buffer.shift();
-    }
-
-    // Log to console in development
-    if (import.meta.env.DEV) {
-      console.error("[ErrorTracker]", errorType + ":", errorMessage, context);
-    }
-
-    // Flush immediately for critical errors
-    if (this.isCriticalError(error)) {
-      this.flushBuffer();
-    }
-
-    return report.timestamp;
   }
 
   /**
@@ -184,22 +200,34 @@ class ErrorTracker {
           });
         } else {
           // Web mode - use API
-          const response = await fetch(this.apiUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(error),
-            keepalive: true,
-          });
+          try {
+            const response = await fetch(this.apiUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(error),
+              keepalive: true,
+            });
 
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            try {
-              await response.json();
-            } catch {
-              // JSON parse failed, but we don't care about the response
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
+
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+              try {
+                await response.json();
+              } catch (jsonError) {
+                // JSON parse failed, but we don't care about response
+              }
+            }
+          } catch (fetchError) {
+            // If API doesn't exist or fails, just log locally
+            if (import.meta.env.DEV) {
+              console.debug("API endpoint not available, skipping error reporting:", fetchError);
+            }
+            return; // Don't retry
           }
         }
       } catch (err) {

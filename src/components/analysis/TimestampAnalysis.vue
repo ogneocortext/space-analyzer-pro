@@ -33,8 +33,14 @@ const formatDate = (date: Date): string => {
 <style scoped>
 .timestamp-analysis {
   padding: 1rem;
-  background: #f9f9f9;
+  background: #1e293b;
   border-radius: 8px;
+  border: 1px solid #334155;
+}
+
+.timestamp-analysis h3 {
+  color: #f1f5f9;
+  margin: 0 0 1rem 0;
 }
 
 .timestamp-grid {
@@ -48,18 +54,24 @@ const formatDate = (date: Date): string => {
   display: flex;
   justify-content: space-between;
   padding: 0.75rem;
-  background: white;
+  background: #334155;
   border-radius: 6px;
-  border-left: 4px solid #007bff;
+  border-left: 4px solid #60a5fa;
+  transition: background-color 0.2s ease;
+}
+
+.timestamp-item:hover {
+  background: #475569;
 }
 
 .timestamp-label {
   font-weight: 600;
-  color: #333;
+  color: #e2e8f0;
 }
 
 .timestamp-value {
-  color: #666;
+  color: #cbd5e1;
   font-family: monospace;
+  font-size: 0.875rem;
 }
 </style>

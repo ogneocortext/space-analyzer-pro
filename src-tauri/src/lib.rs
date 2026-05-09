@@ -74,6 +74,12 @@ pub fn run() {
             get_error_stats,
             clear_error_logs,
             delete_error_logs,
+            open_file,
+            show_in_folder,
+            get_environment_variables,
+            execute_command,
+            read_file_content,
+            write_file_content,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

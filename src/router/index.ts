@@ -25,6 +25,11 @@ const router = createRouter({
     {
       path: "/browser",
       name: "browser",
+      redirect: "/file-browser",
+    },
+    {
+      path: "/file-browser",
+      name: "file-browser",
       component: () => import("../features/browser/FileBrowserView.vue"),
     },
     {
@@ -46,6 +51,21 @@ const router = createRouter({
       path: "/cleanup",
       name: "cleanup",
       component: () => import("../features/cleanup/CleanupRecommendationsView.vue"),
+    },
+    {
+      path: "/export",
+      name: "export",
+      component: () => import("../features/export/ExportView.vue"),
+    },
+    {
+      path: "/optimization",
+      name: "optimization",
+      component: () => import("../features/optimization/OptimizationView.vue"),
+    },
+    {
+      path: "/automation",
+      name: "automation",
+      component: () => import("../features/automation/AutomationView.vue"),
     },
     {
       path: "/trends",

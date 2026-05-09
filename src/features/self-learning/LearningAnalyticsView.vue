@@ -9,7 +9,11 @@
       <LearningAnalyticsDashboard />
       <div class="additional-features">
         <AnalyticsDataVisualization />
-        <UserFeedbackCollection />
+        <UserFeedbackCollection
+          recommendation-id="default-analytics"
+          recommendation-type="learning-analytics"
+          :auto-show="false"
+        />
       </div>
     </div>
   </div>

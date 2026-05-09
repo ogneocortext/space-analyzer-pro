@@ -2,7 +2,7 @@
 
 ## 🎯 **Quick Reference for Issue Categorization**
 
-### **Step 1: Identify the Issue Type**
+### **Step 1: Identify Issue Type**
 
 **Is it a BUG or FEATURE request?**
 
@@ -71,160 +71,115 @@
 
 ---
 
-## 📋 **Common Issue Patterns**
+## 📋 **Consolidated Issue Tracker Structure**
 
-### **TypeScript Issues**
+### **Primary CSV File**: `CONSOLIDATED_ISSUE_TRACKER.csv`
 
-```typescript
-// ❌ Bad - Any type
-const data: any = response.data;
-
-// ✅ Good - Proper typing
-interface ApiResponse {
-  success: boolean;
-  data: UserData[];
-}
-const data: ApiResponse = response.data;
-```
-
-**Issue ID**: `TYPE-001`
-**Category**: `Code Quality & Standards → TypeScript Issues → ts-any-types`
-
-### **Memory Leaks**
-
-```typescript
-// ❌ Bad - Uncleared interval
-const interval = setInterval(() => {
-  updateData();
-}, 1000);
-
-// ✅ Good - Proper cleanup
-onUnmounted(() => {
-  clearInterval(interval);
-});
-```
-
-**Issue ID**: `MEMORY-001`
-**Category**: `Performance & Optimization → Memory Management → memory-leaks`
-
-### **Error Boundaries**
-
-```vue
-<!-- ❌ Bad - No error boundary -->
-<template>
-  <ComplexComponent />
-</template>
-
-<!-- ✅ Good - With error boundary -->
-<template>
-  <ErrorBoundary>
-    <ComplexComponent />
-  </ErrorBoundary>
-</template>
-```
-
-**Issue ID**: `ERROR-001`
-**Category**: `Error Handling & Reliability → Error Management → missing-error-boundaries`
-
-### **Functionality Issues**
-
-```vue
-<!-- ❌ Bad - Missing feature -->
-<template>
-  <!-- No way to export data -->
-  <div class="data-display">
-    {{ analysisData }}
-  </div>
-</template>
-
-<!-- ✅ Good - Feature present -->
-<template>
-  <div class="data-display">
-    {{ analysisData }}
-    <button @click="exportData" class="export-btn">Export Data</button>
-  </div>
-</template>
-```
-
-**Issue ID**: `FUNC-001`
-**Category**: `Functionality & Features → Feature Implementation → missing-feature`
-
-### **User Workflow Issues**
-
-```typescript
-// ❌ Bad - Broken workflow
-const saveAnalysis = async () => {
-  saveToDatabase(); // No error handling
-  // No feedback to user
-  // No way to retry if failed
-};
-
-// ✅ Good - Complete workflow
-const saveAnalysis = async () => {
-  try {
-    await saveToDatabase();
-    showSuccessMessage("Analysis saved successfully!");
-  } catch (error) {
-    showErrorMessage("Failed to save. Please try again.");
-    logError(error);
-  }
-};
-```
-
-**Issue ID**: `FUNC-003`
-**Category**: `Functionality & Features → User Workflow → workflow-broken`
-
----
-
-## 🏷️ **Tagging Best Practices**
-
-### **Technical Tags**
-
-- Use `bug` for defects
-- Use `feature` for new functionality
-- Use `refactor` for code restructuring
-- Use `optimization` for performance improvements
-
-### **Impact Tags**
-
-- `user-facing` - Users will notice this
-- `developer-facing` - Internal impact only
-- `breaking-change` - API changes required
-
-### **Effort Tags**
-
-- `quick-win` - < 2 hours
-- `medium-effort` - 2-8 hours
-- `large-effort` - 8-24 hours
-- `epic` - > 24 hours
-
----
-
-## 📊 **CSV Entry Template**
-
-```csv
-Tracker,Issue_ID,Status,Priority,Category,Component,File,Description,Resolution,Date_Updated,Date_Resolved,Reporter,Assignee,Tags,Test_Coverage,Estimated_Hours
-Source Analysis,TYPE-XXX,OPEN,Medium,Code Quality & Standards,TypeScript Issues,src/file.ts,Brief description,Proposed solution,2026-05-07,,User,Assignee,tag1,tag2,No,4
-```
-
-**Field Explanations:**
-
-- **Tracker**: Source Analysis, User Report, Automated Scan
-- **Issue_ID**: Clear category-based identifier (TYPE-001, PERF-001, ERROR-001, etc.)
+**Columns:**
+- **Tracker**: Source of issue (Main Issue Tracker, Windows GUI Tracker, Backend Error Tracker, etc.)
+- **Issue_ID**: Unique identifier with category prefix
 - **Status**: OPEN, IN_PROGRESS, RESOLVED, BLOCKED
 - **Priority**: Critical, High, Medium, Low
-- **Category**: Use hierarchical categories from framework
-- **Component**: Vue, Backend, Desktop, Shared
-- **File**: Specific file path
-- **Description**: Clear, concise problem description
-- **Resolution**: How to fix it (leave blank if not resolved)
+- **Category**: High-level categorization (Security, Performance, Functionality, etc.)
+- **Subcategory**: Specific area within category (Error Handling, Memory Management, etc.)
+- **Component**: Technical layer (Frontend, Backend, Native, etc.)
+- **File**: Specific file path where issue exists
+- **Description**: Clear problem description
+- **Resolution**: How the issue was fixed
 - **Date_Updated**: Last modification date
 - **Date_Resolved**: Resolution date (blank if open)
-- **Reporter**: Who found the issue
-- **Assignee**: Who will fix it
+- **Reporter**: Who discovered the issue
+- **Assignee**: Who will fix the issue
 - **Tags**: Comma-separated technical tags
 - **Test_Coverage**: Yes, No, Partial
-- **Estimated_Hours**: Time estimate
+- **Estimated_Hours**: Time estimate for resolution
+- **Impact_Area**: What part of system is affected
+
+### **Category Segmentation:**
+
+#### **🔒 Security & Safety**
+- Input validation issues
+- Authentication problems
+- Data exposure risks
+- SQL injection vulnerabilities
+- Path traversal issues
+
+#### **⚡ Performance & Optimization**
+- Memory leaks
+- Slow rendering
+- Database performance
+- Resource cleanup
+- Large component optimization
+
+#### **🛠️ Functionality & Features**
+- Missing features
+- Broken workflows
+- Integration problems
+- Data persistence issues
+- Export/import functionality
+
+#### **🔧 Error Handling & Reliability**
+- Missing error boundaries
+- Unhandled exceptions
+- Promise rejections
+- Panic handling
+- Error message quality
+
+#### **🏗️ Architecture & Design**
+- Circular dependencies
+- Service coupling
+- Component organization
+- Design patterns
+- Code structure
+
+#### **📝 Code Quality & Standards**
+- TypeScript issues
+- Code style violations
+- Magic numbers/hard-coded values
+- Dead code
+- Code duplication
+
+#### **🧪 Testing & Quality Assurance**
+- Missing test coverage
+- Test quality issues
+- Test organization
+- Integration testing
+- End-to-end testing
+
+#### **🔨 Build & Deployment**
+- Compilation issues
+- Dependency problems
+- Configuration issues
+- Platform-specific builds
+- CI/CD pipeline
+
+---
+
+## 📊 **Current Issue Status**
+
+### **Open Issues by Priority:**
+
+| Priority | Count | Impact Areas |
+| -------- | ----- | ------------ |
+| Critical | 3      | Security, Build System, Performance |
+| High     | 2      | Performance, Security |
+| Medium   | 1      | Code Quality |
+| Low      | 0      | - |
+
+### **Open Issues by Category:**
+
+| Category | Count | Examples |
+| -------- | ----- | -------- |
+| Security | 2      | Input validation, Path traversal |
+| Performance | 2      | Memory management, Database queries |
+| Code Quality | 1      | TypeScript issues |
+| Build System | 1      | Rust compilation |
+
+### **Recently Resolved:**
+
+- **BUILD-001**: Rust compilation fixes (2026-05-08)
+- **PERF-001**: Three.js memory cleanup (2026-05-07)
+- **TYPE-001**: TypeScript any types replacement (2026-05-07)
 
 ---
 
@@ -260,71 +215,9 @@ Source Analysis,TYPE-XXX,OPEN,Medium,Code Quality & Standards,TypeScript Issues,
 
 ---
 
-## 📈 **Problem Area Analysis**
-
-### **Current Problem Areas (Based on Source Analysis)**
-
-#### **1. TypeScript Type Safety**
-
-**Issues**: TYPE-001
-**Impact**: Medium
-**Files**: `src/store/analysis.ts`, multiple components
-**Action**: Replace `any` types with proper interfaces
-
-#### **2. Configuration Issues**
-
-**Issues**: CONFIG-001
-**Impact**: Low
-**Files**: `src/store/analysis.ts`
-**Action**: Replace hard-coded values with environment variables
-
-#### **3. Memory Management**
-
-**Issues**: MEMORY-001
-**Impact**: Medium
-**Files**: `src/components/3d/FileSystem3D.vue`
-**Action**: Implement proper cleanup in lifecycle hooks
-
-#### **4. Error Handling**
-
-**Issues**: ERROR-001
-**Impact**: Medium
-**Files**: Multiple Vue components
-**Action**: Add error boundaries to critical components
-
-#### **5. Performance Optimization**
-
-**Issues**: PERF-001
-**Impact**: Low
-**Files**: `src/components/3d/FileSystem3DEnhanced.vue`
-**Action**: Split large components into smaller ones
-
-#### **6. Architecture Issues**
-
-**Issues**: ARCH-001
-**Impact**: Medium
-**Files**: `src/services/`
-**Action**: Audit and restructure service dependencies
-
-#### **7. Code Duplication**
-
-**Issues**: REFACTOR-001
-**Impact**: Low
-**Files**: `src/components/ai/`
-**Action**: Extract common functionality into composables
-
-#### **8. Test Coverage**
-
-**Issues**: TEST-001
-**Impact**: Medium
-**Files**: `src/utils/InputValidation.ts`
-**Action**: Add comprehensive test suite
-
----
-
 ## 🚀 **Next Steps**
 
-1. **Address Open Issues**: Start with TYPE-001 (TypeScript) and TEST-001 (Testing)
+1. **Address Open Issues**: Start with Critical priority issues
 2. **Regular Scans**: Set up automated scans for common patterns
 3. **Code Reviews**: Use this guide during code reviews
 4. **Documentation**: Keep this guide updated with new patterns
@@ -343,12 +236,40 @@ Source Analysis,TYPE-XXX,OPEN,Medium,Code Quality & Standards,TypeScript Issues,
 
 ### **Resources**
 
-- [Issue Categorization Framework](./ISSUE_CATEGORIZATION_FRAMEWORK.md)
-- [Consolidated Issue Tracker](./ISSUE_TRACKER_CONSOLIDATED.csv)
-- [Main Issue Tracker](./ISSUE_TRACKER.md)
+- [Consolidated Issue Tracker](./CONSOLIDATED_ISSUE_TRACKER.csv)
+- [Issue Categorization Framework](./archive/old-trackers/ISSUE_CATEGORIZATION_FRAMEWORK.md)
+- [Archive of Old Trackers](./archive/old-trackers/)
 
 ---
 
-_Guide Version: 1.0_
+## 📈 **Issue Management Workflow**
+
+### **1. Issue Discovery**
+```bash
+# Add new issue to CSV
+echo "Tracker,Issue_ID,Status,Priority,Category,Subcategory,Component,File,Description,Resolution,Date_Updated,Date_Resolved,Reporter,Assignee,Tags,Test_Coverage,Estimated_Hours,Impact_Area" >> CONSOLIDATED_ISSUE_TRACKER.csv
+```
+
+### **2. Issue Triage**
+- Assign priority based on impact
+- Categorize using the framework above
+- Assign to appropriate team member
+- Estimate effort
+
+### **3. Issue Resolution**
+- Update status to IN_PROGRESS
+- Document resolution approach
+- Add test coverage verification
+- Update Date_Resolved when complete
+
+### **4. Issue Closure**
+- Verify fix doesn't break other functionality
+- Update test coverage
+- Mark as RESOLVED
+- Archive related discussions
+
+---
+
+_Guide Version: 2.0_
 _Last Updated: 2026-05-07_
 _Maintainer: Development Team_

@@ -41,7 +41,7 @@ export class ProgressManager {
 
         let progressResponse;
         try {
-          progressResponse = await fetch(`${this.baseUrl}/api/progress/${analysisId}`, {
+          progressResponse = await fetch(`${this.baseUrl}/api/analysis/progress/${analysisId}`, {
             signal: AbortSignal.timeout(this.config.timeout),
           });
         } catch (fetchError) {
