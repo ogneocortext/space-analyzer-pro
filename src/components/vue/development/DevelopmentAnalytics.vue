@@ -510,7 +510,9 @@ onMounted(() => {
 }
 
 .metrics-list {
-  @apply space-y-4;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .metric-item {

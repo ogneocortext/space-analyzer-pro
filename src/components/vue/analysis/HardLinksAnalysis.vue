@@ -68,7 +68,7 @@
     >
       <h2 class="text-xl font-semibold text-white mb-4">Hard Link Groups</h2>
 
-      <div class="space-y-4">
+      <div class="flex flex-col gap-4">
         <div
           v-for="group in hardLinkGroups.slice(0, 10)"
           :key="group.hash"

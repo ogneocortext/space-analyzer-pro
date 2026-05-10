@@ -178,7 +178,7 @@
         </div>
 
         <!-- File List (when no specific file selected) -->
-        <div v-else class="space-y-4">
+        <div v-else class="flex flex-col gap-4">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-medium text-white">Files ({{ files.length }} total)</h3>
             <input

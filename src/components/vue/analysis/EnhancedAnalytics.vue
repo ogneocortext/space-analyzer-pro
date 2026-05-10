@@ -146,7 +146,7 @@
         <!-- Performance Metrics -->
         <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">Performance Metrics</h3>
-          <div class="space-y-4">
+          <div class="flex flex-col gap-4">
             <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div>
                 <p class="font-medium text-gray-900">Average Response Time</p>
@@ -222,7 +222,7 @@
         <!-- Model Performance -->
         <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">AI Model Performance</h3>
-          <div class="space-y-4">
+          <div class="flex flex-col gap-4">
             <div
               v-for="model in data.modelsUsed"
               :key="model"
@@ -281,7 +281,7 @@
         <!-- Key Insights -->
         <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
           <h3 class="text-lg font-semibold text-gray-900 mb-4">AI-Powered Insights</h3>
-          <div class="space-y-4">
+          <div class="flex flex-col gap-4">
             <div class="p-4 bg-blue-50 rounded-lg">
               <h4 class="font-medium text-blue-900 mb-2">🎯 Priority 1: Visual Hierarchy</h4>
               <p class="text-sm text-blue-700">

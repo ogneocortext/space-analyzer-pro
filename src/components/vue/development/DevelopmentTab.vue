@@ -765,7 +765,9 @@ const toggleFileExpansion = (fileId: string) => {
 }
 
 .analyzer-results {
-  @apply space-y-4;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .analyzer-result {
@@ -781,7 +783,11 @@ const toggleFileExpansion = (fileId: string) => {
 }
 
 .analyzer-details {
-  @apply p-4 border-t border-gray-700 space-y-4;
+  padding: 1rem;
+  border-top: 1px solid rgb(55 65 81);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .detail-grid {
@@ -889,7 +895,9 @@ const toggleFileExpansion = (fileId: string) => {
 }
 
 .quality-metrics {
-  @apply space-y-4;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .quality-metric {
@@ -901,7 +909,9 @@ const toggleFileExpansion = (fileId: string) => {
 }
 
 .security-alerts {
-  @apply space-y-4;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .alert-header {
@@ -933,7 +943,9 @@ const toggleFileExpansion = (fileId: string) => {
 }
 
 .performance-issues {
-  @apply space-y-4;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .performance-issues h3 {

@@ -69,7 +69,7 @@
         >
           <div
             :class="[
-              'bg-slate-800/50 p-4 lg:p-6 space-y-3 lg:space-y-4 backdrop-blur-lg border border-white/20 rounded-xl',
+              'bg-slate-800/50 p-4 lg:p-6 flex flex-col gap-3 lg:gap-4 backdrop-blur-lg border border-white/20 rounded-xl',
               isDragOver ? 'border-2 border-dashed border-[#00B4D8] bg-[#00B4D8]/10' : '',
             ]"
           >
@@ -264,7 +264,7 @@
               <div
                 v-if="analysisStore.data"
                 data-testid="scan-results"
-                class="pt-4 border-t border-slate-700 space-y-4 animate-in fade-in slide-in-from-bottom-5 duration-500 max-h-96 overflow-y-auto"
+                class="pt-4 border-t border-slate-700 flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-5 duration-500 max-h-96 overflow-y-auto"
               >
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-sm text-slate-300">Analysis Complete</span>

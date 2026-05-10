@@ -3,11 +3,8 @@
     <!-- Notification bell trigger -->
     <button
       class="notification-trigger"
-      :class="{ active: store.centerOpen, 'has-unread': store.unreadCount > 0 }"
+      :class="{ 'has-unread': store.unreadCount > 0 }"
       aria-label="Toggle notifications"
-      aria-expanded="store.centerOpen"
-      aria-haspopup="true"
-      aria-controls="notification-panel"
       @click="store.toggleCenter"
     >
       <Bell class="bell-icon" :class="{ ringing: store.unreadCount > 0 }" aria-hidden="true" />
@@ -26,18 +23,19 @@
     >
       <div
         v-for="notification in store.visibleNotifications"
+        v-if="notification && Object.keys(notification).length > 0"
         :key="notification.id"
         class="toast-notification"
-        :class="[`toast-${notification.type}`, { 'toast-persistent': !notification.duration }]"
-        @mouseenter="pauseDismiss(notification.id)"
-        @mouseleave="resumeDismiss(notification.id)"
+        :class="`toast-${notification.type || 'info'}`"
+        @mouseenter="store.pauseDismiss(notification.id)"
+        @mouseleave="store.resumeDismiss(notification.id)"
       >
         <!-- Progress Bar for Progress Notifications -->
         <div
           v-if="notification.type === 'progress' && notification.progress !== undefined"
           class="toast-progress-bar"
         >
-          <div class="toast-progress-fill" :style="{ width: `${notification.progress}%` }" />
+          <div class="toast-progress-fill" :style="{ width: `${notification.progress || 0}%` }" />
         </div>
 
         <div class="toast-text">
@@ -55,34 +53,37 @@
           <div class="toast-content">
             <div class="toast-header">
               <h4 class="toast-title">
-                {{ notification.title }}
+                {{ notification.title || "Notification" }}
               </h4>
               <button
                 class="toast-close"
-                :aria-label="`Close ${notification.title} notification`"
+                :aria-label="`Close ${notification.title || 'Notification'} notification`"
                 @click="store.dismissNotification(notification.id)"
               >
                 <X class="icon" />
                 ✕
               </button>
             </div>
-            <p class="toast-message" v-html="notification.message" />
+            <p class="toast-message" v-html="notification.message || ''" />
 
             <!-- Progress Text -->
             <p
               v-if="notification.type === 'progress' && notification.progress !== undefined"
               class="toast-progress-text"
             >
-              {{ notification.progress }}% complete
+              {{ notification.progress || 0 }}% complete
             </p>
 
             <!-- Link -->
             <a v-if="notification.link" class="toast-link" @click="handleLinkClick(notification)">
-              {{ notification.link.text }} →
+              {{ notification.link?.text || "Link" }} →
             </a>
 
             <!-- Actions -->
-            <div v-if="notification.actions?.length" class="toast-actions">
+            <div
+              v-if="notification.actions && notification.actions.length > 0"
+              class="toast-actions"
+            >
               <button
                 v-for="action in notification.actions"
                 :key="action.label"
@@ -131,7 +132,7 @@
                 :class="{ active: activeFilter === 'all' }"
                 @click="activeFilter = 'all'"
               >
-                All ({{ store.notifications.length }})
+                All ({{ store.notificationsList.length }})
               </button>
               <button
                 class="nc-filter"
@@ -151,38 +152,58 @@
                 ({{ countByType(type) }})
               </button>
             </div>
+          </div>
 
-            <a
-              v-if="notification.link"
-              class="nc-item-link"
-              :href="notification.link.url || '#notifications'"
-              @click.prevent="handleLinkClick(notification)"
+          <!-- Notification Items -->
+          <div v-if="filteredNotifications.length > 0" class="nc-items">
+            <div
+              v-for="notification in filteredNotifications"
+              :key="notification.id"
+              class="nc-item"
+              :class="{ 'nc-item-unread': !notification.read }"
             >
-              {{ notification.link.text }} →
-            </a>
+              <div class="nc-item-content">
+                <div class="nc-item-header">
+                  <span class="nc-item-title">{{ notification.title }}</span>
+                  <span class="nc-item-time">{{ formatTime(notification.timestamp) }}</span>
+                </div>
+                <p class="nc-item-message">
+                  {{ notification.message }}
+                </p>
+              </div>
 
-            <!-- Item Actions -->
-            <div class="nc-item-menu">
-              <button
-                v-if="!notification.read"
-                class="nc-menu-btn"
-                title="Mark as read"
-                @click.stop="store.markAsRead(notification.id)"
+              <a
+                v-if="notification.link"
+                class="nc-item-link"
+                :href="notification.link.url || '#notifications'"
+                @click.prevent="handleLinkClick(notification)"
               >
-                👁️
-              </button>
-              <button
-                class="nc-menu-btn"
-                title="Delete"
-                @click.stop="store.deleteNotification(notification.id)"
-              >
-                🗑️
-              </button>
+                {{ notification.link.text }} →
+              </a>
+
+              <!-- Item Actions -->
+              <div class="nc-item-menu">
+                <button
+                  v-if="!notification.read"
+                  class="nc-menu-btn"
+                  title="Mark as read"
+                  @click.stop="store.markAsRead(notification.id)"
+                >
+                  👁️
+                </button>
+                <button
+                  class="nc-menu-btn"
+                  title="Delete"
+                  @click.stop="store.deleteNotification(notification.id)"
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- Empty State -->
-          <div v-if="filteredNotifications.length === 0" class="nc-empty">
+          <div v-else class="nc-empty">
             <div class="nc-empty-icon">🔔</div>
             <p v-if="activeFilter === 'unread'">No unread notifications</p>
             <p v-else-if="activeFilter !== 'all'">No {{ activeFilter }} notifications</p>
@@ -226,15 +247,40 @@ import {
   AlertTriangle,
   Info,
   BarChart3,
+  Activity,
+  LayoutDashboard,
+  Folder,
+  FolderOpen,
+  FileScan,
+  Scan,
+  Settings,
+  Share2,
+  Sparkles,
+  TestTube,
+  TrendingUp,
+  FileText,
+  Code2,
+  Database,
+  BarChart,
+  Globe,
+  Lightbulb,
+  Menu,
+  AlarmClock,
+  Clock,
+  Copy,
+  Brain,
 } from "lucide-vue-next";
+import { useRouter } from "vue-router";
 import {
   useNotificationStore,
   type Notification,
   type NotificationAction,
   type NotificationType,
-} from "@/store";
+} from "@/store/notificationStore";
 
 const store = useNotificationStore();
+const router = useRouter();
+const pausedTimeouts = ref(new Set<string>());
 
 // Icon mapping for notification types
 const iconMap: Record<string, typeof CheckCircle> = {
@@ -255,12 +301,11 @@ onMounted(() => {
 
 const activeFilter = ref<"all" | "unread" | NotificationType>("all");
 const showClearConfirm = ref(false);
-const pausedTimeouts = ref<Set<string>>(new Set());
 
 const notificationTypes: NotificationType[] = ["success", "error", "warning", "info", "progress"];
 
 const filteredNotifications = computed(() => {
-  let notifications = store.recentNotifications;
+  let notifications = store.notificationsList;
 
   if (activeFilter.value === "unread") {
     notifications = notifications.filter((n) => !n.read);
@@ -271,11 +316,11 @@ const filteredNotifications = computed(() => {
   return notifications;
 });
 
-function countByType(type: NotificationType): number {
-  return store.notifications.filter((n) => n.type === type && !n.dismissed).length;
-}
+const countByType = (type: NotificationType): number => {
+  return store.notificationsList.filter((n) => n.type === type && !n.read).length;
+};
 
-function formatTime(date: Date): string {
+const formatTime = (date: Date): string => {
   const now = new Date();
   const diff = now.getTime() - new Date(date).getTime();
   const minutes = Math.floor(diff / 60000);
@@ -287,53 +332,48 @@ function formatTime(date: Date): string {
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
   return new Date(date).toLocaleDateString();
-}
+};
 
-function handleNotificationClick(notification: Notification) {
+const handleLinkClick = (notification: Notification) => {
+  if (notification.link?.path) {
+    router.push(notification.link.path);
+    store.closeCenter();
+  } else if (notification.link?.text) {
+    // Fallback: just show link text if no path
+    console.warn("Link clicked:", notification.link.text);
+  }
+};
+
+const handleAction = (notification: Notification, action: NotificationAction) => {
+  action.action();
+
+  // Dismiss notification if it's a one-time action (not for progress)
+  if (notification.type !== "progress") {
+    store.dismissNotification(notification.id);
+  }
+};
+
+const openSettings = () => {
+  store.closeCenter();
+  router.push("/settings/notifications");
+};
+
+const clearAllConfirmed = () => {
+  store.clearAll();
+  showClearConfirm.value = false;
+};
+
+const confirmClearAll = () => {
+  showClearConfirm.value = true;
+};
+
+const handleNotificationClick = (notification: Notification) => {
   store.markAsRead(notification.id);
 
   if (notification.link) {
     handleLinkClick(notification);
   }
-}
-
-function handleLinkClick(notification: Notification) {
-  if (notification.link?.path) {
-    router.push(notification.link.path);
-    store.closeCenter();
-  }
-}
-
-function handleAction(notification: Notification, action: NotificationAction) {
-  action.handler();
-
-  // Dismiss notification if it's a one-time action
-  if (!notification.type === "progress") {
-    store.dismissNotification(notification.id);
-  }
-}
-
-function pauseDismiss(id: string) {
-  pausedTimeouts.value.add(id);
-}
-
-function resumeDismiss(id: string) {
-  pausedTimeouts.value.delete(id);
-}
-
-function confirmClearAll() {
-  showClearConfirm.value = true;
-}
-
-function clearAllConfirmed() {
-  store.clearAll();
-  showClearConfirm.value = false;
-}
-
-function openSettings() {
-  store.closeCenter();
-  router.push("/settings/notifications");
-}
+};
 </script>
 
 <style scoped>
@@ -434,6 +474,7 @@ function openSettings() {
   border: 1px solid #334155;
 }
 
+/* Toast Types */
 .toast-success {
   border-left: 4px solid #10b981;
 }

@@ -5,21 +5,37 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from "vue";
-import AppShell from "./layout/AppShell.vue";
-import DesktopAppShell from "./layout/DesktopAppShell.vue";
-import { useAnalysisStore } from "./store/analysis";
-import { useTauriDesktop } from "./composables/useTauriDesktop";
+import { onMounted, computed, ref } from "vue";
+import { defineAsyncComponent } from "vue";
 
-const store = useAnalysisStore();
-const { isTauri } = useTauriDesktop();
+// Lazy load shell components - optimized for fast startup
+const AppShell = defineAsyncComponent(() => import("./layout/AppShell.vue"));
+const DesktopAppShell = defineAsyncComponent(() => import("./layout/DesktopAppShell.vue"));
 
-const shellComponent = computed(() => {
-  return isTauri.value ? DesktopAppShell : AppShell;
-});
+// Defer Tauri check to not block initial render
+let isTauri = ref(false);
+let shellComponent = computed(() => (isTauri.value ? DesktopAppShell : AppShell));
 
 onMounted(async () => {
-  await store.initialize();
+  // Load Tauri detection after mount
+  try {
+    const { useTauriDesktop } = await import("./composables/useTauriDesktop");
+    isTauri.value = useTauriDesktop().isTauri.value;
+  } catch (error) {
+    // Fallback to web version
+    isTauri.value = false;
+  }
+
+  // Defer store initialization to prioritize UI
+  setTimeout(async () => {
+    try {
+      const { useAnalysisStore } = await import("./store/analysis");
+      const store = useAnalysisStore();
+      store.initialize();
+    } catch (error) {
+      console.warn("Store initialization deferred:", error);
+    }
+  }, 300);
 });
 </script>
 

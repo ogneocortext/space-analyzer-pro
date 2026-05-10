@@ -101,10 +101,10 @@
                 </div>
               </div>
 
-              <div class="space-y-4">
+              <div class="flex flex-col gap-4">
                 <div class="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
                   <div class="flex items-start gap-3">
-                    <BrainCircuit class="w-5 h-5 text-blue-400 mt-1 flex-shrink-0" />
+                    <BrainCircuit class="w-5 h-5 text-blue-400 mt-1 shrink-0" />
                     <div>
                       <h4 class="font-semibold text-white mb-1">Clean up duplicates</h4>
                       <p class="text-sm text-slate-300">
@@ -116,7 +116,7 @@
 
                 <div class="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
                   <div class="flex items-start gap-3">
-                    <TrendingUp class="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
+                    <TrendingUp class="w-5 h-5 text-green-400 mt-1 shrink-0" />
                     <div>
                       <h4 class="font-semibold text-white mb-1">Archive old files</h4>
                       <p class="text-sm text-slate-300">
@@ -128,7 +128,7 @@
 
                 <div class="p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
                   <div class="flex items-start gap-3">
-                    <BarChart3 class="w-5 h-5 text-orange-400 mt-1 flex-shrink-0" />
+                    <BarChart3 class="w-5 h-5 text-orange-400 mt-1 shrink-0" />
                     <div>
                       <h4 class="font-semibold text-white mb-1">Optimize media files</h4>
                       <p class="text-sm text-slate-300">
@@ -281,7 +281,7 @@ const handleItemClick = (item: any) => {
 }
 
 .btn-ai-insights {
-  @apply flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-all;
+  @apply flex items-center justify-center gap-2 px-4 py-3 bg-linear-to-r from-blue-500 to-purple-500 text-white rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-all;
 }
 
 .polished-card {
