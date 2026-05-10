@@ -95,10 +95,6 @@ class DebugService {
     this.log('error', ...args);
   }
 
-  log(...args: any[]) {
-    this.log('info', ...args);
-  }
-
   // Performance monitoring
   time(label: string) {
     if (this.shouldLog('debug')) {
