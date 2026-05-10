@@ -69,7 +69,7 @@ class SpaceAnalyzerAPIServer {
     this.initDirectories();
     this.setupSecurity();
     this.setupMiddleware();
-    this.setupRoutes();
+    // Routes will be initialized asynchronously in initializeAsync()
   }
 
   async initDirectories() {
@@ -84,9 +84,12 @@ class SpaceAnalyzerAPIServer {
     setupMiddleware(this.app);
   }
 
-  setupRoutes() {
-    this.routesManager = new RoutesManager(this);
-    this.routesManager.mountAll(this.app);
+  async setupRoutes() {
+    if (!this.routesManager) {
+      console.error("❌ Routes manager not initialized");
+      return;
+    }
+    await this.routesManager.mountAll(this.app);
 
     // Diagnostic endpoint to verify routes
     this.app.get("/api/debug/routes", (req, res) => {
@@ -173,9 +176,22 @@ class SpaceAnalyzerAPIServer {
   }
 
   async initializeAsync() {
-    await this.learningService.initialize();
-    await this.checkOllamaAvailability();
-    await this.initializeDatabase();
+    console.log("🔄 Initializing async services...");
+
+    // Run all initialization tasks in parallel where possible
+    await Promise.all([
+      this.learningService.initialize(),
+      this.checkOllamaAvailability(),
+      this.initializeDatabase(),
+      (async () => {
+        // Initialize and setup routes
+        this.routesManager = new RoutesManager(this);
+        await this.routesManager.initialize();
+        await this.setupRoutes();
+      })(),
+    ]);
+
+    console.log("✅ All async services initialized");
   }
 
   async initializeDatabase() {
@@ -201,8 +217,8 @@ class SpaceAnalyzerAPIServer {
 
       this.knowledgeDB = new KnowledgeDatabase(dbPath);
 
-      // Wait a moment for database to initialize
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Initialize the database
+      await this.knowledgeDB.initialize();
 
       // Test database connection
       if (this.knowledgeDB.db) {
@@ -234,7 +250,7 @@ class SpaceAnalyzerAPIServer {
           port: 11434,
           path: "/api/tags",
           method: "GET",
-          timeout: 2000,
+          timeout: 500, // Reduced from 2000ms to 500ms for faster startup
         },
         (res) => {
           if (res.statusCode === 200) this.ollamaAvailable = true;
@@ -269,9 +285,13 @@ if (require.main === module) {
     const server = http.createServer(app.app);
     setupWebSocketServer(server);
 
+    // Initialize async services before starting the server
+    console.log("🔄 Initializing async services...");
+    await app.initializeAsync();
+    console.log("✅ Async services initialized");
+
     server.listen(app.port, () => {
       console.log(`🚀 Space Analyzer Backend running on port ${app.port}`);
-      app.initializeAsync();
     });
   })();
 }

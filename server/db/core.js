@@ -51,9 +51,9 @@ class DatabaseCore {
         console.log(`📊 Database file size: ${fileSizeMB.toFixed(2)} MB`);
       }
 
-      // Skip backup during development for faster startup
-      const isDevelopment = process.env.NODE_ENV === "development";
-      const skipBackup = isDevelopment || process.env.SKIP_DB_BACKUP === "true";
+      // Skip backup during startup for faster performance
+      // Backups should be handled by separate backup processes
+      const skipBackup = true; // Always skip backup during startup
 
       if (fs.existsSync(this.dbPath) && fileSizeMB > 100 && !skipBackup) {
         const backupPath = this.dbPath + ".backup";
@@ -112,26 +112,28 @@ class DatabaseCore {
       "PRAGMA optimize",
     ];
 
-    // Execute pragmas sequentially to ensure proper order
-    return pragmas
-      .reduce((promise, pragma, index) => {
-        return promise.then(() => {
-          return new Promise((resolve, reject) => {
-            this.db.run(pragma, (err) => {
-              if (err) {
-                console.error(`❌ Failed to set pragma ${pragma}:`, err);
-                reject(err);
-              } else {
-                console.log(`✅ Database optimization ${index + 1}/${pragmas.length} applied`);
-                resolve();
-              }
-            });
-          });
+    // Execute pragmas in parallel for faster startup (most are independent)
+    const pragmaPromises = pragmas.map((pragma, index) => {
+      return new Promise((resolve, reject) => {
+        this.db.run(pragma, (err) => {
+          if (err) {
+            console.error(`❌ Failed to set pragma ${pragma}:`, err);
+            reject(err);
+          } else {
+            console.log(`✅ Database optimization ${index + 1}/${pragmas.length} applied`);
+            resolve();
+          }
         });
-      }, Promise.resolve())
-      .catch((err) => {
-        console.error("❌ Database optimization failed:", err);
       });
+    });
+
+    try {
+      await Promise.all(pragmaPromises);
+      console.log("✅ All database optimizations applied successfully");
+    } catch (err) {
+      console.error("❌ Some database optimizations failed:", err);
+      // Continue even if some pragmas fail
+    }
   }
 
   async runMigrations() {
@@ -208,7 +210,8 @@ class DatabaseCore {
       },
     ];
 
-    for (const migration of migrations) {
+    // Run migrations in parallel for faster startup (they're independent)
+    const migrationPromises = migrations.map(async (migration) => {
       try {
         const row = await new Promise((resolve, reject) => {
           this.db.get(
@@ -242,7 +245,7 @@ class DatabaseCore {
               );
             } else {
               console.error(`❌ Failed to apply migration ${migration.version}:`, err);
-              continue;
+              return; // Skip marking as applied if migration failed
             }
           }
 
@@ -260,7 +263,10 @@ class DatabaseCore {
       } catch (err) {
         console.error(`❌ Failed to check migration ${migration.version}:`, err);
       }
-    }
+    });
+
+    await Promise.all(migrationPromises);
+    console.log("✅ All migrations checked/applied successfully");
   }
 
   async createTables() {

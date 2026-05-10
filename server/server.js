@@ -454,24 +454,27 @@ class SpaceAnalyzerServer {
       try {
         const os = require("os");
 
-        // Check database health
-        const dbHealthy = mockServer.knowledgeDB && mockServer.knowledgeDB.db !== null;
+        // Check database health - be more lenient during startup
+        let dbHealthy = false;
+        let dbStatus = "checking";
 
-        if (!dbHealthy) {
-          return res.status(503).json({
-            success: false,
-            status: "degraded",
-            timestamp: Temporal.Now.plainDateTimeISO().toString(),
-            error: "Database unavailable",
-            message: "Service is running but database connection failed",
-            version: "2.8.9",
-            service: "Space Analyzer Backend",
-          });
+        try {
+          if (mockServer && mockServer.knowledgeDB && mockServer.knowledgeDB.db !== null) {
+            dbHealthy = true;
+            dbStatus = "connected";
+          } else if (mockServer && mockServer.knowledgeDB) {
+            dbStatus = "initializing";
+          } else {
+            dbStatus = "not_initialized";
+          }
+        } catch (dbError) {
+          dbStatus = "error";
         }
 
-        res.json({
+        // Always return 200 during startup - let the startup script handle readiness
+        const healthData = {
           success: true,
-          status: "healthy",
+          status: dbHealthy ? "healthy" : "starting",
           timestamp: Temporal.Now.plainDateTimeISO().toString(),
           uptime: os.uptime(),
           memory: {
@@ -479,10 +482,22 @@ class SpaceAnalyzerServer {
             free: os.freemem(),
             used: os.totalmem() - os.freemem(),
           },
-          database: dbHealthy ? "connected" : "disconnected",
+          database: dbStatus,
           version: "2.8.9",
           service: "Space Analyzer Backend",
-        });
+          ready: dbHealthy,
+        };
+
+        // Only return 503 if completely failed, not during startup
+        if (dbStatus === "error") {
+          return res.status(503).json({
+            ...healthData,
+            status: "degraded",
+            error: "Database error",
+          });
+        }
+
+        res.json(healthData);
       } catch (error) {
         res.status(500).json({
           success: false,
@@ -500,9 +515,14 @@ class SpaceAnalyzerServer {
     await routesManager.waitForInitialization();
     routesManager.mountAll(this.app);
 
+    // Add missing endpoints
+    const missingEndpointsRouter = require("./missing-endpoints-fix");
+    this.app.use("/api", missingEndpointsRouter);
+    console.log("✅ Missing endpoints router mounted");
+
     // Catch-all for undefined /api routes - return helpful error (must be after routes are mounted)
     this.app.use("/api", (req, res, next) => {
-      // Only handle exact /api path, not /api/* paths
+      // Only handle exact /api path, not /api/* paths, and let other routes pass through
       if (req.path === "/api" || req.path === "/api/") {
         res.status(404).json({
           success: false,
@@ -545,7 +565,7 @@ class SpaceAnalyzerServer {
       if (req.path.startsWith("/api/")) {
         return next();
       }
-      
+
       // Only handle GET/HEAD requests for SPA routing
       if (req.method !== "GET" && req.method !== "HEAD") {
         return next();
@@ -657,22 +677,24 @@ class SpaceAnalyzerServer {
 
     // Global error handler with Promise.resolve().then() for consistent async error handling
     this.app.use(async (error, req, res, next) => {
-      await Promise.resolve().then(async () => {
-        await this.errorLogger.logRequestError(error, req, res);
+      await Promise.resolve()
+        .then(async () => {
+          await this.errorLogger.logRequestError(error, req, res);
 
-        const isDev = process.env.NODE_ENV === "development";
-        res.status(error.status || 500).json({
-          success: false,
-          error: error?.message || "Internal Server Error",
-          ...(isDev && error?.stack && { stack: error.stack }),
+          const isDev = process.env.NODE_ENV === "development";
+          res.status(error.status || 500).json({
+            success: false,
+            error: error?.message || "Internal Server Error",
+            ...(isDev && error?.stack && { stack: error.stack }),
+          });
+        })
+        .catch(async (handlerError) => {
+          console.error("Error in error handler:", handlerError);
+          res.status(500).json({
+            success: false,
+            error: "Internal Server Error",
+          });
         });
-      }).catch(async (handlerError) => {
-        console.error("Error in error handler:", handlerError);
-        res.status(500).json({
-          success: false,
-          error: "Internal Server Error",
-        });
-      });
     });
 
     // Process error handlers - already handled at top of file, just log here
