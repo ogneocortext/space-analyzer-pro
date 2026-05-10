@@ -19,7 +19,7 @@ function validatePort(port) {
 
 let ports;
 try {
-  const configPath = path.join(__dirname, "..", "ports.config.js");
+  const configPath = path.join(__dirname, "..", "config", "ports.config.js");
   const portsModule = await import(configPath);
   ports = portsModule.default || portsModule;
 
@@ -49,7 +49,11 @@ switch (command) {
     console.log("🔍 Detecting port conflicts...");
     try {
       const isValid = ports.validate ? ports.validate() : true;
-      console.log(isValid ? "✅ No port conflicts detected" : "❌ Port conflicts detected");
+      console.log(
+        isValid
+          ? "✅ No port conflicts detected"
+          : "❌ Port conflicts detected",
+      );
     } catch (error) {
       console.error("❌ Error detecting port conflicts:", error.message);
       process.exit(1);

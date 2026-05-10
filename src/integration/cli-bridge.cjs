@@ -11,13 +11,13 @@ class CLIBridge {
     constructor() {
         this.cppExecutable = path.join(__dirname, '../../bin/cpp-wrapper-fixed.cjs');
         this.rustExecutable = path.join(__dirname, '../../bin/rust-wrapper-real.cjs');
-        this.nodeServer = 'http://localhost:8080';
+        this.nodeServer = 'http://localhost:8085';
         this.availableTools = {
             cpp: false,
             rust: false,
             node: false
         };
-        
+
         this.initializeTools();
     }
 
@@ -26,7 +26,7 @@ class CLIBridge {
      */
     async initializeTools() {
         console.log('Initializing CLI Bridge...');
-        
+
         // Check C++ CLI availability
         try {
             await fs.access(this.cppExecutable, fs.constants.F_OK);
@@ -47,8 +47,8 @@ class CLIBridge {
 
         // Check Node.js server availability
         try {
-            const response = await fetch(`${this.nodeServer}/api/health`, { 
-                timeout: 5000 
+            const response = await fetch(`${this.nodeServer}/api/health`, {
+                timeout: 5000
             });
             if (response.ok) {
                 this.availableTools.node = true;
@@ -58,8 +58,8 @@ class CLIBridge {
             console.log('❌ Node.js server not available');
             // Try alternative endpoint
             try {
-                const response = await fetch(`${this.nodeServer}`, { 
-                    timeout: 3000 
+                const response = await fetch(`${this.nodeServer}`, {
+                    timeout: 3000
                 });
                 if (response.ok) {
                     this.availableTools.node = true;
@@ -78,10 +78,10 @@ class CLIBridge {
      */
     async analyzeDirectory(directory, options = {}) {
         console.log(`Analyzing directory: ${directory}`);
-        
+
         // Choose the best tool based on availability and requirements
         const tool = this.selectBestTool(options);
-        
+
         switch (tool) {
             case 'cpp':
                 return this.analyzeWithCPP(directory, options);
@@ -104,23 +104,23 @@ class CLIBridge {
         if (needAI && this.availableTools.node) {
             return 'node';
         }
-        
+
         if (preferSpeed && this.availableTools.cpp) {
             return 'cpp';
         }
-        
+
         if (this.availableTools.cpp) {
             return 'cpp';
         }
-        
+
         if (this.availableTools.rust) {
             return 'rust';
         }
-        
+
         if (this.availableTools.node) {
             return 'node';
         }
-        
+
         return null;
     }
 
@@ -129,14 +129,14 @@ class CLIBridge {
      */
     async analyzeWithCPP(directory, options) {
         console.log('Using C++ CLI for analysis...');
-        
+
         return new Promise((resolve, reject) => {
             const args = [directory];
-            
+
             if (options.parallel) {
                 args.push('--parallel');
             }
-            
+
             if (options.outputFormat === 'json') {
                 args.push('--json', options.outputFile || 'cpp-analysis.json');
             }
@@ -181,10 +181,10 @@ class CLIBridge {
      */
     async analyzeWithRust(directory, options) {
         console.log('Using Rust CLI for analysis...');
-        
+
         return new Promise((resolve, reject) => {
             const args = ['analyze', directory];
-            
+
             if (options.url) {
                 args.push('--url', options.url);
             }
@@ -229,12 +229,12 @@ class CLIBridge {
      */
     async analyzeWithNode(directory, options) {
         console.log('Using Node.js server for analysis...');
-        
+
         try {
             // For now, use mock AI analysis since server API has issues
             console.log('🧠 Starting AI analysis...');
             console.log(`📁 Directory: ${directory}`);
-            
+
             const result = {
                 tool: 'node',
                 summary: 'Found 1000 files with advanced AI patterns detected',
@@ -250,7 +250,7 @@ class CLIBridge {
                 ],
                 advanced: options.advanced || false
             };
-            
+
             if (options.advanced) {
                 result.advancedAnalysis = {
                     neuralAccuracy: '95%',
@@ -258,9 +258,9 @@ class CLIBridge {
                     optimizationPotential: '30%'
                 };
             }
-            
+
             return result;
-            
+
         } catch (error) {
             throw new Error(`Node.js analysis failed: ${error.message}`);
         }
@@ -353,12 +353,12 @@ class CLIBridge {
     parseSize(sizeStr) {
         const units = { 'B': 1, 'KB': 1024, 'MB': 1024*1024, 'GB': 1024*1024*1024, 'TB': 1024*1024*1024*1024 };
         const match = sizeStr.match(/^([\d.]+)\s*([A-Z]+)$/);
-        
+
         if (match) {
             const [, size, unit] = match;
             return Math.round(parseFloat(size) * (units[unit] || 1));
         }
-        
+
         return 0;
     }
 
@@ -377,7 +377,7 @@ class CLIBridge {
      */
     async runComparativeAnalysis(directory, options = {}) {
         console.log('Running comparative analysis...');
-        
+
         const results = {};
         const availableTools = Object.entries(this.availableTools)
             .filter(([_, available]) => available)
@@ -399,7 +399,7 @@ class CLIBridge {
 
         // Generate comparison report
         const comparison = this.generateComparisonReport(results);
-        
+
         return {
             directory,
             timestamp: new Date().toISOString(),
@@ -433,7 +433,7 @@ class CLIBridge {
         // Generate recommendations
         const fastestTool = Object.entries(report.performance)
             .sort((a, b) => a[1].executionTime - b[1].executionTime)[0];
-        
+
         if (fastestTool) {
             report.recommendations.push({
                 type: 'performance',

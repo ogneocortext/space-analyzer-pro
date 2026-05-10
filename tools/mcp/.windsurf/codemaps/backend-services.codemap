@@ -4,9 +4,8 @@
   "path": "server/",
   "type": "backend-domain",
   "server": {
-    "main": "server.js",
-    "alternative": "server-improved.js",
-    "port": 3001,
+    "main": "server-improved.js",
+    "port": 8080,
     "framework": "Express.js",
     "middleware": [
       "server/middleware/errorHandler.js",
@@ -182,17 +181,17 @@
       "methods": ["startAnalysis", "getAnalysisStatus", "getResults", "cancelAnalysis"]
     },
     "FileController": {
-      "file": "src/controllers/FileController.js",
+      "file": "FileController.js",
       "purpose": "File operation handling",
       "methods": ["listFiles", "getFileMetadata", "searchFiles", "deleteFile"]
     },
     "AIController": {
-      "file": "src/controllers/AIController.js",
+      "file": "AIController.js",
       "purpose": "AI service integration",
       "methods": ["analyzeWithAI", "chatWithAI", "getModels", "getRecommendations"]
     },
     "HealthController": {
-      "file": "src/controllers/HealthController.js",
+      "file": "HealthController.js",
       "purpose": "System health monitoring",
       "methods": ["getHealthStatus", "getMetrics", "checkDependencies"]
     }

@@ -1,8 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-/* eslint-disable no-undef */
-/* eslint-disable @typescript-eslint/no-floating-promises */
-/* eslint-disable preserve-caught-error */
 
 /**
  * PortDetector - Dynamic port detection system for Space Analyzer Pro
@@ -37,8 +33,8 @@ export class PortDetector {
   private constructor() {
     this.config = {
       frontend: 3001,
-      backend: 8080, // Updated to match enhanced backend port
-      api: 8080, // Updated to match enhanced backend port
+      backend: 0, // Will be dynamically detected
+      api: 0, // Will be dynamically detected
       detected: false,
       timestamp: 0,
     };
@@ -58,29 +54,36 @@ export class PortDetector {
     console.warn("🔍 Starting comprehensive server detection...");
 
     const startTime = Date.now();
-    const commonPorts = {
-      frontend: [3001, 3000, 5173, 5176, 8080, 8000, 4200, 9000],
-      backend: [8080, 8081, 8092, 3001, 5000, 8001, 9001, 3000], // Put 8080 first since that's our configured port
-      api: [8080, 8081, 8092, 3001, 5000, 8001, 9001, 3000], // Put 8080 first since that's our configured port
+    // Use dynamic port ranges instead of hardcoded lists
+    const portRanges = {
+      frontend: { min: 5170, max: 5200 },
+      backend: { min: 8080, max: 8100 },
+      api: { min: 8080, max: 8100 },
     };
 
-    // Detect frontend servers
-    const frontendResult = await this.detectFrontendServer(commonPorts.frontend);
+    // Detect frontend servers dynamically
+    const frontendResult = await this.detectFrontendServerInRange(portRanges.frontend);
     if (frontendResult) {
       this.config.frontend = frontendResult.port;
       console.warn(`✅ Frontend server detected on port ${frontendResult.port}`);
     } else {
-      console.warn("⚠️ No frontend server detected, using default port 5176");
+      this.config.frontend = 5173; // Vite default
+      console.warn("⚠️ No frontend server detected, using default port 5173");
     }
 
-    // Detect backend servers
-    const backendResult = await this.detectBackendServer(commonPorts.backend);
+    // Detect backend servers dynamically
+    const backendResult = await this.detectBackendServerInRange(portRanges.backend);
     if (backendResult) {
       this.config.backend = backendResult.port;
       this.config.api = backendResult.port; // API usually runs on same port as backend
       console.warn(`✅ Backend server detected on port ${backendResult.port}`);
     } else {
-      console.warn("⚠️ No backend server detected, using default port 8081");
+      this.config.backend = await this.findAvailablePort(
+        portRanges.backend.min,
+        portRanges.backend.max
+      );
+      this.config.api = this.config.backend;
+      console.warn(`⚠️ No backend server detected, found available port ${this.config.backend}`);
     }
 
     this.config.detected = true;
@@ -137,6 +140,131 @@ export class PortDetector {
         }
       } catch (error) {
         // Continue to next port
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Find an available port in the specified range
+   */
+  private async findAvailablePort(min: number, max: number): Promise<number> {
+    for (let port = min; port <= max; port++) {
+      if (await this.isPortAvailable(port)) {
+        return port;
+      }
+    }
+    throw new Error(`No available ports found in range ${min}-${max}`);
+  }
+
+  /**
+   * Check if a port is available
+   */
+  private async isPortAvailable(port: number): Promise<boolean> {
+    try {
+      if (typeof window !== "undefined") {
+        // Browser environment - can't directly check, assume available
+        return true;
+      }
+
+      // Node.js environment
+      const net = await import("net");
+      return new Promise((resolve) => {
+        const server = net.createServer();
+        server.listen(port, () => {
+          server.close(() => resolve(true));
+        });
+        server.on("error", () => resolve(false));
+      });
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Detect frontend server in port range
+   */
+  private async detectFrontendServerInRange(range: {
+    min: number;
+    max: number;
+  }): Promise<ServerInfo | null> {
+    // Check common frontend ports first
+    const commonPorts = [5173, 3000, 3001, 5176];
+    for (const port of commonPorts) {
+      if (port >= range.min && port <= range.max) {
+        const result = await this.checkServer(port, "frontend");
+        if (result.status === "running") {
+          return result;
+        }
+      }
+    }
+
+    // Check the entire range
+    for (let port = range.min; port <= range.max; port++) {
+      if (!commonPorts.includes(port)) {
+        const result = await this.checkServer(port, "frontend");
+        if (result.status === "running") {
+          return result;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Read port from backend port file
+   */
+  private async readBackendPortFile(): Promise<number | null> {
+    try {
+      if (typeof window !== "undefined") {
+        // Browser environment - fetch port file
+        const response = await fetch("/.backend-port");
+        if (response.ok) {
+          const port = await response.text();
+          return parseInt(port.trim());
+        }
+      } else {
+        // Node.js environment - read file directly
+        const fs = await import("fs");
+        const path = await import("path");
+        const portFile = path.join(process.cwd(), ".backend-port");
+
+        if (fs.existsSync(portFile)) {
+          const port = fs.readFileSync(portFile, "utf8");
+          return parseInt(port.trim());
+        }
+      }
+    } catch (error) {
+      // Port file not found or unreadable
+    }
+
+    return null;
+  }
+
+  /**
+   * Detect backend server in port range
+   */
+  private async detectBackendServerInRange(range: {
+    min: number;
+    max: number;
+  }): Promise<ServerInfo | null> {
+    // First try to read from backend port file
+    const backendPort = await this.readBackendPortFile();
+    if (backendPort) {
+      const result = await this.checkHealthEndpoint(backendPort);
+      if (result.status === "running") {
+        console.log(`✅ Backend server detected from port file: ${backendPort}`);
+        return result;
+      }
+    }
+
+    // Fallback to scanning range
+    for (let port = range.min; port <= range.max; port++) {
+      const result = await this.checkHealthEndpoint(port);
+      if (result.status === "running") {
+        return result;
       }
     }
 

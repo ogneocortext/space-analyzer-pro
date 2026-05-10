@@ -574,7 +574,7 @@ async function getAISummary(file: FileItem) {
   summaryData.value = null;
 
   try {
-    const response = await fetch("http://localhost:8080/api/ai/summarize", {
+    const response = await fetch("http://localhost:8085/api/ai/summarize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -613,7 +613,7 @@ function closeSummaryModal() {
 
 async function revealFile(filePath: string) {
   try {
-    await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/files/reveal`, {
+    await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8085"}/api/files/reveal`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: filePath }),
@@ -673,7 +673,7 @@ async function deleteFile(filePath: string) {
 
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/files/delete`,
+      `${import.meta.env.VITE_API_URL || "http://localhost:8085"}/api/files/delete`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

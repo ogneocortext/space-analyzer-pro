@@ -47,7 +47,8 @@ const { isValidPath, normalizePath } = require("./modules/file-utils");
 class ImprovedSpaceAnalyzerServer {
   constructor() {
     this.app = express();
-    this.port = parseInt(process.env.BACKEND_PORT || process.env.PORT) || 8080;
+    // Use dynamic port detection - set to 0 for auto-assignment
+    this.port = 0;
     this.eventEmitter = new EventEmitter();
     this.errorLogger = getErrorLogger();
     this.rateLimitStore = new Map();
@@ -82,7 +83,6 @@ class ImprovedSpaceAnalyzerServer {
       await this.setupMiddleware();
       await this.setupRoutes();
       await this.setupErrorHandling();
-      await this.setupHealthChecks();
       await this.startServer();
 
       this.metrics.initTime = Date.now() - startTime;
@@ -435,68 +435,6 @@ class ImprovedSpaceAnalyzerServer {
   }
 
   /**
-   * Setup health check endpoint
-   */
-  setupHealthChecks() {
-    this.app.get("/api/health", async (req, res) => {
-      try {
-        const os = require("os");
-        const memUsage = process.memoryUsage();
-        const uptime = process.uptime();
-
-        // Check all services
-        const services = {
-          database: this.services.database.status,
-          routes: this.services.routes.status,
-          server: this.services.server.status,
-        };
-
-        // Calculate overall health score
-        const healthyServices = Object.values(services).filter(
-          (s) => s === "healthy" || s === "loaded" || s === "degraded"
-        ).length;
-        const totalServices = Object.keys(services).length;
-        const healthScore = (healthyServices / totalServices) * 100;
-
-        const healthData = {
-          success: true,
-          status: healthScore >= 80 ? "healthy" : healthScore >= 60 ? "degraded" : "unhealthy",
-          score: Math.round(healthScore),
-          timestamp: new Date().toISOString(),
-          uptime: uptime,
-          services: services,
-          memory: {
-            used: memUsage.heapUsed,
-            total: memUsage.heapTotal,
-            external: memUsage.external,
-            system: {
-              total: os.totalmem(),
-              free: os.freemem(),
-              used: os.totalmem() - os.freemem(),
-            },
-          },
-          metrics: this.metrics,
-          version: "2.8.9",
-          service: "Space Analyzer Backend",
-          ready: healthScore >= 60,
-        };
-
-        // Set appropriate status code
-        const statusCode = healthScore >= 60 ? 200 : 503;
-        res.status(statusCode).json(healthData);
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          status: "error",
-          error: "Health check failed",
-          message: error.message,
-          timestamp: new Date().toISOString(),
-        });
-      }
-    });
-  }
-
-  /**
    * Setup routes with error handling
    */
   async setupRoutes() {
@@ -511,14 +449,23 @@ class ImprovedSpaceAnalyzerServer {
         console.warn("⚠️ Database not available for routes, running in limited mode");
       }
 
-      // RoutesManager expects the Express app as the first parameter
-      const routesManager = new RoutesManager(this.app);
+      // RoutesManager expects the server instance as the first parameter
+      const routesManager = new RoutesManager(this);
 
       // Wait for routes to be initialized
       await routesManager.waitForInitialization();
 
+      // Add debug middleware to track all requests
+      this.app.use((req, res, next) => {
+        console.log(`🔍 ${req.method} ${req.originalUrl}`);
+        next();
+      });
+
       // Mount all routes to the Express app
       routesManager.mountAll(this.app);
+
+      // Store routesManager for debugging
+      this.routesManager = routesManager;
 
       this.services.routes.status = "loaded";
       this.services.routes.loaded = routesManager.getRouteCount();
@@ -545,7 +492,7 @@ class ImprovedSpaceAnalyzerServer {
    * Setup minimal essential routes when full setup fails
    */
   setupMinimalRoutes() {
-    // Note: Health endpoint is already set up in setupHealthChecks()
+    // Health endpoint is handled by general routes
     // This minimal setup only adds backup routes
 
     // Basic status endpoint
@@ -565,17 +512,7 @@ class ImprovedSpaceAnalyzerServer {
    * Setup error handling
    */
   setupErrorHandling() {
-    // 404 handler
-    this.app.use((req, res) => {
-      res.status(404).json({
-        success: false,
-        error: "Not Found",
-        message: `Route ${req.method} ${req.originalUrl} not found`,
-        availableEndpoints: this.getAvailableEndpoints(),
-      });
-    });
-
-    // Global error handler
+    // Global error handler - must come after all routes
     this.app.use((error, req, res, next) => {
       this.metrics.errorCount++;
 
@@ -597,33 +534,75 @@ class ImprovedSpaceAnalyzerServer {
         ...(isDevelopment && { stack: error.stack }),
       });
     });
+
+    // Final 404 handler for unmatched routes - must be last middleware
+    this.app.use((req, res) => {
+      res.status(404).json({
+        success: false,
+        error: "Not Found",
+        message: `Route ${req.method} ${req.originalUrl} not found`,
+        availableEndpoints: this.getAvailableEndpoints(),
+      });
+    });
   }
 
   /**
    * Start HTTP server
    */
   async startServer() {
-    console.log(`🚀 Starting server on port ${this.port}...`);
+    console.log(
+      `🚀 Starting server${this.port ? ` on port ${this.port}` : " on auto-assigned port"}...`
+    );
 
     return new Promise((resolve, reject) => {
       const server = http.createServer(this.app);
 
       server.on("error", (error) => {
         if (error.code === "EADDRINUSE") {
-          reject(new Error(`Port ${this.port} is already in use`));
+          if (this.port === 0) {
+            // If auto-assign failed, try a specific port
+            this.port = 8085;
+            console.log(`⚠️ Auto-assign failed, trying port ${this.port}...`);
+            setTimeout(() => this.startServer().then(resolve).catch(reject), 1000);
+          } else {
+            reject(new Error(`Port ${this.port} is already in use`));
+          }
         } else {
           reject(error);
         }
       });
 
       server.listen(this.port, () => {
+        const actualPort = server.address().port;
+        this.port = actualPort; // Update port with actual assigned port
+
         console.log(`🌐 Server running on port ${this.port}`);
         console.log(`📊 Health check: http://localhost:${this.port}/api/health`);
         console.log(`🔍 Debug routes: http://localhost:${this.port}/api/debug/routes`);
         console.log(`🌐 API available at: http://localhost:${this.port}/api`);
+
+        // Write port to a file for frontend to read
+        this.writePortToFile(this.port);
+
         resolve(server);
       });
     });
+  }
+
+  /**
+   * Write the actual port to a file for frontend detection
+   */
+  writePortToFile(port) {
+    const fs = require("fs");
+    const path = require("path");
+
+    try {
+      const portFile = path.join(__dirname, "..", ".backend-port");
+      fs.writeFileSync(portFile, port.toString());
+      console.log(`📝 Port ${port} written to .backend-port file`);
+    } catch (error) {
+      console.warn("⚠️ Could not write port file:", error.message);
+    }
   }
 
   /**
@@ -649,6 +628,26 @@ class ImprovedSpaceAnalyzerServer {
    * Get available endpoints for debugging
    */
   getAvailableEndpoints() {
+    const endpoints = [];
+
+    // Check if routes are mounted and return actual endpoints
+    if (this.routesManager) {
+      try {
+        const routes = this.routesManager.getMountedRoutes();
+        return (
+          routes || [
+            "/api/health",
+            "/api/debug/routes",
+            "/api/analysis/*",
+            "/api/files/*",
+            "/api/settings/*",
+          ]
+        );
+      } catch (error) {
+        console.warn("Could not get mounted routes:", error.message);
+      }
+    }
+
     return [
       "/api/health",
       "/api/debug/routes",

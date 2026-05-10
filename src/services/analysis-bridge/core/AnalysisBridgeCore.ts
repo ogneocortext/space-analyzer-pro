@@ -29,8 +29,8 @@ export class AnalysisBridgeCore {
         baseUrl = backendApiUrl;
         this.log("info", `🔗 AnalysisBridge initialized with env var baseUrl: ${baseUrl}`);
       } else if (typeof window !== "undefined") {
-        // Try multiple backend ports - backend runs on 8081, not Vite's port
-        const ports = [8081, 8080, 3000, 5000, 8000];
+        // Try multiple backend ports - backend runs on 8085, not Vite's port
+        const ports = [8085, 8080, 8081, 3000, 5000, 8000];
         const origin = window.location.origin;
         const isDev = origin.includes("localhost") || origin.includes("127.0.0.1");
 
