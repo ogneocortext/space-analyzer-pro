@@ -177,12 +177,12 @@ export const useIndexedDB = (): UseIndexedDBReturn => {
   });
 
   return {
-    snapshots,
+    snapshots: snapshots.value,
     saveSnapshot,
     loadSnapshots,
     deleteSnapshot,
     clearSnapshots,
-    isLoading,
-    error,
+    isLoading: isLoading.value,
+    error: error.value,
   };
 };

@@ -343,3 +343,8 @@ export class IndexedDBPersistence {
 
 // Singleton instance
 export const indexedDBPersistence = new IndexedDBPersistence();
+
+// Composable function for Vue components
+export function useIndexedDBPersistence() {
+  return indexedDBPersistence;
+}

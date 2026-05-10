@@ -19,7 +19,7 @@ export interface ServiceInstance {
   error?: Error;
 }
 
-export type ServiceFactory<T = () => T | Promise<T>;
+export type ServiceFactory<T> = () => T | Promise<T>;
 
 export class ServiceRegistry {
   private static instance: ServiceRegistry;
@@ -29,7 +29,7 @@ export class ServiceRegistry {
 
   private constructor() {
     if (ServiceRegistry.instance) {
-      throw new Error('ServiceRegistry is a singleton. Use ServiceRegistry.getInstance()');
+      throw new Error("ServiceRegistry is a singleton. Use ServiceRegistry.getInstance()");
     }
     ServiceRegistry.instance = this;
   }
@@ -48,10 +48,10 @@ export class ServiceRegistry {
     }
 
     this.factories.set(config.name, factory);
-    
+
     // Calculate initialization order based on priority
     this.updateInitializationOrder();
-    
+
     console.log(`Registered service: ${config.name} v${config.version}`);
   }
 
@@ -64,12 +64,12 @@ export class ServiceRegistry {
       return;
     }
 
-    this.services.set(config.name, {
+    const serviceInstance: ServiceInstance = {
       config,
       instance,
       initialized: false,
-      error: undefined
-    });
+    };
+    this.services.set(config.name, serviceInstance);
 
     this.updateInitializationOrder();
     console.log(`Registered service instance: ${config.name}`);
@@ -105,7 +105,7 @@ export class ServiceRegistry {
    */
   getByPriority(): ServiceInstance[] {
     return Array.from(this.services.values())
-      .filter(service => service.initialized)
+      .filter((service) => service.initialized)
       .sort((a, b) => (a.config.priority || 999) - (b.config.priority || 999));
   }
 
@@ -113,12 +113,12 @@ export class ServiceRegistry {
    * Initialize all registered services
    */
   async initializeAll(): Promise<void> {
-    console.log('Initializing all services...');
-    
+    console.log("Initializing all services...");
+
     for (const serviceName of this.initializationOrder) {
       await this.initializeService(serviceName);
     }
-    
+
     console.log(`All services initialized. Total: ${this.services.size}`);
   }
 
@@ -153,11 +153,11 @@ export class ServiceRegistry {
       }
 
       service.initialized = true;
-      service.error = undefined;
-      
+      delete service.error;
+
       console.log(`✅ Service ${name} initialized successfully`);
     } catch (error) {
-      service.error = error instanceof Error ? error : new Error('Unknown error');
+      service.error = error instanceof Error ? error : new Error("Unknown error");
       console.error(`❌ Service ${name} initialization failed:`, service.error);
     }
   }
@@ -167,25 +167,28 @@ export class ServiceRegistry {
    */
   isHealthy(name: string): boolean {
     const service = this.services.get(name);
-    return service?.initialized && !service.error;
+    return service?.initialized === true && !service.error;
   }
 
   /**
    * Get service health status
    */
-  getHealthStatus(): Record<string, { status: 'healthy' | 'unhealthy' | 'uninitialized', error?: string }> {
+  getHealthStatus(): Record<
+    string,
+    { status: "healthy" | "unhealthy" | "uninitialized"; error?: string }
+  > {
     const status: Record<string, any> = {};
-    
+
     for (const [name, service] of this.services) {
       if (!service.initialized) {
-        status[name] = { status: 'uninitialized' };
+        status[name] = { status: "uninitialized" };
       } else if (service.error) {
-        status[name] = { status: 'unhealthy', error: service.error.message };
+        status[name] = { status: "unhealthy", error: service.error.message };
       } else {
-        status[name] = { status: 'healthy' };
+        status[name] = { status: "healthy" };
       }
     }
-    
+
     return status;
   }
 
@@ -200,10 +203,10 @@ export class ServiceRegistry {
 
     try {
       // Call cleanup if available
-      if (service.instance && typeof service.instance.destroy === 'function') {
+      if (service.instance && typeof service.instance.destroy === "function") {
         await service.instance.destroy();
       }
-      
+
       service.initialized = false;
       console.log(`Service ${name} shutdown successfully`);
     } catch (error) {
@@ -215,40 +218,45 @@ export class ServiceRegistry {
    * Shutdown all services
    */
   async shutdownAll(): Promise<void> {
-    console.log('Shutting down all services...');
-    
+    console.log("Shutting down all services...");
+
     // Shutdown in reverse priority order
     const services = this.getByPriority().reverse();
-    
+
     for (const service of services) {
       await this.shutdown(service.config.name);
     }
-    
-    console.log('All services shutdown');
+
+    console.log("All services shutdown");
   }
 
   /**
    * Update initialization order based on dependencies and priority
    */
   private updateInitializationOrder(): void {
-    const services = Array.from(this.factories.entries())
-      .map(([name, config]) => ({ name, config }))
-      .concat(Array.from(this.services.entries()).map(([name, service]) => ({ 
-        name, 
-        config: service.config 
-      })));
+    const services = Array.from(this.factories.entries()).map(([name, config]) => ({
+      name,
+      config,
+    }));
+
+    const serviceEntries = Array.from(this.services.entries()).map(([name, service]) => ({
+      name,
+      config: (service as any).config,
+    }));
+
+    const allServices = services.concat(serviceEntries);
 
     // Sort by dependencies first, then priority
-    services.sort((a, b) => {
+    allServices.sort((a, b) => {
       // A depends on B
-      if (a.config.dependencies?.includes(b.name)) return -1;
+      if ((a.config as any).dependencies?.includes(b.name)) return -1;
       // B depends on A
-      if (b.config.dependencies?.includes(a.name)) return 1;
+      if ((b.config as any).dependencies?.includes(a.name)) return 1;
       // Sort by priority (lower number = higher priority)
-      return (a.config.priority || 999) - (b.config.priority || 999);
+      return ((a.config as any).priority || 999) - ((b.config as any).priority || 999);
     });
 
-    this.initializationOrder = services.map(s => s.name);
+    this.initializationOrder = allServices.map((s) => s.name);
   }
 
   /**
@@ -261,16 +269,16 @@ export class ServiceRegistry {
     services: Array<{ name: string; version: string; status: string }>;
   } {
     const services = Array.from(this.services.values());
-    
+
     return {
       total: services.length,
-      initialized: services.filter(s => s.initialized).length,
-      unhealthy: services.filter(s => !!s.error).length,
-      services: services.map(s => ({
+      initialized: services.filter((s) => s.initialized).length,
+      unhealthy: services.filter((s) => !!s.error).length,
+      services: services.map((s) => ({
         name: s.config.name,
         version: s.config.version,
-        status: s.initialized ? 'initialized' : s.error ? 'error' : 'registered'
-      }))
+        status: s.initialized ? "initialized" : s.error ? "error" : "registered",
+      })),
     };
   }
 
@@ -281,7 +289,7 @@ export class ServiceRegistry {
     this.services.clear();
     this.factories.clear();
     this.initializationOrder = [];
-    console.log('Service registry cleared');
+    console.log("Service registry cleared");
   }
 }
 

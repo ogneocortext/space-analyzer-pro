@@ -3,14 +3,10 @@
 
 export { useUnifiedStore } from "./unified";
 export { useAnalysisStore } from "./analysis";
-export { useAIStore } from "./ai";
-export { useNotificationStore } from "./notifications";
 export { useSelfLearningStore } from "./selfLearning";
 export { useAppStore } from "./app";
-
-// Re-export for backward compatibility
-export { useAnalysisStore as useAnalysisStore } from "./analysis";
-export { useAIStore as useAIStore } from "./ai";
-export { useNotificationStore as useNotificationStore } from "./notifications";
-export { useSelfLearningStore as useSelfLearningStore } from "./selfLearning";
-export { useAppStore as useAppStore } from "./app";
+export { useABTestingFramework, abTestingFramework } from "./abTestingFramework";
+export { useAdaptiveLearningRate, adaptiveLearningRate } from "./adaptiveLearningRate";
+export { useIndexedDBPersistence, indexedDBPersistence } from "./indexedDBPersistence";
+export { useMLRecommendations, mlRecommendationEngine } from "./mlRecommendations";
+export { useNotificationStore, notificationStore } from "./notificationStore";

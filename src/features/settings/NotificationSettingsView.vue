@@ -176,25 +176,25 @@
     </section>
 
     <!-- Notification Stats -->
-    <section v-if="stats.total > 0" class="settings-section">
+    <section v-if="notificationStats.total > 0" class="settings-section">
       <h3>Statistics</h3>
 
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-value">
-            {{ stats.total }}
+            {{ notificationStats.total }}
           </div>
           <div class="stat-label">Total Notifications</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">
-            {{ stats.unread }}
+            {{ notificationStats.unread }}
           </div>
           <div class="stat-label">Unread</div>
         </div>
         <div v-for="type in notificationTypes" :key="type.key" class="stat-card">
           <div class="stat-value">
-            {{ stats.byType[type.key] || 0 }}
+            {{ notificationStats.byType[type.key] || 0 }}
           </div>
           <div class="stat-label">
             {{ type.label }}
@@ -214,6 +214,86 @@ const store = useNotificationStore();
 
 onMounted(() => {
   store.initializeSettings();
+});
+
+const saveSettings = () => {
+  store.updateSettings(store.currentSettings);
+};
+
+const saveTypeSettings = (type: NotificationType) => {
+  store.updateSettings(store.currentSettings);
+};
+
+const resetToDefaults = () => {
+  store.updateSettings({
+    enabled: true,
+    sound: true,
+    sounds: true,
+    desktop: true,
+    position: "top-right",
+    duration: 5000,
+    maxVisible: 5,
+    showProgress: true,
+    types: {
+      info: { enabled: true, persistent: false, duration: 5000 },
+      success: { enabled: true, persistent: false, duration: 5000 },
+      warning: { enabled: true, persistent: false, duration: 7000 },
+      error: { enabled: true, persistent: true, duration: 10000 },
+      progress: { enabled: true, persistent: true, duration: 0 },
+    },
+  });
+};
+
+const clearAllNotifications = () => {
+  store.clearAll();
+};
+
+const sendTestNotification = (type: NotificationType) => {
+  switch (type) {
+    case "success":
+      store.success("Test Success", "This is a test success notification!");
+      break;
+    case "error":
+      store.error("Test Error", "This is a test error notification!");
+      break;
+    case "warning":
+      store.warning("Test Warning", "This is a test warning notification!");
+      break;
+    case "info":
+      store.info("Test Info", "This is a test info notification!");
+      break;
+  }
+};
+
+const sendTestProgress = () => {
+  const id = store.progress("Test Progress", "Starting test operation...");
+
+  // Simulate progress updates
+  let progress = 0;
+  const interval = setInterval(() => {
+    progress += 10;
+    store.updateProgress(id, progress, `Test operation in progress... ${progress}%`);
+
+    if (progress >= 100) {
+      clearInterval(interval);
+      store.success("Test Complete", "Test progress operation completed successfully!");
+    }
+  }, 500);
+};
+
+const stats = computed(() => {
+  const notifications = store.notificationsList;
+  return {
+    total: notifications.length,
+    unread: notifications.filter((n) => !n.read).length,
+    byType: {
+      success: notifications.filter((n) => n.type === "success").length,
+      error: notifications.filter((n) => n.type === "error").length,
+      warning: notifications.filter((n) => n.type === "warning").length,
+      info: notifications.filter((n) => n.type === "info").length,
+      progress: notifications.filter((n) => n.type === "progress").length,
+    },
+  };
 });
 
 const notificationTypeIcons: Record<NotificationType, typeof CheckCircle> = {
@@ -257,7 +337,7 @@ const notificationTypes = [
   },
 ];
 
-const stats = computed(() => {
+const notificationStats = computed(() => {
   const total = store.notifications.length;
   const unread = store.notifications.filter((n) => !n.read).length;
   const byType: Record<string, number> = {};
@@ -269,15 +349,15 @@ const stats = computed(() => {
   return { total, unread, byType };
 });
 
-function saveSettings() {
+function saveGlobalSettings() {
   store.saveSettings();
 }
 
-function saveTypeSettings(type: NotificationType) {
+function saveTypeSettingsGlobal(type: NotificationType) {
   store.updateTypeSettings(type, store.settings.types[type]);
 }
 
-function sendTestNotification(type: NotificationType) {
+function sendTestNotificationGlobal(type: NotificationType) {
   const messages: Record<NotificationType, { title: string; message: string }> = {
     success: {
       title: "Success!",
@@ -334,7 +414,7 @@ function sendTestNotification(type: NotificationType) {
 
 let progressInterval: ReturnType<typeof setInterval> | null = null;
 
-function sendTestProgress() {
+function sendTestProgressGlobal() {
   const id = store.progress("Processing Files", "Analyzing directory structure...", 0, {
     actions: [
       {
@@ -370,14 +450,14 @@ function sendTestProgress() {
   }, 500);
 }
 
-function resetToDefaults() {
+function resetToDefaultsGlobal() {
   if (confirm("Reset all notification settings to defaults?")) {
     localStorage.removeItem("notification-settings");
     window.location.reload();
   }
 }
 
-function clearAllNotifications() {
+function clearAllNotificationsGlobal() {
   if (confirm("Clear all notification history? This cannot be undone.")) {
     store.clearAll();
   }

@@ -92,7 +92,7 @@ const router = createRouter({
 });
 
 // Navigation guard for desktop routes
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, from) => {
   // Check if route requires desktop mode
   if (to.meta?.requiresDesktop) {
     // In a real implementation, you might check if running in Tauri
@@ -104,7 +104,8 @@ router.beforeEach((to, from, next) => {
     document.title = to.meta.title as string;
   }
 
-  next();
+  // Return undefined to continue navigation (Vue Router v4+ style)
+  return;
 });
 
 export default router;

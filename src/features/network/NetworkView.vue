@@ -292,7 +292,7 @@ onUnmounted(() => {
               Selected Node
             </h3>
 
-            <div class="space-y-4">
+            <div class="flex flex-col gap-4">
               <div>
                 <div class="text-sm text-slate-400 mb-1">Name</div>
                 <div class="text-white font-medium">

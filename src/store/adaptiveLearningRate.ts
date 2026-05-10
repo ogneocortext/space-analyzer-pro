@@ -492,3 +492,8 @@ export class AdaptiveLearningRate {
 
 // Singleton instance
 export const adaptiveLearningRate = new AdaptiveLearningRate();
+
+// Composable function for Vue components
+export function useAdaptiveLearningRate() {
+  return adaptiveLearningRate;
+}

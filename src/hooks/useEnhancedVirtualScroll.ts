@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, Ref } from "vue";
 
 interface VirtualScrollOptions {
   items: any[];
@@ -21,7 +21,7 @@ export const useEnhancedVirtualScroll = (options: VirtualScrollOptions): Virtual
     items,
     estimateSize = () => 50,
     overscan = 5,
-    enableDynamicSizing = false,
+    _enableDynamicSizing = false,
     bufferSize = 10,
   } = options;
 
@@ -36,7 +36,7 @@ export const useEnhancedVirtualScroll = (options: VirtualScrollOptions): Virtual
   });
 
   const totalSize = computed(() => {
-    return items.reduce((sum, item, index) => {
+    return items.reduce((sum, _item, index) => {
       return sum + (estimateSize ? estimateSize(index) : 50);
     }, 0);
   });
@@ -112,8 +112,8 @@ export const useEnhancedVirtualScroll = (options: VirtualScrollOptions): Virtual
   });
 
   return {
-    visibleItems,
-    totalSize,
+    visibleItems: visibleItems.value,
+    totalSize: totalSize.value,
     scrollElement: containerRef,
     scrollToIndex,
     scrollToOffset,

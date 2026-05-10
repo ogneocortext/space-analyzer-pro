@@ -66,18 +66,16 @@ export function useErrorLogs() {
           throw new Error("Tauri API not available");
         }
 
-        const tauriErrors = await tauriInvoke<
-          Array<{
-            id: string;
-            timestamp: string;
-            error_type: string;
-            message: string;
-            stack?: string;
-            source: string;
-            url?: string;
-            component?: string;
-          }>
-        >("get_error_logs", { limit });
+        const tauriErrors = (await tauriInvoke("get_error_logs", { limit })) as Array<{
+          id: string;
+          timestamp: string;
+          error_type: string;
+          message: string;
+          stack?: string;
+          source: string;
+          url?: string;
+          component?: string;
+        }>;
 
         errors.value = tauriErrors.map((e: any) => ({
           id: e.id,
@@ -120,7 +118,10 @@ export function useErrorLogs() {
           throw new Error("Tauri API not available");
         }
 
-        const tauriStats = await tauriInvoke<{ total: number; recent: number }>("get_error_stats");
+        const tauriStats = (await tauriInvoke("get_error_stats")) as {
+          total: number;
+          recent: number;
+        };
 
         // Build stats from current errors
         const byType: Record<string, number> = {};

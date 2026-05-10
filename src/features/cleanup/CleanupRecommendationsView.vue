@@ -191,7 +191,7 @@ function executeAction(action: string) {
     </div>
 
     <!-- Recommendations List -->
-    <div v-if="recommendations.length > 0" class="space-y-4">
+    <div v-if="recommendations.length > 0" class="flex flex-col gap-4">
       <h2 class="text-xl font-semibold text-slate-200">Recommended Actions</h2>
 
       <div

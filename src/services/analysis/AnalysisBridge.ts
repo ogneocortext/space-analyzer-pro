@@ -339,6 +339,81 @@ export class AnalysisBridge {
     }
   }
 
+  // Select the optimal scanner based on directory characteristics
+  async selectOptimalScanner(directoryPath: string): Promise<string> {
+    try {
+      // Get directory info to make informed decision
+      const dirInfo = await this.getDirectoryInfo(directoryPath);
+
+      // Decision matrix for scanner selection
+      if (dirInfo.isProjectDirectory) {
+        return "code-analysis";
+      } else if (dirInfo.hasMediaFiles) {
+        return "media-optimized";
+      } else if (dirInfo.isDirectoryTree) {
+        return "hierarchy-scanner";
+      } else if (dirInfo.fileCount < 1000) {
+        return "basic-scanner";
+      } else if (dirInfo.fileCount > 10000) {
+        return "performance-optimized";
+      } else {
+        return "standard-scanner";
+      }
+    } catch (error) {
+      this.log("warn", "Failed to analyze directory, using default scanner", error);
+      return "standard-scanner";
+    }
+  }
+
+  // Get directory information for scanner selection
+  async getDirectoryInfo(directoryPath: string): Promise<any> {
+    try {
+      const response = await this.fetchWithRetry(`${this.baseUrl}/api/directory-info`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: directoryPath }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.info || {};
+      }
+    } catch (error) {
+      this.log("warn", "Failed to get directory info", error);
+    }
+
+    // Fallback analysis based on path
+    const pathLower = directoryPath.toLowerCase();
+    return {
+      fileCount: 0,
+      isProjectDirectory:
+        pathLower.includes("src") ||
+        pathLower.includes("project") ||
+        pathLower.includes("app") ||
+        pathLower.includes("code"),
+      hasMediaFiles:
+        pathLower.includes("media") ||
+        pathLower.includes("pictures") ||
+        pathLower.includes("videos") ||
+        pathLower.includes("music"),
+      isDirectoryTree: pathLower.includes("\\") || pathLower.split("/").length > 3,
+    };
+  }
+
+  // Get max files for different scanner types
+  getMaxFilesForScanner(scannerType: string): number {
+    const limits = {
+      "code-analysis": 10000,
+      "media-optimized": 5000,
+      "hierarchy-scanner": 15000,
+      "basic-scanner": 1000,
+      "performance-optimized": 50000,
+      "standard-scanner": 10000,
+      "ai-enhanced": 5000,
+    };
+    return limits[scannerType] || 10000;
+  }
+
   // Health check to verify backend is reachable
   async checkBackendHealth(): Promise<{ ok: boolean; error?: string }> {
     try {
@@ -463,27 +538,38 @@ export class AnalysisBridge {
       // In Tauri mode, use native Rust scanner instead of HTTP API
       if (isTauri()) {
         console.warn("🖥️ Tauri mode detected - using native Rust scanner");
-        const { result } = await this.analyzeWithTauri(cleanPath);
+        const { result } = await this.analyzeWithTauri(cleanPath, undefined);
         return result;
       }
 
-      // Use basic analysis endpoint for stability
+      // Choose the appropriate scanner based on the task
+      const scannerType = await this.selectOptimalScanner(cleanPath);
+      this.log("info", `🎯 Selected scanner: ${scannerType}`);
+
+      // Use the selected scanner
       const response = await this.fetchWithRetry(`${this.baseUrl}/api/v1/analysis/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           directoryPath: cleanPath,
-          options: { ai: true, media: true }, // Enable AI and media analysis for full coverage
+          options: {
+            ai: scannerType === "ai-enhanced",
+            media: scannerType === "media-optimized",
+            maxFiles: this.getMaxFilesForScanner(scannerType),
+            includeHidden: false,
+            followSymlinks: false,
+            scannerType: scannerType, // Tell backend which scanner to use
+          },
         }),
       });
 
       const json = await response.json();
 
       if (!json.success) {
-        throw new Error(json.error || "Smart analysis failed");
+        throw new Error(json.error || "Analysis failed");
       }
 
-      this.log("info", `Smart analysis completed successfully`);
+      this.log("info", `${scannerType} analysis completed successfully`);
 
       // Convert backend response format to frontend AnalysisResult format
       const backendResult = json.result;
@@ -1197,73 +1283,184 @@ export class AnalysisBridge {
           pollAttempts++;
           console.warn(`🔄 Progress poll attempt ${pollAttempts}/${maxPollAttempts}`);
 
+          // Add timeout to fetch request
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
           const progressResponse = await fetch(
-            `${this.baseUrl}/api/v1/progress/${immediateAnalysisId}`
+            `${this.baseUrl}/api/v1/progress/${immediateAnalysisId}`,
+            {
+              signal: controller.signal,
+              headers: { "Cache-Control": "no-cache" }, // Prevent caching of progress data
+            }
           );
+
+          clearTimeout(timeoutId);
+
           if (progressResponse.ok) {
-            const progressData = await progressResponse.json();
+            let progressData;
+            try {
+              progressData = await progressResponse.json();
+            } catch (parseError) {
+              console.error("❌ Failed to parse progress response:", parseError);
+              // Call callback with error state
+              onProgress({
+                files: 0,
+                percentage: 0,
+                currentFile: "Error parsing progress data",
+                completed: false,
+                totalSize: 0,
+              });
+
+              if (pollAttempts < maxPollAttempts) {
+                setTimeout(pollProgress, 2000);
+              }
+              return;
+            }
+
             console.warn("📊 Progress data received:", progressData);
 
             // Handle both old and new progress data structures
             const progress = progressData.progress || progressData;
-            if (progressData.success || progress.files !== undefined) {
-              console.warn("📊 About to call progress callback with:", {
-                files: progress.filesProcessed || progress.files || 0,
-                percentage: progress.percentage || 0,
-                currentFile: progress.currentFile || "",
-                completed: progress.status === "complete" || progress.completed,
-                totalSize: progress.totalSize || 0,
-              });
 
-              // Call the callback immediately
-              onProgress({
+            // Enhanced validation of progress data
+            if (this.validateProgressData(progress) || progressData.success) {
+              const progressInfo = {
                 files: progress.filesProcessed || progress.files || 0,
-                percentage: progress.percentage || 0,
+                percentage: Math.max(0, Math.min(100, progress.percentage || 0)), // Clamp between 0-100
                 currentFile: progress.currentFile || "",
                 completed: progress.status === "complete" || progress.completed,
                 totalSize: progress.totalSize || 0,
-              });
-              console.warn("✅ Progress callback called successfully");
+              };
+
+              console.warn("📊 About to call progress callback with:", progressInfo);
+
+              try {
+                // Call the callback immediately
+                onProgress(progressInfo);
+                console.warn("✅ Progress callback called successfully");
+              } catch (callbackError) {
+                console.error("❌ Progress callback error:", callbackError);
+              }
+
+              // Continue polling if not complete
+              const isComplete = progressInfo.completed;
+
+              if (!isComplete && pollAttempts < maxPollAttempts) {
+                console.warn("🔄 Scheduling next poll in 2 seconds...");
+                setTimeout(pollProgress, 2000);
+              } else if (isComplete) {
+                console.warn("✅ Analysis complete, stopping polling");
+                // Call final progress callback to ensure completion is handled
+                try {
+                  onProgress({
+                    files: progressInfo.files,
+                    percentage: 100,
+                    currentFile: "Analysis complete",
+                    completed: true,
+                    totalSize: progressInfo.totalSize,
+                  });
+                } catch (callbackError) {
+                  console.error("❌ Final progress callback error:", callbackError);
+                }
+              } else {
+                console.warn("⏱️ Max polling attempts reached, stopping");
+                // Notify about polling failure
+                try {
+                  onProgress({
+                    files: progressInfo.files,
+                    percentage: progressInfo.percentage,
+                    currentFile: "Progress polling timeout - please refresh",
+                    completed: false,
+                    totalSize: progressInfo.totalSize,
+                  });
+                } catch (callbackError) {
+                  console.error("❌ Timeout progress callback error:", callbackError);
+                }
+              }
             } else {
               console.warn("⚠️ Progress data missing or incomplete:", progressData);
               // Still call callback with default values to prevent UI freezing
+              try {
+                onProgress({
+                  files: 0,
+                  percentage: 0,
+                  currentFile: "Waiting for progress data...",
+                  completed: false,
+                  totalSize: 0,
+                });
+              } catch (callbackError) {
+                console.error("❌ Default progress callback error:", callbackError);
+              }
+
+              if (pollAttempts < maxPollAttempts) {
+                setTimeout(pollProgress, 2000);
+              }
+            }
+          } else {
+            console.warn(
+              "⚠️ Progress endpoint not OK:",
+              progressResponse.status,
+              progressResponse.statusText
+            );
+
+            // Handle different HTTP status codes
+            let errorMessage = "Progress check failed";
+            if (progressResponse.status === 404) {
+              errorMessage = "Analysis not found - may have expired";
+            } else if (progressResponse.status === 500) {
+              errorMessage = "Server error during progress check";
+            } else if (progressResponse.status >= 400) {
+              errorMessage = `Client error: ${progressResponse.status}`;
+            }
+
+            try {
               onProgress({
                 files: 0,
                 percentage: 0,
-                currentFile: "Starting scan...",
+                currentFile: errorMessage,
                 completed: false,
                 totalSize: 0,
               });
+            } catch (callbackError) {
+              console.error("❌ Error progress callback error:", callbackError);
             }
 
-            // Continue polling if not complete
-            const progressInfo = progressData.progress || progressData;
-            const isComplete = progressInfo.status === "complete" || progressInfo.completed;
-
-            if (!isComplete && pollAttempts < maxPollAttempts) {
-              console.warn("🔄 Scheduling next poll in 2 seconds...");
-              setTimeout(pollProgress, 2000);
-            } else if (isComplete) {
-              console.warn("✅ Analysis complete, stopping polling");
-              // Call final progress callback to ensure completion is handled
-              onProgress({
-                files: progressInfo.files || 0,
-                percentage: 100,
-                currentFile: "Analysis complete",
-                completed: true,
-                totalSize: progressInfo.totalSize || 0,
-              });
-            } else {
-              console.warn("⏱️ Max polling attempts reached, stopping");
-            }
-          } else {
-            console.warn("⚠️ Progress endpoint not OK:", progressResponse.status);
             if (pollAttempts < maxPollAttempts) {
               setTimeout(pollProgress, 2000);
             }
           }
         } catch (error) {
-          console.error("❌ Progress polling error:", error);
+          clearTimeout(timeoutId); // Clear timeout on error
+
+          if (error.name === "AbortError") {
+            console.error("❌ Progress polling timeout:", error);
+            try {
+              onProgress({
+                files: 0,
+                percentage: 0,
+                currentFile: "Progress check timeout",
+                completed: false,
+                totalSize: 0,
+              });
+            } catch (callbackError) {
+              console.error("❌ Timeout progress callback error:", callbackError);
+            }
+          } else {
+            console.error("❌ Progress polling error:", error);
+            try {
+              onProgress({
+                files: 0,
+                percentage: 0,
+                currentFile: `Progress check error: ${error.message}`,
+                completed: false,
+                totalSize: 0,
+              });
+            } catch (callbackError) {
+              console.error("❌ Error progress callback error:", callbackError);
+            }
+          }
+
           if (pollAttempts < maxPollAttempts) {
             setTimeout(pollProgress, 2000);
           }
@@ -2024,7 +2221,7 @@ export class AnalysisBridge {
     };
   }
 
-  // SSE Progress Subscription
+  // SSE Progress Subscription with enhanced error handling
   subscribeToProgress(
     analysisId: string,
     onProgress: (progress: {
@@ -2044,82 +2241,221 @@ export class AnalysisBridge {
 
     const url = `${this.baseUrl}/api/v1/progress/stream/${analysisId}`;
     console.warn(`[SSE Frontend] Connecting to: ${url}`);
-    const eventSource = new EventSource(url);
 
-    eventSource.onopen = () => {
-      console.warn(`[SSE Frontend] Connection opened for ${analysisId}`);
-    };
+    let eventSource: EventSource | null = null;
+    let connectionTimeout: NodeJS.Timeout | null = null;
+    let isSubscribed = true;
 
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.warn(
-          `[SSE Frontend] Received progress:`,
-          data.percentage || data.progress || 0,
-          "%",
-          data
-        );
-        onProgress(data);
+    try {
+      eventSource = new EventSource(url);
 
-        // Close connection if analysis is complete or failed
-        if (data.completed || data.status === "failed") {
-          this.log("info", `Analysis ${analysisId} finished, closing SSE`);
-          eventSource.close();
+      // Set connection timeout
+      connectionTimeout = setTimeout(() => {
+        if (isSubscribed && eventSource && eventSource.readyState === EventSource.CONNECTING) {
+          console.warn(`[SSE Frontend] Connection timeout for ${analysisId}`);
+          if (onError) {
+            onError("Connection timeout - falling back to polling");
+          }
+          this.cleanupSSEConnection();
         }
-      } catch (error) {
-        console.error("[SSE Frontend] Failed to parse SSE progress:", error);
-      }
-    };
+      }, 10000); // 10 second timeout
 
-    eventSource.onerror = (error) => {
-      console.error("[SSE Frontend] SSE error:", error);
-      this.log("error", `SSE error for analysis ${analysisId}:`, error);
+      eventSource.onopen = () => {
+        if (!isSubscribed) return;
 
-      // Always call onError to trigger polling fallback
+        console.warn(`[SSE Frontend] Connection opened for ${analysisId}`);
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = null;
+        }
+      };
+
+      eventSource.onmessage = (event) => {
+        if (!isSubscribed) return;
+
+        try {
+          const data = JSON.parse(event.data);
+          console.warn(
+            `[SSE Frontend] Received progress:`,
+            data.percentage || data.progress || 0,
+            "%",
+            data
+          );
+
+          // Validate progress data before calling callback
+          if (this.validateProgressData(data)) {
+            onProgress(data);
+
+            // Close connection if analysis is complete or failed
+            if (data.completed || data.status === "failed") {
+              this.log("info", `Analysis ${analysisId} finished, closing SSE`);
+              this.cleanupSSEConnection();
+            }
+          } else {
+            console.warn("[SSE Frontend] Invalid progress data received:", data);
+          }
+        } catch (error) {
+          console.error("[SSE Frontend] Failed to parse SSE progress:", error);
+          // Don't close connection on parse error, just log it
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        if (!isSubscribed) return;
+
+        console.error("[SSE Frontend] SSE error:", error);
+        this.log("error", `SSE error for analysis ${analysisId}:`, error);
+
+        // Always call onError to trigger polling fallback
+        if (onError) {
+          onError("SSE connection failed - falling back to polling");
+        }
+
+        this.cleanupSSEConnection();
+      };
+
+      // Enhanced cleanup function
+      const cleanupSSEConnection = () => {
+        if (!isSubscribed) return;
+
+        isSubscribed = false;
+
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = null;
+        }
+
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+        }
+
+        this.log("info", `Unsubscribing from progress: ${analysisId}`);
+      };
+
+      return cleanupSSEConnection;
+    } catch (error) {
+      console.error("[SSE Frontend] Failed to create EventSource:", error);
       if (onError) {
-        onError("SSE connection failed - falling back to polling");
+        onError(`Failed to create SSE connection: ${error.message}`);
       }
 
-      eventSource.close();
-    };
-
-    // Return cleanup function
-    return () => {
-      this.log("info", `Unsubscribing from progress: ${analysisId}`);
-      eventSource.close();
-    };
+      // Return empty cleanup function
+      return () => {};
+    }
   }
 
-  // Tauri desktop mode - use native Rust scanner
+  // Helper method to validate progress data
+  private validateProgressData(data: any): boolean {
+    if (!data || typeof data !== "object") {
+      return false;
+    }
+
+    // Check for required fields
+    if (typeof data.percentage !== "number" && typeof data.progress !== "number") {
+      return false;
+    }
+
+    if (typeof data.files !== "number" && typeof data.filesProcessed !== "number") {
+      return false;
+    }
+
+    return true;
+  }
+
+  // Tauri desktop mode - use native Rust scanner with enhanced WebSocket management
   private async analyzeWithTauri(
     path: string,
     onProgress?: (progress: AnalysisProgress) => void
   ): Promise<{ result: AnalysisResult; analysisId: string }> {
     const analysisId = `tauri-${Date.now()}`;
+    let unlistenFn: any = null;
+    let progressTimeout: NodeJS.Timeout | null = null;
 
-    // Progress is handled globally via useTauriDesktop composable which calls store.updateProgressFromWebSocket
-    // We just need to call the onProgress callback here for the AnalysisBridge consumer
-    const unlistenFn = onProgress
-      ? await listen<{
+    try {
+      // Enhanced progress tracking with error handling and timeout
+      if (onProgress) {
+        unlistenFn = await listen<{
           files_scanned: number;
           directories_scanned: number;
           total_size: number;
           current_file: string;
           percentage: number;
           completed: boolean;
+          error?: string;
         }>("scan-progress", (event) => {
-          onProgress({
-            files: event.payload.files_scanned,
-            percentage: event.payload.percentage,
-            currentFile: event.payload.current_file,
-            completed: event.payload.completed,
-            totalSize: event.payload.total_size,
-          });
-        })
-      : null;
+          try {
+            // Validate progress data
+            if (
+              typeof event.payload.percentage !== "number" ||
+              typeof event.payload.files_scanned !== "number"
+            ) {
+              console.warn("[Tauri] Invalid progress data received:", event.payload);
+              return;
+            }
+
+            // Handle progress errors
+            if (event.payload.error) {
+              console.error("[Tauri] Progress error from backend:", event.payload.error);
+              onProgress({
+                files: event.payload.files_scanned,
+                percentage: event.payload.percentage,
+                currentFile: `Error: ${event.payload.error}`,
+                completed: false,
+                totalSize: event.payload.total_size,
+              });
+              return;
+            }
+
+            onProgress({
+              files: event.payload.files_scanned,
+              percentage: event.payload.percentage,
+              currentFile: event.payload.current_file || "Scanning...",
+              completed: event.payload.completed,
+              totalSize: event.payload.total_size,
+            });
+
+            // Clear any existing timeout when we receive progress
+            if (progressTimeout) {
+              clearTimeout(progressTimeout);
+              progressTimeout = null;
+            }
+
+            // Set a timeout to detect stalled progress
+            if (!event.payload.completed) {
+              progressTimeout = setTimeout(() => {
+                console.warn("[Tauri] Progress timeout - no updates received for 30 seconds");
+                onProgress({
+                  files: event.payload.files_scanned,
+                  percentage: event.payload.percentage,
+                  currentFile: "Scanning appears to be stalled...",
+                  completed: false,
+                  totalSize: event.payload.total_size,
+                });
+              }, 30000); // 30 second timeout
+            }
+          } catch (error) {
+            console.error("[Tauri] Error processing progress update:", error);
+          }
+        });
+
+        // Set initial progress state
+        onProgress({
+          files: 0,
+          percentage: 0,
+          currentFile: "Initializing scan...",
+          completed: false,
+          totalSize: 0,
+        });
+      }
+    } catch (error) {
+      console.error("[Tauri] Failed to set up progress listener:", error);
+      throw new Error(`Failed to initialize progress tracking: ${error.message}`);
+    }
 
     try {
-      // Call Tauri command
+      // Call Tauri command with enhanced error handling
+      console.warn(`[Tauri] Starting analysis for path: ${path}`);
       const result = await invoke<{
         path: string;
         total_files: number;
@@ -2138,6 +2474,28 @@ export class AnalysisBridge {
         empty_directories: string[];
         errors: string[];
       }>("analyze_directory_with_progress", { path });
+
+      // Clear progress timeout on successful completion
+      if (progressTimeout) {
+        clearTimeout(progressTimeout);
+        progressTimeout = null;
+      }
+
+      // Send final progress update
+      if (onProgress) {
+        onProgress({
+          files: result.total_files,
+          percentage: 100,
+          currentFile: "Analysis complete",
+          completed: true,
+          totalSize: result.total_size,
+        });
+      }
+
+      // Validate result data
+      if (!result || typeof result.total_files !== "number") {
+        throw new Error("Invalid analysis result received from Tauri backend");
+      }
 
       // Convert to AnalysisResult format
       const analysisResult: AnalysisResult = {
@@ -2168,7 +2526,15 @@ export class AnalysisBridge {
             is_system: false,
           },
         })),
-        issues: { errors: [], warnings: [] },
+        issues: {
+          errors: (result.errors || []).map((error) => ({
+            type_: "scan_error",
+            path: path,
+            message: error,
+            count: 1,
+          })),
+          warnings: [],
+        },
         duplicates: { groups: [], total_duplicates: 0, wasted_space: 0 },
         summary: {
           total_files: result.total_files,
@@ -2179,10 +2545,39 @@ export class AnalysisBridge {
         },
       };
 
+      console.warn(
+        `[Tauri] Analysis completed successfully: ${result.total_files} files, ${this.formatBytes(result.total_size)}`
+      );
       return { result: analysisResult, analysisId };
+    } catch (error) {
+      console.error("[Tauri] Analysis failed:", error);
+
+      // Send error progress update
+      if (onProgress) {
+        onProgress({
+          files: 0,
+          percentage: 0,
+          currentFile: `Analysis failed: ${error.message}`,
+          completed: false,
+          totalSize: 0,
+        });
+      }
+
+      // Re-throw with more context
+      throw new Error(`Tauri analysis failed for path "${path}": ${error.message}`);
     } finally {
+      // Enhanced cleanup
+      if (progressTimeout) {
+        clearTimeout(progressTimeout);
+        progressTimeout = null;
+      }
+
       if (unlistenFn) {
-        unlistenFn();
+        try {
+          unlistenFn();
+        } catch (error) {
+          console.error("[Tauri] Error cleaning up progress listener:", error);
+        }
       }
     }
   }

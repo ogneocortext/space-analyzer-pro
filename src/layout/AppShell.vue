@@ -22,6 +22,7 @@ import {
   Lightbulb,
   LayoutDashboard,
   LayoutGrid,
+  Layers,
   Menu,
   Scan,
   FileScan,
@@ -32,14 +33,15 @@ import {
   TestTube,
   TrendingUp,
   X,
-  type LucideIcon,
 } from "lucide-vue-next";
 import type { RouteLocationNormalized } from "vue-router";
-import NotificationCenter from "@/components/vue/other/NotificationCenter.vue";
+import type { LucideIcon } from "lucide-vue-next";
 import BackgroundTaskIndicator from "@/components/BackgroundTaskIndicator.vue";
+import SimpleNotificationCenter from "@/components/vue/other/SimpleNotificationCenter.vue";
 
 const sidebarOpen = ref(true);
 const sidebarCollapsed = ref(false);
+const notificationBarCollapsed = ref(false);
 const route = useRoute();
 const router = useRouter();
 const analysisStore = useAnalysisStore();
@@ -79,6 +81,7 @@ const iconMap: Record<string, LucideIcon> = {
   TestTube,
   Globe,
   AlertTriangle,
+  Layers,
 };
 
 const navigation = [
@@ -131,7 +134,43 @@ function getIcon(name: string): LucideIcon {
 }
 
 const activeRoutePath = computed(() => {
-  return route.path === "/browser" ? "/file-browser" : route.path;
+  // Handle path normalization for active states
+  const currentPath = route.path;
+
+  // Handle hash-based routing
+  const hashPath = currentPath.includes("#") ? currentPath.split("#")[1] : currentPath;
+
+  // Map legacy paths to new paths
+  const pathMappings: Record<string, string> = {
+    "/browser": "/file-browser",
+    "/file-browser": "/file-browser",
+    "/scan": "/scan",
+    "/settings": "/settings",
+    "/dashboard": "/dashboard",
+    "/duplicates": "/duplicates",
+    "/cleanup": "/cleanup",
+    "/export": "/export",
+    "/insights": "/insights",
+    "/trends": "/trends",
+    "/search": "/search",
+    "/treemap": "/treemap",
+    "/network": "/network",
+    "/system": "/system",
+    "/timeline": "/timeline",
+    "/largest": "/largest",
+    "/empty": "/empty",
+    "/old": "/old",
+    "/organize": "/organize",
+    "/reports": "/reports",
+    "/complexity": "/complexity",
+    "/self-learning": "/self-learning",
+    "/learning-analytics": "/learning-analytics",
+    "/ab-testing": "/ab-testing",
+    "/3d-browser": "/3d-browser",
+    "/admin/errors": "/admin/errors",
+  };
+
+  return pathMappings[hashPath] || hashPath;
 });
 
 const topBarQuickActions = computed(() => [
@@ -611,7 +650,8 @@ function getBreadcrumbLabel(route: RouteLocationNormalized): string {
               class="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-200 transition-colors hover:bg-slate-800/80"
               :class="{
                 'bg-blue-500/10 text-blue-300 border-blue-500/20': action.tone === 'blue',
-                'bg-emerald-500/10 text-emerald-300 border-emerald-500/20': action.tone === 'emerald',
+                'bg-emerald-500/10 text-emerald-300 border-emerald-500/20':
+                  action.tone === 'emerald',
                 'bg-amber-500/10 text-amber-300 border-amber-500/20': action.tone === 'amber',
               }"
               @click="router.push(action.path)"
@@ -635,7 +675,7 @@ function getBreadcrumbLabel(route: RouteLocationNormalized): string {
             </div>
           </div>
           <BackgroundTaskIndicator />
-          <NotificationCenter />
+          <SimpleNotificationCenter />
         </div>
       </header>
 

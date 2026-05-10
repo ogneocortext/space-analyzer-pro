@@ -46,13 +46,13 @@ export function use3DVisualization() {
   let scene: THREE.Scene | null = null;
   let camera: THREE.PerspectiveCamera | null = null;
   let renderer: THREE.WebGLRenderer | null = null;
-  let controls: any = null; // OrbitControls
+  const controls: any = null; // OrbitControls
   let raycaster: THREE.Raycaster | null = null;
-  let mouse: THREE.Vector2 = new THREE.Vector2();
+  const mouse: THREE.Vector2 = new THREE.Vector2();
 
   // Animation
   let animationId: number | null = null;
-  let lastTime = performance.now();
+  const lastTime = performance.now();
   let frameCount = 0;
   let fpsUpdateTime = 0;
 
@@ -250,10 +250,12 @@ export function use3DVisualization() {
     while (scene.children.length > 2) {
       // Keep lights
       const child = scene.children[scene.children.length - 1];
-      scene.remove(child);
-      if (child instanceof THREE.Mesh) {
-        child.geometry.dispose();
-        (child.material as THREE.Material).dispose();
+      if (child) {
+        scene.remove(child);
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          (child.material as THREE.Material).dispose();
+        }
       }
     }
 
@@ -326,17 +328,19 @@ export function use3DVisualization() {
     nodes.forEach((node, i) => {
       if (i < nodes.length - 1) {
         const nextNode = nodes[i + 1];
-        const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-          node.mesh.position,
-          nextNode.mesh.position,
-        ]);
-        const lineMaterial = new THREE.LineBasicMaterial({
-          color: 0x666666,
-          opacity: 0.2,
-          transparent: true,
-        });
-        const line = new THREE.Line(lineGeometry, lineMaterial);
-        group.add(line);
+        if (nextNode && nextNode.mesh) {
+          const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+            node.mesh.position,
+            nextNode.mesh.position,
+          ]);
+          const lineMaterial = new THREE.LineBasicMaterial({
+            color: 0x666666,
+            opacity: 0.2,
+            transparent: true,
+          });
+          const line = new THREE.Line(lineGeometry, lineMaterial);
+          group.add(line);
+        }
       }
     });
 
@@ -352,8 +356,8 @@ export function use3DVisualization() {
     triangles.value = info.render.triangles;
 
     // Estimate memory usage (simplified)
-    if (performance.memory) {
-      memoryUsage.value = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+    if ("memory" in performance && (performance as any).memory) {
+      memoryUsage.value = Math.round((performance as any).memory.usedJSHeapSize / 1024 / 1024);
     }
   };
 
@@ -412,10 +416,10 @@ export function use3DVisualization() {
       }
     });
 
-    const intersects = raycaster.intersectObjects(meshes);
+    const intersects = raycaster ? raycaster.intersectObjects(meshes) : [];
 
     if (intersects.length > 0) {
-      const mesh = intersects[0].object as THREE.Mesh;
+      const mesh = intersects[0]?.object as THREE.Mesh;
       selectedFile.value = mesh.userData as FileNode;
       console.log("Selected file:", selectedFile.value);
     } else {

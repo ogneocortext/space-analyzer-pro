@@ -132,7 +132,7 @@ function formatSize(bytes: number): string {
     </div>
 
     <!-- Results -->
-    <div v-if="searchResults.length > 0" class="space-y-4">
+    <div v-if="searchResults.length > 0" class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold text-slate-200">
           Found {{ searchResults.length }} results

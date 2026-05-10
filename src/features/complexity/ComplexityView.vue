@@ -498,7 +498,7 @@ function openFile(file: any) {
 
     <!-- Search and Filters -->
     <Card v-if="complexityData.length > 0" padding="sm" class="bg-slate-900 border-slate-800">
-      <div class="space-y-4">
+      <div class="flex flex-col gap-4">
         <!-- Search Bar -->
         <div class="relative">
           <input
@@ -752,7 +752,7 @@ function openFile(file: any) {
           </button>
         </div>
 
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
           <div>
             <h4 class="text-sm font-medium text-slate-400 mb-1">File Path</h4>
             <p class="text-slate-200 font-mono text-sm">

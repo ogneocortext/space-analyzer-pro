@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed } from "vue";
 
 interface ModelData {
   name: string;
@@ -45,10 +45,11 @@ export const useGPUMemoryVisualization = (): UseGPUMemoryVisualizationReturn => 
     if (modelIndex === -1) return;
 
     const model = models.value[modelIndex];
-    models.value.splice(modelIndex, 1);
-    usedMemory.value -= model.size;
-
-    console.log(`Unloaded model: ${model.name} (${model.size}MB)`);
+    if (model) {
+      models.value.splice(modelIndex, 1);
+      usedMemory.value -= model.size;
+      console.log(`Unloaded model: ${model.name} (${model.size}MB)`);
+    }
   };
 
   const optimizeMemory = () => {
@@ -89,11 +90,11 @@ export const useGPUMemoryVisualization = (): UseGPUMemoryVisualizationReturn => 
   });
 
   return {
-    models,
-    totalMemory,
-    usedMemory,
-    availableMemory,
-    memoryUsagePercentage,
+    models: models.value,
+    totalMemory: totalMemory.value,
+    usedMemory: usedMemory.value,
+    availableMemory: availableMemory.value,
+    memoryUsagePercentage: memoryUsagePercentage.value,
     loadModel,
     unloadModel,
     optimizeMemory,
