@@ -6,9 +6,9 @@
         <div class="actionable-modal-header">
           <h2 class="actionable-modal-title">Dependency Impact Analysis</h2>
           <button
-            @click="showDependencyAnalysis = false"
             class="actionable-close-btn"
             aria-label="Close dependency analysis"
+            @click="showDependencyAnalysis = false"
           >
             <X :size="20" />
           </button>
@@ -106,21 +106,18 @@
                 <component :is="getActionIcon(action.type)" :size="16" />
               </div>
               <div class="actionable-action-content">
-                <h6 class="actionable-action-title">{{ action.label }}</h6>
-                <p class="actionable-action-description">{{ action.description }}</p>
+                <h6 class="actionable-action-title">
+                  {{ action.label }}
+                </h6>
+                <p class="actionable-action-description">
+                  {{ action.description }}
+                </p>
               </div>
               <div class="actionable-action-priority">
                 <span :class="`actionable-priority-${action.priority}`">
                   {{ action.priority }}
                 </span>
                 <button
-                  @click="
-                    executeAction(
-                      action.type,
-                      extractCategoryFromReasoning(insight.reasoning),
-                      insight
-                    )
-                  "
                   :disabled="
                     selectedAction ===
                       `${action.type}-${extractCategoryFromReasoning(insight.reasoning)}` ||
@@ -140,6 +137,13 @@
                         ? 'not-allowed'
                         : 'pointer',
                   }"
+                  @click="
+                    executeAction(
+                      action.type,
+                      extractCategoryFromReasoning(insight.reasoning),
+                      insight
+                    )
+                  "
                 >
                   <template
                     v-if="
@@ -196,9 +200,7 @@
               class="more-files"
             >
               ... and
-              {{
-                getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).length - 5
-              }}
+              {{ getHighImpactFiles(extractCategoryFromReasoning(insight.reasoning)).length - 5 }}
               more files
             </div>
           </div>
@@ -549,7 +551,9 @@ const getRecommendedActions = (insight: PredictiveInsight, category: string) => 
 
 <style scoped>
 .actionable-prediction-container {
-  @apply space-y-4;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .no-insights {
@@ -589,7 +593,9 @@ const getRecommendedActions = (insight: PredictiveInsight, category: string) => 
 }
 
 .actionable-category-panel {
-  @apply space-y-4;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .actionable-category-header {

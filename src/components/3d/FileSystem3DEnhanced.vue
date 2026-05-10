@@ -113,13 +113,13 @@
             Level of Detail
           </label>
           <label class="checkbox-label">
-            <input v-model="enableFrustumCulling" type="checkbox" />
+            <input v-model="enableFrustumCulling" type="checkbox" @change="updateFrustumCulling" />
             Frustum Culling
           </label>
           <label>
             Max Nodes:
             <input
-              v-model="maxNodes"
+              v-model="localMaxNodes"
               type="number"
               min="100"
               max="10000"
@@ -138,20 +138,28 @@
             <span class="stat-value">{{ totalFiles }}</span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">Directories:</span>
-            <span class="stat-value">{{ totalDirectories }}</span>
+            <span class="stat-label"> Directories: </span>
+            <span class="stat-value">
+              {{ totalDirectories }}
+            </span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">Size:</span>
-            <span class="stat-value">{{ formatBytes(totalSize) }}</span>
+            <span class="stat-label"> Size: </span>
+            <span class="stat-value">
+              {{ formatBytes(totalSize) }}
+            </span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">Rendered:</span>
-            <span class="stat-value">{{ renderedNodes }}</span>
+            <span class="stat-label"> Rendered: </span>
+            <span class="stat-value">
+              {{ renderedNodes }}
+            </span>
           </div>
           <div class="stat-item">
-            <span class="stat-label">FPS:</span>
-            <span class="stat-value">{{ fps }}</span>
+            <span class="stat-label"> FPS: </span>
+            <span class="stat-value">
+              {{ fps }}
+            </span>
           </div>
         </div>
       </div>
@@ -167,7 +175,7 @@
           @click="navigateToBreadcrumb(crumb.path)"
         >
           {{ crumb.name }}
-          <span v-if="index < breadcrumbs.length - 1" class="breadcrumb-separator">/</span>
+          <span v-if="index < breadcrumbs.length - 1" class="breadcrumb-separator"> / </span>
         </span>
       </div>
     </div>
@@ -184,67 +192,68 @@
           <div class="progress-fill" :style="{ width: loadingProgress + '%' }" />
         </div>
       </div>
+    </div>
+  </div>
 
-      <!-- Context Menu -->
+  <!-- Context Menu -->
+  <div
+    v-if="showContextMenu"
+    class="context-menu"
+    :style="{
+      left: (contextMenuPosition?.x || 0) + 'px',
+      top: (contextMenuPosition?.y || 0) + 'px',
+    }"
+  >
+    <div class="context-menu-item" @click="openFile">📂 Open</div>
+    <div class="context-menu-item" @click="renameFile">✏️ Rename</div>
+    <div class="context-menu-item" @click="deleteFile">🗑️ Delete</div>
+    <div class="context-menu-separator" />
+    <div class="context-menu-item" @click="copyPath">📋 Copy Path</div>
+    <div class="context-menu-item" @click="showProperties">ℹ️ Properties</div>
+  </div>
+
+  <!-- Search Results Overlay -->
+  <div v-if="searchResults.length > 0" class="search-results">
+    <h4>Search Results ({{ searchResults.length }})</h4>
+    <div class="results-list">
       <div
-        v-if="showContextMenu"
-        class="context-menu"
-        :style="{
-          left: (contextMenuPosition?.x || 0) + 'px',
-          top: (contextMenuPosition?.y || 0) + 'px',
-        }"
+        v-for="result in searchResults.slice(0, 10)"
+        :key="result.id"
+        class="result-item"
+        @click="focusNode(result)"
       >
-        <div class="context-menu-item" @click="openFile">📂 Open</div>
-        <div class="context-menu-item" @click="renameFile">✏️ Rename</div>
-        <div class="context-menu-item" @click="deleteFile">🗑️ Delete</div>
-        <div class="context-menu-separator" />
-        <div class="context-menu-item" @click="copyPath">📋 Copy Path</div>
-        <div class="context-menu-item" @click="showProperties">ℹ️ Properties</div>
-      </div>
-
-      <!-- Search Results Overlay -->
-      <div v-if="searchResults.length > 0" class="search-results">
-        <h4>Search Results ({{ searchResults.length }})</h4>
-        <div class="results-list">
-          <div
-            v-for="result in searchResults.slice(0, 10)"
-            :key="result.id"
-            class="result-item"
-            @click="focusNode(result)"
-          >
-            📄 {{ result.name }}
-          </div>
-        </div>
+        📄 {{ result.name }}
       </div>
     </div>
+  </div>
 
-    <!-- Keyboard Shortcuts Help -->
-    <div v-if="showHelp" class="help-overlay">
-      <div class="help-content">
-        <h3>Keyboard Shortcuts</h3>
-        <div class="shortcuts-list">
-          <div class="shortcut-item"><kbd>Space</kbd> Toggle Auto-Rotate</div>
-          <div class="shortcut-item"><kbd>R</kbd> Reset Camera</div>
-          <div class="shortcut-item"><kbd>F</kbd> Search Files</div>
-          <div class="shortcut-item"><kbd>Ctrl+A</kbd> Select All</div>
-          <div class="shortcut-item"><kbd>Delete</kbd> Delete Selected</div>
-          <div class="shortcut-item"><kbd>Escape</kbd> Clear Selection</div>
-        </div>
-        <button class="btn btn-primary" @click="showHelp = false">Close</button>
+  <!-- Keyboard Shortcuts Help -->
+  <div v-if="showHelp" class="help-overlay">
+    <div class="help-content">
+      <h3>Keyboard Shortcuts</h3>
+      <div class="shortcuts-list">
+        <div class="shortcut-item"><kbd>Space</kbd> Toggle Auto-Rotate</div>
+        <div class="shortcut-item"><kbd>R</kbd> Reset Camera</div>
+        <div class="shortcut-item"><kbd>F</kbd> Search Files</div>
+        <div class="shortcut-item"><kbd>Ctrl+A</kbd> Select All</div>
+        <div class="shortcut-item"><kbd>Delete</kbd> Delete Selected</div>
+        <div class="shortcut-item"><kbd>Escape</kbd> Clear Selection</div>
       </div>
+      <button class="btn btn-primary" @click="showHelp = false">Close</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick, computed } from "vue";
+import { ref, onMounted, onUnmounted, nextTick, computed } from "vue";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
+import type { Font } from "three/examples/jsm/loaders/FontLoader.js";
 
 // Types
-interface SearchResults {
+interface SearchResult {
   id: string;
   name: string;
   path: string;
@@ -271,12 +280,33 @@ interface ExtendedFileNode {
   lodLevel?: number;
 }
 
+interface ThreeSceneObjects {
+  scene: THREE.Scene;
+  camera: THREE.PerspectiveCamera;
+  renderer: THREE.WebGLRenderer;
+  controls: OrbitControls;
+  font: Font | null;
+}
+
+interface PerformanceMetrics {
+  fps: number;
+  lastTime: number;
+  frameCount: number;
+}
+
 // Props
-const props = defineProps<{
-  rootPath?: string;
-  maxDepth?: number;
-  maxNodes?: number;
-}>();
+const props = withDefaults(
+  defineProps<{
+    rootPath?: string;
+    maxDepth?: number;
+    maxNodes?: number;
+  }>(),
+  {
+    rootPath: "/",
+    maxDepth: 5,
+    maxNodes: 1000,
+  }
+);
 
 // Emits
 const emit = defineEmits<{
@@ -290,27 +320,26 @@ const loading = ref(true);
 const loadingProgress = ref(0);
 const searchQuery = ref("");
 const filterType = ref("all");
-const searchResults = ref<SearchResults[]>([]);
+const searchResults = ref<SearchResult[]>([]);
 const showContextMenu = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const showHelp = ref(false);
 const selectedNode = ref<ExtendedFileNode>();
-const selectedNodes = ref<Set<ExtendedFileNode>>(new Set());
 
 // 3D Scene Objects
-let scene: THREE.Scene;
-let camera: THREE.PerspectiveCamera;
-let renderer: THREE.WebGLRenderer;
-let controls: OrbitControls;
-let font: THREE.Font;
-let animationId: number;
+const sceneObjects = ref<ThreeSceneObjects | null>(null);
+let animationId: number | null = null;
 
 // Performance & LOD
 const enableLOD = ref(true);
 const enableFrustumCulling = ref(true);
 const fps = ref(60);
-let lastTime = performance.now();
-let frameCount = 0;
+const performanceMetrics = ref<PerformanceMetrics>({
+  fps: 60,
+  lastTime: performance.now(),
+  frameCount: 0,
+});
+const localMaxNodes = ref(props.maxNodes || 1000);
 
 // Visual Settings
 const autoRotate = ref(false);
@@ -338,67 +367,84 @@ const geometryPool = new Map<string, THREE.BufferGeometry>();
 const materialPool = new Map<string, THREE.Material>();
 const lodCache = new Map<string, THREE.Mesh[]>();
 
+// Computed Properties
+const scene = computed(() => sceneObjects.value?.scene ?? null);
+const camera = computed(() => sceneObjects.value?.camera ?? null);
+const renderer = computed(() => sceneObjects.value?.renderer ?? null);
+const controls = computed(() => sceneObjects.value?.controls ?? null);
+const font = computed(() => sceneObjects.value?.font ?? null);
+
 // Initialize Three.js Scene
-const initThreeJS = async () => {
+const initThreeJS = async (): Promise<void> => {
   if (!viewport.value) return;
 
-  // Scene Setup
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0a0a);
-  scene.fog = new THREE.Fog(0x0a0a0a, 50, 500);
+  try {
+    // Scene Setup
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0a0a);
+    scene.fog = new THREE.Fog(0x0a0a0a, 50, 500);
 
-  // Camera Setup
-  camera = new THREE.PerspectiveCamera(
-    75,
-    viewport.value.clientWidth / viewport.value.clientHeight,
-    0.1,
-    1000
-  );
-  camera.position.set(50, 30, 50);
+    // Camera Setup
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      viewport.value.clientWidth / viewport.value.clientHeight,
+      0.1,
+      1000
+    );
+    camera.position.set(50, 30, 50);
 
-  // Renderer Setup
-  renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    powerPreference: "high-performance",
-  });
-  renderer.setSize(viewport.value.clientWidth, viewport.value.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  viewport.value.appendChild(renderer.domElement);
+    // Renderer Setup
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: "high-performance",
+    });
+    renderer.setSize(viewport.value.clientWidth, viewport.value.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    viewport.value.appendChild(renderer.domElement);
 
-  // Controls Setup
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.minDistance = 5;
-  controls.maxDistance = 200;
-  controls.autoRotate = autoRotate.value;
-  controls.autoRotateSpeed = 0.5;
+    // Controls Setup
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 5;
+    controls.maxDistance = 200;
+    controls.autoRotate = autoRotate.value;
+    controls.autoRotateSpeed = 0.5;
 
-  // Enhanced Lighting
-  setupEnhancedLighting();
+    // Store scene objects
+    sceneObjects.value = { scene, camera, renderer, controls, font: null };
 
-  // Load Font
-  await loadFont();
+    // Enhanced Lighting
+    setupEnhancedLighting();
 
-  // Load Data
-  await loadFileSystemData();
+    // Load Font
+    await loadFont();
 
-  // Create Visualization
-  await create3DVisualization();
+    // Load Data
+    await loadFileSystemData();
 
-  // Start Animation Loop
-  startAnimationLoop();
+    // Create Visualization
+    await create3DVisualization();
 
-  loading.value = false;
+    // Start Animation Loop
+    startAnimationLoop();
+
+    loading.value = false;
+  } catch (error) {
+    console.error("Failed to initialize Three.js scene:", error);
+    loading.value = false;
+  }
 };
 
 // Enhanced Lighting Setup
-const setupEnhancedLighting = () => {
+const setupEnhancedLighting = (): void => {
+  if (!scene.value) return;
+
   // Ambient Light
   const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
-  scene.add(ambientLight);
+  scene.value.add(ambientLight);
 
   // Main Directional Light
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
@@ -412,342 +458,188 @@ const setupEnhancedLighting = () => {
   directionalLight.shadow.camera.right = 50;
   directionalLight.shadow.camera.top = 50;
   directionalLight.shadow.camera.bottom = -50;
-  scene.add(directionalLight);
+  scene.value.add(directionalLight);
 
   // Fill Lights
   const fillLight1 = new THREE.DirectionalLight(0x87ceeb, 0.3);
   fillLight1.position.set(-30, 20, -30);
-  scene.add(fillLight1);
+  scene.value.add(fillLight1);
 
   const fillLight2 = new THREE.DirectionalLight(0xffa500, 0.2);
   fillLight2.position.set(30, -20, 30);
-  scene.add(fillLight2);
+  scene.value.add(fillLight2);
 
   // Point Lights for accent
   const pointLight1 = new THREE.PointLight(0xff69b4, 0.5, 50);
   pointLight1.position.set(0, 50, 0);
-  scene.add(pointLight1);
+  scene.value.add(pointLight1);
 };
 
-// Load Font with Fallback
-const loadFont = async () => {
-  return new Promise<void>((resolve) => {
+// Load Font
+const loadFont = async (): Promise<void> => {
+  return new Promise((resolve) => {
     const loader = new FontLoader();
     loader.load(
       "https://threejs.org/examples/fonts/helvetiker_regular.typeface.json",
       (loadedFont) => {
-        font = loadedFont;
+        if (sceneObjects.value) {
+          sceneObjects.value.font = loadedFont;
+        }
         resolve();
       },
-      undefined,
-      () => {
-        console.warn("Font loading failed, using fallback");
-        // Create fallback font
-        font = null;
+      (progress) => {
+        console.log("Font loading progress:", progress);
+      },
+      (error) => {
+        console.warn("Failed to load font, using fallback:", error);
+        // Continue without font - labels will be disabled
         resolve();
       }
     );
   });
 };
 
-// Enhanced Node Size Calculation
-const calculateNodeSize = (node: ExtendedFileNode, baseSize: number): number => {
-  const sizeMultiplier = Math.log(node.size + 1) / Math.log(1024);
-  const depthMultiplier = node.path.split("/").length / 10;
-  return baseSize * (0.5 + sizeMultiplier * 0.5) * (1 + depthMultiplier * 0.2);
-};
+// Load File System Data
+const loadFileSystemData = async (): Promise<void> => {
+  try {
+    // Simulate loading file system data
+    loadingProgress.value = 30;
 
-// Enhanced Color Calculation
-const getNodeColor = (node: ExtendedFileNode): THREE.Color => {
-  if (showHeatMap.value) {
-    // Heat map coloring based on activity
-    const activity = getNodeActivity(node);
-    return new THREE.Color().setHSL(0.3 - activity * 0.3, 0.8, 0.5);
+    // Mock data - replace with actual file system API call
+    const mockData: ExtendedFileNode = {
+      id: "root",
+      name: "Root",
+      path: "/",
+      type: "directory",
+      size: 0,
+      modified: new Date(),
+      children: generateMockFileSystem(0, 3), // Limit depth to prevent infinite recursion
+    };
+
+    fileSystemData.value = mockData;
+    calculateStatistics(mockData);
+
+    loadingProgress.value = 60;
+  } catch (error) {
+    console.error("Failed to load file system data:", error);
+    // Create fallback empty data structure
+    fileSystemData.value = {
+      id: "root",
+      name: "Root",
+      path: "/",
+      type: "directory",
+      size: 0,
+      modified: new Date(),
+      children: [],
+    };
+    calculateStatistics(fileSystemData.value);
   }
-
-  if (colorBySize.value) {
-    // Color by size (blue to red gradient)
-    const sizeRatio = Math.log(node.size + 1) / Math.log(1024 * 1024);
-    return new THREE.Color().setHSL(0.6 - sizeRatio * 0.6, 0.8, 0.5);
-  }
-
-  if (colorByType.value) {
-    // Color by file type
-    const extension = node.name.split(".").pop()?.toLowerCase();
-    return getFileTypeColor(extension || node.type);
-  }
-
-  // Default coloring
-  return node.type === "directory" ? new THREE.Color(0x4a90e2) : new THREE.Color(0x7f8c8d);
-};
-
-// Get File Type Color
-const getFileTypeColor = (extension: string): THREE.Color => {
-  const colorMap: Record<string, string> = {
-    jpg: "#e74c3c",
-    jpeg: "#e74c3c",
-    png: "#e74c3c",
-    gif: "#e74c3c",
-    mp4: "#9b59b6",
-    avi: "#9b59b6",
-    mov: "#9b59b6",
-    mp3: "#f39c12",
-    wav: "#f39c12",
-    flac: "#f39c12",
-    pdf: "#e67e22",
-    doc: "#3498db",
-    docx: "#3498db",
-    txt: "#2ecc71",
-    js: "#f1c40f",
-    ts: "#f1c40f",
-    py: "#3498db",
-    java: "#e74c3c",
-    cpp: "#9b59b6",
-  };
-
-  const color = colorMap[extension] || "#95a5a6";
-  return new THREE.Color(color);
-};
-
-// Get Node Activity (for heat map)
-const getNodeActivity = (node: ExtendedFileNode): number => {
-  // Simulated activity based on file age and size
-  const age = Date.now() - node.modified.getTime();
-  const ageFactor = Math.max(0, 1 - age / (1000 * 60 * 60 * 24 * 30)); // 30 days
-  const sizeFactor = Math.log(node.size + 1) / Math.log(1024 * 1024);
-  return ageFactor * 0.7 + sizeFactor * 0.3;
-};
-
-// Create PBR Material
-const createPBRMaterial = (node: ExtendedFileNode): THREE.MeshStandardMaterial => {
-  const color = getNodeColor(node);
-  return new THREE.MeshStandardMaterial({
-    color,
-    metalness: node.type === "directory" ? 0.1 : 0.0,
-    roughness: node.type === "directory" ? 0.8 : 0.9,
-    emissive: selectedNodes.value.has(node) ? 0x222222 : 0x000000,
-    emissiveIntensity: selectedNodes.value.has(node) ? 0.5 : 0,
-    wireframe: wireframe.value,
-  });
-};
-
-// Level of Detail System
-// Handle LOD updates properly
-const updateLOD = () => {
-  if (!enableLOD.value) return;
-
-  nodeMap.forEach((node) => {
-    if (!node.mesh) return;
-
-    const distance = camera.position.distanceTo(node.mesh.position);
-    let lodLevel = 0;
-
-    if (distance > 100) lodLevel = 2;
-    else if (distance > 50) lodLevel = 1;
-    else lodLevel = 0;
-
-    if (node.lodLevel !== lodLevel) {
-      updateNodeLOD(node, lodLevel);
-      node.lodLevel = lodLevel;
-    }
-  });
-};
-
-// Update Node LOD
-const updateNodeLOD = (node: ExtendedFileNode, lodLevel: number) => {
-  if (!node.mesh) return;
-
-  // Update geometry complexity based on LOD
-  const geometries = lodCache.get(node.id);
-  if (geometries && geometries[lodLevel]) {
-    node.mesh.geometry = geometries[lodLevel];
-  }
-};
-
-// Frustum Culling
-const performFrustumCulling = () => {
-  if (!enableFrustumCulling.value) return;
-
-  const frustum = new THREE.Frustum();
-  frustum.setFromProjectionMatrix(
-    new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
-  );
-
-  nodeMap.forEach((node) => {
-    if (!node.mesh) return;
-
-    const wasVisible = node.visible !== false;
-    node.visible = frustum.intersectsObject(node.mesh);
-
-    if (wasVisible !== node.visible) {
-      node.mesh.visible = node.visible;
-      if (node.label)
-        node.label.visible = node.visible && (showFileLabels.value || showDirectoryLabels.value);
-    }
-  });
-};
-
-// Progressive Loading
-const loadFileSystemData = async () => {
-  loadingProgress.value = 0;
-
-  // Simulate progressive loading
-  const mockData = generateMockFileSystem();
-  fileSystemData.value = mockData;
-
-  // Update statistics
-  updateStatistics(mockData);
-
-  // Update breadcrumbs
-  updateBreadcrumbs(mockData.path);
-
-  loadingProgress.value = 100;
 };
 
 // Generate Mock File System
-const generateMockFileSystem = (): ExtendedFileNode => {
-  const root: ExtendedFileNode = {
-    id: "root",
-    name: "C:\\",
-    path: "C:\\",
-    type: "directory",
-    size: 0,
-    modified: new Date(),
-    children: [],
-  };
+const generateMockFileSystem = (depth: number = 0, maxDepth: number = 3): ExtendedFileNode[] => {
+  if (depth >= maxDepth) return [];
 
-  // Generate mock structure
-  const dirs = ["Documents", "Downloads", "Pictures", "Videos", "Music", "Projects"];
-  const files = [
-    "report.pdf",
-    "presentation.pptx",
-    "data.xlsx",
-    "photo.jpg",
-    "video.mp4",
-    "music.mp3",
-  ];
+  const mockFiles: ExtendedFileNode[] = [];
 
-  dirs.forEach((dirName, dirIndex) => {
-    const dir: ExtendedFileNode = {
-      id: `dir-${dirIndex}`,
-      name: dirName,
-      path: `C:\\${dirName}`,
-      type: "directory",
-      size: Math.random() * 1000000,
-      modified: new Date(Date.now() - Math.random() * 10000000000),
-      children: [],
-    };
-
-    files.forEach((fileName, fileIndex) => {
-      const file: ExtendedFileNode = {
-        id: `file-${dirIndex}-${fileIndex}`,
-        name: fileName,
-        path: `C:\\${dirName}\\${fileName}`,
-        type: "file",
-        size: Math.random() * 10000000,
-        modified: new Date(Date.now() - Math.random() * 10000000000),
-      };
-      dir.children!.push(file);
+  for (let i = 0; i < Math.max(5, 50 - depth * 10); i++) {
+    mockFiles.push({
+      id: `file-${depth}-${i}`,
+      name: `File${depth}-${i}.txt`,
+      path: `/File${depth}-${i}.txt`,
+      type: "file",
+      size: Math.random() * 10000,
+      modified: new Date(),
     });
+  }
 
-    root.children!.push(dir);
-  });
+  for (let i = 0; i < Math.max(2, 10 - depth * 2); i++) {
+    mockFiles.push({
+      id: `dir-${depth}-${i}`,
+      name: `Directory${depth}-${i}`,
+      path: `/Directory${depth}-${i}`,
+      type: "directory",
+      size: 0,
+      modified: new Date(),
+      children: generateMockFileSystem(depth + 1, maxDepth),
+    });
+  }
 
-  return root;
+  return mockFiles;
 };
 
-// Update Statistics
-const updateStatistics = (root: ExtendedFileNode) => {
+// Calculate Statistics
+const calculateStatistics = (node: ExtendedFileNode): void => {
   let files = 0;
-  let dirs = 0;
+  let directories = 0;
   let size = 0;
 
-  const traverse = (node: ExtendedFileNode) => {
-    if (node.type === "file") {
+  const traverse = (n: ExtendedFileNode) => {
+    if (n.type === "file") {
       files++;
-      size += node.size;
+      size += n.size;
     } else {
-      dirs++;
+      directories++;
     }
-    if (node.children) {
-      node.children.forEach(traverse);
+
+    if (n.children) {
+      n.children.forEach(traverse);
     }
   };
 
-  traverse(root);
+  traverse(node);
 
   totalFiles.value = files;
-  totalDirectories.value = dirs;
+  totalDirectories.value = directories;
   totalSize.value = size;
 };
 
-// Update Breadcrumbs
-const updateBreadcrumbs = (path: string) => {
-  const parts = path.split("\\").filter((p) => p);
-  const crumbs: Breadcrumb[] = [];
-  let currentPath = "";
-
-  parts.forEach((part) => {
-    currentPath += part + "\\";
-    crumbs.push({
-      name: part,
-      path: currentPath.slice(0, -1),
-    });
-  });
-
-  breadcrumbs.value = crumbs;
-};
-
 // Create 3D Visualization
-const create3DVisualization = async () => {
-  if (!fileSystemData.value) return;
+const create3DVisualization = async (): Promise<void> => {
+  if (!fileSystemData.value || !scene.value) return;
 
-  // Clear existing scene objects
   clearScene();
+  nodeMap.clear();
 
-  // Create layout based on selected type
   switch (layoutType.value) {
     case "tree":
-      await createTreeLayout(fileSystemData.value);
+      createTreeLayout(fileSystemData.value);
       break;
     case "sphere":
-      await createSphereLayout(fileSystemData.value);
+      createSphereLayout(fileSystemData.value);
       break;
     case "cylinder":
-      await createCylinderLayout(fileSystemData.value);
+      createCylinderLayout(fileSystemData.value);
       break;
     case "spiral":
-      await createSpiralLayout(fileSystemData.value);
+      createSpiralLayout(fileSystemData.value);
       break;
   }
 
-  renderedNodes.value = nodeMap.size;
+  loadingProgress.value = 90;
 };
 
-// Enhanced Tree Layout
-const createTreeLayout = async (root: ExtendedFileNode) => {
+// Create Tree Layout
+const createTreeLayout = (root: ExtendedFileNode): void => {
+  if (!scene.value) return;
+
   const createNode = (
     node: ExtendedFileNode,
-    depth: number = 0,
-    angle: number = 0,
-    radius: number = 0
+    depth: number,
+    angle: number,
+    radius: number
   ): void => {
-    const size = calculateNodeSize(node, nodeSize.value);
-    const geometry =
-      node.type === "directory"
-        ? new THREE.SphereGeometry(size * 1.5, 16, 16)
-        : new THREE.BoxGeometry(size, size, size);
+    if (nodeMap.size >= localMaxNodes.value) return;
 
+    const size = node.type === "directory" ? 2 : 1;
+    const geometry = new THREE.SphereGeometry(size * nodeSize.value, 16, 16);
     const material = createPBRMaterial(node);
     const mesh = new THREE.Mesh(geometry, material);
 
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const y = -depth * 5;
 
-    // Position with enhanced spacing
-    const y = -depth * 4;
-    const x = radius * Math.cos(angle);
-    const z = radius * Math.sin(angle);
     mesh.position.set(x, y, z);
 
     node.position = mesh.position;
@@ -755,65 +647,73 @@ const createTreeLayout = async (root: ExtendedFileNode) => {
     node.visible = true;
     mesh.userData = { node };
 
-    scene.add(mesh);
+    if (scene.value) {
+      scene.value.add(mesh);
+    }
     nodeMap.set(node.id, node);
 
     // Create LOD cache
     if (!lodCache.has(node.id)) {
-      const lodGeometries = [
-        new THREE.SphereGeometry(size * 1.5, 16, 16), // High detail
-        new THREE.SphereGeometry(size * 1.5, 8, 8), // Medium detail
-        new THREE.SphereGeometry(size * 1.5, 4, 4), // Low detail
+      const lodMaterial = new THREE.MeshBasicMaterial({ color: 0x4444ff });
+      const lodMeshes = [
+        new THREE.Mesh(new THREE.SphereGeometry(size * 1.5, 16, 16), lodMaterial),
+        new THREE.Mesh(new THREE.SphereGeometry(size * 1.5, 8, 8), lodMaterial),
+        new THREE.Mesh(new THREE.SphereGeometry(size * 1.5, 4, 4), lodMaterial),
       ];
-      lodCache.set(node.id, lodGeometries);
+      lodCache.set(node.id, lodMeshes);
     }
 
     // Create label
     createLabel(node);
 
     // Process children
-    if (node.children && depth < (props.maxDepth || 5)) {
+    if (node.children && node.children.length > 0 && depth < (props.maxDepth || 5)) {
       const childAngleStep = (Math.PI * 2) / node.children.length;
       const childRadius = depth === 0 ? 0 : radius + 4;
 
-      node.children.forEach((child, index) => {
-        const childAngle = angle + (index - (node.children.length || 0) / 2) * childAngleStep;
-        createNode(child, depth + 1, childAngle, childRadius);
-      });
+      if (node.children && node.children.length > 0) {
+        node.children.forEach((child, index) => {
+          const childAngle = angle + (index - (node.children?.length || 0) / 2) * childAngleStep;
+          createNode(child, depth + 1, childAngle, childRadius);
+        });
+      }
     }
   };
 
-  createNode(root);
+  const flattenNodes = (node: ExtendedFileNode, index: number = 0): void => {
+    createNode(node, 0, index, 1);
+    if (node.children) {
+      (node.children || []).forEach((child) => flattenNodes(child, index + 1));
+    }
+  };
+
+  flattenNodes(root);
 };
 
-// Enhanced Sphere Layout
-const createSphereLayout = async (root: ExtendedFileNode) => {
+// Create Sphere Layout
+const createSphereLayout = (root: ExtendedFileNode): void => {
+  if (!scene.value) return;
+
   const createNode = (
     node: ExtendedFileNode,
-    depth: number = 0,
-    index: number = 0,
-    total: number = 1
+    depth: number,
+    index: number,
+    total: number
   ): void => {
-    const size = calculateNodeSize(node, nodeSize.value);
-    const geometry =
-      node.type === "directory"
-        ? new THREE.SphereGeometry(size * 1.5, 16, 16)
-        : new THREE.BoxGeometry(size, size, size);
+    if (nodeMap.size >= localMaxNodes.value) return;
 
+    const size = node.type === "directory" ? 2 : 1;
+    const geometry = new THREE.SphereGeometry(size * nodeSize.value, 16, 16);
     const material = createPBRMaterial(node);
     const mesh = new THREE.Mesh(geometry, material);
 
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-
-    // Position on sphere surface
     const phi = Math.acos(-1 + (2 * index) / total);
     const theta = Math.sqrt(total * Math.PI) * phi;
 
     const radius = 20 + depth * 5;
-    const x = radius * Math.sin(phi) * Math.cos(theta);
-    const y = radius * Math.cos(phi);
-    const z = radius * Math.sin(phi) * Math.sin(theta);
+    const x = radius * Math.cos(theta) * Math.sin(phi);
+    const y = radius * Math.sin(theta) * Math.sin(phi);
+    const z = radius * Math.cos(theta);
 
     mesh.position.set(x, y, z);
 
@@ -822,20 +722,22 @@ const createSphereLayout = async (root: ExtendedFileNode) => {
     node.visible = true;
     mesh.userData = { node };
 
-    scene.add(mesh);
+    if (scene.value) {
+      scene.value.add(mesh);
+    }
     nodeMap.set(node.id, node);
 
     // Create label
     createLabel(node);
 
     // Process children
-    if (node.children && depth < (props.maxDepth || 5)) {
-      (node.children || []).forEach((child, childIndex) => {
+    if (node.children && node.children.length > 0 && depth < (props.maxDepth || 5)) {
+      node.children.forEach((child, childIndex) => {
         createNode(
           child,
           depth + 1,
           index + total + childIndex,
-          total + (node.children.length || 0)
+          total + (node.children?.length || 0)
         );
       });
     }
@@ -851,30 +753,27 @@ const createSphereLayout = async (root: ExtendedFileNode) => {
   flattenNodes(root);
 };
 
-// Enhanced Cylinder Layout
-const createCylinderLayout = async (root: ExtendedFileNode) => {
+// Create Cylinder Layout
+const createCylinderLayout = (root: ExtendedFileNode): void => {
+  if (!scene.value) return;
+
   const createNode = (
     node: ExtendedFileNode,
-    depth: number = 0,
-    angle: number = 0,
-    height: number = 0
+    depth: number,
+    angle: number,
+    height: number
   ): void => {
-    const size = calculateNodeSize(node, nodeSize.value);
-    const geometry =
-      node.type === "directory"
-        ? new THREE.SphereGeometry(size * 1.5, 16, 16)
-        : new THREE.BoxGeometry(size, size, size);
+    if (nodeMap.size >= localMaxNodes.value) return;
 
+    const size = node.type === "directory" ? 2 : 1;
+    const geometry = new THREE.SphereGeometry(size * nodeSize.value, 16, 16);
     const material = createPBRMaterial(node);
     const mesh = new THREE.Mesh(geometry, material);
 
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    const radius = 10 + depth * 3;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
 
-    // Position on cylinder
-    const radius = 15 + depth * 3;
-    const x = radius * Math.cos(angle);
-    const z = radius * Math.sin(angle);
     mesh.position.set(x, height, z);
 
     node.position = mesh.position;
@@ -882,7 +781,9 @@ const createCylinderLayout = async (root: ExtendedFileNode) => {
     node.visible = true;
     mesh.userData = { node };
 
-    scene.add(mesh);
+    if (scene.value) {
+      scene.value.add(mesh);
+    }
     nodeMap.set(node.id, node);
 
     // Create label
@@ -894,7 +795,7 @@ const createCylinderLayout = async (root: ExtendedFileNode) => {
       const childHeight = height - 3;
 
       (node.children || []).forEach((child, index) => {
-        const childAngle = angle + (index - (node.children.length || 0) / 2) * childAngleStep;
+        const childAngle = angle + (index - (node.children?.length || 0) / 2) * childAngleStep;
         createNode(child, depth + 1, childAngle, childHeight);
       });
     }
@@ -907,56 +808,56 @@ const createCylinderLayout = async (root: ExtendedFileNode) => {
     });
   };
 
-  const flattenAndArrange = (node: ExtendedFileNode, level: number = 0): void => {
-    if (node.children && level < (props.maxDepth || 5)) {
-      processLevel(node.children, -level * 3);
-      (node.children || []).forEach((child) => flattenAndArrange(child, level + 1));
-    } else {
-      createNode(node, 0, 0, -level * 3);
+  const processNodes = (node: ExtendedFileNode, height: number = 0): void => {
+    if (node.children && node.children.length > 0) {
+      processLevel(node.children, height);
+      if (node.children) {
+        node.children.forEach((child) => processNodes(child, height - 3));
+      }
     }
   };
 
-  flattenAndArrange(root);
+  processNodes(root);
 };
 
-// Enhanced Spiral Layout
-const createSpiralLayout = async (root: ExtendedFileNode) => {
-  const createNode = (node: ExtendedFileNode, depth: number = 0, index: number = 0): void => {
-    const size = calculateNodeSize(node, nodeSize.value);
-    const geometry =
-      node.type === "directory"
-        ? new THREE.SphereGeometry(size * 1.5, 16, 16)
-        : new THREE.BoxGeometry(size, size, size);
+// Create Spiral Layout
+const createSpiralLayout = (root: ExtendedFileNode): void => {
+  if (!scene.value) return;
 
+  const createNode = (node: ExtendedFileNode, depth: number, index: number): void => {
+    if (nodeMap.size >= localMaxNodes.value) return;
+
+    const size = node.type === "directory" ? 2 : 1;
+    const geometry = new THREE.SphereGeometry(size * nodeSize.value, 16, 16);
     const material = createPBRMaterial(node);
     const mesh = new THREE.Mesh(geometry, material);
 
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-
-    // Position on spiral
+    const spiralRadius = 5 + index * 0.5;
+    const spiralHeight = index * 0.3;
     const angle = index * 0.5;
-    const radius = 5 + index * 0.8;
-    const height = -depth * 2;
 
-    const x = radius * Math.cos(angle);
-    const z = radius * Math.sin(angle);
-    mesh.position.set(x, height, z);
+    const x = Math.cos(angle) * spiralRadius;
+    const y = spiralHeight;
+    const z = Math.sin(angle) * spiralRadius;
+
+    mesh.position.set(x, y, z);
 
     node.position = mesh.position;
     node.mesh = mesh;
     node.visible = true;
     mesh.userData = { node };
 
-    scene.add(mesh);
+    if (scene.value) {
+      scene.value.add(mesh);
+    }
     nodeMap.set(node.id, node);
 
     // Create label
     createLabel(node);
 
     // Process children
-    if (node.children && depth < (props.maxDepth || 5)) {
-      (node.children || []).forEach((child, childIndex) => {
+    if (node.children && node.children.length > 0 && depth < (props.maxDepth || 5)) {
+      node.children.forEach((child, childIndex) => {
         createNode(child, depth + 1, index + childIndex + 1);
       });
     }
@@ -972,85 +873,341 @@ const createSpiralLayout = async (root: ExtendedFileNode) => {
   flattenNodes(root);
 };
 
+// Create PBR Material
+const createPBRMaterial = (node: ExtendedFileNode): THREE.Material => {
+  let color = 0x4444ff;
+
+  if (colorByType.value) {
+    if (node.type === "directory") {
+      color = 0xff6b6b;
+    } else {
+      color = 0x4ecdc4;
+    }
+  }
+
+  if (colorBySize.value) {
+    const hue = (node.size / 10000) * 0.3; // 0 to 0.3 (red to green)
+    color = new THREE.Color().setHSL(hue, 0.7, 0.5).getHex();
+  }
+
+  if (showHeatMap.value) {
+    const time = Date.now() / 1000;
+    const intensity = Math.sin(time + node.id.charCodeAt(0)) * 0.5 + 0.5;
+    color = new THREE.Color().setHSL(intensity * 0.1, 0.8, 0.5).getHex();
+  }
+
+  return new THREE.MeshStandardMaterial({
+    color,
+    metalness: 0.3,
+    roughness: 0.4,
+    wireframe: wireframe.value,
+  });
+};
+
 // Create Label with Enhanced Fallback
 const createLabel = (node: ExtendedFileNode): void => {
-  if (!font) return;
+  if (!scene.value) return;
 
-  const shouldShow =
-    (node.type === "directory" && showDirectoryLabels.value) ||
-    (node.type === "file" && showFileLabels.value);
-
-  if (!shouldShow) return;
+  // Only create labels if font is loaded
+  if (!font.value) {
+    console.warn("Font not loaded, skipping label creation for:", node.name);
+    return;
+  }
 
   try {
     const textGeometry = new TextGeometry(node.name, {
-      font,
-      size: 0.8,
-      height: 0.1,
-      curveSegments: 12,
-      bevelEnabled: true,
-      bevelThickness: 0.03,
-      bevelSize: 0.02,
-      bevelOffset: 0,
-      bevelSegments: 5,
+      font: font.value,
+      size: 0.5,
     });
 
-    const textMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      emissive: 0x444444,
-      emissiveIntensity: 0.5,
-    });
+    const textMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
     const textMesh = new THREE.Mesh(textGeometry, textMaterial);
 
+    // Position label above the node
     if (node.position) {
       textMesh.position.copy(node.position);
       textMesh.position.y += 2;
     }
 
+    textMesh.visible = node.type === "directory" ? showDirectoryLabels.value : showFileLabels.value;
+
     node.label = textMesh;
-    scene.add(textMesh);
+    scene.value.add(textMesh);
   } catch (error) {
-    console.warn("Failed to create label for node:", node.name);
+    console.warn("Failed to create label for node:", node.name, error);
   }
 };
 
-// Animation Loop with Performance Monitoring
-const startAnimationLoop = () => {
-  const animate = () => {
+// Animation Loop
+const startAnimationLoop = (): void => {
+  const animate = (): void => {
     animationId = requestAnimationFrame(animate);
 
     // Update FPS
-    frameCount++;
-    const currentTime = performance.now();
-    if (currentTime >= lastTime + 1000) {
-      fps.value = Math.round((frameCount * 1000) / (currentTime - lastTime));
-      frameCount = 0;
-      lastTime = currentTime;
-    }
-
-    // Update LOD and culling
-    updateLOD();
-    performFrustumCulling();
+    updateFPS();
 
     // Update controls
-    controls.update();
+    if (controls.value) {
+      controls.value.update();
+      controls.value.autoRotate = autoRotate.value;
+    }
 
-    // Render scene
-    renderer.render(scene, camera);
+    // Update LOD
+    if (enableLOD.value) {
+      updateLOD();
+    }
+
+    // Frustum Culling
+    if (enableFrustumCulling.value) {
+      performFrustumCulling();
+    }
+
+    // Render
+    if (renderer.value && scene.value && camera.value) {
+      renderer.value.render(scene.value, camera.value);
+    }
+
+    // Update rendered nodes count
+    renderedNodes.value = nodeMap.size;
   };
 
   animate();
 };
 
-// Search Handler
-const handleSearch = () => {
+// Update FPS
+const updateFPS = (): void => {
+  const currentTime = performance.now();
+  const deltaTime = currentTime - performanceMetrics.value.lastTime;
+
+  performanceMetrics.value.frameCount++;
+
+  if (deltaTime >= 1000) {
+    fps.value = Math.round((performanceMetrics.value.frameCount * 1000) / deltaTime);
+    performanceMetrics.value.frameCount = 0;
+    performanceMetrics.value.lastTime = currentTime;
+  }
+};
+
+// Update LOD
+const updateLOD = (): void => {
+  if (!camera.value || !enableLOD.value) return;
+
+  nodeMap.forEach((node) => {
+    if (!node.mesh || !camera.value) return;
+
+    const distance = camera.value.position.distanceTo(node.mesh.position);
+    let lodLevel: number;
+
+    if (distance > 100) lodLevel = 2;
+    else if (distance > 50) lodLevel = 1;
+    else lodLevel = 0;
+
+    if (node.lodLevel !== lodLevel) {
+      updateNodeLOD(node, lodLevel);
+      node.lodLevel = lodLevel;
+    }
+  });
+};
+
+// Update Node LOD
+const updateNodeLOD = (node: ExtendedFileNode, lodLevel: number): void => {
+  if (!node.mesh) return;
+
+  // Update geometry complexity based on LOD
+  const lodMeshes = lodCache.get(node.id);
+  if (lodMeshes && lodMeshes[lodLevel] && lodMeshes[lodLevel].geometry) {
+    node.mesh.geometry = lodMeshes[lodLevel].geometry;
+  }
+};
+
+// Frustum Culling
+const performFrustumCulling = (): void => {
+  if (!enableFrustumCulling.value || !camera.value) return;
+
+  const frustum = new THREE.Frustum();
+  frustum.setFromProjectionMatrix(
+    new THREE.Matrix4().multiplyMatrices(
+      camera.value.projectionMatrix,
+      camera.value.matrixWorldInverse
+    )
+  );
+
+  nodeMap.forEach((node) => {
+    if (!node.mesh) return;
+
+    const wasVisible = node.visible !== false;
+    node.visible = frustum.intersectsObject(node.mesh);
+
+    if (wasVisible !== node.visible) {
+      node.mesh.visible = node.visible;
+      if (node.label) {
+        node.label.visible = node.visible && (showFileLabels.value || showDirectoryLabels.value);
+      }
+    }
+  });
+};
+
+// Update Functions
+const updateLabels = (): void => {
+  if (!scene.value) return;
+
+  // Recreate all labels
+  nodeMap.forEach((node) => {
+    if (node.label) {
+      if (scene.value && node.label) {
+        scene.value.remove(node.label);
+      }
+      delete node.label;
+    }
+    createLabel(node);
+  });
+};
+
+const updateColors = (): void => {
+  nodeMap.forEach((node) => {
+    if (node.mesh) {
+      const material = createPBRMaterial(node);
+      node.mesh.material = material;
+    }
+  });
+};
+
+const updateHeatMap = (): void => {
+  updateColors();
+};
+
+const updateZoom = (): void => {
+  if (camera.value && controls.value) {
+    // Store original position if not already stored
+    if (!camera.value.userData.originalPosition) {
+      camera.value.userData.originalPosition = camera.value.position.clone();
+    }
+
+    // Reset to original position then apply zoom
+    camera.value.position.copy(camera.value.userData.originalPosition);
+    camera.value.position.multiplyScalar(zoomLevel.value);
+    controls.value.update();
+  }
+};
+
+const updateNodeSize = (): void => {
+  // Recreate all nodes with new size
+  create3DVisualization();
+};
+
+const updateLayout = (): void => {
+  create3DVisualization();
+};
+
+const updateMaxNodes = (): void => {
+  create3DVisualization();
+};
+
+const updateFrustumCulling = (): void => {
+  // Force update all nodes visibility when frustum culling setting changes
+  if (!enableFrustumCulling.value) {
+    // Make all nodes visible when frustum culling is disabled
+    nodeMap.forEach((node) => {
+      if (node.mesh) {
+        node.mesh.visible = true;
+        if (node.label) {
+          node.label.visible =
+            node.type === "directory" ? showDirectoryLabels.value : showFileLabels.value;
+        }
+      }
+    });
+  }
+};
+
+// Clear Scene
+const clearScene = (): void => {
+  if (!scene.value) return;
+
+  nodeMap.forEach((node) => {
+    if (node.mesh && scene.value) {
+      scene.value.remove(node.mesh);
+    }
+    if (node.label && scene.value) {
+      scene.value.remove(node.label);
+    }
+  });
+  nodeMap.clear();
+};
+
+// Format Bytes
+const formatBytes = (bytes: number): string => {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
+
+// Navigate to Breadcrumb
+const navigateToBreadcrumb = (path: string): void => {
+  // Implementation for breadcrumb navigation
+  console.warn("Navigate to:", path);
+};
+
+// Camera Controls
+const resetCamera = (): void => {
+  if (camera.value && controls.value) {
+    camera.value.position.set(50, 30, 50);
+    controls.value.target.set(0, 0, 0);
+    controls.value.update();
+  }
+};
+
+const flyToPosition = (targetPosition: THREE.Vector3): void => {
+  if (!camera.value || !controls.value || !targetPosition) return;
+
+  const startPosition = camera.value.position.clone();
+  const targetPositionClone = targetPosition.clone();
+  const duration = 1000;
+  const startTime = performance.now();
+
+  const animateCamera = (): void => {
+    const elapsed = performance.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+
+    if (camera.value && camera.value.position) {
+      camera.value.position.lerpVectors(startPosition, targetPositionClone, easeProgress);
+    }
+    if (controls.value && targetPosition) {
+      controls.value.target.lerp(targetPosition, easeProgress);
+      controls.value.update();
+    }
+
+    if (progress < 1) {
+      requestAnimationFrame(animateCamera);
+    }
+  };
+
+  animateCamera();
+};
+
+// Fly to Selected Node
+const flyToSelected = (): void => {
+  if (selectedNode.value && selectedNode.value.position) {
+    flyToPosition(selectedNode.value.position);
+  }
+};
+
+// Toggle Auto Rotate
+const toggleAutoRotate = (): void => {
+  autoRotate.value = !autoRotate.value;
+};
+
+// Search and Filter
+const handleSearch = (): void => {
   if (!searchQuery.value.trim()) {
     searchResults.value = [];
     return;
   }
 
+  const results: SearchResult[] = [];
   const query = searchQuery.value.toLowerCase();
-  const results: SearchResults[] = [];
 
   nodeMap.forEach((node) => {
     if (node.name.toLowerCase().includes(query)) {
@@ -1066,270 +1223,87 @@ const handleSearch = () => {
   searchResults.value = results;
 };
 
-// Apply Filters
-const applyFilters = () => {
-  nodeMap.forEach((node) => {
-    if (!node.mesh) return;
-
-    let visible = true;
-
-    if (filterType.value !== "all") {
-      const extension = node.name.split(".").pop()?.toLowerCase();
-      visible = isFileType(extension, filterType.value);
-    }
-
-    node.visible = visible;
-    node.mesh.visible = visible;
-  });
+const applyFilters = (): void => {
+  // Implementation for filtering
+  console.warn("Apply filter:", filterType.value);
 };
 
-// Check File Type
-const isFileType = (extension: string | undefined, type: string): boolean => {
-  if (!extension) return false;
-
-  const typeMap: Record<string, string[]> = {
-    image: ["jpg", "jpeg", "png", "gif", "bmp", "svg"],
-    document: ["pdf", "doc", "docx", "txt", "rtf"],
-    video: ["mp4", "avi", "mov", "wmv", "flv"],
-    audio: ["mp3", "wav", "flac", "aac", "ogg"],
-  };
-
-  return typeMap[type]?.includes(extension) || false;
-};
-
-// Focus on Node
-const focusNode = (node: ExtendedFileNode) => {
-  if (!node || !node.position) return;
-
-  selectedNode.value = node;
-  flyToPosition(node.position);
-};
-
-// Fly to Position
-const flyToPosition = (targetPosition: THREE.Vector3) => {
-  if (!targetPosition) return;
-
-  const startPosition = camera.position.clone();
-  const targetPositionClone = targetPosition.clone();
-  targetPositionClone.z += 20; // Offset camera
-
-  const duration = 1000;
-  const startTime = performance.now();
-
-  const animateCamera = () => {
-    const elapsed = performance.now() - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
-
-    camera.position.lerpVectors(startPosition, targetPositionClone, easeProgress);
-    controls.target.lerp(targetPosition, easeProgress);
-
-    if (progress < 1) {
-      requestAnimationFrame(animateCamera);
-    }
-  };
-
-  animateCamera();
-};
-
-// Fly to Selected Node
-const flyToSelected = () => {
-  if (selectedNode.value && selectedNode.value.position) {
-    flyToPosition(selectedNode.value.position);
+const focusNode = (result: SearchResult): void => {
+  if (result.node.position) {
+    flyToPosition(result.node.position);
+    selectedNode.value = result.node;
+    emit("nodeSelected", result.node);
   }
 };
 
-// Reset Camera
-const resetCamera = () => {
-  camera.position.set(50, 30, 50);
-  controls.target.set(0, 0, 0);
-  controls.update();
-};
-
-// Toggle Auto Rotate
-const toggleAutoRotate = () => {
-  autoRotate.value = !autoRotate.value;
-  controls.autoRotate = autoRotate.value;
-};
-
-// Update Functions
-// Update functions with proper references
-const updateLabels = () => {
-  // Recreate all labels
-  nodeMap.forEach((node) => {
-    if (node.label) {
-      scene.remove(node.label);
-      node.label = undefined;
-    }
-    createLabel(node);
-  });
-};
-
-const updateColors = () => {
-  nodeMap.forEach((node) => {
-    if (node.mesh) {
-      const material = createPBRMaterial(node);
-      node.mesh.material = material;
-    }
-  });
-};
-
-const updateHeatMap = () => {
-  updateColors();
-};
-
-const updateZoom = () => {
-  camera.zoom = zoomLevel.value;
-  camera.updateProjectionMatrix();
-};
-
-const updateNodeSize = () => {
-  // Recreate visualization with new node size
-  create3DVisualization();
-};
-
-const updateLayout = () => {
-  create3DVisualization();
-};
-
-const updateLODFunction = () => {
-  // LOD is handled in animation loop
-};
-
-const updateMaxNodes = () => {
-  // Limit nodes if necessary
-  const maxNodesLimit = props.maxNodes || 1000;
-  if (nodeMap.size > maxNodesLimit) {
-    // Keep only the most important nodes
-    const nodes = Array.from(nodeMap.values());
-    const importantNodes = nodes.sort((a, b) => b.size - a.size).slice(0, maxNodesLimit);
-
-    clearScene();
-    importantNodes.forEach((node) => {
-      if (node.mesh) scene.add(node.mesh);
-      if (node.label) scene.add(node.label);
-    });
-  }
-};
-
-// Clear Scene
-const clearScene = () => {
-  nodeMap.forEach((node) => {
-    if (node.mesh) scene.remove(node.mesh);
-    if (node.label) scene.remove(node.label);
-  });
-  nodeMap.clear();
-};
-
-// Format Bytes
-const formatBytes = (bytes: number): string => {
-  if (bytes === 0) return "0 Bytes";
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-};
-
-// Navigate to Breadcrumb
-const navigateToBreadcrumb = (path: string) => {
-  // Implementation for breadcrumb navigation
-  console.log("Navigate to:", path);
-};
-
-// Context Menu Handlers
-const openFile = () => {
+// Context Menu Actions
+const openFile = (): void => {
   if (selectedNode.value) {
     emit("nodeOpened", selectedNode.value);
   }
   showContextMenu.value = false;
 };
 
-const renameFile = () => {
-  // Implementation for rename
+const renameFile = (): void => {
+  // Implementation for renaming
+  console.warn("Rename file:", selectedNode.value?.name);
   showContextMenu.value = false;
 };
 
-const deleteFile = () => {
-  // Implementation for delete
+const deleteFile = (): void => {
+  // Implementation for deleting
+  console.warn("Delete file:", selectedNode.value?.name);
   showContextMenu.value = false;
 };
 
-const copyPath = () => {
+const copyPath = (): void => {
   if (selectedNode.value) {
     navigator.clipboard.writeText(selectedNode.value.path);
   }
   showContextMenu.value = false;
 };
 
-const showProperties = () => {
-  // Implementation for properties dialog
+const showProperties = (): void => {
+  // Implementation for showing properties
+  console.warn("Show properties:", selectedNode.value?.name);
   showContextMenu.value = false;
 };
 
-// Keyboard Shortcuts
-const handleKeyboard = (event: KeyboardEvent) => {
-  switch (event.key) {
-    case " ":
-      event.preventDefault();
-      toggleAutoRotate();
-      break;
-    case "r":
-    case "R":
-      resetCamera();
-      break;
-    case "f":
-    case "F":
-      // Focus search input
-      break;
-    case "Delete":
-      if (selectedNode.value) {
-        deleteFile();
+// Event Handlers
+const handleClick = (event: MouseEvent): void => {
+  if (!camera.value || !renderer.value || !scene.value) return;
+
+  try {
+    const rect = renderer.value.domElement.getBoundingClientRect();
+    const mouse = new THREE.Vector2(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    );
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera.value);
+
+    const meshes = Array.from(nodeMap.values())
+      .map((node) => node.mesh)
+      .filter((mesh): mesh is THREE.Mesh => mesh !== undefined && mesh.visible);
+
+    const intersects = raycaster.intersectObjects(meshes);
+
+    if (intersects && intersects.length > 0) {
+      const clickedMesh = intersects[0].object;
+      const clickedNode = clickedMesh.userData?.node as ExtendedFileNode;
+
+      if (clickedNode) {
+        selectedNode.value = clickedNode;
+        emit("nodeSelected", clickedNode);
       }
-      break;
-    case "Escape":
-      selectedNodes.value.clear();
-      break;
+    }
+  } catch (error) {
+    console.warn("Error handling click:", error);
   }
 };
 
-// Resize Handler
-const handleResize = () => {
-  if (!viewport.value) return;
-
-  camera.aspect = viewport.value.clientWidth / viewport.value.clientHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(viewport.value.clientWidth, viewport.value.clientHeight);
-};
-
-// Mouse Handlers
-const handleMouseClick = (event: MouseEvent) => {
-  if (!viewport.value) return;
-
-  const rect = viewport.value.getBoundingClientRect();
-  const mouse = new THREE.Vector2(
-    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    -((event.clientY - rect.top) / rect.height) * 2 + 1
-  );
-
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(mouse, camera);
-
-  const meshes = Array.from(nodeMap.values())
-    .map((node) => node.mesh)
-    .filter((mesh) => mesh && mesh.visible) as THREE.Mesh[];
-
-  const intersects = raycaster.intersectObjects(meshes);
-
-  if (intersects.length > 0) {
-    const clickedMesh = intersects[0].object;
-    const clickedNode = clickedMesh.userData.node as ExtendedFileNode;
-
-    selectedNode.value = clickedNode;
-    emit("nodeSelected", clickedNode);
-  }
-};
-
-const handleRightClick = (event: MouseEvent) => {
+const handleRightClick = (event: MouseEvent): void => {
   event.preventDefault();
 
   const rect = viewport.value?.getBoundingClientRect();
@@ -1342,97 +1316,89 @@ const handleRightClick = (event: MouseEvent) => {
   showContextMenu.value = true;
 };
 
+const handleKeyDown = (event: KeyboardEvent): void => {
+  switch (event.key) {
+    case " ":
+      event.preventDefault();
+      toggleAutoRotate();
+      break;
+    case "r":
+    case "R":
+      resetCamera();
+      break;
+    case "f":
+    case "F":
+      // Focus search input
+      {
+        const searchInput = document.querySelector(".search-input") as HTMLInputElement | null;
+        searchInput?.focus();
+      }
+      break;
+    case "Escape":
+      showContextMenu.value = false;
+      showHelp.value = false;
+      break;
+  }
+};
+
+const handleResize = (): void => {
+  if (!camera.value || !renderer.value || !viewport.value) return;
+
+  camera.value.aspect = viewport.value.clientWidth / viewport.value.clientHeight;
+  camera.value.updateProjectionMatrix();
+  renderer.value.setSize(viewport.value.clientWidth, viewport.value.clientHeight);
+};
+
 // Lifecycle
 onMounted(async () => {
   await nextTick();
   await initThreeJS();
 
-  // Event Listeners
+  // Event listeners
   window.addEventListener("resize", handleResize);
-  window.addEventListener("keydown", handleKeyboard);
-  viewport.value?.addEventListener("click", handleMouseClick);
-  viewport.value?.addEventListener("contextmenu", handleRightClick);
+  window.addEventListener("keydown", handleKeyDown);
+
+  if (renderer.value) {
+    renderer.value.domElement.addEventListener("click", handleClick);
+    renderer.value.domElement.addEventListener("contextmenu", handleRightClick);
+  }
 });
 
 onUnmounted(() => {
-  // Cleanup
+  // Clean up animation
   if (animationId) {
     cancelAnimationFrame(animationId);
-    animationId = null;
   }
 
+  // Clean up Three.js resources
+  if (scene.value) {
+    scene.value.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.geometry.dispose();
+        if (object.material instanceof THREE.Material) {
+          object.material.dispose();
+        }
+      }
+    });
+  }
+
+  if (renderer.value) {
+    renderer.value.dispose();
+  }
+
+  // Clean up event listeners
   window.removeEventListener("resize", handleResize);
-  window.removeEventListener("keydown", handleKeyboard);
-  viewport.value?.removeEventListener("click", handleMouseClick);
-  viewport.value?.removeEventListener("contextmenu", handleRightClick);
+  window.removeEventListener("keydown", handleKeyDown);
 
-  // Dispose Three.js objects properly
-  if (scene) {
-    // Dispose all objects in scene recursively
-    const disposeScene = (obj: THREE.Object3D) => {
-      if (obj instanceof THREE.Mesh) {
-        // Dispose geometry
-        if (obj.geometry) {
-          obj.geometry.dispose();
-        }
-
-        // Dispose material(s)
-        if (obj.material) {
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach((material) => material.dispose());
-          } else {
-            obj.material.dispose();
-          }
-        }
-
-        // Dispose textures
-        if (obj.material && (obj.material as any).map) {
-          (obj.material as any).map.dispose();
-        }
-      }
-
-      // Recursively dispose children
-      while (obj.children.length > 0) {
-        const child = obj.children[0];
-        disposeScene(child);
-        obj.remove(child);
-      }
-    };
-
-    // Dispose all scene objects
-    while (scene.children.length > 0) {
-      disposeScene(scene.children[0]);
-      scene.remove(scene.children[0]);
-    }
+  if (renderer.value) {
+    renderer.value.domElement.removeEventListener("click", handleClick);
+    renderer.value.domElement.removeEventListener("contextmenu", handleRightClick);
   }
 
-  // Dispose renderer and its resources
-  if (renderer) {
-    renderer.dispose();
-    // Force clear render targets
-    if (renderer.domElement) {
-      renderer.domElement.width = 1;
-      renderer.domElement.height = 1;
-    }
-  }
-
-  // Dispose controls
-  if (controls) {
-    controls.dispose();
-  }
-
-  // Clear object pools
+  // Clean up object pools
   geometryPool.forEach((geometry) => geometry.dispose());
   materialPool.forEach((material) => material.dispose());
-  geometryPool.clear();
-  materialPool.clear();
-
-  // Clear references
-  scene = null;
-  camera = null;
-  renderer = null;
-  controls = null;
-  font = null;
+  lodCache.clear();
 });
 </script>
 
@@ -1447,198 +1413,237 @@ onUnmounted(() => {
 
 .controls-panel {
   width: 320px;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border-right: 1px solid #333;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
   overflow-y: auto;
-  padding: 1rem;
+  padding: 20px;
 }
 
 .control-group {
-  margin-bottom: 2rem;
+  margin-bottom: 30px;
 }
 
 .control-group h4 {
-  color: #4a90e2;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
+  margin: 0 0 15px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #87ceeb;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.5px;
 }
 
 .control-buttons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .btn {
-  padding: 0.5rem 1rem;
+  padding: 8px 16px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 12px;
+  font-weight: 500;
   transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #4a90e2, #357abd);
-  color: white;
-}
-
-.btn-primary:hover {
-  background: linear-gradient(135deg, #357abd, #2968a3);
+.btn:hover {
+  background: rgba(255, 255, 255, 0.2);
   transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: linear-gradient(135deg, #6c757d, #5a6268);
-  color: white;
-}
-
-.btn-outline {
-  background: transparent;
-  color: #4a90e2;
-  border: 1px solid #4a90e2;
-}
-
-.btn-outline:hover {
-  background: #4a90e2;
-  color: white;
 }
 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: #4ecdc4;
+  color: #0a0a0a;
+}
+
+.btn-primary:hover {
+  background: #45b7b8;
+}
+
+.btn-secondary {
+  background: #ff6b6b;
+  color: #ffffff;
+}
+
+.btn-secondary:hover {
+  background: #ff5252;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-outline:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .view-options,
-.performance-controls,
-.search-controls {
+.scale-controls,
+.search-controls,
+.performance-controls {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 12px;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 13px;
 }
 
 .checkbox-label input[type="checkbox"] {
   width: 16px;
   height: 16px;
-  accent-color: #4a90e2;
+  accent-color: #4ecdc4;
 }
 
-.scale-controls {
+label {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #cccccc;
 }
 
-.scale-controls label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.85rem;
+input[type="range"] {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.scale-controls input[type="range"] {
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #4ecdc4;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #4ecdc4;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+input[type="text"],
+input[type="number"],
+select {
   width: 100%;
-  accent-color: #4a90e2;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s ease;
 }
 
-.scale-controls select {
-  padding: 0.5rem;
-  border: 1px solid #333;
-  border-radius: 4px;
-  background: #1a1a2e;
-  color: white;
-  font-size: 0.85rem;
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #4ecdc4;
 }
 
-.search-input {
-  padding: 0.5rem;
-  border: 1px solid #333;
-  border-radius: 4px;
-  background: #1a1a2e;
-  color: white;
-  font-size: 0.85rem;
-}
-
-.search-input::placeholder {
-  color: #666;
+select {
+  cursor: pointer;
 }
 
 .stats-display {
   display: grid;
-  gap: 0.5rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .stat-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
-  font-size: 0.85rem;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .stat-label {
-  color: #666;
+  display: block;
+  font-size: 11px;
+  color: #888888;
+  margin-bottom: 4px;
 }
 
 .stat-value {
-  color: #4a90e2;
+  display: block;
+  font-size: 16px;
   font-weight: 600;
+  color: #4ecdc4;
+}
+
+.viewport-container {
+  flex: 1;
+  position: relative;
+  background: #0a0a0a;
+}
+
+.viewport {
+  width: 100%;
+  height: 100%;
 }
 
 .breadcrumb-nav {
   position: absolute;
-  top: 1rem;
-  left: 340px;
-  right: 1rem;
-  background: rgba(26, 26, 46, 0.9);
+  top: 20px;
+  left: 20px;
+  background: rgba(20, 20, 20, 0.9);
   backdrop-filter: blur(10px);
-  padding: 0.75rem 1rem;
+  padding: 12px 16px;
   border-radius: 8px;
-  border: 1px solid #333;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   z-index: 10;
 }
 
 .breadcrumb-trail {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  gap: 8px;
+  font-size: 13px;
 }
 
 .breadcrumb-item {
-  color: #666;
+  color: #87ceeb;
   cursor: pointer;
   transition: color 0.2s ease;
 }
 
 .breadcrumb-item:hover {
-  color: #4a90e2;
+  color: #4ecdc4;
 }
 
 .breadcrumb-separator {
-  color: #444;
-}
-
-.viewport-container {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-}
-
-.viewport {
-  width: 100%;
-  height: 100%;
+  color: #666666;
+  user-select: none;
 }
 
 .loading-overlay {
@@ -1652,17 +1657,17 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 20px;
   z-index: 100;
 }
 
 .loading-spinner {
-  width: 50px;
-  height: 50px;
-  border: 3px solid #333;
-  border-top: 3px solid #4a90e2;
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid #4ecdc4;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
 }
 
 @keyframes spin {
@@ -1676,89 +1681,90 @@ onUnmounted(() => {
 
 .progress-bar {
   width: 200px;
-  height: 6px;
-  background: #333;
-  border-radius: 3px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
   overflow: hidden;
-  margin-top: 1rem;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #4a90e2, #357abd);
+  background: linear-gradient(90deg, #4ecdc4, #45b7b8);
   transition: width 0.3s ease;
 }
 
 .context-menu {
   position: absolute;
-  background: #1a1a2e;
-  border: 1px solid #333;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  padding: 0.5rem 0;
+  padding: 8px 0;
   min-width: 150px;
   z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .context-menu-item {
-  padding: 0.5rem 1rem;
+  padding: 10px 16px;
   cursor: pointer;
-  font-size: 0.85rem;
-  transition: background 0.2s ease;
+  font-size: 13px;
+  color: #ffffff;
+  transition: background-color 0.2s ease;
 }
 
 .context-menu-item:hover {
-  background: rgba(74, 144, 226, 0.2);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .context-menu-separator {
   height: 1px;
-  background: #333;
-  margin: 0.5rem 0;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 4px 0;
 }
 
 .search-results {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: rgba(26, 26, 46, 0.9);
+  top: 20px;
+  right: 20px;
+  background: rgba(20, 20, 20, 0.95);
   backdrop-filter: blur(10px);
-  border: 1px solid #333;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  padding: 1rem;
+  padding: 16px;
   min-width: 200px;
-  max-height: 300px;
-  overflow-y: auto;
+  max-width: 300px;
   z-index: 10;
 }
 
 .search-results h4 {
-  margin-bottom: 0.5rem;
-  color: #4a90e2;
-  font-size: 0.9rem;
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #87ceeb;
 }
 
 .results-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 .result-item {
-  padding: 0.5rem;
+  padding: 8px 12px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 0.85rem;
-  transition: background 0.2s ease;
+  font-size: 12px;
+  color: #cccccc;
+  transition: all 0.2s ease;
 }
 
 .result-item:hover {
-  background: rgba(74, 144, 226, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .help-overlay {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
@@ -1767,54 +1773,51 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
+  z-index: 1000;
 }
 
 .help-content {
-  background: #1a1a2e;
-  border: 1px solid #333;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  padding: 2rem;
+  padding: 24px;
   max-width: 400px;
-  text-align: center;
+  width: 90%;
 }
 
 .help-content h3 {
-  margin-bottom: 1.5rem;
-  color: #4a90e2;
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  color: #87ceeb;
 }
 
 .shortcuts-list {
-  display: grid;
-  gap: 0.75rem;
-  margin-bottom: 2rem;
-  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
 }
 
 .shortcut-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #cccccc;
 }
 
 kbd {
-  background: #333;
-  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 8px;
   border-radius: 4px;
   font-family: monospace;
-  font-size: 0.8rem;
+  font-size: 11px;
+  color: #4ecdc4;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-@media (max-width: 1024px) {
-  .controls-panel {
-    width: 280px;
-  }
-
-  .breadcrumb-nav {
-    left: 300px;
-  }
-}
-
+/* Responsive Design */
 @media (max-width: 768px) {
   .filesystem-3d-enhanced {
     flex-direction: column;
@@ -1824,16 +1827,55 @@ kbd {
     width: 100%;
     height: 200px;
     border-right: none;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    overflow-x: hidden;
   }
 
   .breadcrumb-nav {
-    position: static;
-    margin: 1rem;
+    top: 220px;
+    left: 10px;
+    right: 10px;
+  }
+
+  .viewport-container {
+    height: calc(100vh - 220px);
   }
 
   .control-buttons {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .btn {
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .controls-panel {
+    height: 250px;
+    padding: 10px;
+  }
+
+  .breadcrumb-nav {
+    top: 270px;
+  }
+
+  .viewport-container {
+    height: calc(100vh - 270px);
+  }
+
+  .control-group h4 {
+    font-size: 12px;
+  }
+
+  .checkbox-label {
+    font-size: 11px;
+  }
+
+  label {
+    font-size: 11px;
   }
 }
 </style>

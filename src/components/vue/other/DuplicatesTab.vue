@@ -664,7 +664,11 @@ const exportDuplicatesReport = () => {
 }
 
 .group-content {
-  @apply p-4 border-t border-gray-700 space-y-4;
+  padding: 1rem;
+  border-top: 1px solid rgb(55 65 81);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .file-section {

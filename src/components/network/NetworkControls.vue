@@ -38,7 +38,7 @@
     </div>
 
     <!-- Graph Settings -->
-    <div class="space-y-4">
+    <div class="flex flex-col gap-4">
       <div>
         <div class="flex items-center justify-between mb-2">
           <label class="block text-sm font-medium text-slate-300">Force Strength</label>

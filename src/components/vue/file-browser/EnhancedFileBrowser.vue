@@ -11,20 +11,20 @@
       </div>
       <div class="flex gap-2">
         <button
-          @click="viewState.viewMode = 'list'"
           :class="[
             'p-2 rounded-lg transition-colors',
             viewState.viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400',
           ]"
+          @click="viewState.viewMode = 'list'"
         >
           <List class="w-4 h-4" />
         </button>
         <button
-          @click="viewState.viewMode = 'grid'"
           :class="[
             'p-2 rounded-lg transition-colors',
             viewState.viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400',
           ]"
+          @click="viewState.viewMode = 'grid'"
         >
           <Grid3X3 class="w-4 h-4" />
         </button>
@@ -43,8 +43,8 @@
         />
       </div>
       <button
-        @click="showAdvancedFilters = !showAdvancedFilters"
         class="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
+        @click="showAdvancedFilters = !showAdvancedFilters"
       >
         <Filter class="w-4 h-4" />
         <span>Filters</span>
@@ -70,8 +70,8 @@
         <div>
           <label class="block text-sm text-gray-400 mb-2">Sort Order</label>
           <button
-            @click="viewState.sortOrder = viewState.sortOrder === 'asc' ? 'desc' : 'asc'"
             class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white hover:bg-gray-600 transition-colors"
+            @click="viewState.sortOrder = viewState.sortOrder === 'asc' ? 'desc' : 'asc'"
           >
             <ArrowUpDown class="w-4 h-4" />
             <span>{{ viewState.sortOrder === "asc" ? "Ascending" : "Descending" }}</span>
@@ -93,11 +93,11 @@
         <div>
           <label class="block text-sm text-gray-400 mb-2">View</label>
           <button
-            @click="viewState.showHidden = !viewState.showHidden"
             :class="[
               'w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors',
               viewState.showHidden ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300',
             ]"
+            @click="viewState.showHidden = !viewState.showHidden"
           >
             <Eye v-if="viewState.showHidden" class="w-4 h-4" />
             <EyeOff v-else class="w-4 h-4" />
@@ -114,18 +114,22 @@
         <div
           v-for="file in sortedFiles"
           :key="file.path"
-          @click="selectFile(file.path)"
           :class="[
             'flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-700 transition-colors',
             viewState.selectedFiles.has(file.path) ? 'bg-blue-600/20' : '',
           ]"
+          @click="selectFile(file.path)"
         >
-          <File class="w-5 h-5 text-gray-400 flex-shrink-0" />
+          <File class="w-5 h-5 text-gray-400 shrink-0" />
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-white truncate">{{ file.name }}</p>
-            <p class="text-xs text-gray-400 truncate">{{ file.path }}</p>
+            <p class="text-sm font-medium text-white truncate">
+              {{ file.name }}
+            </p>
+            <p class="text-xs text-gray-400 truncate">
+              {{ file.path }}
+            </p>
           </div>
-          <div class="flex items-center gap-4 flex-shrink-0">
+          <div class="flex items-center gap-4 shrink-0">
             <span class="text-sm text-gray-400">{{ formatSize(file.size) }}</span>
             <span class="text-xs px-2 py-1 bg-gray-700 rounded text-gray-300">{{
               file.category
@@ -139,15 +143,19 @@
         <div
           v-for="file in sortedFiles"
           :key="file.path"
-          @click="selectFile(file.path)"
           :class="[
             'bg-gray-700 rounded-lg p-4 cursor-pointer hover:bg-gray-600 transition-colors',
             viewState.selectedFiles.has(file.path) ? 'ring-2 ring-blue-500' : '',
           ]"
+          @click="selectFile(file.path)"
         >
           <File class="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p class="text-sm font-medium text-white truncate text-center">{{ file.name }}</p>
-          <p class="text-xs text-gray-400 text-center mt-1">{{ formatSize(file.size) }}</p>
+          <p class="text-sm font-medium text-white truncate text-center">
+            {{ file.name }}
+          </p>
+          <p class="text-xs text-gray-400 text-center mt-1">
+            {{ formatSize(file.size) }}
+          </p>
         </div>
       </div>
 
@@ -311,6 +319,8 @@ const selectFile = (path: string) => {
 
 <style scoped>
 .enhanced-file-browser {
-  @apply space-y-4;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 </style>

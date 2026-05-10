@@ -13,9 +13,9 @@
       </div>
       <div class="flex gap-2">
         <button
-          @click="loadRecommendations"
           :disabled="isLoading"
           class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
+          @click="loadRecommendations"
         >
           <RefreshCw v-if="isLoading" class="w-4 h-4 animate-spin" />
           <RefreshCw v-else class="w-4 h-4" />
@@ -29,13 +29,13 @@
       <button
         v-for="tab in tabs"
         :key="tab.id"
-        @click="activeTab = tab.id"
         :class="[
           'flex items-center gap-2 px-4 py-2 border-b-2 transition-colors',
           activeTab === tab.id
             ? 'border-purple-500 text-purple-400'
             : 'border-transparent text-gray-400 hover:text-gray-300',
         ]"
+        @click="activeTab = tab.id"
       >
         <component :is="tab.icon" class="w-4 h-4" />
         <span>{{ tab.label }}</span>
@@ -44,7 +44,9 @@
 
     <!-- Error State -->
     <div v-if="error" class="bg-red-900/20 border border-red-800 rounded-lg p-4">
-      <p class="text-red-400">{{ error }}</p>
+      <p class="text-red-400">
+        {{ error }}
+      </p>
     </div>
 
     <!-- Loading State -->
@@ -56,7 +58,7 @@
     </div>
 
     <!-- Recommendations Tab -->
-    <div v-if="activeTab === 'recommendations' && !isLoading" class="space-y-4">
+    <div v-if="activeTab === 'recommendations' && !isLoading" class="flex flex-col gap-4">
       <div v-if="recommendations.length === 0" class="text-center py-12 text-gray-400">
         <BrainCircuit class="w-12 h-12 mx-auto mb-4" />
         <p>No recommendations available</p>
@@ -87,7 +89,9 @@
                       : 'text-green-400',
                 ]"
               />
-              <h3 class="font-semibold">{{ rec.title }}</h3>
+              <h3 class="font-semibold">
+                {{ rec.title }}
+              </h3>
             </div>
             <span
               :class="[
@@ -102,7 +106,9 @@
               {{ rec.priority }}
             </span>
           </div>
-          <p class="text-sm text-gray-300 mb-3">{{ rec.description }}</p>
+          <p class="text-sm text-gray-300 mb-3">
+            {{ rec.description }}
+          </p>
           <div
             v-if="rec.potentialSavings"
             class="flex items-center gap-2 text-sm text-green-400 mb-3"
@@ -111,8 +117,8 @@
             <span>Potential savings: {{ formatFileSize(rec.potentialSavings) }}</span>
           </div>
           <button
-            @click="executeAction(rec.action)"
             class="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-sm"
+            @click="executeAction(rec.action)"
           >
             <CheckCircle class="w-4 h-4" />
             <span>{{ rec.action }}</span>
@@ -122,13 +128,13 @@
     </div>
 
     <!-- Performance Tab -->
-    <div v-if="activeTab === 'performance' && !isLoading" class="space-y-4">
+    <div v-if="activeTab === 'performance' && !isLoading" class="flex flex-col gap-4">
       <div v-if="!performanceMetrics" class="text-center py-12 text-gray-400">
         <Activity class="w-12 h-12 mx-auto mb-4" />
         <p>No performance data available</p>
         <button
-          @click="loadPerformanceMetrics"
           class="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          @click="loadPerformanceMetrics"
         >
           Load Performance Metrics
         </button>
@@ -139,7 +145,9 @@
             <Zap class="w-5 h-5 text-yellow-400" />
             <p class="text-sm text-gray-400">Files/Second</p>
           </div>
-          <p class="text-2xl font-bold">{{ performanceMetrics.filesPerSecond.toFixed(2) }}</p>
+          <p class="text-2xl font-bold">
+            {{ performanceMetrics.filesPerSecond.toFixed(2) }}
+          </p>
         </div>
         <div class="bg-gray-800 rounded-lg p-4">
           <div class="flex items-center gap-2 mb-2">
@@ -155,7 +163,9 @@
             <BarChart3 class="w-5 h-5 text-green-400" />
             <p class="text-sm text-gray-400">Batches Processed</p>
           </div>
-          <p class="text-2xl font-bold">{{ performanceMetrics.batchesProcessed }}</p>
+          <p class="text-2xl font-bold">
+            {{ performanceMetrics.batchesProcessed }}
+          </p>
         </div>
         <div class="bg-gray-800 rounded-lg p-4">
           <div class="flex items-center gap-2 mb-2">
@@ -168,7 +178,7 @@
     </div>
 
     <!-- Search Tab -->
-    <div v-if="activeTab === 'search'" class="space-y-4">
+    <div v-if="activeTab === 'search'" class="flex flex-col gap-4">
       <div class="relative">
         <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
@@ -187,8 +197,12 @@
           :key="index"
           class="border border-gray-700 rounded-lg p-4 hover:bg-gray-800 transition-colors"
         >
-          <h3 class="font-semibold mb-1">{{ rec.title }}</h3>
-          <p class="text-sm text-gray-400">{{ rec.description }}</p>
+          <h3 class="font-semibold mb-1">
+            {{ rec.title }}
+          </h3>
+          <p class="text-sm text-gray-400">
+            {{ rec.description }}
+          </p>
         </div>
       </div>
     </div>

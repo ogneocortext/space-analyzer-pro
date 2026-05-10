@@ -408,7 +408,7 @@ onMounted(() => {
 }
 
 .ai-avatar {
-  @apply w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white;
+  @apply w-12 h-12 bg-linear-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white;
 }
 
 .header-info h3 {
@@ -428,7 +428,12 @@ onMounted(() => {
 }
 
 .messages-container {
-  @apply flex-1 overflow-y-auto p-4 space-y-4;
+  flex: 1 1 0%;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .message {

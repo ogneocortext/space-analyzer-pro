@@ -54,7 +54,7 @@
           <FileText class="w-5 h-5 text-indigo-400" />
           Language Breakdown
         </h2>
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
           <div class="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
             <div class="flex items-center gap-3">
               <div class="w-3 h-3 bg-blue-400 rounded-full" />
@@ -91,7 +91,7 @@
           <Terminal class="w-5 h-5 text-green-400" />
           Code Quality Metrics
         </h2>
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
           <div>
             <div class="flex justify-between text-sm mb-2">
               <span class="text-slate-300">Test Coverage</span>

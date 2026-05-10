@@ -50,7 +50,7 @@ async function handlePDFExport() {
 
 <template>
   <Card title="Export Data">
-    <div class="space-y-4">
+    <div class="flex flex-col gap-4">
       <p class="text-sm text-slate-400">
         Export your analysis results in various formats for sharing or further processing.
       </p>

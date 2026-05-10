@@ -50,7 +50,7 @@
 
     <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-6 mb-6">
       <h2 class="text-xl font-semibold text-white mb-4">Largest Duplicate Groups</h2>
-      <div class="space-y-4">
+      <div class="flex flex-col gap-4">
         <div class="bg-slate-700/50 rounded-lg p-4">
           <div class="flex items-center justify-between mb-3">
             <h4 class="text-white font-medium">Video Files (15 duplicates)</h4>
