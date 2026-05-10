@@ -1,0 +1,145 @@
+{
+  "name": "Space Analyzer Pro - Main Codemap",
+  "version": "2.8.9",
+  "description": "AI-powered disk space analysis and optimization tool with machine learning capabilities",
+  "type": "vue3-typescript-fullstack",
+  "entryPoints": {
+    "frontend": "src/main.ts",
+    "backend": "server/server.js",
+    "desktop": "src-tauri/src/main.rs"
+  },
+  "architecture": {
+    "frontend": {
+      "framework": "Vue 3",
+      "language": "TypeScript",
+      "stateManagement": "Pinia",
+      "routing": "Vue Router",
+      "ui": "Tailwind CSS + Lucide Icons",
+      "testing": "Vitest + Playwright"
+    },
+    "backend": {
+      "runtime": "Node.js",
+      "framework": "Express.js",
+      "database": "SQLite",
+      "ai": "Ollama + Google AI + Python ML",
+      "testing": "Jest + Newman"
+    },
+    "desktop": {
+      "framework": "Tauri",
+      "language": "Rust",
+      "webview": "Vue 3"
+    }
+  },
+  "domains": {
+    "ai": {
+      "path": "src/components/vue/ai/",
+      "description": "AI-powered analysis and chat features",
+      "components": [
+        "AIAnalysisPanel",
+        "EnhancedAIChat", 
+        "AIFeaturesPanel",
+        "AIInsights",
+        "AIModelQAComponent"
+      ],
+      "services": [
+        "src/services/ai/",
+        "server/routes/ai.js"
+      ]
+    },
+    "analysis": {
+      "path": "src/components/vue/analysis/",
+      "description": "File and code analysis components",
+      "components": [
+        "AnalysisProgress",
+        "EnhancedAnalytics",
+        "ComprehensiveAnalysisModal",
+        "EnhancedFileDetailsModal"
+      ],
+      "services": [
+        "src/services/AnalysisService.ts",
+        "server/routes/analysis.js"
+      ]
+    },
+    "visualization": {
+      "path": "src/components/3d/",
+      "description": "3D visualization and charts",
+      "components": [
+        "FileSystem3DEnhanced",
+        "Visualization3DCanvas",
+        "Visualization3DControls"
+      ],
+      "libraries": ["Three.js", "D3.js"]
+    },
+    "dashboard": {
+      "path": "src/components/vue/dashboard/",
+      "description": "Main dashboard and analytics",
+      "components": [
+        "DashboardLayout",
+        "DashboardStats",
+        "DashboardQuickActions",
+        "EnhancedDashboard"
+      ]
+    },
+    "file-browser": {
+      "path": "src/components/vue/file-browser/",
+      "description": "File browsing and management",
+      "components": [
+        "EnhancedFileBrowser",
+        "DirectoryPickerFixed",
+        "DragDropAnalysis"
+      ]
+    },
+    "performance": {
+      "path": "src/components/performance/",
+      "description": "Performance monitoring and optimization",
+      "components": [
+        "PerformanceMonitor",
+        "RealTimePerformanceMonitor",
+        "PerformanceInsights"
+      ]
+    }
+  },
+  "coreSystems": {
+    "eventBus": "src/core/EventBus.ts",
+    "performanceMonitor": "src/core/PerformanceMonitor.ts",
+    "serviceRegistry": "src/core/ServiceRegistry.ts",
+    "errorHandling": "src/components/vue/error-handling/",
+    "stateManagement": "src/store/",
+    "routing": "src/router/"
+  },
+  "apis": {
+    "rest": "server/routes/",
+    "websocket": "server/modules/websocket.js",
+    "ai": [
+      "server/services/ai/",
+      "src/services/ai/"
+    ]
+  },
+  "database": {
+    "type": "SQLite",
+    "connection": "server/db/core.js",
+    "migrations": "server/db/",
+    "models": "server/src/models/"
+  },
+  "testing": {
+    "e2e": "tests/e2e/",
+    "unit": "src/**/*.test.ts",
+    "integration": "tests/api/",
+    "load": "tests/load/"
+  },
+  "development": {
+    "scripts": "scripts/",
+    "config": [
+      "vite.config.ts",
+      "playwright.config.ts",
+      "tailwind.config.js"
+    ],
+    "debug": "src/debug.ts"
+  },
+  "documentation": {
+    "readme": "README.md",
+    "changelog": "CHANGELOG.md",
+    "api": "docs/api/",
+    "architecture": "docs/architecture/"
+  }
+}

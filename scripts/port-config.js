@@ -1,16 +1,38 @@
 #!/usr/bin/env node
 
 /**
- * Port Configuration Manager
+ * Secure Port Configuration Manager
  * Manages port conflicts and configuration for development services
  */
 
+import { fileURLToPath } from "url";
+import path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Security: Validate port numbers
+function validatePort(port) {
+  const num = parseInt(port);
+  return !isNaN(num) && num >= 1024 && num <= 65535;
+}
+
 let ports;
 try {
-  ports = await import("../ports.config.js");
-  ports = ports.default || ports;
+  const configPath = path.join(__dirname, "..", "ports.config.js");
+  const portsModule = await import(configPath);
+  ports = portsModule.default || portsModule;
+
+  // Validate loaded configuration
+  if (ports.VITE_DEV_PORT && !validatePort(ports.VITE_DEV_PORT)) {
+    throw new Error(`Invalid VITE_DEV_PORT: ${ports.VITE_DEV_PORT}`);
+  }
+  if (ports.API_SERVER_PORT && !validatePort(ports.API_SERVER_PORT)) {
+    throw new Error(`Invalid API_SERVER_PORT: ${ports.API_SERVER_PORT}`);
+  }
 } catch (error) {
   console.warn("⚠️  Could not load ports config, using defaults");
+  console.warn("   Error:", error.message);
   ports = {
     VITE_DEV_PORT: 5173,
     API_SERVER_PORT: 8080,

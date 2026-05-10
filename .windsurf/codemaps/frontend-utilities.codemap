@@ -1,0 +1,331 @@
+{
+  "name": "Frontend Utilities Domain",
+  "description": "Frontend utilities, composables, hooks, and helper functions",
+  "path": ["src/composables/", "src/hooks/", "src/utils/", "src/core/"],
+  "type": "utility-domain",
+  "composables": {
+    "use3DVisualization": {
+      "path": "src/composables/use3DVisualization.ts",
+      "purpose": "3D scene management and rendering",
+      "dependencies": ["three"],
+      "returns": [
+        "scene",
+        "camera", 
+        "renderer",
+        "controls",
+        "animate",
+        "cleanup"
+      ],
+      "features": [
+        "Scene initialization",
+        "Animation loop",
+        "Performance optimization",
+        "Memory management"
+      ]
+    },
+    "useAIChat": {
+      "path": "src/composables/useAIChat.ts",
+      "purpose": "AI chat state management",
+      "dependencies": [
+        "src/services/ai/AIChatService.ts",
+        "src/store/chatStore.ts"
+      ],
+      "returns": [
+        "messages",
+        "isLoading",
+        "error",
+        "sendMessage",
+        "clearChat",
+        "streamResponse"
+      ],
+      "features": [
+        "Real-time streaming",
+        "Message history",
+        "Error handling",
+        "Typing indicators"
+      ]
+    },
+    "useAnalysis": {
+      "path": "src/composables/useAnalysis.ts",
+      "purpose": "Analysis workflow management",
+      "dependencies": [
+        "src/services/AnalysisService.ts",
+        "src/store/analysis.ts"
+      ],
+      "returns": [
+        "analysisData",
+        "isAnalyzing",
+        "progress",
+        "startAnalysis",
+        "cancelAnalysis",
+        "getResults"
+      ]
+    },
+    "useDashboard": {
+      "path": "src/composables/useDashboard.ts",
+      "purpose": "Dashboard state and data management",
+      "dependencies": [
+        "src/services/DashboardService.ts",
+        "src/store/dashboard.ts"
+      ],
+      "returns": [
+        "dashboardData",
+        "widgets",
+        "refreshData",
+        "updateWidget"
+      ]
+    },
+    "useErrorLogs": {
+      "path": "src/composables/useErrorLogs.ts",
+      "purpose": "Error logging and management",
+      "dependencies": [
+        "src/services/DebugLogger.ts",
+        "src/core/EventBus.ts"
+      ],
+      "returns": [
+        "errors",
+        "logs",
+        "logError",
+        "clearErrors",
+        "exportLogs"
+      ]
+    },
+    "useKeyboardShortcuts": {
+      "path": "src/composables/useKeyboardShortcuts.ts",
+      "purpose": "Keyboard shortcut management",
+      "dependencies": [],
+      "returns": [
+        "shortcuts",
+        "registerShortcut",
+        "unregisterShortcut",
+        "executeShortcut"
+      ]
+    },
+    "useNetworkVisualization": {
+      "path": "src/composables/useNetworkVisualization.ts",
+      "purpose": "Network graph visualization",
+      "dependencies": ["d3", "vis-network"],
+      "returns": [
+        "networkData",
+        "networkOptions",
+        "updateNetwork",
+        "fitNetwork"
+      ]
+    },
+    "useTauriDesktop": {
+      "path": "src/composables/useTauriDesktop.ts",
+      "purpose": "Tauri desktop integration",
+      "dependencies": ["@tauri-apps/api"],
+      "returns": [
+        "isDesktop",
+        "minimizeWindow",
+        "maximizeWindow",
+        "closeWindow"
+      ]
+    }
+  },
+  "hooks": {
+    "useAccessibility": {
+      "path": "src/hooks/useAccessibility.ts",
+      "purpose": "Accessibility features and ARIA management",
+      "features": [
+        "Screen reader support",
+        "Keyboard navigation",
+        "Focus management",
+        "High contrast mode"
+      ]
+    },
+    "useAnalysisState": {
+      "path": "src/hooks/useAnalysisState.ts",
+      "purpose": "Advanced analysis state management",
+      "features": [
+        "State persistence",
+        "History tracking",
+        "Result caching",
+        "State synchronization"
+      ]
+    },
+    "useDebouncedValue": {
+      "path": "src/hooks/useDebouncedValue.ts",
+      "purpose": "Debounced value handling",
+      "features": [
+        "Input debouncing",
+        "Search optimization",
+        "Performance improvement"
+      ]
+    },
+    "useDependencyAnalysis": {
+      "path": "src/hooks/useDependencyAnalysis.ts",
+      "purpose": "Dependency analysis utilities",
+      "features": [
+        "Graph building",
+        "Circular detection",
+        "Impact analysis",
+        "Optimization suggestions"
+      ]
+    },
+    "useEnhancedVirtualScroll": {
+      "path": "src/hooks/useEnhancedVirtualScroll.ts",
+      "purpose": "Advanced virtual scrolling",
+      "features": [
+        "Dynamic item heights",
+        "Buffer management",
+        "Performance optimization",
+        "Smooth scrolling"
+      ]
+    },
+    "useFileBrowserState": {
+      "path": "src/hooks/useFileBrowserState.ts",
+      "purpose": "File browser state management",
+      "features": [
+        "Navigation history",
+        "Selection state",
+        "View preferences",
+        "Search state"
+      ]
+    },
+    "useFileOperations": {
+      "path": "src/hooks/useFileOperations.ts",
+      "purpose": "File operation utilities",
+      "features": [
+        "File operations",
+        "Progress tracking",
+        "Error handling",
+        "Batch operations"
+      ]
+    },
+    "useGPUMemoryVisualization": {
+      "path": "src/hooks/useGPUMemoryVisualization.ts",
+      "purpose": "GPU memory visualization",
+      "features": [
+        "Memory tracking",
+        "Visualization",
+        "Performance metrics",
+        "Optimization suggestions"
+      ]
+    },
+    "useIndexedDB": {
+      "path": "src/hooks/useIndexedDB.ts",
+      "purpose": "IndexedDB operations",
+      "features": [
+        "Database operations",
+        "Caching",
+        "Offline support",
+        "Data synchronization"
+      ]
+    },
+    "useKeyboardNavigation": {
+      "path": "src/hooks/useKeyboardNavigation.ts",
+      "purpose": "Advanced keyboard navigation",
+      "features": [
+        "Arrow key navigation",
+        "Tab management",
+        "Shortcuts",
+        "Focus trapping"
+      ]
+    },
+    "usePerformanceMonitor": {
+      "path": "src/hooks/usePerformanceMonitor.ts",
+      "purpose": "Performance monitoring",
+      "features": [
+        "Metrics collection",
+        "Performance alerts",
+        "Optimization suggestions",
+        "Trend analysis"
+      ]
+    },
+    "useVirtualScroll": {
+      "path": "src/hooks/useVirtualScroll.ts",
+      "purpose": "Virtual scrolling implementation",
+      "features": [
+        "Large dataset handling",
+        "Memory efficiency",
+        "Smooth scrolling",
+        "Dynamic loading"
+      ]
+    }
+  },
+  "core": {
+    "EventBus": {
+      "path": "src/core/EventBus.ts",
+      "purpose": "Application-wide event system",
+      "features": [
+        "Event emission",
+        "Event listening",
+        "Event filtering",
+        "Error handling"
+      ]
+    },
+    "PerformanceMonitor": {
+      "path": "src/core/PerformanceMonitor.ts",
+      "purpose": "Application performance monitoring",
+      "features": [
+        "Metrics collection",
+        "Performance alerts",
+        "Resource monitoring",
+        "Optimization tracking"
+      ]
+    },
+    "ServiceRegistry": {
+      "path": "src/core/ServiceRegistry.ts",
+      "purpose": "Service registration and dependency injection",
+      "features": [
+        "Service registration",
+        "Dependency resolution",
+        "Lifecycle management",
+        "Service discovery"
+      ]
+    }
+  },
+  "utils": {
+    "fileUtils": {
+      "path": "src/utils/fileUtils.ts",
+      "purpose": "File operation utilities",
+      "functions": [
+        "formatFileSize",
+        "getFileExtension",
+        "isValidPath",
+        "normalizePath"
+      ]
+    },
+    "DataPersistence": {
+      "path": "src/utils/DataPersistence.ts",
+      "purpose": "Data persistence utilities",
+      "features": [
+        "LocalStorage management",
+        "SessionStorage",
+        "IndexedDB wrapper",
+        "Data synchronization"
+      ]
+    },
+    "DebugUtils": {
+      "path": "src/utils/DebugUtils.ts",
+      "purpose": "Debugging utilities",
+      "features": [
+        "Logging utilities",
+        "Performance profiling",
+        "Error tracking",
+        "Debug state management"
+      ]
+    },
+    "performance": {
+      "path": "src/utils/performance.ts",
+      "purpose": "Performance optimization utilities",
+      "features": [
+        "Debouncing",
+        "Throttling",
+        "Memoization",
+        "Lazy loading"
+      ]
+    }
+  },
+  "testing": {
+    "unit": [
+      "src/composables/__tests__/",
+      "src/hooks/__tests__/",
+      "src/utils/__tests__/"
+    ],
+    "integration": "src/test/",
+    "e2e": "tests/e2e/utilities.spec.ts"
+  }
+}

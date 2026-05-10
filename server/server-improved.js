@@ -47,7 +47,7 @@ const { isValidPath, normalizePath } = require("./modules/file-utils");
 class ImprovedSpaceAnalyzerServer {
   constructor() {
     this.app = express();
-    this.port = parseInt(process.env.PORT) || 8080;
+    this.port = parseInt(process.env.BACKEND_PORT || process.env.PORT) || 8080;
     this.eventEmitter = new EventEmitter();
     this.errorLogger = getErrorLogger();
     this.rateLimitStore = new Map();
@@ -545,20 +545,8 @@ class ImprovedSpaceAnalyzerServer {
    * Setup minimal essential routes when full setup fails
    */
   setupMinimalRoutes() {
-    // Basic health check
-    this.app.get("/api/health", (req, res) => {
-      res.json({
-        success: true,
-        status: "degraded",
-        message: "Running in minimal mode",
-        timestamp: new Date().toISOString(),
-        services: {
-          database: this.services.database.status,
-          routes: "minimal",
-          server: this.services.server.status,
-        },
-      });
-    });
+    // Note: Health endpoint is already set up in setupHealthChecks()
+    // This minimal setup only adds backup routes
 
     // Basic status endpoint
     this.app.get("/api/status", (req, res) => {
@@ -635,68 +623,6 @@ class ImprovedSpaceAnalyzerServer {
         console.log(`🌐 API available at: http://localhost:${this.port}/api`);
         resolve(server);
       });
-    });
-  }
-
-  /**
-   * Enhanced health check endpoint
-   */
-  setupHealthChecks() {
-    this.app.get("/api/health", async (req, res) => {
-      try {
-        const os = require("os");
-        const memUsage = process.memoryUsage();
-        const uptime = process.uptime();
-
-        // Check all services
-        const services = {
-          database: this.services.database.status,
-          routes: this.services.routes.status,
-          server: this.services.server.status,
-        };
-
-        // Calculate overall health score
-        const healthyServices = Object.values(services).filter(
-          (s) => s === "healthy" || s === "loaded"
-        ).length;
-        const totalServices = Object.keys(services).length;
-        const healthScore = (healthyServices / totalServices) * 100;
-
-        const healthData = {
-          success: true,
-          status: healthScore >= 80 ? "healthy" : healthScore >= 60 ? "degraded" : "unhealthy",
-          score: Math.round(healthScore),
-          timestamp: Temporal.Now.plainDateTimeISO().toString(),
-          uptime: uptime,
-          services: services,
-          memory: {
-            used: memUsage.heapUsed,
-            total: memUsage.heapTotal,
-            external: memUsage.external,
-            system: {
-              total: os.totalmem(),
-              free: os.freemem(),
-              used: os.totalmem() - os.freemem(),
-            },
-          },
-          metrics: this.metrics,
-          version: "2.8.9",
-          service: "Space Analyzer Backend",
-          ready: healthScore >= 60,
-        };
-
-        // Set appropriate status code
-        const statusCode = healthScore >= 60 ? 200 : 503;
-        res.status(statusCode).json(healthData);
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          status: "error",
-          error: "Health check failed",
-          message: error.message,
-          timestamp: Temporal.Now.plainDateTimeISO().toString(),
-        });
-      }
     });
   }
 

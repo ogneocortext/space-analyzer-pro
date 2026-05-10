@@ -283,13 +283,13 @@ Test Categories:
           resolve(code);
         } else {
           console.log(`❌ Tests failed with exit code ${code}`);
-          reject(code);
+          process.exit(code);
         }
       });
 
       child.on("error", (error) => {
         console.error("❌ Error running tests:", error);
-        reject(error);
+        process.exit(1);
       });
     });
   }

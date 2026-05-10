@@ -4,7 +4,7 @@
  * Provides intelligent backend selection, rate limiting, and unified error handling
  */
 
-import { ollamaService } from "./OllamaService";
+import { OllamaService, ollamaService } from "./OllamaService";
 import { GoogleAIService } from "./GoogleAIService";
 import PythonAIService from "./PythonAIService";
 import { ollamaRateLimiter } from "./OllamaRateLimiter";

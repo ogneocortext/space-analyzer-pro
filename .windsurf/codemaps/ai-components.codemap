@@ -1,0 +1,155 @@
+{
+  "name": "AI Components Domain",
+  "description": "AI-powered analysis, chat, and machine learning components",
+  "path": "src/components/vue/ai/",
+  "type": "feature-domain",
+  "components": {
+    "AIAnalysisPanel": {
+      "file": "AIAnalysisPanel.vue",
+      "purpose": "Main AI analysis interface",
+      "dependencies": [
+        "src/services/ai/AIService.ts",
+        "src/composables/useAnalysis.ts",
+        "src/store/analysis.ts"
+      ],
+      "props": {
+        "analysisData": "Object",
+        "aiModel": "String",
+        "isAnalyzing": "Boolean"
+      },
+      "events": [
+        "analysis-started",
+        "analysis-completed", 
+        "analysis-error"
+      ]
+    },
+    "EnhancedAIChat": {
+      "file": "EnhancedAIChat.vue",
+      "purpose": "Advanced AI chat interface with streaming",
+      "dependencies": [
+        "src/services/ai/AIChatService.ts",
+        "src/composables/useAIChat.ts",
+        "src/composables/useStreamingChat.ts"
+      ],
+      "features": [
+        "Real-time streaming",
+        "Context awareness",
+        "Multi-model support",
+        "Chat history"
+      ],
+      "subcomponents": [
+        "ChatHeader.vue",
+        "ChatInput.vue", 
+        "ChatMessages.vue",
+        "ChatSuggestions.vue"
+      ]
+    },
+    "AIFeaturesPanel": {
+      "file": "AIFeaturesPanel.vue",
+      "purpose": "AI feature controls and settings",
+      "dependencies": [
+        "src/services/ai/UnifiedAIService.ts",
+        "src/store/aiSettings.ts"
+      ],
+      "features": [
+        "Model selection",
+        "Feature toggles",
+        "Performance settings"
+      ]
+    },
+    "AIInsights": {
+      "file": "AIInsights.vue",
+      "purpose": "AI-generated insights and recommendations",
+      "dependencies": [
+        "src/services/ai/MLRecommendations.ts",
+        "src/composables/useAISuggestions.ts"
+      ],
+      "features": [
+        "Smart recommendations",
+        "Pattern detection",
+        "Predictive analysis"
+      ]
+    },
+    "AIModelQAComponent": {
+      "file": "AIModelQAComponent.vue",
+      "purpose": "Q&A interface for AI models",
+      "dependencies": [
+        "src/services/ai/OllamaService.ts",
+        "src/services/ai/GoogleAIService.ts"
+      ],
+      "features": [
+        "Multi-model Q&A",
+        "Context preservation",
+        "Answer validation"
+      ]
+    }
+  },
+  "services": {
+    "AIService": {
+      "path": "src/services/ai/AIService.ts",
+      "purpose": "Core AI service abstraction layer",
+      "methods": [
+        "analyze",
+        "chat",
+        "getRecommendations",
+        "getModelStatus"
+      ]
+    },
+    "AIChatService": {
+      "path": "src/services/ai/AIChatService.ts",
+      "purpose": "Chat-specific AI service",
+      "features": [
+        "Streaming responses",
+        "Conversation memory",
+        "Context injection"
+      ]
+    },
+    "UnifiedAIService": {
+      "path": "src/services/ai/UnifiedAIService.ts",
+      "purpose": "Unified interface for multiple AI backends",
+      "backends": [
+        "Ollama",
+        "Google AI",
+        "Python ML"
+      ]
+    }
+  },
+  "composables": {
+    "useAIChat": {
+      "path": "src/composables/useAIChat.ts",
+      "purpose": "AI chat state management",
+      "returns": [
+        "messages",
+        "isLoading",
+        "sendMessage",
+        "clearChat"
+      ]
+    },
+    "useAISuggestions": {
+      "path": "src/composables/useAISuggestions.ts",
+      "purpose": "AI suggestions and recommendations",
+      "returns": [
+        "suggestions",
+        "getSuggestions",
+        "applySuggestion"
+      ]
+    }
+  },
+  "backend": {
+    "routes": "server/routes/ai.js",
+    "services": [
+      "server/services/ai/",
+      "server/modules/ollama-service.js"
+    ],
+    "models": [
+      "Ollama",
+      "Google AI",
+      "Python ML models"
+    ]
+  },
+  "testing": {
+    "unit": "src/test/ai-chat-refactored.test.ts",
+    "e2e": "tests/e2e/ai-interaction.spec.ts",
+    "integration": "tests/api/ai-service.test.js"
+  }
+}

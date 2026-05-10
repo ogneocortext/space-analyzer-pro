@@ -2,10 +2,10 @@
   "name": "space-analyzer-backend",
   "version": "2.1.0",
   "description": "Modern, modular backend for Space Analyzer with enhanced security and performance",
-  "main": "src/app.js",
+  "main": "server-improved.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js",
+    "start": "node server-improved.js",
+    "dev": "nodemon server-improved.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

@@ -1,0 +1,261 @@
+{
+  "name": "Scan History & Progress Workflow",
+  "description": "Complete scan history and progress tracking workflow with real-time updates",
+  "path": ["src/features/scanning/", "src/services/ScannerService.ts", "src/store/"],
+  "type": "workflow-domain",
+  "workflow": {
+    "scanHistoryFlow": {
+      "trigger": "ScanHistoryView.onMounted",
+      "steps": [
+        {
+          "id": "1a",
+          "component": "ScanHistoryView.vue",
+          "method": "onMounted",
+          "purpose": "Initialize scan history display",
+          "next": ["1b", "1c"]
+        },
+        {
+          "id": "1b", 
+          "component": "Store",
+          "method": "getAnalysisHistory",
+          "purpose": "Primary data retrieval method",
+          "fallback": "1c",
+          "next": ["1d"]
+        },
+        {
+          "id": "1c",
+          "component": "Direct API",
+          "method": "fetch /analysis/history",
+          "purpose": "Fallback API call",
+          "next": ["3a"]
+        },
+        {
+          "id": "1d",
+          "component": "Store",
+          "method": "delegates to ScannerService",
+          "purpose": "Service delegation pattern",
+          "next": ["1e"]
+        },
+        {
+          "id": "1e",
+          "component": "ScannerService",
+          "method": "API call to /analysis/history",
+          "purpose": "Actual API communication",
+          "next": ["3a"]
+        }
+      ]
+    },
+    "progressTrackingFlow": {
+      "trigger": "ProgressTracker.startTracking",
+      "steps": [
+        {
+          "id": "2a",
+          "component": "ProgressTracker",
+          "method": "startTracking",
+          "purpose": "Initialize progress tracking with callbacks",
+          "next": ["2b"]
+        },
+        {
+          "id": "2b",
+          "component": "ScannerService", 
+          "method": "startScanning",
+          "purpose": "Start scanning with progress callback",
+          "next": ["2c", "4d"]
+        },
+        {
+          "id": "2c",
+          "component": "Backend",
+          "method": "startProgressPolling",
+          "purpose": "Initialize backend progress polling",
+          "next": ["4c"]
+        },
+        {
+          "id": "4a",
+          "component": "ProgressTracker",
+          "method": "polls /progress/:analysisId every 1s",
+          "purpose": "Real-time progress polling",
+          "next": ["4b"]
+        },
+        {
+          "id": "4b",
+          "component": "Backend API",
+          "endpoint": "GET /progress/:analysisId",
+          "purpose": "Progress endpoint",
+          "next": ["4c"]
+        },
+        {
+          "id": "4c",
+          "component": "Backend Memory",
+          "method": "update progress in activeAnalyses",
+          "purpose": "Progress state management",
+          "next": ["Memory"]
+        },
+        {
+          "id": "4d",
+          "component": "ProgressManager",
+          "method": "handles updates",
+          "purpose": "Progress update coordination",
+          "next": ["4a"]
+        }
+      ]
+    }
+  },
+  "components": {
+    "ScanHistoryView": {
+      "path": "src/features/scanning/ScanHistoryView.vue",
+      "purpose": "Main scan history interface",
+      "lifecycle": ["onMounted"],
+      "dependencies": [
+        "src/store/analysis.ts",
+        "src/services/ScannerService.ts",
+        "src/hooks/useAnalysisState.ts"
+      ],
+      "methods": {
+        "onMounted": "Initializes scan history retrieval",
+        "loadHistory": "Loads scan history from store/API",
+        "handleScanSelect": "Handles scan selection for details"
+      }
+    },
+    "ProgressTracker": {
+      "path": "src/services/ProgressTracker.ts",
+      "purpose": "Real-time progress tracking service",
+      "features": [
+        "Polling every 1 second",
+        "Callback-based updates",
+        "Error handling",
+        "Automatic cleanup"
+      ],
+      "methods": {
+        "startTracking": "Initialize tracking with callbacks",
+        "stopTracking": "Stop progress tracking",
+        "pollProgress": "Poll progress endpoint",
+        "handleProgress": "Process progress updates"
+      }
+    }
+  },
+  "services": {
+    "ScannerService": {
+      "path": "src/services/ScannerService.ts",
+      "purpose": "Core scanning service coordination",
+      "methods": {
+        "startScanning": "Initiate scan with progress tracking",
+        "getAnalysisHistory": "Retrieve scan history",
+        "cancelScanning": "Cancel active scan",
+        "getScanResults": "Retrieve completed scan results"
+      },
+      "dependencies": [
+        "Backend API endpoints",
+        "Progress tracking system",
+        "Store integration"
+      ]
+    }
+  },
+  "backend": {
+    "api": {
+      "history": {
+        "endpoint": "GET /analysis/history",
+        "controller": "server/routes/analysis.js",
+        "method": "getAnalysisHistory",
+        "database": "knowledgeDB.analysis",
+        "fallback": "Server memory map"
+      },
+      "progress": {
+        "endpoint": "GET /progress/:analysisId", 
+        "controller": "server/routes/analysis.js",
+        "method": "getProgress",
+        "storage": "activeAnalyses map"
+      }
+    },
+    "storage": {
+      "database": {
+        "type": "SQLite",
+        "table": "knowledgeDB.analysis",
+        "purpose": "Persistent scan history storage"
+      },
+      "memory": {
+        "type": "Map",
+        "name": "analysisResults",
+        "purpose": "In-memory scan results and cache"
+      },
+      "active": {
+        "type": "Map", 
+        "name": "activeAnalyses",
+        "purpose": "Active scan progress tracking"
+      }
+    }
+  },
+  "store": {
+    "analysisStore": {
+      "path": "src/store/analysis.ts",
+      "purpose": "Analysis state management",
+      "state": {
+        "scanHistory": "Array of completed scans",
+        "activeScans": "Map of active scans",
+        "progress": "Progress tracking data"
+      },
+      "actions": {
+        "getAnalysisHistory": "Retrieve scan history",
+        "startScanning": "Initiate new scan",
+        "updateProgress": "Update scan progress",
+        "completeScan": "Mark scan as complete"
+      }
+    }
+  },
+  "dataFlow": {
+    "scanHistory": [
+      "ScanHistoryView → Store.getAnalysisHistory",
+      "Store → ScannerService delegation",
+      "ScannerService → Backend API",
+      "Backend → Database query",
+      "Backend → Memory fallback"
+    ],
+    "progressUpdates": [
+      "ProgressTracker.startTracking",
+      "ScannerService.startScanning", 
+      "Backend.startProgressPolling",
+      "ProgressTracker.polls every 1s",
+      "Backend updates activeAnalyses",
+      "ProgressManager coordinates updates"
+    ]
+  },
+  "errorHandling": {
+    "fallbacks": [
+      "Store method failure → Direct API call",
+      "Database failure → Memory fallback",
+      "API failure → Error state + retry"
+    ],
+    "resilience": [
+      "Automatic retry mechanisms",
+      "Graceful degradation",
+      "Error state management"
+    ]
+  },
+  "performance": {
+    "optimizations": [
+      "1-second polling interval",
+      "In-memory caching",
+      "Lazy loading of history",
+      "Efficient state updates"
+    ],
+    "considerations": [
+      "Memory usage for active scans",
+      "Database query optimization",
+      "Network request throttling"
+    ]
+  },
+  "testing": {
+    "unit": [
+      "src/services/ProgressTracker.test.ts",
+      "src/services/ScannerService.test.ts",
+      "src/store/analysis.test.ts"
+    ],
+    "integration": [
+      "tests/api/analysis-history.test.js",
+      "tests/api/progress-tracking.test.js"
+    ],
+    "e2e": [
+      "tests/e2e/scan-history-workflow.spec.ts",
+      "tests/e2e/progress-tracking.spec.ts"
+    ]
+  }
+}

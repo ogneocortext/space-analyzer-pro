@@ -1,0 +1,184 @@
+{
+  "name": "Visualization Components Domain",
+  "description": "3D visualization, charts, and data visualization components",
+  "path": ["src/components/3d/", "src/components/charts/", "src/components/vue/visualization/"],
+  "type": "feature-domain",
+  "components": {
+    "FileSystem3DEnhanced": {
+      "file": "3d/FileSystem3DEnhanced.vue",
+      "purpose": "Enhanced 3D file system visualization",
+      "dependencies": [
+        "src/composables/use3DVisualization.ts",
+        "src/composables/use3DControls.ts",
+        "three",
+        "@react-three/fiber"
+      ],
+      "features": [
+        "Interactive 3D navigation",
+        "File hierarchy visualization",
+        "Zoom and pan controls",
+        "Selection and highlighting",
+        "Performance optimization"
+      ],
+      "props": {
+        "fileData": "Array",
+        "selectedPath": "String",
+        "viewMode": "String"
+      }
+    },
+    "Visualization3DCanvas": {
+      "file": "3d/Visualization3DCanvas.vue",
+      "purpose": "3D rendering canvas component",
+      "dependencies": [
+        "three",
+        "src/composables/use3DVisualization.ts",
+        "src/core/PerformanceMonitor.ts"
+      ],
+      "features": [
+        "WebGL rendering",
+        "Scene management",
+        "Lighting system",
+        "Camera controls"
+      ]
+    },
+    "Visualization3DControls": {
+      "file": "3d/Visualization3DControls.vue",
+      "purpose": "3D visualization control panel",
+      "dependencies": [
+        "src/composables/use3DControls.ts"
+      ],
+      "features": [
+        "View mode selection",
+        "Camera controls",
+        "Rendering options",
+        "Performance settings"
+      ]
+    },
+    "GrowthChart": {
+      "file": "charts/GrowthChart.vue",
+      "purpose": "Interactive growth and trend charts",
+      "dependencies": [
+        "d3",
+        "chart.js",
+        "src/composables/useAnalysis.ts"
+      ],
+      "features": [
+        "Time-based visualization",
+        "Interactive tooltips",
+        "Multiple chart types",
+        "Export capabilities"
+      ]
+    },
+    "ActionablePrediction": {
+      "file": "vue/visualization/ActionablePrediction.vue",
+      "purpose": "AI-powered predictive visualization",
+      "dependencies": [
+        "src/services/ai/AIService.ts",
+        "src/composables/useAnalysis.ts"
+      ],
+      "features": [
+        "Predictive analytics",
+        "Actionable insights",
+        "Trend forecasting",
+        "Recommendation display"
+      ]
+    }
+  },
+  "composables": {
+    "use3DVisualization": {
+      "path": "src/composables/use3DVisualization.ts",
+      "purpose": "3D visualization state and logic",
+      "dependencies": ["three"],
+      "returns": [
+        "scene",
+        "camera",
+        "renderer",
+        "animate",
+        "handleResize"
+      ],
+      "features": [
+        "Scene initialization",
+        "Animation loop",
+        "Performance optimization",
+        "Memory management"
+      ]
+    },
+    "use3DControls": {
+      "path": "src/composables/use3DControls.ts",
+      "purpose": "3D interaction controls",
+      "returns": [
+        "cameraPosition",
+        "zoomLevel",
+        "rotation",
+        "setCameraPosition",
+        "resetView"
+      ]
+    },
+    "useNetworkVisualization": {
+      "path": "src/composables/useNetworkVisualization.ts",
+      "purpose": "Network graph visualization",
+      "dependencies": ["d3", "vis-network"],
+      "returns": [
+        "networkData",
+        "networkOptions",
+        "updateNetwork",
+        "fitNetwork"
+      ]
+    }
+  },
+  "services": {
+    "DependencyVisualizationService": {
+      "path": "src/services/DependencyVisualizationService/",
+      "purpose": "Dependency graph visualization service",
+      "modules": [
+        "GraphBuilder.ts",
+        "CircularDependencyDetector.ts",
+        "LayerAnalyzer.ts",
+        "MetricsCalculator.ts",
+        "OptimizationEngine.ts"
+      ],
+      "features": [
+        "Graph construction",
+        "Layout algorithms",
+        "Dependency analysis",
+        "Optimization suggestions"
+      ]
+    }
+  },
+  "libraries": {
+    "three": {
+      "purpose": "3D graphics rendering",
+      "version": "^0.150.0",
+      "usage": "3D file system visualization"
+    },
+    "d3": {
+      "purpose": "Data visualization",
+      "version": "^7.8.0",
+      "usage": "Charts and network graphs"
+    },
+    "chart.js": {
+      "purpose": "Chart rendering",
+      "version": "^4.4.0",
+      "usage": "Growth and analytics charts"
+    }
+  },
+  "performance": {
+    "optimization": [
+      "Level of Detail (LOD)",
+      "Frustum culling",
+      "Texture compression",
+      "Instance rendering"
+    ],
+    "monitoring": [
+      "Frame rate tracking",
+      "Memory usage",
+      "GPU utilization",
+      "Render time analysis"
+    ]
+  },
+  "testing": {
+    "unit": "src/test/3d-visualization.test.ts",
+    "e2e": "tests/e2e/3d-interaction.spec.ts",
+    "performance": "tests/performance/3d-rendering.test.ts"
+  }
+}

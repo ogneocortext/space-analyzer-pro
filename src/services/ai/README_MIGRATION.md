@@ -17,7 +17,6 @@ src/services/ai/
 ├── DataPersistence.ts
 ├── EnhancedSelfLearningService.ts
 ├── GoogleAIService.ts
-├── OllamaAI.ts
 ├── OllamaRateLimiter.ts
 ├── OllamaService.ts
 ├── PythonAIService.ts
