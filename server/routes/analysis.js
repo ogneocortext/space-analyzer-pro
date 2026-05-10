@@ -77,7 +77,14 @@ class AnalysisRoutes {
 
       // Use native Node.js scanner module with proper path resolution
       try {
-        const nativeScannerPath = path.join(__dirname, '..', '..', 'native', 'scanner', 'index.node');
+        const nativeScannerPath = path.join(
+          __dirname,
+          "..",
+          "..",
+          "native",
+          "scanner",
+          "index.node"
+        );
         let SpaceAnalyzer;
         if (fs.existsSync(nativeScannerPath)) {
           SpaceAnalyzer = require(nativeScannerPath);
@@ -578,7 +585,10 @@ class AnalysisRoutes {
         // Get from database
         if (this.server?.knowledgeDB?.analysis?.getAnalysisHistory) {
           try {
-            const dbResult = await this.server.knowledgeDB.analysis.getAnalysisHistory(maxLimit, skip);
+            const dbResult = await this.server.knowledgeDB.analysis.getAnalysisHistory(
+              maxLimit,
+              skip
+            );
             analyses = dbResult.analyses || [];
             return res.json({
               success: true,
@@ -618,6 +628,62 @@ class AnalysisRoutes {
         });
       } catch (error) {
         console.error("❌ History endpoint error:", error.message);
+        return res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    // Get specific analysis by ID
+    this.router.get("/history/:analysisId", async (req, res) => {
+      try {
+        const { analysisId } = req.params;
+
+        // Get from database
+        if (this.server?.knowledgeDB?.analysis?.getAnalysisById) {
+          try {
+            const dbResult = await this.server.knowledgeDB.analysis.getAnalysisById(analysisId);
+            if (dbResult.success && dbResult.analysis) {
+              return res.json({
+                success: true,
+                analysis: dbResult.analysis,
+                analysisId,
+                source: "database",
+              });
+            }
+          } catch (dbError) {
+            console.warn("⚠️ Database query failed:", dbError.message);
+          }
+        }
+
+        // Fallback to in-memory results
+        if (this.server?.analysisResults?.has(analysisId)) {
+          const result = this.server.analysisResults.get(analysisId);
+          return res.json({
+            success: true,
+            analysis: {
+              analysisId,
+              directory: result.directoryPath || result.path || "Unknown",
+              status: result.status || "complete",
+              lastAnalyzed: result.completedAt || result.endTime,
+              startTime: result.startTime,
+              totalFiles: result.totalFiles || result.filesScanned || 0,
+              totalSize: result.totalSize || 0,
+              files: result.files || [],
+            },
+            analysisId,
+            source: "memory",
+          });
+        }
+
+        return res.status(404).json({
+          success: false,
+          error: "Analysis not found",
+          analysisId,
+        });
+      } catch (error) {
+        console.error("❌ History by ID endpoint error:", error.message);
         return res.status(500).json({
           success: false,
           error: error.message,

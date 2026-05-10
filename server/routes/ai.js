@@ -15,7 +15,7 @@ class AIRoutes {
 
   setupRoutes() {
     // AI Insights endpoint
-    this.router.post("/ai/insights", async (req, res) => {
+    this.router.post("/insights", async (req, res) => {
       const startTime = Date.now();
       try {
         const { analysisData, query } = req.body;
@@ -48,7 +48,7 @@ class AIRoutes {
     });
 
     // AI File Summarization
-    this.router.post("/ai/summarize", async (req, res) => {
+    this.router.post("/summarize", async (req, res) => {
       const startTime = Date.now();
       try {
         const { filePath, maxChars = 5000, model = "phi4-mini:latest" } = req.body;
@@ -150,7 +150,7 @@ class AIRoutes {
     });
 
     // Natural Language File Search
-    this.router.post("/ai/nl-query", async (req, res) => {
+    this.router.post("/nl-query", async (req, res) => {
       const startTime = Date.now();
       try {
         const { query, analysisId } = req.body;
@@ -194,7 +194,7 @@ class AIRoutes {
     });
 
     // Cleanup Assistant - Generate recommendations
-    this.router.post("/ai/cleanup/analyze", async (req, res) => {
+    this.router.post("/cleanup/analyze", async (req, res) => {
       const startTime = Date.now();
       try {
         const { directory, analysisId, targetSavings } = req.body;
@@ -257,7 +257,7 @@ class AIRoutes {
     });
 
     // Get cleanup recommendations
-    this.router.get("/ai/cleanup/recommendations", async (req, res) => {
+    this.router.get("/cleanup/recommendations", async (req, res) => {
       try {
         const { directory, type, limit = 50 } = req.query;
 
@@ -299,7 +299,7 @@ class AIRoutes {
     });
 
     // Update recommendation action (approve/reject)
-    this.router.post("/ai/cleanup/action", async (req, res) => {
+    this.router.post("/cleanup/action", async (req, res) => {
       try {
         const { filePath, action } = req.body;
 
@@ -330,7 +330,7 @@ class AIRoutes {
     });
 
     // AI QA Endpoint
-    this.router.post("/ai-models/qa", async (req, res) => {
+    this.router.post("/models/qa", async (req, res) => {
       const startTime = Date.now();
       try {
         const { question, directory, analysisId } = req.body;
@@ -390,7 +390,7 @@ class AIRoutes {
     });
 
     // AI Chat endpoint for conversational AI
-    this.router.post("/ai-chat", async (req, res) => {
+    this.router.post("/chat", async (req, res) => {
       const startTime = Date.now();
       try {
         const { message, context } = req.body;

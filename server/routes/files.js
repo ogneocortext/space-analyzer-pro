@@ -54,7 +54,7 @@ class FileRoutes {
 
   setupRoutes() {
     // Delete file
-    this.router.post("/files/delete", async (req, res) => {
+    this.router.post("/delete", async (req, res) => {
       try {
         const { path: filePath } = req.body;
 
@@ -82,7 +82,7 @@ class FileRoutes {
     });
 
     // Rename file
-    this.router.post("/files/rename", async (req, res) => {
+    this.router.post("/rename", async (req, res) => {
       try {
         const { oldPath, newName } = req.body;
 
@@ -120,7 +120,7 @@ class FileRoutes {
     });
 
     // Reveal file in explorer
-    this.router.post("/files/reveal", async (req, res) => {
+    this.router.post("/reveal", async (req, res) => {
       const { path: filePath } = req.body;
 
       if (!filePath || !this.server.isValidPath(filePath)) {
@@ -150,7 +150,7 @@ class FileRoutes {
     });
 
     // Open file explorer at location
-    this.router.post("/files/open-explorer", async (req, res) => {
+    this.router.post("/open-explorer", async (req, res) => {
       try {
         const homeDir = os.homedir();
         if (process.platform === "win32") {
@@ -169,7 +169,7 @@ class FileRoutes {
     });
 
     // Search files
-    this.router.post("/files/search", async (req, res) => {
+    this.router.post("/search", async (req, res) => {
       try {
         const {
           directory,
@@ -273,7 +273,7 @@ class FileRoutes {
     });
 
     // Browse for folder (folder selection dialog)
-    this.router.post("/files/browse", async (req, res) => {
+    this.router.post("/browse", async (req, res) => {
       try {
         // Since we can't actually open a file dialog from the server,
         // we return common directories as suggestions

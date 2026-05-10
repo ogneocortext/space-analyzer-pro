@@ -3,19 +3,19 @@
  * Provides structured logging with levels, filtering, and persistence
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 class Logger {
   constructor(options = {}) {
     this.options = {
-      level: options.level || 'info',
+      level: options.level || "info",
       enableFileLogging: options.enableFileLogging !== false,
       enableConsoleLogging: options.enableConsoleLogging !== false,
-      logDirectory: options.logDirectory || path.join(__dirname, '..', 'logs'),
+      logDirectory: options.logDirectory || path.join(__dirname, "..", "logs"),
       maxFileSize: options.maxFileSize || 10 * 1024 * 1024, // 10MB
       maxFiles: options.maxFiles || 10,
-      ...options
+      ...options,
     };
 
     this.levels = {
@@ -23,7 +23,7 @@ class Logger {
       warn: 1,
       info: 2,
       debug: 3,
-      trace: 4
+      trace: 4,
     };
 
     this.ensureLogDirectory();
@@ -39,7 +39,7 @@ class Logger {
           fs.mkdirSync(this.options.logDirectory, { recursive: true });
         }
       } catch (error) {
-        console.error('Failed to create log directory:', error);
+        console.error("Failed to create log directory:", error);
       }
     }
   }
@@ -55,19 +55,19 @@ class Logger {
       message,
       meta,
       pid: process.pid,
-      hostname: require('os').hostname(),
-      memory: process.memoryUsage()
+      hostname: require("os").hostname(),
+      memory: process.memoryUsage(),
     };
 
-    return JSON.stringify(entry) + '\n';
+    return JSON.stringify(entry) + "\n";
   }
 
   /**
    * Get level name
    */
   getLevelName(level) {
-    const levelNames = ['error', 'warn', 'info', 'debug', 'trace'];
-    return levelNames[level] || 'info';
+    const levelNames = ["error", "warn", "info", "debug", "trace"];
+    return levelNames[level] || "info";
   }
 
   /**
@@ -84,7 +84,7 @@ class Logger {
     if (!this.options.enableFileLogging) return;
 
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split("T")[0];
       const logFile = path.join(this.options.logDirectory, `space-analyzer-${today}.log`);
 
       // Check file size and rotate if needed
@@ -92,8 +92,11 @@ class Logger {
         const stats = fs.statSync(logFile);
         if (stats.size > this.options.maxFileSize) {
           // Rotate file
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const backupFile = path.join(this.options.logDirectory, `space-analyzer-${timestamp}.log`);
+          const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+          const backupFile = path.join(
+            this.options.logDirectory,
+            `space-analyzer-${timestamp}.log`
+          );
           fs.renameSync(logFile, backupFile);
         }
       } catch (rotateError) {
@@ -102,11 +105,11 @@ class Logger {
 
       fs.appendFileSync(logFile, formattedEntry);
     } catch (writeError) {
-      console.error('Failed to write to log file:', writeError);
+      console.error("Failed to write to log file:", writeError);
     }
-    } catch (error) {
-      console.error('Failed to access log file:', error);
-    }
+  }
+  catch(error) {
+    console.error("Failed to access log file:", error);
   }
 
   /**
@@ -116,18 +119,18 @@ class Logger {
     if (!this.options.enableConsoleLogging) return;
 
     const colors = {
-      error: '\x1b[31m',
-      warn: '\x1b[33m',
-      info: '\x1b[36m',
-      debug: '\x1b[35m',
-      trace: '\x1b[37m',
-      reset: '\x1b[0m'
+      error: "\x1b[31m",
+      warn: "\x1b[33m",
+      info: "\x1b[36m",
+      debug: "\x1b[35m",
+      trace: "\x1b[37m",
+      reset: "\x1b[0m",
     };
 
-    const color = colors[level] || '';
+    const color = colors[level] || "";
     const levelName = this.getLevelName(level).toUpperCase().padEnd(5);
 
-    console.log(`${color}[${levelName}]${this.reset} ${formattedEntry}${color}`);
+    console.log(`${color}[${levelName}]${colors.reset} ${formattedEntry}${colors.reset}`);
   }
 
   /**
@@ -159,7 +162,7 @@ class Logger {
 
   debug(message, meta = {}) {
     if (this.shouldLog(this.levels.debug)) {
-      const formattedEntry = this.formatEntry(this.levels.debug, message, middleware);
+      const formattedEntry = this.formatEntry(this.levels.debug, message, meta);
       this.writeToFile(this.levels.debug, formattedEntry);
       this.writeToConsole(this.levels.debug, formattedEntry);
     }
@@ -180,7 +183,7 @@ class Logger {
     this.info(`Performance: ${operation}`, {
       duration: `${duration}ms`,
       operation,
-      ...metadata
+      ...metadata,
     });
   }
 
@@ -190,7 +193,7 @@ class Logger {
   security(event, details = {}) {
     this.warn(`Security Event: ${event}`, {
       event,
-      ...details
+      ...details,
     });
   }
 
@@ -200,7 +203,7 @@ class Logger {
   database(operation, details = {}) {
     this.info(`Database: ${operation}`, {
       operation,
-      ...details
+      ...details,
     });
   }
 
@@ -213,7 +216,7 @@ class Logger {
       url,
       statusCode,
       duration: `${duration}ms`,
-      ...metadata
+      ...metadata,
     });
   }
 
@@ -225,10 +228,10 @@ class Logger {
       error: {
         name: error.name,
         message: error.message,
-        stack: error.stack
+        stack: error.stack,
       },
       context,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -240,10 +243,10 @@ class Logger {
 
     try {
       const files = fs.readdirSync(this.options.logDirectory);
-      const cutoffTime = Date.now() - (maxAge * 24 * 60 * 60 * 1000);
+      const cutoffTime = Date.now() - maxAge * 24 * 60 * 60 * 1000;
 
-      files.forEach(file => {
-        if (file.endsWith('.log')) {
+      files.forEach((file) => {
+        if (file.endsWith(".log")) {
           const filePath = path.join(this.options.logDirectory, file);
           const stats = fs.statSync(filePath);
 
@@ -254,7 +257,7 @@ class Logger {
         }
       });
     } catch (error) {
-      this.error('Failed to cleanup log files:', error);
+      this.error("Failed to cleanup log files:", error);
     }
   }
 
@@ -265,29 +268,32 @@ class Logger {
     if (!this.options.enableFileLogging) return null;
 
     try {
-      const files = fs.readdirSync(this.options.logDirectory)
-        .filter(file => file.endsWith('.log'));
+      const files = fs
+        .readdirSync(this.options.logDirectory)
+        .filter((file) => file.endsWith(".log"));
 
-      const stats = files.map(file => {
+      const stats = files.map((file) => {
         const filePath = path.join(this.options.logDirectory, file);
         const fileStats = fs.statSync(filePath);
         return {
           file,
           size: fileStats.size,
           modified: fileStats.mtime,
-          lines: this.countLines(filePath)
+          lines: this.countLines(filePath),
         };
       });
 
       return {
         totalFiles: files.length,
         totalSize: stats.reduce((sum, stat) => sum + stat.size, 0),
-        oldestFile: stats.reduce((oldest, stat) =>
-          oldest.modified < stat.modified ? stat : oldest, oldest.modified),
-          files: stats
+        oldestFile: stats.reduce(
+          (oldest, stat) => (oldest.modified < stat.modified ? stat : oldest),
+          stats[0]
+        ),
+        files: stats,
       };
     } catch (error) {
-      this.error('Failed to get log stats:', error);
+      this.error("Failed to get log stats:", error);
       return null;
     }
   }
@@ -297,8 +303,8 @@ class Logger {
    */
   countLines(filePath) {
     try {
-      const content = fs.readFileSync(filePath, 'utf8');
-      return content.split('\n').length;
+      const content = fs.readFileSync(filePath, "utf8");
+      return content.split("\n").length;
     } catch (error) {
       return 0;
     }
