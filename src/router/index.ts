@@ -1,8 +1,10 @@
 import { createRouter, createWebHashHistory } from "vue-router";
-import DashboardView from "../features/dashboard/DashboardView.vue";
-import ScanView from "../features/scanning/ScanView.vue";
-import SettingsView from "../features/settings/SettingsView.vue";
-import DuplicateFinderView from "../features/duplicates/DuplicateFinderView.vue";
+
+// Lazy load all route components for faster initial load
+const DashboardView = () => import("../features/dashboard/DashboardView.vue");
+const ScanView = () => import("../features/scanning/ScanView.vue");
+const SettingsView = () => import("../features/settings/SettingsView.vue");
+const DuplicateFinderView = () => import("../features/duplicates/DuplicateFinderView.vue");
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -11,11 +13,13 @@ const router = createRouter({
       path: "/",
       name: "dashboard",
       component: DashboardView,
+      meta: { preload: true }, // Preload dashboard as it's the landing page
     },
     {
       path: "/scan",
       name: "scan",
       component: ScanView,
+      meta: { preload: true }, // Preload scan as it's a core feature
     },
     {
       path: "/scan-history",
@@ -160,6 +164,28 @@ const router = createRouter({
       component: () => import("../views/admin/ErrorLogView.vue"),
     },
   ],
+});
+
+// Performance optimizations
+router.beforeEach((to, from) => {
+  // Mark navigation start
+  if (typeof performance !== "undefined") {
+    performance.mark(`navigation-start-${to.name}`);
+  }
+  // Return undefined to continue navigation (Vue Router v4+ style)
+  return;
+});
+
+router.afterEach((to) => {
+  // Mark navigation end and measure
+  if (typeof performance !== "undefined") {
+    performance.mark(`navigation-end-${to.name}`);
+    performance.measure(
+      `navigation-${to.name}`,
+      `navigation-start-${to.name}`,
+      `navigation-end-${to.name}`
+    );
+  }
 });
 
 export default router;

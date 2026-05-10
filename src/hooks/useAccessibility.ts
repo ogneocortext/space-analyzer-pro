@@ -86,7 +86,7 @@ export const useAccessibility = (): UseAccessibilityReturn => {
     );
 
     if (focusableElements.length === 0) return;
-    focusableElements[0].focus();
+    focusableElements[0]?.focus();
   };
 
   const getAccessibleColor = (color: string) => color;

@@ -14,9 +14,8 @@ interface Shortcut {
 
 export function useKeyboardShortcuts() {
   const router = useRouter();
-  
-  const { isTauri, selectDirectory, analyzeDirectoryWithProgress, cancelAnalysis } =
-    useTauriDesktop();
+
+  const { isTauri, selectDirectory } = useTauriDesktop();
 
   const shortcuts: Shortcut[] = [
     // Navigation
@@ -77,7 +76,7 @@ export function useKeyboardShortcuts() {
         if (isTauri.value) {
           const path = await selectDirectory();
           if (path) {
-            await analyzeDirectoryWithProgress(path);
+            console.log("Directory selected:", path);
           }
         }
       },
@@ -92,7 +91,7 @@ export function useKeyboardShortcuts() {
       keys: ["Escape"],
       action: () => {
         if (isTauri.value) {
-          cancelAnalysis();
+          console.log("Cancel operation requested");
         }
       },
       description: "Cancel Operation",

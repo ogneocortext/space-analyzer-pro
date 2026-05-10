@@ -256,7 +256,7 @@ function getGrowthBgColor(value: number): string {
 
       <!-- Projections with Enhanced Explanations -->
       <Card v-if="projections" title="Storage Projections">
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
           <div class="text-sm text-slate-400">
             📅 Projections based on {{ historicalData.length }} months of historical data
           </div>

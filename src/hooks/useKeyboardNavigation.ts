@@ -1,6 +1,7 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useUIStore, useErrorStore } from "../store";
+import { ROUTES } from "../config/routes";
 
 interface KeyboardShortcut {
   key: string;
@@ -17,11 +18,32 @@ export const useKeyboardNavigation = () => {
   const errorStore = useErrorStore();
 
   const shortcuts = ref<KeyboardShortcut[]>([
+    // Navigation shortcuts based on ROUTES configuration
+    ...ROUTES.filter((route) => route.shortcut && route.enabled).map((route) => {
+      const shortcutParts = route.shortcut.toLowerCase().split("+");
+      const key = shortcutParts.pop() || "";
+      const ctrl = shortcutParts.includes("ctrl");
+      const alt = shortcutParts.includes("alt");
+      const shift = shortcutParts.includes("shift");
+
+      return {
+        key,
+        ctrl,
+        alt,
+        shift,
+        action: () => {
+          router.push(route.path);
+        },
+        description: `Navigate to ${route.title}`,
+      };
+    }),
+
+    // Additional utility shortcuts
     {
       key: "n",
       ctrl: true,
       action: () => {
-        // Navigate to next file
+        // Navigate to next file (if in file browser)
         console.log("Navigate to next file");
       },
       description: "Next file",
@@ -30,27 +52,26 @@ export const useKeyboardNavigation = () => {
       key: "p",
       ctrl: true,
       action: () => {
-        // Navigate to previous file
+        // Navigate to previous file (if in file browser)
         console.log("Navigate to previous file");
       },
       description: "Previous file",
     },
     {
-      key: "f",
-      ctrl: true,
-      action: () => {
-        // Focus search
-        console.log("Focus search");
-      },
-      description: "Focus search",
-    },
-    {
       key: "Escape",
       action: () => {
-        // Cancel current operation
-        console.log("Cancel operation");
+        // Cancel current operation or close modals
+        const modals = document.querySelectorAll('[role="dialog"]');
+        if (modals.length > 0) {
+          (modals[modals.length - 1] as HTMLElement).click();
+        }
+        // Close sidebar on mobile
+        const sidebar = document.querySelector("[data-sidebar]");
+        if (sidebar && window.innerWidth < 768) {
+          (sidebar as HTMLElement).setAttribute("data-state", "closed");
+        }
       },
-      description: "Cancel operation",
+      description: "Cancel operation / Close modal",
     },
   ]);
 

@@ -18,9 +18,9 @@ export const useAnalysisData = (directoryPath: string | null) => {
 
     try {
       // Import bridge dynamically to avoid circular dependencies
-      const { bridge } = await import("../services/AnalysisBridge");
+      const { bridge } = await import("../services/analysis/AnalysisBridge");
 
-      const result = await bridge.analyzeDirectoryWithProgress(path, (progress) => {
+      const result = await bridge.analyzeDirectoryWithProgress(path, (progress: any) => {
         console.log("Analysis progress:", progress);
       });
 
@@ -39,9 +39,9 @@ export const useAnalysisData = (directoryPath: string | null) => {
 
   // Watch for directory path changes
   watch(
-    directoryPath,
+    () => directoryPath.value,
     (newPath) => {
-      if (newPath) {
+      if (newPath && typeof newPath === "string") {
         analyzeDirectory(newPath);
       }
     },

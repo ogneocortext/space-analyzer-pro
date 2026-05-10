@@ -1,4 +1,4 @@
-import { ref, computed, watch } from "vue";
+import { ref, computed } from "vue";
 
 export interface NetworkNode {
   id: string;
@@ -89,7 +89,7 @@ export function useNetworkVisualization() {
       });
 
       // Create parent-child links
-      folderMap.forEach((folder, path) => {
+      folderMap.forEach((_folder, path) => {
         const parts = path.split("/");
         if (parts.length > 1) {
           const parentPath = parts.slice(0, -1).join("/") || "root";
@@ -188,15 +188,20 @@ export function useNetworkVisualization() {
     // Repulsion between nodes
     for (let i = 0; i < currentNodes.length; i++) {
       for (let j = i + 1; j < currentNodes.length; j++) {
-        const dx = currentNodes[j].x - currentNodes[i].x;
-        const dy = currentNodes[j].y - currentNodes[i].y;
+        const dx = currentNodes[j]!.x - currentNodes[i]!.x;
+        const dy = currentNodes[j]!.y - currentNodes[i]!.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
         const force = (3000 * settings.value.forceStrength) / (dist * dist);
 
-        currentNodes[i].vx -= (dx / dist) * force;
-        currentNodes[i].vy -= (dy / dist) * force;
-        currentNodes[j].vx += (dx / dist) * force;
-        currentNodes[j].vy += (dy / dist) * force;
+        if (!currentNodes[i]!.vx) currentNodes[i]!.vx = 0;
+        if (!currentNodes[i]!.vy) currentNodes[i]!.vy = 0;
+        if (!currentNodes[j]!.vx) currentNodes[j]!.vx = 0;
+        if (!currentNodes[j]!.vy) currentNodes[j]!.vy = 0;
+
+        currentNodes[i]!.vx -= (dx / dist) * force;
+        currentNodes[i]!.vy -= (dy / dist) * force;
+        currentNodes[j]!.vx += (dx / dist) * force;
+        currentNodes[j]!.vy += (dy / dist) * force;
       }
     }
 

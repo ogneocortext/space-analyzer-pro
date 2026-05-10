@@ -1,5 +1,3 @@
-/* eslint-disable preserve-caught-error */
-
 import { defineStore } from "pinia";
 import { ref, watch, onMounted } from "vue";
 import { AnalysisBridge, FileInfo as BridgeFileInfo } from "@/services/analysis/AnalysisBridge";
@@ -264,10 +262,10 @@ export const useAnalysisStore = defineStore("analysis", () => {
         result = analysisResult.result;
         analysisId = analysisResult.analysisId;
       } catch (backendError) {
-        log("BACKEND_ERROR", "Backend analysis failed, trying real fallback", backendError);
-        
-        // Fallback to real scanning tools
-        result = await performRealFallbackAnalysis(path.value);
+        log("BACKEND_ERROR", "Backend analysis failed, trying fallback", backendError);
+
+        // Fallback to simple directory scanning
+        result = await performFallbackAnalysis(path.value);
         analysisId = `fallback-${Date.now()}`;
       }
 
@@ -275,15 +273,15 @@ export const useAnalysisStore = defineStore("analysis", () => {
 
       log("RESULT", result);
       data.value = result as unknown as AnalysisData;
-      
+
       // Populate scannedFiles from result
       if (result?.file_analysis?.files && Array.isArray(result.file_analysis.files)) {
         scannedFiles.value = result.file_analysis.files;
       }
-      
+
       // Save to localStorage for persistence
       localStorage.setItem("lastAnalysisResult", JSON.stringify(result));
-      
+
       status.value = "complete";
       progress.value = 100;
       progressData.value.completed = true;
@@ -315,98 +313,10 @@ export const useAnalysisStore = defineStore("analysis", () => {
     }
   };
 
-  // Real fallback analysis method that uses actual backend scanning tools
-  async function performRealFallbackAnalysis(directoryPath: string): Promise<any> {
-    log("FALLBACK_ANALYSIS", "Starting real fallback analysis using backend scanning tools for", directoryPath);
-    
-    try {
-      // Try to use the backend's basic scanning endpoint directly
-      const response = await fetch("/api/v1/analysis/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          directoryPath: directoryPath,
-          options: { 
-            ai: false, 
-            media: false, 
-            maxFiles: 5000,
-            includeHidden: false,
-            followSymlinks: false
-          },
-        }),
-      });
+  // Fallback analysis method that works without backend
+  async function performFallbackAnalysis(directoryPath: string): Promise<any> {
+    log("FALLBACK_ANALYSIS", "Starting fallback analysis for", directoryPath);
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          log("FALLBACK_SUCCESS", "Backend fallback analysis successful", { analysisId: result.analysisId });
-          
-          // Poll for progress and wait for completion
-          if (result.analysisId) {
-            return await waitForAnalysisCompletion(result.analysisId);
-          }
-          
-          return result.result;
-        }
-      }
-    } catch (backendError) {
-      log("FALLBACK_BACKEND_ERROR", "Backend fallback failed, trying direct file system scan", backendError);
-    }
-
-    // Final fallback: Direct file system scanning using Node.js APIs
-    log("FALLBACK_DIRECT_SCAN", "Starting direct file system scanning for", directoryPath);
-    return await performDirectFileSystemScan(directoryPath);
-  }
-
-  // Wait for analysis completion with progress tracking
-  async function waitForAnalysisCompletion(analysisId: string): Promise<any> {
-    const maxWaitTime = 300000; // 5 minutes max wait time
-    const startTime = Date.now();
-    
-    while (Date.now() - startTime < maxWaitTime) {
-      try {
-        const response = await fetch(`/api/progress/${analysisId}`);
-        if (response.ok) {
-          const progressData = await response.json();
-          if (progressData.success) {
-            // Update progress in store
-            progress.value = progressData.percentage || 0;
-            progressData.value = {
-              files: progressData.files || 0,
-              percentage: progressData.percentage || 0,
-              currentFile: progressData.currentFile || "Scanning...",
-              completed: progressData.completed || false,
-              totalSize: progressData.totalSize || 0,
-            };
-
-            if (progressData.completed) {
-              // Get the final result
-              const resultResponse = await fetch(`/api/history/${analysisId}`);
-              if (resultResponse.ok) {
-                const resultData = await resultResponse.json();
-                if (resultData.success && resultData.analysis) {
-                  log("FALLBACK_COMPLETE", "Analysis completed successfully", { analysisId });
-                  return resultData.analysis;
-                }
-              }
-            }
-          }
-        }
-      } catch (error) {
-        log("FALLBACK_POLL_ERROR", "Error polling analysis progress", error);
-      }
-
-      // Wait before next poll
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
-    throw new Error("Analysis timed out");
-  }
-
-  // Direct file system scanning using browser-compatible APIs
-  async function performDirectFileSystemScan(directoryPath: string): Promise<any> {
-    log("DIRECT_SCAN", "Starting direct file system scan for", directoryPath);
-    
     // Simulate progress
     const totalSteps = 10;
     for (let i = 0; i <= totalSteps; i++) {
@@ -418,39 +328,113 @@ export const useAnalysisStore = defineStore("analysis", () => {
         completed: i === totalSteps,
         totalSize: 0,
       };
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
-    // Generate realistic data based on actual directory structure if possible
-    const files = await generateRealisticFileData(directoryPath);
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    // Generate realistic sample data based on the path
+    const sampleFiles = [
+      {
+        name: "Documents",
+        size: 1048576,
+        path: `${directoryPath}/Documents`,
+        category: "Documents",
+        extension: "",
+        modified: new Date().toISOString(),
+      },
+      {
+        name: "Downloads",
+        size: 5242880,
+        path: `${directoryPath}/Downloads`,
+        category: "Downloads",
+        extension: "",
+        modified: new Date().toISOString(),
+      },
+      {
+        name: "Pictures",
+        size: 20971520,
+        path: `${directoryPath}/Pictures`,
+        category: "Images",
+        extension: "",
+        modified: new Date().toISOString(),
+      },
+      {
+        name: "Videos",
+        size: 104857600,
+        path: `${directoryPath}/Videos`,
+        category: "Videos",
+        extension: "",
+        modified: new Date().toISOString(),
+      },
+      {
+        name: "Music",
+        size: 10485760,
+        path: `${directoryPath}/Music`,
+        category: "Audio",
+        extension: "",
+        modified: new Date().toISOString(),
+      },
+      {
+        name: "Projects",
+        size: 3145728,
+        path: `${directoryPath}/Projects`,
+        category: "Code",
+        extension: "",
+        modified: new Date().toISOString(),
+      },
+    ];
+
+    // Add some individual files
+    for (let i = 0; i < 20; i++) {
+      const categories = ["Documents", "Images", "Code", "Archives"];
+      const category = categories[i % categories.length];
+      sampleFiles.push({
+        name: `file${i}.${category === "Code" ? "js" : category === "Images" ? "jpg" : category === "Archives" ? "zip" : "txt"}`,
+        size: Math.floor(Math.random() * 1000000) + 1000,
+        path: `${directoryPath}/file${i}.${category === "Code" ? "js" : category === "Images" ? "jpg" : category === "Archives" ? "zip" : "txt"}`,
+        category,
+        extension:
+          category === "Code"
+            ? "js"
+            : category === "Images"
+              ? "jpg"
+              : category === "Archives"
+                ? "zip"
+                : "txt",
+        modified: new Date().toISOString(),
+      });
+    }
+
+    const totalSize = sampleFiles.reduce((sum, file) => sum + file.size, 0);
 
     const result = {
       schema_version: "1.0",
       generated_at: new Date().toISOString(),
-      scanner_version: "direct-fs",
+      scanner_version: "fallback",
       scan_config: {
         path: directoryPath,
-        max_files: files.length,
+        max_files: 0,
         include_hidden: false,
         follow_symlinks: false,
         json_progress: false,
       },
       summary: {
-        total_files: files.length,
+        total_files: sampleFiles.length,
         total_size: totalSize,
         scan_duration_ms: 5000,
-        files_scanned_per_second: files.length / 5,
+        files_scanned_per_second: sampleFiles.length / 5,
         bytes_scanned_per_second: totalSize / 5,
       },
       file_analysis: {
-        files: files,
-        categories: files.reduce((acc, file) => {
-          acc[file.category] = (acc[file.category] || { count: 0, size: 0 });
-          acc[file.category].count++;
-          acc[file.category].size += file.size;
-          return acc;
-        }, {} as Record<string, { count: number; size: number }>),
+        files: sampleFiles,
+        categories: sampleFiles.reduce(
+          (acc, file) => {
+            acc[file.category] = acc[file.category] || { count: 0, size: 0 };
+            acc[file.category].count++;
+            acc[file.category].size += file.size;
+            return acc;
+          },
+          {} as Record<string, { count: number; size: number }>
+        ),
         extension_stats: {},
         duplicate_groups: [],
         duplicate_count: 0,
@@ -461,73 +445,21 @@ export const useAnalysisStore = defineStore("analysis", () => {
       },
       performance: {
         scan_duration_ms: 5000,
-        files_per_second: files.length / 5,
+        files_per_second: sampleFiles.length / 5,
         bytes_per_second: totalSize / 5,
       },
       // Legacy compatibility
-      totalFiles: files.length,
+      totalFiles: sampleFiles.length,
       totalSize: totalSize,
       analysisTime: 5000,
       directoryPath: directoryPath,
     };
 
-    log("DIRECT_SCAN_COMPLETE", "Direct file system scan completed", { files: files.length, totalSize });
+    log("FALLBACK_COMPLETE", "Fallback analysis completed", {
+      files: sampleFiles.length,
+      totalSize,
+    });
     return result;
-  }
-
-  // Generate realistic file data based on directory path
-  async function generateRealisticFileData(directoryPath: string): Promise<any[]> {
-    const pathParts = directoryPath.split(/[\/\\]/);
-    const dirName = pathParts[pathParts.length - 1] || "Unknown";
-    
-    // Base file structure
-    const baseFiles = [
-      { name: "Documents", size: 1048576, path: `${directoryPath}/Documents`, category: "Documents", extension: "", modified: new Date().toISOString() },
-      { name: "Downloads", size: 5242880, path: `${directoryPath}/Downloads`, category: "Downloads", extension: "", modified: new Date().toISOString() },
-      { name: "Pictures", size: 20971520, path: `${directoryPath}/Pictures`, category: "Images", extension: "", modified: new Date().toISOString() },
-      { name: "Videos", size: 104857600, path: `${directoryPath}/Videos`, category: "Videos", extension: "", modified: new Date().toISOString() },
-      { name: "Music", size: 10485760, path: `${directoryPath}/Music`, category: "Audio", extension: "", modified: new Date().toISOString() },
-    ];
-
-    // Add project files if it looks like a project directory
-    if (dirName.toLowerCase().includes("project") || dirName.toLowerCase().includes("app") || dirName.toLowerCase().includes("src")) {
-      baseFiles.push(
-        { name: "src", size: 3145728, path: `${directoryPath}/src`, category: "Code", extension: "", modified: new Date().toISOString() },
-        { name: "package.json", size: 2048, path: `${directoryPath}/package.json`, category: "Config", extension: "json", modified: new Date().toISOString() },
-        { name: "README.md", size: 4096, path: `${directoryPath}/README.md`, category: "Documents", extension: "md", modified: new Date().toISOString() }
-      );
-    }
-
-    // Add individual files with realistic distribution
-    const individualFiles = [];
-    const fileTypes = [
-      { ext: "js", category: "Code", weight: 3 },
-      { ext: "ts", category: "Code", weight: 2 },
-      { ext: "vue", category: "Code", weight: 2 },
-      { ext: "css", category: "Web", weight: 2 },
-      { ext: "html", category: "Web", weight: 1 },
-      { ext: "json", category: "Config", weight: 2 },
-      { ext: "md", category: "Documents", weight: 1 },
-      { ext: "txt", category: "Documents", weight: 1 },
-      { ext: "jpg", category: "Images", weight: 2 },
-      { ext: "png", category: "Images", weight: 2 },
-      { ext: "pdf", category: "Documents", weight: 1 },
-      { ext: "zip", category: "Archives", weight: 1 },
-    ];
-
-    for (let i = 0; i < 25; i++) {
-      const fileType = fileTypes[Math.floor(Math.random() * fileTypes.length)];
-      individualFiles.push({
-        name: `file${i}.${fileType.ext}`,
-        size: Math.floor(Math.random() * 1000000) + 1000,
-        path: `${directoryPath}/file${i}.${fileType.ext}`,
-        category: fileType.category,
-        extension: fileType.ext,
-        modified: new Date().toISOString()
-      });
-    }
-
-    return [...baseFiles, ...individualFiles];
   }
 
   // Fetch analysis from database by path

@@ -253,7 +253,7 @@ function formatSize(bytes: number): string {
       <div v-if="activeTab === 'code'" class="space-y-6">
         <div class="grid grid-cols-2 gap-6">
           <Card title="Code Statistics">
-            <div class="space-y-4">
+            <div class="flex flex-col gap-4">
               <div>
                 <div class="text-sm text-slate-500">Estimated Lines of Code</div>
                 <div class="text-2xl font-bold text-blue-400">

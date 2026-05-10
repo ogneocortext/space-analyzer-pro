@@ -75,7 +75,7 @@
           <Cpu class="w-12 h-12 text-slate-400 mx-auto mb-3" />
           <p class="text-slate-400">No workflows created yet</p>
         </div>
-        <div v-else class="space-y-4">
+        <div v-else class="flex flex-col gap-4">
           <div
             v-for="workflow in workflows"
             :key="workflow.id"

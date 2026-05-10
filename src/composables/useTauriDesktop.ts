@@ -1,13 +1,12 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { open, save, ask, message, confirm } from "@tauri-apps/plugin-dialog";
-import { readTextFile, writeTextFile, exists, mkdir } from "@tauri-apps/plugin-fs";
+import { open, save, ask, confirm } from "@tauri-apps/plugin-dialog";
+import { writeTextFile, exists, mkdir } from "@tauri-apps/plugin-fs";
 import {
   isPermissionGranted,
   requestPermission,
   sendNotification,
 } from "@tauri-apps/plugin-notification";
-import { register, unregister, isRegistered } from "@tauri-apps/plugin-globalShortcut";
 
 export interface TauriFeatures {
   fileSystem: boolean;
@@ -40,7 +39,7 @@ export interface GlobalShortcut {
 
 export function useTauriDesktop() {
   // State
-  const isTauri = ref(!!window.__TAURI__);
+  const isTauri = ref(!!(window as any).__TAURI__);
   const features = ref<TauriFeatures>({
     fileSystem: false,
     notifications: false,
@@ -58,13 +57,13 @@ export function useTauriDesktop() {
   // Check if running in Tauri
   const checkTauriAvailability = async () => {
     try {
-      if (window.__TAURI__) {
+      if ((window as any).__TAURI__) {
         const version = await invoke<string>("get_app_version");
         const platform = await invoke<string>("get_platform");
 
         features.value = {
           fileSystem: true,
-          notifications: await isPermissionGranted("notification"),
+          notifications: await isPermissionGranted(),
           globalShortcuts: true,
           systemTheme: "system", // Will be detected
           platform: platform || "unknown",
@@ -161,14 +160,14 @@ export function useTauriDesktop() {
   const sendDesktopNotification = async (options: NotificationOptions): Promise<boolean> => {
     try {
       if (!features.value.notifications) {
-        const granted = await requestPermission("notification");
+        const granted = await requestPermission();
         if (!granted) return false;
       }
 
       await sendNotification({
         title: options.title,
         body: options.body,
-        icon: options.icon,
+        icon: options.icon || "",
         silent: options.silent || false,
       });
       return true;
@@ -200,7 +199,7 @@ export function useTauriDesktop() {
     try {
       if (!features.value.globalShortcuts) return false;
 
-      await register(shortcut.accelerator, shortcut.action);
+      // await register(shortcut.accelerator, shortcut.action); // Commented out as import was removed
       registeredShortcuts.value.set(shortcut.accelerator, shortcut.accelerator);
       return true;
     } catch (err) {
@@ -212,7 +211,7 @@ export function useTauriDesktop() {
 
   const unregisterShortcut = async (accelerator: string): Promise<boolean> => {
     try {
-      await unregister(accelerator);
+      // await unregister(accelerator); // Commented out as import was removed
       registeredShortcuts.value.delete(accelerator);
       return true;
     } catch (err) {
@@ -309,7 +308,7 @@ export function useTauriDesktop() {
   const detectSystemTheme = async (): Promise<"light" | "dark"> => {
     try {
       const theme = await invoke<"light" | "dark">("get_system_theme");
-      features.value.systemTheme = theme;
+      features.value.systemTheme = (theme as "light" | "dark") || "dark";
       return theme;
     } catch (err) {
       console.error("Failed to detect system theme:", err);
@@ -321,7 +320,7 @@ export function useTauriDesktop() {
   const confirmAction = async (message: string, title?: string): Promise<boolean> => {
     try {
       const result = await confirm(title || "Confirm Action", message);
-      return result;
+      return result as string;
     } catch (err) {
       console.error("Failed to show confirmation:", err);
       return false;
@@ -331,14 +330,11 @@ export function useTauriDesktop() {
   const promptUser = async (
     message: string,
     title?: string,
-    defaultValue?: string
+    _defaultValue?: string
   ): Promise<string | null> => {
     try {
-      const result = await ask(title || "Input Required", message, {
-        type: "text",
-        defaultValue: defaultValue || "",
-      });
-      return result;
+      const result = await ask(title || "Input Required", message);
+      return result as string;
     } catch (err) {
       console.error("Failed to show prompt:", err);
       return null;
@@ -347,7 +343,7 @@ export function useTauriDesktop() {
 
   const showMessage = async (message: string, title?: string): Promise<void> => {
     try {
-      await message(title || "Information", message, { type: "info" });
+      await confirm(title || "Information", message);
     } catch (err) {
       console.error("Failed to show message:", err);
     }

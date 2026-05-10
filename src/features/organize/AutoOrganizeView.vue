@@ -226,7 +226,7 @@ function getTypeIcon(type: string): string {
     <!-- No Data -->
     <div v-if="!store.analysisResult" class="p-8 text-center">
       <p class="text-slate-400 mb-4">No scan data available. Please scan a directory first.</p>
-      <Button variant="secondary" @click="$router.push('/scan')">Go to Scanner</Button>
+      <Button variant="secondary" @click="$router.push('/scan')"> Go to Scanner </Button>
     </div>
 
     <template v-else>
@@ -255,7 +255,9 @@ function getTypeIcon(type: string): string {
                       : "📊"
               }}
             </div>
-            <div class="font-medium capitalize">{{ strategy }}</div>
+            <div class="font-medium capitalize">
+              {{ strategy }}
+            </div>
             <div class="text-xs text-slate-500 mt-1">
               {{
                 strategy === "date"
@@ -281,7 +283,7 @@ function getTypeIcon(type: string): string {
       </Card>
 
       <!-- Suggestions -->
-      <div v-if="suggestions.length > 0" class="space-y-4">
+      <div v-if="suggestions.length > 0" class="flex flex-col gap-4">
         <h2 class="text-lg font-semibold text-slate-200">
           💡 {{ suggestions.length }} Organization Suggestions
         </h2>
@@ -291,9 +293,11 @@ function getTypeIcon(type: string): string {
           :key="index"
           :title="`${getTypeIcon(suggestion.type)} ${suggestion.title}`"
         >
-          <div class="space-y-4">
+          <div class="flex flex-col gap-4">
             <!-- Description -->
-            <p class="text-slate-300">{{ suggestion.description }}</p>
+            <p class="text-slate-300">
+              {{ suggestion.description }}
+            </p>
 
             <!-- Impact Badge -->
             <div class="flex items-center gap-3">

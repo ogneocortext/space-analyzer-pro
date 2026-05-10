@@ -19,7 +19,7 @@ export interface EventMetrics {
   errors: Array<{ event: string; error: string; timestamp: Date }>;
 }
 
-export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
+export class TypedEventBus<T = Record<string, any>> {
   private static instance: TypedEventBus;
   private listeners = new Map<string, Set<EventHandler<any>>>();
   private metrics: EventMetrics;
@@ -27,22 +27,22 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
 
   private constructor(config: EventBusConfig = {}) {
     if (TypedEventBus.instance) {
-      throw new Error('TypedEventBus is a singleton. Use TypedEventBus.getInstance()');
+      throw new Error("TypedEventBus is a singleton. Use TypedEventBus.getInstance()");
     }
-    
-    TypedEventBus.instance = this;
+
+    TypedEventBus.instance = this as TypedEventBus<any>;
     this.config = {
       maxListeners: 100,
       enableLogging: true,
       enableMetrics: true,
-      ...config
+      ...config,
     };
-    
+
     this.metrics = {
       totalEvents: 0,
       totalListeners: 0,
       eventTypes: new Map(),
-      errors: []
+      errors: [],
     };
   }
 
@@ -55,22 +55,24 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
    */
   on<K extends keyof T>(eventType: K, handler: EventHandler<T[K]>): EventSubscription {
     const subscriptionId = `${String(eventType)}-${Date.now()}-${Math.random()}`;
-    
+
     if (!this.listeners.has(String(eventType))) {
       this.listeners.set(String(eventType), new Set());
     }
 
     const eventListeners = this.listeners.get(String(eventType))!;
-    
+
     // Check max listeners limit
     if (this.config.maxListeners && eventListeners.size >= this.config.maxListeners) {
-      console.warn(`Max listeners (${this.config.maxListeners}) reached for event: ${String(eventType)}`);
-      return { id: '', handler, remove: () => {} };
+      console.warn(
+        `Max listeners (${this.config.maxListeners}) reached for event: ${String(eventType)}`
+      );
+      return { id: "", handler, remove: () => {} };
     }
 
     eventListeners.add(handler);
     this.metrics.totalListeners++;
-    
+
     if (this.config.enableLogging) {
       console.log(`📡 Subscribed to event: ${String(eventType)} (ID: ${subscriptionId})`);
     }
@@ -88,7 +90,7 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
   off<K extends keyof T>(eventType: K, handler?: EventHandler<T[K]>): void {
     const eventTypeStr = String(eventType);
     const eventListeners = this.listeners.get(eventTypeStr);
-    
+
     if (!eventListeners) {
       return;
     }
@@ -116,7 +118,7 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
    */
   async emit<K extends keyof T>(eventType: K, data: T[K]): Promise<void> {
     const eventTypeStr = String(eventType);
-    
+
     if (this.config.enableLogging) {
       console.log(`📢 Emitting event: ${eventTypeStr}`, data);
     }
@@ -136,7 +138,7 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
 
     // Execute all listeners
     const promises: Promise<void>[] = [];
-    
+
     for (const handler of eventListeners) {
       try {
         const result = handler(data);
@@ -147,9 +149,9 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
         this.metrics.errors.push({
           event: eventTypeStr,
           error: error instanceof Error ? error.message : String(error),
-          timestamp: new Date()
+          timestamp: new Date(),
         });
-        
+
         if (this.config.enableLogging) {
           console.error(`Error in event handler for ${eventTypeStr}:`, error);
         }
@@ -164,7 +166,7 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
         this.metrics.errors.push({
           event: eventTypeStr,
           error: `Promise.allSettled failed: ${error}`,
-          timestamp: new Date()
+          timestamp: new Date(),
         });
       }
     }
@@ -191,9 +193,9 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
   clear(): void {
     this.listeners.clear();
     this.metrics.totalListeners = 0;
-    
+
     if (this.config.enableLogging) {
-      console.log('🧹 Cleared all event listeners');
+      console.log("🧹 Cleared all event listeners");
     }
   }
 
@@ -206,11 +208,11 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
       totalEvents: 0,
       totalListeners: 0,
       eventTypes: new Map(),
-      errors: []
+      errors: [],
     };
-    
+
     if (this.config.enableLogging) {
-      console.log('🔄 Event bus reset');
+      console.log("🔄 Event bus reset");
     }
   }
 
@@ -242,8 +244,8 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
       });
 
       // Set timeout
-      const timeoutId = setTimeout(() => {
-        unsubscribe();
+      setTimeout(() => {
+        if (unsubscribe) unsubscribe();
         reject(new Error(`Timeout waiting for event: ${String(eventType)}`));
       }, timeout);
     });
@@ -252,14 +254,15 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
   /**
    * Create a scoped event bus for a specific context
    */
-  static createScoped<T = Record<string, any>>(scope: string, config?: EventBusConfig): TypedEventBus<T> {
+  static createScoped<T = Record<string, any>>(
+    scope: string,
+    config?: EventBusConfig
+  ): TypedEventBus<T> {
     const scopedBus = new TypedEventBus<T>({
       ...config,
-      enableLogging: config?.enableLogging ? 
-        `[${scope}] ${config.enableLogging}` : 
-        `[${scope}]`
+      enableLogging: config?.enableLogging ? true : false,
     });
-    
+
     return scopedBus;
   }
 }
@@ -268,7 +271,7 @@ export class TypedEventBus<T = Record<string, any> = Record<string, any>> {
 export const eventBus = TypedEventBus.getInstance({
   maxListeners: 50,
   enableLogging: true,
-  enableMetrics: true
+  enableMetrics: true,
 });
 
 // Export typed instances for different domains

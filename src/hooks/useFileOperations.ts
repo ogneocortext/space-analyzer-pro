@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, Ref } from "vue";
 import { fileCache } from "../services/cache/APICache";
 import {
   transformFileData,
@@ -82,7 +82,7 @@ export const useFileOperations = (options: FileOperationsOptions = {}): UseFileO
     return result;
   });
 
-  filteredFiles.value = processedFiles;
+  filteredFiles.value = processedFiles as any;
 
   const selectFile = (fileId: string) => {
     const index = selectedFiles.value.indexOf(fileId);
@@ -141,7 +141,7 @@ export const useFileOperations = (options: FileOperationsOptions = {}): UseFileO
           return {
             ...file,
             path: `${targetPath}/${file.name}`,
-            modified: new Date().toISOString(),
+            modified: new Date(),
           };
         }
         return file;
@@ -165,7 +165,7 @@ export const useFileOperations = (options: FileOperationsOptions = {}): UseFileO
     searchTerm.value = term;
   };
 
-  const updateSortBy = (sort: string) => {
+  const updateSortBy = (sort: "name" | "size" | "type" | "date") => {
     sortBy.value = sort;
   };
 
@@ -190,18 +190,18 @@ export const useFileOperations = (options: FileOperationsOptions = {}): UseFileO
 
   // Initialize with provided files
   if (initialFiles.length > 0) {
-    files.value = initialFiles.map(transformFileData);
+    files.value = initialFiles.map(transformFileData) as any;
   }
 
   return {
-    files,
-    filteredFiles,
-    selectedFiles,
-    isLoading,
-    error,
-    searchTerm,
-    sortBy,
-    filterType,
+    files: files.value,
+    filteredFiles: filteredFiles.value,
+    selectedFiles: selectedFiles.value,
+    isLoading: isLoading.value,
+    error: error.value,
+    searchTerm: searchTerm.value,
+    sortBy: sortBy.value,
+    filterType: filterType.value,
     selectFile,
     selectAllFiles,
     deselectAllFiles,

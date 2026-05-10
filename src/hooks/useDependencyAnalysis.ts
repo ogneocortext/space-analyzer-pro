@@ -1,5 +1,5 @@
 import { ref, computed, watch } from "vue";
-import { AnalysisResult } from "../services/AnalysisBridge";
+import { AnalysisResult } from "../services/analysis/AnalysisBridge";
 
 export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
   const dependencyGraph = ref<any>(null);
@@ -34,8 +34,8 @@ export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
       const edges: any[] = [];
 
       // Analyze files for import relationships
-      if (analysisData.files) {
-        analysisData.files.forEach((file: any) => {
+      if ((analysisData as any).files) {
+        (analysisData as any).files.forEach((file: any) => {
           const nodeId = file.path || file.name;
           nodes.push({
             id: nodeId,
@@ -84,7 +84,7 @@ export const useDependencyAnalysis = (analysisData: AnalysisResult | null) => {
 
   // Auto-analyze when analysis data changes
   watch(
-    analysisData,
+    () => analysisData,
     (newData) => {
       if (newData) {
         analyzeDependencies();

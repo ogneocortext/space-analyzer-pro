@@ -1,336 +1,347 @@
-// Route configuration for Space Analyzer Pro
-// This file defines all valid routes and their properties
+// Centralized route configuration for the Space Analyzer application
+import type { LucideIcon } from "lucide-vue-next";
 
 export interface RouteConfig {
   id: string;
   path: string;
+  name: string;
   title: string;
-  description: string;
   icon: string;
-  group: 'core' | 'ai' | 'visualization' | 'tools' | 'system' | 'config';
+  group: string;
   enabled: boolean;
-  requiresData?: boolean;
+  beta?: boolean;
+  comingSoon?: boolean;
+  shortcut?: string;
+  description?: string;
+  requiresAuth?: boolean;
+  desktopOnly?: boolean;
 }
 
 export const ROUTES: RouteConfig[] = [
-  // Core Features
+  // Core Navigation
   {
-    id: 'dashboard',
-    path: '/',
-    title: 'Dashboard',
-    description: 'Overview of your file system analysis',
-    icon: 'LayoutDashboard',
-    group: 'core',
-    enabled: true
+    id: "dashboard",
+    path: "/",
+    name: "dashboard",
+    title: "Dashboard",
+    icon: "LayoutDashboard",
+    group: "core",
+    enabled: true,
+    description: "Main dashboard with overview and quick actions",
+    shortcut: "Ctrl+D",
   },
   {
-    id: 'file-browser',
-    path: '/file-browser',
-    title: 'File Browser',
-    description: 'Navigate and explore your files',
-    icon: 'Folder',
-    group: 'core',
-    enabled: true
+    id: "file-browser",
+    path: "/file-browser",
+    name: "file-browser",
+    title: "File Browser",
+    icon: "FolderOpen",
+    group: "core",
+    enabled: true,
+    description: "Browse and explore your file system",
+    shortcut: "Ctrl+B",
   },
   {
-    id: 'analysis',
-    path: '/analysis',
-    title: 'Analysis',
-    description: 'Detailed file system analysis',
-    icon: 'Search',
-    group: 'core',
-    enabled: true
+    id: "scan",
+    path: "/scan",
+    name: "scan",
+    title: "Scan",
+    icon: "Scan",
+    group: "core",
+    enabled: true,
+    description: "Scan directories for analysis",
+    shortcut: "Ctrl+S",
+  },
+  {
+    id: "scan-history",
+    path: "/scan-history",
+    name: "scan-history",
+    title: "Scan History",
+    icon: "Clock",
+    group: "core",
+    enabled: true,
+    description: "View previous scan results",
   },
 
-  // AI-Powered Features
+  // Analysis Tools
   {
-    id: 'ai-features',
-    path: '/ai-features',
-    title: 'AI Features',
-    description: 'AI-powered insights and recommendations',
-    icon: 'BrainCircuit',
-    group: 'ai',
-    enabled: true
-  },
-  {
-    id: 'ai-insights',
-    path: '/ai-insights',
-    title: 'AI Insights',
-    description: 'AI-powered insights and recommendations for your file system',
-    icon: 'BrainCircuit',
-    group: 'ai',
-    enabled: true
-  },
-  {
-    id: 'smart-analysis',
-    path: '/smart-analysis',
-    title: 'Smart Analysis',
-    description: 'Optimized tool coordination with redundancy reduction',
-    icon: 'Brain',
-    group: 'ai',
-    enabled: true
-  },
-  {
-    id: 'neural',
-    path: '/neural',
-    title: 'Neural View',
-    description: 'Neural network visualization',
-    icon: 'Network',
-    group: 'ai',
+    id: "largest",
+    path: "/largest",
+    name: "largest",
+    title: "Largest Files",
+    icon: "BarChart3",
+    group: "analysis",
     enabled: true,
-    requiresData: true
+    description: "Find the largest files in your system",
   },
   {
-    id: 'chat',
-    path: '/chat',
-    title: 'AI Chat',
-    description: 'Chat with AI assistant',
-    icon: 'MessageSquare',
-    group: 'ai',
-    enabled: true
-  },
-  {
-    id: 'predictive',
-    path: '/predictive',
-    title: 'Predictive',
-    description: 'Storage forecasting and trends',
-    icon: 'TrendingUp',
-    group: 'ai',
+    id: "old",
+    path: "/old",
+    name: "old",
+    title: "Old Files",
+    icon: "Clock",
+    group: "analysis",
     enabled: true,
-    requiresData: true
+    description: "Find old and unused files",
   },
   {
-    id: 'timetravel',
-    path: '/timetravel',
-    title: 'Time Travel',
-    description: 'Compare different scan snapshots over time',
-    icon: 'Calendar',
-    group: 'ai',
-    enabled: true
-  },
-  {
-    id: 'temperature',
-    path: '/temperature',
-    title: 'File Temperature',
-    description: 'View file access patterns and heatmaps',
-    icon: 'Activity',
-    group: 'ai',
+    id: "duplicates",
+    path: "/duplicates",
+    name: "duplicates",
+    title: "Duplicates",
+    icon: "Copy",
+    group: "analysis",
     enabled: true,
-    requiresData: true
+    description: "Find duplicate files",
+    shortcut: "Ctrl+U",
+  },
+  {
+    id: "empty",
+    path: "/empty",
+    name: "empty",
+    title: "Empty Folders",
+    icon: "FolderOpen",
+    group: "analysis",
+    enabled: true,
+    description: "Find empty folders",
+  },
+
+  // AI & Smart Features
+  {
+    id: "organize",
+    path: "/organize",
+    name: "organize",
+    title: "AI Organize",
+    icon: "Brain",
+    group: "ai",
+    enabled: true,
+    beta: true,
+    description: "AI-powered file organization",
+    shortcut: "Ctrl+O",
+  },
+  {
+    id: "cleanup",
+    path: "/cleanup",
+    name: "cleanup",
+    title: "Cleanup",
+    icon: "Sparkles",
+    group: "ai",
+    enabled: true,
+    description: "Smart cleanup recommendations",
+  },
+  {
+    id: "search",
+    path: "/search",
+    name: "search",
+    title: "Smart Search",
+    icon: "Search",
+    group: "ai",
+    enabled: true,
+    description: "Semantic file search",
+    shortcut: "Ctrl+F",
+  },
+  {
+    id: "insights",
+    path: "/insights",
+    name: "insights",
+    title: "Insights",
+    icon: "Lightbulb",
+    group: "ai",
+    enabled: true,
+    description: "AI-powered insights and recommendations",
   },
 
   // Visualization
   {
-    id: 'visualization',
-    path: '/visualization',
-    title: 'Charts',
-    description: 'Interactive data visualizations',
-    icon: 'PieChart',
-    group: 'visualization',
+    id: "treemap",
+    path: "/treemap",
+    name: "treemap",
+    title: "Treemap",
+    icon: "LayoutGrid",
+    group: "visualization",
     enabled: true,
-    requiresData: true
+    description: "Interactive treemap visualization",
   },
   {
-    id: 'treemap',
-    path: '/treemap',
-    title: 'Treemap',
-    description: 'Hierarchical file visualization',
-    icon: 'Layers',
-    group: 'visualization',
-    enabled: true
+    id: "timeline",
+    path: "/timeline",
+    name: "timeline",
+    title: "Timeline",
+    icon: "Clock",
+    group: "visualization",
+    enabled: true,
+    description: "File activity timeline",
+  },
+  {
+    id: "network",
+    path: "/network",
+    name: "network",
+    title: "Network",
+    icon: "Share2",
+    group: "visualization",
+    enabled: true,
+    beta: true,
+    description: "File relationship network",
   },
 
-  // Tools
+  // Reports & Exports
   {
-    id: 'duplicates',
-    path: '/duplicates',
-    title: 'Duplicates',
-    description: 'Find and manage duplicate files',
-    icon: 'Copy',
-    group: 'tools',
-    enabled: true
+    id: "reports",
+    path: "/reports",
+    name: "reports",
+    title: "Reports",
+    icon: "FileText",
+    group: "reports",
+    enabled: true,
+    description: "Generate and view reports",
+    shortcut: "Ctrl+R",
   },
   {
-    id: 'optimization',
-    path: '/optimization',
-    title: 'Optimization',
-    description: 'Storage optimization suggestions',
-    icon: 'Zap',
-    group: 'tools',
+    id: "export",
+    path: "/export",
+    name: "export",
+    title: "Export",
+    icon: "Download",
+    group: "reports",
     enabled: true,
-    requiresData: true
+    description: "Export analysis data",
   },
   {
-    id: 'automation',
-    path: '/automation',
-    title: 'Automation',
-    description: 'Automated cleanup and maintenance',
-    icon: 'Play',
-    group: 'tools',
+    id: "trends",
+    path: "/trends",
+    name: "trends",
+    title: "Trends",
+    icon: "TrendingUp",
+    group: "reports",
     enabled: true,
-    requiresData: true
+    description: "Storage usage trends",
   },
 
-  // System
+  // Advanced Features
   {
-    id: 'monitoring',
-    path: '/monitoring',
-    title: 'Monitoring',
-    description: 'Real-time system monitoring',
-    icon: 'Activity',
-    group: 'system',
+    id: "complexity",
+    path: "/complexity",
+    name: "complexity",
+    title: "Code Complexity",
+    icon: "Code2",
+    group: "advanced",
     enabled: true,
-    requiresData: true
+    description: "Code complexity analysis",
   },
   {
-    id: 'security',
-    path: '/security',
-    title: 'Security',
-    description: 'Security analysis and scanning',
-    icon: 'Shield',
-    group: 'system',
+    id: "self-learning",
+    path: "/self-learning",
+    name: "self-learning",
+    title: "Self-Learning",
+    icon: "Database",
+    group: "advanced",
     enabled: true,
-    requiresData: true
+    beta: true,
+    description: "Machine learning models",
   },
   {
-    id: 'export',
-    path: '/export',
-    title: 'Export',
-    description: 'Export analysis results',
-    icon: 'Download',
-    group: 'system',
-    enabled: true
+    id: "learning-analytics",
+    path: "/learning-analytics",
+    name: "learning-analytics",
+    title: "Learning Analytics",
+    icon: "BarChart",
+    group: "advanced",
+    enabled: true,
+    beta: true,
+    description: "Learning model analytics",
+  },
+  {
+    id: "ab-testing",
+    path: "/ab-testing",
+    name: "ab-testing",
+    title: "A/B Testing",
+    icon: "TestTube",
+    group: "advanced",
+    enabled: true,
+    beta: true,
+    description: "A/B testing framework",
+  },
+  {
+    id: "3d-browser",
+    path: "/3d-browser",
+    name: "3d-browser",
+    title: "3D Browser",
+    icon: "Globe",
+    group: "advanced",
+    enabled: true,
+    beta: true,
+    description: "3D file browser visualization",
   },
 
-  // Configuration
+  // System & Settings
   {
-    id: 'development',
-    path: '/development',
-    title: 'Development',
-    description: 'Developer tools and APIs',
-    icon: 'Code',
-    group: 'config',
+    id: "system",
+    path: "/system",
+    name: "system",
+    title: "System Monitor",
+    icon: "Activity",
+    group: "system",
     enabled: true,
-    requiresData: true
+    description: "System resource monitoring",
   },
   {
-    id: 'integrations',
-    path: '/integrations',
-    title: 'Integrations',
-    description: 'Third-party integrations',
-    icon: 'Globe',
-    group: 'config',
+    id: "settings",
+    path: "/settings",
+    name: "settings",
+    title: "Settings",
+    icon: "Settings",
+    group: "system",
     enabled: true,
-    requiresData: true
+    description: "Application settings",
+    shortcut: "Ctrl+,",
   },
   {
-    id: 'settings',
-    path: '/settings',
-    title: 'Settings',
-    description: 'Application settings',
-    icon: 'Settings',
-    group: 'config',
-    enabled: true
+    id: "error-logs",
+    path: "/admin/errors",
+    name: "error-logs",
+    title: "Error Logs",
+    icon: "AlertTriangle",
+    group: "system",
+    enabled: true,
+    description: "View application error logs",
+    requiresAuth: true,
   },
-  {
-    id: 'accessibility',
-    path: '/accessibility',
-    title: 'Accessibility',
-    description: 'Accessibility settings and options',
-    icon: 'Eye',
-    group: 'config',
-    enabled: true
-  },
-  {
-    id: 'performance',
-    path: '/performance',
-    title: 'Performance',
-    description: 'System performance metrics and optimization recommendations',
-    icon: 'Cpu',
-    group: 'config',
-    enabled: true
-  }
 ];
 
-// Helper functions
+// Helper functions for route management
+export const getRoutesByGroup = (group: string): RouteConfig[] => {
+  return ROUTES.filter((route) => route.group === group && route.enabled);
+};
+
 export const getRouteById = (id: string): RouteConfig | undefined => {
-  return ROUTES.find(route => route.id === id);
+  return ROUTES.find((route) => route.id === id);
 };
 
 export const getRouteByPath = (path: string): RouteConfig | undefined => {
-  return ROUTES.find(route => route.path === path);
+  return ROUTES.find((route) => route.path === path);
 };
 
 export const getEnabledRoutes = (): RouteConfig[] => {
-  return ROUTES.filter(route => route.enabled);
+  return ROUTES.filter((route) => route.enabled);
 };
 
-export const getRoutesByGroup = (group: RouteConfig['group']): RouteConfig[] => {
-  return ROUTES.filter(route => route.group === group && route.enabled);
+export const getBetaRoutes = (): RouteConfig[] => {
+  return ROUTES.filter((route) => route.beta && route.enabled);
 };
 
-export const getRoutesRequiringData = (): RouteConfig[] => {
-  return ROUTES.filter(route => route.requiresData && route.enabled);
+export const getComingSoonRoutes = (): RouteConfig[] => {
+  return ROUTES.filter((route) => route.comingSoon);
 };
 
-// Simplified route groups for cleaner navigation
+// Group definitions for navigation
 export const ROUTE_GROUPS = {
-  core: [
-    getRouteById('dashboard')!,
-    getRouteById('file-browser')!,
-    getRouteById('analysis')!
-  ].filter(Boolean),
+  core: "Core",
+  analysis: "Analysis Tools",
+  ai: "AI & Smart Features",
+  visualization: "Visualization",
+  reports: "Reports & Exports",
+  advanced: "Advanced Features",
+  system: "System & Settings",
+} as const;
 
-  ai: [
-    getRouteById('ai-features')!, // Consolidated AI features
-    getRouteById('chat')!, // Keep chat as primary AI interaction
-    getRouteById('smart-analysis')! // Keep smart analysis
-  ].filter(Boolean),
-
-  visualization: [
-    getRouteById('neural')!, // Primary visualization
-    getRouteById('temperature')!, // File temperature heatmap
-    getRouteById('treemap')! // Treemap view
-  ].filter(Boolean),
-
-  tools: [
-    getRouteById('duplicates')!, // File management
-    getRouteById('timetravel')!, // Time travel comparisons
-    getRouteById('export')! // Export functionality
-  ].filter(Boolean),
-
-  system: [
-    getRouteById('development')!, // Developer tools (moved from config)
-    getRouteById('performance')!, // Performance monitoring
-    getRouteById('monitoring')!, // System monitoring
-    getRouteById('settings')! // Settings
-  ].filter(Boolean)
-};
-
-// Navigation order for consistent sidebar display
-export const NAVIGATION_ORDER = [
-  'dashboard',
-  'file-browser',
-  'analysis',
-  'ai-features',
-  'ai-insights',
-  'smart-analysis',
-  'neural',
-  'chat',
-  'predictive',
-  'timetravel',
-  'temperature',
-  'visualization',
-  'treemap',
-  'duplicates',
-  'optimization',
-  'automation',
-  'monitoring',
-  'security',
-  'export',
-  'development',
-  'integrations',
-  'settings',
-  'accessibility',
-  'performance'
-];
+export type RouteGroup = keyof typeof ROUTE_GROUPS;

@@ -699,3 +699,8 @@ export class ABTestingFramework {
 
 // Singleton instance
 export const abTestingFramework = new ABTestingFramework();
+
+// Composable function for Vue components
+export function useABTestingFramework() {
+  return abTestingFramework;
+}

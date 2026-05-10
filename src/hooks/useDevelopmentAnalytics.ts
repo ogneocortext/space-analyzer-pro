@@ -1,4 +1,4 @@
-import { ref, computed } from "vue";
+import { ref } from "vue";
 
 interface CodeDuplicationResult {
   duplicates: Array<{
@@ -47,15 +47,15 @@ export const useDevelopmentAnalytics = (): UseDevelopmentAnalyticsReturn => {
     });
 
     // Simple duplication detection
-    const duplicates = [];
-    const seenFiles = new Set<string>();
+    const duplicates: Array<{ files: string[]; similarity: number; lines: number }> = [];
+    const _seenFiles = new Set<string>();
 
     for (let i = 0; i < fileContents.length; i++) {
       for (let j = i + 1; j < fileContents.length; j++) {
-        const similarity = calculateSimilarity(fileContents[i], fileContents[j]);
+        const similarity = calculateSimilarity(fileContents[i] || "", fileContents[j] || "");
         if (similarity > 0.8) {
           duplicates.push({
-            files: [fileContents[i], fileContents[j]],
+            files: [fileContents[i] || "", fileContents[j] || ""],
             similarity,
             lines: Math.floor(Math.random() * 100) + 10,
           });
@@ -96,20 +96,20 @@ export const useDevelopmentAnalytics = (): UseDevelopmentAnalyticsReturn => {
 
     // Generate recommendations
     if (codeDuplication.value.overallDuplication > 10) {
-      report.recommendations.push("Consider refactoring duplicated code");
+      (report.recommendations as string[]).push("Consider refactoring duplicated code");
     }
 
     if (performanceMetrics.value.memoryUsage > 100000000) {
       // 100MB
-      report.recommendations.push("Memory usage is high, consider optimization");
+      (report.recommendations as string[]).push("Memory usage is high, consider optimization");
     }
 
     return JSON.stringify(report, null, 2);
   };
 
   return {
-    codeDuplication,
-    performanceMetrics,
+    codeDuplication: codeDuplication.value,
+    performanceMetrics: performanceMetrics.value,
     analyzeCodeDuplication,
     generateReport,
   };

@@ -4,10 +4,10 @@
  * Provides intelligent backend selection, rate limiting, and unified error handling
  */
 
-import { OllamaService } from './OllamaService';
-import { GoogleAIService } from './GoogleAIService';
-import { PythonAIService } from './PythonAIService';
-import { OllamaRateLimiter } from './OllamaRateLimiter';
+import { ollamaService } from "./OllamaService";
+import { GoogleAIService } from "./GoogleAIService";
+import PythonAIService from "./PythonAIService";
+import { ollamaRateLimiter } from "./OllamaRateLimiter";
 
 // Unified interfaces
 export interface AIInsight {
@@ -43,14 +43,17 @@ export interface AIBackendConfig {
 }
 
 export interface UsageMetrics {
-  backends: Map<string, {
-    requests: number;
-    tokens: number;
-    cost: number;
-    avgResponseTime: number;
-    errors: number;
-    successRate: number;
-  }>;
+  backends: Map<
+    string,
+    {
+      requests: number;
+      tokens: number;
+      cost: number;
+      avgResponseTime: number;
+      errors: number;
+      successRate: number;
+    }
+  >;
   total: {
     insights: number;
     accuracy: number;
@@ -182,7 +185,7 @@ export class UnifiedAIService {
     try {
       // Select optimal backend
       const selectedBackend = await this.selectOptimalBackend(options);
-      
+
       if (!selectedBackend) {
         throw new Error("No AI backends available");
       }
@@ -197,11 +200,7 @@ export class UnifiedAIService {
       const projectContext = this.prepareProjectContext(files, selectedBackend);
 
       // Generate insights using selected backend
-      const backendInsights = await this.generateInsights(
-        selectedBackend,
-        projectContext,
-        options
-      );
+      const backendInsights = await this.generateInsights(selectedBackend, projectContext, options);
       insights.push(...backendInsights);
 
       // Update metrics
@@ -215,12 +214,12 @@ export class UnifiedAIService {
       return insights;
     } catch (error) {
       console.error("AI analysis failed:", error);
-      
+
       // Try fallback backends
       if (options.preferredBackend !== "auto") {
         return this.analyzeProject(files, { ...options, preferredBackend: "auto" });
       }
-      
+
       throw error;
     }
   }
@@ -240,7 +239,7 @@ export class UnifiedAIService {
 
     // Auto-selection logic
     const availableBackends = Array.from(this.backends.values())
-      .filter(backend => backend.config.available)
+      .filter((backend) => backend.config.available)
       .sort((a, b) => a.config.priority - b.config.priority);
 
     if (availableBackends.length === 0) {
@@ -249,14 +248,14 @@ export class UnifiedAIService {
 
     // Select based on task requirements
     if (options.includePatterns) {
-      const patternBackend = availableBackends.find(backend =>
+      const patternBackend = availableBackends.find((backend) =>
         backend.config.features.includes("pattern-recognition")
       );
       if (patternBackend) return patternBackend;
     }
 
     if (options.includeOptimizations) {
-      const optimizationBackend = availableBackends.find(backend =>
+      const optimizationBackend = availableBackends.find((backend) =>
         backend.config.features.includes("ml-analysis")
       );
       if (optimizationBackend) return optimizationBackend;
@@ -310,7 +309,7 @@ export class UnifiedAIService {
 
       // Parse response into standardized insights
       const insights = this.parseResponse(rawResponse, serviceName);
-      
+
       // Apply limits
       if (options.maxInsights && insights.length > options.maxInsights) {
         insights.splice(options.maxInsights);
@@ -356,16 +355,16 @@ export class UnifiedAIService {
    * Parse text response into insights
    */
   private parseTextResponse(response: string, source: string): AIInsight[] {
-    const lines = response.split('\n').filter(line => line.trim());
+    const lines = response.split("\n").filter((line) => line.trim());
     const insights: AIInsight[] = [];
 
     lines.forEach((line, index) => {
-      if (line.startsWith('-') || line.startsWith('*') || line.startsWith('•')) {
-        const cleaned = line.replace(/^[-*•]\s*/, '').trim();
+      if (line.startsWith("-") || line.startsWith("*") || line.startsWith("•")) {
+        const cleaned = line.replace(/^[-*•]\s*/, "").trim();
         insights.push({
           id: `${source}-text-${Date.now()}-${index}`,
           type: "recommendation",
-          title: cleaned.substring(0, 50) + (cleaned.length > 50 ? '...' : ''),
+          title: cleaned.substring(0, 50) + (cleaned.length > 50 ? "..." : ""),
           description: cleaned,
           confidence: 0.7,
           priority: "medium",
@@ -402,9 +401,9 @@ export class UnifiedAIService {
    */
   private analyzeFileTypes(files: any[]): Record<string, number> {
     const types: Record<string, number> = {};
-    
-    files.forEach(file => {
-      const ext = file.name?.split('.').pop()?.toLowerCase() || 'unknown';
+
+    files.forEach((file) => {
+      const ext = file.name?.split(".").pop()?.toLowerCase() || "unknown";
       types[ext] = (types[ext] || 0) + 1;
     });
 
@@ -414,12 +413,16 @@ export class UnifiedAIService {
   /**
    * Generate analysis prompt based on project characteristics
    */
-  private generateAnalysisPrompt(fileTypes: Record<string, number>, totalSize: number, fileCount: number): string {
+  private generateAnalysisPrompt(
+    fileTypes: Record<string, number>,
+    totalSize: number,
+    fileCount: number
+  ): string {
     const dominantTypes = Object.entries(fileTypes)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
       .map(([type, count]) => `${count} ${type} files`)
-      .join(', ');
+      .join(", ");
 
     return `Analyze this project and provide actionable insights:
 
@@ -454,11 +457,11 @@ Focus on:
    * Format bytes to human readable format
    */
   private formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   }
 
   /**
@@ -475,8 +478,8 @@ Focus on:
     };
 
     backendMetrics.requests++;
-    backendMetrics.avgResponseTime = 
-      (backendMetrics.avgResponseTime * (backendMetrics.requests - 1) + responseTime) / 
+    backendMetrics.avgResponseTime =
+      (backendMetrics.avgResponseTime * (backendMetrics.requests - 1) + responseTime) /
       backendMetrics.requests;
 
     this.metrics.backends.set(backendName, backendMetrics);
@@ -521,7 +524,7 @@ Focus on:
    */
   async testBackends(): Promise<Record<string, boolean>> {
     const results: Record<string, boolean> = {};
-    
+
     for (const [name, backend] of this.backends) {
       try {
         results[name] = backend.config.available;

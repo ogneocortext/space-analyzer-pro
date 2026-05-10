@@ -1,6 +1,15 @@
 // Custom hook for managing analysis state
-import { ref, computed } from "vue";
+import { computed } from "vue";
 import { useAnalysisStore } from "../store";
+
+interface AnalysisResult {
+  // Define AnalysisResult interface
+  id: string;
+  path: string;
+  timestamp: string;
+  files: any[];
+  totalSize: number;
+}
 
 interface AnalysisState {
   path: string;
@@ -28,20 +37,20 @@ export const useAnalysisState = (): UseAnalysisStateReturn => {
 
   const state = computed(
     (): AnalysisState => ({
-      path: analysisStore.currentFile || "",
-      status: analysisStore.isAnalyzing ? "analyzing" : "idle",
-      progress: analysisStore.analysisProgress,
-      data: analysisStore.analysisResult,
-      error: analysisStore.analysisError,
+      path: (analysisStore as any).path || "",
+      status: (analysisStore as any).isAnalysisRunning ? "analyzing" : "idle",
+      progress: (analysisStore as any).progress || 0,
+      data: (analysisStore as any).result || null,
+      error: (analysisStore as any).error || null,
     })
   );
 
-  const isAnalyzing = computed(() => analysisStore.isAnalyzing);
-  const hasData = computed(() => !!analysisStore.analysisResult);
-  const hasError = computed(() => !!analysisStore.analysisError);
+  const isAnalyzing = computed(() => (analysisStore as any).isAnalysisRunning);
+  const hasData = computed(() => !!(analysisStore as any).result);
+  const hasError = computed(() => !!(analysisStore as any).error);
 
   const updatePath = (path: string) => {
-    analysisStore.currentFile = path;
+    (analysisStore as any).path = path;
   };
 
   const updateStatus = (status: string) => {
@@ -50,26 +59,29 @@ export const useAnalysisState = (): UseAnalysisStateReturn => {
   };
 
   const updateProgress = (progress: number) => {
-    analysisStore.updateProgress(progress);
+    (analysisStore as any).progress = progress;
   };
 
   const updateData = (data: AnalysisResult | null) => {
-    analysisStore.analysisResult = data;
+    (analysisStore as any).result = data;
   };
 
   const updateError = (error: string | null) => {
-    analysisStore.setAnalysisError(error);
+    (analysisStore as any).error = error;
   };
 
   const resetState = () => {
-    analysisStore.clearAnalysis();
+    (analysisStore as any).path = "";
+    (analysisStore as any).progress = 0;
+    (analysisStore as any).result = null;
+    (analysisStore as any).error = null;
   };
 
   return {
-    state,
-    isAnalyzing,
-    hasData,
-    hasError,
+    state: state.value,
+    isAnalyzing: isAnalyzing.value,
+    hasData: hasData.value,
+    hasError: hasError.value,
     updatePath,
     updateStatus,
     updateProgress,

@@ -254,7 +254,7 @@ async function deleteFile(filePath: string, hash: string) {
     </div>
 
     <!-- Recommendations -->
-    <div v-if="recommendations.length > 0" class="space-y-4">
+    <div v-if="recommendations.length > 0" class="flex flex-col gap-4">
       <h2 class="text-xl font-semibold text-slate-200">Cleanup Recommendations</h2>
       <div class="space-y-3">
         <div
@@ -283,7 +283,7 @@ async function deleteFile(filePath: string, hash: string) {
     </div>
 
     <!-- Duplicate Groups -->
-    <div v-if="topDuplicates.length > 0" class="space-y-4">
+    <div v-if="topDuplicates.length > 0" class="flex flex-col gap-4">
       <h2 class="text-xl font-semibold text-slate-200">Top Duplicate Groups</h2>
       <div class="space-y-3">
         <Card

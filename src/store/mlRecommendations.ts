@@ -406,3 +406,8 @@ export class SimpleMLRecommendationEngine implements MLModel {
 
 // Singleton instance
 export const mlRecommendationEngine = new SimpleMLRecommendationEngine();
+
+// Composable function for Vue components
+export function useMLRecommendations() {
+  return mlRecommendationEngine;
+}

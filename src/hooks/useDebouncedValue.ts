@@ -7,7 +7,7 @@ export const useDebouncedValue = (value: string, delay: number): string => {
   const debouncedValue = ref(value);
 
   watch(
-    value,
+    () => value,
     (newValue) => {
       const handler = setTimeout(() => {
         debouncedValue.value = newValue;
@@ -20,5 +20,5 @@ export const useDebouncedValue = (value: string, delay: number): string => {
     { immediate: true }
   );
 
-  return debouncedValue.value;
+  return debouncedValue.value as string;
 };

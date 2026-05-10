@@ -91,7 +91,7 @@
         class="bg-slate-800 rounded-lg p-6 border border-slate-700"
       >
         <h3 class="text-lg font-semibold text-white mb-4">Optimization Results</h3>
-        <div class="space-y-4">
+        <div class="flex flex-col gap-4">
           <div
             v-for="result in optimizationResults"
             :key="result.id"

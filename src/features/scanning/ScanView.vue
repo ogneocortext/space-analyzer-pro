@@ -411,7 +411,7 @@ function clearRecentDirectories() {
               </p>
             </div>
 
-            <div class="flex flex-col items-center space-y-4">
+            <div class="flex flex-col items-center gap-4">
               <Button variant="secondary" class="w-full justify-start" @click="selectDirectory">
                 📁 Select Directory to Scan
               </Button>

@@ -42,7 +42,7 @@ export const useFileBrowserState = (
     state.value.currentPage = 1; // Reset to first page when searching
   };
 
-  const updateSortBy = (sortBy: string) => {
+  const updateSortBy = (sortBy: "name" | "size" | "date") => {
     state.value.sortBy = sortBy;
   };
 
@@ -83,7 +83,7 @@ export const useFileBrowserState = (
   };
 
   return {
-    state,
+    state: state.value,
     updateSearchQuery,
     updateSortBy,
     updateSortOrder,
