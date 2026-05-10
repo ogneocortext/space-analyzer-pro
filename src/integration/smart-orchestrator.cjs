@@ -43,7 +43,7 @@ class SmartOrchestrator {
             try {
                 if (name === 'node') {
                     // Check Node.js server
-                    const response = await fetch('http://localhost:8080/api/health', { timeout: 3000 });
+                    const response = await fetch('http://localhost:8085/api/health', { timeout: 3000 });
                     tool.available = response.ok;
                 } else {
                     // Check CLI tools by trying to access the executable file
@@ -193,7 +193,7 @@ class SmartOrchestrator {
     async executeNodeAnalysis(directory, options) {
         // Real AI analysis - call Node.js server
         try {
-            const response = await fetch('http://localhost:8080/api/ai/analyze', {
+            const response = await fetch('http://localhost:8085/api/ai/analyze', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

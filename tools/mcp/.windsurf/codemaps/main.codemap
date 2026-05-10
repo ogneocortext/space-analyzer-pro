@@ -5,7 +5,7 @@
   "type": "vue3-typescript-fullstack",
   "entryPoints": {
     "frontend": "src/main.ts",
-    "backend": "server/server.js",
+    "backend": "server/server-improved.js",
     "desktop": "src-tauri/src/main.rs"
   },
   "architecture": {
@@ -36,7 +36,7 @@
       "description": "AI-powered analysis and chat features",
       "components": [
         "AIAnalysisPanel",
-        "EnhancedAIChat", 
+        "EnhancedAIChat",
         "AIFeaturesPanel",
         "AIInsights",
         "AIModelQAComponent"
@@ -119,7 +119,7 @@
     "type": "SQLite",
     "connection": "server/db/core.js",
     "migrations": "server/db/",
-    "models": "server/src/models/"
+    "models": "server/models/"
   },
   "testing": {
     "e2e": "tests/e2e/",

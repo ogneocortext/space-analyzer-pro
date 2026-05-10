@@ -32,7 +32,7 @@ export class AIBackendService {
     try {
       // Handle direct commands locally
       const response = this.handleLocalCommand(message, context);
-      
+
       if (response) {
         return {
           success: true,
@@ -40,34 +40,33 @@ export class AIBackendService {
           metadata: {
             modelUsed: "Local Processing",
             processingTime: Date.now() - startTime,
-            confidence: 0.95
-          }
+            confidence: 0.95,
+          },
         };
       }
 
       // Fallback to generic AI response
       const genericResponse = this.generateGenericResponse(message, context);
-      
+
       return {
         success: true,
         response: genericResponse,
         metadata: {
           modelUsed: "Local Fallback",
           processingTime: Date.now() - startTime,
-          confidence: 0.7
-        }
+          confidence: 0.7,
+        },
       };
-
     } catch (error) {
       console.error("Local AI processing failed:", error);
-      
+
       return {
         success: false,
         response: "I'm having trouble processing your request right now. Please try again later.",
         metadata: {
           modelUsed: "Error Fallback",
-          processingTime: Date.now() - startTime
-        }
+          processingTime: Date.now() - startTime,
+        },
       };
     }
   }
@@ -100,15 +99,27 @@ export class AIBackendService {
    */
   private isDirectCommand(message: string): boolean {
     const directCommands = [
-      "run scan", "new scan", "scan directory",
-      "generate report", "create report", "detailed report",
-      "compare scans", "compare analysis", "previous scan",
-      "export data", "export analysis", "save data",
-      "largest files", "show largest", "biggest files",
-      "storage usage", "disk usage", "how much space"
+      "run scan",
+      "new scan",
+      "scan directory",
+      "generate report",
+      "create report",
+      "detailed report",
+      "compare scans",
+      "compare analysis",
+      "previous scan",
+      "export data",
+      "export analysis",
+      "save data",
+      "largest files",
+      "show largest",
+      "biggest files",
+      "storage usage",
+      "disk usage",
+      "how much space",
     ];
 
-    return directCommands.some(cmd => message.includes(cmd));
+    return directCommands.some((cmd) => message.includes(cmd));
   }
 
   /**
@@ -174,7 +185,7 @@ What would you like to do?`;
     return `## 📊 System Status
 
 ### ✅ **AI Assistant**: Online and ready
-### 📁 **Data Available**: ${hasData ? 'Yes' : 'No'}
+### 📁 **Data Available**: ${hasData ? "Yes" : "No"}
 ### 📄 **Files Analyzed**: ${fileCount.toLocaleString()}
 ### 💾 **Total Size**: ${this.formatBytes(totalSize)}
 
@@ -201,9 +212,9 @@ I'm ready to help you analyze and manage your storage!`;
    */
   async checkBackendHealth(): Promise<boolean> {
     try {
-      const response = await fetch('http://localhost:8080/api/health', {
-        method: 'GET',
-        timeout: 3000
+      const response = await fetch("http://localhost:8085/api/health", {
+        method: "GET",
+        timeout: 3000,
       });
       return response.ok;
     } catch {

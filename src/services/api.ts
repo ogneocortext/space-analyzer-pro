@@ -4,7 +4,7 @@
  */
 
 // Dynamic API base URL detection
-const getApiBaseUrl = (): string => {
+const getApiBaseUrl = async (): Promise<string> => {
   // Check if we're in development or production
   const isDevelopment = import.meta.env.DEV || process.env.NODE_ENV !== "production";
 
@@ -15,7 +15,7 @@ const getApiBaseUrl = (): string => {
 
     // If frontend is served from a different port, use default backend port
     if (currentPort === "3000" || currentPort === "5173") {
-      return `http://${currentHost}:8080`; // Backend port from config
+      return `http://${currentHost}:8085`; // Backend port from config
     }
 
     // If frontend and backend are on same port, use relative URLs
@@ -29,6 +29,7 @@ const getApiBaseUrl = (): string => {
 // API configuration
 export const API_CONFIG = {
   BASE_URL: getApiBaseUrl(),
+  getBaseUrlAsync: async () => await getApiBaseUrl(),
   ENDPOINTS: {
     // Analysis endpoints
     ANALYSIS_START: "/analysis/start",
@@ -74,9 +75,20 @@ export const API_CONFIG = {
 // Enhanced fetch wrapper with error handling
 export class ApiClient {
   private baseUrl: string;
+  private baseUrlPromise: Promise<string>;
 
   constructor() {
     this.baseUrl = API_CONFIG.BASE_URL;
+    this.baseUrlPromise = API_CONFIG.getBaseUrlAsync();
+  }
+
+  private async getBaseUrl(): Promise<string> {
+    try {
+      return await this.baseUrlPromise;
+    } catch (error) {
+      console.warn("Failed to get dynamic base URL, using fallback:", error);
+      return this.baseUrl;
+    }
   }
 
   private async request<T>(
@@ -84,7 +96,8 @@ export class ApiClient {
     options: RequestInit = {}
   ): Promise<{ success: boolean; data?: T; error?: string }> {
     try {
-      const url = `${this.baseUrl}${endpoint}`;
+      const baseUrl = await this.getBaseUrl();
+      const url = `${baseUrl}${endpoint}`;
       console.log(`🌐 API Request: ${options.method || "GET"} ${url}`);
 
       const response = await fetch(url, {

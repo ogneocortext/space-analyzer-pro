@@ -75,7 +75,7 @@ export class CollaborationService {
    * Connect to a collaboration session
    */
   async connect(
-    serverUrl: string = "ws://localhost:8080",
+    serverUrl: string = "ws://localhost:8085",
     sessionId?: string
   ): Promise<CollaborationSession> {
     return new Promise((resolve, reject) => {

@@ -60,48 +60,50 @@ class RoutesManager {
       { name: "learning", Module: LearningRoutes },
       { name: "nlp", Module: NLPRoutes },
       { name: "aiModels", Module: AIModelsRoutes },
-      { name: "general", Module: GeneralRoutes, mountAtRoot: true },
+      { name: "general", Module: GeneralRoutes, mountAtRoot: true, forceReload: true },
     ];
 
     // Initialize all routes in parallel with caching
-    const initializationPromises = routeModules.map(async ({ name, Module, mountAtRoot }) => {
-      try {
-        // Force reload analysis routes to clear cache
-        const cacheKey = `${name}_${Module.name}`;
-        let route = null;
+    const initializationPromises = routeModules.map(
+      async ({ name, Module, mountAtRoot, forceReload }) => {
+        try {
+          // Force reload analysis routes to clear cache
+          const cacheKey = `${name}_${Module.name}`;
+          let route = null;
 
-        if (name === "analysis") {
-          // Force reload analysis routes
-          this.routeCache.delete(cacheKey);
-          route = new Module(this.server);
-          this.routeCache.set(cacheKey, route);
-          console.log(`🔄 Reloaded route module: ${name}`);
-        } else {
-          // Check cache first for other routes
-          route = this.routeCache.get(cacheKey);
-
-          if (!route) {
-            // Create new route instance if not cached
+          if (name === "analysis") {
+            // Force reload analysis routes
+            this.routeCache.delete(cacheKey);
             route = new Module(this.server);
             this.routeCache.set(cacheKey, route);
-            console.log(`📦 Cached route module: ${name}`);
+            console.log(`🔄 Reloaded route module: ${name}`);
           } else {
-            console.log(`⚡ Using cached route: ${name}`);
-          }
-        }
+            // Check cache first for other routes
+            route = this.routeCache.get(cacheKey);
 
-        return {
-          name,
-          route,
-          success: true,
-          fromCache: !!route && this.routeCache.has(cacheKey) && name !== "analysis",
-          mountAtRoot,
-        };
-      } catch (error) {
-        console.error(`❌ Failed to initialize ${name}:`, error.message);
-        return { name, error, success: false };
+            if (!route) {
+              // Create new route instance if not cached
+              route = new Module(this.server);
+              this.routeCache.set(cacheKey, route);
+              console.log(`📦 Cached route module: ${name}`);
+            } else {
+              console.log(`⚡ Using cached route: ${name}`);
+            }
+          }
+
+          return {
+            name,
+            route,
+            success: true,
+            fromCache: !!route && this.routeCache.has(cacheKey) && name !== "analysis",
+            mountAtRoot,
+          };
+        } catch (error) {
+          console.error(`❌ Failed to initialize ${name}:`, error.message);
+          return { name, error, success: false };
+        }
       }
-    });
+    );
 
     // Wait for all routes to initialize
     const results = await Promise.all(initializationPromises);
@@ -189,6 +191,28 @@ class RoutesManager {
     console.log(`✅ ${mountedCount}/${routeMappings.length} API routes mounted successfully`);
     console.log(
       "📍 API endpoints: /api/analysis/*, /api/ai/*, /api/errors/*, /api/learning/*, /api/nlp/*, /api/ai-models/*"
+    );
+
+    // Store mounted routes for debugging
+    this.mountedRoutes = routeMappings
+      .filter(({ route }) => route && typeof route.getRouter === "function")
+      .map(({ name, mountAtRoot }) => {
+        const basePath = mountAtRoot ? "/api" : `/api/${name}`;
+        return `${basePath}/*`;
+      });
+  }
+
+  // Get actual mounted routes
+  getMountedRoutes() {
+    return (
+      this.mountedRoutes || [
+        "/api/health",
+        "/api/debug/routes",
+        "/api/analysis/*",
+        "/api/ai/*",
+        "/api/files/*",
+        "/api/settings/*",
+      ]
     );
   }
 

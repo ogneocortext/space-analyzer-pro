@@ -17,6 +17,15 @@ class GeneralRoutes {
   }
 
   setupRoutes() {
+    // Test root endpoint
+    this.router.get("/", (req, res) => {
+      res.json({
+        success: true,
+        message: "General routes working",
+        timestamp: new Date().toISOString(),
+      });
+    });
+
     // Health check endpoint
     this.router.get("/health", (req, res) => {
       res.json({
@@ -26,6 +35,27 @@ class GeneralRoutes {
         uptime: process.uptime(),
         version: "2.8.9",
         environment: process.env.NODE_ENV || "development",
+      });
+    });
+
+    // Debug routes endpoint
+    this.router.get("/debug/routes", (req, res) => {
+      res.json({
+        success: true,
+        routes: {
+          general: [
+            "/api/health",
+            "/api/debug/routes",
+            "/api/progress/:analysisId",
+            "/api/history/:analysisId",
+            "/api/results/:analysisId",
+          ],
+          analysis: ["/api/analysis/*"],
+          ai: ["/api/ai/*"],
+          files: ["/api/files/*"],
+          settings: ["/api/settings/*"],
+        },
+        timestamp: new Date().toISOString(),
       });
     });
 
@@ -56,7 +86,7 @@ class GeneralRoutes {
     // History endpoint (alias for /api/analysis/history/:analysisId)
     this.router.get("/history/:analysisId", async (req, res) => {
       const { analysisId } = req.params;
-      
+
       try {
         // Try to get from active analyses first
         const activeAnalysis = this.server.activeAnalyses?.get(analysisId);

@@ -17,7 +17,7 @@ onMounted(async () => {
     try {
       // Try to load the most recent analysis from the backend
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/history/latest`
+        `${import.meta.env.VITE_API_URL || "http://localhost:8085/api"}/history/latest`
       );
 
       if (response.ok) {
@@ -75,7 +75,7 @@ async function analyzeDuplicates() {
     const analysisId = analysisData.analysisId;
 
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || "http://localhost:8080/api"}/analysis/${analysisId}/duplicates`,
+      `${import.meta.env.VITE_API_URL || "http://localhost:8085/api"}/analysis/${analysisId}/duplicates`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,7 +110,7 @@ function formatDate(dateStr: string): string {
 
 async function revealFile(filePath: string) {
   try {
-    await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/files/reveal`, {
+    await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8085"}/api/files/reveal`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: filePath }),
@@ -131,7 +131,7 @@ async function deleteFile(filePath: string, hash: string) {
 
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/files/delete`,
+      `${import.meta.env.VITE_API_URL || "http://localhost:8085"}/api/files/delete`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
