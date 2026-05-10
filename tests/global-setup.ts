@@ -27,37 +27,49 @@ async function globalSetup(_config: FullConfig) {
   console.log('📝 Logs will be saved to:', logsDir);
   console.log('📸 Screenshots will be saved to:', screenshotsDir);
 
-  // Start backend server
-  console.log('🔧 Starting backend server...');
-  const backendProcess = spawn('node', ['server/backend-server.js'], {
-    cwd: process.cwd(),
-    stdio: 'inherit',
-    shell: true
-  });
+  // Check if backend is already running
+  const backendRunning = await isServerRunning('http://127.0.0.1:8080/api/health');
+  if (backendRunning) {
+    console.log('✅ Backend server already running on port 8080');
+  } else {
+    console.log('🔧 Starting backend server...');
+    const backendProcess = spawn('node', ['server/server.js'], {
+      cwd: process.cwd(),
+      stdio: 'inherit',
+      shell: true
+    });
 
-  // Wait for backend to be ready
-  await waitForServer('http://127.0.0.1:8080/api/health', 30000);
-  console.log('✅ Backend server ready on port 8080');
+    // Wait for backend to be ready
+    await waitForServer('http://127.0.0.1:8080/api/health', 30000);
+    console.log('✅ Backend server ready on port 8080');
 
-  // Start frontend dev server
-  console.log('🔧 Starting frontend dev server...');
-  const frontendProcess = spawn('npm', ['run', 'dev:no-browser'], {
-    cwd: process.cwd(),
-    stdio: 'inherit',
-    shell: true,
-    env: { ...process.env, BROWSER: 'none' }
-  });
-
-  // Wait for frontend to be ready
-  await waitForServer('http://localhost:3001', 30000);
-  console.log('✅ Frontend dev server ready on port 3001');
-
-  // Store process IDs for cleanup
-  if (backendProcess.pid) {
-    process.env.BACKEND_PID = backendProcess.pid.toString();
+    // Store process ID for cleanup
+    if (backendProcess.pid) {
+      process.env.BACKEND_PID = backendProcess.pid.toString();
+    }
   }
-  if (frontendProcess.pid) {
-    process.env.FRONTEND_PID = frontendProcess.pid.toString();
+
+  // Check if frontend is already running
+  const frontendRunning = await isServerRunning('http://localhost:5173');
+  if (frontendRunning) {
+    console.log('✅ Frontend dev server already running on port 5173');
+  } else {
+    console.log('🔧 Starting frontend dev server...');
+    const frontendProcess = spawn('npm', ['run', 'dev:no-browser'], {
+      cwd: process.cwd(),
+      stdio: 'inherit',
+      shell: true,
+      env: { ...process.env, BROWSER: 'none' }
+    });
+
+    // Wait for frontend to be ready
+    await waitForServer('http://localhost:5173', 30000);
+    console.log('✅ Frontend dev server ready on port 5173');
+
+    // Store process ID for cleanup
+    if (frontendProcess.pid) {
+      process.env.FRONTEND_PID = frontendProcess.pid.toString();
+    }
   }
 }
 
@@ -67,7 +79,8 @@ function waitForServer(url: string, timeout: number): Promise<void> {
 
     const checkServer = () => {
       const req = http.get(url, (res) => {
-        if (res.statusCode === 200) {
+        // Accept 200 (healthy) or 503 (degraded but running) as success
+        if (res.statusCode === 200 || res.statusCode === 503) {
           resolve();
         } else {
           retry();
@@ -90,6 +103,23 @@ function waitForServer(url: string, timeout: number): Promise<void> {
     };
 
     checkServer();
+  });
+}
+
+function isServerRunning(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const req = http.get(url, (res) => {
+      resolve(res.statusCode === 200);
+    });
+
+    req.on('error', () => {
+      resolve(false);
+    });
+
+    req.setTimeout(3000, () => {
+      req.destroy();
+      resolve(false);
+    });
   });
 }
 

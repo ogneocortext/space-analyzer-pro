@@ -11,16 +11,44 @@ export default defineConfig({
     },
   },
 
+  // Aggressive optimization for fast startup
+  optimizeDeps: {
+    // Minimal pre-bundling for fastest startup
+    include: ["vue"],
+    // Exclude everything else to load on demand
+    exclude: [
+      "vue-router",
+      "pinia",
+      "three",
+      "d3",
+      "puppeteer",
+      "jspdf",
+      "lucide-vue-next",
+      "@tauri-apps/api/core",
+      "@tauri-apps/plugin-dialog",
+      "@tauri-apps/plugin-fs",
+      "@tauri-apps/plugin-notification",
+    ],
+    // Disable force optimization
+    force: false,
+  },
+
   server: {
-    port: 5173,
-    strictPort: false, // Allow port to change if 5173 is busy
+    port: 5178,
+    strictPort: true,
     host: true,
-    open: false, // Don't auto-open browser
+    open: false,
     cors: true,
     hmr: {
-      overlay: false, // Disable HMR overlay for faster startup
+      overlay: false,
     },
-    // Proxy API requests to backend server
+    fs: {
+      strict: false,
+    },
+    watch: {
+      usePolling: false,
+      interval: 200, // Slightly slower but more stable
+    },
     proxy: {
       "/api": {
         target: "http://localhost:8080",
@@ -30,39 +58,36 @@ export default defineConfig({
     },
   },
 
-  // Optimized build configuration for faster startup
+  // Minimal build config
   build: {
     outDir: "dist",
-    sourcemap: true,
+    sourcemap: false, // Disable for faster builds
     rollupOptions: {
-      output: {
-        manualChunks: (id: string) => {
-          if (id.includes("node_modules")) {
-            if (id.includes("vue") || id.includes("vue-router") || id.includes("pinia")) {
-              return "vendor";
-            }
-            return "vendor-other";
-          }
-        },
+      onwarn(warning, warn) {
+        // Suppress all warnings for faster startup
+        if (
+          warning.code === "SOURCEMAP_ERROR" ||
+          (warning.message && warning.message.includes("zodiac-"))
+        ) {
+          return;
+        }
+        warn(warning);
       },
     },
     target: "esnext",
-    minify: "esbuild",
+    minify: false, // Disable minification for faster builds in dev
+    chunkSizeWarningLimit: 1000, // Increase threshold
+    reportCompressedSize: false,
   },
 
-  // Optimized dependency pre-bundling
-  optimizeDeps: {
-    include: ["vue", "vue-router", "pinia"],
-    force: false, // Don't force rebuild unless needed
-  },
-
-  // Simple CSS configuration
+  // CSS configuration
   css: {
-    devSourcemap: true,
+    devSourcemap: false,
   },
 
-  // Clear define statements
+  // Define global constants
   define: {
-    __DEV__: true,
+    __VUE_OPTIONS_API__: true,
+    __VUE_PROD_DEVTOOLS__: false,
   },
 });
