@@ -21,7 +21,6 @@ export { visualAnalysisService } from "./analysis/VisualAnalysisService";
 export { AIService } from "./ai/AIService";
 export { AIChatService } from "./ai/AIChatService";
 export { ollamaService } from "./ai/OllamaService";
-export { ollamaAI } from "./ai/OllamaAI";
 export { GoogleAIService } from "./ai/GoogleAIService";
 export { pythonAIService } from "./ai/PythonAIService";
 

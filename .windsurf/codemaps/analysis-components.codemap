@@ -1,0 +1,212 @@
+{
+  "name": "Analysis Components Domain",
+  "description": "File analysis, code analysis, and data visualization components",
+  "path": "src/components/vue/analysis/",
+  "type": "feature-domain",
+  "components": {
+    "AnalysisProgress": {
+      "file": "AnalysisProgress.vue",
+      "purpose": "Real-time analysis progress tracking",
+      "dependencies": [
+        "src/services/AnalysisService.ts",
+        "src/composables/useAnalysis.ts",
+        "src/store/analysis.ts"
+      ],
+      "props": {
+        "progress": "Number",
+        "currentFile": "String",
+        "totalFiles": "Number",
+        "isAnalyzing": "Boolean"
+      },
+      "features": [
+        "Progress bar",
+        "File count display",
+        "Time estimation",
+        "Cancel functionality"
+      ]
+    },
+    "EnhancedAnalytics": {
+      "file": "EnhancedAnalytics.vue",
+      "purpose": "Advanced analytics dashboard",
+      "dependencies": [
+        "src/services/AnalysisService.ts",
+        "src/hooks/useAnalysisState.ts",
+        "src/components/charts/GrowthChart.vue"
+      ],
+      "features": [
+        "Interactive charts",
+        "Data filtering",
+        "Export capabilities",
+        "Real-time updates"
+      ]
+    },
+    "ComprehensiveAnalysisModal": {
+      "file": "ComprehensiveAnalysisModal.vue",
+      "purpose": "Full analysis configuration and results modal",
+      "dependencies": [
+        "src/services/AnalysisService.ts",
+        "src/components/vue/analysis/components/",
+        "src/composables/useAnalysis.ts"
+      ],
+      "subcomponents": [
+        "AnalysisConfiguration.vue",
+        "AnalysisModalHeader.vue",
+        "AnalysisModalActions.vue",
+        "AnalyzerSelection.vue",
+        "ProjectPathInput.vue",
+        "GeneratedCommand.vue"
+      ],
+      "features": [
+        "Multiple analysis types",
+        "Configuration options",
+        "Results visualization",
+        "Export functionality"
+      ]
+    },
+    "EnhancedFileDetailsModal": {
+      "file": "EnhancedFileDetailsModal.vue",
+      "purpose": "Detailed file information modal",
+      "dependencies": [
+        "src/services/FileSystemService.ts",
+        "src/composables/useFileOperations.ts"
+      ],
+      "features": [
+        "File metadata",
+        "Preview capabilities",
+        "Analysis results",
+        "Action buttons"
+      ]
+    },
+    "HardLinksAnalysis": {
+      "file": "HardLinksAnalysis.vue",
+      "purpose": "Hard links detection and analysis",
+      "dependencies": [
+        "src/services/AnalysisService.ts",
+        "src/hooks/useDependencyAnalysis.ts"
+      ],
+      "features": [
+        "Hard link detection",
+        "Link visualization",
+        "Space optimization",
+        "Link management"
+      ]
+    },
+    "TimestampAnalysis": {
+      "file": "TimestampAnalysis.vue",
+      "purpose": "File timestamp and temporal analysis",
+      "dependencies": [
+        "src/services/AnalysisService.ts",
+        "src/composables/useAnalysis.ts"
+      ],
+      "features": [
+        "Creation/modified/accessed times",
+        "Temporal patterns",
+        "Timeline visualization",
+        "Date filtering"
+      ]
+    }
+  },
+  "subcomponents": {
+    "AnalysisConfiguration": {
+      "file": "components/AnalysisConfiguration.vue",
+      "purpose": "Analysis settings and options",
+      "features": [
+        "Analysis type selection",
+        "Depth settings",
+        "Filter options",
+        "Performance settings"
+      ]
+    },
+    "AnalysisModalActions": {
+      "file": "components/AnalysisModalActions.vue",
+      "purpose": "Modal action buttons and controls",
+      "actions": [
+        "Start Analysis",
+        "Cancel",
+        "Export Results",
+        "Save Configuration"
+      ]
+    },
+    "AnalyzerSelection": {
+      "file": "components/AnalyzerSelection.vue",
+      "purpose": "Choose analysis engine/type",
+      "analyzers": [
+        "File System",
+        "Code Analysis",
+        "Dependency Analysis",
+        "Security Analysis"
+      ]
+    }
+  },
+  "services": {
+    "AnalysisService": {
+      "path": "src/services/AnalysisService.ts",
+      "purpose": "Core analysis service",
+      "methods": [
+        "analyzeFiles",
+        "analyzeCode",
+        "analyzeDependencies",
+        "getAnalysisResults",
+        "exportResults"
+      ]
+    },
+    "AnalysisBridge": {
+      "path": "src/services/analysis/AnalysisBridge.ts",
+      "purpose": "Bridge between frontend and backend analysis",
+      "features": [
+        "API communication",
+        "Data transformation",
+        "Error handling",
+        "Caching"
+      ]
+    }
+  },
+  "composables": {
+    "useAnalysis": {
+      "path": "src/composables/useAnalysis.ts",
+      "purpose": "Analysis state management",
+      "returns": [
+        "analysisData",
+        "isAnalyzing",
+        "progress",
+        "startAnalysis",
+        "cancelAnalysis"
+      ]
+    },
+    "useAnalysisState": {
+      "path": "src/hooks/useAnalysisState.ts",
+      "purpose": "Advanced analysis state management",
+      "features": [
+        "History tracking",
+        "Result caching",
+        "State persistence"
+      ]
+    },
+    "useDependencyAnalysis": {
+      "path": "src/hooks/useDependencyAnalysis.ts",
+      "purpose": "Dependency analysis utilities",
+      "features": [
+        "Graph building",
+        "Circular detection",
+        "Impact analysis"
+      ]
+    }
+  },
+  "backend": {
+    "routes": "server/routes/analysis.js",
+    "controllers": [
+      "server/controllers/AnalysisController.js",
+      "server/controllers/scan-controller.js"
+    ],
+    "modules": [
+      "server/modules/analysis-service.js",
+      "server/modules/complexity-analyzer.js",
+      "server/modules/duplicate-detector.js"
+    ]
+  },
+  "testing": {
+    "unit": "src/test/analysis-components.test.ts",
+    "e2e": "tests/e2e/analysis-workflow.spec.ts",
+    "integration": "tests/api/analysis-endpoints.test.js"
+  }
+}

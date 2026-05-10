@@ -1,0 +1,221 @@
+{
+  "name": "Backend Services Domain",
+  "description": "Server-side services, APIs, and business logic",
+  "path": "server/",
+  "type": "backend-domain",
+  "server": {
+    "main": "server.js",
+    "alternative": "server-improved.js",
+    "port": 3001,
+    "framework": "Express.js",
+    "middleware": [
+      "server/middleware/errorHandler.js",
+      "server/middleware/rateLimiting.js",
+      "server/middleware/validation.js"
+    ]
+  },
+  "apiRoutes": {
+    "ai": {
+      "path": "routes/ai.js",
+      "purpose": "AI model interactions and analysis",
+      "endpoints": [
+        "POST /api/ai/analyze",
+        "POST /api/ai/chat",
+        "GET /api/ai/models",
+        "POST /api/ai/recommendations"
+      ],
+      "dependencies": [
+        "server/services/ai/",
+        "server/modules/ollama-service.js"
+      ]
+    },
+    "analysis": {
+      "path": "routes/analysis.js",
+      "purpose": "File and code analysis endpoints",
+      "endpoints": [
+        "POST /api/analysis/start",
+        "GET /api/analysis/status/:id",
+        "GET /api/analysis/results/:id",
+        "POST /api/analysis/cancel/:id"
+      ],
+      "dependencies": [
+        "server/modules/analysis-service.js",
+        "server/controllers/AnalysisController.js"
+      ]
+    },
+    "files": {
+      "path": "routes/files.js",
+      "purpose": "File system operations",
+      "endpoints": [
+        "GET /api/files/list",
+        "GET /api/files/metadata",
+        "POST /api/files/search",
+        "DELETE /api/files/:path"
+      ]
+    },
+    "exports": {
+      "path": "routes/exports.js",
+      "purpose": "Data export functionality",
+      "endpoints": [
+        "POST /api/exports/pdf",
+        "POST /api/exports/csv",
+        "POST /api/exports/json"
+      ]
+    }
+  },
+  "services": {
+    "ai": {
+      "directory": "services/ai/",
+      "services": {
+        "OllamaService": {
+          "file": "OllamaService.js",
+          "purpose": "Ollama AI model integration",
+          "features": ["Model management", "Streaming responses", "Rate limiting"]
+        },
+        "EnhancedOllamaService": {
+          "file": "EnhancedOllamaService.js",
+          "purpose": "Enhanced Ollama with caching",
+          "features": ["Response caching", "Batch processing", "Performance monitoring"]
+        },
+        "SpaceAnalyzerAIIntegration": {
+          "file": "SpaceAnalyzerAIIntegration.js",
+          "purpose": "AI integration for space analysis",
+          "features": ["File categorization", "Pattern recognition", "Optimization suggestions"]
+        }
+      }
+    },
+    "scanning": {
+      "directory": "services/",
+      "services": {
+        "ai-integrated-scanner": {
+          "file": "ai-integrated-scanner.js",
+          "purpose": "AI-powered file scanning",
+          "features": ["Smart categorization", "ML-based analysis", "Real-time processing"]
+        },
+        "enhanced-polyglot-scanner": {
+          "file": "enhanced-polyglot-scanner.js",
+          "purpose": "Multi-language code scanner",
+          "features": ["Language detection", "Syntax analysis", "Dependency extraction"]
+        },
+        "polyglot-scanner": {
+          "file": "polyglot-scanner.js",
+          "purpose": "Basic polyglot scanning",
+          "features": ["File type detection", "Basic parsing", "Structure analysis"]
+        }
+      }
+    },
+    "analytics": {
+      "directory": "services/",
+      "services": {
+        "analytics-insights": {
+          "file": "analytics-insights.js",
+          "purpose": "Analytics and insights generation",
+          "features": ["Pattern detection", "Trend analysis", "Predictive insights"]
+        }
+      }
+    }
+  },
+  "modules": {
+    "ollama-service": {
+      "file": "modules/ollama-service.js",
+      "purpose": "Ollama integration module",
+      "features": ["Model communication", "Response handling", "Error management"]
+    },
+    "analysis-service": {
+      "file": "modules/analysis-service.js",
+      "purpose": "Core analysis engine",
+      "features": ["File analysis", "Code parsing", "Metadata extraction"]
+    },
+    "complexity-analyzer": {
+      "file": "modules/complexity-analyzer.js",
+      "purpose": "Code complexity analysis",
+      "features": ["Cyclomatic complexity", "Cognitive complexity", "Maintainability index"]
+    },
+    "duplicate-detector": {
+      "file": "modules/duplicate-detector.js",
+      "purpose": "Duplicate file detection",
+      "features": ["Hash comparison", "Content analysis", "Similarity scoring"]
+    },
+    "file-utils": {
+      "file": "modules/file-utils.js",
+      "purpose": "File utility functions",
+      "features": ["File operations", "Path handling", "Metadata extraction"]
+    },
+    "security": {
+      "file": "modules/security.js",
+      "purpose": "Security and validation",
+      "features": ["Input validation", "Path sanitization", "Access control"]
+    },
+    "websocket": {
+      "file": "modules/websocket.js",
+      "purpose": "WebSocket communication",
+      "features": ["Real-time updates", "Event streaming", "Connection management"]
+    }
+  },
+  "database": {
+    "type": "SQLite",
+    "connection": "db/core.js",
+    "manager": "db/database-manager.js",
+    "modules": [
+      "db/analysis.js",
+      "db/ai.js",
+      "db/cleanup.js",
+      "db/complexity.js",
+      "db/connection-pool.js",
+      "db/query-optimizer.js",
+      "db/summaries.js",
+      "db/templates.js",
+      "db/transaction.js",
+      "db/trends.js"
+    ],
+    "features": [
+      "Connection pooling",
+      "Transaction management",
+      "Query optimization",
+      "Backup and restore"
+    ]
+  },
+  "controllers": {
+    "AnalysisController": {
+      "file": "controllers/AnalysisController.js",
+      "purpose": "Analysis request handling",
+      "methods": ["startAnalysis", "getAnalysisStatus", "getResults", "cancelAnalysis"]
+    },
+    "FileController": {
+      "file": "src/controllers/FileController.js",
+      "purpose": "File operation handling",
+      "methods": ["listFiles", "getFileMetadata", "searchFiles", "deleteFile"]
+    },
+    "AIController": {
+      "file": "src/controllers/AIController.js",
+      "purpose": "AI service integration",
+      "methods": ["analyzeWithAI", "chatWithAI", "getModels", "getRecommendations"]
+    },
+    "HealthController": {
+      "file": "src/controllers/HealthController.js",
+      "purpose": "System health monitoring",
+      "methods": ["getHealthStatus", "getMetrics", "checkDependencies"]
+    }
+  },
+  "testing": {
+    "unit": [
+      "server/services/__tests__/",
+      "server/modules/__tests__/"
+    ],
+    "integration": "tests/api/",
+    "load": "tests/load/",
+    "e2e": "tests/e2e/backend-connectivity.spec.ts"
+  },
+  "performance": {
+    "monitoring": [
+      "server/LocalAIPerformanceMonitor.js",
+      "server/middleware/performance.js"
+    ],
+    "optimization": [
+      "Connection pooling",
+      "Query optimization",
+      "Response caching",
+      "Rate limiting"
+    ]
+  }
+}

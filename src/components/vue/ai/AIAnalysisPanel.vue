@@ -228,7 +228,7 @@ import {
   Download,
   Share,
 } from "lucide-vue-next";
-import { ollamaService } from "../../services/OllamaService";
+import { ollamaService } from "../../services/ai/OllamaService";
 
 interface AIAnalysisPanelProps {
   analysisData: any;

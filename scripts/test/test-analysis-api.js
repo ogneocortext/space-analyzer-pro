@@ -1,9 +1,26 @@
+#!/usr/bin/env node
+
 /**
  * Test script for Code Quality Analysis API
  * Tests all Phase 1-3 endpoints
  */
 
 const BASE_URL = "http://localhost:8080/api";
+
+// Security: Validate URL
+function validateUrl(url) {
+  try {
+    new URL(url);
+    return url.startsWith("http://localhost:") || url.startsWith("http://127.0.0.1:");
+  } catch {
+    return false;
+  }
+}
+
+if (!validateUrl(BASE_URL)) {
+  console.error("❌ Security: Invalid BASE_URL");
+  process.exit(1);
+}
 
 async function testEndpoint(name, method, path, body = null) {
   console.log(`\n🧪 Testing: ${name}`);
@@ -142,7 +159,9 @@ async function runTests() {
   console.log("=".repeat(60));
   console.log(`✅ Passed: ${results.passed}`);
   console.log(`❌ Failed: ${results.failed}`);
-  console.log(`📊 Success Rate: ${Math.round((results.passed / (results.passed + results.failed)) * 100)}%`);
+  console.log(
+    `📊 Success Rate: ${Math.round((results.passed / (results.passed + results.failed)) * 100)}%`
+  );
 
   if (results.failed > 0) {
     console.log("\n⚠️ Some tests failed. This may be expected if:");

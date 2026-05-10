@@ -1,0 +1,286 @@
+{
+  "name": "Stability Improvements & Error Handling",
+  "description": "Critical stability improvements and error handling patterns for reliable feature operation",
+  "type": "stability-domain",
+  "criticalIssues": {
+    "aiServiceFailures": {
+      "problem": "AI services (Ollama, Google AI, Python ML) can fail independently",
+      "impact": "AI features become unavailable, cascading failures",
+      "components": ["EnhancedAIChat", "AIAnalysisPanel", "AIFeaturesPanel"],
+      "solution": "Implement circuit breaker pattern with fallbacks"
+    },
+    "databaseConnectionIssues": {
+      "problem": "SQLite connection pool exhaustion under load",
+      "impact": "Analysis failures, data corruption risk",
+      "components": ["AnalysisProgress", "ScanHistoryView"],
+      "solution": "Connection pooling with health checks"
+    },
+    "memoryLeaksIn3D": {
+      "problem": "Three.js scene not properly cleaned up",
+      "impact": "Browser crashes, performance degradation",
+      "components": ["FileSystem3DEnhanced", "Visualization3DCanvas"],
+      "solution": "Proper resource cleanup and disposal"
+    },
+    "websocketConnectionLoss": {
+      "problem": "WebSocket connections drop without reconnection",
+      "impact": "Real-time updates stop, progress tracking fails",
+      "components": ["ProgressTracker", "RealTimePerformanceMonitor"],
+      "solution": "Automatic reconnection with exponential backoff"
+    },
+    "raceConditionsInAnalysis": {
+      "problem": "Multiple simultaneous analyses interfere",
+      "impact": "Corrupted results, inconsistent state",
+      "components": ["AnalysisProgress", "ComprehensiveAnalysisModal"],
+      "solution": "Analysis queue with mutex locks"
+    }
+  },
+  "stabilityPatterns": {
+    "circuitBreaker": {
+      "purpose": "Prevent cascading failures from external services",
+      "implementation": {
+        "services": ["AIService", "OllamaService", "GoogleAIService"],
+        "threshold": 5 failures in 30 seconds,
+        "timeout": 60 seconds,
+        "fallback": "Cached responses or degraded mode"
+      },
+      "codeLocation": "src/services/ai/CircuitBreaker.ts"
+    },
+    "retryWithBackoff": {
+      "purpose": "Handle transient failures gracefully",
+      "implementation": {
+        "maxRetries": 3,
+        "baseDelay": 1000,
+        "maxDelay": 10000,
+        "backoffFactor": 2
+      },
+      "codeLocation": "src/utils/RetryHandler.ts"
+    },
+    "gracefulDegradation": {
+      "purpose": "Provide limited functionality when services fail",
+      "implementation": {
+        "levels": ["full", "degraded", "offline"],
+        "triggers": ["service_unavailable", "network_error", "high_latency"]
+      },
+      "codeLocation": "src/core/GracefulDegradation.ts"
+    },
+    "resourceCleanup": {
+      "purpose": "Prevent memory leaks and resource exhaustion",
+      "implementation": {
+        "autoCleanup": true,
+        "cleanupInterval": 30000,
+        "maxMemoryUsage": "512MB"
+      },
+      "codeLocation": "src/core/ResourceManager.ts"
+    }
+  },
+  "errorBoundaries": {
+    "vue": {
+      "implementation": "src/components/vue/error-handling/ErrorBoundary.vue",
+      "coverage": [
+        "src/components/vue/ai/",
+        "src/components/vue/analysis/",
+        "src/components/vue/visualization/"
+      ],
+      "fallbacks": {
+        "ai": "Basic AI interface with cached responses",
+        "analysis": "Simple progress indicator",
+        "visualization": "2D fallback charts"
+      }
+    },
+    "api": {
+      "implementation": "server/middleware/errorHandler.js",
+      "coverage": "All API routes",
+      "responses": {
+        "500": "Internal server error - retry later",
+        "503": "Service temporarily unavailable",
+        "429": "Rate limit exceeded - backoff required"
+      }
+    }
+  },
+  "healthChecks": {
+    "frontend": {
+      "implementation": "src/utils/HealthChecker.ts",
+      "checks": [
+        {
+          "name": "api_connectivity",
+          "url": "/api/health",
+          "interval": 30000,
+          "timeout": 5000
+        },
+        {
+          "name": "ai_service_status",
+          "url": "/api/ai/status",
+          "interval": 60000,
+          "timeout": 10000
+        },
+        {
+          "name": "websocket_connection",
+          "check": "ping_pong",
+          "interval": 30000
+        }
+      ]
+    },
+    "backend": {
+      "implementation": "server/middleware/healthCheck.js",
+      "checks": [
+        {
+          "name": "database_connection",
+          "query": "SELECT 1",
+          "timeout": 1000
+        },
+        {
+          "name": "ai_services",
+          "services": ["ollama", "google_ai", "python_ml"],
+          "timeout": 5000
+        },
+        {
+          "name": "memory_usage",
+          "threshold": "80%",
+          "action": "cleanup"
+        }
+      ]
+    }
+  },
+  "monitoring": {
+    "metrics": {
+      "frontend": {
+        "error_rates": "Component error frequency",
+        "performance": "Render times, memory usage",
+        "user_interactions": "Failed actions, retries"
+      },
+      "backend": {
+        "response_times": "API endpoint performance",
+        "error_counts": "Service failure rates",
+        "resource_usage": "CPU, memory, database connections"
+      }
+    },
+    "alerts": {
+      "critical": [
+        "Service downtime > 30 seconds",
+        "Error rate > 5%",
+        "Memory usage > 90%",
+        "Database connection pool exhaustion"
+      ],
+      "warnings": [
+        "Response time > 2 seconds",
+        "Error rate > 1%",
+        "Memory usage > 70%"
+      ]
+    }
+  },
+  "improvements": {
+    "aiComponents": {
+      "enhancedAIChat": {
+        "stability_issues": [
+          "Streaming connection drops",
+          "Model switching failures",
+          "Context loss during errors"
+        ],
+        "fixes": [
+          "Connection state management",
+          "Model fallback hierarchy",
+          "Context persistence across reconnections"
+        ],
+        "implementation": "src/components/vue/ai/StableAIChat.vue"
+      },
+      "aiAnalysisPanel": {
+        "stability_issues": [
+          "Analysis timeout without feedback",
+          "Model unavailability mid-analysis",
+          "Result parsing errors"
+        ],
+        "fixes": [
+          "Progressive timeout handling",
+          "Model switching during analysis",
+          "Robust result validation"
+        ]
+      }
+    },
+    "analysisComponents": {
+      "analysisProgress": {
+        "stability_issues": [
+          "Progress polling failures",
+          "State synchronization issues",
+          "Memory leaks during long scans"
+        ],
+        "fixes": [
+          "Reliable polling with backoff",
+          "State reconciliation logic",
+          "Memory monitoring and cleanup"
+        ]
+      },
+      "comprehensiveAnalysisModal": {
+        "stability_issues": [
+          "Configuration validation failures",
+          "Analysis queue conflicts",
+          "Modal state corruption"
+        ],
+        "fixes": [
+          "Comprehensive validation",
+          "Queue management with priorities",
+          "State isolation and recovery"
+        ]
+      }
+    },
+    "visualizationComponents": {
+      "fileSystem3DEnhanced": {
+        "stability_issues": [
+          "Three.js scene memory leaks",
+          "GPU resource exhaustion",
+          "Rendering crashes on large datasets"
+        ],
+        "fixes": [
+          "Automatic scene cleanup",
+          "GPU memory monitoring",
+          "Level-of-detail rendering"
+        ]
+      }
+    }
+  },
+  "testing": {
+    "stabilityTests": {
+      "unit": [
+        "src/test/error-handling.test.ts",
+        "src/test/circuit-breaker.test.ts",
+        "src/test/retry-logic.test.ts"
+      ],
+      "integration": [
+        "tests/integration/ai-service-failures.test.js",
+        "tests/integration/database-recovery.test.js",
+        "tests/integration/websocket-reconnection.test.js"
+      ],
+      "e2e": [
+        "tests/e2e/stability-scenarios.spec.ts",
+        "tests/e2e/error-recovery.spec.ts",
+        "tests/e2e/resource-cleanup.spec.ts"
+      ],
+      "load": [
+        "tests/load/memory-leak-detection.test.js",
+        "tests/load/connection-pool-exhaustion.test.js",
+        "tests/load/3d-rendering-stress.test.js"
+      ]
+    }
+  },
+  "configuration": {
+    "stabilitySettings": {
+      "ai": {
+        "timeout": 30000,
+        "retries": 3,
+        "circuitBreakerThreshold": 5,
+        "fallbackMode": true
+      },
+      "analysis": {
+        "maxConcurrent": 3,
+        "timeout": 300000,
+        "progressPollingInterval": 1000,
+        "memoryLimit": "1GB"
+      },
+      "visualization": {
+        "maxObjects": 10000,
+        "memoryThreshold": "512MB",
+        "autoCleanup": true,
+        "fallbackTo2D": true
+      }
+    }
+  }
+}

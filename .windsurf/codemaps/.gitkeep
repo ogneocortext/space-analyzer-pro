@@ -1,0 +1,14 @@
+# Windsurf Codemaps Directory
+
+This directory contains codemaps for Windsurf AI assistant to better understand the Space Analyzer Pro codebase structure.
+
+## Codemaps Included:
+- main.codemap - Overall project architecture
+- ai-components.codemap - AI-powered components and services
+- analysis-components.codemap - File and code analysis components  
+- visualization-components.codemap - 3D visualization and charts
+- backend-services.codemap - Server-side services and APIs
+- frontend-utilities.codemap - Frontend utilities and composables
+- README.md - Documentation and usage guide
+
+These codemaps help Windsurf provide better code suggestions, navigation, and refactoring support.

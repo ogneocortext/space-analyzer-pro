@@ -24,8 +24,14 @@ if (!fs.existsSync(resultsDir)) {
   process.exit(0);
 }
 
-// Get all files in results directory
-const files = fs.readdirSync(resultsDir);
+// Get all files in results directory with safety checks
+let files;
+try {
+  files = fs.readdirSync(resultsDir);
+} catch (error) {
+  console.error("❌ Error reading results directory:", error.message);
+  process.exit(1);
+}
 
 if (files.length === 0) {
   console.log("✅ Results folder is already clean");
@@ -39,20 +45,42 @@ const today = new Date();
 const dateFolder = path.join(resultsDir, today.toISOString().split("T")[0]);
 
 if (!fs.existsSync(dateFolder)) {
-  fs.mkdirSync(dateFolder, { recursive: true });
-  console.log(`📁 Created date folder: ${dateFolder}`);
+  try {
+    fs.mkdirSync(dateFolder, { recursive: true });
+    console.log(`📁 Created date folder: ${dateFolder}`);
+  } catch (error) {
+    console.error("❌ Error creating date folder:", error.message);
+    process.exit(1);
+  }
 }
 
-// Move files to date folder
+// Move files to date folder with validation
 let movedCount = 0;
+const maxFileSize = 100 * 1024 * 1024; // 100MB limit
+
 files.forEach((file) => {
+  // Skip hidden files and directories
+  if (file.startsWith(".") || file === path.basename(dateFolder)) {
+    return;
+  }
+
   const srcPath = path.join(resultsDir, file);
   const destPath = path.join(dateFolder, file);
 
-  // Skip if already in a date folder
-  if (fs.existsSync(dateFolder) && file === path.basename(dateFolder)) return;
-
   try {
+    const stats = fs.statSync(srcPath);
+
+    // Skip if it's a directory or too large
+    if (stats.isDirectory()) {
+      console.log(`  Skipping directory: ${file}`);
+      return;
+    }
+
+    if (stats.size > maxFileSize) {
+      console.log(`  Skipping large file: ${file} (${Math.round(stats.size / 1024 / 1024)}MB)`);
+      return;
+    }
+
     fs.renameSync(srcPath, destPath);
     console.log(`  Moved: ${file}`);
     movedCount++;

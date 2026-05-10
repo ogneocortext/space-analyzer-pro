@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Fix script for discovered issues in the Self-Learning system
- * Addresses problems found during testing phase
+ * Safe Fix Script for Space Analyzer
+ * Addresses common issues with proper validation and safety checks
  */
 
 import fs from "fs";
@@ -12,15 +12,35 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log("🔧 Fixing Discovered Issues...\n");
+console.log("🔧 Space Analyzer Safe Fix Tool\n");
 
-// Helper to safely read file
+// Security: Validate file paths to prevent directory traversal
+function validatePath(filePath) {
+  const resolvedPath = path.resolve(filePath);
+  const projectRoot = path.resolve(__dirname, "..");
+  return resolvedPath.startsWith(projectRoot);
+}
+
+// Helper to safely read file with validation
 function safeReadFile(filePath, encoding = "utf8") {
   try {
+    if (!validatePath(filePath)) {
+      console.error(`❌ Security: Invalid file path: ${filePath}`);
+      return null;
+    }
+
     if (!fs.existsSync(filePath)) {
       console.warn(`⚠️  File not found: ${filePath}`);
       return null;
     }
+
+    const stats = fs.statSync(filePath);
+    if (stats.size > 10 * 1024 * 1024) {
+      // 10MB limit
+      console.error(`❌ File too large: ${filePath}`);
+      return null;
+    }
+
     return fs.readFileSync(filePath, encoding);
   } catch (error) {
     console.error(`❌ Error reading ${filePath}:`, error.message);
@@ -28,15 +48,26 @@ function safeReadFile(filePath, encoding = "utf8") {
   }
 }
 
-// Helper to safely write file with backup
+// Helper to safely write file with backup and validation
 function safeWriteFile(filePath, content) {
   try {
+    if (!validatePath(filePath)) {
+      console.error(`❌ Security: Invalid file path: ${filePath}`);
+      return false;
+    }
+
+    if (typeof content !== "string" && !Buffer.isBuffer(content)) {
+      console.error(`❌ Invalid content type for ${filePath}`);
+      return false;
+    }
+
     // Create backup if file exists
     if (fs.existsSync(filePath)) {
       const backupPath = `${filePath}.backup.${Date.now()}`;
       fs.copyFileSync(filePath, backupPath);
       console.log(`   📋 Backup created: ${backupPath}`);
     }
+
     fs.writeFileSync(filePath, content);
     return true;
   } catch (error) {

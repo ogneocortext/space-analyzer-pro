@@ -62,7 +62,7 @@ export interface OllamaResponse {
   context?: any;
   used_model?: string;
 }
-class OllamaService {
+export class OllamaService {
   private baseUrl: string = "/api/ollama";
   private models: OllamaModel[] = [];
   private currentModel: string = "qwen2.5-coder:7b-instruct";

@@ -5,34 +5,34 @@
  * Runs security tests including OWASP checks and dependency scanning
  */
 
-import { spawn } from 'child_process';
-import fs from 'fs';
+import { spawn } from "child_process";
+import fs from "fs/promises";
 
 class SecurityTestRunner {
   constructor() {
     this.options = {
-      testDir: 'tests/e2e/security',
-      reportDir: 'test-results/security',
-      severity: ['high', 'critical'],
+      testDir: "tests/e2e/security",
+      reportDir: "test-results/security",
+      severity: ["high", "critical"],
     };
   }
 
   async run() {
-    console.log('🔒 Starting Security Tests');
-    
+    console.log("🔒 Starting Security Tests");
+
     // Ensure directories exist
     this.ensureDirectories();
-    
+
     try {
       // Run dependency audit
       await this.runDependencyAudit();
-      
+
       // Run security E2E tests
       await this.runSecurityE2ETests();
-      
-      console.log('✅ Security tests completed successfully');
+
+      console.log("✅ Security tests completed successfully");
     } catch (error) {
-      console.error('❌ Security tests failed:', error.message);
+      console.error("❌ Security tests failed:", error.message);
       throw error;
     }
   }
@@ -45,26 +45,26 @@ class SecurityTestRunner {
   }
 
   async runDependencyAudit() {
-    console.log('🔍 Running dependency audit...');
-    
+    console.log("🔍 Running dependency audit...");
+
     return new Promise((resolve, reject) => {
-      const child = spawn('npm', ['audit', '--json'], {
-        stdio: 'pipe',
+      const child = spawn("npm", ["audit", "--json"], {
+        stdio: "pipe",
         shell: true,
       });
 
-      let output = '';
-      child.stdout.on('data', (data) => {
+      let output = "";
+      child.stdout.on("data", (data) => {
         output += data.toString();
       });
 
-      child.on('close', (code) => {
+      child.on("close", (code) => {
         try {
           const auditResult = JSON.parse(output);
           this.saveAuditReport(auditResult);
           resolve();
         } catch (error) {
-          console.error('Failed to parse audit results:', error);
+          console.error("Failed to parse audit results:", error);
           reject(error);
         }
       });
@@ -72,27 +72,27 @@ class SecurityTestRunner {
   }
 
   async runSecurityE2ETests() {
-    console.log('🛡️ Running security E2E tests...');
-    
+    console.log("🛡️ Running security E2E tests...");
+
     return new Promise((resolve, reject) => {
       const command = [
-        'playwright',
-        'test',
+        "playwright",
+        "test",
         this.options.testDir,
-        '--reporter=json',
-        '--grep=security',
+        "--reporter=json",
+        "--grep=security",
       ];
 
-      const child = spawn('npx', command, {
-        stdio: 'inherit',
+      const child = spawn("npx", command, {
+        stdio: "inherit",
         shell: true,
         env: {
           ...process.env,
-          SECURITY_TEST: 'true',
+          SECURITY_TEST: "true",
         },
       });
 
-      child.on('close', (code) => {
+      child.on("close", (code) => {
         if (code === 0) {
           resolve();
         } else {
@@ -106,20 +106,20 @@ class SecurityTestRunner {
     const reportPath = `${this.options.reportDir}/dependency-audit.json`;
     fs.writeFileSync(reportPath, JSON.stringify(auditResult, null, 2));
     console.log(`📄 Dependency audit report saved to: ${reportPath}`);
-    
+
     // Log high/critical vulnerabilities
     const vulnerabilities = auditResult.vulnerabilities || {};
-    const highVulns = Object.values(vulnerabilities).filter(v => 
+    const highVulns = Object.values(vulnerabilities).filter((v) =>
       this.options.severity.includes(v.severity)
     );
-    
+
     if (highVulns.length > 0) {
       console.warn(`⚠️ Found ${highVulns.length} high/critical vulnerabilities`);
-      highVulns.forEach(vuln => {
+      highVulns.forEach((vuln) => {
         console.warn(`  - ${vuln.name}: ${vuln.severity}`);
       });
     } else {
-      console.log('✅ No high/critical vulnerabilities found');
+      console.log("✅ No high/critical vulnerabilities found");
     }
   }
 }

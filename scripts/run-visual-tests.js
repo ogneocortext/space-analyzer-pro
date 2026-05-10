@@ -5,17 +5,17 @@
  * Runs visual comparison tests using Playwright's screenshot comparison
  */
 
-import { spawn } from 'child_process';
-import path from 'path';
-import fs from 'fs';
+import { spawn } from "child_process";
+import path from "path";
+import fs from "fs/promises";
 
 class VisualTestRunner {
   constructor() {
     this.options = {
-      testDir: 'tests/e2e/visual',
-      baselineDir: 'tests/baseline',
-      actualDir: 'test-results/visual',
-      reporter: 'html',
+      testDir: "tests/e2e/visual",
+      baselineDir: "tests/baseline",
+      actualDir: "test-results/visual",
+      reporter: "html",
       viewport: { width: 1280, height: 720 },
       fullPage: true,
       threshold: 0.2,
@@ -23,32 +23,32 @@ class VisualTestRunner {
   }
 
   async run() {
-    console.log('🎨 Starting Visual Regression Tests');
-    
+    console.log("🎨 Starting Visual Regression Tests");
+
     // Ensure directories exist
     this.ensureDirectories();
-    
+
     // Run visual tests
     const command = this.buildCommand();
-    console.log('🚀 Running:', command.join(' '));
-    
+    console.log("🚀 Running:", command.join(" "));
+
     return new Promise((resolve, reject) => {
-      const child = spawn('npx', command, {
-        stdio: 'inherit',
+      const child = spawn("npx", command, {
+        stdio: "inherit",
         shell: true,
         env: {
           ...process.env,
-          VISUAL_TEST: 'true',
-          UPDATE_BASELINE: process.env.UPDATE_BASELINE || 'false',
+          VISUAL_TEST: "true",
+          UPDATE_BASELINE: process.env.UPDATE_BASELINE || "false",
         },
       });
 
-      child.on('close', (code) => {
+      child.on("close", (code) => {
         if (code === 0) {
-          console.log('✅ Visual tests completed successfully');
+          console.log("✅ Visual tests completed successfully");
           resolve();
         } else {
-          console.error('❌ Visual tests failed');
+          console.error("❌ Visual tests failed");
           reject(new Error(`Visual tests exited with code ${code}`));
         }
       });
@@ -56,13 +56,9 @@ class VisualTestRunner {
   }
 
   ensureDirectories() {
-    const dirs = [
-      this.options.testDir,
-      this.options.baselineDir,
-      this.options.actualDir,
-    ];
+    const dirs = [this.options.testDir, this.options.baselineDir, this.options.actualDir];
 
-    dirs.forEach(dir => {
+    dirs.forEach((dir) => {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
         console.log(`📁 Created directory: ${dir}`);
@@ -72,14 +68,14 @@ class VisualTestRunner {
 
   buildCommand() {
     const args = [
-      'playwright',
-      'test',
+      "playwright",
+      "test",
       this.options.testDir,
-      '--reporter=html',
-      '--update-snapshots=' + (process.env.UPDATE_BASELINE === 'true' ? 'all' : 'missing'),
-      '--screenshot=only-on-failure',
-      '--video=off',
-      '--trace=off',
+      "--reporter=html",
+      "--update-snapshots=" + (process.env.UPDATE_BASELINE === "true" ? "all" : "missing"),
+      "--screenshot=only-on-failure",
+      "--video=off",
+      "--trace=off",
     ];
 
     return args;

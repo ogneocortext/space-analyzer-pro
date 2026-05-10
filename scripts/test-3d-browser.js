@@ -9,6 +9,13 @@ import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
+// Security: Validate file paths
+function validatePath(filePath) {
+  const resolvedPath = path.resolve(filePath);
+  const projectRoot = path.resolve(__dirname, "..");
+  return resolvedPath.startsWith(projectRoot);
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -17,6 +24,13 @@ console.log("🌐 Testing 3D File System Browser...\n");
 // Test 1: Check if 3D component exists
 console.log("1. Checking 3D File System Browser component...");
 const componentPath = join(__dirname, "../src/components/3d/FileSystem3D.vue");
+
+// Security: Validate path
+if (!validatePath(componentPath)) {
+  console.error("❌ Security: Invalid component path");
+  process.exit(1);
+}
+
 if (existsSync(componentPath)) {
   console.log("✅ FileSystem3D.vue component found");
 } else {
