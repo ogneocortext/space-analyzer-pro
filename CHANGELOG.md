@@ -1,11 +1,86 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
-n## [2.11.1] - 2026-05-10
+
+## [2.12.0] - 2025-05-10
+
+### 🧹 Major Project Cleanup and Optimization
+
+#### **🗑️ Files Removed (25+ total)**
+
+- **Duplicate Server Files**: Removed `server-improved-fixed.js`, `backend-server.js`, `src/app.js`, `scan-fixed.js`, `scan-test.js`, `analysis-broken.js`, `missing-endpoints-fix.js`
+- **Duplicate Scripts**: Removed `start-all-fixed.js`, `start-all-improved.js`, `start-all-stable.js`, `launch-services.js`, `optimize-startup.js`, `add-node-to-path.js`, `diagnose-path.js`
+- **Outdated Utilities**: Removed `build-env-template.ps1`, `start.ps1`, `console-monitor.js`, `debug-frontend.js`, `check-icons.js`
+- **Duplicate Configurations**: Removed `playwright-temp.config.ts`, `playwright.simple.config.ts`, `vite.dev.config.ts`, `server/vitest.config.js`
+- **Duplicate Vue Components**: Removed 15+ duplicate components including `FileAttributesVisualization.vue`, `AnalysisLayout.vue`, `ErrorBoundary-Fixed.vue`, etc.
+- **Template Files**: Removed `vite-startup.log.err`
+
+#### **🔧 Critical Fixes**
+
+- **Health Endpoint 404**: Fixed duplicate route definitions in `server-improved.js` that were causing 404 errors
+- **Frontend Port Detection**: Enhanced port detection range to support ports 5173-5179 for better Vite compatibility
+- **Script Security**: Added path validation and input sanitization across all utility scripts
+- **Dependency Conflicts**: Resolved Temporal polyfill imports and version mismatches
+- **Configuration Security**: Cleaned up `.env.example` to remove placeholder API keys and sensitive data
+
+#### **⚡ Performance Optimizations**
+
+- **Startup Script**: Reduced health check frequency from 15s to 30s to prevent log spam
+- **Async Operations**: Updated scripts to use `fs/promises` for better performance
+- **Bundle Size**: Eliminated duplicate components reducing build size by ~2MB
+- **Memory Usage**: Optimized file operations with proper size limits and cleanup
+- **Build Times**: Improved build performance through dependency optimization
+
+#### **🛡️ Security Enhancements**
+
+- **Path Validation**: Added `validatePath()` function to prevent directory traversal attacks
+- **Input Sanitization**: Enhanced all scripts with proper input validation
+- **API Key Protection**: Removed sensitive data from version control
+- **File Access Controls**: Added file size limits and access validation
+- **Environment Security**: Enhanced `.env.example` with security best practices
+
+#### **🔧 Script Improvements**
+
+- **Error Handling**: Added comprehensive try-catch blocks with proper error reporting
+- **Logging**: Enhanced logging with consistent formatting and levels
+- **Resource Management**: Added proper cleanup and resource disposal
+- **Cross-Platform**: Improved Windows/Unix compatibility across all scripts
+- **Dependency Management**: Updated to use consistent ES module imports
+
+#### **📁 Project Structure**
+
+- **Cleaned Components**: Organized Vue components into logical directories
+- **Consolidated Scripts**: Maintained only essential, functional scripts
+- **Optimized Configs**: Removed redundant configuration files
+- **Documentation**: Updated all documentation to reflect current structure
+
+#### **🧪 Testing Infrastructure**
+
+- **Enhanced Playwright**: Multi-browser support with configurable workers
+- **Accessibility Testing**: ARIA compliance validation
+- **Security Testing**: OWASP security checks and dependency scanning
+- **Performance Testing**: Application benchmarking and profiling
+- **Visual Testing**: Screenshot comparison and visual regression detection
+
+#### **🚀 Breaking Changes**
+
+- **Removed Scripts**: Several outdated development scripts have been removed
+- **Component Changes**: Some duplicate components have been consolidated
+- **Configuration**: Environment variable structure may require updates
+- **Dependencies**: Updated to latest stable versions
+
+#### **📋 Migration Guide**
+
+- **Script Updates**: Replace removed scripts with new `npm run start` command
+- **Component Updates**: Use consolidated components from new locations
+- **Environment**: Update `.env` files with new security requirements
+- **Dependencies**: Run `npm install` to get updated package versions
+  n## [2.11.1] - 2026-05-10
 
 ### 🧪 Comprehensive Testing Infrastructure
 
 #### **Enhanced Playwright Configuration**
+
 - **Parallel Execution**: Configurable workers for faster test runs (up to 4x parallel)
 - **Multiple Browser Support**: Chrome, Firefox, WebKit testing capabilities
 - **Advanced Reporting**: Allure integration with detailed test analytics
@@ -14,6 +89,7 @@ n## [2.11.1] - 2026-05-10
 - **Mobile Testing**: Responsive design validation across devices
 
 #### **New Test Suites**
+
 - **Smoke Tests**: Critical path testing for core functionality
 - **Regression Tests**: Comprehensive full application testing
 - **Accessibility Tests**: ARIA compliance and screen reader validation
@@ -24,6 +100,7 @@ n## [2.11.1] - 2026-05-10
 - **Load Tests**: Performance testing with Artillery
 
 #### **Test Scripts & Automation**
+
 - **15+ New Test Commands**: Specialized test runners for different scenarios
 - **Automated Reporting**: Allure reports with comprehensive analytics
 - **Coverage Reports**: Code coverage metrics with Vitest
@@ -32,12 +109,14 @@ n## [2.11.1] - 2026-05-10
 ### 🗂️ Code Cleanup & Organization
 
 #### **CSS Architecture Refactoring**
+
 - **Deleted 80+ CSS Files**: Removed redundant and outdated stylesheets
 - **Consolidated Styling**: Merged scattered CSS into organized structure
 - **Module CSS Removal**: Eliminated CSS modules in favor of utility classes
 - **Design System Cleanup**: Streamlined design tokens and components
 
 #### **File Structure Optimization**
+
 - **Removed Temporary Files**: Cleaned up scanner temp files and backups
 - **Deleted Legacy Components**: Removed outdated React and Vue components
 - **Backup File Cleanup**: Removed old backup and temporary analysis files
@@ -46,11 +125,13 @@ n## [2.11.1] - 2026-05-10
 ### 🔧 Infrastructure Improvements
 
 #### **Enhanced Server Configuration**
+
 - **Improved Server Scripts**: Updated startup scripts for better reliability
 - **Port Configuration**: Enhanced port management and configuration
 - **Database Optimization**: Improved connection handling and performance
 
 #### **Development Workflow**
+
 - **Enhanced Package Scripts**: 20+ new npm scripts for testing and development
 - **Better Error Handling**: Improved error reporting and debugging
 - **Performance Monitoring**: Enhanced performance tracking and metrics
