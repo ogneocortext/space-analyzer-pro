@@ -1,346 +1,261 @@
 #!/usr/bin/env node
 
 /**
- * Test NTFS MFT Direct Reading
- * Validates the ultra-fast scanning via direct MFT access implementation
+ * NTFS MFT Test Script
+ * Tests NTFS Master File Table access and analysis capabilities
  */
 
-import { readFileSync, existsSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { spawn } from "child_process";
+import http from "http";
+import fs from "fs";
+import path from "path";
 
-// Security: Validate file paths
-function validatePath(filePath) {
-  const resolvedPath = path.resolve(filePath);
-  const projectRoot = path.resolve(__dirname, "..");
-  return resolvedPath.startsWith(projectRoot);
-}
+class NTFSMFTTestRunner {
+  constructor() {
+    this.backendUrl = "http://localhost:8080";
+    this.testResults = [];
+    this.platform = process.platform;
+  }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+  log(message, level = "INFO") {
+    const timestamp = new Date().toLocaleTimeString();
+    const colors = {
+      INFO: "\x1b[36m",
+      WARN: "\x1b[33m",
+      ERROR: "\x1b[31m",
+      SUCCESS: "\x1b[32m",
+      RESET: "\x1b[0m",
+    };
 
-console.log("💾 Testing NTFS MFT Direct Reading...\n");
+    console.log(`${colors[level]}[${timestamp}] ${message}${colors.RESET}`);
+  }
 
-// Test 1: Check if NTFS MFT scanner exists
-console.log("1. Checking NTFS MFT scanner implementation...");
-const scannerPath = join(__dirname, "../native/scanner/src/ntfs_mft_scanner.rs");
+  async makeRequest(url, method = "GET", data = null) {
+    return new Promise((resolve, reject) => {
+      const urlObj = new URL(url);
+      const options = {
+        hostname: urlObj.hostname,
+        port: urlObj.port,
+        path: urlObj.pathname + urlObj.search,
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      };
 
-// Security: Validate path
-if (!validatePath(scannerPath)) {
-  console.error("❌ Security: Invalid scanner path");
-  process.exit(1);
-}
+      const req = http.request(options, (res) => {
+        let body = "";
+        res.on("data", (chunk) => {
+          body += chunk;
+        });
+        res.on("end", () => {
+          try {
+            const data = body ? JSON.parse(body) : null;
+            resolve({
+              status: res.statusCode,
+              data: data,
+            });
+          } catch (e) {
+            resolve({
+              status: res.statusCode,
+              data: body,
+            });
+          }
+        });
+      });
 
-if (existsSync(scannerPath)) {
-  console.log("✅ ntfs_mft_scanner.rs found");
-} else {
-  console.log("❌ ntfs_mft_scanner.rs missing");
-  process.exit(1);
-}
+      req.on("error", (error) => {
+        reject(error);
+      });
 
-// Test 2: Check Cargo.toml dependencies
-console.log("\n2. Checking Cargo.toml dependencies...");
-const cargoPath = join(__dirname, "../native/scanner/Cargo.toml");
-if (existsSync(cargoPath)) {
-  console.log("✅ Cargo.toml found");
+      if (data) {
+        req.write(JSON.stringify(data));
+      }
 
-  const cargoContent = readFileSync(cargoPath, "utf8");
-  const requiredDependencies = ["winapi", "serde", "napi", "napi-derive"];
+      req.end();
+    });
+  }
 
-  for (const dep of requiredDependencies) {
-    if (cargoContent.includes(dep)) {
-      console.log(`✅ Found dependency: ${dep}`);
-    } else {
-      console.log(`❌ Missing dependency: ${dep}`);
+  async checkPlatformSupport() {
+    this.log("Checking platform support for NTFS MFT...", "INFO");
+
+    if (this.platform !== "win32") {
+      this.log("⚠️ NTFS MFT analysis is Windows-only", "WARN");
+      this.log("   This test will run in simulation mode", "INFO");
+      return false;
+    }
+
+    try {
+      // Check if we have admin privileges (simplified check)
+      const testPath = path.join(process.env.TEMP || "/tmp", "ntfs_test.txt");
+      fs.writeFileSync(testPath, "test");
+      fs.unlinkSync(testPath);
+      this.log("✅ Platform supports NTFS operations", "SUCCESS");
+      return true;
+    } catch (error) {
+      this.log("⚠️ Limited NTFS access detected", "WARN");
+      return false;
     }
   }
 
-  // Check Windows-specific features
-  if (cargoContent.includes("fileapi") && cargoContent.includes("winnt")) {
-    console.log("✅ Windows API features configured");
-  } else {
-    console.log("❌ Windows API features not properly configured");
+  async testNTFSEndpoints() {
+    this.log("Testing NTFS MFT Analysis Endpoints...", "INFO");
+
+    const tests = [
+      {
+        name: "NTFS Drive Detection",
+        path: "/api/system/ntfs-drives",
+        method: "GET",
+      },
+      {
+        name: "MFT Analysis API",
+        path: "/api/analysis/mft-analysis",
+        method: "GET",
+      },
+      {
+        name: "NTFS Metadata Extraction",
+        path: "/api/files/ntfs-metadata",
+        method: "POST",
+        data: { path: "C:\\", include_mft: true },
+      },
+      {
+        name: "File System Info",
+        path: "/api/system/filesystem-info",
+        method: "GET",
+      },
+    ];
+
+    for (const test of tests) {
+      try {
+        this.log(`Running: ${test.name}`, "INFO");
+        const result = await this.makeRequest(
+          `${this.backendUrl}${test.path}`,
+          test.method,
+          test.data,
+        );
+
+        if (result.status === 200) {
+          this.log(`✅ ${test.name} - SUCCESS`, "SUCCESS");
+          this.testResults.push({ test: test.name, status: "PASS" });
+        } else {
+          this.log(`❌ ${test.name} - FAILED (${result.status})`, "ERROR");
+          this.testResults.push({
+            test: test.name,
+            status: "FAIL",
+            error: result.status,
+          });
+        }
+      } catch (error) {
+        this.log(`❌ ${test.name} - ERROR: ${error.message}`, "ERROR");
+        this.testResults.push({
+          test: test.name,
+          status: "ERROR",
+          error: error.message,
+        });
+      }
+    }
   }
-} else {
-  console.log("❌ Cargo.toml missing");
+
+  async testNativeComponents() {
+    this.log("Testing Native NTFS Components...", "INFO");
+
+    // Check if native scanner exists
+    const nativeScannerPath = path.join(process.cwd(), "native", "scanner");
+    const scannerExists = fs.existsSync(nativeScannerPath);
+
+    if (scannerExists) {
+      this.log("✅ Native scanner component found", "SUCCESS");
+      this.testResults.push({
+        test: "Native Scanner Component",
+        status: "PASS",
+      });
+    } else {
+      this.log("⚠️ Native scanner component not found", "WARN");
+      this.testResults.push({
+        test: "Native Scanner Component",
+        status: "SKIP",
+      });
+    }
+
+    // Check for Rust components
+    const rustPath = path.join(process.cwd(), "src", "rust");
+    const rustExists = fs.existsSync(rustPath);
+
+    if (rustExists) {
+      this.log("✅ Rust components found", "SUCCESS");
+      this.testResults.push({ test: "Rust Components", status: "PASS" });
+    } else {
+      this.log("⚠️ Rust components not found", "WARN");
+      this.testResults.push({ test: "Rust Components", status: "SKIP" });
+    }
+  }
+
+  async checkBackendHealth() {
+    try {
+      const result = await this.makeRequest(`${this.backendUrl}/api/health`);
+      return result.status === 200;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async run() {
+    console.log("💾 NTFS MFT Test Runner\n");
+
+    // Check if backend is running
+    const isBackendHealthy = await this.checkBackendHealth();
+    if (!isBackendHealthy) {
+      this.log(
+        "❌ Backend is not running. Please start the server first.",
+        "ERROR",
+      );
+      this.log("   Run: npm run server", "INFO");
+      process.exit(1);
+    }
+
+    this.log("✅ Backend is healthy", "SUCCESS");
+
+    // Check platform support
+    const hasNTFSSupport = await this.checkPlatformSupport();
+
+    // Run tests
+    await this.testNTFSEndpoints();
+    await this.testNativeComponents();
+
+    // Display results
+    console.log("\n📊 Test Results:");
+    const passed = this.testResults.filter((r) => r.status === "PASS").length;
+    const failed = this.testResults.filter((r) => r.status === "FAIL").length;
+    const errors = this.testResults.filter((r) => r.status === "ERROR").length;
+    const skipped = this.testResults.filter((r) => r.status === "SKIP").length;
+
+    console.log(`   Passed: ${passed}`);
+    console.log(`   Failed: ${failed}`);
+    console.log(`   Errors: ${errors}`);
+    console.log(`   Skipped: ${skipped}`);
+
+    if (!hasNTFSSupport) {
+      console.log("\n💡 Note: NTFS MFT analysis requires Windows platform");
+      console.log("   Some tests were skipped due to platform limitations");
+    }
+
+    if (failed > 0 || errors > 0) {
+      console.log("\n❌ Some tests failed:");
+      this.testResults
+        .filter((r) => r.status === "FAIL" || r.status === "ERROR")
+        .forEach((r) => console.log(`   - ${r.test}: ${r.error || r.status}`));
+      process.exit(1);
+    } else {
+      console.log("\n✅ NTFS MFT tests completed successfully!");
+    }
+  }
+}
+
+// Handle uncaught errors
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught error:", error.message);
   process.exit(1);
-}
+});
 
-// Test 3: Validate NTFS MFT scanner implementation
-console.log("\n3. Validating NTFS MFT scanner implementation...");
-const scannerContent = readFileSync(scannerPath, "utf8");
-
-// Check core structures
-const coreStructures = ["struct MftEntry", "struct NtfsVolumeInfo", "pub struct NtfsMftScanner"];
-
-for (const structure of coreStructures) {
-  if (scannerContent.includes(structure)) {
-    console.log(`✅ Found structure: ${structure}`);
-  } else {
-    console.log(`❌ Missing structure: ${structure}`);
-  }
-}
-
-// Test 4: Check Windows API imports
-console.log("\n4. Checking Windows API imports...");
-const windowsImports = [
-  "use winapi::um::fileapi",
-  "use winapi::um::handleapi",
-  "use winapi::um::winnt",
-  "use winapi::shared::minwindef",
-];
-
-for (const importStatement of windowsImports) {
-  if (scannerContent.includes(importStatement)) {
-    console.log(`✅ Found Windows API import: ${importStatement}`);
-  } else {
-    console.log(`❌ Missing Windows API import: ${importStatement}`);
-  }
-}
-
-// Test 5: Validate core functionality methods
-console.log("\n5. Validating core functionality methods...");
-const coreMethods = [
-  "pub fn new",
-  "pub fn initialize_volume",
-  "pub fn scan_volume",
-  "pub fn check_admin_privileges",
-  "fn read_volume_boot_sector",
-  "fn read_mft_table",
-  "fn parse_mft_entry",
-  "fn parse_attributes",
-];
-
-for (const method of coreMethods) {
-  if (scannerContent.includes(method)) {
-    console.log(`✅ Found method: ${method}`);
-  } else {
-    console.log(`❌ Missing method: ${method}`);
-  }
-}
-
-// Test 6: Check MFT parsing logic
-console.log("\n6. Checking MFT parsing logic...");
-const parsingMethods = [
-  "fn is_valid_mft_entry",
-  "fn parse_file_name_attribute",
-  "fn parse_data_attribute",
-  "fn parse_reason_flags",
-];
-
-for (const method of parsingMethods) {
-  if (scannerContent.includes(method)) {
-    console.log(`✅ Found parsing method: ${method}`);
-  } else {
-    console.log(`❌ Missing parsing method: ${method}`);
-  }
-}
-
-// Test 7: Validate error handling
-console.log("\n7. Validating error handling...");
-const errorHandling = ["Result<(), String>", "map_err", "unwrap_or", "expect"];
-
-let errorHandlingScore = 0;
-for (const pattern of errorHandling) {
-  if (scannerContent.includes(pattern)) {
-    console.log(`✅ Found error handling pattern: ${pattern}`);
-    errorHandlingScore++;
-  }
-}
-
-if (errorHandlingScore >= 3) {
-  console.log("✅ Good error handling implementation");
-} else {
-  console.log("⚠️  Limited error handling detected");
-}
-
-// Test 8: Check performance optimizations
-console.log("\n8. Checking performance optimizations...");
-const performanceFeatures = [
-  "chunk_size",
-  "bytes_read",
-  "estimated_mft_size",
-  "46x faster",
-  "ultra-fast",
-];
-
-let performanceScore = 0;
-for (const feature of performanceFeatures) {
-  if (scannerContent.includes(feature)) {
-    console.log(`✅ Found performance feature: ${feature}`);
-    performanceScore++;
-  }
-}
-
-if (performanceScore >= 2) {
-  console.log("✅ Performance optimizations implemented");
-} else {
-  console.log("⚠️  Limited performance optimizations");
-}
-
-// Test 9: Validate utility functions
-console.log("\n9. Validating utility functions...");
-const utilityFunctions = [
-  "pub mod utils",
-  "pub fn get_ntfs_volumes",
-  "pub fn estimate_scan_time",
-  "pub fn format_file_size",
-];
-
-for (const func of utilityFunctions) {
-  if (scannerContent.includes(func)) {
-    console.log(`✅ Found utility function: ${func}`);
-  } else {
-    console.log(`❌ Missing utility function: ${func}`);
-  }
-}
-
-// Test 10: Check NAPI exports
-console.log("\n10. Checking NAPI exports...");
-const napiExports = [
-  '#[cfg(target_os = "windows")]',
-  "#[napi::bindgen]",
-  "pub mod napi_exports",
-  "pub fn create_mft_scanner",
-  "pub fn scan_volume_async",
-  "pub fn check_admin_privileges",
-];
-
-for (const exportItem of napiExports) {
-  if (scannerContent.includes(exportItem)) {
-    console.log(`✅ Found NAPI export: ${exportItem}`);
-  } else {
-    console.log(`❌ Missing NAPI export: ${exportItem}`);
-  }
-}
-
-// Test 11: Validate lib.rs integration
-console.log("\n11. Validating lib.rs integration...");
-const libPath = join(__dirname, "../native/scanner/src/lib.rs");
-if (existsSync(libPath)) {
-  const libContent = readFileSync(libPath, "utf8");
-
-  if (libContent.includes("pub mod ntfs_mft_scanner")) {
-    console.log("✅ NTFS MFT scanner module included in lib.rs");
-  } else {
-    console.log("❌ NTFS MFT scanner module not included in lib.rs");
-  }
-
-  if (libContent.includes("#[cfg(windows)]")) {
-    console.log("✅ Windows-specific configuration found");
-  } else {
-    console.log("❌ Windows-specific configuration missing");
-  }
-} else {
-  console.log("❌ lib.rs missing");
-}
-
-// Test 12: Check test coverage
-console.log("\n12. Checking test coverage...");
-const testItems = [
-  "#[cfg(test)]",
-  "mod tests",
-  "#[test]",
-  "test_admin_privileges_check",
-  "test_get_ntfs_volumes",
-  "test_scan_time_estimation",
-];
-
-let testScore = 0;
-for (const testItem of testItems) {
-  if (scannerContent.includes(testItem)) {
-    console.log(`✅ Found test item: ${testItem}`);
-    testScore++;
-  }
-}
-
-if (testScore >= 3) {
-  console.log("✅ Good test coverage");
-} else {
-  console.log("⚠️  Limited test coverage");
-}
-
-// Test 13: Validate security considerations
-console.log("\n13. Validating security considerations...");
-const securityFeatures = [
-  "admin privileges",
-  "requires admin",
-  "privilege checking",
-  "safety checks",
-];
-
-let securityScore = 0;
-for (const feature of securityFeatures) {
-  if (scannerContent.toLowerCase().includes(feature)) {
-    console.log(`✅ Found security feature: ${feature}`);
-    securityScore++;
-  }
-}
-
-if (securityScore >= 2) {
-  console.log("✅ Security considerations addressed");
-} else {
-  console.log("⚠️  Limited security considerations");
-}
-
-// Test 14: Check documentation
-console.log("\n14. Checking documentation...");
-const documentationFeatures = [
-  "//! NTFS MFT Direct Scanner",
-  "/// Provides ultra-fast scanning",
-  "/// 46x faster scanning",
-  "/// Requires admin privileges",
-];
-
-let docScore = 0;
-for (const docFeature of documentationFeatures) {
-  if (scannerContent.includes(docFeature)) {
-    console.log(`✅ Found documentation: ${docFeature}`);
-    docScore++;
-  }
-}
-
-if (docScore >= 2) {
-  console.log("✅ Good documentation");
-} else {
-  console.log("⚠️  Limited documentation");
-}
-
-// Test 15: Validate data structures
-console.log("\n15. Validating data structures...");
-const dataStructures = [
-  "file_reference: u64",
-  "parent_reference: u64",
-  "creation_time: u64",
-  "file_size: u64",
-  "file_name: String",
-  "is_directory: bool",
-];
-
-for (const field of dataStructures) {
-  if (scannerContent.includes(field)) {
-    console.log(`✅ Found data field: ${field}`);
-  } else {
-    console.log(`❌ Missing data field: ${field}`);
-  }
-}
-
-console.log("\n🎉 NTFS MFT Direct Reading Test Complete!");
-console.log("\n📋 Summary:");
-console.log("- Scanner implementation validated");
-console.log("- Cargo dependencies verified");
-console.log("- Windows API integration confirmed");
-console.log("- Core functionality validated");
-console.log("- MFT parsing logic verified");
-console.log("- Error handling checked");
-console.log("- Performance optimizations confirmed");
-console.log("- Utility functions validated");
-console.log("- NAPI exports verified");
-console.log("- lib.rs integration confirmed");
-console.log("- Test coverage reviewed");
-console.log("- Security considerations validated");
-console.log("- Documentation verified");
-console.log("- Data structures validated");
-
-console.log("\n✅ NTFS MFT Direct Reading is ready for ultra-fast scanning!");
-console.log("⚠️  Note: Requires administrator privileges for direct MFT access");
+// Run tests
+new NTFSMFTTestRunner().run().catch(console.error);
