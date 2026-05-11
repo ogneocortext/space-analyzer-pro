@@ -4,27 +4,33 @@
 
 A comprehensive disk space analysis tool with advanced AI capabilities, real-time monitoring, and intelligent file categorization.
 
+**Current Version: 2.14.0** - Major Redundancy Cleanup and Project Optimization
+
 ## ✨ Features
 
 ### 🤖 AI-Powered Analysis
+
 - **Machine Learning Categorization**: Automatically categorize files using ML models
 - **Intelligent Recommendations**: AI-driven file recommendations and cleanup suggestions
 - **Natural Language Processing**: Extract insights from file names and content
 - **Predictive Analytics**: Forecast storage needs and usage patterns
 
 ### 📊 Advanced Analytics
+
 - **Real-time Monitoring**: Live disk space tracking and alerts
 - **3D Visualization**: Interactive 3D file system visualization
 - **Trend Analysis**: Historical data and usage trends
 - **Performance Metrics**: System performance and health monitoring
 
 ### 🔍 Deep File Analysis
+
 - **NTFS MFT Analysis**: Deep Windows file system analysis
 - **USN Journal Tracking**: Real-time file change monitoring
 - **Duplicate Detection**: Advanced duplicate file finding
 - **Content Analysis**: File content extraction and indexing
 
 ### 🛠️ Developer Tools
+
 - **RESTful API**: Comprehensive API for integration
 - **WebSocket Support**: Real-time data streaming
 - **Plugin Architecture**: Extensible with custom modules
@@ -47,6 +53,7 @@ A comprehensive disk space analysis tool with advanced AI capabilities, real-tim
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - **Node.js** >= 26.0.0
 - **Python** >= 3.8 (for AI services)
 - **Rust** (for native modules)
@@ -106,12 +113,14 @@ npm run tauri:build:windows
 ## 📋 Available Scripts
 
 ### 🛠️ Development
+
 - `npm run dev` - Start development server
 - `npm run server` - Start backend server
 - `npm run start` - Start all services
 - `npm run status` - Check service status
 
 ### 🧪 Testing
+
 - `npm run test` - Run unit tests
 - `npm run test:e2e` - Run end-to-end tests
 - `npm run test:integration` - Run integration tests
@@ -119,30 +128,42 @@ npm run tauri:build:windows
 - `npm run test:security` - Run security tests
 
 ### 🔧 Build & Deploy
+
 - `npm run build` - Build for production
 - `npm run tauri:build` - Build desktop app
 - `npm run preview` - Preview production build
 
 ### 🧹 Maintenance
+
 - `npm run cleanup` - Clean up processes and cache
-- `npm run fix:build` - Fix build environment issues
-- `npm run cleanup:report` - View cleanup summary
+- `npm run fix:build` - **NEW** Comprehensive build environment fixing
+- `npm run cleanup:report` - **NEW** View redundancy cleanup summary
 
 ### 🔍 Advanced Features
-- `npm run test:self-learning` - Test AI self-learning
-- `npm run test:3d-browser` - Test 3D visualization
-- `npm run test:ntfs-mft` - Test NTFS analysis
-- `npm run test:usn-journal` - Test USN journal
+
+- `npm run test:self-learning` - Test AI self-learning capabilities
+- `npm run test:3d-browser` - Test 3D visualization and browser compatibility
+- `npm run test:ntfs-mft` - Test NTFS Master File Table analysis
+- `npm run test:usn-journal` - Test USN Journal analysis
+- `npm run test:advanced-features` - Run all advanced feature tests
+
+### 🔧 Port Management
+
+- `npm run port:detect` - Detect port conflicts
+- `npm run port:status` - Check port status
+- `npm run port:clear` - Clear port conflicts
 
 ## 🤖 AI Services
 
 ### Machine Learning Categorization
+
 ```bash
 cd ai-service
 python main.py
 ```
 
 ### Ollama Integration
+
 ```bash
 # Start Ollama service
 ollama serve
@@ -157,21 +178,25 @@ ollama pull codellama
 ### Main Endpoints
 
 #### File Analysis
+
 - `GET /api/files/scan` - Start file scan
 - `GET /api/files/structure` - Get file structure
 - `POST /api/files/analyze` - Analyze specific files
 
 #### AI Services
+
 - `GET /api/ai/models` - List AI models
 - `POST /api/ai/categorize` - Categorize files
 - `GET /api/ai/recommendations` - Get recommendations
 
 #### Analytics
+
 - `GET /api/analytics/trends` - Get usage trends
 - `GET /api/analytics/performance` - Get performance metrics
 - `POST /api/analytics/predict` - Predict storage needs
 
 ### WebSocket Events
+
 - `scan:progress` - Scan progress updates
 - `analysis:complete` - Analysis completion
 - `system:alert` - System alerts
@@ -179,6 +204,7 @@ ollama pull codellama
 ## 🔧 Configuration
 
 ### Environment Variables
+
 ```bash
 PORT=8080                    # Server port
 NODE_ENV=development         # Environment
@@ -188,18 +214,22 @@ OLLAMA_URL=http://localhost:11434     # Ollama service
 ```
 
 ### Configuration Files
+
 - `server/config.js` - Main server configuration
 - `server/ports.config.js` - Port configuration
 - `vite.config.ts` - Frontend build configuration
+- `config/` directory - **NEW** Centralized configuration files (v2.13.0+)
 
 ## 🧪 Testing
 
 ### Unit Tests
+
 ```bash
 npm run test
 ```
 
 ### End-to-End Tests
+
 ```bash
 npm run test:e2e
 npm run test:e2e:smoke
@@ -207,6 +237,7 @@ npm run test:e2e:regression
 ```
 
 ### Integration Tests
+
 ```bash
 npm run test:integration
 npm run test:self-learning
@@ -216,26 +247,32 @@ npm run test:3d-browser
 ## 📈 Performance
 
 ### Benchmarks
+
 - **Scan Speed**: 100,000+ files/second (with native modules)
 - **Memory Usage**: < 500MB for typical scans
 - **AI Processing**: < 2 seconds for categorization
 - **Real-time Updates**: < 100ms latency
 
 ### Optimization Features
+
 - **Native Rust Components**: For performance-critical operations
 - **Intelligent Caching**: Reduces repeated analysis
 - **Parallel Processing**: Multi-threaded file scanning
 - **Lazy Loading**: On-demand component loading
+- **Reduced Bundle Size**: 80+ redundant files removed in v2.14.0
+- **Faster Load Times**: Cleaner structure with fewer files to parse
 
 ## 🔒 Security
 
 ### Features
+
 - **Input Validation**: Comprehensive input sanitization
 - **Rate Limiting**: API rate limiting
 - **CORS Protection**: Cross-origin request protection
 - **File Access Control**: Restricted file system access
 
 ### Security Tests
+
 ```bash
 npm run test:security
 ```
@@ -249,22 +286,48 @@ npm run test:security
 5. Open a Pull Request
 
 ### Development Guidelines
+
 - Follow the existing code style
 - Add tests for new features
 - Update documentation
 - Use the consolidated scripts for operations
+- **NEW**: Maintain clean structure - avoid creating redundant files
+- **NEW**: Use established patterns from v2.14.0 cleanup
 
 ## 📝 Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+See [CHANGELOG.md](docs/CHANGELOG.md) for detailed version history.
+
+### Recent Major Updates
+
+**v2.14.0** (2025-05-11) - Major Redundancy Cleanup and Optimization
+
+- 🧹 Removed 80+ redundant files across two cleanup passes
+- 🏗️ Streamlined project structure (removed server/src/, server/utils/, src/ai/, src/shared/)
+- 🔧 New consolidated scripts: `fix:build`, `cleanup:report`
+- ⚡ Performance improvements with reduced bundle size
+- 📋 Breaking changes: Some legacy scripts removed, use new consolidated commands
+
+**v2.13.0** (2025-05-10) - Major Project Organization and Restructuring
+
+- 📁 Complete directory reorganization with `/config/`, `/tools/`, `/tests/` structure
+- 🔧 Updated import paths and configuration management
+- 📚 Enhanced documentation and project structure
+
+**v2.12.0** (2025-05-10) - Major Project Cleanup and Optimization
+
+- 🗑️ Removed 25+ duplicate files and broken components
+- 🔧 Critical fixes for startup scripts and server functionality
+- ⚡ Performance improvements and memory optimization
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
 #### Build Problems
+
 ```bash
-# Fix build environment
+# Fix build environment (NEW in v2.14.0)
 npm run fix:build
 
 # Clean cache and rebuild
@@ -273,6 +336,7 @@ npm run build
 ```
 
 #### Port Conflicts
+
 ```bash
 # Check port status
 npm run port:status
@@ -282,6 +346,7 @@ npm run port:clear
 ```
 
 #### AI Service Issues
+
 ```bash
 # Check AI service status
 curl http://localhost:5000/health
@@ -290,8 +355,19 @@ curl http://localhost:5000/health
 cd ai-service && python main.py
 ```
 
+#### Script Issues After v2.14.0
+
+```bash
+# If legacy scripts don't work, use new consolidated versions:
+npm run fix:build        # Instead of multiple fix scripts
+npm run start           # Uses improved startup script
+npm run cleanup:report  # View cleanup details
+```
+
 ### Getting Help
+
 - Check the [cleanup report](npm run cleanup:report) for structure issues
+- Review [CHANGELOG.md](docs/CHANGELOG.md) for recent changes
 - Review [logs](./logs/) for detailed error information
 - Open an issue on GitHub for support
 
