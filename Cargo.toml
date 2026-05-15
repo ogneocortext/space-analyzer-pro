@@ -1,0 +1,110 @@
+[package]
+name = "space-analyzer-pro-desktop"
+version = "2.14.0"
+description = "AI-Powered Space Analyzer Desktop Application"
+authors = ["Space Analyzer Team"]
+edition = "2021"
+
+[workspace]
+members = [
+    "rust",
+    "native-gui",
+    "shared-scanner",
+    "gpu-compute",
+    "native/scanner",
+    "native/file_deduplicator",
+    "native/storage_predictor",
+    "native/file_monitor",
+    "native/node_modules_cleaner",
+]
+exclude = [
+    "native/archive_manager",
+]
+
+[[bin]]
+name = "space-analyzer-pro"
+path = "src/main.rs"
+
+[[bin]]
+name = "space-analyzer-gui"
+path = "src/gui.rs"
+
+[dependencies]
+app_lib = { package = "space-analyzer-pro", path = "rust" }
+shared-scanner = { path = "shared-scanner" }
+gpu-compute = { path = "gpu-compute" }
+# Core functionality
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1"
+anyhow = "1"
+once_cell = "1"
+
+# File system operations
+dirs = "5.0"
+which = "6.0"
+open = "5.0"
+walkdir = "2"
+
+# GUI
+eframe = "0.34"
+egui = "0.34"
+egui_extras = { version = "0.34", features = ["image"] }
+rfd = "0.14"
+
+# Data processing
+regex = "1.0"
+base64 = "0.21"
+sha2 = "0.10"
+blake3 = "1.5"
+
+# Compression and archives
+flate2 = "1.0"
+tar = "0.4"
+zip = "0.6"
+
+# Configuration
+config = "0.14"
+toml = "0.8"
+clap = { version = "4.4", features = ["derive"] }
+
+# Progress and UI
+indicatif = "0.17"
+colored = "2.1"
+console = "0.15"
+dialoguer = "0.11"
+
+# System information
+num_cpus = "1.16"
+humantime = "2.1"
+bytesize = "1.3"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+windows-sys = { version = "0.59", features = [
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_Shell",
+    "Win32_System_Registry",
+    "Win32_Storage_FileSystem",
+    "Win32_System_SystemInformation"
+] }
+winapi = { version = "0.3", features = [
+    "winuser",
+    "winbase",
+    "fileapi",
+    "handleapi",
+    "errhandlingapi",
+    "winnt",
+    "processthreadsapi",
+    "memoryapi",
+    "sysinfoapi"
+] }
+
+[target.'cfg(unix)'.dependencies]
+# Unix-specific dependencies if needed
+nix = "0.28"
