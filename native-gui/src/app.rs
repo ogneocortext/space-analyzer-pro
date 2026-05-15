@@ -76,9 +76,7 @@ pub struct SpaceAnalyzerApp {
 
     // Charts
     charts_dirty: bool,
-    types_chart_tex: Option<egui::TextureHandle>,
-    files_chart_tex: Option<egui::TextureHandle>,
-    drives_chart_tex: Option<egui::TextureHandle>,
+    chart_show_by_size: bool,
 
     // Scan history
     scan_history: Vec<ScanRecord>,
@@ -364,9 +362,7 @@ impl SpaceAnalyzerApp {
             selected_directory: String::new(),
             current_path: String::new(),
             charts_dirty: false,
-            types_chart_tex: None,
-            files_chart_tex: None,
-            drives_chart_tex: None,
+            chart_show_by_size: false,
             scan_history: history,
             selected_history_index: None,
             active_template: ViewTemplate::Summary,
@@ -1176,7 +1172,6 @@ impl SpaceAnalyzerApp {
                     if theme::btn_success(ui, "Load Selected").clicked() {
                         if let Some(a) = load_scan_file(&self.scan_history[idx].file_name) {
                             self.analysis = Some(a);
-                            self.charts_dirty = true;
                             self.active_tab = Tab::Files;
                             self.active_template = ViewTemplate::Summary;
                         }
@@ -1633,36 +1628,52 @@ impl SpaceAnalyzerApp {
     }
 
     fn show_charts(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Charts");
-        ui.separator();
+        theme::heading(ui, "Interactive Charts");
+        theme::sub_heading(ui, "Hover for details, click bars to filter");
+        ui.add_space(8.0);
 
-        #[cfg(feature = "charts")]
-        {
-            let has_data = self.analysis.is_some() || !self.system_info.drives.is_empty();
-            if !has_data { ui.label("Run a scan to see charts."); return; }
+        let has_data = self.analysis.is_some() || !self.system_info.drives.is_empty();
+        if !has_data { ui.label("Run a scan to see charts."); return; }
 
-            if self.charts_dirty {
-                self.types_chart_tex = None; self.files_chart_tex = None; self.drives_chart_tex = None;
-                if let Some(a) = &self.analysis {
-                    let img = crate::charts::render_file_types_chart(&a.file_types);
-                    self.types_chart_tex = Some(ui.ctx().load_texture("types", img, Default::default()));
-                    let img = crate::charts::render_largest_files_chart(&a.largest_files);
-                    self.files_chart_tex = Some(ui.ctx().load_texture("files", img, Default::default()));
+        // Toggle for file types chart
+        ui.horizontal(|ui| {
+            ui.label("File Types:");
+            ui.selectable_value(&mut self.chart_show_by_size, false, "By Count");
+            ui.selectable_value(&mut self.chart_show_by_size, true, "By Size");
+        });
+        ui.add_space(4.0);
+
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            // File Types Chart
+            if let Some(a) = &self.analysis {
+                let chart_result = crate::charts::file_types_chart(
+                    ui, &a.file_types, &a.extension_sizes, a.total_files, self.chart_show_by_size,
+                );
+                if let Some(ext) = chart_result.clicked_bar {
+                    self.active_tab = Tab::Files;
+                    self.filter_extension = ext;
+                    self.search_query.clear();
+                    self.current_page = 0;
                 }
-                let img = crate::charts::render_drives_chart(&self.system_info.drives);
-                self.drives_chart_tex = Some(ui.ctx().load_texture("drives", img, Default::default()));
-                self.charts_dirty = false;
+                ui.add_space(16.0);
+
+                // Largest Files Chart
+                let chart_result = crate::charts::largest_files_chart(ui, &a.largest_files);
+                if let Some(path) = chart_result.clicked_bar {
+                    // Open containing folder when clicking a file bar
+                    if let Some(parent) = std::path::Path::new(&path).parent() {
+                        let _ = open::that(parent);
+                    }
+                }
+                ui.add_space(16.0);
             }
 
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                if let Some(t) = &self.types_chart_tex { ui.label("File Types"); ui.add(egui::Image::new(t).fit_to_exact_size([780.0, 360.0].into())); ui.add_space(8.0); }
-                if let Some(t) = &self.files_chart_tex { ui.label("Largest Files"); ui.add(egui::Image::new(t).fit_to_exact_size([780.0, 360.0].into())); ui.add_space(8.0); }
-                if let Some(t) = &self.drives_chart_tex { ui.label("Drive Usage"); ui.add(egui::Image::new(t).fit_to_exact_size([780.0, 360.0].into())); }
-            });
-        }
-
-        #[cfg(not(feature = "charts"))]
-        { ui.label("Charts disabled (enable 'charts' feature)."); }
+            // Drive Usage Chart
+            let chart_result = crate::charts::drives_chart(ui, &self.system_info.drives);
+            if let Some(mount) = chart_result.clicked_bar {
+                let _ = open::that(&mount);
+            }
+        });
     }
 }
 
@@ -1686,7 +1697,6 @@ impl eframe::App for SpaceAnalyzerApp {
                         }
                         self.analysis = Some(a);
                         self.is_scanning = false;
-                        self.charts_dirty = true;
                         self.current_page = 0; // Reset pagination
                         self.search_query.clear(); // Reset filters
                     }
@@ -1751,7 +1761,7 @@ impl eframe::App for SpaceAnalyzerApp {
                 });
                 ui.menu_button("Tools", |ui| {
                     if ui.button("Refresh System Info").clicked() { self.system_info = get_system_info(); ui.close_menu(); }
-                    if ui.button("Clear Scan Data").clicked() { self.analysis = None; self.charts_dirty = true; ui.close_menu(); }
+                    if ui.button("Clear Scan Data").clicked() { self.analysis = None; ui.close_menu(); }
                 });
             });
         });
