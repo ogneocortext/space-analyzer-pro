@@ -4,6 +4,33 @@ use std::collections::HashMap;
 // Re-export shared scanner types
 pub use shared_scanner::{FileInfo, ScanProgress, SystemInfo, DriveInfo};
 
+/// Per-directory aggregate information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirInfo {
+    pub path: String,
+    pub name: String,
+    pub total_size: u64,
+    pub file_count: u64,
+    pub dir_count: u64,
+    pub largest_file_size: u64,
+}
+
+/// Sort column for file tables
+#[derive(Debug, Clone, PartialEq)]
+pub enum SortColumn {
+    Name,
+    Size,
+    Extension,
+    Modified,
+}
+
+/// Sort direction
+#[derive(Debug, Clone, PartialEq)]
+pub enum SortDir {
+    Ascending,
+    Descending,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirectoryAnalysis {
     pub path: String,
@@ -12,10 +39,12 @@ pub struct DirectoryAnalysis {
     pub total_size: u64,
     pub analysis_time_ms: u64,
     pub file_types: HashMap<String, u64>,
+    pub extension_sizes: HashMap<String, u64>,
     pub size_distribution: HashMap<String, u64>,
     pub largest_files: Vec<FileInfo>,
     pub empty_directories: Vec<String>,
     pub errors: Vec<String>,
+    pub subdirectories: Vec<DirInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -55,10 +84,12 @@ impl Default for DirectoryAnalysis {
             total_size: 0,
             analysis_time_ms: 0,
             file_types: HashMap::new(),
+            extension_sizes: HashMap::new(),
             size_distribution: HashMap::new(),
             largest_files: Vec::new(),
             empty_directories: Vec::new(),
             errors: Vec::new(),
+            subdirectories: Vec::new(),
         }
     }
 }
