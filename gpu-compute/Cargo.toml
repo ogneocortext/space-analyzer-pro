@@ -1,0 +1,28 @@
+[package]
+name = "gpu-compute"
+version = "1.0.0"
+edition = "2021"
+description = "GPU-accelerated compute primitives for Space Analyzer"
+
+[lib]
+name = "gpu_compute"
+crate-type = ["rlib"]
+
+[dependencies]
+# CUDA bindings
+cudarc = { version = "0.12", features = ["std"], optional = true }
+
+# Fallback CPU implementations
+rayon = "1.8"
+blake3 = "1.5"
+ndarray = { version = "0.15", features = ["rayon"] }
+
+# Common
+serde = { version = "1", features = ["derive"] }
+thiserror = "1"
+anyhow = "1"
+rand = "0.8"
+
+[features]
+default = []
+cuda = ["cudarc"]

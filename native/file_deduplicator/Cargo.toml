@@ -1,0 +1,75 @@
+[package]
+name = "file-deduplicator"
+version = "1.0.0"
+edition = "2021"
+authors = ["Space Analyzer Team"]
+description = "High-performance file deduplicator with BLAKE3 hashing and hard link support"
+license = "MIT"
+
+[[bin]]
+name = "file-deduplicator"
+path = "src/main.rs"
+
+[lib]
+name = "file_deduplicator"
+crate-type = ["cdylib", "lib"]
+path = "src/lib.rs"
+
+[dependencies]
+# Core dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+anyhow = "1.0"
+thiserror = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+
+# File system and hashing
+walkdir = "2.3"
+blake3 = "1.5"
+tokio = { version = "1", features = ["full"] }
+rayon = "1.7"
+crossbeam = "0.8"
+num_cpus = "1.16"
+
+# GPU acceleration
+gpu-compute = { path = "../../gpu-compute" }
+
+# Progress tracking and CLI
+indicatif = "0.17"
+console = "0.15"
+colored = "2.0"
+
+# Configuration
+config = "0.14"
+dirs = "5.0"
+
+# Windows-specific dependencies for hard links
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = [
+    "fileapi",
+    "handleapi", 
+    "winbase",
+    "winnt",
+    "minwindef",
+    "errhandlingapi",
+] }
+
+# Unix-specific dependencies for hard links
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+nix = "0.27"
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+opt-level = 3
+
+[profile.dev]
+opt-level = 1
+debug = true
