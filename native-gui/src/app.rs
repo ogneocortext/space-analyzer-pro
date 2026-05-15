@@ -90,6 +90,26 @@ pub struct SpaceAnalyzerApp {
     // File management
     confirm: Option<ConfirmAction>,
     file_list_scroll: f32,
+    
+    // Search and filter
+    search_query: String,
+    filter_extension: String,
+    filter_min_size: u64,
+    filter_max_size: u64,
+    
+    // Sorting
+    sort_column: crate::types::SortColumn,
+    sort_direction: crate::types::SortDir,
+    
+    // Pagination
+    files_per_page: usize,
+    current_page: usize,
+    
+    // Directory tree
+    expanded_dirs: std::collections::HashSet<String>,
+    
+    // Error display
+    show_errors: bool,
 
     // Persistence
     save_path: Option<String>,
@@ -352,6 +372,16 @@ impl SpaceAnalyzerApp {
             active_template: ViewTemplate::Summary,
             confirm: None,
             file_list_scroll: 0.0,
+            search_query: String::new(),
+            filter_extension: String::from("all"),
+            filter_min_size: 0,
+            filter_max_size: u64::MAX,
+            sort_column: crate::types::SortColumn::Size,
+            sort_direction: crate::types::SortDir::Descending,
+            files_per_page: 50,
+            current_page: 0,
+            expanded_dirs: std::collections::HashSet::new(),
+            show_errors: false,
             save_path: None,
             scan_start_time: None,
             ollama_client,
@@ -417,10 +447,12 @@ impl SpaceAnalyzerApp {
                     total_size: scan_result.total_size,
                     analysis_time_ms: 0, // Set by main thread after receiving
                     file_types: scan_result.file_types,
+                    extension_sizes: scan_result.extension_sizes,
                     size_distribution: scan_result.size_distribution,
                     largest_files: scan_result.largest_files,
                     empty_directories: scan_result.empty_directories,
                     errors: scan_result.errors,
+                    subdirectories: scan_result.subdirectories,
                 };
                 let _ = analysis_tx.send(Ok(analysis));
             } else {
@@ -663,7 +695,7 @@ impl SpaceAnalyzerApp {
         }
     }
 
-    fn render_summary(&self, ui: &mut egui::Ui) {
+    fn render_summary(&mut self, ui: &mut egui::Ui) {
         let a = self.analysis.as_ref().unwrap();
         theme::section(ui, "Scan Overview", |ui| {
             egui::Grid::new("summary_grid").num_columns(2).striped(true).show(ui, |ui| {
@@ -688,11 +720,79 @@ impl SpaceAnalyzerApp {
                 theme::metric(ui, "Files per dir", format!("{:.1}", dpd));
                 ui.end_row();
                 if !a.errors.is_empty() {
-                    theme::metric(ui, "Errors", format!("{}", a.errors.len()));
+                    ui.colored_label(palette::WARNING, format!("Errors: {}", a.errors.len()));
+                    if ui.small_button(if self.show_errors { "Hide" } else { "Show" }).clicked() {
+                        self.show_errors = !self.show_errors;
+                    }
                     ui.end_row();
                 }
             });
         });
+
+        // Error details
+        if self.show_errors && !a.errors.is_empty() {
+            ui.add_space(8.0);
+            theme::section(ui, &format!("Error Details ({} errors)", a.errors.len()), |ui| {
+                egui::ScrollArea::vertical().max_height(200.0).show(ui, |ui| {
+                    for (i, err) in a.errors.iter().enumerate() {
+                        ui.horizontal(|ui| {
+                            ui.colored_label(palette::WARNING, format!("[{}]", i + 1));
+                            ui.label(err);
+                        });
+                    }
+                });
+            });
+        }
+
+        // Directory tree view
+        if !a.subdirectories.is_empty() {
+            ui.add_space(8.0);
+            theme::section(ui, "Space by Directory", |ui| {
+                ui.label("Top-level directories sorted by size:");
+                ui.add_space(4.0);
+                
+                let max_dir_size = a.subdirectories.first().map(|d| d.total_size).unwrap_or(1);
+                for dir in &a.subdirectories {
+                    let frac = dir.total_size as f64 / max_dir_size as f64;
+                    let is_expanded = self.expanded_dirs.contains(&dir.path);
+                    
+                    ui.horizontal(|ui| {
+                        let expand_btn = ui.small_button(if is_expanded { "▼" } else { "▶" });
+                        if expand_btn.clicked() {
+                            if is_expanded {
+                                self.expanded_dirs.remove(&dir.path);
+                            } else {
+                                self.expanded_dirs.insert(dir.path.clone());
+                            }
+                        }
+                        
+                        ui.label(format!("{}", dir.name));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(format!("{} files, {}", dir.file_count, format_bytes(dir.total_size)));
+                        });
+                    });
+                    
+                    // Progress bar
+                    ui.add(egui::ProgressBar::new(frac as f32)
+                        .fill(if frac > 0.5 { palette::ERROR } else { palette::ACCENT_BLUE })
+                        .desired_width(ui.available_width()));
+                    
+                    // Expanded details
+                    if is_expanded {
+                        ui.indent(&dir.path, |ui| {
+                            ui.label(format!("Files: {} | Subdirs: {}", dir.file_count, dir.dir_count));
+                            if dir.largest_file_size > 0 {
+                                ui.label(format!("Largest file: {}", format_bytes(dir.largest_file_size)));
+                            }
+                            let pct = dir.total_size as f64 / a.total_size.max(1) as f64 * 100.0;
+                            ui.label(format!("Share of total: {:.1}%", pct));
+                        });
+                    }
+                    
+                    ui.add_space(2.0);
+                }
+            });
+        }
 
         ui.add_space(8.0);
         theme::section(ui, "Size Distribution", |ui| {
@@ -713,24 +813,30 @@ impl SpaceAnalyzerApp {
         let a = self.analysis.as_ref().unwrap();
         theme::heading(ui, "File Types by Category");
 
-        let mut by_category: HashMap<&str, Vec<(&String, &u64)>> = HashMap::new();
+        let mut by_category: HashMap<&str, Vec<(&String, &u64, &u64)>> = HashMap::new();
         for (ext, count) in &a.file_types {
             let cat = categorize_ext(ext);
-            by_category.entry(cat).or_default().push((ext, count));
+            let size = a.extension_sizes.get(ext).copied().unwrap_or(0);
+            by_category.entry(cat).or_default().push((ext, count, &size));
         }
 
         let total = a.total_files.max(1);
         let all_cats: Vec<&str> = by_category.keys().filter(|c| **c != "Other").copied().collect();
         for cat in all_cats {
             if let Some(exts) = by_category.get(cat) {
-                let cat_count: u64 = exts.iter().map(|(_, c)| **c).sum();
-                theme::section(ui, &format!("{}  ({} files, {:.1}%)", cat, cat_count, cat_count as f64 / total as f64 * 100.0), |ui| {
-                    for (ext, count) in exts {
+                let cat_count: u64 = exts.iter().map(|(_, c, _)| **c).sum();
+                let cat_size: u64 = exts.iter().map(|(_, _, s)| **s).sum();
+                theme::section(ui, &format!("{}  ({} files, {})", cat, cat_count, format_bytes(cat_size)), |ui| {
+                    for (ext, count, size) in exts {
                         let pct = **count as f64 / total as f64 * 100.0;
+                        let size_pct = *size as f64 / a.total_size.max(1) as f64 * 100.0;
                         ui.horizontal(|ui| {
                             ui.label(format!(".{}", ext));
                             ui.add(egui::ProgressBar::new(**count as f32 / total as f32).desired_width(100.0));
-                            ui.label(format!("{} ({:.1}%)", count, pct));
+                            ui.label(format!("{} files ({:.1}%)", count, pct));
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.label(format!("{} ({:.1}%)", format_bytes(**size), size_pct));
+                            });
                         });
                     }
                 });
@@ -738,48 +844,211 @@ impl SpaceAnalyzerApp {
             }
         }
         if let Some(exts) = by_category.get("Other") {
-            let cat_count: u64 = exts.iter().map(|(_, c)| **c).sum();
-            theme::section(ui, &format!("Other  ({} files, {:.1}%)", cat_count, cat_count as f64 / total as f64 * 100.0), |ui| {
-                for (ext, count) in exts {
+            let cat_count: u64 = exts.iter().map(|(_, c, _)| **c).sum();
+            let cat_size: u64 = exts.iter().map(|(_, _, s)| **s).sum();
+            theme::section(ui, &format!("Other  ({} files, {})", cat_count, format_bytes(cat_size)), |ui| {
+                for (ext, count, size) in exts {
                     let pct = **count as f64 / total as f64 * 100.0;
+                    let size_pct = *size as f64 / a.total_size.max(1) as f64 * 100.0;
                     ui.horizontal(|ui| {
                         ui.label(format!(".{}", ext));
                         ui.add(egui::ProgressBar::new(**count as f32 / total as f32).desired_width(100.0));
-                        ui.label(format!("{} ({:.1}%)", count, pct));
+                        ui.label(format!("{} files ({:.1}%)", count, pct));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            ui.label(format!("{} ({:.1}%)", format_bytes(**size), size_pct));
+                        });
                     });
                 }
             });
         }
     }
 
-    fn render_size_audit(&self, ui: &mut egui::Ui) {
+    fn render_size_audit(&mut self, ui: &mut egui::Ui) {
         let a = self.analysis.as_ref().unwrap();
         theme::heading(ui, "Largest Files");
 
         if a.largest_files.is_empty() { ui.label("No files found."); return; }
 
-        theme::section(ui, &format!("Top {} files by size", a.largest_files.len().min(100)), |ui| {
+        // Search and filter bar
+        ui.horizontal(|ui| {
+            ui.label("Search:");
+            ui.add(egui::TextEdit::singleline(&mut self.search_query)
+                .hint_text("Filter by name or extension...")
+                .desired_width(200.0));
+            
+            ui.label("Extension:");
+            egui::ComboBox::from_id_salt("ext_filter")
+                .selected_text(&self.filter_extension)
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(&mut self.filter_extension, "all".to_string(), "All");
+                    let mut exts: Vec<_> = a.file_types.keys().collect();
+                    exts.sort();
+                    for ext in exts.take(20) {
+                        ui.selectable_value(&mut self.filter_extension, ext.clone(), format!(".{}", ext));
+                    }
+                });
+            
+            ui.label("Per page:");
+            egui::ComboBox::from_id_salt("page_size")
+                .selected_text(self.files_per_page.to_string())
+                .show_ui(ui, |ui| {
+                    for size in &[25, 50, 100, 250] {
+                        if ui.selectable_label(self.files_per_page == *size, size.to_string()).clicked() {
+                            self.files_per_page = *size;
+                            self.current_page = 0;
+                        }
+                    }
+                });
+            
+            if ui.button("Reset Filters").clicked() {
+                self.search_query.clear();
+                self.filter_extension = "all".to_string();
+                self.current_page = 0;
+            }
+        });
+        
+        ui.add_space(4.0);
+
+        // Filter and sort files
+        let mut filtered: Vec<&FileInfo> = a.largest_files.iter()
+            .filter(|f| {
+                if !self.search_query.is_empty() {
+                    let q = self.search_query.to_lowercase();
+                    if !f.name.to_lowercase().contains(&q) && !f.extension.to_lowercase().contains(&q) {
+                        return false;
+                    }
+                }
+                if self.filter_extension != "all" && f.extension != self.filter_extension {
+                    return false;
+                }
+                true
+            })
+            .collect();
+
+        // Sort
+        filtered.sort_by(|a, b| {
+            let ord = match self.sort_column {
+                crate::types::SortColumn::Name => a.name.cmp(&b.name),
+                crate::types::SortColumn::Size => a.size.cmp(&b.size),
+                crate::types::SortColumn::Extension => a.extension.cmp(&b.extension),
+                crate::types::SortColumn::Modified => a.modified.cmp(&b.modified),
+            };
+            match self.sort_direction {
+                crate::types::SortDir::Ascending => ord,
+                crate::types::SortDir::Descending => ord.reverse(),
+            }
+        });
+
+        let total_filtered = filtered.len();
+        let total_pages = (total_filtered + self.files_per_page - 1) / self.files_per_page;
+        let start = self.current_page * self.files_per_page;
+        let end = (start + self.files_per_page).min(total_filtered);
+        let page_items = &filtered[start..end.min(filtered.len())];
+
+        theme::section(ui, &format!("Showing {}-{} of {} files", start + 1, end.min(total_filtered), total_filtered), |ui| {
             egui::ScrollArea::vertical().max_height(500.0).show(ui, |ui| {
-                egui::Grid::new("size_audit_grid").num_columns(4).striped(true).show(ui, |ui| {
-                    theme::sub_heading(ui, "#");
-                    theme::sub_heading(ui, "File Name");
-                    theme::sub_heading(ui, "Size");
-                    theme::sub_heading(ui, "Bar");
+                egui::Grid::new("size_audit_grid").num_columns(6).striped(true).show(ui, |ui| {
+                    // Sortable column headers
+                    let sort_indicator = |col: crate::types::SortColumn| -> &'static str {
+                        if self.sort_column == col {
+                            if self.sort_direction == crate::types::SortDir::Ascending { " ▲" } else { " ▼" }
+                        } else { "" }
+                    };
+                    
+                    if ui.button(format!("#{}", sort_indicator(crate::types::SortColumn::Name))).clicked() {
+                        if self.sort_column == crate::types::SortColumn::Name {
+                            self.sort_direction = match self.sort_direction {
+                                crate::types::SortDir::Ascending => crate::types::SortDir::Descending,
+                                crate::types::SortDir::Descending => crate::types::SortDir::Ascending,
+                            };
+                        } else {
+                            self.sort_column = crate::types::SortColumn::Name;
+                            self.sort_direction = crate::types::SortDir::Ascending;
+                        }
+                    }
+                    if ui.button(format!("File Name{}", sort_indicator(crate::types::SortColumn::Name))).clicked() {
+                        if self.sort_column == crate::types::SortColumn::Name {
+                            self.sort_direction = match self.sort_direction {
+                                crate::types::SortDir::Ascending => crate::types::SortDir::Descending,
+                                crate::types::SortDir::Descending => crate::types::SortDir::Ascending,
+                            };
+                        } else {
+                            self.sort_column = crate::types::SortColumn::Name;
+                            self.sort_direction = crate::types::SortDir::Ascending;
+                        }
+                    }
+                    if ui.button(format!("Ext{}", sort_indicator(crate::types::SortColumn::Extension))).clicked() {
+                        if self.sort_column == crate::types::SortColumn::Extension {
+                            self.sort_direction = match self.sort_direction {
+                                crate::types::SortDir::Ascending => crate::types::SortDir::Descending,
+                                crate::types::SortDir::Descending => crate::types::SortDir::Ascending,
+                            };
+                        } else {
+                            self.sort_column = crate::types::SortColumn::Extension;
+                            self.sort_direction = crate::types::SortDir::Ascending;
+                        }
+                    }
+                    if ui.button(format!("Size{}", sort_indicator(crate::types::SortColumn::Size))).clicked() {
+                        if self.sort_column == crate::types::SortColumn::Size {
+                            self.sort_direction = match self.sort_direction {
+                                crate::types::SortDir::Ascending => crate::types::SortDir::Descending,
+                                crate::types::SortDir::Descending => crate::types::SortDir::Ascending,
+                            };
+                        } else {
+                            self.sort_column = crate::types::SortColumn::Size;
+                            self.sort_direction = crate::types::SortDir::Descending;
+                        }
+                    }
+                    ui.label("Bar");
+                    ui.label("Actions");
                     ui.end_row();
-                    let max_sz = a.largest_files.first().map(|f| f.size).unwrap_or(1);
-                    for (i, f) in a.largest_files.iter().enumerate() {
+                    
+                    let max_sz = filtered.first().map(|f| f.size).unwrap_or(1);
+                    for (i, f) in page_items.iter().enumerate() {
                         let rc = if i % 2 == 0 { palette::BG_ELEVATED } else { palette::BG_SURFACE };
-                        ui.colored_label(rc, (i + 1).to_string());
-                        ui.colored_label(rc, &f.name);
+                        ui.colored_label(rc, (start + i + 1).to_string());
+                        
+                        // File name with tooltip showing full path
+                        ui.horizontal(|ui| {
+                            let name_label = ui.colored_label(rc, &f.name);
+                            name_label.on_hover_text(&f.path);
+                        });
+                        
+                        ui.colored_label(rc, format!(".{}", f.extension));
                         ui.colored_label(rc, format_bytes(f.size));
+                        
                         let frac = f.size as f64 / max_sz as f64;
                         let bar_color = if frac > 0.5 { palette::ERROR } else { palette::ACCENT_BLUE };
                         ui.add(egui::ProgressBar::new(frac as f32).fill(bar_color).desired_width(80.0));
+                        
+                        // Actions: Open folder
+                        ui.horizontal(|ui| {
+                            if ui.small_button("📁").clicked() {
+                                if let Some(parent) = std::path::Path::new(&f.path).parent() {
+                                    let _ = open::that(parent);
+                                }
+                            }
+                        });
+                        
                         ui.end_row();
                     }
                 });
             });
         });
+
+        // Pagination controls
+        if total_pages > 1 {
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                if ui.button("◀ Prev").clicked() && self.current_page > 0 {
+                    self.current_page -= 1;
+                }
+                ui.label(format!("Page {} of {}", self.current_page + 1, total_pages));
+                if ui.button("Next ▶").clicked() && self.current_page < total_pages - 1 {
+                    self.current_page += 1;
+                }
+            });
+        }
     }
 
     fn render_organize(&mut self, ui: &mut egui::Ui) {
@@ -1418,30 +1687,8 @@ impl eframe::App for SpaceAnalyzerApp {
                         self.analysis = Some(a);
                         self.is_scanning = false;
                         self.charts_dirty = true;
-                    }
-                    Err(e) => {
-                        self.error_message = Some(e);
-                        self.is_scanning = false;
-                    }
-                }
-                ctx.request_repaint();
-            }
-        }
-
-        // Check completion
-        if let Some(ref rx) = self.analysis_rx {
-            if let Ok(result) = rx.try_recv() {
-                match result {
-                    Ok(a) => {
-                        if self.settings.auto_save {
-                            let file = save_scan_v2(&a);
-                            self.save_path = Some(format!("Saved: scan_results/{}", file));
-                            self.scan_history = load_scan_history();
-                        }
-                        // Remove current path from analysis, it's already stored
-                        self.analysis = Some(a);
-                        self.is_scanning = false;
-                        self.charts_dirty = true;
+                        self.current_page = 0; // Reset pagination
+                        self.search_query.clear(); // Reset filters
                     }
                     Err(e) => {
                         self.error_message = Some(e);

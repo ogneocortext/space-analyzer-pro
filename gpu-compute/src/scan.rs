@@ -27,9 +27,11 @@ pub struct GpuScanResult {
     pub total_files: u64,
     pub total_size: u64,
     pub file_types: HashMap<String, u64>,
+    pub extension_sizes: HashMap<String, u64>,
     pub size_distribution: HashMap<String, u64>,
     pub largest_files: Vec<GpuFileInfo>,
     pub empty_dirs: Vec<String>,
+    pub subdirectories: Vec<DirInfo>,
     pub processing_time_ms: u64,
     pub device: String,
 }
@@ -40,6 +42,17 @@ pub struct GpuFileInfo {
     pub name: String,
     pub size: u64,
     pub extension: String,
+}
+
+/// Per-directory aggregate information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirInfo {
+    pub path: String,
+    pub name: String,
+    pub total_size: u64,
+    pub file_count: u64,
+    pub dir_count: u64,
+    pub largest_file_size: u64,
 }
 
 /// GPU-accelerated post-processor for scan results
@@ -83,6 +96,7 @@ impl GpuScanProcessor {
         let mut total_files = 0u64;
         let mut total_size = 0u64;
         let mut file_types: HashMap<String, u64> = HashMap::new();
+        let mut extension_sizes: HashMap<String, u64> = HashMap::new();
         let mut size_distribution: HashMap<String, u64> = HashMap::new();
         let mut empty_dirs = Vec::new();
 
@@ -105,6 +119,7 @@ impl GpuScanProcessor {
             total_files += 1;
             total_size += size;
             *file_types.entry(ext.clone()).or_insert(0) += 1;
+            *extension_sizes.entry(ext.clone()).or_insert(0) += size;
             *size_distribution.entry(bucket.clone()).or_insert(0) += 1;
         }
 
@@ -133,13 +148,18 @@ impl GpuScanProcessor {
             }
         }
 
+        // Compute per-directory aggregates
+        let subdirectories = compute_subdirectories(entries);
+
         GpuScanResult {
             total_files,
             total_size,
             file_types,
+            extension_sizes,
             size_distribution,
             largest_files: largest,
             empty_dirs,
+            subdirectories,
             processing_time_ms: 0, // Set by caller
             device: "CPU (rayon)".to_string(),
         }
@@ -164,12 +184,14 @@ impl GpuScanProcessor {
                     total_files: 0,
                     total_size: 0,
                     file_types: HashMap::new(),
+                    extension_sizes: HashMap::new(),
                     size_distribution: HashMap::new(),
                     largest_files: Vec::new(),
                     empty_dirs: count_dir_entries(entries)
                         .into_iter()
                         .filter_map(|(p, c)| if c == 0 { Some(p) } else { None })
                         .collect(),
+                    subdirectories: compute_subdirectories(entries),
                     processing_time_ms: 0,
                     device: "GPU".to_string(),
                 };
@@ -261,10 +283,12 @@ impl GpuScanProcessor {
         Ok(GpuScanResult {
             total_files: files.len() as u64,
             total_size,
-            file_types,
+            file_types: file_types.clone(),
+            extension_sizes: file_types.clone(), // Will be computed properly when GPU kernel is implemented
             size_distribution,
             largest_files: largest,
             empty_dirs: Vec::new(),
+            subdirectories: compute_subdirectories(&files),
             processing_time_ms: 0,
             device: "GPU".to_string(),
         })
@@ -326,6 +350,53 @@ fn count_dir_entries(entries: &[RawFileEntry]) -> HashMap<String, u64> {
     }
 
     counts
+}
+
+/// Compute per-directory aggregate information for immediate subdirectories
+fn compute_subdirectories(entries: &[RawFileEntry]) -> Vec<DirInfo> {
+    let mut dir_sizes: HashMap<String, u64> = HashMap::new();
+    let mut dir_file_counts: HashMap<String, u64> = HashMap::new();
+    let mut dir_dir_counts: HashMap<String, u64> = HashMap::new();
+    let mut dir_largest: HashMap<String, u64> = HashMap::new();
+
+    for entry in entries {
+        let path = Path::new(&entry.path);
+        let mut components = path.components().skip(1);
+        if let Some(first) = components.next() {
+            let sub_name = first.as_os_str().to_string_lossy().to_string();
+            if entry.is_dir {
+                *dir_dir_counts.entry(sub_name.clone()).or_insert(0) += 1;
+            } else {
+                *dir_sizes.entry(sub_name.clone()).or_insert(0) += entry.size;
+                *dir_file_counts.entry(sub_name.clone()).or_insert(0) += 1;
+                let current_largest = dir_largest.entry(sub_name.clone()).or_insert(0);
+                if entry.size > *current_largest {
+                    *current_largest = entry.size;
+                }
+            }
+        }
+    }
+
+    // Collect all subdirectory names
+    let mut all_names: std::collections::HashSet<String> = std::collections::HashSet::new();
+    all_names.extend(dir_sizes.keys().cloned());
+    all_names.extend(dir_dir_counts.keys().cloned());
+
+    let mut result: Vec<DirInfo> = all_names.into_iter()
+        .map(|name| {
+            DirInfo {
+                path: name.clone(),
+                name: name.clone(),
+                total_size: dir_sizes.get(&name).copied().unwrap_or(0),
+                file_count: dir_file_counts.get(&name).copied().unwrap_or(0),
+                dir_count: dir_dir_counts.get(&name).copied().unwrap_or(0),
+                largest_file_size: dir_largest.get(&name).copied().unwrap_or(0),
+            }
+        })
+        .collect();
+
+    result.sort_by(|a, b| b.total_size.cmp(&a.total_size));
+    result
 }
 
 /// Benchmark scan post-processing performance

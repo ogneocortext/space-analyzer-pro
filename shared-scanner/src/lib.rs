@@ -41,10 +41,23 @@ pub struct ScanResult {
     pub total_directories: u64,
     pub total_size: u64,
     pub file_types: HashMap<String, u64>,
+    pub extension_sizes: HashMap<String, u64>,
     pub size_distribution: HashMap<String, u64>,
     pub largest_files: Vec<FileInfo>,
     pub empty_directories: Vec<String>,
     pub errors: Vec<String>,
+    pub subdirectories: Vec<DirInfo>,
+}
+
+/// Per-directory aggregate information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirInfo {
+    pub path: String,
+    pub name: String,
+    pub total_size: u64,
+    pub file_count: u64,
+    pub dir_count: u64,
+    pub largest_file_size: u64,
 }
 
 /// Scan options
@@ -209,10 +222,12 @@ impl FileScanner {
             total_directories: 0,
             total_size: 0,
             file_types: HashMap::new(),
+            extension_sizes: HashMap::new(),
             size_distribution: HashMap::new(),
             largest_files: Vec::new(),
             empty_directories: Vec::new(),
             errors: Vec::new(),
+            subdirectories: Vec::new(),
         };
 
         // ── Phase 1: I/O-bound directory traversal (CPU only) ──
@@ -269,8 +284,19 @@ impl FileScanner {
         result.total_files = gpu_result.total_files;
         result.total_size = gpu_result.total_size;
         result.file_types = gpu_result.file_types;
+        result.extension_sizes = gpu_result.extension_sizes;
         result.size_distribution = gpu_result.size_distribution;
         result.empty_directories = gpu_result.empty_dirs;
+        result.subdirectories = gpu_result.subdirectories.into_iter()
+            .map(|d| DirInfo {
+                path: d.path,
+                name: d.name,
+                total_size: d.total_size,
+                file_count: d.file_count,
+                dir_count: d.dir_count,
+                largest_file_size: d.largest_file_size,
+            })
+            .collect();
 
         // Convert GPU file info to FileInfo (add timestamp from metadata lookup)
         for info in gpu_result.largest_files {
@@ -311,10 +337,12 @@ impl FileScanner {
             total_directories: 0,
             total_size: 0,
             file_types: HashMap::new(),
+            extension_sizes: HashMap::new(),
             size_distribution: HashMap::new(),
             largest_files: Vec::new(),
             empty_directories: Vec::new(),
             errors: Vec::new(),
+            subdirectories: Vec::new(),
         }));
 
         let result_clone = result.clone();
