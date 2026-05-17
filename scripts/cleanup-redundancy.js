@@ -1,161 +1,121 @@
 #!/usr/bin/env node
 
 /**
- * Redundancy Cleanup Summary and Maintenance Script
- * Provides overview of cleaned up project structure and maintenance utilities
+ * Space Analyzer Pro - Redundancy Cleanup Report
+ * Reports on redundant files that could be cleaned up
  */
 
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
-class RedundancyCleanupSummary {
-  constructor() {
-    this.projectRoot = process.cwd();
-    this.removedFiles = [];
-    this.consolidatedAreas = [];
-  }
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const root = path.resolve(__dirname, "..");
 
-  log(message, level = "INFO") {
-    const timestamp = new Date().toLocaleTimeString();
-    const colors = {
-      INFO: "\x1b[36m",
-      WARN: "\x1b[33m",
-      ERROR: "\x1b[31m",
-      SUCCESS: "\x1b[32m",
-      RESET: "\x1b[0m",
-    };
-    
-    console.log(`${colors[level]}[${timestamp}] ${message}${colors.RESET}`);
-  }
+console.log("📋 Space Analyzer Pro - Redundancy Cleanup Report");
+console.log("════════════════════════════════════════════════════\n");
 
-  async generateCleanupReport() {
-    console.log("🧹 Space Analyzer - Redundancy Cleanup Report\n");
+// Known redundant patterns to check
+const patterns = {
+  "Duplicate Vite configs in root": [
+    "vite.config.ts",
+    "vite.config.simple.ts",
+  ],
+  "Duplicate tsconfig files in root": [
+    "tsconfig.json",
+  ],
+  "Old server files in root (now in server/)": [
+    "dev-server.js",
+    "dev-server.cjs",
+    "launcher-server.js",
+    "launcher-backend.cjs",
+  ],
+  "Standalone HTML files (now served via dist/)": [
+    "launcher.html",
+    "index-clean.html",
+    "index-enhanced.html",
+    "index-minimal.html",
+    "launcher-fixed.html",
+  ],
+  "Standalone CSS/JS in root (now in src/)": [
+    "launcher-styles.css",
+    "launcher-script.js",
+  ],
+  "Old build artifacts in root": [
+    "build_output.txt",
+    "build_results.txt",
+    "gui_build_output.txt",
+    "build.bat",
+    "build.ps1",
+    "build-desktop.ps1",
+    "build-rust-with-vs.bat",
+    "build-wsl.ps1",
+  ],
+  "Obsolete documentation in root": [
+    "BUILD_AND_DEPLOYMENT.md",
+    "BUILD_DIAGNOSIS_REPORT.md",
+    "CLEANUP_REPORT.md",
+    "CLICK_TEST_RESULTS.md",
+    "GUI_INTEGRATION_GUIDE.md",
+    "IMPLEMENTATION_GUIDE.md",
+    "INTEGRATION_GUIDE.md",
+    "LOGGER_DOCUMENTATION.md",
+    "LOGGER_TEST_GUIDE.md",
+    "PERMANENT_PATH_CONFIGURATION.md",
+    "PERMANENT_RUST_BUILD_SOLUTION.md",
+    "PROJECT_ROADMAP.md",
+    "PROJECT_STRUCTURE.md",
+    "QUICK_BUILD_FIX.md",
+    "SELF_CLICKING_FIX.md",
+    "WINDOWS_BUILD_TROUBLESHOOTING.md",
+  ],
+};
 
-    console.log("📊 Cleanup Summary:");
-    console.log("   Two comprehensive passes completed to eliminate redundancy");
-    console.log("   Project structure optimized for maintainability and performance\n");
+let totalRedundant = 0;
+let totalSize = 0;
 
-    console.log("🗑️ Major Areas Cleaned:");
+for (const [category, files] of Object.entries(patterns)) {
+  console.log(`📁 ${category}:`);
+  let found = false;
 
-    console.log("\n   1. Startup Scripts:");
-    console.log("      ❌ Removed: start-all.js, multiple fix-vite*.bat scripts");
-    console.log("      ✅ Kept: start-all-improved.js, fix-vite-cache.js");
-
-    console.log("\n   2. Configuration Files:");
-    console.log("      ❌ Removed: utils/config-manager.js, TypeScript ConfigService.ts");
-    console.log("      ✅ Kept: server/config.js, ports.config.js");
-
-    console.log("\n   3. Database Layer:");
-    console.log("      ❌ Removed: db/core.js, duplicate database managers");
-    console.log("      ✅ Kept: db/database-manager.js, enhanced database structure");
-
-    console.log("\n   4. AI Services:");
-    console.log("      ❌ Removed: src/ai/ directory, duplicate AI modules");
-    console.log("      ✅ Kept: server/services/ AI implementations");
-
-    console.log("\n   5. Server Structure:");
-    console.log("      ❌ Removed: server/src/, utils/, redundant middleware");
-    console.log("      ✅ Kept: Main server/, modules/, services/, middleware/");
-
-    console.log("\n   6. Error Handling:");
-    console.log("      ❌ Removed: Multiple error handlers, error components");
-    console.log("      ✅ Kept: server/middleware/errorHandler.js");
-
-    console.log("\n   7. Test Infrastructure:");
-    console.log("      ❌ Removed: Duplicate test files, redundant test utilities");
-    console.log("      ✅ Kept: Organized test structure");
-
-    console.log("\n   8. Build Scripts:");
-    console.log("      ❌ Removed: 15+ redundant build*.bat files");
-    console.log("      ✅ Kept: Essential build scripts, consolidated fix-build.js");
-
-    console.log("\n📈 Impact:");
-    console.log("   📁 Files Removed: 60+ redundant files");
-    console.log("   📂 Directories Cleaned: 10+ redundant directories");
-    console.log("   🎯 Complexity Reduced: Significantly improved maintainability");
-    console.log("   ⚡ Performance: Faster load times, reduced memory usage");
-
-    console.log("\n🏗️ Current Clean Structure:");
-    console.log("   📁 scripts/          - Essential utility scripts");
-    console.log("   📁 server/           - Main backend services");
-    console.log("   📁 src/              - Frontend Vue components");
-    console.log("   📁 tests/            - Test infrastructure");
-    console.log("   📁 native/           - Native modules");
-    console.log("   📁 docs/             - Documentation");
-
-    console.log("\n🔧 New Consolidated Commands:");
-    console.log("   npm run fix:build    - Comprehensive build fixing");
-    console.log("   npm run test:integration - Integration testing");
-    console.log("   npm run start        - Clean startup process");
-    console.log("   npm run cleanup      - System cleanup");
-
-    console.log("\n✅ Benefits Achieved:");
-    console.log("   🎯 Single source of truth for each functionality");
-    console.log("   📦 Reduced bundle size and improved performance");
-    console.log("   🔍 Easier navigation and code understanding");
-    console.log("   🛠️ Simplified maintenance and debugging");
-    console.log("   📈 Better developer experience");
-
-    console.log("\n🚀 Recommendations:");
-    console.log("   1. Use the consolidated scripts for all operations");
-    console.log("   2. Follow the established patterns for new code");
-    console.log("   3. Keep the clean structure by avoiding duplicates");
-    console.log("   4. Use npm run fix:build for any build issues");
-  }
-
-  async validateCleanStructure() {
-    console.log("\n🔍 Validating Clean Structure...");
-
-    const criticalPaths = [
-      "scripts/start-all-improved.js",
-      "scripts/fix-build.js",
-      "server/config.js",
-      "server/server-improved.js",
-      "package.json",
-      "vite.config.ts"
-    ];
-
-    let allValid = true;
-
-    for (const path of criticalPaths) {
-      const fullPath = path.join(this.projectRoot, path);
-      if (fs.existsSync(fullPath)) {
-        this.log(`✅ ${path}`, "SUCCESS");
-      } else {
-        this.log(`❌ Missing: ${path}`, "ERROR");
-        allValid = false;
-      }
+  for (const file of files) {
+    const filePath = path.join(root, file);
+    if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
+      const sizeKB = (stats.size / 1024).toFixed(1);
+      console.log(`   📄 ${file} (${sizeKB} KB)`);
+      totalRedundant++;
+      totalSize += stats.size;
+      found = true;
     }
-
-    if (allValid) {
-      console.log("\n🎉 All critical files present - structure is clean!");
-    } else {
-      console.log("\n⚠️ Some critical files missing - review structure");
-    }
-
-    return allValid;
   }
 
-  async run() {
-    await this.generateCleanupReport();
-    await this.validateCleanStructure();
-
-    console.log("\n💡 Maintenance Tips:");
-    console.log("   • Run npm run fix:build if you encounter build issues");
-    console.log("   • Use npm run status to check service health");
-    console.log("   • Keep scripts/ directory clean and organized");
-    console.log("   • Avoid creating duplicate functionality");
-    console.log("   • Regular cleanup prevents future redundancy");
-
-    console.log("\n🎯 Project is now optimized and redundancy-free!");
+  if (!found) {
+    console.log(`   ✅ All cleaned up`);
   }
+  console.log("");
 }
 
-// Handle uncaught errors
-process.on("uncaughtException", (error) => {
-  console.error("❌ Uncaught error:", error.message);
-  process.exit(1);
+// Count total files in root
+const rootFiles = fs.readdirSync(root).filter((f) => {
+  try {
+    return fs.statSync(path.join(root, f)).isFile();
+  } catch {
+    return false;
+  }
 });
 
-// Run cleanup summary
-new RedundancyCleanupSummary().run().catch(console.error);
+console.log("════════════════════════════════════════════════════");
+console.log(`\n📊 Summary:`);
+console.log(`   Total root-level files: ${rootFiles.length}`);
+console.log(`   Redundant files found: ${totalRedundant}`);
+console.log(`   Total redundant size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
+console.log("");
+
+if (totalRedundant === 0) {
+  console.log("✅ No redundant files found - project is clean!\n");
+} else {
+  console.log(`⚠️  ${totalRedundant} redundant files found. Consider removing them with:\n`);
+  console.log("   npm run cleanup\n");
+}

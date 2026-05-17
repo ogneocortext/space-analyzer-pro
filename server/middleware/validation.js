@@ -3,7 +3,13 @@
  * Provides standardized validation for all API endpoints
  */
 
-const logger = require("../utils/logger");
+// Simple logger replacement
+const logger = {
+  info: (message) => console.log(`[VALIDATION] ${message}`),
+  error: (message) => console.error(`[VALIDATION] ${message}`),
+  warn: (message) => console.warn(`[VALIDATION] ${message}`),
+  debug: (message) => console.debug(`[VALIDATION] ${message}`),
+};
 
 class ValidationMiddleware {
   /**
@@ -14,7 +20,11 @@ class ValidationMiddleware {
       const missing = [];
 
       for (const field of fields) {
-        if (req.body[field] === undefined || req.body[field] === null || req.body[field] === "") {
+        if (
+          req.body[field] === undefined ||
+          req.body[field] === null ||
+          req.body[field] === ""
+        ) {
           missing.push(field);
         }
       }
@@ -212,7 +222,9 @@ class ValidationMiddleware {
 
       // Check for path traversal attempts
       if (path.includes("..") || path.includes("~")) {
-        securityErrors.push("Path contains potentially dangerous traversal characters");
+        securityErrors.push(
+          "Path contains potentially dangerous traversal characters",
+        );
       }
 
       // Check for null bytes
@@ -258,7 +270,8 @@ class ValidationMiddleware {
    */
   static analysisIdValidation(field = "analysisId") {
     return (req, res, next) => {
-      const analysisId = req.body[field] || req.query[field] || req.params[field];
+      const analysisId =
+        req.body[field] || req.query[field] || req.params[field];
 
       if (!analysisId) {
         return res.status(400).json({
@@ -280,7 +293,8 @@ class ValidationMiddleware {
       }
 
       // Check format (should match pattern: analysis-YYYY-MM-DDTHH-MM-SS-random)
-      const analysisIdPattern = /^analysis-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-[a-z0-9]{4}$/;
+      const analysisIdPattern =
+        /^analysis-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-[a-z0-9]{4}$/;
       if (!analysisIdPattern.test(analysisId)) {
         return res.status(400).json({
           success: false,
@@ -314,7 +328,9 @@ class ValidationMiddleware {
 
       // Clean old requests
       if (requests.has(key)) {
-        const userRequests = requests.get(key).filter((time) => time > windowStart);
+        const userRequests = requests
+          .get(key)
+          .filter((time) => time > windowStart);
         requests.set(key, userRequests);
       } else {
         requests.set(key, []);

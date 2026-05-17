@@ -1,0 +1,119 @@
+{
+  "timestamp": "20260514_185350",
+  "llama_cpp_model": "E:\\Self-Built-Web-and-Mobile-Apps\\Space-Analyzer\\llama-cpp-bin\\test-model.gguf",
+  "ollama_model": "qwen2.5-coder:7b-instruct",
+  "results": [
+    {
+      "task_name": "code_generation_speed",
+      "backend": "ollama",
+      "model": "qwen2.5-coder:7b-instruct",
+      "iteration": 0,
+      "success": true,
+      "latency_ms": 7543.144702911377,
+      "tokens_per_second": 19.959632204530166,
+      "response_length": 349,
+      "quality_score": 8.5,
+      "error": "",
+      "response_text": "```python\ndef sum_even_numbers(numbers: List[int]) -> int:\n    \"\"\"\n    Calculate the sum of all even numbers in a given list.\n\n    Args:\n        numbers (List[int]): A list of integers.\n\n    Returns:\n        int: The sum of all even numbers in the list. Returns 0 for an empty list.\n    \"\"\"\n    return sum(num for num in numbers if num % 2 == 0)\n```"
+    },
+    {
+      "task_name": "code_generation_quality",
+      "backend": "ollama",
+      "model": "qwen2.5-coder:7b-instruct",
+      "iteration": 0,
+      "success": true,
+      "latency_ms": 7018.069744110107,
+      "tokens_per_second": 20.27027027027027,
+      "response_length": 374,
+      "quality_score": 8.8,
+      "error": "",
+      "response_text": "```python\nfrom typing import List\n\ndef sum_even_numbers(numbers: List[int]) -> int:\n    \"\"\"\n    Calculate the sum of all even numbers in a given list.\n    \n    Args:\n    numbers (List[int]): A list of integers.\n    \n    Returns:\n    int: The sum of all even numbers in the list. Returns 0 for an empty list.\n    \"\"\"\n    return sum(num for num in numbers if num % 2 == 0)\n```"
+    },
+    {
+      "task_name": "debugging_accuracy",
+      "backend": "ollama",
+      "model": "qwen2.5-coder:7b-instruct",
+      "iteration": 0,
+      "success": true,
+      "latency_ms": 16039.290189743042,
+      "tokens_per_second": 19.220817624011236,
+      "response_length": 1130,
+      "quality_score": 9.0,
+      "error": "",
+      "response_text": "The provided Python function `calculate_average` is designed to compute the average of a list of numbers. However, there is a potential issue when the input list `numbers` is empty.\n\n**Bug Explanation:**\nIf the list `numbers` is empty (`[]`), calling `len(numbers)` will return 0. When you attempt to divide `total` by `len(numbers)`, this results in a division by zero error, which is undefined and can cause your program to crash or behave unpredictably.\n\n**Fixed Code:**\nTo fix this issue, we shou"
+    },
+    {
+      "task_name": "code_explanation",
+      "backend": "ollama",
+      "model": "qwen2.5-coder:7b-instruct",
+      "iteration": 0,
+      "success": true,
+      "latency_ms": 28396.11268043518,
+      "tokens_per_second": 19.485580670303975,
+      "response_length": 1926,
+      "quality_score": 8.5,
+      "error": "",
+      "response_text": "This Python function implements the Merge Sort algorithm, which is a divide-and-conquer sorting technique.\n\n### Explanation:\n\n1. **Base Case**: If the array `arr` has 0 or 1 elements (`len(arr) <= 1`), it is already sorted, so the function returns the array as is.\n2. **Divide**: The array is divided into two halves. This is done by finding the middle index (`mid = len(arr) // 2`) and splitting the array into `left` (from start to mid) and `right` (from mid to end).\n3. **Conquer**: Recursively ap"
+    },
+    {
+      "task_name": "refactoring_skill",
+      "backend": "ollama",
+      "model": "qwen2.5-coder:7b-instruct",
+      "iteration": 0,
+      "success": true,
+      "latency_ms": 11726.405143737793,
+      "tokens_per_second": 20.381753477838885,
+      "response_length": 792,
+      "quality_score": 7.9,
+      "error": "",
+      "response_text": "The original code can be refactored using list comprehension, which is a more Pythonic and efficient way to create lists based on existing lists.\n\nHere's how you can refactor it:\n\n```python\nresult = [item * 2 for item in items if item > 0]\n```\n\nExplanation:\n- `[item * 2 for item in items if item > 0]` is a list comprehension.\n- It iterates over each `item` in the `items` list.\n- The `if item > 0` condition filters out non-positive numbers, ensuring only positive numbers are processed.\n- For each"
+    },
+    {
+      "task_name": "api_design",
+      "backend": "ollama",
+      "model": "qwen2.5-coder:7b-instruct",
+      "iteration": 0,
+      "success": true,
+      "latency_ms": 26550.81057548523,
+      "tokens_per_second": 20.896021397525914,
+      "response_length": 2318,
+      "quality_score": 7.4,
+      "error": "",
+      "response_text": "```json\n{\n  \"openapi\": \"3.0.0\",\n  \"info\": {\n    \"title\": \"User Authentication API\",\n    \"version\": \"1.0.0\"\n  },\n  \"paths\": {\n    \"/auth/login\": {\n      \"post\": {\n        \"summary\": \"Authenticate a user and return a token\",\n        \"requestBody\": {\n          \"required\": true,\n          \"content\": {\n            \"application/json\": {\n              \"schema\": {\n                \"$ref\": \"#/components/schemas/LoginRequest\"\n              }\n            }\n          }\n        },\n        \"responses\": {\n     "
+    },
+    {
+      "task_name": "algorithm_design",
+      "backend": "ollama",
+      "model": "qwen2.5-coder:7b-instruct",
+      "iteration": 0,
+      "success": true,
+      "latency_ms": 19878.390550613403,
+      "tokens_per_second": 21.146643618553732,
+      "response_length": 1492,
+      "quality_score": 9.200000000000001,
+      "error": "",
+      "response_text": "Approach Explanation:\n\nThe approach used here is called \"Expand Around Center\". This method works by considering each character (and pair of characters) as the center of a potential palindrome and expanding outwards while the characters on both sides are equal.\n\nTime Complexity: O(n^2), where n is the length of the string. Each character or pair of characters can be considered as the center, and in the worst case, we need to expand for each character.\n\nSpace Complexity: O(1). We only use a const"
+    }
+  ],
+  "backend_scores": {
+    "ollama_qwen2.5-coder:7b-instruct": {
+      "backend": "ollama",
+      "model": "qwen2.5-coder:7b-instruct",
+      "task_scores": {
+        "code_generation_speed": 8.5,
+        "code_generation_quality": 8.8,
+        "debugging_accuracy": 9.0,
+        "code_explanation": 8.5,
+        "refactoring_skill": 7.9,
+        "api_design": 7.4,
+        "algorithm_design": 9.2
+      },
+      "weighted_total": 98.75000000000001,
+      "ranks": {},
+      "performance_score": 29.93944830679525,
+      "quality_score": 86.00000000000001,
+      "avg_latency_ms": 16736.031941005163,
+      "avg_tokens_per_second": 20.19438846614774
+    }
+  }
+}

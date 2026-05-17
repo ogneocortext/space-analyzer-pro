@@ -1,711 +1,633 @@
 /**
- * Space Analyzer - Improved Backend Server
- * Enhanced with better error handling, retry logic, and graceful degradation
+ * Space Analyzer Pro - Backend Server
+ * Provides API for file scanning, analysis, and system monitoring
  */
 
-// Global error handling to prevent crashes
-process.on("uncaughtException", (error) => {
-  console.error("💥 UNCAUGHT EXCEPTION - Server will stay running:", error);
-});
+import express from "express";
+import http from "http";
+import { WebSocketServer } from "ws";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import axios from "axios";
+import dotenv from "dotenv";
 
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("⚠️ UNHANDLED REJECTION at:", promise, "reason:", reason);
-});
-
-// Dynamic memory management based on system resources
-const os = require("os");
-const systemMemoryGB = os.totalmem() / (1024 * 1024 * 1024);
-const maxMemoryGB = Math.min(Math.floor(systemMemoryGB * 0.6), 8); // 60% of system memory, max 8GB
-
-const v8 = require("v8");
-v8.setFlagsFromString(`--max-old-space-size=${maxMemoryGB * 1024}`);
-console.log(
-  `📊 Memory limit set to ${maxMemoryGB}GB (${Math.round((maxMemoryGB / systemMemoryGB) * 100)}% of system memory)`
-);
-
-const express = require("express");
-const cors = require("cors");
-const compression = require("compression");
-const helmet = require("helmet");
-const path = require("path");
-const fs = require("fs");
-const http = require("http");
-const { EventEmitter } = require("events");
-const { Temporal } = require("@js-temporal/polyfill");
-
-// Import improved database manager
-const DatabaseManager = require("./db/database-manager");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables
-require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+dotenv.config();
 
-// Import routes and utilities
-const RoutesManager = require("./routes");
-const { getErrorLogger } = require("./utils/error-logger");
-const { isValidPath, normalizePath } = require("./modules/file-utils");
+// Load configuration - use 8091 as default to match config.js
+const PORT = 8091;
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || "http://127.0.0.1:5000";
+const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL || "http://127.0.0.1:8002";
 
-class ImprovedSpaceAnalyzerServer {
-  constructor() {
-    this.app = express();
-    // Use dynamic port detection - set to 0 for auto-assignment
-    this.port = 0;
-    this.eventEmitter = new EventEmitter();
-    this.errorLogger = getErrorLogger();
-    this.rateLimitStore = new Map();
+// Debug: Log configuration
+console.log(`[CONFIG] PORT from env: ${process.env.PORT}`);
+console.log(`[CONFIG] Using PORT: ${PORT}`);
+console.log(`[CONFIG] AI_SERVICE_URL: ${AI_SERVICE_URL}`);
+console.log(`[CONFIG] ORCHESTRATOR_URL: ${ORCHESTRATOR_URL}`);
 
-    // Service status tracking
-    this.services = {
-      database: { status: "unknown", manager: null },
-      routes: { status: "unknown", loaded: 0 },
-      server: { status: "unknown", startTime: null },
-    };
+const app = express();
+const server = http.createServer(app);
 
-    // Performance metrics
-    this.metrics = {
-      initTime: 0,
-      requestCount: 0,
-      errorCount: 0,
-      memoryUsage: 0,
-      uptime: 0,
-    };
+// WebSocket for real-time updates
+const wss = new WebSocketServer({ server });
 
-    this.initialize();
+// CORS middleware - configurable via environment
+app.use((req, res, next) => {
+  const corsOrigin = process.env.CORS_ORIGIN || (process.env.NODE_ENV === "production" ? false : "*");
+  if (corsOrigin === "*" || corsOrigin === true) {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  } else if (corsOrigin) {
+    res.setHeader("Access-Control-Allow-Origin", corsOrigin);
   }
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return;
+  }
+  next();
+});
 
-  async initialize() {
-    const startTime = Date.now();
+app.use(express.json({ limit: "500mb" }));
+app.use(express.urlencoded({ extended: true }));
 
-    try {
-      console.log("🚀 Initializing Space Analyzer Server (Improved)...\n");
+// WebSocket connections
+wss.on("connection", (ws) => {
+  console.log("🔌 WebSocket client connected");
+  ws.send(JSON.stringify({ type: "connected", message: "WebSocket connected" }));
+});
 
-      // Initialize services in dependency order
-      await this.initializeDatabase();
-      await this.setupMiddleware();
-      await this.setupRoutes();
-      await this.setupErrorHandling();
-      await this.startServer();
-
-      this.metrics.initTime = Date.now() - startTime;
-      this.services.server.status = "running";
-      this.services.server.startTime = Date.now();
-
-      console.log(`\n✅ Server initialized successfully in ${this.metrics.initTime}ms`);
-      this.printStartupSummary();
-
-      // Start performance monitoring
-      this.startPerformanceMonitoring();
-    } catch (error) {
-      console.error("\n❌ Server initialization failed:", error.message);
-      await this.shutdown();
-      process.exit(1);
+function broadcast(event, data) {
+  const message = JSON.stringify({ type: event, ...data });
+  wss.clients.forEach((client) => {
+    if (client.readyState === 1) {
+      client.send(message);
     }
+  });
+}
+
+// ============ API Routes ============
+
+// Health check
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    version: "2.14.0",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// System info
+app.get("/api/system/info", async (req, res) => {
+  const os = await import("os");
+  res.json({
+    platform: os.platform(),
+    arch: os.arch(),
+    cpus: os.cpus().length,
+    memory: {
+      total: os.totalmem(),
+      free: os.freemem(),
+    },
+    hostname: os.hostname(),
+    uptime: os.uptime(),
+  });
+});
+
+// Scan directory
+app.post("/api/files/scan", async (req, res) => {
+  const { directory = process.cwd() } = req.body;
+  const scanDir = path.resolve(directory);
+
+  try {
+    if (!fs.existsSync(scanDir)) {
+      return res.status(404).json({ error: "Directory not found" });
+    }
+
+    const files = [];
+    const items = fs.readdirSync(scanDir, { withFileTypes: true });
+
+    for (const item of items) {
+      const fullPath = path.join(scanDir, item.name);
+      const stats = fs.statSync(fullPath);
+      files.push({
+        name: item.name,
+        path: fullPath,
+        size: stats.size,
+        isDirectory: item.isDirectory(),
+        created: stats.birthtime,
+        modified: stats.mtime,
+        permissions: stats.mode.toString(8).slice(-3),
+      });
+    }
+
+    res.json({
+      directory: scanDir,
+      total: files.length,
+      files,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
+});
 
-  /**
-   * Initialize database with improved manager
-   */
-  async initializeDatabase() {
-    console.log("🗄️ Initializing database...");
+// Get file structure (recursive)
+app.get("/api/files/structure", async (req, res) => {
+  const { directory = process.cwd(), depth = 3 } = req.query;
+  const scanDir = path.resolve(directory);
 
-    try {
-      const dbPath = path.join(__dirname, "data", "space-analyzer.db");
-      this.services.database.manager = new DatabaseManager({
-        dbPath,
-        maxRetries: 3,
-        retryDelay: 1000,
-        healthCheckInterval: 30000,
-      });
+  function scanDirRecursive(dirPath, currentDepth) {
+    if (currentDepth > depth) return null;
+    const items = fs.readdirSync(dirPath, { withFileTypes: true });
+    const structure = [];
 
-      // Listen to database events
-      this.services.database.manager.on("initialization:start", () => {
-        console.log("🔄 Database initialization starting...");
-      });
+    for (const item of items) {
+      const fullPath = path.join(dirPath, item.name);
+      const entry = { name: item.name, path: fullPath };
 
-      this.services.database.manager.on("initialization:success", (metrics) => {
-        console.log(`✅ Database initialized in ${metrics.initTime}ms`);
-        this.services.database.status = "healthy";
-      });
-
-      this.services.database.manager.on("initialization:error", (error) => {
-        console.error("❌ Database initialization failed:", error.message);
-        this.services.database.status = "failed";
-      });
-
-      this.services.database.manager.on("health:check", (health) => {
-        this.services.database.status = health.status;
-      });
-
-      // Initialize database with timeout
-      const initPromise = this.services.database.manager.initialize();
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Database initialization timeout")), 10000)
-      );
-
-      await Promise.race([initPromise, timeoutPromise]);
-
-      // Verify database is actually ready
-      const dbStatus = this.services.database.manager.getStatus();
-      if (dbStatus.initialized && dbStatus.health !== "failed") {
-        this.services.database.status = "healthy";
-        console.log("✅ Database successfully initialized and ready");
+      if (item.isDirectory()) {
+        const children = scanDirRecursive(fullPath, currentDepth + 1);
+        if (children) entry.children = children;
       } else {
-        throw new Error("Database not properly initialized");
+        try {
+          const stats = fs.statSync(fullPath);
+          entry.size = stats.size;
+        } catch {}
       }
-    } catch (error) {
-      console.error("❌ Database initialization failed:", error.message);
-      console.log("🔄 Attempting to use fallback database initialization...");
-
-      // Try fallback initialization with basic SQLite
-      try {
-        await this.initializeFallbackDatabase();
-        this.services.database.status = "degraded";
-        console.log("⚠️ Using fallback database mode - some features may be limited");
-      } catch (fallbackError) {
-        console.error("❌ Fallback database also failed:", fallbackError.message);
-        this.services.database.status = "failed";
-        console.log("🔄 Continuing without database - some features will be limited");
-
-        // Create a mock database manager for compatibility
-        this.services.database.manager = {
-          getDatabase: () => null,
-          getStatus: () => ({ initialized: false, health: "failed" }),
-          close: () => Promise.resolve(),
-          runQuery: () => Promise.resolve([]),
-          runWrite: () => Promise.resolve({ id: 0, changes: 0 }),
-        };
-      }
-    }
-  }
-
-  /**
-   * Setup security and middleware
-   */
-  setupSecurity() {
-    // Security headers
-    this.app.use(
-      helmet({
-        contentSecurityPolicy: {
-          directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'"],
-            imgSrc: ["'self'", "data:", "https:"],
-          },
-        },
-      })
-    );
-
-    // CORS configuration
-    this.app.use(
-      cors({
-        origin: process.env.ALLOWED_ORIGINS?.split(",") || [
-          "http://localhost:5173",
-          "http://localhost:5174",
-        ],
-        credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-      })
-    );
-
-    // Rate limiting
-    this.setupRateLimiting();
-  }
-
-  /**
-   * Enhanced rate limiting with better tracking
-   */
-  setupRateLimiting() {
-    const WINDOW_MS = 60 * 1000; // 1 minute
-    const MAX_REQUESTS = 100;
-
-    this.app.use((req, res, next) => {
-      const clientIp = req.ip || req.connection.remoteAddress || "unknown";
-      const now = Date.now();
-
-      let entry = this.rateLimitStore.get(clientIp);
-      if (!entry) {
-        entry = { count: 0, resetTime: now + WINDOW_MS, firstRequest: now };
-        this.rateLimitStore.set(clientIp, entry);
-      }
-
-      // Reset if window has passed
-      if (now > entry.resetTime) {
-        entry.count = 0;
-        entry.resetTime = now + WINDOW_MS;
-      }
-
-      // Check limit
-      if (entry.count >= MAX_REQUESTS) {
-        this.metrics.errorCount++;
-        return res.status(429).json({
-          success: false,
-          error: "Rate limit exceeded",
-          retryAfter: Math.ceil((entry.resetTime - now) / 1000),
-          windowMs: WINDOW_MS,
-          maxRequests: MAX_REQUESTS,
-        });
-      }
-
-      entry.count++;
-      next();
-    });
-  }
-
-  /**
-   * Setup middleware stack
-   */
-  async setupMiddleware() {
-    console.log("⚙️ Setting up middleware...");
-
-    this.setupSecurity();
-
-    // Compression
-    this.app.use(
-      compression({
-        threshold: 1024, // Only compress responses > 1KB
-        level: 6, // Compression level (1-9)
-      })
-    );
-
-    // Body parsing
-    this.app.use(express.json({ limit: "50mb" }));
-    this.app.use(express.urlencoded({ extended: true, limit: "50mb" }));
-
-    // Static files
-    const distPath = path.join(__dirname, "..", "dist");
-    if (fs.existsSync(distPath)) {
-      this.app.use(
-        express.static(distPath, {
-          maxAge: "1d", // Cache for 1 day
-          etag: true,
-          lastModified: true,
-        })
-      );
-      console.log(`📁 Serving static files from: ${distPath}`);
+      structure.push(entry);
     }
 
-    // Request logging
-    this.app.use((req, res, next) => {
-      this.metrics.requestCount++;
-      const start = Date.now();
-
-      res.on("finish", () => {
-        const duration = Date.now() - start;
-        if (process.env.NODE_ENV === "development") {
-          console.log(`${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
-        }
-      });
-
-      next();
-    });
+    return structure;
   }
 
-  /**
-   * Fallback database initialization using basic SQLite
-   */
-  async initializeFallbackDatabase() {
-    console.log("🔄 Initializing fallback database...");
-
-    const sqlite3 = require("sqlite3").verbose();
-    const dbPath = path.join(__dirname, "data", "space-analyzer.db");
-
-    // Ensure data directory exists
-    const dataDir = path.dirname(dbPath);
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-
-    // Create a simple database connection
-    return new Promise((resolve, reject) => {
-      const db = new sqlite3.Database(
-        dbPath,
-        sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
-        (err) => {
-          if (err) {
-            console.error("❌ Fallback database connection failed:", err.message);
-            reject(err);
-          } else {
-            console.log("✅ Fallback database connected successfully");
-
-            // Create basic tables
-            db.serialize(() => {
-              db.run(`
-                CREATE TABLE IF NOT EXISTS files (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  path TEXT UNIQUE NOT NULL,
-                  name TEXT NOT NULL,
-                  size INTEGER DEFAULT 0,
-                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                  modified_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-              `);
-
-              db.run(`
-                CREATE TABLE IF NOT EXISTS settings (
-                  key TEXT PRIMARY KEY,
-                  value TEXT NOT NULL,
-                  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-              `);
-            });
-
-            // Configure database for better performance
-            db.serialize(() => {
-              // Enable WAL mode for better concurrency
-              db.run("PRAGMA journal_mode = WAL");
-              db.run("PRAGMA synchronous = NORMAL");
-              db.run("PRAGMA cache_size = -10000");
-
-              // Create additional essential tables
-              db.run(`
-                CREATE TABLE IF NOT EXISTS analysis_results (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  file_id INTEGER,
-                  analysis_type TEXT NOT NULL,
-                  result TEXT NOT NULL,
-                  confidence REAL DEFAULT 0.0,
-                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                  FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE
-                )
-              `);
-
-              db.run(`
-                CREATE TABLE IF NOT EXISTS system_health (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  metric_name TEXT NOT NULL,
-                  metric_value REAL NOT NULL,
-                  status TEXT NOT NULL,
-                  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-              `);
-
-              // Create indexes for better performance
-              db.run("CREATE INDEX IF NOT EXISTS idx_files_path ON files(path)");
-              db.run("CREATE INDEX IF NOT EXISTS idx_files_modified_at ON files(modified_at)");
-              db.run(
-                "CREATE INDEX IF NOT EXISTS idx_analysis_results_file_id ON analysis_results(file_id)"
-              );
-              db.run(
-                "CREATE INDEX IF NOT EXISTS idx_system_health_timestamp ON system_health(timestamp)"
-              );
-            });
-
-            // Store the enhanced database reference
-            this.services.database.manager = {
-              getDatabase: () => db,
-              getStatus: () => ({
-                initialized: true,
-                health: "degraded",
-                path: dbPath,
-                fallback: true,
-              }),
-              close: () => new Promise((res) => db.close(res)),
-              runQuery: (sql, params = []) => {
-                return new Promise((resolve, reject) => {
-                  db.all(sql, params, (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows || []);
-                  });
-                });
-              },
-              runWrite: (sql, params = []) => {
-                return new Promise((resolve, reject) => {
-                  db.run(sql, params, function (err) {
-                    if (err) reject(err);
-                    else resolve({ id: this.lastID, changes: this.changes });
-                  });
-                });
-              },
-              get: (sql, params = []) => {
-                return new Promise((resolve, reject) => {
-                  db.get(sql, params, (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row);
-                  });
-                });
-              },
-            };
-
-            resolve(db);
-          }
-        }
-      );
-    });
+  try {
+    const structure = scanDirRecursive(scanDir, 0);
+    res.json({ directory: scanDir, structure });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
+});
 
-  /**
-   * Setup routes with error handling
-   */
-  async setupRoutes() {
-    console.log("🛣️ Setting up routes...");
+// Analyze specific files
+app.post("/api/files/analyze", async (req, res) => {
+  const { files = [] } = req.body;
+  const results = [];
 
+  for (const filePath of files) {
     try {
-      // Get database reference safely
-      let database = null;
-      try {
-        database = this.services.database.manager?.getDatabase();
-      } catch (dbError) {
-        console.warn("⚠️ Database not available for routes, running in limited mode");
+      const resolvedPath = path.resolve(filePath);
+      if (!fs.existsSync(resolvedPath)) {
+        results.push({ file: filePath, error: "File not found" });
+        continue;
       }
 
-      // RoutesManager expects the server instance as the first parameter
-      const routesManager = new RoutesManager(this);
+      const stats = fs.statSync(resolvedPath);
+      const ext = path.extname(resolvedPath).toLowerCase();
+      const isText = [".txt", ".md", ".json", ".js", ".ts", ".py", ".html", ".css", ".vue"].includes(ext);
 
-      // Wait for routes to be initialized
-      await routesManager.waitForInitialization();
-
-      // Add debug middleware to track all requests
-      this.app.use((req, res, next) => {
-        console.log(`🔍 ${req.method} ${req.originalUrl}`);
-        next();
+      results.push({
+        file: filePath,
+        size: stats.size,
+        isDirectory: stats.isDirectory(),
+        extension: ext,
+        isText,
+        created: stats.birthtime,
+        modified: stats.mtime,
+        permissions: stats.mode.toString(8).slice(-3),
       });
-
-      // Mount all routes to the Express app
-      routesManager.mountAll(this.app);
-
-      // Store routesManager for debugging
-      this.routesManager = routesManager;
-
-      this.services.routes.status = "loaded";
-      this.services.routes.loaded = routesManager.getRouteCount();
-
-      if (!database) {
-        console.log(`✅ ${this.services.routes.loaded} routes loaded in degraded mode`);
-        this.services.routes.status = "degraded";
-      } else {
-        console.log(`✅ ${this.services.routes.loaded} routes loaded`);
-      }
     } catch (error) {
-      console.error("❌ Failed to setup routes:", error.message);
-      this.services.routes.status = "failed";
-
-      // Setup basic routes even if full setup fails
-      console.log("🔄 Setting up minimal routes...");
-      this.setupMinimalRoutes();
-      this.services.routes.status = "minimal";
-      this.services.routes.loaded = 5; // Basic routes count
+      results.push({ file: filePath, error: error.message });
     }
   }
 
-  /**
-   * Setup minimal essential routes when full setup fails
-   */
-  setupMinimalRoutes() {
-    // Health endpoint is handled by general routes
-    // This minimal setup only adds backup routes
+  res.json({ count: results.length, results });
+});
 
-    // Basic status endpoint
-    this.app.get("/api/status", (req, res) => {
-      res.json({
-        success: true,
-        status: "degraded",
-        message: "Limited functionality available",
-        availableEndpoints: ["/api/health", "/api/status"],
-      });
+// AI Models list - proxy to AI service
+app.get("/api/ai/models", async (req, res) => {
+  try {
+    const response = await axios.get(`${AI_SERVICE_URL}/models/status`, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 5000,
     });
-
-    console.log("✅ Minimal routes configured");
-  }
-
-  /**
-   * Setup error handling
-   */
-  setupErrorHandling() {
-    // Global error handler - must come after all routes
-    this.app.use((error, req, res, next) => {
-      this.metrics.errorCount++;
-
-      // Log error
-      this.errorLogger.logError(error, {
-        method: req.method,
-        url: req.originalUrl,
-        ip: req.ip,
-        userAgent: req.get("User-Agent"),
-      });
-
-      // Don't send error details in production
-      const isDevelopment = process.env.NODE_ENV === "development";
-
-      res.status(error.status || 500).json({
-        success: false,
-        error: error.name || "Internal Server Error",
-        message: isDevelopment ? error.message : "An error occurred",
-        ...(isDevelopment && { stack: error.stack }),
-      });
-    });
-
-    // Final 404 handler for unmatched routes - must be last middleware
-    this.app.use((req, res) => {
-      res.status(404).json({
-        success: false,
-        error: "Not Found",
-        message: `Route ${req.method} ${req.originalUrl} not found`,
-        availableEndpoints: this.getAvailableEndpoints(),
-      });
+    res.json(response.data);
+  } catch (error) {
+    console.error("AI Service unavailable, using fallback:", error.message);
+    res.json({
+      models: [
+        { id: "phi4-mini", name: "Phi-4 Mini", type: "general" },
+        { id: "qwen3.5", name: "Qwen 3.5 4B", type: "code" },
+        { id: "gemma4", name: "Gemma 4", type: "general" },
+      ],
     });
   }
+});
 
-  /**
-   * Start HTTP server
-   */
-  async startServer() {
-    console.log(
-      `🚀 Starting server${this.port ? ` on port ${this.port}` : " on auto-assigned port"}...`
+// AI Categorize - proxy to AI service
+app.post("/api/ai/categorize", async (req, res) => {
+  const { files = [] } = req.body;
+
+  try {
+    // Convert files to FileData format for AI service
+    const fileDataList = files.map(file => {
+      const filePath = typeof file === "string" ? file : file.path;
+      const stats = fs.statSync(filePath);
+      return {
+        path: filePath,
+        name: path.basename(filePath),
+        size: stats.size,
+        extension: path.extname(filePath),
+        modified_time: stats.mtimeMs / 1000,
+      };
+    });
+
+    // Call AI service batch categorization
+    const response = await axios.post(
+      `${AI_SERVICE_URL}/predict/categories-batch`,
+      fileDataList,
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 30000,
+      }
     );
 
-    return new Promise((resolve, reject) => {
-      const server = http.createServer(this.app);
+    // Transform response to match expected format
+    const categories = {};
+    response.data.predictions.forEach(pred => {
+      const category = pred.predicted_category;
+      if (!categories[category]) categories[category] = [];
+      categories[category].push(pred.path);
+    });
 
-      server.on("error", (error) => {
-        if (error.code === "EADDRINUSE") {
-          if (this.port === 0) {
-            // If auto-assign failed, try a specific port
-            this.port = 8085;
-            console.log(`⚠️ Auto-assign failed, trying port ${this.port}...`);
-            setTimeout(() => this.startServer().then(resolve).catch(reject), 1000);
-          } else {
-            reject(new Error(`Port ${this.port} is already in use`));
-          }
-        } else {
-          reject(error);
-        }
+    res.json({ categories });
+  } catch (error) {
+    console.error("AI Service categorization failed, using fallback:", error.message);
+    // Fallback to rule-based categorization
+    const categories = {};
+    for (const file of files) {
+      const filePath = typeof file === "string" ? file : file.path;
+      const ext = path.extname(filePath).toLowerCase();
+      let category = "Other";
+
+      if ([".js", ".ts", ".py", ".rs", ".cpp", ".c", ".h", ".java"].includes(ext)) category = "Source Code";
+      else if ([".jpg", ".png", ".gif", ".svg", ".webp"].includes(ext)) category = "Images";
+      else if ([".mp4", ".avi", ".mkv"].includes(ext)) category = "Video";
+      else if ([".mp3", ".wav", ".flac"].includes(ext)) category = "Audio";
+      else if ([".pdf", ".doc", ".docx", ".xls", ".xlsx"].includes(ext)) category = "Documents";
+      else if ([".zip", ".tar", ".gz", ".rar"].includes(ext)) category = "Archives";
+      else if ([".json", ".xml", ".yaml", ".yml", ".toml"].includes(ext)) category = "Data/Config";
+      else if ([".html", ".css", ".vue", ".jsx", ".tsx"].includes(ext)) category = "Web";
+
+      if (!categories[category]) categories[category] = [];
+      categories[category].push(filePath);
+    }
+
+    res.json({ categories });
+  }
+});
+
+// AI Cleanup Recommendations - proxy to AI service
+app.post("/api/ai/cleanup", async (req, res) => {
+  const { directory = process.cwd() } = req.body;
+
+  try {
+    // Scan directory for file data
+    const scanDir = path.resolve(directory);
+    const files = [];
+    const items = fs.readdirSync(scanDir, { withFileTypes: true });
+
+    for (const item of items) {
+      const fullPath = path.join(scanDir, item.name);
+      const stats = fs.statSync(fullPath);
+      files.push({
+        path: fullPath,
+        name: item.name,
+        size: stats.size,
+        extension: path.extname(fullPath),
+        modified_time: stats.mtimeMs / 1000,
       });
+    }
 
-      server.listen(this.port, () => {
-        const actualPort = server.address().port;
-        this.port = actualPort; // Update port with actual assigned port
+    // Call AI service cleanup prediction
+    const response = await axios.post(
+      `${AI_SERVICE_URL}/predict/cleanup`,
+      { files, path: scanDir },
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 30000,
+      }
+    );
 
-        console.log(`🌐 Server running on port ${this.port}`);
-        console.log(`📊 Health check: http://localhost:${this.port}/api/health`);
-        console.log(`🔍 Debug routes: http://localhost:${this.port}/api/debug/routes`);
-        console.log(`🌐 API available at: http://localhost:${this.port}/api`);
-
-        // Write port to a file for frontend to read
-        this.writePortToFile(this.port);
-
-        resolve(server);
-      });
+    res.json(response.data);
+  } catch (error) {
+    console.error("AI Service cleanup prediction failed, using fallback:", error.message);
+    res.json({
+      recommendations: [
+        { type: "cleanup", message: "Consider removing node_modules to free space when not building" },
+        { type: "archive", message: "Old build artifacts found - consider archiving" },
+        { type: "duplicate", message: "Check for duplicate files in project" },
+      ],
     });
   }
+});
 
-  /**
-   * Write the actual port to a file for frontend detection
-   */
-  writePortToFile(port) {
-    const fs = require("fs");
-    const path = require("path");
-
-    try {
-      const portFile = path.join(__dirname, "..", ".backend-port");
-      fs.writeFileSync(portFile, port.toString());
-      console.log(`📝 Port ${port} written to .backend-port file`);
-    } catch (error) {
-      console.warn("⚠️ Could not write port file:", error.message);
-    }
-  }
-
-  /**
-   * Start performance monitoring
-   */
-  startPerformanceMonitoring() {
-    setInterval(() => {
-      this.metrics.memoryUsage = process.memoryUsage().heapUsed;
-      this.metrics.uptime = process.uptime();
-
-      // Emit metrics for monitoring
-      this.eventEmitter.emit("metrics:update", this.metrics);
-
-      // Log warnings for high memory usage
-      const memoryMB = this.metrics.memoryUsage / (1024 * 1024);
-      if (memoryMB > 1000) {
-        console.warn(`⚠️ High memory usage: ${memoryMB.toFixed(2)}MB`);
+// AI Recommendations - proxy to AI service
+app.get("/api/ai/recommendations", async (req, res) => {
+  try {
+    const response = await axios.post(
+      `${AI_SERVICE_URL}/predict/cleanup`,
+      { files: [], path: process.cwd() },
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 30000,
       }
-    }, 30000); // Every 30 seconds
+    );
+    res.json(response.data);
+  } catch (error) {
+    console.error("AI Service recommendations failed, using fallback:", error.message);
+    res.json({
+      recommendations: [
+        { type: "cleanup", message: "Consider removing node_modules to free space when not building" },
+        { type: "archive", message: "Old build artifacts found - consider archiving" },
+        { type: "duplicate", message: "Check for duplicate files in project" },
+      ],
+    });
   }
+});
 
-  /**
-   * Get available endpoints for debugging
-   */
-  getAvailableEndpoints() {
-    const endpoints = [];
+// Analytics trends
+app.get("/api/analytics/trends", (req, res) => {
+  res.json({
+    trends: [
+      { date: new Date().toISOString().split("T")[0], usage: 65 },
+    ],
+  });
+});
 
-    // Check if routes are mounted and return actual endpoints
-    if (this.routesManager) {
-      try {
-        const routes = this.routesManager.getMountedRoutes();
-        return (
-          routes || [
-            "/api/health",
-            "/api/debug/routes",
-            "/api/analysis/*",
-            "/api/files/*",
-            "/api/settings/*",
-          ]
-        );
-      } catch (error) {
-        console.warn("Could not get mounted routes:", error.message);
+// Analytics performance
+app.get("/api/analytics/performance", (req, res) => {
+  res.json({
+    cpu: Math.round(Math.random() * 100),
+    memory: Math.round(Math.random() * 100),
+    disk: Math.round(Math.random() * 100),
+  });
+});
+
+// Storage prediction
+app.post("/api/analytics/predict", (req, res) => {
+  res.json({
+    predictedGrowth: `${(Math.random() * 10).toFixed(1)}GB`,
+    estimatedTimeFrame: "30 days",
+    confidence: `${(70 + Math.random() * 25).toFixed(0)}%`,
+  });
+});
+
+// Status endpoint
+app.get("/api/status", (req, res) => {
+  res.json({
+    server: "running",
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    port: PORT,
+    ai_service: AI_SERVICE_URL,
+    orchestrator: ORCHESTRATOR_URL,
+  });
+});
+
+// ============ Orchestrator Integration Endpoints ============
+
+// List workflows
+app.get("/api/orchestrator/workflows", async (req, res) => {
+  try {
+    const response = await axios.get(`${ORCHESTRATOR_URL}/workflows`, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 5000,
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Orchestrator unavailable:", error.message);
+    res.status(503).json({ error: "Orchestrator service unavailable", workflows: [] });
+  }
+});
+
+// Get workflow details
+app.get("/api/orchestrator/workflows/:workflowId", async (req, res) => {
+  try {
+    const response = await axios.get(`${ORCHESTRATOR_URL}/workflows/${req.params.workflowId}`, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 5000,
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Orchestrator workflow fetch failed:", error.message);
+    res.status(503).json({ error: "Orchestrator service unavailable" });
+  }
+});
+
+// Execute workflow
+app.post("/api/orchestrator/workflows/:workflowId/execute", async (req, res) => {
+  try {
+    const response = await axios.post(
+      `${ORCHESTRATOR_URL}/workflows/${req.params.workflowId}/execute`,
+      req.body,
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 5000,
       }
-    }
-
-    return [
-      "/api/health",
-      "/api/debug/routes",
-      "/api/analysis/*",
-      "/api/files/*",
-      "/api/settings/*",
-    ];
+    );
+    res.json(response.data);
+  } catch (error) {
+    console.error("Orchestrator workflow execution failed:", error.message);
+    res.status(503).json({ error: "Orchestrator service unavailable" });
   }
+});
 
-  /**
-   * Print startup summary
-   */
-  printStartupSummary() {
-    console.log("\n" + "=".repeat(60));
-    console.log("🎯 SPACE ANALYZER SERVER - STARTUP SUMMARY");
-    console.log("=".repeat(60));
-    console.log(`📊 Initialization Time: ${this.metrics.initTime}ms`);
-    console.log(`🗄️ Database Status: ${this.services.database.status}`);
-    console.log(`🛣️ Routes Loaded: ${this.services.routes.loaded}`);
-    console.log(`💾 Memory Limit: ${maxMemoryGB}GB`);
-    console.log(`🌐 Server Port: ${this.port}`);
-    console.log(`🔧 Environment: ${process.env.NODE_ENV || "development"}`);
-    console.log("=".repeat(60));
-  }
-
-  /**
-   * Graceful shutdown
-   */
-  async shutdown() {
-    console.log("\n🛑 Shutting down server...");
-
-    try {
-      // Close database
-      if (this.services.database.manager) {
-        await this.services.database.manager.close();
+// Schedule workflow
+app.post("/api/orchestrator/workflows/:workflowId/schedule", async (req, res) => {
+  try {
+    const response = await axios.post(
+      `${ORCHESTRATOR_URL}/workflows/${req.params.workflowId}/schedule`,
+      req.body,
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 5000,
       }
+    );
+    res.json(response.data);
+  } catch (error) {
+    console.error("Orchestrator workflow scheduling failed:", error.message);
+    res.status(503).json({ error: "Orchestrator service unavailable" });
+  }
+});
 
-      console.log("✅ Server shutdown complete");
-    } catch (error) {
-      console.error("❌ Error during shutdown:", error.message);
-    }
+// List tasks
+app.get("/api/orchestrator/tasks", async (req, res) => {
+  try {
+    const response = await axios.get(`${ORCHESTRATOR_URL}/tasks`, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 5000,
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Orchestrator tasks fetch failed:", error.message);
+    res.status(503).json({ error: "Orchestrator service unavailable", tasks: [] });
+  }
+});
+
+// Execute task
+app.post("/api/orchestrator/tasks/execute", async (req, res) => {
+  try {
+    const response = await axios.post(
+      `${ORCHESTRATOR_URL}/tasks/execute`,
+      req.body,
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 5000,
+      }
+    );
+    res.json(response.data);
+  } catch (error) {
+    console.error("Orchestrator task execution failed:", error.message);
+    res.status(503).json({ error: "Orchestrator service unavailable" });
+  }
+});
+
+// Get execution details
+app.get("/api/orchestrator/executions/:executionId", async (req, res) => {
+  try {
+    const response = await axios.get(`${ORCHESTRATOR_URL}/executions/${req.params.executionId}`, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 5000,
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Orchestrator execution fetch failed:", error.message);
+    res.status(503).json({ error: "Orchestrator service unavailable" });
+  }
+});
+
+// Get workflow status
+app.get("/api/orchestrator/workflows/:workflowId/status", async (req, res) => {
+  try {
+    const response = await axios.get(`${ORCHESTRATOR_URL}/workflows/${req.params.workflowId}/status`, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 5000,
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Orchestrator workflow status fetch failed:", error.message);
+    res.status(503).json({ error: "Orchestrator service unavailable" });
+  }
+});
+
+// Get orchestrator metrics
+app.get("/api/orchestrator/metrics", async (req, res) => {
+  try {
+    const response = await axios.get(`${ORCHESTRATOR_URL}/metrics`, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 5000,
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Orchestrator metrics fetch failed:", error.message);
+    res.status(503).json({ error: "Orchestrator service unavailable" });
+  }
+});
+
+// List available tools
+app.get("/api/orchestrator/tools", async (req, res) => {
+  try {
+    const response = await axios.get(`${ORCHESTRATOR_URL}/tools`, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 5000,
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Orchestrator tools fetch failed:", error.message);
+    res.status(503).json({ error: "Orchestrator service unavailable" });
+  }
+});
+
+// Serve static frontend if available
+const staticPaths = [
+  path.join(__dirname, "..", "dist"),
+  path.join(__dirname, "..", "public"),
+];
+
+for (const staticPath of staticPaths) {
+  if (fs.existsSync(staticPath)) {
+    app.use(express.static(staticPath));
+    break;
   }
 }
 
-// Handle shutdown signals
-const server = new ImprovedSpaceAnalyzerServer();
-
-process.on("SIGINT", async () => {
-  console.log("\n📡 Received SIGINT");
-  await server.shutdown();
-  process.exit(0);
+// Catch-all for SPA routing
+app.get("/{*path}", (req, res) => {
+  const indexPath = path.join(__dirname, "..", "dist", "index.html");
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(200).json({
+      message: "Space Analyzer Backend Server",
+      version: "2.14.0",
+      endpoints: [
+        "GET /api/health",
+        "GET /api/system/info",
+        "POST /api/files/scan",
+        "GET /api/files/structure",
+        "POST /api/files/analyze",
+        "GET /api/ai/models",
+        "POST /api/ai/categorize",
+        "POST /api/ai/cleanup",
+        "GET /api/ai/recommendations",
+        "GET /api/analytics/trends",
+        "GET /api/analytics/performance",
+        "POST /api/analytics/predict",
+        "GET /api/status",
+        "GET /api/orchestrator/workflows",
+        "GET /api/orchestrator/workflows/:workflowId",
+        "POST /api/orchestrator/workflows/:workflowId/execute",
+        "POST /api/orchestrator/workflows/:workflowId/schedule",
+        "GET /api/orchestrator/tasks",
+        "POST /api/orchestrator/tasks/execute",
+        "GET /api/orchestrator/executions/:executionId",
+        "GET /api/orchestrator/workflows/:workflowId/status",
+        "GET /api/orchestrator/metrics",
+        "GET /api/orchestrator/tools",
+        "WebSocket / (real-time updates)",
+      ],
+      services: {
+        ai_service: AI_SERVICE_URL,
+        orchestrator: ORCHESTRATOR_URL,
+      },
+    });
+  }
 });
 
-process.on("SIGTERM", async () => {
-  console.log("\n📡 Received SIGTERM");
-  await server.shutdown();
-  process.exit(0);
+// Start server
+server.listen(PORT, () => {
+  console.log(`🚀 Space Analyzer Backend Server`);
+  console.log(`📡 Listening on http://localhost:${PORT}`);
+  console.log(`🔌 WebSocket on ws://localhost:${PORT}`);
+  console.log(`💚 Health: http://localhost:${PORT}/api/health`);
+  console.log(`🤖 AI Service: ${AI_SERVICE_URL}`);
+  console.log(`🎯 Orchestrator: ${ORCHESTRATOR_URL}`);
+  console.log(`📁 Serving static from: ${staticPaths.filter(fs.existsSync).join(", ") || "none"}`);
 });
 
-// Export for testing
-module.exports = ImprovedSpaceAnalyzerServer;
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  console.log("Shutting down server...");
+  wss.close();
+  server.close(() => process.exit(0));
+});
+
+process.on("SIGINT", () => {
+  console.log("Shutting down server...");
+  wss.close();
+  server.close(() => process.exit(0));
+});

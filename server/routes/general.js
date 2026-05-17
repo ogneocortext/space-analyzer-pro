@@ -28,6 +28,7 @@ class GeneralRoutes {
 
     // Health check endpoint
     this.router.get("/health", (req, res) => {
+      console.log("🏥 Health endpoint accessed");
       res.json({
         success: true,
         status: "healthy",
@@ -35,6 +36,17 @@ class GeneralRoutes {
         uptime: process.uptime(),
         version: "2.8.9",
         environment: process.env.NODE_ENV || "development",
+      });
+    });
+
+    // Debug endpoint to test mounting
+    this.router.get("/debug/test", (req, res) => {
+      console.log("🔍 Debug test endpoint accessed");
+      res.json({
+        success: true,
+        message: "Debug test endpoint working",
+        timestamp: new Date().toISOString(),
+        routes: "General routes are properly mounted",
       });
     });
 
@@ -116,7 +128,8 @@ class GeneralRoutes {
 
         // Try to get from database
         if (this.server?.knowledgeDB?.analysis?.getAnalysis) {
-          const dbAnalysis = await this.server.knowledgeDB.analysis.getAnalysis(analysisId);
+          const dbAnalysis =
+            await this.server.knowledgeDB.analysis.getAnalysis(analysisId);
           if (dbAnalysis) {
             return res.json({
               success: true,
@@ -162,7 +175,11 @@ class GeneralRoutes {
       // Try to read results from temp file
       const path = require("path");
       const fs = require("fs");
-      const tempFilePath = path.join(__dirname, "../../temp", analysis.tempFileName);
+      const tempFilePath = path.join(
+        __dirname,
+        "../../temp",
+        analysis.tempFileName,
+      );
       try {
         if (fs.existsSync(tempFilePath)) {
           const resultData = JSON.parse(fs.readFileSync(tempFilePath, "utf8"));

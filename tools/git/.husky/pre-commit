@@ -1,14 +1,88 @@
 #!/usr/bin/env sh
 . "$(dirname "$0")/_/h"
 
-echo "Running pre-commit hooks..."
+set -e  # Exit on any error
 
-# Run ESLint on staged files (non-blocking)
-echo "Running ESLint on staged files..."
-npm run lint -- --max-warnings=0 || echo "⚠️  ESLint found issues. Please fix them before pushing."
+echo "🔍 Running pre-commit hooks..."
 
-# Run Prettier on staged files
-echo "Running Prettier on staged files..."
-npx prettier --write $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|jsx|ts|tsx|vue|json|css|md)$') || true
+# Check if npm is available
+if ! command -v npm &> /dev/null; then
+    echo "❌ Error: npm not found. Please install Node.js and npm."
+    exit 1
+fi
 
-echo "Pre-commit hooks completed!"
+# Check if package.json exists
+if [ ! -f "package.json" ]; then
+    echo "⚠️  Warning: package.json not found. Skipping npm-based checks."
+else
+    # Check if lint script exists
+    if npm run | grep -q "lint"; then
+        echo "📝 Running ESLint on staged files..."
+        STAGED_JS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|jsx|ts|tsx|vue)$' || true)
+
+        if [ -n "$STAGED_JS_FILES" ]; then
+            if ! npm run lint -- --max-warnings=0 $STAGED_JS_FILES; then
+                echo "❌ ESLint found issues. Please fix them before pushing."
+                echo "💡 Run 'npm run lint -- --fix' to auto-fix some issues"
+                exit 1
+            fi
+        else
+            echo "✅ No JavaScript/TypeScript files to lint"
+        fi
+    else
+        echo "⚠️  Warning: No lint script found in package.json"
+    fi
+
+    # Check if format script exists
+    if npm run | grep -q "format"; then
+        echo "🎨 Running Prettier on staged files..."
+        STAGED_FORMAT_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|jsx|ts|tsx|vue|json|css|md|html)$' || true)
+
+        if [ -n "$STAGED_FORMAT_FILES" ]; then
+            # Format files and re-stage them
+            echo "$STAGED_FORMAT_FILES" | xargs npx prettier --write
+            echo "$STAGED_FORMAT_FILES" | xargs git add
+            echo "✅ Formatted files re-staged"
+        else
+            echo "✅ No files to format"
+        fi
+    else
+        echo "⚠️  Warning: No format script found in package.json"
+    fi
+fi
+
+# Check for large files (>10MB)
+echo "📏 Checking for large files..."
+LARGE_FILES=$(git diff --cached --name-only | xargs -I {} sh -c '[ -f "{}" ] && [ $(stat -c%s "{}" 2>/dev/null || stat -f%z "{}" 2>/dev/null || echo 0) -gt 10485760 ] && echo {}' || true)
+if [ -n "$LARGE_FILES" ]; then
+    echo "⚠️  Warning: Large files found in commit:"
+    echo "$LARGE_FILES" | sed 's/^/  - /'
+    echo "💡 Consider using Git LFS for large binary files"
+fi
+
+# Check for potential secrets (basic patterns)
+echo "🔒 Checking for potential secrets..."
+if git diff --cached --name-only | xargs grep -l -E "(password|secret|key|token|api_key)\s*[:=]\s*['\"]?[a-zA-Z0-9+/=]{20,}" 2>/dev/null; then
+    echo "⚠️  Warning: Potential secrets detected in staged files"
+    echo "💡 Please review and ensure no sensitive data is being committed"
+fi
+
+# Check for common mistakes in commit message
+echo "📝 Checking commit message..."
+COMMIT_MSG_FILE=".git/COMMIT_EDITMSG"
+if [ -f "$COMMIT_MSG_FILE" ]; then
+    COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+    # Check for empty commit message
+    if [ -z "$(echo "$COMMIT_MSG" | sed '/^#/d' | tr -d ' \n')" ]; then
+        echo "❌ Error: Empty commit message"
+        exit 1
+    fi
+
+    # Check for minimum length
+    if [ ${#COMMIT_MSG} -lt 10 ]; then
+        echo "⚠️  Warning: Commit message seems very short"
+    fi
+fi
+
+echo "✅ Pre-commit hooks completed successfully!"

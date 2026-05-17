@@ -2,18 +2,18 @@ name: Playwright E2E Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   schedule:
     # Run tests daily at 2 AM UTC
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
   workflow_dispatch:
     inputs:
       test_type:
-        description: 'Type of tests to run'
+        description: "Type of tests to run"
         required: true
-        default: 'all'
+        default: "all"
         type: choice
         options:
           - all
@@ -22,9 +22,9 @@ on:
           - accessibility
           - performance
       browser:
-        description: 'Browser to test'
+        description: "Browser to test"
         required: false
-        default: 'chromium'
+        default: "chromium"
         type: choice
         options:
           - chromium
@@ -33,8 +33,10 @@ on:
           - all
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: "18"
   PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/playwright-browsers
+  CI: true
+  NODE_ENV: test
 
 jobs:
   install:
@@ -42,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       cache-key: ${{ steps.cache.outputs.cache-hit }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -51,7 +53,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -88,7 +90,7 @@ jobs:
     name: Lint and Type Check
     runs-on: ubuntu-latest
     needs: install
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -97,7 +99,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -116,11 +118,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: install
     if: github.event.inputs.test_type == 'smoke' || github.event.inputs.test_type == 'all' || github.event.inputs.test_type == ''
-    
+
     strategy:
       matrix:
         browser: [chromium]
-        
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -129,7 +131,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -169,11 +171,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: install
     if: github.event.inputs.test_type == 'accessibility' || github.event.inputs.test_type == 'all' || github.event.inputs.test_type == ''
-    
+
     strategy:
       matrix:
         browser: [chromium]
-        
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -182,7 +184,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -225,11 +227,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: install
     if: github.event.inputs.test_type == 'performance' || github.event.inputs.test_type == 'all' || github.event.inputs.test_type == ''
-    
+
     strategy:
       matrix:
         browser: [chromium]
-        
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -238,7 +240,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -278,12 +280,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: install
     if: github.event.inputs.test_type == 'regression' || github.event.inputs.test_type == 'all' || github.event.inputs.test_type == ''
-    
+
     strategy:
       matrix:
         browser: [chromium, firefox, webkit]
         fail-fast: false
-        
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -292,7 +294,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -332,12 +334,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: install
     if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == ''
-    
+
     strategy:
       matrix:
         browser: [chromium, firefox, webkit]
         fail-fast: false
-        
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -346,7 +348,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -393,11 +395,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: install
     if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == ''
-    
+
     strategy:
       matrix:
         device: [Pixel 5, iPhone 12]
-        
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -406,7 +408,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -446,7 +448,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: install
     if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == ''
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -455,7 +457,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -493,9 +495,18 @@ jobs:
   test-report:
     name: Test Report
     runs-on: ubuntu-latest
-    needs: [smoke-tests, accessibility-tests, performance-tests, regression-tests, full-suite, mobile-tests, security-tests]
+    needs:
+      [
+        smoke-tests,
+        accessibility-tests,
+        performance-tests,
+        regression-tests,
+        full-suite,
+        mobile-tests,
+        security-tests,
+      ]
     if: always()
-    
+
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v3
@@ -521,24 +532,24 @@ jobs:
           script: |
             const fs = require('fs');
             const path = require('path');
-            
+
             // Read test results
             const resultsPath = path.join(process.cwd(), 'merged-report', 'results.json');
             let summary = '## 🧪 Test Results\n\n';
-            
+
             if (fs.existsSync(resultsPath)) {
               const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
               const total = results.suites.reduce((acc, suite) => acc + suite.specs.length, 0);
-              const passed = results.suites.reduce((acc, suite) => 
+              const passed = results.suites.reduce((acc, suite) =>
                 acc + suite.specs.filter(spec => spec.ok).length, 0);
               const failed = total - passed;
-              
+
               summary += `**Total Tests:** ${total}\n`;
               summary += `**✅ Passed:** ${passed}\n`;
               summary += `**❌ Failed:** ${failed}\n`;
               summary += `**📊 Success Rate:** ${((passed / total) * 100).toFixed(1)}%\n\n`;
             }
-            
+
             summary += '### Test Categories\n';
             summary += '- ✅ Smoke Tests\n';
             summary += '- ✅ Accessibility Tests\n';
@@ -546,9 +557,9 @@ jobs:
             summary += '- ✅ Regression Tests\n';
             summary += '- ✅ Mobile Tests\n';
             summary += '- ✅ Security Tests\n\n';
-            
+
             summary += '📊 [View detailed report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})';
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -561,7 +572,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-report]
     if: always()
-    
+
     steps:
       - name: Cleanup test environment
         run: |
