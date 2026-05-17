@@ -1,0 +1,72 @@
+[2026-01-18T06:27:17.058Z] INFO: 🖼️  Enhanced Space Analyzer Vision Analysis Starting
+[2026-01-18T06:27:17.077Z] INFO: ==========================================
+[2026-01-18T06:27:17.094Z] INFO: Screenshot validation passed
+[2026-01-18T06:27:17.103Z] INFO: Reading and encoding screenshot...
+[2026-01-18T06:27:17.114Z] INFO: Starting analysis with llava:7b...
+[2026-01-18T06:27:17.125Z] INFO: Attempt 1 of 3
+[2026-01-18T06:27:17.135Z] INFO: Sending request to llava:7b...
+[2026-01-18T06:27:47.148Z] WARN: Attempt 1 failed, retrying in 1000ms...
+[2026-01-18T06:27:48.170Z] INFO: Attempt 2 of 3
+[2026-01-18T06:27:48.198Z] INFO: Sending request to llava:7b...
+[2026-01-18T06:28:18.200Z] WARN: Attempt 2 failed, retrying in 2000ms...
+[2026-01-18T06:28:20.223Z] INFO: Attempt 3 of 3
+[2026-01-18T06:28:20.239Z] INFO: Sending request to llava:7b...
+[2026-01-18T06:28:50.252Z] ERROR: All 3 attempts failed
+{
+  "name": "VisionAnalysisError",
+  "statusCode": "TIMEOUT_ERROR",
+  "isOperational": true
+}
+[2026-01-18T06:28:50.273Z] ERROR: Failed to analyze with llava:7b
+{
+  "name": "VisionAnalysisError",
+  "statusCode": "TIMEOUT_ERROR",
+  "isOperational": true
+}
+[2026-01-18T06:28:50.299Z] INFO: Starting analysis with llava:latest...
+[2026-01-18T06:28:50.341Z] INFO: Attempt 1 of 3
+[2026-01-18T06:28:50.359Z] INFO: Sending request to llava:latest...
+[2026-01-18T06:29:20.377Z] WARN: Attempt 1 failed, retrying in 1000ms...
+[2026-01-18T06:29:21.404Z] INFO: Attempt 2 of 3
+[2026-01-18T06:29:21.440Z] INFO: Sending request to llava:latest...
+[2026-01-18T06:29:51.514Z] WARN: Attempt 2 failed, retrying in 2000ms...
+[2026-01-18T06:29:53.535Z] INFO: Attempt 3 of 3
+[2026-01-18T06:29:53.561Z] INFO: Sending request to llava:latest...
+[2026-01-18T06:30:23.574Z] ERROR: All 3 attempts failed
+{
+  "name": "VisionAnalysisError",
+  "statusCode": "TIMEOUT_ERROR",
+  "isOperational": true
+}
+[2026-01-18T06:30:23.602Z] ERROR: Failed to analyze with llava:latest
+{
+  "name": "VisionAnalysisError",
+  "statusCode": "TIMEOUT_ERROR",
+  "isOperational": true
+}
+[2026-01-18T06:30:23.659Z] INFO: 📊 Enhanced results saved to: vision-analysis-enhanced-results.json
+[2026-01-18T06:30:23.690Z] INFO: ✅ Analysis completed in 186633ms
+[2026-01-18T06:30:23.727Z] INFO: 
+🎉 Enhanced Vision Analysis Complete!
+[2026-01-18T06:30:23.765Z] INFO: 🔧 Ready to implement advanced improvements!
+[2026-01-18T06:30:43.532Z] INFO: 🖼️  Enhanced Space Analyzer Vision Analysis Starting
+[2026-01-18T06:30:43.563Z] INFO: ==========================================
+[2026-01-18T06:30:43.593Z] INFO: Screenshot validation passed
+[2026-01-18T06:30:43.729Z] INFO: Reading and encoding screenshot...
+[2026-01-18T06:30:43.746Z] INFO: Starting analysis with llava:7b...
+[2026-01-18T06:30:43.794Z] INFO: Attempt 1 of 3
+[2026-01-18T06:30:43.878Z] INFO: Sending request to llava:7b...
+[2026-01-18T06:32:43.899Z] WARN: Attempt 1 failed, retrying in 1000ms...
+[2026-01-18T06:32:44.954Z] INFO: Attempt 2 of 3
+[2026-01-18T06:32:44.975Z] INFO: Sending request to llava:7b...
+[2026-01-18T06:32:53.219Z] INFO: 🛑 Analysis interrupted by user
+[2026-01-18T06:37:26.587Z] INFO: 🖼️  Enhanced Space Analyzer Vision Analysis Starting
+[2026-01-18T06:37:26.623Z] INFO: ==========================================
+[2026-01-18T06:37:26.649Z] INFO: Screenshot validation passed
+[2026-01-18T06:37:26.696Z] INFO: Reading and encoding screenshot...
+[2026-01-18T06:37:26.730Z] INFO: Selected model: llava:7b (rotation: 1)
+[2026-01-18T06:37:26.750Z] INFO: Selected model: qwen2.5-vl:7b (rotation: 2)
+[2026-01-18T06:37:26.763Z] INFO: Starting analysis with qwen2.5-vl:7b...
+[2026-01-18T06:37:26.807Z] INFO: Attempt 1 of 3
+[2026-01-18T06:37:26.861Z] INFO: Sending request to qwen2.5-vl:7b...
+[2026-01-18T06:39:26.812Z] INFO: 🛑 Analysis interrupted by user

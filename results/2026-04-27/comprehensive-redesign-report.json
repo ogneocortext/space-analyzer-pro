@@ -1,0 +1,75 @@
+{
+  "timestamp": "2026-01-18T21:01:16.077Z",
+  "duration": "10s",
+  "summary": {
+    "totalPages": 12,
+    "pagesProcessed": 3,
+    "screenshotsTaken": 0,
+    "analysesCompleted": 0,
+    "improvementsApplied": 0,
+    "successRate": "25%",
+    "errors": 3
+  },
+  "pages": [
+    {
+      "id": "feature-hub",
+      "name": "Feature Hub",
+      "success": false,
+      "screenshotPath": null,
+      "analysisPath": null,
+      "improvements": [],
+      "error": "Navigating frame was detached"
+    },
+    {
+      "id": "dashboard",
+      "name": "Dashboard",
+      "success": false,
+      "screenshotPath": null,
+      "analysisPath": null,
+      "improvements": [],
+      "error": "Navigating frame was detached"
+    },
+    {
+      "id": "analysis",
+      "name": "File Analysis",
+      "success": false,
+      "screenshotPath": null,
+      "analysisPath": null,
+      "improvements": [],
+      "error": "Navigating frame was detached"
+    }
+  ],
+  "errors": [
+    {
+      "page": "feature-hub",
+      "operation": "screenshot",
+      "error": "Navigating frame was detached"
+    },
+    {
+      "page": "dashboard",
+      "operation": "screenshot",
+      "error": "Navigating frame was detached"
+    },
+    {
+      "page": "analysis",
+      "operation": "screenshot",
+      "error": "Navigating frame was detached"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "high",
+      "type": "troubleshooting",
+      "title": "Address Processing Errors",
+      "description": "3 pages had processing errors. Review error logs and retry failed pages.",
+      "action": "Check error details and rerun workflow for failed pages"
+    },
+    {
+      "priority": "low",
+      "type": "iteration",
+      "title": "Iterative Improvement",
+      "description": "Run this workflow periodically to continuously improve the UI.",
+      "action": "Schedule regular redesign cycles"
+    }
+  ]
+}

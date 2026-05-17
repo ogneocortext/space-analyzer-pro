@@ -1,0 +1,63 @@
+[package]
+name = "file-monitor"
+version = "1.0.0"
+edition = "2021"
+authors = ["Space Analyzer Team"]
+description = "Real-time file system monitoring with event batching and database integration"
+license = "MIT"
+
+[[bin]]
+name = "file-monitor"
+path = "src/main.rs"
+
+[lib]
+name = "file_monitor"
+crate-type = ["cdylib", "lib"]
+path = "src/lib.rs"
+
+[dependencies]
+# Core dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+anyhow = "1.0"
+thiserror = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+
+# File system monitoring
+notify = "6.0"
+notify-debouncer-full = "0.3"
+
+# Async runtime and utilities
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+futures = "0.3"
+
+# Database integration
+rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono"] }
+
+# Configuration and logging
+config = "0.14"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+
+# Cross-platform utilities
+walkdir = "2.3"
+glob = "0.3"
+regex = "1.5"
+
+# Performance and metrics
+dashmap = "5.5"
+parking_lot = "0.12"
+metrics = "0.21"
+metrics-exporter-prometheus = "0.12"
+
+# Web API for integration
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+[build-dependencies]
+napi-build = "2"
