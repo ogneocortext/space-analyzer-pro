@@ -7,7 +7,13 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs").promises;
 const PDFGenerator = require("../modules/pdf-generator");
-const logger = require("../utils/logger");
+// Simple logger replacement
+const logger = {
+  info: (message) => console.log(`[REPORTS] ${message}`),
+  error: (message) => console.error(`[REPORTS] ${message}`),
+  warn: (message) => console.warn(`[REPORTS] ${message}`),
+  debug: (message) => console.debug(`[REPORTS] ${message}`),
+};
 
 class ReportsRoutes {
   constructor(server) {
@@ -21,7 +27,13 @@ class ReportsRoutes {
     // Generate analysis PDF report
     this.router.post("/reports/analysis", async (req, res) => {
       try {
-        const { analysisId, title, subtitle, includeFiles = true, fileLimit = 100 } = req.body;
+        const {
+          analysisId,
+          title,
+          subtitle,
+          includeFiles = true,
+          fileLimit = 100,
+        } = req.body;
 
         if (!analysisId) {
           return res.status(400).json({ error: "analysisId is required" });
@@ -34,12 +46,17 @@ class ReportsRoutes {
         }
 
         // Generate PDF
-        const result = await this.pdfGenerator.generateAnalysisReport(analysisData, {
-          title: title || "Space Analysis Report",
-          subtitle: subtitle || `Analysis of ${analysisData.directory || "Unknown Directory"}`,
-          includeFiles,
-          fileLimit,
-        });
+        const result = await this.pdfGenerator.generateAnalysisReport(
+          analysisData,
+          {
+            title: title || "Space Analysis Report",
+            subtitle:
+              subtitle ||
+              `Analysis of ${analysisData.directory || "Unknown Directory"}`,
+            includeFiles,
+            fileLimit,
+          },
+        );
 
         if (!result.success) {
           return res.status(500).json({ error: result.error });
@@ -57,7 +74,9 @@ class ReportsRoutes {
           },
         });
       } catch (error) {
-        logger.error("Generate analysis report error", { error: error.message });
+        logger.error("Generate analysis report error", {
+          error: error.message,
+        });
         res.status(500).json({ error: error.message });
       }
     });
@@ -79,11 +98,15 @@ class ReportsRoutes {
           });
         }
 
-        const metrics = await this.server.knowledgeDB.getDirectoryComplexity(directory);
-        const summary = await this.server.knowledgeDB.getComplexitySummary(directory);
+        const metrics =
+          await this.server.knowledgeDB.getDirectoryComplexity(directory);
+        const summary =
+          await this.server.knowledgeDB.getComplexitySummary(directory);
 
         if (!metrics || metrics.length === 0) {
-          return res.status(404).json({ error: "No complexity data found for this directory" });
+          return res
+            .status(404)
+            .json({ error: "No complexity data found for this directory" });
         }
 
         // Generate PDF
@@ -96,7 +119,7 @@ class ReportsRoutes {
           {
             title: title || "Code Complexity Analysis Report",
             fileLimit,
-          }
+          },
         );
 
         if (!result.success) {
@@ -115,7 +138,9 @@ class ReportsRoutes {
           },
         });
       } catch (error) {
-        logger.error("Generate complexity report error", { error: error.message });
+        logger.error("Generate complexity report error", {
+          error: error.message,
+        });
         res.status(500).json({ error: error.message });
       }
     });
@@ -127,7 +152,11 @@ class ReportsRoutes {
         const reportPath = path.join(this.pdfGenerator.reportsDir, filename);
 
         // Validate filename to prevent directory traversal
-        if (!filename.endsWith(".pdf") || filename.includes("..") || filename.includes("/")) {
+        if (
+          !filename.endsWith(".pdf") ||
+          filename.includes("..") ||
+          filename.includes("/")
+        ) {
           return res.status(400).json({ error: "Invalid filename" });
         }
 
@@ -140,7 +169,10 @@ class ReportsRoutes {
 
         // Set headers for download
         res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${filename}"`,
+        );
 
         // Stream the file
         const fileStream = require("fs").createReadStream(reportPath);
@@ -158,7 +190,11 @@ class ReportsRoutes {
         const reportPath = path.join(this.pdfGenerator.reportsDir, filename);
 
         // Validate filename
-        if (!filename.endsWith(".pdf") || filename.includes("..") || filename.includes("/")) {
+        if (
+          !filename.endsWith(".pdf") ||
+          filename.includes("..") ||
+          filename.includes("/")
+        ) {
           return res.status(400).json({ error: "Invalid filename" });
         }
 
@@ -208,7 +244,11 @@ class ReportsRoutes {
         const reportPath = path.join(this.pdfGenerator.reportsDir, filename);
 
         // Validate filename
-        if (!filename.endsWith(".pdf") || filename.includes("..") || filename.includes("/")) {
+        if (
+          !filename.endsWith(".pdf") ||
+          filename.includes("..") ||
+          filename.includes("/")
+        ) {
           return res.status(400).json({ error: "Invalid filename" });
         }
 
@@ -257,7 +297,11 @@ class ReportsRoutes {
         const reportPath = path.join(this.pdfGenerator.reportsDir, filename);
 
         // Validate filename
-        if (!filename.endsWith(".pdf") || filename.includes("..") || filename.includes("/")) {
+        if (
+          !filename.endsWith(".pdf") ||
+          filename.includes("..") ||
+          filename.includes("/")
+        ) {
           return res.status(400).json({ error: "Invalid filename" });
         }
 
@@ -291,7 +335,7 @@ class ReportsRoutes {
         const { type, active = "true" } = req.query;
         const templates = await this.server.knowledgeDB.getTemplates(
           type || null,
-          active === "true"
+          active === "true",
         );
 
         res.json({
@@ -369,7 +413,10 @@ class ReportsRoutes {
         const { id } = req.params;
         const updates = req.body;
 
-        const result = await this.server.knowledgeDB.updateTemplate(parseInt(id), updates);
+        const result = await this.server.knowledgeDB.updateTemplate(
+          parseInt(id),
+          updates,
+        );
 
         if (!result.updated) {
           return res.status(404).json({ error: "Template not found" });
@@ -394,7 +441,9 @@ class ReportsRoutes {
 
         const { id } = req.params;
 
-        const result = await this.server.knowledgeDB.deleteTemplate(parseInt(id));
+        const result = await this.server.knowledgeDB.deleteTemplate(
+          parseInt(id),
+        );
 
         if (!result.deleted) {
           return res.status(404).json({ error: "Template not found" });
@@ -424,7 +473,10 @@ class ReportsRoutes {
           return res.status(400).json({ error: "templateType is required" });
         }
 
-        const result = await this.server.knowledgeDB.setDefaultTemplate(parseInt(id), templateType);
+        const result = await this.server.knowledgeDB.setDefaultTemplate(
+          parseInt(id),
+          templateType,
+        );
 
         res.json({
           success: true,
@@ -446,7 +498,10 @@ class ReportsRoutes {
         const { id } = req.params;
         const { newName } = req.body;
 
-        const result = await this.server.knowledgeDB.duplicateTemplate(parseInt(id), newName);
+        const result = await this.server.knowledgeDB.duplicateTemplate(
+          parseInt(id),
+          newName,
+        );
 
         res.json({
           success: true,
@@ -500,7 +555,7 @@ class ReportsRoutes {
             function (err) {
               if (err) reject(err);
               else resolve(this.lastID);
-            }
+            },
           );
         });
 
@@ -551,9 +606,12 @@ class ReportsRoutes {
               // Parse JSON fields
               rows.forEach((row) => {
                 try {
-                  if (row.analysis_ids) row.analysis_ids = JSON.parse(row.analysis_ids);
-                  if (row.export_options) row.export_options = JSON.parse(row.export_options);
-                  if (row.output_files) row.output_files = JSON.parse(row.output_files);
+                  if (row.analysis_ids)
+                    row.analysis_ids = JSON.parse(row.analysis_ids);
+                  if (row.export_options)
+                    row.export_options = JSON.parse(row.export_options);
+                  if (row.output_files)
+                    row.output_files = JSON.parse(row.output_files);
                 } catch (e) {
                   // Keep as strings if parsing fails
                 }
@@ -592,16 +650,19 @@ class ReportsRoutes {
               else {
                 if (row) {
                   try {
-                    if (row.analysis_ids) row.analysis_ids = JSON.parse(row.analysis_ids);
-                    if (row.export_options) row.export_options = JSON.parse(row.export_options);
-                    if (row.output_files) row.output_files = JSON.parse(row.output_files);
+                    if (row.analysis_ids)
+                      row.analysis_ids = JSON.parse(row.analysis_ids);
+                    if (row.export_options)
+                      row.export_options = JSON.parse(row.export_options);
+                    if (row.output_files)
+                      row.output_files = JSON.parse(row.output_files);
                   } catch (e) {
                     // Keep as strings if parsing fails
                   }
                 }
                 resolve(row);
               }
-            }
+            },
           );
         });
 
@@ -637,13 +698,14 @@ class ReportsRoutes {
             function (err) {
               if (err) reject(err);
               else resolve({ updated: this.changes > 0 });
-            }
+            },
           );
         });
 
         if (!result.updated) {
           return res.status(400).json({
-            error: "Job not found or cannot be cancelled (already completed/failed)",
+            error:
+              "Job not found or cannot be cancelled (already completed/failed)",
           });
         }
 
@@ -675,7 +737,10 @@ class ReportsRoutes {
       });
       return { success: true };
     } catch (error) {
-      logger.error(`${context} failed`, { error: error.message, sql: sql.substring(0, 50) });
+      logger.error(`${context} failed`, {
+        error: error.message,
+        sql: sql.substring(0, 50),
+      });
       return { success: false, error: error.message };
     }
   }
@@ -693,7 +758,7 @@ class ReportsRoutes {
       const startResult = await this.safeDbRun(
         `UPDATE batch_export_jobs SET status = 'processing', started_at = CURRENT_TIMESTAMP WHERE id = ?`,
         [jobId],
-        "Start batch job"
+        "Start batch job",
       );
 
       if (!startResult.success) {
@@ -710,7 +775,10 @@ class ReportsRoutes {
         try {
           let result;
           if (jobType === "pdf") {
-            result = await this.pdfGenerator.generateAnalysisReport(analysisData, exportOptions);
+            result = await this.pdfGenerator.generateAnalysisReport(
+              analysisData,
+              exportOptions,
+            );
           }
           // Add more job types (csv, json) here
 
@@ -724,7 +792,7 @@ class ReportsRoutes {
           const progressResult = await this.safeDbRun(
             `UPDATE batch_export_jobs SET processed_items = ? WHERE id = ?`,
             [processed, jobId],
-            `Update progress for job ${jobId}`
+            `Update progress for job ${jobId}`,
           );
 
           if (!progressResult.success) {
@@ -734,7 +802,9 @@ class ReportsRoutes {
             // Continue processing even if progress update fails
           }
         } catch (err) {
-          logger.error(`Error processing analysis ${analysisId}`, { error: err.message });
+          logger.error(`Error processing analysis ${analysisId}`, {
+            error: err.message,
+          });
         }
       }
 
@@ -744,13 +814,18 @@ class ReportsRoutes {
          SET status = 'completed', completed_at = CURRENT_TIMESTAMP, output_files = ?
          WHERE id = ?`,
         [JSON.stringify(outputFiles), jobId],
-        `Complete batch job ${jobId}`
+        `Complete batch job ${jobId}`,
       );
 
       if (!completeResult.success) {
-        logger.error(`Failed to mark job ${jobId} as completed`, { error: completeResult.error });
+        logger.error(`Failed to mark job ${jobId} as completed`, {
+          error: completeResult.error,
+        });
       } else {
-        logger.log("✅", `Batch job ${jobId} completed: ${outputFiles.length} files generated`);
+        logger.log(
+          "✅",
+          `Batch job ${jobId} completed: ${outputFiles.length} files generated`,
+        );
       }
     } catch (error) {
       logger.error(`Batch job ${jobId} failed`, { error: error.message });
@@ -761,7 +836,7 @@ class ReportsRoutes {
          SET status = 'failed', completed_at = CURRENT_TIMESTAMP, error_message = ?
          WHERE id = ?`,
         [error.message.substring(0, 500), jobId], // Limit error message size
-        `Mark job ${jobId} as failed`
+        `Mark job ${jobId} as failed`,
       );
     }
   }

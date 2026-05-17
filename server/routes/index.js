@@ -4,8 +4,8 @@
  */
 
 const AnalysisRoutes = require("./analysis");
-const AIRoutes = require("./ai");
-const AIServiceRoutes = require("./ai-service");
+// AI routes consolidated into ai-models
+const AIModelsRoutes = require("./ai-models");
 const FileRoutes = require("./files");
 const ExportRoutes = require("./exports");
 const ComplexityRoutes = require("./complexity");
@@ -16,7 +16,6 @@ const SystemRoutes = require("./system");
 const ErrorRoutes = require("./errors");
 const LearningRoutes = require("./learning");
 const NLPRoutes = require("./nlp");
-const AIModelsRoutes = require("./ai-models");
 const GeneralRoutes = require("./general");
 
 class RoutesManager {
@@ -47,8 +46,6 @@ class RoutesManager {
 
     const routeModules = [
       { name: "analysis", Module: AnalysisRoutes },
-      { name: "ai", Module: AIRoutes },
-      { name: "aiService", Module: AIServiceRoutes },
       { name: "files", Module: FileRoutes },
       { name: "exports", Module: ExportRoutes },
       { name: "complexity", Module: ComplexityRoutes },
@@ -60,7 +57,12 @@ class RoutesManager {
       { name: "learning", Module: LearningRoutes },
       { name: "nlp", Module: NLPRoutes },
       { name: "aiModels", Module: AIModelsRoutes },
-      { name: "general", Module: GeneralRoutes, mountAtRoot: true, forceReload: true },
+      {
+        name: "general",
+        Module: GeneralRoutes,
+        mountAtRoot: true,
+        forceReload: true,
+      },
     ];
 
     // Initialize all routes in parallel with caching
@@ -95,14 +97,15 @@ class RoutesManager {
             name,
             route,
             success: true,
-            fromCache: !!route && this.routeCache.has(cacheKey) && name !== "analysis",
+            fromCache:
+              !!route && this.routeCache.has(cacheKey) && name !== "analysis",
             mountAtRoot,
           };
         } catch (error) {
           console.error(`❌ Failed to initialize ${name}:`, error.message);
           return { name, error, success: false };
         }
-      }
+      },
     );
 
     // Wait for all routes to initialize
@@ -135,12 +138,12 @@ class RoutesManager {
         ? Math.round((cachedRoutes.length / successfulRoutes.length) * 100)
         : 0;
     console.log(
-      ` Initialized ${successfulRoutes.length}/${routeModules.length} route modules (${cachedRoutes.length} from cache, ${cacheHitRate}% hit rate)`
+      ` Initialized ${successfulRoutes.length}/${routeModules.length} route modules (${cachedRoutes.length} from cache, ${cacheHitRate}% hit rate)`,
     );
 
     if (failedRoutes.length > 0) {
       console.log(
-        ` Failed routes: ${failedRoutes.map((r) => `${r.name}: ${r.error?.message || r.error}`).join(", ")}`
+        ` Failed routes: ${failedRoutes.map((r) => `${r.name}: ${r.error?.message || r.error}`).join(", ")}`,
       );
     }
   }
@@ -188,9 +191,11 @@ class RoutesManager {
       }
     });
 
-    console.log(`✅ ${mountedCount}/${routeMappings.length} API routes mounted successfully`);
     console.log(
-      "📍 API endpoints: /api/analysis/*, /api/ai/*, /api/errors/*, /api/learning/*, /api/nlp/*, /api/ai-models/*"
+      `✅ ${mountedCount}/${routeMappings.length} API routes mounted successfully`,
+    );
+    console.log(
+      "📍 API endpoints: /api/analysis/*, /api/ai/*, /api/errors/*, /api/learning/*, /api/nlp/*, /api/ai-models/*",
     );
 
     // Store mounted routes for debugging

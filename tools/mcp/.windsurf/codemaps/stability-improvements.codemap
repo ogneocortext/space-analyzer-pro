@@ -39,8 +39,8 @@
       "purpose": "Prevent cascading failures from external services",
       "implementation": {
         "services": ["AIService", "OllamaService", "GoogleAIService"],
-        "threshold": 5 failures in 30 seconds,
-        "timeout": 60 seconds,
+        "threshold": "5 failures in 30 seconds",
+        "timeout": "60 seconds",
         "fallback": "Cached responses or degraded mode"
       },
       "codeLocation": "src/services/ai/CircuitBreaker.ts"

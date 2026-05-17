@@ -9,22 +9,22 @@ const fs = require("fs");
 const crypto = require("crypto");
 const { spawn } = require("child_process");
 const AnalysisController = require("../controllers/AnalysisController");
-const Logger = require("../utils/user-friendly-logger");
 const ValidationMiddleware = require("../middleware/validation");
 
 class AnalysisRoutes {
   constructor(server) {
     this.server = server;
     this.router = express.Router();
-    // Initialize user-friendly logger
-    this.logger = new Logger({
-      logLevel: "info",
-      showProgress: true,
-      showTimestamps: true,
-      useColors: true,
-    });
+    // Initialize simple logger
+    this.logger = {
+      info: (message) => console.log(`[ANALYSIS] ${message}`),
+      error: (message) => console.error(`[ANALYSIS] ${message}`),
+      warn: (message) => console.warn(`[ANALYSIS] ${message}`),
+      debug: (message) => console.debug(`[ANALYSIS] ${message}`),
+    };
     // Use shared controller instance from server to avoid multiple instances
-    this.analysisController = server.analysisController || new AnalysisController(server);
+    this.analysisController =
+      server.analysisController || new AnalysisController(server);
     if (!server.analysisController) {
       server.analysisController = this.analysisController;
     }
@@ -40,7 +40,10 @@ class AnalysisRoutes {
   async startAnalysisLogic(req, res, directoryPath) {
     try {
       // Generate human-readable analysis ID
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .slice(0, 19);
       const suffix = Math.random().toString(36).substr(2, 4);
       const analysisId = `analysis-${timestamp}-${suffix}`;
 
@@ -83,7 +86,7 @@ class AnalysisRoutes {
           "..",
           "native",
           "scanner",
-          "index.node"
+          "index.node",
         );
         let SpaceAnalyzer;
         if (fs.existsSync(nativeScannerPath)) {
@@ -94,7 +97,13 @@ class AnalysisRoutes {
         const scanner = new SpaceAnalyzer();
 
         // Start analysis with native scanner
-        this.startNativeAnalysis(analysisId, analysisEntry, scanner, directoryPath, tempFileName);
+        this.startNativeAnalysis(
+          analysisId,
+          analysisEntry,
+          scanner,
+          directoryPath,
+          tempFileName,
+        );
 
         // Return immediate success response
         return res.json({
@@ -104,10 +113,18 @@ class AnalysisRoutes {
           directoryPath,
         });
       } catch (scannerError) {
-        this.logger.warn("Native scanner not available, using basic scan", scannerError.message);
+        this.logger.warn(
+          "Native scanner not available, using basic scan",
+          scannerError.message,
+        );
 
         // Fallback to basic directory scanning
-        this.startBasicAnalysis(analysisId, analysisEntry, directoryPath, tempFileName);
+        this.startBasicAnalysis(
+          analysisId,
+          analysisEntry,
+          directoryPath,
+          tempFileName,
+        );
 
         return res.json({
           success: true,
@@ -128,7 +145,13 @@ class AnalysisRoutes {
   /**
    * Start analysis using native Node.js scanner module
    */
-  startNativeAnalysis(analysisId, analysisEntry, scanner, directoryPath, tempFileName) {
+  startNativeAnalysis(
+    analysisId,
+    analysisEntry,
+    scanner,
+    directoryPath,
+    tempFileName,
+  ) {
     try {
       // Start analysis in background
       const analysisPromise = scanner.analyzeDirectory(directoryPath, {
@@ -149,7 +172,7 @@ class AnalysisRoutes {
             analysisId,
             progress.files || 0,
             5000,
-            progress.currentFile || "Scanning..."
+            progress.currentFile || "Scanning...",
           );
         },
       });
@@ -170,15 +193,16 @@ class AnalysisRoutes {
                 analysisId,
               },
               null,
-              2
-            )
+              2,
+            ),
           );
 
           // Update analysis entry
           analysisEntry.status = "completed";
           analysisEntry.endTime = Date.now();
           analysisEntry.result = result;
-          analysisEntry.filesScanned = result.total_files || result.files?.length || 0;
+          analysisEntry.filesScanned =
+            result.total_files || result.files?.length || 0;
           analysisEntry.progress = 100;
           this.server.activeAnalyses.set(analysisId, analysisEntry);
 
@@ -200,11 +224,14 @@ class AnalysisRoutes {
             try {
               await this.server.knowledgeDB.analysis.storeAnalysis(
                 analysisEntry.directoryPath,
-                this.formatNativeResult(result)
+                this.formatNativeResult(result),
               );
               console.log("✅ Analysis saved to database:", analysisId);
             } catch (dbError) {
-              console.warn("⚠️ Failed to save analysis to database:", dbError.message);
+              console.warn(
+                "⚠️ Failed to save analysis to database:",
+                dbError.message,
+              );
             }
           }
         })
@@ -252,7 +279,10 @@ class AnalysisRoutes {
 
           // Update progress
           analysisEntry.filesScanned = files.length;
-          analysisEntry.progress = Math.min(100, Math.floor((files.length / 100) * 100));
+          analysisEntry.progress = Math.min(
+            100,
+            Math.floor((files.length / 100) * 100),
+          );
           analysisEntry.currentFile = fullPath;
           this.server.activeAnalyses.set(analysisId, analysisEntry);
         }
@@ -283,8 +313,8 @@ class AnalysisRoutes {
                 analysisId,
               },
               null,
-              2
-            )
+              2,
+            ),
           );
 
           // Update analysis entry
@@ -300,11 +330,14 @@ class AnalysisRoutes {
             try {
               await this.server.knowledgeDB.analysis.storeAnalysis(
                 analysisEntry.directoryPath,
-                this.formatBasicResult(result)
+                this.formatBasicResult(result),
               );
               console.log("✅ Basic analysis saved to database:", analysisId);
             } catch (dbError) {
-              console.warn("⚠️ Failed to save basic analysis to database:", dbError.message);
+              console.warn(
+                "⚠️ Failed to save basic analysis to database:",
+                dbError.message,
+              );
             }
           }
         } catch (error) {
@@ -331,7 +364,9 @@ class AnalysisRoutes {
         totalFiles: nativeResult.totalFiles || 0,
         totalSize: nativeResult.totalSize || 0,
         scanDurationMs:
-          Date.now() - (this.server.activeAnalyses.values().next().value?.startTime || Date.now()),
+          Date.now() -
+          (this.server.activeAnalyses.values().next().value?.startTime ||
+            Date.now()),
         filesScannedPerSecond: 0,
         bytesScannedPerSecond: 0,
       },
@@ -360,7 +395,9 @@ class AnalysisRoutes {
         totalFiles: basicResult.totalFiles || 0,
         totalSize: basicResult.totalSize || 0,
         scanDurationMs:
-          Date.now() - (this.server.activeAnalyses.values().next().value?.startTime || Date.now()),
+          Date.now() -
+          (this.server.activeAnalyses.values().next().value?.startTime ||
+            Date.now()),
         filesScannedPerSecond: 0,
         bytesScannedPerSecond: 0,
       },
@@ -436,7 +473,10 @@ class AnalysisRoutes {
    */
   startProgressPolling(analysisId, analysisEntry) {
     const progressInterval = setInterval(() => {
-      if (analysisEntry.status === "completed" || analysisEntry.status === "error") {
+      if (
+        analysisEntry.status === "completed" ||
+        analysisEntry.status === "error"
+      ) {
         clearInterval(progressInterval);
         return;
       }
@@ -450,18 +490,22 @@ class AnalysisRoutes {
 
   setupRoutes() {
     // Main analysis endpoint
-    this.router.post("/analyze", ValidationMiddleware.validateAnalysis, async (req, res) => {
-      const { directoryPath } = req.body;
+    this.router.post(
+      "/analyze",
+      ValidationMiddleware.validateAnalysis,
+      async (req, res) => {
+        const { directoryPath } = req.body;
 
-      if (!directoryPath) {
-        return res.status(400).json({
-          success: false,
-          error: "directoryPath is required",
-        });
-      }
+        if (!directoryPath) {
+          return res.status(400).json({
+            success: false,
+            error: "directoryPath is required",
+          });
+        }
 
-      await this.startAnalysisLogic(req, res, directoryPath);
-    });
+        await this.startAnalysisLogic(req, res, directoryPath);
+      },
+    );
 
     // Get analysis progress
     this.router.get("/progress/:analysisId", (req, res) => {
@@ -507,7 +551,11 @@ class AnalysisRoutes {
       }
 
       // Try to read results from temp file
-      const tempFilePath = path.join(__dirname, "../../temp", analysis.tempFileName);
+      const tempFilePath = path.join(
+        __dirname,
+        "../../temp",
+        analysis.tempFileName,
+      );
       try {
         if (fs.existsSync(tempFilePath)) {
           const resultData = JSON.parse(fs.readFileSync(tempFilePath, "utf8"));
@@ -585,10 +633,11 @@ class AnalysisRoutes {
         // Get from database
         if (this.server?.knowledgeDB?.analysis?.getAnalysisHistory) {
           try {
-            const dbResult = await this.server.knowledgeDB.analysis.getAnalysisHistory(
-              maxLimit,
-              skip
-            );
+            const dbResult =
+              await this.server.knowledgeDB.analysis.getAnalysisHistory(
+                maxLimit,
+                skip,
+              );
             analyses = dbResult.analyses || [];
             return res.json({
               success: true,
@@ -643,7 +692,10 @@ class AnalysisRoutes {
         // Get from database
         if (this.server?.knowledgeDB?.analysis?.getAnalysisById) {
           try {
-            const dbResult = await this.server.knowledgeDB.analysis.getAnalysisById(analysisId);
+            const dbResult =
+              await this.server.knowledgeDB.analysis.getAnalysisById(
+                analysisId,
+              );
             if (dbResult.success && dbResult.analysis) {
               return res.json({
                 success: true,

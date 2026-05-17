@@ -160,25 +160,47 @@ fn get_performance_metrics(tab: &Arc<Tab>) -> Result<HashMap<String, f64>> {
     let result = tab.evaluate(
         r#"
         (function() {
-            const nav = performance.getEntriesByType('navigation')[0] || {};
-            const paint = performance.getEntriesByType('paint');
-            const fcp = paint.find(e => e.name === 'first-contentful-paint');
-            const fp = paint.find(e => e.name === 'first-paint');
-            const resources = performance.getEntriesByType('resource');
-            const totalTransferSize = resources.reduce((sum, r) => sum + (r.transferSize || 0), 0);
-            return JSON.stringify({
-                domContentLoaded: nav.domContentLoadedEventEnd - nav.startTime || 0,
-                loadComplete: nav.loadEventEnd - nav.startTime || 0,
-                domInteractive: nav.domInteractive - nav.startTime || 0,
-                firstPaint: fp ? fp.startTime : 0,
-                firstContentfulPaint: fcp ? fcp.startTime : 0,
-                ttfb: nav.responseStart - nav.requestStart || 0,
-                dnsLookup: nav.domainLookupEnd - nav.domainLookupStart || 0,
-                tcpConnect: nav.connectEnd - nav.connectStart || 0,
-                resourceCount: resources.length,
-                totalTransferSizeKB: totalTransferSize / 1024,
-                domNodeCount: document.querySelectorAll('*').length,
-            });
+            try {
+                const nav = performance.getEntriesByType('navigation')[0] || {};
+                const paint = performance.getEntriesByType('paint') || [];
+                const fcp = paint.find(e => e.name === 'first-contentful-paint');
+                const fp = paint.find(e => e.name === 'first-paint');
+                const resources = performance.getEntriesByType('resource') || [];
+                const totalTransferSize = resources.reduce((sum, r) => sum + (r.transferSize || 0), 0);
+
+                // Validate values before returning
+                const metrics = {
+                    domContentLoaded: Math.max(0, (nav.domContentLoadedEventEnd || 0) - (nav.startTime || 0)),
+                    loadComplete: Math.max(0, (nav.loadEventEnd || 0) - (nav.startTime || 0)),
+                    domInteractive: Math.max(0, (nav.domInteractive || 0) - (nav.startTime || 0)),
+                    firstPaint: Math.max(0, fp ? fp.startTime : 0),
+                    firstContentfulPaint: Math.max(0, fcp ? fcp.startTime : 0),
+                    ttfb: Math.max(0, (nav.responseStart || 0) - (nav.requestStart || 0)),
+                    dnsLookup: Math.max(0, (nav.domainLookupEnd || 0) - (nav.domainLookupStart || 0)),
+                    tcpConnect: Math.max(0, (nav.connectEnd || 0) - (nav.connectStart || 0)),
+                    resourceCount: resources.length,
+                    totalTransferSizeKB: Math.max(0, totalTransferSize / 1024),
+                    domNodeCount: Math.max(0, document.querySelectorAll('*').length),
+                };
+
+                return JSON.stringify(metrics);
+            } catch (error) {
+                console.error('Performance metrics error:', error);
+                return JSON.stringify({
+                    error: error.message,
+                    domContentLoaded: 0,
+                    loadComplete: 0,
+                    domInteractive: 0,
+                    firstPaint: 0,
+                    firstContentfulPaint: 0,
+                    ttfb: 0,
+                    dnsLookup: 0,
+                    tcpConnect: 0,
+                    resourceCount: 0,
+                    totalTransferSizeKB: 0,
+                    domNodeCount: 0,
+                });
+            }
         })();
         "#,
         false,
@@ -191,7 +213,11 @@ fn get_performance_metrics(tab: &Arc<Tab>) -> Result<HashMap<String, f64>> {
         .and_then(|v| v.as_str())
         .unwrap_or("{}");
 
-    let parsed: HashMap<String, f64> = serde_json::from_str(json_str).unwrap_or_default();
+    let parsed: HashMap<String, f64> = serde_json::from_str(json_str)
+        .unwrap_or_else(|e| {
+            eprintln!("Warning: Failed to parse performance metrics JSON: {}", e);
+            HashMap::new()
+        });
     Ok(parsed)
 }
 
@@ -379,7 +405,7 @@ fn get_full_page_dimensions(tab: &Arc<Tab>) -> Result<(f64, f64)> {
 
 /// Convert format string to headless_chrome screenshot format
 fn format_to_capture_format(format: &str) -> Page::CaptureScreenshotFormatOption {
-    match format.to_lowercase().as_str() {
+    match format.to_lowercase().trim() {
         "jpeg" | "jpg" => Page::CaptureScreenshotFormatOption::Jpeg,
         "webp" => Page::CaptureScreenshotFormatOption::Webp,
         _ => Page::CaptureScreenshotFormatOption::Png,

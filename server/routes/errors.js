@@ -5,7 +5,13 @@
 
 const express = require("express");
 const path = require("path");
-const { getErrorLogger } = require("../utils/error-logger");
+// Simple error logger replacement
+const getErrorLogger = () => ({
+  error: (message) => console.error(`[ERRORS] ${message}`),
+  warn: (message) => console.warn(`[ERRORS] ${message}`),
+  info: (message) => console.log(`[ERRORS] ${message}`),
+  debug: (message) => console.debug(`[ERRORS] ${message}`),
+});
 
 class ErrorRoutes {
   constructor(server) {
@@ -49,7 +55,10 @@ class ErrorRoutes {
           viewport: errorData.viewport,
         };
 
-        const errorId = await this.errorLogger.logFrontendError(errorData, clientInfo);
+        const errorId = await this.errorLogger.logFrontendError(
+          errorData,
+          clientInfo,
+        );
 
         res.json({
           success: true,
@@ -136,7 +145,7 @@ class ErrorRoutes {
           res.setHeader("Content-Type", "application/json");
           res.setHeader(
             "Content-Disposition",
-            `attachment; filename="errors-export-${Date.now()}.json"`
+            `attachment; filename="errors-export-${Date.now()}.json"`,
           );
 
           res.json({

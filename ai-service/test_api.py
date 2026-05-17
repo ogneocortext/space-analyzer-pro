@@ -47,12 +47,7 @@ def test_models_status():
 def test_predict_cleanup():
     """Test cleanup recommendations"""
     payload = {
-        "directory_path": "/downloads",
-        "total_files": 1000,
-        "total_size": 5000000000,
-        "file_types": {".zip": 50, ".pdf": 200, ".tmp": 100},
-        "age_distribution": {"<30d": 100, "30-90d": 300, "90-365d": 400, ">365d": 200},
-        "largest_files": [
+        "files": [
             {
                 "path": "/downloads/old.zip",
                 "name": "old.zip",
@@ -60,7 +55,8 @@ def test_predict_cleanup():
                 "extension": ".zip",
                 "modified_time": 1609459200
             }
-        ]
+        ],
+        "path": "/downloads"
     }
     response = httpx.post(f"{BASE_URL}/predict/cleanup", json=payload)
     assert response.status_code == 200
