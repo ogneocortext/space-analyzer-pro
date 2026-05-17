@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.15.0] - 2025-05-12
+
+### 🤖 Automated Testing and Quality Assurance
+
+#### **🧪 Comprehensive Automated Testing Tool**
+
+- **Added `automated_tester.py`**: Complete automated testing framework
+  - CLI functionality testing (basic scan, deep scan, JSON output, export)
+  - GUI launch verification and process management
+  - Error handling validation with edge case testing
+  - Performance metrics monitoring (speed, memory usage, throughput)
+  - Background process management and cleanup
+  - Detailed JSON logging and analysis reporting
+  - Unicode encoding issue detection
+  - Automated improvement recommendations
+
+#### **📊 Test Coverage and Quality Assurance**
+
+- **Feature Coverage**: 7 comprehensive test categories
+- **Performance Monitoring**: Real-time metrics collection
+- **Error Detection**: Automated identification of critical issues
+- **Regression Prevention**: Continuous testing capability
+- **Documentation Integration**: Added to README and testing workflows
+
+#### **🔧 Quality Improvements**
+
+- **Test Environment**: Automated setup and cleanup
+- **Process Management**: Safe background process handling
+- **Detailed Logging**: Comprehensive test result storage
+- **Analysis Engine**: Automated issue identification and recommendations
+
 ## [2.14.0] - 2025-05-11
 
 ### 🧹 Comprehensive Redundancy Cleanup and Optimization

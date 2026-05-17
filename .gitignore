@@ -1,12 +1,9 @@
 node_modules
 dist
 dist-*/
-dist-latest
-dist-new
-build
 target
 cpp-build
-.cache
+tools/cache/.cache/
 bin/
 *.exe
 .env
@@ -23,7 +20,7 @@ ai-service/venv/
 ai-service/__pycache__/
 ai-service/models/*.pkl
 ai-service/models/*.joblib
-.mcp
+tools/mcp/.mcp/
 *.log
 *.sqlite
 *.db
@@ -45,22 +42,29 @@ api_test.json
 test-scan.json
 analysis_result.json
 build-log.txt
-analysis-results/
-code-analysis-results/
-code-centric-reports/
-development/test-results/
-test-results/
-webapp-analysis-results/
-results/
-performance-results/
+reports/analysis-results/
+reports/code-analysis-results/
+reports/code-centric-reports/
+reports/results/
+reports/performance-results/
+tests/results/
+tests/coverage/
+reports/webapp-analysis-results/
 backups/
 archive/
 server/*.backup
 server/knowledge.db
 server/knowledge.db-journal
-server/output_src_*.json
-server/output_analysis_*.json
+server/output_*.json
 server/server.log
+
+# Test artifacts
+test_results_*.json
+test_report_*.txt
+test-results/
+test_workspace/
+nul
+STALE
 
 # OS generated files
 .DS_Store
