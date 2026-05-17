@@ -1,25 +1,40 @@
 [package]
 name = "space-analyzer-pro-desktop"
-version = "2.14.0"
-description = "AI-Powered Space Analyzer Desktop Application"
+version = "3.2.0"
+description = "Self-Contained AI-Powered Space Analyzer Desktop Application"
 authors = ["Space Analyzer Team"]
 edition = "2021"
 
 [workspace]
 members = [
-    "rust",
-    "native-gui",
     "shared-scanner",
     "gpu-compute",
     "native/scanner",
     "native/file_deduplicator",
-    "native/storage_predictor",
-    "native/file_monitor",
     "native/node_modules_cleaner",
 ]
 exclude = [
     "native/archive_manager",
+    "native/file_monitor",
+    "native/storage_predictor",
+    "archive",
 ]
+
+[workspace.dependencies]
+# Core
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1"
+anyhow = "1"
+
+# Common utilities
+uuid = { version = "1.0", features = ["v4", "serde"] }
+rayon = "1.8"
+regex = "1.0"
+blake3 = "1.5"
+walkdir = "2"
 
 [[bin]]
 name = "space-analyzer-pro"
@@ -30,7 +45,6 @@ name = "space-analyzer-gui"
 path = "src/gui.rs"
 
 [dependencies]
-app_lib = { package = "space-analyzer-pro", path = "rust" }
 shared-scanner = { path = "shared-scanner" }
 gpu-compute = { path = "gpu-compute" }
 # Core functionality
@@ -81,6 +95,18 @@ num_cpus = "1.16"
 humantime = "2.1"
 bytesize = "1.3"
 
+# Embedded SQLite database (self-contained persistence)
+rusqlite = { version = "0.31", features = ["bundled", "chrono", "serde_json"] }
+
+# HTTP client for optional Ollama AI service integration
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+# Async runtime for HTTP calls
+futures = "0.3"
+
+# System disk info
+sysinfo = "0.30"
+
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
 windows-sys = { version = "0.59", features = [
@@ -93,18 +119,18 @@ windows-sys = { version = "0.59", features = [
     "Win32_Storage_FileSystem",
     "Win32_System_SystemInformation"
 ] }
-winapi = { version = "0.3", features = [
-    "winuser",
-    "winbase",
-    "fileapi",
-    "handleapi",
-    "errhandlingapi",
-    "winnt",
-    "processthreadsapi",
-    "memoryapi",
-    "sysinfoapi"
-] }
 
 [target.'cfg(unix)'.dependencies]
 # Unix-specific dependencies if needed
 nix = "0.28"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
+opt-level = 3
+
+[profile.dev]
+opt-level = 1
+debug = true

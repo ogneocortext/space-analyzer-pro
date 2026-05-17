@@ -46,13 +46,10 @@ dirs = "5.0"
 
 # Windows-specific dependencies for hard links
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = [
-    "fileapi",
-    "handleapi", 
-    "winbase",
-    "winnt",
-    "minwindef",
-    "errhandlingapi",
+windows-sys = { version = "0.59", features = [
+    "Win32_Storage_FileSystem",
+    "Win32_Foundation",
+    "Win32_System_SystemServices",
 ] }
 
 # Unix-specific dependencies for hard links
@@ -62,14 +59,3 @@ nix = "0.27"
 
 [build-dependencies]
 napi-build = "2"
-
-[profile.release]
-lto = true
-codegen-units = 1
-panic = "abort"
-strip = true
-opt-level = 3
-
-[profile.dev]
-opt-level = 1
-debug = true

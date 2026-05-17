@@ -9,18 +9,18 @@ name = "gpu_compute"
 crate-type = ["rlib"]
 
 [dependencies]
+# Workspace dependencies
+serde = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+rayon = { workspace = true }
+blake3 = { workspace = true }
+
 # CUDA bindings
 cudarc = { version = "0.12", features = ["std"], optional = true }
 
 # Fallback CPU implementations
-rayon = "1.8"
-blake3 = "1.5"
 ndarray = { version = "0.15", features = ["rayon"] }
-
-# Common
-serde = { version = "1", features = ["derive"] }
-thiserror = "1"
-anyhow = "1"
 rand = "0.8"
 
 [features]

@@ -9,13 +9,18 @@ name = "shared_scanner"
 crate-type = ["rlib"]
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-walkdir = "2"
-chrono = { version = "0.4", features = ["serde"] }
-thiserror = "1"
-anyhow = "1"
-tokio = { version = "1", features = ["full"] }
-rayon = "1.8"
+# Workspace dependencies
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
+blake3 = { workspace = true }
+walkdir = { workspace = true }
+
+# Additional dependencies
 sysinfo = "0.39"
 gpu-compute = { path = "../gpu-compute" }
