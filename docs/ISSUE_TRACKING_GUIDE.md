@@ -161,25 +161,34 @@
 
 | Priority | Count | Impact Areas |
 | -------- | ----- | ------------ |
-| Critical | 3      | Security, Build System, Performance |
-| High     | 2      | Performance, Security |
-| Medium   | 1      | Code Quality |
-| Low      | 0      | - |
+| Critical | 0      | - |
+| High     | 0      | - |
+| Medium   | 7      | Security, Configuration, Functionality, Reliability, DevOps |
+| Low      | 1      | Documentation (changelog consolidation) |
 
 ### **Open Issues by Category:**
 
 | Category | Count | Examples |
 | -------- | ----- | -------- |
-| Security | 2      | Input validation, Path traversal |
-| Performance | 2      | Memory management, Database queries |
-| Code Quality | 1      | TypeScript issues |
-| Build System | 1      | Rust compilation |
+| Functionality | 3 | Unimplemented CLI flags, Non-recursive scan, Mock analytics |
+| Configuration | 2 | SECRET_KEY default, Missing .env.example |
+| Reliability | 1 | No health checks for services |
+| DevOps | 1 | No comprehensive startup script |
+| Documentation | 1 | Changelog consolidation |
 
-### **Recently Resolved:**
+### **Recently Resolved (Session 2 Part B - 2026-05-16):**
 
-- **BUILD-001**: Rust compilation fixes (2026-05-08)
-- **PERF-001**: Three.js memory cleanup (2026-05-07)
-- **TYPE-001**: TypeScript any types replacement (2026-05-07)
+- **INT-001**: No web frontend - README updated, Rust GUI is primary
+- **INT-002**: Three GUIs - Archived native-gui and rust-tauri
+- **INT-003**: README accuracy - Completely rewritten
+- **INT-004**: Rust GUI integration - Added rusqlite + reqwest + sysinfo
+- **INT-005**: native-gui isolation - Archived
+- **INT-006**: Missing workflows - Rust-native workflows implemented
+- **INT-007**: Orchestrator API bug - Archived Python orchestrator
+- **INT-010**: Test artifacts - Cleaned up 13 files
+- **INT-011**: Output files in gitignore - Updated pattern
+- **INT-015**: Architecture docs - Completely rewritten
+- **INT-018**: Unused Celery dependency - Archived
 
 ---
 
