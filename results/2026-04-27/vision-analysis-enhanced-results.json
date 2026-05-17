@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-01-18T06:30:23.631Z",
+  "config": {
+    "maxRetries": 3,
+    "retryDelay": 1000,
+    "timeoutMs": 30000,
+    "screenshotPath": "C:\\Users\\AOMEGA~1\\AppData\\Local\\Temp\\playwright-mcp-output\\1768714645288\\space-analyzer-enhanced-final.png",
+    "apiEndpoint": "http://localhost:8080/api/vision/analyze",
+    "models": [
+      "llava:7b",
+      "llava:latest"
+    ],
+    "fallbackModels": [
+      "llava:7b"
+    ],
+    "logFile": "vision-analysis-log.txt"
+  },
+  "results": {
+    "llava:7b": {
+      "success": false,
+      "error": "Request timeout",
+      "timestamp": "2026-01-18T06:28:50.299Z"
+    },
+    "llava:latest": {
+      "success": false,
+      "error": "Request timeout",
+      "timestamp": "2026-01-18T06:30:23.630Z"
+    }
+  },
+  "summary": {
+    "totalModels": 2,
+    "successfulModels": 0,
+    "failedModels": 2,
+    "successRate": "0%"
+  }
+}

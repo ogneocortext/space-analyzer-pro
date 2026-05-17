@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-01-18T21:05:27.431Z",
+  "duration": "11s",
+  "summary": {
+    "pagesProcessed": 3,
+    "screenshotsTaken": 0,
+    "analysesCompleted": 0,
+    "improvementsApplied": 0,
+    "successRate": "0%",
+    "errors": 3
+  },
+  "errors": [
+    {
+      "page": "Feature Hub",
+      "error": "Command failed: \u001b[1m\u001b[43m\u001b[30m\n  Puppeteer old Headless deprecation warning:\u001b[0m\u001b[33m\n    In the near future `headless: true` will default to the new Headless mode\n    for Chrome instead of the old Headless implementation. For more\n    information, please see https://developer.chrome.com/articles/new-headless/.\n    Consider opting in early by passing `headless: \"new\"` to `puppeteer.launch()`\n    If you encounter any bugs, please report them to https://github.com/puppeteer/puppeteer/issues/new/choose.\u001b[0m\n\nError: Navigating frame was detached\n"
+    },
+    {
+      "page": "Dashboard",
+      "error": "Command failed: \u001b[1m\u001b[43m\u001b[30m\n  Puppeteer old Headless deprecation warning:\u001b[0m\u001b[33m\n    In the near future `headless: true` will default to the new Headless mode\n    for Chrome instead of the old Headless implementation. For more\n    information, please see https://developer.chrome.com/articles/new-headless/.\n    Consider opting in early by passing `headless: \"new\"` to `puppeteer.launch()`\n    If you encounter any bugs, please report them to https://github.com/puppeteer/puppeteer/issues/new/choose.\u001b[0m\n\nError: Navigating frame was detached\n"
+    },
+    {
+      "page": "File Analysis",
+      "error": "Command failed: \u001b[1m\u001b[43m\u001b[30m\n  Puppeteer old Headless deprecation warning:\u001b[0m\u001b[33m\n    In the near future `headless: true` will default to the new Headless mode\n    for Chrome instead of the old Headless implementation. For more\n    information, please see https://developer.chrome.com/articles/new-headless/.\n    Consider opting in early by passing `headless: \"new\"` to `puppeteer.launch()`\n    If you encounter any bugs, please report them to https://github.com/puppeteer/puppeteer/issues/new/choose.\u001b[0m\n\nError: Navigating frame was detached\n"
+    }
+  ]
+}
