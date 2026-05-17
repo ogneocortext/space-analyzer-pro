@@ -1,1 +1,0 @@
-Large test file with more content to test size formatting
