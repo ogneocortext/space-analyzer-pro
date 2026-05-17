@@ -32,6 +32,8 @@ pub struct ScanProgress {
     pub current_file: String,
     pub percentage: f32,
     pub completed: bool,
+    /// Live list of files found so far (updated during scan for real-time visibility)
+    pub live_files: Vec<FileInfo>,
 }
 
 /// Scan result structure
@@ -321,6 +323,242 @@ impl FileScanner {
         Ok(result)
     }
 
+    /// Synchronous scan with progress callbacks and cancellation support.
+    /// Returns partial results on cancellation instead of an error.
+    pub fn scan_with_progress_sync<F>(
+        &self,
+        path: &str,
+        options: ScanOptions,
+        progress_callback: F,
+        cancel_flag: &AtomicBool,
+    ) -> anyhow::Result<ScanResult>
+    where
+        F: Fn(ScanProgress) + Send + 'static + Clone,
+    {
+        let mut result = ScanResult {
+            total_files: 0,
+            total_directories: 0,
+            total_size: 0,
+            file_types: HashMap::new(),
+            extension_sizes: HashMap::new(),
+            size_distribution: HashMap::new(),
+            largest_files: Vec::new(),
+            empty_directories: Vec::new(),
+            errors: Vec::new(),
+            subdirectories: Vec::new(),
+        };
+
+        let mut raw_entries: Vec<gpu_compute::scan::RawFileEntry> = Vec::new();
+        let mut live_files: Vec<FileInfo> = Vec::new();
+        let mut files_scanned: u64 = 0;
+        let mut dirs_scanned: u64 = 0;
+
+        let mut walker = WalkDir::new(path);
+        if let Some(depth) = options.max_depth {
+            walker = walker.max_depth(depth);
+        }
+        if !options.follow_symlinks {
+            walker = walker.follow_links(false);
+        }
+
+        // Estimate for progress percentage
+        let mut total_estimate = 0u64;
+        let mut estimate_walker = WalkDir::new(path);
+        if let Some(depth) = options.max_depth {
+            estimate_walker = estimate_walker.max_depth(depth);
+        }
+        if !options.follow_symlinks {
+            estimate_walker = estimate_walker.follow_links(false);
+        }
+        for _ in estimate_walker.into_iter().filter_map(|e| e.ok()) {
+            total_estimate += 1;
+            if total_estimate > 50000 { break; }
+        }
+
+        let mut entries_processed: u64 = 0;
+
+        for entry_result in walker.into_iter().filter_map(|e| e.ok()) {
+            if cancel_flag.load(Ordering::Relaxed) {
+                // Build partial result from what we have so far
+                for entry in &raw_entries {
+                    if entry.is_dir {
+                        dirs_scanned += 1;
+                        continue;
+                    }
+                    let p = Path::new(&entry.path);
+                    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+                    *result.file_types.entry(ext.clone()).or_insert(0) += 1;
+                    *result.extension_sizes.entry(ext).or_insert(0) += entry.size;
+                    if options.size_buckets {
+                        *result.size_distribution.entry(size_bucket(entry.size).to_string()).or_insert(0) += 1;
+                    }
+                    result.total_size += entry.size;
+                    result.total_files += 1;
+
+                    if result.largest_files.len() < 100 || entry.size > result.largest_files.last().map(|f| f.size).unwrap_or(0) {
+                        result.largest_files.push(FileInfo {
+                            path: entry.path.clone(),
+                            name: p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string(),
+                            size: entry.size,
+                            modified: std::fs::metadata(&entry.path).ok().and_then(|m| m.modified().ok()).and_then(|t| Self::format_timestamp(t)),
+                            file_type: "file".to_string(),
+                            extension: p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase(),
+                        });
+                        result.largest_files.sort_by(|a, b| b.size.cmp(&a.size));
+                        result.largest_files.truncate(100);
+                    }
+                }
+                result.total_directories = dirs_scanned;
+
+                let pct = if total_estimate > 0 { ((entries_processed as f32 / total_estimate as f32) * 100.0).min(99.0) } else { 0.0 };
+                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    progress_callback(ScanProgress {
+                        files_scanned: result.total_files,
+                        directories_scanned: result.total_directories,
+                        total_size: result.total_size,
+                        current_file: "Cancelled".to_string(),
+                        percentage: pct,
+                        completed: true,
+                        live_files: live_files.clone(),
+                    });
+                }));
+
+                return Ok(result);
+            }
+
+            let entry_path = entry_result.path();
+            let metadata = match entry_result.metadata() {
+                Ok(m) => m,
+                Err(e) => {
+                    let path_str = entry_path.to_string_lossy().to_string();
+                    let error_msg = if e.io_error().map(|io_err| io_err.kind()) == Some(std::io::ErrorKind::PermissionDenied) {
+                        format!("Permission denied: {}", path_str)
+                    } else {
+                        format!("Metadata error: {}: {}", path_str, e)
+                    };
+                    result.errors.push(error_msg);
+                    entries_processed += 1;
+                    continue;
+                }
+            };
+
+            let is_dir = metadata.is_dir();
+            let size = metadata.len();
+
+            if !is_dir && !self.should_include_file(&metadata, entry_path, &options) {
+                entries_processed += 1;
+                continue;
+            }
+
+            if is_dir {
+                dirs_scanned += 1;
+            }
+
+            raw_entries.push(gpu_compute::scan::RawFileEntry {
+                path: entry_path.to_string_lossy().to_string(),
+                size,
+                is_dir,
+            });
+
+            // Live file updates for real-time visibility
+            if !is_dir {
+                let file_info = FileInfo {
+                    path: entry_path.to_string_lossy().to_string(),
+                    name: entry_path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string(),
+                    size,
+                    modified: Self::format_timestamp(metadata.modified().ok().unwrap_or(std::time::SystemTime::UNIX_EPOCH)),
+                    file_type: "file".to_string(),
+                    extension: entry_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase(),
+                };
+                live_files.push(file_info.clone());
+
+                // Keep only top 100 largest for progress updates (avoid excessive cloning)
+                if live_files.len() > 200 {
+                    live_files.sort_by(|a, b| b.size.cmp(&a.size));
+                    live_files.truncate(100);
+                }
+
+                files_scanned += 1;
+            }
+
+            entries_processed += 1;
+
+            // Progress update every 50 entries
+            if entries_processed % 50 == 0 {
+                let pct = if total_estimate > 0 { ((entries_processed as f32 / total_estimate as f32) * 100.0).min(99.0) } else { 0.0 };
+                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    progress_callback(ScanProgress {
+                        files_scanned,
+                        directories_scanned: dirs_scanned,
+                        total_size: raw_entries.iter().filter(|e| !e.is_dir).map(|e| e.size).sum(),
+                        current_file: entry_path.to_string_lossy().to_string(),
+                        percentage: pct,
+                        completed: false,
+                        live_files: live_files.clone(),
+                    });
+                }));
+            }
+        }
+
+        // Phase 2: GPU-accelerated post-processing
+        let gpu_info = gpu_compute::device::GpuInfo::detect();
+        let processor = gpu_compute::scan::GpuScanProcessor::new()
+            .with_gpu(gpu_info.available)
+            .with_top_n(100);
+
+        let gpu_result = processor.process(&raw_entries);
+
+        result.total_files = gpu_result.total_files;
+        result.total_size = gpu_result.total_size;
+        result.file_types = gpu_result.file_types;
+        result.extension_sizes = gpu_result.extension_sizes;
+        result.size_distribution = gpu_result.size_distribution;
+        result.empty_directories = gpu_result.empty_dirs;
+        result.subdirectories = gpu_result.subdirectories.into_iter()
+            .map(|d| DirInfo {
+                path: d.path,
+                name: d.name,
+                total_size: d.total_size,
+                file_count: d.file_count,
+                dir_count: d.dir_count,
+                largest_file_size: d.largest_file_size,
+            })
+            .collect();
+
+        for info in gpu_result.largest_files {
+            let modified = std::fs::metadata(&info.path)
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| Self::format_timestamp(t));
+
+            result.largest_files.push(FileInfo {
+                path: info.path,
+                name: info.name,
+                size: info.size,
+                modified,
+                file_type: "file".to_string(),
+                extension: info.extension,
+            });
+        }
+
+        result.total_directories = raw_entries.iter().filter(|e| e.is_dir).count() as u64;
+
+        // Final progress update
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            progress_callback(ScanProgress {
+                files_scanned: result.total_files,
+                directories_scanned: result.total_directories,
+                total_size: result.total_size,
+                current_file: "Complete".to_string(),
+                percentage: 100.0,
+                completed: true,
+                live_files,
+            });
+        }));
+
+        Ok(result)
+    }
+
     /// Async scan with progress callbacks
     pub async fn scan_with_progress<F>(
         &self,
@@ -481,6 +719,7 @@ impl FileScanner {
                     0.0
                 },
                 completed: false,
+                live_files: Vec::new(),
             };
 
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -498,6 +737,7 @@ impl FileScanner {
                 current_file: "Complete".to_string(),
                 percentage: 100.0,
                 completed: true,
+                live_files: Vec::new(),
             };
 
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
