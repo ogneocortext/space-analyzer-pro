@@ -4939,7 +4939,7 @@ dependencies = [
 
 [[package]]
 name = "space-analyzer-pro-desktop"
-version = "3.2.0"
+version = "3.3.0"
 dependencies = [
  "anyhow",
  "assert_cmd",

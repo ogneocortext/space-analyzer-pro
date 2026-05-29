@@ -2,16 +2,51 @@
 
 All notable changes to Space Analyzer Pro will be documented in this file.
 
-## [Unreleased] - 2026-05-28
+## [Unreleased] - 2026-05-29
+
+### v3.3.0 Development
+
+- (next release items)
+
+## [3.2.0] - 2026-05-29
+
+### AI Recommendations — Dual Mode (Heuristic + Ollama)
+
+- **Renamed heuristic function**: `generate_ai_recommendations` → `generate_storage_recommendations` — always available, CPU-only
+- **New Ollama-powered recommendations**: `generate_ai_recommendations_async` sends scan data to Ollama via structured prompt, parses JSON response into `Vec<AIRecommendation>`
+- **Settings toggle**: `ai_recommendation_enabled` persisted in database, accessible from Settings → AI panel
+- **Auto-fallback**: Heuristic rules used silently when Ollama unavailable or response unparseable
+- **Dashboard display**: Shows source label (`🤖 AI` vs `⚙ Heuristic`) and pending indicator
+
+### Conversation History Trimming
+
+- **`trim_conversation_history()`** prevents unbounded growth: evicts oldest messages when total exceeds ~2000 token budget (8000 chars), preserves system prompt
+
+### Workflow History — SQLite Migration
+
+- **Added `workflow_executions` table** to database schema (replaced orphan index referencing non-existent table)
+- **Removed dead JSON file persistence**: `workflow_history_path` was always `None`; `save_workflow_history`/`load_workflow_history` were never called
+- **New DB methods**: `save_workflow_execution`, `get_workflow_history`, `delete_workflow_execution`, `clear_workflow_history`
+- **Wired into scan/dedup completion** — workflow executions now persisted and loaded at startup
+
+### Crate Architecture
+
+- **Added `[lib]` target**: `src/lib.rs` as library root, binary is a thin wrapper at `src/bin/space-analyzer-gui.rs`
+- **Removed all `#[path]` hacks** from `gui/mod.rs` — modules declared at crate level in `src/lib.rs`
+- **Integration tests** use clean `space_analyzer_pro_desktop::...` imports instead of `#[path]` shim
+
+### Settings & Data Integrity
+
+- **`load_settings` wrapped in read transaction** for isolation (prevents inconsistent reads during concurrent `save_all_settings`)
+- **GPU settings wired**: `gpu_acceleration`, `cuda_enabled`, `dedup_use_gpu` now control real runtime paths
 
 ### Restructure: File Locations and Version Differentiation
 
 - **Moved legacy GUI to archive**: `src/gui.rs` (v3.2.0 monolithic, 983 lines) → `archive/v3.2.0-monolithic/gui.rs`
-- **Promoted modular GUI as active binary**: `src/gui/mod.rs` (v3.3.0 modular) is now the `space-analyzer-gui` binary entry point
+- **Promoted modular GUI as active binary**: `src/gui/mod.rs` is now the GUI entry point
 - **Moved dead modules to archive**: `src/ai_skills.rs`, `src/ollama_client.rs`, `src/database.rs` → `archive/legacy-modules/`
 - **Removed backup file**: `src/gui.rs.backup` → `archive/v3.2.0-monolithic/gui.rs.backup`
-- **Updated Cargo.toml**: Binary target now points to `src/gui/mod.rs` instead of `src/gui.rs`
-- **Updated documentation**: ARCHITECTURE.md, README.md, docs/PROJECT_STRUCTURE.md reflect new structure
+- **Updated Cargo.toml**: Binary target now points to `src/bin/space-analyzer-gui.rs`
 
 ### Analytics Bug Fixes
 
@@ -23,40 +58,32 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 - **Fixed cache key collision**: Prompt cache falls back to SYSTEM_PROMPT_ANALYSIS when conversation history is empty
 - **Fixed division safety**: `generate_recommendations` guards against `total_files == 0` before division
 
-### Maintenance: Rust Workspace Warning Cleanup (Session 4)
+### Maintenance: Rust Workspace Warning Cleanup
 
 - **Eliminated all `cargo check --workspace` warnings** across the entire Rust workspace (reduced from 150+ warnings to 0 code warnings).
-- **Fixed `node_modules_cleaner`**: Removed unused `rayon::prelude::*` import; prefixed unused parameters (`parallel`, `min_size_bytes`, `unused_days`) with underscores.
-- **Fixed `native/scanner` (4 issues)**:
-  - Removed 4 unnecessary nested `unsafe` blocks in `windows_advanced.rs` (GetLastError called inside outer unsafe).
-  - Added `#[allow(dead_code)]` to `PerformanceTracker` and `Scanner` (planned features).
-  - **Bug fix**: Sequential scan path (`analyze_sequential`) now correctly passes computed `duplicate_groups`/`duplicate_count`/`duplicate_size` to the result instead of hardcoded zero values. Previously, `--duplicates` mode silently discarded duplicate detection results in sequential scans.
-  - Added `#[allow(dead_code)]` to utility functions in `windows_errors.rs`.
-- **Fixed `src/ollama/` (7 files)**: Added `#[allow(dead_code)]` annotations to all submodules (`client`, `stream`, `json_utils`, `prompt_cache`, `error`, `prompts`, `types`) and their re-exports. These are planned Ollama integration modules not yet wired into the GUI.
-- **Fixed `src/ollama_client.rs`**: Added `#![allow(dead_code)]` for the standalone Ollama client module.
-- **Fixed `src/ai_skills.rs`**: Added `#![allow(dead_code)]` for planned AI skills module.
-- **Fixed `src/gui.rs`**: Prefixed unused struct fields (`workflow_to_run`, `show_workflow_panel`, `show_ai_panel`) with underscores.
-- **Fixed `src/database/` (4 files)**: Added `#[allow(dead_code)]` to planned features (`FileEmbeddingRecord`, `get_storage_trend`, `get_latest_scan_id`, `to_prompt_cache_config`, `get_scan_by_id`, `save_embeddings`, `get_embeddings_for_scan`, `clear_all_embeddings`).
+- **Fixed `node_modules_cleaner`**: Removed unused `rayon::prelude::*` import; prefixed unused parameters with underscores.
+- **Fixed `native/scanner` (4 issues)**: Removed 4 unnecessary nested `unsafe` blocks; added `#[allow(dead_code)]` to planned features; sequential scan now correctly passes duplicate detection results; dead code annotations for utility functions.
+- **Fixed `src/ollama/` (7 files)**: Added `#[allow(dead_code)]` annotations to all submodules.
+- **Fixed dead modules**: `src/ollama_client.rs`, `src/ai_skills.rs` annotated with `#![allow(dead_code)]`.
+- **Fixed `src/database/`**: Added `#[allow(dead_code)]` to planned features.
 - **Fixed `src/system_monitor.rs`**: Added `#![allow(dead_code)]` for `get_system_summary`.
-- **Fixed `src/workflows/mod.rs`**: Added `#![allow(dead_code)]` for planned workflow methods.
-- **Fixed `src/gui.rs`**: Removed redundant `let client = client;` bindings, replaced `sort_by` with `sort_by_key`, used `is_multiple_of()`, replaced redundant closures.
-- **Fixed `src/workflows/mod.rs`**: Removed unnecessary `as u32` casts, replaced `map_or` with `is_some_and`, used `is_multiple_of()`.
-- **Fixed `gpu-compute/src/device.rs`**: Replaced manual `Default` impl with `#[derive(Default)]`.
-- **Fixed `gpu-compute/src/scan.rs`**: Replaced `sort_by` with `sort_by_key`.
-- **Fixed `shared-scanner/src/lib.rs`**: Removed identity multiplication `1 * 1024 * 1024`.
+- **Fixed `src/workflows/mod.rs`**: Added `#[allow(dead_code)]` for planned workflow methods.
+- **Code quality**: Removed redundant bindings, replaced `sort_by` with `sort_by_key`, used `is_multiple_of()`, replaced redundant closures.
+- **Fixed `gpu-compute`**: Replaced manual `Default` impl with `#[derive(Default)]`; replaced `sort_by` with `sort_by_key`.
+- **Fixed `shared-scanner/src/lib.rs`**: Removed identity multiplication.
 - **Fixed `tests/cli_test.rs`**: Corrected binary name from `space-analyzer-cli` to `space-analyzer-pro`.
-- **Fixed `Cargo.toml`**: Added missing dev-dependencies (`assert_cmd`, `predicates`, `tempfile`) for CLI tests.
-- **Verified all 163 tests pass** across the workspace.
+- **Fixed `Cargo.toml`**: Added missing dev-dependencies for CLI tests.
+- **Verified all tests pass** across the workspace.
 
 ### Maintenance: Rust Workspace & CLI Fixes
 
-- **Implemented CLI `--report` feature**: Generates a detailed Markdown report with space analysis summary statistics, top-10 largest files, file type distributions, and optimization recommendations. The report is safely written to a fully canonicalized `space-analyzer-report.md` inside the scanned directory.
-- **Implemented CLI `--clean` feature**: Integrates the workspace's high-performance `file-deduplicator` engine to safely scan for duplicate files, calculate potential savings (with support for BLAKE3 hashing/GPU batching), breakdown duplicate groups, and default to a safe dry-run preview.
-- **Fixed `native/file_deduplicator`**: Ensured hard-link deduplication uses the standard library `fs::hard_link` path instead of an undeclared Windows-only crate import.
-- **Resolved top-level GUI module ambiguity**: Explicitly bound the database module to `src/database/mod.rs` and restored the `src/ollama` module tree so database settings can reference `PromptCacheConfig` again.
-- **Fixed stale `app_lib` references**: Migrated all remaining outdated compiler stubs in `src/main.rs` to target the actual `shared_scanner` workspace crate.
-- **Restored missing dependencies**: Added `bytes = "1"` to the root workspace `Cargo.toml` dependencies, which is required by the Ollama stream parser.
-- **Aligned test suites**: Restored all stale test parameters in `native/file_deduplicator` and `shared-scanner` so that workspace tests build and pass 100% cleanly.
+- **Implemented CLI `--report` feature**: Generates detailed Markdown report with space analysis summary.
+- **Implemented CLI `--clean` feature**: Integrates `file-deduplicator` engine for duplicate scanning with BLAKE3/GPU support, dry-run preview.
+- **Fixed `native/file_deduplicator`**: Hard-link deduplication uses `fs::hard_link` instead of Windows-only import.
+- **Resolved GUI module ambiguity**: Database module bound to `src/database/mod.rs`, restored `src/ollama` module tree.
+- **Fixed stale `app_lib` references**: Migrated compiler stubs to target `shared_scanner` workspace crate.
+- **Restored missing dependencies**: Added `bytes = "1"` for Ollama stream parser.
+- **Aligned test suites**: Workspace tests build and pass 100% cleanly.
 
 ## [3.1.0] - 2026-05-15
 

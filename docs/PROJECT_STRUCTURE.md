@@ -64,7 +64,7 @@ Space-Analyzer/
 ├── ai-service/                   # Python AI service (optional)
 ├── tests/                        # Integration tests
 │   ├── gui_test.rs               # GUI headless regression tests
-│   ├── lib_shim.rs               # Test shim for gui module
+│   ├── lib_shim.rs               # Test shim (legacy, tests now use crate directly)
 │   └── unit/                     # Unit tests
 └── tools/                        # Development tools
 ```
@@ -80,7 +80,7 @@ Space-Analyzer/
 
 | Binary | Entry Point | Description |
 |--------|-------------|-------------|
-| `space-analyzer-gui` | `src/gui/mod.rs` | Desktop GUI (egui/eframe) |
+| `space-analyzer-gui` | `src/bin/space-analyzer-gui.rs` (→ `gui::run_gui()`) | Desktop GUI (egui/eframe) |
 | `space-analyzer-pro` | `src/main.rs` | CLI for headless operation |
 | `flow-test-harness` | `src/bin/flow-test-harness.rs` | Automated flow test runner |
 
@@ -89,4 +89,4 @@ Space-Analyzer/
 - **New features**: Add to `src/gui/` (modular GUI) or `src/ollama/` (AI client)
 - **Dead code**: Move to `archive/legacy-modules/` if it was replaced
 - **Legacy code**: Move to `archive/v3.2.0-monolithic/` if it was superseded
-- **Tests**: Add to `tests/` directory; use `lib_shim.rs` for GUI integration tests
+- **Tests**: Add to `tests/` directory; import from `space_analyzer_pro_desktop::` directly

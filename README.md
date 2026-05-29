@@ -211,7 +211,7 @@ curl http://localhost:11434/api/tags
 
 ## Version History
 
-### [3.2.0] - 2026-05-16 - Self-Contained Architecture
+### [3.2.0] - 2026-05-29 - AI Recommendations & Architectural Fixes
 - **Consolidated to single Rust binary** - no external services required
 - **Embedded SQLite database** for scan history persistence
 - **Optional Ollama AI integration** - fully local, no cloud
@@ -233,4 +233,4 @@ curl http://localhost:11434/api/tags
 
 ---
 
-**Space Analyzer Pro v3.2.0** - Self-Contained, GPU-Accelerated, AI-Ready
+**Space Analyzer Pro v3.3.0** - Self-Contained, GPU-Accelerated, AI-Ready

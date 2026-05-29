@@ -99,7 +99,7 @@ graph TB
         ollama_mgmt["ai/ollama.rs<br/>process management"]
     end
 
-    subgraph external["External Modules (#[path])"]
+    subgraph external["External Modules (crate-level)"]
         database["database/mod.rs<br/>Database, AppSettings"]
         ollama["ollama/mod.rs<br/>OllamaClient, PromptCache"]
         tool_registry["tool_registry/mod.rs<br/>ToolRegistry"]

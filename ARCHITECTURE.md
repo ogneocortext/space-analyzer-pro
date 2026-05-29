@@ -10,7 +10,7 @@ Space Analyzer Pro is a **self-contained Rust application** with an embedded dat
 Space-Analyzer/
 ├── src/                          # PRIMARY APPLICATION (develop here)
 │   ├── gui/                      # v3.3.0 modular GUI (active binary entry point)
-│   │   ├── mod.rs                # Binary entry point, SpaceAnalyzerApp struct, main()
+│   │   ├── mod.rs                # SpaceAnalyzerApp struct, run_gui(), all gui submodules
 │   │   ├── ai/                   # AI subsystem (chat, model discovery, quick actions)
 │   │   ├── scan.rs               # Scan UI rendering
 │   │   ├── dashboard.rs          # Dashboard UI
@@ -34,12 +34,12 @@ Space-Analyzer/
 │       └── flow-test-harness.rs  # Automated flow test binary
 ├── archive/                      # Archived/experimental components (DO NOT develop here)
 │   ├── v3.2.0-monolithic/        # Legacy monolithic GUI (superseded by gui/)
-│   │   ├── gui.rs                # v3.2.0 monolithic GUI (983 lines, all-in-one)
+│   │   ├── gui.rs                # v3.2.0 monolithic GUI (archived → archive/v3.2.0-monolithic/)
 │   │   └── gui.rs.backup         # Old backup
 │   ├── legacy-modules/           # Dead modules removed from active code
 │   │   ├── ai_skills.rs          # AI skills module (never wired up)
 │   │   ├── ollama_client.rs      # Legacy Ollama client (replaced by ollama/)
-│   │   └── database.rs           # Legacy single-file database (replaced by database/)
+│   │   └── database.rs           # Legacy single-file database (archived → archive/legacy-modules/)
 │   ├── vue-frontend/             # Archived Vue.js frontend (pre-v3.0)
 │   ├── native-gui/               # Archived experimental egui GUI
 │   ├── rust-tauri/               # Archived failed Tauri build

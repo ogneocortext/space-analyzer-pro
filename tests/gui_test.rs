@@ -1,20 +1,15 @@
 //! Space Analyzer Pro — GUI headless regression tests
 //!
-//! Tests the GUI implementation via lib_shim, which includes the real
-//! src/gui/mod.rs via #[path] so all tests run against the actual code.
+//! Uses the library crate directly (no #[path] shim needed since v3.2.0).
 //!
 //! Run: cargo test --test gui_test
 
 #![cfg(test)]
-// Suppress pre-existing upstream warnings pulled in via lib_shim (dead code,
-// unused imports/vars in Ollama types, session_logger, flow_test, etc. —
-// all upstream concerns, not test harness issues).
-#![allow(dead_code, unused_imports, unused_variables, unused_mut)]
 
-#[path = "lib_shim.rs"]
-mod lib_shim;
-
-use lib_shim::*;
+use space_analyzer_pro_desktop::gui::{self, SpaceAnalyzerApp, ChatMessage, ScanMessage};
+use space_analyzer_pro_desktop::gui::AppTab;
+use space_analyzer_pro_desktop::database::AppSettings;
+use space_analyzer_pro_desktop::workflows::WorkflowTemplates;
 
 // ──────────────────────────────────────────────────────────────────────────────
 
