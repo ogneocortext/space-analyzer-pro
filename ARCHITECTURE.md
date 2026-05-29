@@ -1,6 +1,6 @@
 # Space Analyzer Pro - Architecture Overview
 
-## Current Architecture (v3.2.0)
+## Current Architecture (v3.3.0)
 
 Space Analyzer Pro is a **self-contained Rust application** with an embedded database, optional AI integration, and GPU acceleration - all in a single binary.
 
@@ -9,62 +9,97 @@ Space Analyzer Pro is a **self-contained Rust application** with an embedded dat
 ```
 Space-Analyzer/
 ├── src/                          # PRIMARY APPLICATION (develop here)
-│   ├── gui.rs                    # Main egui GUI - the active desktop app
+│   ├── gui/                      # v3.3.0 modular GUI (active binary entry point)
+│   │   ├── mod.rs                # Binary entry point, SpaceAnalyzerApp struct, main()
+│   │   ├── ai/                   # AI subsystem (chat, model discovery, quick actions)
+│   │   ├── scan.rs               # Scan UI rendering
+│   │   ├── dashboard.rs          # Dashboard UI
+│   │   ├── embeddings.rs         # Smart search / semantic embeddings UI
+│   │   ├── dedup.rs              # Deduplication UI
+│   │   ├── history.rs            # Scan history UI
+│   │   ├── settings.rs           # Settings UI
+│   │   ├── system.rs             # System info UI
+│   │   └── workflow_render.rs    # Workflow UI
 │   ├── main.rs                   # CLI binary
 │   ├── gui_common.rs             # Shared types and scanning utilities
-│   ├── database.rs               # Embedded SQLite persistence
-│   ├── ollama_client.rs          # Optional Ollama AI integration
+│   ├── database/                 # Embedded SQLite persistence
+│   ├── ollama/                   # Ollama AI client (modular)
+│   ├── tool_registry/            # AI tool definitions and execution
+│   ├── workflows/                # Native workflow orchestration
+│   ├── session_logger.rs         # Structured JSON session logging
 │   ├── system_monitor.rs         # Disk/CPU/memory/GPU monitoring
-│   ├── ai_skills.rs              # AI analysis skills
-│   └── workflows/mod.rs          # Native workflow orchestration
+│   ├── embedding_service.rs      # Embedding generation service
+│   ├── utils.rs                  # Error sanitization utilities
+│   └── bin/
+│       └── flow-test-harness.rs  # Automated flow test binary
+├── archive/                      # Archived/experimental components (DO NOT develop here)
+│   ├── v3.2.0-monolithic/        # Legacy monolithic GUI (superseded by gui/)
+│   │   ├── gui.rs                # v3.2.0 monolithic GUI (983 lines, all-in-one)
+│   │   └── gui.rs.backup         # Old backup
+│   ├── legacy-modules/           # Dead modules removed from active code
+│   │   ├── ai_skills.rs          # AI skills module (never wired up)
+│   │   ├── ollama_client.rs      # Legacy Ollama client (replaced by ollama/)
+│   │   └── database.rs           # Legacy single-file database (replaced by database/)
+│   ├── vue-frontend/             # Archived Vue.js frontend (pre-v3.0)
+│   ├── native-gui/               # Archived experimental egui GUI
+│   ├── rust-tauri/               # Archived failed Tauri build
+│   └── python-orchestrator/      # Archived Python orchestrator
 ├── shared-scanner/               # Shared scanner library
 ├── gpu-compute/                  # GPU acceleration layer
 ├── native/                       # Standalone native tools
 ├── server/                       # Node.js backend (optional, for web mode)
 ├── ai-service/                   # Python AI service (optional, for web mode)
-├── archive/                      # Archived/experimental components (DO NOT develop here)
-│   ├── vue-frontend/             # Archived Vue.js frontend (pre-v3.0)
-│   ├── native-gui/               # Archived experimental egui GUI
-│   ├── rust-tauri/               # Archived failed Tauri build
-│   └── python-orchestrator/      # Archived Python orchestrator
+├── tests/                        # Integration tests
 └── tools/                        # Development tools
 ```
 
 ## Active Components
 
-### Primary GUI (`src/gui.rs`)
+### Primary GUI (`src/gui/mod.rs`)
 
-The **only active GUI implementation**. Uses egui/eframe for native desktop rendering.
+The **only active GUI implementation** (v3.3.0). Modular architecture using egui/eframe for native desktop rendering.
 
 Features:
 - Directory scanning with real-time progress
 - Embedded SQLite database for persistence
-- Optional Ollama AI chat integration
+- Ollama AI chat with tool calling and auto-model selection
+- Prompt caching for faster responses
+- Smart search via semantic embeddings
 - Native workflow orchestration
 - System monitoring (CPU, memory, disk, GPU)
 - Scan history management
 - AI recommendations (rule-based + Ollama)
+- Session logging for flow test analysis
+
+Module structure:
+- `gui/ai/` — AI subsystem (chat, model discovery, quick actions, rendering)
+- `gui/scan.rs` — Scan UI rendering
+- `gui/embeddings.rs` — Smart search / semantic embeddings
+- `gui/workflow_render.rs` — Workflow UI
 
 ### CLI (`src/main.rs`)
 
 Command-line interface for headless operation.
 
-### Embedded Database (`src/database.rs`)
+### Embedded Database (`src/database/`)
 
 SQLite database embedded via `rusqlite` with bundled SQLite. Stores:
 - Scan history (path, files, sizes, timestamps)
 - Application settings
-- Workflow execution records
+- File embeddings for semantic search
 
 No external database server required.
 
-### Ollama Client (`src/ollama_client.rs`)
+### Ollama Client (`src/ollama/`)
 
-Optional HTTP client for local Ollama LLM integration:
-- Chat with scan results
-- AI-powered cleanup recommendations
-- Natural language queries about disk usage
-- Fully local - no cloud services
+Modular Ollama AI client:
+- Chat with tool calling and auto-model selection
+- Embedding generation for semantic search
+- Prompt caching with LRU eviction
+- JSON response repair
+- Streaming response parsing
+
+Fully local — no cloud services.
 
 ### System Monitor (`src/system_monitor.rs`)
 
@@ -104,7 +139,7 @@ The following components have been **archived** and should NOT be used for new d
 
 ### Experimental egui GUI (`archive/native-gui/`)
 - **Archived:** 2026-05-16
-- **Reason:** Superseded by `src/gui.rs` which has more features
+- **Reason:** Superseded by `src/gui/mod.rs` which has more features
 - **Contents:** Standalone egui app with GPU dashboard
 
 ### Tauri Desktop Build (`archive/rust-tauri/`)
@@ -121,7 +156,7 @@ The following components have been **archived** and should NOT be used for new d
 
 ### Self-Contained Mode (Primary)
 ```
-User -> egui GUI (src/gui.rs)
+User -> egui GUI (src/gui/mod.rs)
          ├── Embedded SQLite (rusqlite)
          ├── File Scanner (walkdir + shared-scanner)
          ├── GPU Compute (gpu-compute)
@@ -157,9 +192,9 @@ Vue.js Frontend (archived) -> Node.js Backend (server/) -> Python AI Service (ai
 
 ### Adding New Features
 1. Add logic to appropriate module in `src/`
-2. Update GUI in `src/gui.rs`
-3. If persistent, add to `src/database.rs`
-4. If AI-related, update `src/ollama_client.rs` or `src/ai_skills.rs`
+2. Update GUI in `src/gui/` (modular architecture)
+3. If persistent, add to `src/database/`
+4. If AI-related, update `src/ollama/` or `src/gui/ai/`
 
 ### NEVER
 - Create new GUI implementations

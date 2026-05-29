@@ -84,7 +84,7 @@ pub mod advanced {
             );
 
             if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
-                let win_err = WindowsError::new(unsafe { GetLastError() }, "Open volume for USN query");
+                let win_err = WindowsError::new(GetLastError(), "Open volume for USN query");
                 eprintln!("Windows Advanced: {}", win_err.format_error());
                 return None;
             }
@@ -136,7 +136,7 @@ pub mod advanced {
             );
 
             if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
-                let win_err = WindowsError::new(unsafe { GetLastError() }, "Open volume for USN enum");
+                let win_err = WindowsError::new(GetLastError(), "Open volume for USN enum");
                 eprintln!("Windows Advanced: {}", win_err.format_error());
                 return changes;
             }
@@ -257,7 +257,7 @@ pub mod advanced {
             );
 
             if handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
-                let win_err = WindowsError::new(unsafe { GetLastError() }, "Find file hard links");
+                let win_err = WindowsError::new(GetLastError(), "Find file hard links");
                 eprintln!("Windows Advanced: {}", win_err.format_error());
                 return links;
             }
@@ -365,7 +365,7 @@ pub mod advanced {
             );
 
             if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
-                let win_err = WindowsError::new(unsafe { GetLastError() }, "Open volume for MFT scan");
+                let win_err = WindowsError::new(GetLastError(), "Open volume for MFT scan");
                 eprintln!("Windows Advanced: {} - Administrator privileges may be required.", win_err.format_error());
                 return files;
             }

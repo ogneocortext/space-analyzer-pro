@@ -1,0 +1,792 @@
+use super::*;
+
+/// Escape HTML special characters to prevent XSS
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+     .replace('<', "&lt;")
+     .replace('>', "&gt;")
+     .replace('"', "&quot;")
+     .replace('\'', "&#x27;")
+}
+
+impl SpaceAnalyzerApp {
+    /// Common handler for workflow action types (except Scan first-run logic)
+    fn handle_workflow_action(&mut self, action: &WorkflowAction) {
+        match action {
+            WorkflowAction::Scan { path, deep, .. } => {
+                self.current_path = PathBuf::from(path);
+                self.settings.default_deep_scan = *deep;
+                self.start_scan();
+            }
+            WorkflowAction::Notify { title, message } => {
+                self.push_notification(format!("{}: {}", title, message), NotificationLevel::Info);
+            }
+            WorkflowAction::AIAnalyze { prompt }
+                if self.ollama_client.is_some() && self.scan_result.is_some() =>
+            {
+                if self.settings.auto_model_selection {
+                    self.select_model_for_task("Complex Analysis");
+                }
+                let old_input = self.chat_input.clone();
+                self.chat_input = prompt.clone();
+                self.send_chat_message();
+                self.chat_input = old_input;
+            }
+            WorkflowAction::AIAnalyze { .. } => {
+                self.push_notification("Ollama not available or no scan results", NotificationLevel::Warning);
+            }
+            WorkflowAction::GenerateRecommendations => {
+                self.generate_ai_recommendations();
+            }
+            WorkflowAction::FindDuplicates { paths, use_gpu } => {
+                self.start_deduplication(paths.clone(), *use_gpu);
+            }
+            WorkflowAction::PredictStorage { days_ahead } => {
+                if let Some(ref db) = self.db {
+                    match db.get_storage_trend(50) {
+                        Ok(trend) if trend.len() >= 2 => {
+                            let last_size = trend.last().map(|(_, s)| *s).unwrap_or(0);
+                            let first_size = trend.first().map(|(_, s)| *s).unwrap_or(0);
+                            let growth = last_size as f64 - first_size as f64;
+                            let first_ts = trend.first().map(|(ts, _)| ts.as_str()).unwrap_or("");
+                            let last_ts = trend.last().map(|(ts, _)| ts.as_str()).unwrap_or("");
+                            let first_dt = chrono::DateTime::parse_from_rfc3339(first_ts).ok();
+                            let last_dt = chrono::DateTime::parse_from_rfc3339(last_ts).ok();
+                            let days_between = match (first_dt, last_dt) {
+                                (Some(f), Some(l)) => {
+                                    let diff = l.signed_duration_since(f);
+                                    let days = diff.num_seconds() as f64 / 86400.0;
+                                    if days > 0.0 { days } else { (trend.len() - 1) as f64 * 7.0 }
+                                }
+                                _ => (trend.len() - 1) as f64 * 7.0,
+                            };
+                            let daily_growth = if days_between > 0.0 { growth / days_between } else { 0.0 };
+                            let predicted = last_size as f64 + daily_growth * *days_ahead as f64;
+                            self.push_notification(
+                                format!("Prediction: In {} days: {:.2} MB (growth: {:.2} MB/day)",
+                                    days_ahead, predicted / (1024.0 * 1024.0), daily_growth / (1024.0 * 1024.0)),
+                                NotificationLevel::Info);
+                        }
+                        _ => {
+                            self.push_notification("Not enough historical data for prediction", NotificationLevel::Warning);
+                        }
+                    }
+                }
+            }
+            WorkflowAction::Export { format, path } => {
+                self.execute_workflow_export(format, path);
+            }
+        }
+    }
+
+    pub fn run_workflow(&mut self, workflow_id: &str) {
+        if let Some(index) = self.workflows.iter().position(|w| w.id == workflow_id) {
+            let workflow = self.workflows[index].clone();
+            let execution = workflow.start_execution();
+            self.active_workflow = Some(execution);
+            self.pending_workflow_actions.clear();
+
+            let mut scan_started = false;
+            for action in &workflow.actions {
+                match action {
+                    WorkflowAction::Scan { .. } if !scan_started => {
+                        self.handle_workflow_action(action);
+                        scan_started = true;
+                    }
+                    WorkflowAction::Scan { .. } => {
+                        self.pending_workflow_actions.push(action.clone());
+                    }
+                    _ => self.handle_workflow_action(action),
+                }
+            }
+            self.push_notification(format!("Started: {}", workflow.name), NotificationLevel::Info);
+        }
+    }
+
+    fn execute_workflow_export(&mut self, format: &workflows::ExportFormat, path: &Option<String>) {
+        if let Some(ref result) = self.scan_result {
+            let ext = match format {
+                workflows::ExportFormat::Json => "json",
+                workflows::ExportFormat::Csv => "csv",
+                workflows::ExportFormat::Html | workflows::ExportFormat::Pdf => "html",
+            };
+            let export_path = path.clone().unwrap_or_else(|| {
+                format!("scan_export_{}.{}", chrono::Utc::now().timestamp_millis(), ext)
+            });
+            let content = match format {
+                workflows::ExportFormat::Json => serde_json::to_string_pretty(result).unwrap_or_default(),
+                workflows::ExportFormat::Csv => {
+                    let mut csv = String::from("path,size_bytes\n");
+                    for (p, s) in &result.largest_files {
+                        csv.push_str(&format!("{},{}\n", p, s));
+                    }
+                    csv
+                }
+                workflows::ExportFormat::Html => {
+                    let mut html = String::from("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Space Analyzer Report</title>");
+                    html.push_str("<style>body{font-family:sans-serif;margin:20px;background:#1a1a1a;color:#e0e0e0}table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:8px;text-align:left}th{background:#2d5a27;color:white}tr:nth-child(even){background:#222}</style>");
+                    html.push_str("</head><body>");
+                    html.push_str(&format!("<h1>Space Analyzer Report</h1>"));
+                    html.push_str(&format!("<p>Path: {}</p>", escape_html(&result.path)));
+                    html.push_str(&format!("<p>Total Files: {} | Total Size: {:.2} MB | Duration: {:.1}s</p>",
+                        result.total_files, result.total_size_mb, result.duration_secs));
+                    html.push_str("<h2>File Types</h2><table><tr><th>Extension</th><th>Count</th></tr>");
+                    let mut sorted: Vec<_> = result.file_types.iter().collect();
+                    sorted.sort_by(|a, b| b.1.cmp(a.1));
+                    for (ext, count) in sorted {
+                        html.push_str(&format!("<tr><td>.{}</td><td>{}</td></tr>", escape_html(ext), count));
+                    }
+                    html.push_str("</table><h2>Largest Files</h2><table><tr><th>Path</th><th>Size</th></tr>");
+                    for (p, s) in &result.largest_files {
+                        html.push_str(&format!("<tr><td>{}</td><td>{:.2} MB</td></tr>",
+                            escape_html(p), *s as f64 / (1024.0 * 1024.0)));
+                    }
+                    html.push_str("</table></body></html>");
+                    html
+                }
+                workflows::ExportFormat::Pdf => {
+                    let mut html = String::from("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Space Analyzer Report</title>");
+                    html.push_str("<style>@media print{body{margin:0}}body{font-family:sans-serif;margin:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px}th{background:#4CAF50;color:white}</style>");
+                    html.push_str("</head><body>");
+                    html.push_str(&format!("<h1>Scan: {} files, {:.2} MB</h1>", result.total_files, result.total_size_mb));
+                    html.push_str(&format!("<p>Path: {}</p>", escape_html(&result.path)));
+                    html.push_str("<h2>File Types</h2><table><tr><th>Extension</th><th>Count</th></tr>");
+                    let mut sorted: Vec<_> = result.file_types.iter().collect();
+                    sorted.sort_by(|a, b| b.1.cmp(a.1));
+                    for (ext, count) in sorted {
+                        html.push_str(&format!("<tr><td>.{}</td><td>{}</td></tr>", escape_html(ext), count));
+                    }
+                    html.push_str("</table><script>window.print();</script></body></html>");
+                    self.push_notification("PDF: opened print dialog for 'Save as PDF'", NotificationLevel::Info);
+                    html
+                }
+            };
+            if let Err(e) = std::fs::write(&export_path, content) {
+                self.push_notification(format!("Export failed: {}", sanitize_error_message(&e.to_string())), NotificationLevel::Error);
+            } else {
+                self.push_notification(format!("Exported to: {}", export_path), NotificationLevel::Success);
+            }
+        } else {
+            self.push_notification("No scan results to export", NotificationLevel::Warning);
+        }
+    }
+
+    pub(crate) fn execute_pending_workflow_actions(&mut self) {
+        let actions: Vec<WorkflowAction> = self.pending_workflow_actions.drain(..).collect();
+        for action in &actions {
+            self.handle_workflow_action(action);
+        }
+    }
+
+    /// Generate storage recommendations using either heuristic rules or AI.
+    /// Auto-falls back to heuristic if AI is enabled but Ollama is unavailable.
+    pub fn generate_ai_recommendations(&mut self) {
+        let use_ai = self.settings.ai_recommendation_enabled
+            && self.ollama_client.is_some()
+            && self.ollama_available
+            && self.scan_result.is_some();
+
+        if use_ai {
+            self.start_ai_recommendation();
+        } else {
+            self.generate_storage_recommendations();
+        }
+    }
+
+    /// Heuristic rule-based recommendations (no Ollama needed)
+    pub fn generate_storage_recommendations(&mut self) {
+        self.ai_recommendation_source = "heuristic".to_string();
+        self.ai_recommendation_pending = false;
+        if let Some(ref result) = self.scan_result {
+            self.ai_recommendations = StorageInsights::generate_recommendations(result);
+        } else {
+            self.ai_recommendations.clear();
+        }
+    }
+
+    /// Start async AI-powered recommendation via Ollama
+    fn start_ai_recommendation(&mut self) {
+        if self.ai_recommendation_pending {
+            return;
+        }
+        let result = match self.scan_result {
+            Some(ref r) => r.clone(),
+            None => return,
+        };
+        let client = match self.ollama_client {
+            Some(ref c) => c.clone(),
+            None => {
+                self.generate_storage_recommendations();
+                return;
+            }
+        };
+
+        self.ai_recommendation_pending = true;
+        self.ai_recommendation_source = "ai".to_string();
+        let (tx, rx) = mpsc::channel();
+        self.ai_recommendation_receiver = Some(rx);
+
+        let model = self.settings.ollama_model.clone();
+        std::thread::spawn(move || {
+            let rt = super::shared_runtime();
+            let (recommendations, is_ai) = rt.block_on(async {
+                generate_ai_recommendations_async(&client, &model, &result).await
+            });
+            let _ = tx.send((recommendations, is_ai));
+        });
+    }
+
+    /// Check for completed AI recommendations
+    pub fn process_ai_recommendations(&mut self) {
+        if let Some(rx) = self.ai_recommendation_receiver.take() {
+            if let Ok((recommendations, is_ai)) = rx.try_recv() {
+                self.ai_recommendations = recommendations;
+                self.ai_recommendation_source = if is_ai { "ai".to_string() } else { "heuristic".to_string() };
+                self.ai_recommendation_pending = false;
+            } else {
+                self.ai_recommendation_receiver = Some(rx);
+            }
+        }
+    }
+
+    pub fn process_scheduled_workflows(&mut self) {
+        use chrono::Local;
+        use workflows::matches_cron;
+
+        let now = Local::now();
+        let current_minute = now.format("%Y-%m-%dT%H:%M").to_string();
+
+        let to_run: Vec<String> = self.workflows.iter()
+            .filter(|w| w.enabled)
+            .filter_map(|w| match &w.trigger {
+                WorkflowTrigger::Scheduled(cron_expr) => {
+                    if let Some(ref last_run) = w.last_run {
+                        if last_run.starts_with(&current_minute[..16]) {
+                            return None;
+                        }
+                    }
+                    if matches_cron(cron_expr, &now) {
+                        Some(w.id.clone())
+                    } else {
+                        None
+                    }
+                }
+                WorkflowTrigger::LowDiskSpace { threshold_percent } => {
+                    // Check if any disk is below threshold
+                    let triggered = self.disk_volumes.iter().any(|v| {
+                        v.usage_percent >= *threshold_percent as f32
+                    });
+                    if triggered {
+                        Some(w.id.clone())
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            })
+            .collect();
+        for id in &to_run {
+            self.run_workflow(&id);
+        }
+    }
+
+    /// Load workflow execution history from database
+    pub fn load_workflow_history(&mut self) {
+        if let Some(ref db) = self.db {
+            self.workflow_history = db.get_workflow_history(100).unwrap_or_default();
+        }
+    }
+
+    /// Save a workflow execution to database
+    pub fn save_workflow_execution_to_db(&self, exec: &WorkflowExecution) {
+        if let Some(ref db) = self.db {
+            if let Err(e) = db.save_workflow_execution(exec) {
+                eprintln!("Warning: Failed to save workflow execution: {}", e);
+            }
+        }
+    }
+
+    /// Export all workflows to JSON
+    pub fn export_workflows(&mut self) {
+        if let Some(path) = rfd::FileDialog::new()
+            .set_title("Export Workflows")
+            .add_filter("JSON", &["json"])
+            .save_file()
+        {
+            if let Ok(data) = serde_json::to_string_pretty(&self.workflows) {
+                if let Err(e) = std::fs::write(&path, data) {
+                    self.push_notification(format!("Export failed: {}", e), NotificationLevel::Error);
+                } else {
+                    self.push_notification("Workflows exported", NotificationLevel::Success);
+                }
+            }
+        }
+    }
+
+    /// Import workflows from JSON
+    pub fn import_workflows(&mut self) {
+        if let Some(path) = rfd::FileDialog::new()
+            .set_title("Import Workflows")
+            .add_filter("JSON", &["json"])
+            .pick_file()
+        {
+            if let Ok(data) = std::fs::read_to_string(&path) {
+                if let Ok(imported) = serde_json::from_str::<Vec<Workflow>>(&data) {
+                    let count = imported.len();
+                    for workflow in imported {
+                        if !self.workflows.iter().any(|w| w.id == workflow.id) {
+                            self.workflows.push(workflow);
+                        }
+                    }
+                    self.push_notification(format!("Imported {} workflows", count), NotificationLevel::Success);
+                } else {
+                    self.push_notification("Invalid workflow file", NotificationLevel::Error);
+                }
+            }
+        }
+    }
+
+    /// Save a custom workflow
+    pub fn save_custom_workflow(&mut self, workflow: Workflow) {
+        if let Some(pos) = self.workflows.iter().position(|w| w.id == workflow.id) {
+            self.workflows[pos] = workflow;
+        } else {
+            self.workflows.push(workflow);
+        }
+        self.show_workflow_editor = false;
+        self.editing_workflow = None;
+        self.push_notification("Workflow saved", NotificationLevel::Success);
+    }
+
+    /// Delete a workflow
+    pub fn delete_workflow(&mut self, workflow_id: &str) {
+        self.workflows.retain(|w| w.id != workflow_id);
+        self.push_notification("Workflow deleted", NotificationLevel::Success);
+    }
+
+    pub(crate) fn render_workflows(&mut self, ui: &mut egui::Ui) {
+        ui.heading("Automation Workflows");
+        ui.separator();
+
+        // Active workflow status
+        if let Some(ref execution) = self.active_workflow {
+            ui.horizontal(|ui| {
+                let status_color = match execution.status {
+                    ExecutionStatus::Running => egui::Color32::YELLOW,
+                    ExecutionStatus::Completed => egui::Color32::GREEN,
+                    ExecutionStatus::Failed => egui::Color32::RED,
+                    _ => egui::Color32::GRAY,
+                };
+                ui.label(egui::RichText::new(format!("{}: {}", execution.workflow_name, execution.status)).color(status_color).strong());
+                if execution.status == ExecutionStatus::Running {
+                    ui.label(format!("{}/{} actions", execution.actions_completed, execution.total_actions));
+                }
+            });
+            ui.separator();
+        }
+
+        // Workflow list
+        let mut run_workflow_id: Option<String> = None;
+        let mut delete_workflow_id: Option<String> = None;
+        let mut edit_workflow_id: Option<String> = None;
+
+        for workflow in &self.workflows {
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    ui.label(egui::RichText::new(&workflow.name).strong());
+                    ui.small(&workflow.description);
+                    ui.horizontal(|ui| {
+                        ui.small(format!("{} | {} actions", workflow.category, workflow.actions.len()));
+                        if !workflow.enabled {
+                            ui.small(egui::RichText::new("(disabled)").color(egui::Color32::GRAY));
+                        }
+                    });
+                });
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("Delete").clicked() {
+                        delete_workflow_id = Some(workflow.id.clone());
+                    }
+                    if ui.small_button("Edit").clicked() {
+                        edit_workflow_id = Some(workflow.id.clone());
+                    }
+                    if ui.add_enabled(workflow.enabled, egui::Button::new("Run")).clicked() {
+                        run_workflow_id = Some(workflow.id.clone());
+                    }
+                });
+            });
+            ui.separator();
+        }
+
+        // Execute actions
+        if let Some(id) = run_workflow_id {
+            self.run_workflow(&id);
+        }
+        if let Some(id) = delete_workflow_id {
+            self.delete_workflow(&id);
+        }
+        if let Some(id) = edit_workflow_id {
+            if let Some(workflow) = self.workflows.iter().find(|w| w.id == id).cloned() {
+                self.editing_workflow = Some(workflow);
+                self.show_workflow_editor = true;
+            }
+        }
+
+        // Import/Export/New buttons
+        ui.separator();
+        ui.horizontal(|ui| {
+            if ui.button("+ New Workflow").clicked() {
+                let id = format!("custom-{}", chrono::Utc::now().timestamp_millis());
+                self.editing_workflow = Some(Workflow::new(&id, "New Workflow", workflows::WorkflowCategory::Custom));
+                self.show_workflow_editor = true;
+            }
+            if ui.button("Import").clicked() {
+                self.import_workflows();
+            }
+            if ui.button("Export All").clicked() {
+                self.export_workflows();
+            }
+        });
+
+        // Execution history
+        if !self.workflow_history.is_empty() {
+            ui.separator();
+            egui::CollapsingHeader::new(
+                egui::RichText::new(format!("Execution History ({})", self.workflow_history.len())).strong())
+                .default_open(false)
+                .show(ui, |ui| {
+                    for exec in self.workflow_history.iter().rev().take(10) {
+                        let color = match exec.status {
+                            ExecutionStatus::Completed => egui::Color32::GREEN,
+                            ExecutionStatus::Failed => egui::Color32::RED,
+                            ExecutionStatus::Running => egui::Color32::YELLOW,
+                            _ => egui::Color32::GRAY,
+                        };
+                        ui.horizontal(|ui| {
+                            ui.label(egui::RichText::new(format!("{}", exec.status)).color(color));
+                            ui.label(&exec.workflow_name);
+                            ui.small(&exec.started_at);
+                        });
+                    }
+                });
+        }
+
+        // Workflow editor modal
+        if self.show_workflow_editor {
+            self.render_workflow_editor(ui);
+        }
+    }
+
+    fn render_workflow_editor(&mut self, ui: &mut egui::Ui) {
+        egui::Window::new("Workflow Editor")
+            .collapsible(false)
+            .resizable(false)
+            .default_width(550.0)
+            .show(ui.ctx(), |ui| {
+                if let Some(ref mut workflow) = self.editing_workflow {
+                    // Basic info
+                    ui.horizontal(|ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut workflow.name);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Description:");
+                        ui.text_edit_singleline(&mut workflow.description);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Category:");
+                        egui::ComboBox::from_id_source("category")
+                            .selected_text(format!("{}", workflow.category))
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(&mut workflow.category, workflows::WorkflowCategory::Maintenance, "Maintenance");
+                                ui.selectable_value(&mut workflow.category, workflows::WorkflowCategory::Optimization, "Optimization");
+                                ui.selectable_value(&mut workflow.category, workflows::WorkflowCategory::Organization, "Organization");
+                                ui.selectable_value(&mut workflow.category, workflows::WorkflowCategory::Monitoring, "Monitoring");
+                                ui.selectable_value(&mut workflow.category, workflows::WorkflowCategory::Custom, "Custom");
+                            });
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Enabled:");
+                        ui.checkbox(&mut workflow.enabled, "");
+                    });
+
+                    // Trigger configuration
+                    ui.separator();
+                    ui.label(egui::RichText::new("Trigger").strong());
+
+                    // Trigger type selector
+                    let current_trigger_type = match &workflow.trigger {
+                        workflows::WorkflowTrigger::Manual => "Manual",
+                        workflows::WorkflowTrigger::Scheduled(_) => "Scheduled (Cron)",
+                        workflows::WorkflowTrigger::LowDiskSpace { .. } => "Low Disk Space",
+                        workflows::WorkflowTrigger::FileSystemChange => "File System Change",
+                        workflows::WorkflowTrigger::OnStartup => "On Startup",
+                    };
+
+                    egui::ComboBox::from_id_source("trigger_type")
+                        .selected_text(current_trigger_type)
+                        .show_ui(ui, |ui| {
+                            if ui.selectable_label(matches!(workflow.trigger, workflows::WorkflowTrigger::Manual), "Manual").clicked() {
+                                workflow.trigger = workflows::WorkflowTrigger::Manual;
+                            }
+                            if ui.selectable_label(matches!(workflow.trigger, workflows::WorkflowTrigger::Scheduled(_)), "Scheduled (Cron)").clicked() {
+                                workflow.trigger = workflows::WorkflowTrigger::Scheduled("0 0 * * *".to_string());
+                            }
+                            if ui.selectable_label(matches!(workflow.trigger, workflows::WorkflowTrigger::LowDiskSpace { .. }), "Low Disk Space").clicked() {
+                                workflow.trigger = workflows::WorkflowTrigger::LowDiskSpace { threshold_percent: 90 };
+                            }
+                            if ui.selectable_label(matches!(workflow.trigger, workflows::WorkflowTrigger::OnStartup), "On Startup").clicked() {
+                                workflow.trigger = workflows::WorkflowTrigger::OnStartup;
+                            }
+                        });
+
+                    // Trigger-specific configuration
+                    match &mut workflow.trigger {
+                        workflows::WorkflowTrigger::Manual => {
+                            ui.small("Workflow runs only when manually triggered.");
+                        }
+                        workflows::WorkflowTrigger::Scheduled(cron) => {
+                            ui.horizontal(|ui| {
+                                ui.label("Schedule:");
+                                ui.text_edit_singleline(cron);
+                            });
+                            // Cron presets
+                            ui.horizontal(|ui| {
+                                ui.small("Presets:");
+                                if ui.small_button("Daily").clicked() { *cron = "0 0 * * *".to_string(); }
+                                if ui.small_button("Weekly").clicked() { *cron = "0 0 * * 1".to_string(); }
+                                if ui.small_button("Monthly").clicked() { *cron = "0 0 1 * *".to_string(); }
+                                if ui.small_button("Hourly").clicked() { *cron = "0 * * * *".to_string(); }
+                            });
+                        }
+                        workflows::WorkflowTrigger::LowDiskSpace { threshold_percent } => {
+                            ui.horizontal(|ui| {
+                                ui.label("Alert when usage exceeds:");
+                                ui.add(egui::DragValue::new(threshold_percent)
+                                    .clamp_range(1..=99)
+                                    .suffix("%"));
+                            });
+                        }
+                        workflows::WorkflowTrigger::OnStartup => {
+                            ui.small("Workflow runs when the application starts.");
+                        }
+                        _ => {
+                            ui.small("(Automatic trigger)");
+                        }
+                    }
+
+                    // Actions
+                    ui.separator();
+                    ui.label(egui::RichText::new("Actions").strong());
+                    ui.small("Actions run in order from top to bottom.");
+
+                    let mut remove_action: Option<usize> = None;
+                    let mut move_action: Option<(usize, i32)> = None;
+
+                    for (i, action) in workflow.actions.iter().enumerate() {
+                        ui.horizontal(|ui| {
+                            // Move buttons
+                            if ui.small_button("▲").clicked() && i > 0 {
+                                move_action = Some((i, -1));
+                            }
+                            if ui.small_button("▼").clicked() && i + 1 < workflow.actions.len() {
+                                move_action = Some((i, 1));
+                            }
+
+                            let (label, details) = match action {
+                                workflows::WorkflowAction::Scan { path, deep, .. } => {
+                                    ("Scan", format!("{} ({})", path, if *deep { "deep" } else { "quick" }))
+                                }
+                                workflows::WorkflowAction::FindDuplicates { paths, .. } => {
+                                    ("Find Duplicates", format!("{} path(s)", paths.len()))
+                                }
+                                workflows::WorkflowAction::PredictStorage { days_ahead, .. } => {
+                                    ("Predict Storage", format!("{} days ahead", days_ahead))
+                                }
+                                workflows::WorkflowAction::GenerateRecommendations => {
+                                    ("Generate Recommendations", String::new())
+                                }
+                                workflows::WorkflowAction::Export { format, .. } => {
+                                    ("Export", format!("{:?}", format))
+                                }
+                                workflows::WorkflowAction::Notify { title, .. } => {
+                                    ("Notify", title.clone())
+                                }
+                                workflows::WorkflowAction::AIAnalyze { prompt } => {
+                                    ("AI Analyze", format!("{}...", &prompt[..prompt.len().min(25)]))
+                                }
+                            };
+
+                            ui.label(egui::RichText::new(label).strong());
+                            if !details.is_empty() {
+                                ui.small(details);
+                            }
+                            if ui.small_button("X").clicked() {
+                                remove_action = Some(i);
+                            }
+                        });
+                    }
+
+                    if let Some(i) = remove_action {
+                        workflow.actions.remove(i);
+                    }
+                    if let Some((i, dir)) = move_action {
+                        let new_pos = (i as i32 + dir) as usize;
+                        if new_pos < workflow.actions.len() {
+                            workflow.actions.swap(i, new_pos);
+                        }
+                    }
+
+                    // Add action buttons
+                    ui.separator();
+                    ui.label(egui::RichText::new("Add Action").strong());
+                    ui.horizontal_wrapped(|ui| {
+                        if ui.button("📁 Scan").clicked() {
+                            workflow.actions.push(workflows::WorkflowAction::Scan {
+                                path: self.current_path.to_string_lossy().to_string(),
+                                deep: self.settings.default_deep_scan,
+                                min_size: None,
+                            });
+                        }
+                        if ui.button("🔍 Find Duplicates").clicked() {
+                            workflow.actions.push(workflows::WorkflowAction::FindDuplicates {
+                                paths: vec![self.current_path.to_string_lossy().to_string()],
+                                use_gpu: self.settings.dedup_use_gpu,
+                            });
+                        }
+                        if ui.button("📈 Predict Storage").clicked() {
+                            workflow.actions.push(workflows::WorkflowAction::PredictStorage { days_ahead: 30 });
+                        }
+                        if ui.button("💡 Recommendations").clicked() {
+                            workflow.actions.push(workflows::WorkflowAction::GenerateRecommendations);
+                        }
+                        if ui.button("📤 Export").clicked() {
+                            workflow.actions.push(workflows::WorkflowAction::Export {
+                                format: workflows::ExportFormat::Html,
+                                path: None,
+                            });
+                        }
+                        if ui.button("🔔 Notify").clicked() {
+                            workflow.actions.push(workflows::WorkflowAction::Notify {
+                                title: "Workflow Complete".to_string(),
+                                message: "Your workflow has finished executing.".to_string(),
+                            });
+                        }
+                        if ui.button("🤖 AI Analyze").clicked() {
+                            workflow.actions.push(workflows::WorkflowAction::AIAnalyze {
+                                prompt: "Analyze the scan results and provide recommendations.".to_string(),
+                            });
+                        }
+                    });
+
+                    // Validation
+                    ui.separator();
+                    if workflow.name.is_empty() {
+                        ui.colored_label(egui::Color32::RED, "⚠ Workflow name is required");
+                    }
+                    if workflow.actions.is_empty() {
+                        ui.colored_label(egui::Color32::YELLOW, "⚠ Add at least one action");
+                    }
+
+                    // Save/Cancel
+                    ui.separator();
+                    let workflow_clone = workflow.clone();
+                    let can_save = !workflow.name.is_empty() && !workflow.actions.is_empty();
+                    ui.horizontal(|ui| {
+                        if ui.add_enabled(can_save, egui::Button::new("Save")).clicked() {
+                            self.save_custom_workflow(workflow_clone);
+                        }
+                        if ui.button("Cancel").clicked() {
+                            self.show_workflow_editor = false;
+                            self.editing_workflow = None;
+                        }
+                    });
+                }
+            });
+    }
+}
+
+/// Ask Ollama to generate AI-powered storage recommendations from scan data.
+/// Falls back to heuristic rules if the AI call fails or returns unparseable output.
+/// Returns (recommendations, was_ai) — was_ai is true if Ollama returned parseable results.
+async fn generate_ai_recommendations_async(
+    client: &OllamaClient,
+    model: &str,
+    result: &ScanResult,
+) -> (Vec<AIRecommendation>, bool) {
+    use ollama::ChatMessage;
+
+    let file_type_summary: String = result.file_types.iter()
+        .take(15)
+        .map(|(ext, count)| format!("  .{}: {} files", ext, count))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let large_files_summary: String = result.largest_files.iter()
+        .take(10)
+        .map(|(path, size)| format!("  {} ({})", path, crate::gui_common::formatting::format_bytes(*size)))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let system_prompt = "You are a storage optimization expert. Analyze the scan data and suggest actionable recommendations. \
+        Respond with ONLY a valid JSON array of objects, each with these fields: \
+        \"priority\" (\"Low\", \"Medium\", \"High\", or \"Critical\"), \
+        \"category\" (\"Storage\", \"Performance\", \"Organization\", or \"Security\"), \
+        \"title\" (short summary), \
+        \"description\" (detailed explanation with specific file paths and sizes), \
+        \"action\" (\"Cleanup\", \"Review\", \"Optimize\", or \"Archive\"). \
+        Give 3-5 recommendations. No markdown, no code fences, no explanation — only the JSON array.";
+
+    let user_prompt = format!(
+        "Scan results for path '{}':\nTotal files: {}\nTotal size: {}\n\nFile types:\n{}\n\nLargest files:\n{}",
+        result.path, result.total_files, crate::gui_common::formatting::format_bytes(result.total_size_bytes),
+        if file_type_summary.is_empty() { "  (none)" } else { &file_type_summary },
+        if large_files_summary.is_empty() { "  (none)" } else { &large_files_summary }
+    );
+
+    let ai_client = match client.with_model(model) {
+        Ok(c) => c,
+        Err(_) => return (StorageInsights::generate_recommendations(result), false),
+    };
+
+    let messages = vec![
+        ChatMessage::system(system_prompt),
+        ChatMessage::user(&user_prompt),
+    ];
+
+    let response = ai_client.chat_with_tools(messages, None, Some("none".to_string())).await;
+
+    match response {
+        Ok((content, _, _)) => {
+            let cleaned = content.trim()
+                .trim_start_matches("```json")
+                .trim_start_matches("```")
+                .trim_end_matches("```")
+                .trim();
+            match serde_json::from_str::<Vec<AIRecommendation>>(cleaned) {
+                Ok(recs) if !recs.is_empty() => (recs, true),
+                _ => {
+                    match try_extract_recommendations(cleaned) {
+                        Some(recs) => (recs, true),
+                        None => (StorageInsights::generate_recommendations(result), false),
+                    }
+                }
+            }
+        }
+        Err(_) => (StorageInsights::generate_recommendations(result), false),
+    }
+}
+
+/// Try to extract AIRecommendations from a non-array JSON structure
+fn try_extract_recommendations(text: &str) -> Option<Vec<AIRecommendation>> {
+    // If the response wraps recommendations in an object with a "recommendations" field
+    if let Ok(val) = serde_json::from_str::<serde_json::Value>(text) {
+        if let Some(arr) = val.get("recommendations").and_then(|v| v.as_array()) {
+            let recs: Vec<AIRecommendation> = arr.iter()
+                .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                .collect();
+            if !recs.is_empty() {
+                return Some(recs);
+            }
+        }
+    }
+    None
+}

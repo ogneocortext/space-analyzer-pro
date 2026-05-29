@@ -2,6 +2,9 @@ use clap::Parser;
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
+use shared_scanner::{FileScanner, ScanOptions};
+use file_deduplicator::{FileDeduplicator, DeduplicationConfig};
+
 
 #[derive(Parser)]
 #[command(author, version, about = "Space Analyzer Pro - Desktop Application")]
@@ -123,11 +126,11 @@ fn scan_directory(path: &Path, verbose: bool, deep: bool) -> std::io::Result<Sca
     }
 
     let start_time = Instant::now();
-    let scanner = app_lib::scanner::FileScanner::new();
+    let scanner = FileScanner::new();
     let options = if deep {
-        app_lib::scanner::ScanOptions::deep()
+        ScanOptions::deep()
     } else {
-        app_lib::scanner::ScanOptions::medium()
+        ScanOptions::medium()
     };
 
     let app_result = scanner.scan_directory_sync(path.to_str().unwrap_or("."), options)
@@ -232,12 +235,118 @@ fn main() -> std::io::Result<()> {
 
     if cli.report {
         println!("\n[REPORT] Generating detailed report...");
-        // TODO: Implement detailed report generation
+        let mut report_content = String::new();
+        report_content.push_str("# Space Analyzer Pro - Detailed Scan Report\n\n");
+        report_content.push_str(&format!("Generated on: {}\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")));
+        report_content.push_str(&format!("Target Directory: `{}`\n\n", cli.path));
+        
+        report_content.push_str("## Summary Statistics\n\n");
+        report_content.push_str(&format!("- **Total Files Scanned:** {}\n", result.total_files));
+        report_content.push_str(&format!("- **Total Size:** {}\n", format_bytes(result.total_size_bytes)));
+        report_content.push_str(&format!("- **Scan Duration:** {:.3} seconds\n\n", result.duration_secs));
+        
+        report_content.push_str("## Top 10 Largest Files\n\n");
+        if result.largest_files.is_empty() {
+            report_content.push_str("No files found.\n");
+        } else {
+            report_content.push_str("| File Path | Size | Percentage of Total |\n");
+            report_content.push_str("|-----------|------|---------------------|\n");
+            for (path, size) in &result.largest_files {
+                let pct = if result.total_size_bytes > 0 {
+                    (*size as f64 / result.total_size_bytes as f64) * 100.0
+                } else {
+                    0.0
+                };
+                report_content.push_str(&format!("| `{}` | {} | {:.2}% |\n", path, format_bytes(*size), pct));
+            }
+        }
+        report_content.push_str("\n");
+        
+        report_content.push_str("## File Types Distribution (Top 10)\n\n");
+        if result.file_types.is_empty() {
+            report_content.push_str("No file types discovered.\n");
+        } else {
+            report_content.push_str("| Extension | File Count | Percentage |\n");
+            report_content.push_str("|-----------|------------|------------|\n");
+            let mut sorted_types: Vec<_> = result.file_types.iter().collect();
+            sorted_types.sort_by(|a, b| b.1.cmp(a.1));
+            for (ext, count) in sorted_types.iter().take(10) {
+                let pct = if result.total_files > 0 {
+                    (*(*count) as f64 / result.total_files as f64) * 100.0
+                } else {
+                    0.0
+                };
+                let ext_display = if ext.is_empty() { "no-extension" } else { ext };
+                report_content.push_str(&format!("| `.{}` | {} | {:.2}% |\n", ext_display, count, pct));
+            }
+        }
+        report_content.push_str("\n");
+        
+        report_content.push_str("## Recommendations\n\n");
+        if result.total_size_bytes > 1024 * 1024 * 1024 {
+            report_content.push_str("- ⚠️ **Large directory footprint:** Total size exceeds 1 GB. Consider checking for duplicates or stale caches.\n");
+        } else {
+            report_content.push_str("- ✅ **Healthy directory footprint:** Total size is within moderate limits.\n");
+        }
+        
+        let has_node_modules = result.largest_files.iter().any(|(p, _)| p.contains("node_modules"));
+        if has_node_modules {
+            report_content.push_str("- 📦 **Unused node_modules detected:** Running node modules cleanup could save significant disk space.\n");
+        }
+        
+        report_content.push_str("- 💡 Run with `--clean` to find and eliminate space wasted by duplicate files using high-performance hard-linking.\n");
+        
+        let report_path = std::fs::canonicalize(Path::new(&cli.path))
+            .unwrap_or_else(|_| Path::new(".").to_path_buf())
+            .join("space-analyzer-report.md");
+        if let Err(e) = fs::write(&report_path, report_content) {
+            eprintln!("[REPORT] ❌ Failed to write report: {}", e);
+        } else {
+            println!("[REPORT] Detailed markdown report successfully written to: {}", report_path.display());
+        }
     }
 
     if cli.clean {
-        println!("[CLEAN] Cleaning duplicates...");
-        // TODO: Implement duplicate cleaning
+        println!("[CLEAN] Scanning for duplicate files...");
+        let config = DeduplicationConfig {
+            min_file_size: 1024,
+            dry_run: true,
+            create_hard_links: true,
+            ..Default::default()
+        };
+        let deduplicator = FileDeduplicator::with_config(config);
+        match deduplicator.scan_directory(&cli.path) {
+            Ok(files) => {
+                let duplicate_groups = deduplicator.find_duplicates(files);
+                if duplicate_groups.is_empty() {
+                    println!("[CLEAN] ✅ No duplicate files found!");
+                } else {
+                    let total_duplicates: usize = duplicate_groups.iter().map(|g| g.files.len() - 1).sum();
+                    let potential_savings: u64 = duplicate_groups.iter()
+                        .map(|g| g.size * (g.files.len() as u64 - 1))
+                        .sum();
+                    
+                    println!("[CLEAN] 🔗 Found {} duplicate groups ({} duplicate files).", duplicate_groups.len(), total_duplicates);
+                    println!("[CLEAN] 💾 Potential space savings: {}", format_bytes(potential_savings));
+                    
+                    println!("\nDuplicates Breakdown:");
+                    for (i, group) in duplicate_groups.iter().enumerate().take(10) {
+                        println!("  Group {}: size: {}, hash: {}", i + 1, format_bytes(group.size), &group.hash[..8]);
+                        for f in &group.files {
+                            println!("    📄 {}", f.path.display());
+                        }
+                    }
+                    if duplicate_groups.len() > 10 {
+                        println!("  ... and {} more groups", duplicate_groups.len() - 10);
+                    }
+                    
+                    println!("\n[CLEAN] (Dry run is active. No files were modified. To perform actual hard-link deduplication, use the desktop GUI app or the dedicated file-deduplicator CLI tool.)");
+                }
+            }
+            Err(e) => {
+                eprintln!("[CLEAN] ❌ Error scanning for duplicates: {}", e);
+            }
+        }
     }
 
     if is_interactive {

@@ -36,17 +36,22 @@ regex = "1.0"
 blake3 = "1.5"
 walkdir = "2"
 
+[lib]
+name = "space_analyzer_pro_desktop"
+path = "src/lib.rs"
+
 [[bin]]
 name = "space-analyzer-pro"
 path = "src/main.rs"
 
 [[bin]]
 name = "space-analyzer-gui"
-path = "src/gui.rs"
+path = "src/bin/space-analyzer-gui.rs"
 
 [dependencies]
 shared-scanner = { path = "shared-scanner" }
 gpu-compute = { path = "gpu-compute" }
+file-deduplicator = { path = "native/file_deduplicator" }
 # Core functionality
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -66,6 +71,7 @@ walkdir = "2"
 eframe = "0.34"
 egui = "0.34"
 egui_extras = { version = "0.34", features = ["image"] }
+egui_plot = "0.35"
 rfd = "0.14"
 
 # Data processing
@@ -100,6 +106,7 @@ rusqlite = { version = "0.31", features = ["bundled", "chrono", "serde_json"] }
 
 # HTTP client for optional Ollama AI service integration
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+bytes = "1"
 
 # Async runtime for HTTP calls
 futures = "0.3"
@@ -130,6 +137,11 @@ lto = true
 codegen-units = 1
 panic = "abort"
 opt-level = 3
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
 
 [profile.dev]
 opt-level = 1

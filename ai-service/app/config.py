@@ -3,6 +3,7 @@ Unified configuration for the consolidated AI service.
 Replaces config.py from server/python-ai-service and env defaults from ai-service/main.py.
 """
 import os
+import secrets
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -20,13 +21,16 @@ OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "300"))
 OLLAMA_MAX_RETRIES = int(os.getenv("OLLAMA_MAX_RETRIES", "3"))
 
 # Security
-SECRET_KEY = os.getenv("SECRET_KEY")
+# Generate a secure dev secret with: python -c "import secrets; print(secrets.token_hex(32))"
+SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_hex(32))
 API_KEY = os.getenv("API_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
-# CORS
-CORS_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:8080,http://localhost:8091").split(",")
+# CORS — strip whitespace from each origin to support env vars like "http://example.com, http://other.com"
+CORS_ORIGINS = [origin.strip() for origin in
+    os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:8080,http://localhost:8091").split(",")
+    if origin.strip()]
 
 # ML Model paths
 MODELS_DIR = Path(__file__).parent.parent / "models"

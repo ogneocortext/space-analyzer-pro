@@ -2,6 +2,7 @@
 //! 
 //! Provides disk usage information, system resource monitoring,
 //! and hardware detection (GPU status).
+#![allow(dead_code)] // Planned system monitoring features
 
 use serde::{Serialize, Deserialize};
 

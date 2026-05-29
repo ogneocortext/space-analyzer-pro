@@ -63,14 +63,22 @@ GPU detection is automatic via `nvidia-smi`. No CUDA toolkit installation requir
 ```
 Space-Analyzer/
 ├── src/                          # PRIMARY APPLICATION
-│   ├── gui.rs                    # Main GUI (egui) - the active desktop app
+│   ├── gui/                      # v3.3.0 modular GUI (active binary)
+│   │   ├── mod.rs                # Binary entry point, SpaceAnalyzerApp
+│   │   ├── ai/                   # AI subsystem (chat, model discovery, quick actions)
+│   │   ├── scan.rs               # Scan UI
+│   │   ├── embeddings.rs         # Smart search UI
+│   │   └── ...                   # Other UI modules
 │   ├── main.rs                   # CLI binary
 │   ├── gui_common.rs             # Shared types and scanning utilities
-│   ├── database.rs               # Embedded SQLite persistence
-│   ├── ollama_client.rs          # Optional Ollama AI integration
+│   ├── database/                 # Embedded SQLite persistence
+│   ├── ollama/                   # Ollama AI client (modular)
+│   ├── tool_registry/            # AI tool definitions and execution
+│   ├── workflows/                # Native workflow orchestration
+│   ├── session_logger.rs         # Structured JSON session logging
 │   ├── system_monitor.rs         # Disk/CPU/memory/GPU monitoring
-│   ├── ai_skills.rs              # AI analysis skills
-│   └── workflows/mod.rs          # Native workflow orchestration
+│   └── bin/
+│       └── flow-test-harness.rs  # Automated flow test binary
 ├── shared-scanner/               # Shared scanner library
 ├── gpu-compute/                  # GPU acceleration layer
 ├── native/                       # Standalone native tools
@@ -78,13 +86,15 @@ Space-Analyzer/
 │   ├── file_deduplicator/        # GPU-accelerated duplicate finder
 │   ├── storage_predictor/        # Storage prediction (GPU-accelerated)
 │   └── file_monitor/             # File system monitoring
-├── server/                       # Node.js backend (optional, for web mode)
-├── ai-service/                   # Python AI service (optional, for web mode)
-├── archive/                      # Archived/experimental components
+├── archive/                      # Archived components (DO NOT develop here)
+│   ├── v3.2.0-monolithic/        # Legacy monolithic GUI
+│   ├── legacy-modules/           # Dead modules removed from active code
 │   ├── vue-frontend/             # Archived Vue.js frontend
 │   ├── native-gui/               # Archived experimental egui GUI
 │   ├── rust-tauri/               # Archived failed Tauri build
 │   └── python-orchestrator/      # Archived Python orchestrator
+├── server/                       # Node.js backend (optional, for web mode)
+├── ai-service/                   # Python AI service (optional, for web mode)
 └── tools/                        # Development tools
 ```
 
@@ -92,13 +102,16 @@ Space-Analyzer/
 
 **Active (develop here):**
 - `src/` - The primary application. All new features go here.
+- `src/gui/` - The active GUI (v3.3.0 modular). Binary entry point.
 - `shared-scanner/` - Core scanning library
 - `gpu-compute/` - GPU acceleration layer
 - `native/` - Standalone tools
 
 **Archived (reference only, DO NOT develop here):**
-- `archive/vue-frontend/` - Vue.js frontend from pre-v3.0. Archived for reference.
-- `archive/native-gui/` - Experimental egui GUI superseded by `src/gui.rs`
+- `archive/v3.2.0-monolithic/` - Legacy monolithic GUI superseded by `src/gui/`
+- `archive/legacy-modules/` - Dead modules removed from active code
+- `archive/vue-frontend/` - Vue.js frontend from pre-v3.0
+- `archive/native-gui/` - Experimental egui GUI superseded by `src/gui/`
 - `archive/rust-tauri/` - Failed Tauri desktop build
 - `archive/python-orchestrator/` - Python orchestrator replaced by Rust-native workflows
 

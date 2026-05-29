@@ -2,6 +2,7 @@
 //! 
 //! Provides preconfigured scan workflows, automation templates, AI-driven recommendations,
 //! and native Rust workflow execution (no external orchestrator needed).
+#![allow(dead_code)] // Some workflow methods are only used by modular gui and tests
 
 use serde::{Deserialize, Serialize};
 
@@ -114,6 +115,47 @@ impl std::fmt::Display for ExecutionStatus {
     }
 }
 
+/// Check whether a timestamp matches a basic five-field cron expression.
+///
+/// Supports `*`, exact values, and `*/n` step syntax for minute/hour/day/month/weekday.
+pub fn matches_cron(expr: &str, now: &chrono::DateTime<chrono::Local>) -> bool {
+    use chrono::{Datelike, Timelike};
+
+    let fields: Vec<&str> = expr.split_whitespace().collect();
+    if fields.len() != 5 {
+        return false;
+    }
+
+    let minute = now.minute();
+    let hour = now.hour();
+    let day = now.day();
+    let month = now.month();
+    let weekday = now.weekday().num_days_from_sunday();
+
+    matches_field(fields[0], minute, 0, 59)
+        && matches_field(fields[1], hour, 0, 23)
+        && matches_field(fields[2], day, 1, 31)
+        && matches_field(fields[3], month, 1, 12)
+        && matches_field(fields[4], weekday, 0, 6)
+}
+
+fn matches_field(field: &str, value: u32, min: u32, max: u32) -> bool {
+    if field == "*" {
+        return true;
+    }
+
+    if let Some(step) = field.strip_prefix("*/") {
+          return step.parse::<u32>().ok().filter(|step| *step > 0).is_some_and(|step| {
+            value >= min && value <= max && (value - min).is_multiple_of(step)
+        });
+    }
+
+    field
+        .split(',')
+        .filter_map(|part| part.parse::<u32>().ok())
+        .any(|candidate| candidate >= min && candidate <= max && candidate == value)
+}
+
 /// Workflow execution record
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowExecution {
@@ -127,6 +169,16 @@ pub struct WorkflowExecution {
     pub error_message: Option<String>,
     pub actions_completed: usize,
     pub total_actions: usize,
+}
+
+impl WorkflowExecution {
+    /// Mark the workflow as completed and stamp the finish time.
+    pub fn complete(&mut self) {
+        self.status = ExecutionStatus::Completed;
+        self.completed_at = Some(chrono::Utc::now().to_rfc3339());
+        self.actions_completed = self.total_actions.max(self.actions_completed);
+        self.current_action = None;
+    }
 }
 
 /// Workflow definition
@@ -328,6 +380,7 @@ impl StorageInsights {
 
         // Check for dominance of specific file types
         if let Some((ext, count)) = scan_result.file_types.iter().max_by_key(|(_, &c)| c) {
+            if scan_result.total_files == 0 { return recommendations; }
             let percentage = (*count as f64 / scan_result.total_files as f64) * 100.0;
             if percentage > 30.0 {
                 recommendations.push(AIRecommendation {

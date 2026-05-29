@@ -28,11 +28,11 @@ struct Cli {
     directory: PathBuf,
 
     /// Minimum file size to consider (in bytes)
-    #[arg(short, long, default_value = "1024")]
+    #[arg(short = 'm', long, default_value = "1024")]
     min_size: u64,
 
     /// Maximum file size to consider (in bytes)
-    #[arg(short, long)]
+    #[arg(short = 'M', long)]
     max_size: Option<u64>,
 
     /// Follow symbolic links

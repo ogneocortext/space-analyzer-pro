@@ -287,6 +287,7 @@ pub fn get_error_message(code: u32) -> String {
 }
 
 /// Helper function to format Windows error from GetLastError()
+#[allow(dead_code)]
 pub fn format_last_error(operation: &str) -> String {
     #[cfg(windows)]
     {
@@ -301,6 +302,7 @@ pub fn format_last_error(operation: &str) -> String {
 }
 
 /// Helper function to create WindowsError from GetLastError()
+#[allow(dead_code)]
 pub fn last_error(operation: &str) -> WindowsError {
     #[cfg(windows)]
     {
@@ -315,6 +317,7 @@ pub fn last_error(operation: &str) -> WindowsError {
 }
 
 /// Check if error code indicates a fatal error that should stop scanning
+#[allow(dead_code)]
 pub fn is_fatal_error(code: u32) -> bool {
     matches!(code, 
         ERROR_ACCESS_DENIED |
@@ -328,6 +331,7 @@ pub fn is_fatal_error(code: u32) -> bool {
 }
 
 /// Check if error code indicates a retryable error
+#[allow(dead_code)]
 pub fn is_retryable_error(code: u32) -> bool {
     matches!(code,
         ERROR_SHARING_VIOLATION |

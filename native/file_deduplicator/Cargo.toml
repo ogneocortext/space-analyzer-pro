@@ -59,3 +59,6 @@ nix = "0.27"
 
 [build-dependencies]
 napi-build = "2"
+
+[dev-dependencies]
+tempfile = "3"

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// GPU device information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GpuInfo {
     pub available: bool,
     pub device_name: String,
@@ -11,19 +11,6 @@ pub struct GpuInfo {
     pub total_memory_mb: u64,
     pub cuda_version: String,
     pub device_count: usize,
-}
-
-impl Default for GpuInfo {
-    fn default() -> Self {
-        Self {
-            available: false,
-            device_name: String::new(),
-            compute_capability: String::new(),
-            total_memory_mb: 0,
-            cuda_version: String::new(),
-            device_count: 0,
-        }
-    }
 }
 
 impl GpuInfo {

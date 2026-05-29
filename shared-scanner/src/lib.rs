@@ -71,6 +71,10 @@ pub struct ScanOptions {
     pub include_hidden: bool,
     pub follow_symlinks: bool,
     pub size_buckets: bool,
+    /// Enable GPU-accelerated post-processing (histograms, sorting)
+    pub gpu_acceleration: bool,
+    /// Enable CUDA-specific kernels (requires cudarc at compile time)
+    pub cuda_enabled: bool,
 }
 
 impl Default for ScanOptions {
@@ -82,6 +86,8 @@ impl Default for ScanOptions {
             include_hidden: false,
             follow_symlinks: false,
             size_buckets: true,
+            gpu_acceleration: true,
+            cuda_enabled: false,
         }
     }
 }
@@ -122,9 +128,21 @@ impl ScanOptions {
     /// Filter for small files only (<1MB)
     pub fn small_files_only() -> Self {
         Self {
-            max_size: Some(1 * 1024 * 1024),
+            max_size: Some(1024 * 1024),
             ..Default::default()
         }
+    }
+
+    /// Enable or disable GPU acceleration
+    pub fn with_gpu(mut self, enabled: bool) -> Self {
+        self.gpu_acceleration = enabled;
+        self
+    }
+
+    /// Enable or disable CUDA-specific kernels
+    pub fn with_cuda(mut self, enabled: bool) -> Self {
+        self.cuda_enabled = enabled;
+        self
     }
 }
 
@@ -275,9 +293,9 @@ impl FileScanner {
         }
 
         // ── Phase 2: GPU-accelerated post-processing ──
-        let gpu_info = gpu_compute::device::GpuInfo::detect();
+        let use_gpu = options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
         let processor = gpu_compute::scan::GpuScanProcessor::new()
-            .with_gpu(gpu_info.available)
+            .with_gpu(use_gpu)
             .with_top_n(100);
 
         let gpu_result = processor.process(&raw_entries);
@@ -501,9 +519,9 @@ impl FileScanner {
         }
 
         // Phase 2: GPU-accelerated post-processing
-        let gpu_info = gpu_compute::device::GpuInfo::detect();
+        let use_gpu = options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
         let processor = gpu_compute::scan::GpuScanProcessor::new()
-            .with_gpu(gpu_info.available)
+            .with_gpu(use_gpu)
             .with_top_n(100);
 
         let gpu_result = processor.process(&raw_entries);
@@ -820,8 +838,9 @@ mod tests {
     fn test_size_bucket() {
         assert_eq!(size_bucket(0), "0 B");
         assert_eq!(size_bucket(512), "< 1 KB");
-        assert_eq!(size_bucket(1024 * 1024), "100 KB-1 MB");
-        assert_eq!(size_bucket(1024 * 1024 * 1024), "100 MB-1 GB");
+        assert_eq!(size_bucket(1024 * 1024), "1-10 MB");
+        assert_eq!(size_bucket(100 * 1024 * 1024), "100 MB-1 GB");
+        assert_eq!(size_bucket(1024 * 1024 * 1024), "> 1 GB");
     }
 
     #[test]

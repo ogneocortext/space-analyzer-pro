@@ -138,7 +138,7 @@ impl GpuScanProcessor {
             largest.select_nth_unstable_by(self.top_n, |a, b| b.size.cmp(&a.size));
             largest.truncate(self.top_n);
         }
-        largest.sort_by(|a, b| b.size.cmp(&a.size));
+        largest.sort_by_key(|b| std::cmp::Reverse(b.size));
 
         // Detect empty directories
         let dir_counts = count_dir_entries(entries);
@@ -395,7 +395,7 @@ fn compute_subdirectories(entries: &[RawFileEntry]) -> Vec<DirInfo> {
         })
         .collect();
 
-    result.sort_by(|a, b| b.total_size.cmp(&a.total_size));
+    result.sort_by_key(|b| std::cmp::Reverse(b.total_size));
     result
 }
 

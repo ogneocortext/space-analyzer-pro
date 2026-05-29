@@ -4,24 +4,14 @@
 //! Provides both library and binary interfaces for flexible integration.
 
 use std::collections::HashMap;
-use std::fs::{self, File, Metadata};
-use std::io::{self, Read, BufReader};
+use std::fs;
 use std::path::{Path, PathBuf};
-use anyhow::{Result, Context, anyhow};
+use anyhow::{Result, Context};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use blake3::Hasher;
-use rayon::prelude::*;
 use walkdir::WalkDir;
 use std::sync::{Arc, Mutex};
 use gpu_compute::hash::BatchHasher;
-
-#[cfg(windows)]
-use winapi::um::fileapi::CreateHardLinkW;
-#[cfg(windows)]
-use std::os::windows::ffi::OsStrExt;
-#[cfg(windows)]
-use std::ptr;
 
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
@@ -295,7 +285,11 @@ impl FileDeduplicator {
     }
 
     /// Compute BLAKE3 hash of a file
+    #[cfg(test)]
     fn compute_file_hash(&self, path: &Path) -> Result<String> {
+        use std::fs::File;
+        use std::io::{Read, BufReader};
+        use blake3::Hasher;
         let file = File::open(path)
             .with_context(|| format!("Failed to open file: {}", path.display()))?;
         
@@ -342,42 +336,6 @@ impl FileDeduplicator {
     }
 
     /// Create hard link from source to duplicate
-    #[cfg(windows)]
-    fn create_hard_link(&self, source: &FileInfo, duplicate: &FileInfo) -> Result<()> {
-        // Remove the duplicate file first
-        fs::remove_file(&duplicate.path)?;
-
-        // Convert paths to wide character strings for Windows API
-        let source_wide: Vec<u16> = source.path
-            .as_os_str()
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
-        
-        let duplicate_wide: Vec<u16> = duplicate.path
-            .as_os_str()
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
-
-        // Create hard link using Windows API
-        let result = unsafe {
-            CreateHardLinkW(
-                duplicate_wide.as_ptr(),
-                source_wide.as_ptr(),
-                ptr::null_mut(),
-            )
-        };
-
-        if result == 0 {
-            return Err(anyhow!("Failed to create hard link: {}", io::Error::last_os_error()));
-        }
-
-        Ok(())
-    }
-
-    /// Create hard link from source to duplicate
-    #[cfg(unix)]
     fn create_hard_link(&self, source: &FileInfo, duplicate: &FileInfo) -> Result<()> {
         // Remove the duplicate file first
         fs::remove_file(&duplicate.path)?;
@@ -464,7 +422,10 @@ mod tests {
 
     #[test]
     fn test_duplicate_detection() {
-        let deduplicator = FileDeduplicator::new();
+        let deduplicator = FileDeduplicator::with_config(DeduplicationConfig {
+            min_file_size: 0,
+            ..Default::default()
+        });
         let temp_dir = TempDir::new().unwrap();
         
         // Create two identical files

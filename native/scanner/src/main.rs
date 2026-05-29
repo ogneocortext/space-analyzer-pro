@@ -18,6 +18,7 @@ mod usn_journal_scanner;
 
 // Simplified performance monitoring system
 #[derive(Debug, Default)]
+#[allow(dead_code)]
 struct PerformanceTracker {
     disk_reads: AtomicU64,
     disk_bytes_read: AtomicU64,
@@ -27,6 +28,7 @@ struct PerformanceTracker {
     start_time: Option<Instant>,
 }
 
+#[allow(dead_code)] // Planned: performance metrics integration
 impl PerformanceTracker {
     fn new() -> Self {
         Self {
@@ -178,6 +180,7 @@ struct AnalysisResult {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct Scanner {
     path: PathBuf,
     max_depth: usize,
@@ -565,6 +568,7 @@ impl Cli {
 
     /// Fast NTFS MFT reading for 46x speedup (Windows only, requires admin)
     #[cfg(windows)]
+    #[allow(unused_variables)]
     fn analyze_mft_fast(&self, start_time: Instant) -> anyhow::Result<AnalysisResult> {
         use crate::ntfs_mft_scanner::NtfsMftScanner;
 
@@ -1134,17 +1138,17 @@ let analysis_time = start_time.elapsed();
                 files,
                 categories,
                 extension_stats,
-                duplicate_groups: Vec::new(),
-                duplicate_count: 0,
-                duplicate_size: 0,
+                duplicate_groups,
+                duplicate_count,
+                duplicate_size,
                 hard_link_count,
                 hard_link_savings,
                 apparent_size,
             },
             performance: PerformanceMetrics {
                 scan_duration_ms: analysis_time_ms,
-                files_per_second: files_per_second,
-                bytes_per_second: bytes_per_second,
+                files_per_second,
+                bytes_per_second,
                 memory_peak_mb: Some((total_size as f64 / 1024.0 / 1024.0) as u64),
                 memory_current_mb: None,
                 disk_reads: Some(total_files),

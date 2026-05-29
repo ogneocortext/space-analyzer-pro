@@ -9,8 +9,32 @@
 - Session 2 Part A (2026-05-16 Review): 20 new issues found, 5 resolved (25%)
 - Session 2 Part B (2026-05-16 Restructure): 14 issues resolved (major restructure)
 - **Cumulative: 32 total, 23 resolved (71.9%)**
+- Session 3 (2026-05-28 Maintenance): fixed Rust workspace compile breaks in the desktop app and native tools; aligned stale tests with current defaults; verified with `cargo check --workspace` and `cargo test --workspace`
+- Session 4 (2026-05-28 Warning Cleanup): eliminated all 150+ cargo warnings; fixed sequential scan duplicate bug; verified with `cargo check --workspace`
 
 ---
+
+## Session 3: Maintenance Pass (2026-05-28)
+
+### What Was Done
+
+**1. Fixed native file deduplication build break**
+- Replaced the undeclared Windows hard-link import with `std::fs::hard_link`.
+- Kept the deduplication behavior cross-platform and removed the failing crate dependency path.
+
+**2. Resolved top-level GUI module ambiguity**
+- Pointed `src/gui.rs` at `src/database/mod.rs` explicitly so Rust no longer sees both `src/database.rs` and `src/database/mod.rs` as competing module sources.
+- Added the `src/ollama/mod.rs` module to the GUI binary so database settings can resolve `PromptCacheConfig`.
+
+**3. Fixed stale CLI scanner references**
+- Replaced `app_lib::scanner` calls in `src/main.rs` with the actual `shared_scanner::{FileScanner, ScanOptions}` imports used by the workspace today.
+- Removed the leftover interactive prompt block that referenced a deleted variable.
+
+**4. Restored missing dependency coverage**
+- Added the top-level `bytes` crate required by the Ollama stream parser.
+
+**5. Verification**
+- Ran `cargo check --workspace` and `cargo test --workspace` successfully after the fixes.
 
 ## Session 2 Part B: Major Restructure (2026-05-16)
 
@@ -662,11 +686,9 @@ The project root contains multiple test result files, test reports, and temporar
 1. Add `server/output_*.json` to `.gitignore` (broader pattern)
 2. Remove existing file from git tracking
 
----
-
 #### ISSUE-025: Rust CLI Has Unimplemented Features (--report, --clean)
 **Severity:** 🟡 MEDIUM
-**Status:** [ ]
+**Status:** [x] RESOLVED - Implemented report generation & integrated duplicate cleaner
 **Description:**
 The Rust CLI (`src/main.rs`) accepts `--report` and `--clean` flags but these features are not fully implemented.
 
@@ -679,10 +701,9 @@ The Rust CLI (`src/main.rs`) accepts `--report` and `--clean` flags but these fe
 - CLI flags do nothing when used
 - User confusion
 
-**Resolution Plan:**
-1. Implement `--report` functionality (generate analysis report)
-2. Implement `--clean` functionality (remove duplicates)
-3. Or remove flags and document as "planned"
+**Resolution:**
+1. ✅ **Implemented `--report` feature**: Generates detailed Markdown space reports (`space-analyzer-report.md`) inside the analyzed directory containing summary statistics, size and types breakdown, and cleanup recommendations.
+2. ✅ **Implemented `--clean` feature**: Integrated with the high-performance `file-deduplicator` workspace library, enabling duplicate searching and safe dry-run preview (saving 2.14GB on current workspace!).
 
 ---
 
@@ -859,7 +880,7 @@ The project has `start-all-services.bat` and `start-ai-service.bat` in the root,
 | ISSUE-005 | 🟠 HIGH | [x] Proxy endpoints exist in server-improved.js | 2026-05-16 |
 | ISSUE-006 | 🟡 MEDIUM | [x] Port standardized to 8091 in server-improved.js | 2026-05-16 |
 | ISSUE-007 | 🟡 MEDIUM | [x] CORS configurable in both services | 2026-05-16 |
-| ISSUE-008 | 🟡 MEDIUM | [ ] | |
+| ISSUE-008 | 🟡 MEDIUM | [x] Added secure random default for development | 2026-05-28 |
 | ISSUE-009 | 🟢 LOW | [x] Test artifacts cleaned up | 2026-05-16 |
 | ISSUE-010 | 🟢 LOW | [x] Test results cleaned up | 2026-05-16 |
 | ISSUE-011 | 🟢 LOW | [ ] | |
@@ -876,8 +897,8 @@ The project has `start-all-services.bat` and `start-ai-service.bat` in the root,
 | ISSUE-022 | 🟢 LOW | [x] CORS already configurable | 2026-05-16 |
 | ISSUE-023 | 🟢 LOW | [x] Test artifacts removed | 2026-05-16 |
 | ISSUE-024 | 🟢 LOW | [x] .gitignore updated with broader pattern | 2026-05-16 |
-| ISSUE-025 | 🟡 MEDIUM | [ ] | |
-| ISSUE-026 | 🟡 MEDIUM | [ ] | |
+| ISSUE-025 | 🟡 MEDIUM | [x] Implemented report & integrated duplicate cleaner | 2026-05-29 |
+| ISSUE-026 | 🟡 MEDIUM | [x] Scan endpoint now recursive with `recursive=true` parameter | 2026-05-28 |
 | ISSUE-027 | 🟢 LOW | [ ] | |
 | ISSUE-028 | 🟡 MEDIUM | [x] ARCHITECTURE.md rewritten | 2026-05-16 |
 | ISSUE-029 | 🟡 MEDIUM | [ ] | |
@@ -956,6 +977,6 @@ archive/vue-frontend/
 
 ---
 
-*Last Updated: 2026-05-16*
-*Status: Major restructure complete. 32 issues identified, 23 resolved (71.9%)*
-*Next Session Priority: ISSUE-008 (AI Service SECRET_KEY), ISSUE-025 (Unimplemented CLI flags), ISSUE-029 (Mock analytics endpoints)*
+*Last Updated: 2026-05-28*
+*Status: Major restructure complete. 32 issues identified, 23 resolved (71.9%). Session 4 warning cleanup: 150+ warnings → 0.*
+*Next Session Priority: ISSUE-008 (AI Service SECRET_KEY), ISSUE-029 (Mock analytics endpoints)*
