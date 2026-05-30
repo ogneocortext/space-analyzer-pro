@@ -12,7 +12,7 @@
 //! DO NOT create new GUI implementations - extend this one.
 
 use eframe::egui::{self, Widget};
-use egui_plot::{Plot, Line, PlotPoints};
+use egui_plot::Plot;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -992,7 +992,7 @@ pub fn run_gui() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1400.0, 900.0])
-            .with_title("Space Analyzer Pro v3.3.0 - Self-Contained"),
+            .with_title("Space Analyzer Pro v3.4.0 - Self-Contained"),
         ..Default::default()
     };
 
@@ -1059,4 +1059,6 @@ fn icon_text(codepoint: u32, _family: &str, size: f32, color: egui::Color32) -> 
 fn icon_char(codepoint: u32) -> char {
     char::from_u32(codepoint).unwrap_or('?')
 }
+
+
 
