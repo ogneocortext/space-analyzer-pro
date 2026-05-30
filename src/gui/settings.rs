@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 
 impl SpaceAnalyzerApp {
     pub(crate) fn save_settings(&mut self) {
@@ -28,7 +28,7 @@ impl SpaceAnalyzerApp {
     }
 
     fn render_scan_settings(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Scan Settings");
+        ui.heading(egui::RichText::new("Scan Settings").strong().size(16.0));
         ui.horizontal(|ui| {
             ui.label("Default Scan Path:");
             ui.text_edit_singleline(&mut self.settings.default_scan_path);
@@ -45,7 +45,7 @@ impl SpaceAnalyzerApp {
     }
 
     fn render_gpu_settings(&mut self, ui: &mut egui::Ui) {
-        ui.heading("GPU / CUDA Settings");
+        ui.heading(egui::RichText::new("GPU / CUDA Settings").strong().size(16.0));
         ui.checkbox(&mut self.settings.gpu_acceleration, "Enable GPU Acceleration for Scan Processing");
         if self.settings.gpu_acceleration {
             ui.indent("gpu_options", |ui| {
@@ -54,8 +54,8 @@ impl SpaceAnalyzerApp {
 
                 ui.separator();
                 ui.small("GPU Operations:");
-                ui.small("• BLAKE3 batch hashing for deduplication");
-                ui.small("• Scan post-processing, ML predictions");
+                ui.small("â€¢ BLAKE3 batch hashing for deduplication");
+                ui.small("â€¢ Scan post-processing, ML predictions");
 
                 if let Some(ref gpu) = self.gpu_info {
                     ui.separator();
@@ -73,7 +73,7 @@ impl SpaceAnalyzerApp {
     }
 
     fn render_ai_settings(&mut self, ui: &mut egui::Ui) {
-        ui.heading("AI Settings (Ollama)");
+        ui.heading(egui::RichText::new("AI Settings (Ollama)").strong().size(16.0));
         ui.checkbox(&mut self.settings.ollama_enabled, "Enable Ollama AI");
         if self.settings.ollama_enabled {
             ui.indent("ollama_options", |ui| {
@@ -109,7 +109,7 @@ impl SpaceAnalyzerApp {
                         .filter(|m| m.name == self.settings.tool_calling_model)
                         .any(|m| m.capabilities.iter().any(|c| c == "Tool Calling"));
                     if !has_tool_capability {
-                        ui.colored_label(egui::Color32::YELLOW, "⚠ Warning: Selected model may not support tool calling. Use a functionary or tool-capable model.");
+                        ui.colored_label(egui::Color32::YELLOW, "âš  Warning: Selected model may not support tool calling. Use a functionary or tool-capable model.");
                     }
 
                     ui.horizontal(|ui| {
@@ -147,7 +147,7 @@ impl SpaceAnalyzerApp {
     }
 
     fn render_smart_search_settings(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Smart Search (Semantic File Search)");
+        ui.heading(egui::RichText::new("Smart Search (Semantic File Search)").strong().size(16.0));
         ui.checkbox(&mut self.settings.embedding_enabled, "Enable Semantic Indexing");
         if self.settings.embedding_enabled {
             ui.indent("embedding_options", |ui| {
@@ -173,7 +173,7 @@ impl SpaceAnalyzerApp {
     }
 
     fn render_logging_settings(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Session Logging");
+        ui.heading(egui::RichText::new("Session Logging").strong().size(16.0));
         ui.checkbox(&mut self.settings.log_session_to_file, "Enable Session Logging");
         if self.settings.log_session_to_file {
             ui.indent("log_options", |ui| {
@@ -201,7 +201,7 @@ impl SpaceAnalyzerApp {
         self.render_logging_settings(ui);
         ui.separator();
 
-        if ui.button("Save Settings").clicked() {
+        if ui.add(egui::Button::new(egui::RichText::new("💾 Save Settings").strong())).clicked() {
             let old_url = self.settings.ollama_url.clone();
             let old_model = self.settings.ollama_model.clone();
             let old_enabled = self.settings.ollama_enabled;
@@ -229,3 +229,4 @@ impl SpaceAnalyzerApp {
         }
     }
 }
+

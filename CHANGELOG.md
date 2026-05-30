@@ -4,9 +4,14 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 
 ## [Unreleased] - 2026-05-29
 
-### v3.3.0 Development
+### v3.3.0 — Real GPU Kernels, Semantic Search & Performance
 
-- (next release items)
+**Scope themes (not yet started):**
+
+- **Real GPU CUDA kernels**: Wire `process_gpu()` beyond the current CPU-fallback stub; activate `cuda` feature with actual CUDA kernels for scan post-processing and batch hashing
+- **Smart notifications**: Improve notification system accuracy to event triggers; add contextual hints and actionable next-step suggestions as a user flow guide
+- **Semantic search UX**: Build out the Smart Search tab with result previews, relevance scores, and inline file actions
+- **Performance**: Virtual-scrolled file lists for 100k+ results; lazy-load scan history; profile and reduce per-frame update overhead
 
 ## [3.2.0] - 2026-05-29
 
@@ -64,10 +69,10 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 - **Fixed `node_modules_cleaner`**: Removed unused `rayon::prelude::*` import; prefixed unused parameters with underscores.
 - **Fixed `native/scanner` (4 issues)**: Removed 4 unnecessary nested `unsafe` blocks; added `#[allow(dead_code)]` to planned features; sequential scan now correctly passes duplicate detection results; dead code annotations for utility functions.
 - **Fixed `src/ollama/` (7 files)**: Added `#[allow(dead_code)]` annotations to all submodules.
-- **Fixed dead modules**: `src/ollama_client.rs`, `src/ai_skills.rs` annotated with `#![allow(dead_code)]`.
+- **Fixed dead modules**: src/ollama_client.rs and src/ai_skills.rs moved to archive (legacy modules no longer in active codebase)
 - **Fixed `src/database/`**: Added `#[allow(dead_code)]` to planned features.
-- **Fixed `src/system_monitor.rs`**: Added `#![allow(dead_code)]` for `get_system_summary`.
-- **Fixed `src/workflows/mod.rs`**: Added `#[allow(dead_code)]` for planned workflow methods.
+- **Fixed src/system_monitor.rs**: Removed misleading #![allow(dead_code)] annotation - all system monitoring functions are actively used
+- **Fixed src/workflows/mod.rs**: Removed misleading #[allow(dead_code)] annotation - workflow system is actively used for automation
 - **Code quality**: Removed redundant bindings, replaced `sort_by` with `sort_by_key`, used `is_multiple_of()`, replaced redundant closures.
 - **Fixed `gpu-compute`**: Replaced manual `Default` impl with `#[derive(Default)]`; replaced `sort_by` with `sort_by_key`.
 - **Fixed `shared-scanner/src/lib.rs`**: Removed identity multiplication.
