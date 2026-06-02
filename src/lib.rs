@@ -16,3 +16,5 @@ pub mod workflows;
 
 // GUI module is private (used internally by the gui binary)
 pub mod gui;
+
+pub mod flow_test;

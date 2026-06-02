@@ -113,3 +113,25 @@ $RECYCLE.BIN/
 *.rar
 *.tar
 *.zip
+
+# Temp/instrumentation scripts from development
+fix.py
+fix_escape_html.py
+fix_ollama_checking.py
+instrument_ux.py
+instrument_ux_save.py
+tools/fix_line_continuations.py
+tools/fix_mojibake.py
+
+# Generated artifacts
+macro_logs/
+space-analyzer-report.md
+scripts/benchmark_results/
+scripts/__pycache__/
+*.pyc
+
+# Shell/env debris
+*.venv
+venv/
+.venv/
+

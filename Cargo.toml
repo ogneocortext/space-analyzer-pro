@@ -114,6 +114,11 @@ futures = "0.3"
 # System disk info
 sysinfo = "0.30"
 
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "std"] }
+tracing-appender = "0.2"
+
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
 windows-sys = { version = "0.59", features = [
