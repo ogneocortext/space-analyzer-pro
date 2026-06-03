@@ -17,7 +17,6 @@ exclude = [
     "native/archive_manager",
     "native/file_monitor",
     "native/storage_predictor",
-    "archive",
 ]
 
 [workspace.dependencies]

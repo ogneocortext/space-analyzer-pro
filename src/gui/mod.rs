@@ -1,4 +1,4 @@
-﻿//! Space Analyzer Pro - Self-Contained Desktop Application
+//! Space Analyzer Pro - Self-Contained Desktop Application
 //! 
 //! This is the PRIMARY and ONLY active GUI implementation for Space Analyzer Pro.
 //! It is a fully self-contained application with:
@@ -55,7 +55,7 @@ pub enum ScanMessage {
     Error(String),
 }
 
-// â”€â”€ Icon Helpers (Simple Placeholder Icons) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Icon Helpers (Simple Placeholder Icons) ──────────────────────
 
 mod icons {
     macro_rules! icon_fn {
@@ -66,24 +66,24 @@ mod icons {
         };
     }
 
-    icon_fn!(scan, "ðŸ“");
-    icon_fn!(history, "ðŸ•’");
-    icon_fn!(disk, "ðŸ’¾");
-    icon_fn!(system, "ðŸ–¥");
-    icon_fn!(trend, "ðŸ“ˆ");
-    icon_fn!(workflow, "âš™");
-    icon_fn!(filetype, "ðŸ“„");
-    icon_fn!(predict, "ðŸ”®");
-    icon_fn!(pattern, "ðŸ”");
-    icon_fn!(tool, "ðŸ”§");
-    icon_fn!(quick, "âš¡");
-    icon_fn!(model, "ðŸ¤–");
-    icon_fn!(index, "ðŸ“Š");
-    icon_fn!(security, "ðŸ›¡");
-    icon_fn!(cleanup, "ðŸ§¹");
-    icon_fn!(performance, "ðŸŽ");
-    icon_fn!(check, "âœ“");
-    icon_fn!(warning, "âš ");
+    icon_fn!(scan, "📁");
+    icon_fn!(history, "🕒");
+    icon_fn!(disk, "💾");
+    icon_fn!(system, "🖥");
+    icon_fn!(trend, "📈");
+    icon_fn!(workflow, "⚙");
+    icon_fn!(filetype, "📄");
+    icon_fn!(predict, "🔮");
+    icon_fn!(pattern, "🔍");
+    icon_fn!(tool, "🔧");
+    icon_fn!(quick, "⚡");
+    icon_fn!(model, "🤖");
+    icon_fn!(index, "📊");
+    icon_fn!(security, "🛡");
+    icon_fn!(cleanup, "🧹");
+    icon_fn!(performance, "🏎");
+    icon_fn!(check, "✓");
+    icon_fn!(warning, "⚠");
 }
 
 /// Tool result display data
@@ -335,10 +335,10 @@ impl Notification {
 
     pub fn icon(&self) -> &'static str {
         match self.level {
-            NotificationLevel::Info => "â„¹",
-            NotificationLevel::Success => "âœ“",
-            NotificationLevel::Warning => "âš ",
-            NotificationLevel::Error => "âœ—",
+            NotificationLevel::Info => "ℹ",
+            NotificationLevel::Success => "✓",
+            NotificationLevel::Warning => "⚠",
+            NotificationLevel::Error => "✗",
         }
     }
 
@@ -1014,17 +1014,17 @@ fn apply_custom_theme(ctx: &egui::Context) {
 
     // Custom colors
     let mut visuals = egui::Visuals::dark();
-    visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(28, 28, 35);
-    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(180, 180, 180));
-    visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(40, 40, 55);
-    visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(65, 65, 90);
-    visuals.widgets.active.bg_fill = egui::Color32::from_rgb(80, 80, 120);
-    visuals.selection.bg_fill = egui::Color32::from_rgb(60, 100, 180);
-    visuals.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(100, 180, 255));
-    visuals.extreme_bg_color = egui::Color32::from_rgb(18, 18, 25);
-    visuals.faint_bg_color = egui::Color32::from_rgb(25, 25, 30);
-    visuals.window_fill = egui::Color32::from_rgb(35, 35, 40);
-    visuals.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(60, 60, 70));
+    visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(30, 30, 46);
+    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(205, 214, 244));
+    visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(42, 42, 62);
+    visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(58, 58, 90);
+    visuals.widgets.active.bg_fill = egui::Color32::from_rgb(74, 74, 122);
+    visuals.selection.bg_fill = egui::Color32::from_rgb(137, 180, 250);
+    visuals.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(137, 180, 250));
+    visuals.extreme_bg_color = egui::Color32::from_rgb(24, 24, 37);
+    visuals.faint_bg_color = egui::Color32::from_rgb(27, 27, 38);
+    visuals.window_fill = egui::Color32::from_rgb(30, 30, 46);
+    visuals.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(46, 46, 66));
 
     style.visuals = visuals;
 
@@ -1044,7 +1044,7 @@ fn apply_custom_theme(ctx: &egui::Context) {
 
 #[allow(dead_code)]
 fn install_icon_fonts(_ctx: &egui::Context) {
-    // Icons are bundled via iconflow crate at compile time â€” no runtime font installation needed
+    // Icons are bundled via iconflow crate at compile time — no runtime font installation needed
 }
 
 /// Create a RichText icon from emoji character
@@ -1059,6 +1059,8 @@ fn icon_text(codepoint: u32, _family: &str, size: f32, color: egui::Color32) -> 
 fn icon_char(codepoint: u32) -> char {
     char::from_u32(codepoint).unwrap_or('?')
 }
+
+
 
 
 

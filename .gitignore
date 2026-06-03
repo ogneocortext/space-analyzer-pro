@@ -1,38 +1,24 @@
+# Dependencies
 node_modules
 dist
 dist-*/
+
+# Rust build artifacts
 target
 cpp-build
-tools/cache/.cache/
-bin/
 *.exe
-.env
-.env.local
-config/
 
-# Build environment configuration (user-specific paths)
-# Template is tracked: build-env-template.ps1
-# Copy is ignored: build-env.ps1
-build-env.ps1
-
-# Python AI Service
+# Python
+*.pyc
+*.pyo
+__pycache__/
 ai-service/venv/
 ai-service/__pycache__/
 ai-service/models/*.pkl
 ai-service/models/*.joblib
-tools/mcp/.mcp/
-*.log
-*.sqlite
-*.db
-*.db-journal
-test-screenshot*.png
-test-app.cjs
-test-app.mjs
-test-analysis.cjs
-test-ollama-services.mjs
-scanner.node
-sqlite3-*.tgz
-tsconfig.node.tsbuildinfo
+
+# Configuration secrets (never tracked)
+config/secrets/
 
 # Data files
 data/
@@ -47,11 +33,10 @@ reports/code-analysis-results/
 reports/code-centric-reports/
 reports/results/
 reports/performance-results/
-tests/results/
-tests/coverage/
 reports/webapp-analysis-results/
 backups/
-archive/
+
+# Server artifacts
 server/*.backup
 server/knowledge.db
 server/knowledge.db-journal
@@ -63,8 +48,33 @@ test_results_*.json
 test_report_*.txt
 test-results/
 test_workspace/
-nul
-STALE
+tests/coverage/
+test-screenshot*.png
+test-app.cjs
+test-app.mjs
+test-analysis.cjs
+test-ollama-services.mjs
+scanner.node
+sqlite3-*.tgz
+tsconfig.node.tsbuildinfo
+
+# Build artifacts
+build-artifacts/
+bin/
+macro_logs/
+
+# User-specific configuration
+.env
+.env.local
+build-env.ps1
+
+# Logs
+*.log
+
+# Databases
+*.sqlite
+*.db
+*.db-journal
 
 # OS generated files
 .DS_Store
@@ -114,24 +124,22 @@ $RECYCLE.BIN/
 *.tar
 *.zip
 
-# Temp/instrumentation scripts from development
-fix.py
-fix_escape_html.py
-fix_ollama_checking.py
-instrument_ux.py
-instrument_ux_save.py
-tools/fix_line_continuations.py
-tools/fix_mojibake.py
-
-# Generated artifacts
-macro_logs/
-space-analyzer-report.md
-scripts/benchmark_results/
-scripts/__pycache__/
-*.pyc
+# Temp/instrumentation scripts from development (moved to scripts/fix/)
+scripts/fix/fix.py
+scripts/fix/fix_escape_html.py
+scripts/fix/fix_ollama_checking.py
+scripts/fix/fix_line_continuations.py
+scripts/fix/fix_mojibake.py
 
 # Shell/env debris
 *.venv
 venv/
 .venv/
 
+# Tools cache
+tools/cache/.cache/
+tools/mcp/.mcp/
+
+# MCP state
+.playwright-mcp/
+archive/
