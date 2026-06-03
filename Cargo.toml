@@ -13,11 +13,6 @@ members = [
     "native/file_deduplicator",
     "native/node_modules_cleaner",
 ]
-exclude = [
-    "native/archive_manager",
-    "native/file_monitor",
-    "native/storage_predictor",
-]
 
 [workspace.dependencies]
 # Core
