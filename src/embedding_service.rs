@@ -3,8 +3,8 @@
 //! Provides cosine similarity search over file path embeddings,
 //! enabling natural language queries like "find my large video files".
 
-use super::ollama::OllamaClient;
 use super::gui_common::formatting;
+use super::ollama::OllamaClient;
 
 /// A search result with similarity score
 #[derive(Debug, Clone)]
@@ -44,9 +44,16 @@ pub fn file_to_description(file_path: &str, file_size: u64, extension: &str) -> 
     let size_label = formatting::format_bytes(file_size);
 
     // Extract just the filename from the path
-    let filename = file_path.rsplit('\\').next().or_else(|| file_path.rsplit('/').next()).unwrap_or(file_path);
+    let filename = file_path
+        .rsplit('\\')
+        .next()
+        .or_else(|| file_path.rsplit('/').next())
+        .unwrap_or(file_path);
 
-    format!("File: {} ({}) {} {}", filename, extension, size_label, file_path)
+    format!(
+        "File: {} ({}) {} {}",
+        filename, extension, size_label, file_path
+    )
 }
 
 /// Embed a batch of file descriptions using Ollama
@@ -57,6 +64,7 @@ pub async fn embed_files(
     let descriptions: Vec<String> = files
         .iter()
         .map(|(path, size, ext)| file_to_description(path, *size, ext))
+        .map(|s| s.to_lowercase()) // nomic-embed-text 0.30+ lowercases inputs
         .collect();
 
     let (embeddings, _) = client
@@ -69,8 +77,10 @@ pub async fn embed_files(
 
 /// Embed a search query
 pub async fn embed_query(client: &OllamaClient, query: &str) -> Result<Vec<f32>, String> {
+    // nomic-embed-text 0.30+ lowercases inputs; normalize query to match stored embeddings
+    let normalized_query = query.to_lowercase();
     let (embeddings, _) = client
-        .embed(vec![query.to_string()])
+        .embed(vec![normalized_query])
         .await
         .map_err(|e| format!("Query embedding failed: {}", e))?;
 
@@ -97,7 +107,11 @@ pub fn search_files(
         .collect();
 
     // Sort by similarity descending
-    scores.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
+    scores.sort_by(|a, b| {
+        b.similarity
+            .partial_cmp(&a.similarity)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     // Return top K
     scores.truncate(top_k);

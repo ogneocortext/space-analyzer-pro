@@ -1,5 +1,5 @@
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use std::path::PathBuf;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 fn log_dir() -> PathBuf {
     std::env::var("LOCALAPPDATA")
@@ -18,8 +18,15 @@ fn main() -> Result<(), eframe::Error> {
     let (file_writer, _guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "space_analyzer_pro_desktop=info".into()))
-        .with(tracing_subscriber::fmt::layer().with_writer(file_writer).with_ansi(false))
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "space_analyzer_pro_desktop=info".into()),
+        )
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(file_writer)
+                .with_ansi(false),
+        )
         .with(tracing_subscriber::fmt::layer().with_writer(std::io::stdout))
         .init();
 

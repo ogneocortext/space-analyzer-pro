@@ -1,5 +1,5 @@
 //! Workflow automation system for Space Analyzer Pro
-//! 
+//!
 //! Provides preconfigured scan workflows, automation templates, AI-driven recommendations,
 //! and native Rust workflow execution (no external orchestrator needed).
 #![allow(dead_code)] // Some workflow methods are only used by modular gui and tests
@@ -58,14 +58,9 @@ pub enum WorkflowAction {
         min_size: Option<u64>,
     },
     /// Find duplicate files
-    FindDuplicates {
-        paths: Vec<String>,
-        use_gpu: bool,
-    },
+    FindDuplicates { paths: Vec<String>, use_gpu: bool },
     /// Analyze storage predictions
-    PredictStorage {
-        days_ahead: usize,
-    },
+    PredictStorage { days_ahead: usize },
     /// Generate cleanup recommendations
     GenerateRecommendations,
     /// Export analysis results
@@ -74,14 +69,9 @@ pub enum WorkflowAction {
         path: Option<String>,
     },
     /// Send notification
-    Notify {
-        title: String,
-        message: String,
-    },
+    Notify { title: String, message: String },
     /// Run AI analysis via Ollama
-    AIAnalyze {
-        prompt: String,
-    },
+    AIAnalyze { prompt: String },
 }
 
 /// Export format options
@@ -145,9 +135,13 @@ fn matches_field(field: &str, value: u32, min: u32, max: u32) -> bool {
     }
 
     if let Some(step) = field.strip_prefix("*/") {
-          return step.parse::<u32>().ok().filter(|step| *step > 0).is_some_and(|step| {
-            value >= min && value <= max && (value - min).is_multiple_of(step)
-        });
+        return step
+            .parse::<u32>()
+            .ok()
+            .filter(|step| *step > 0)
+            .is_some_and(|step| {
+                value >= min && value <= max && (value - min).is_multiple_of(step)
+            });
     }
 
     field
@@ -225,12 +219,17 @@ impl Workflow {
 
     /// Add a duplicate finding action
     pub fn with_find_duplicates(mut self, paths: Vec<String>, use_gpu: bool) -> Self {
-        self.actions.push(WorkflowAction::FindDuplicates { paths, use_gpu });
+        self.actions
+            .push(WorkflowAction::FindDuplicates { paths, use_gpu });
         self
     }
 
     /// Add a notification action
-    pub fn with_notification(mut self, title: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn with_notification(
+        mut self,
+        title: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
         self.actions.push(WorkflowAction::Notify {
             title: title.into(),
             message: message.into(),
@@ -281,49 +280,70 @@ pub struct WorkflowTemplates;
 impl WorkflowTemplates {
     /// Weekly system cleanup workflow
     pub fn weekly_cleanup() -> Workflow {
-        Workflow::new("weekly-cleanup", "Weekly System Cleanup", WorkflowCategory::Maintenance)
-            .with_scan(".", true)
-            .with_find_duplicates(vec![".".to_string()], true)
-            .with_notification(
-                "Weekly Cleanup Complete",
-                "Scan and duplicate analysis finished. Check the results.",
-            )
-            .with_trigger(WorkflowTrigger::Scheduled("0 0 * * 1".to_string()))
+        Workflow::new(
+            "weekly-cleanup",
+            "Weekly System Cleanup",
+            WorkflowCategory::Maintenance,
+        )
+        .with_scan(".", true)
+        .with_find_duplicates(vec![".".to_string()], true)
+        .with_notification(
+            "Weekly Cleanup Complete",
+            "Scan and duplicate analysis finished. Check the results.",
+        )
+        .with_trigger(WorkflowTrigger::Scheduled("0 0 * * 1".to_string()))
     }
 
     /// Large file finder workflow
     pub fn large_files_finder() -> Workflow {
-        Workflow::new("large-files", "Large Files Finder", WorkflowCategory::Optimization)
-            .with_scan(".", true)
-            .with_description("Identifies files larger than 100MB for review and potential cleanup.")
+        Workflow::new(
+            "large-files",
+            "Large Files Finder",
+            WorkflowCategory::Optimization,
+        )
+        .with_scan(".", true)
+        .with_description("Identifies files larger than 100MB for review and potential cleanup.")
     }
 
     /// Disk space monitor workflow
     pub fn disk_space_monitor() -> Workflow {
-        Workflow::new("disk-monitor", "Disk Space Monitor", WorkflowCategory::Monitoring)
-            .with_scan(".", false)
-            .with_trigger(WorkflowTrigger::LowDiskSpace { threshold_percent: 90 })
-            .with_notification(
-                "Low Disk Space Alert",
-                "Available disk space is below 10%.",
-            )
+        Workflow::new(
+            "disk-monitor",
+            "Disk Space Monitor",
+            WorkflowCategory::Monitoring,
+        )
+        .with_scan(".", false)
+        .with_trigger(WorkflowTrigger::LowDiskSpace {
+            threshold_percent: 90,
+        })
+        .with_notification("Low Disk Space Alert", "Available disk space is below 10%.")
     }
 
     /// Development environment cleanup
     pub fn dev_environment_cleanup() -> Workflow {
-        Workflow::new("dev-cleanup", "Development Environment Cleanup", WorkflowCategory::Organization)
-            .with_scan("./node_modules", false)
-            .with_scan("./target", false)
-            .with_scan("./.git", false)
-            .with_description("Cleans common development directories: node_modules, build artifacts, git objects.")
+        Workflow::new(
+            "dev-cleanup",
+            "Development Environment Cleanup",
+            WorkflowCategory::Organization,
+        )
+        .with_scan("./node_modules", false)
+        .with_scan("./target", false)
+        .with_scan("./.git", false)
+        .with_description(
+            "Cleans common development directories: node_modules, build artifacts, git objects.",
+        )
     }
 
     /// Project archive analyzer
     pub fn project_archive_analysis() -> Workflow {
-        Workflow::new("archive-analysis", "Project Archive Analysis", WorkflowCategory::Organization)
-            .with_scan("./archive", true)
-            .with_find_duplicates(vec!["./archive".to_string()], true)
-            .with_description("Analyzes project archives for duplicates and organizational issues.")
+        Workflow::new(
+            "archive-analysis",
+            "Project Archive Analysis",
+            WorkflowCategory::Organization,
+        )
+        .with_scan("./archive", true)
+        .with_find_duplicates(vec!["./archive".to_string()], true)
+        .with_description("Analyzes project archives for duplicates and organizational issues.")
     }
 
     /// Startup scan workflow
@@ -336,10 +356,18 @@ impl WorkflowTemplates {
 
     /// AI-powered analysis workflow
     pub fn ai_powered_analysis() -> Workflow {
-        Workflow::new("ai-analysis", "AI-Powered Analysis", WorkflowCategory::Optimization)
-            .with_scan(".", true)
-            .with_ai_analysis("Analyze these scan results and recommend the top 3 actions to free up disk space.")
-            .with_description("Runs a deep scan and uses local AI to provide intelligent cleanup recommendations.")
+        Workflow::new(
+            "ai-analysis",
+            "AI-Powered Analysis",
+            WorkflowCategory::Optimization,
+        )
+        .with_scan(".", true)
+        .with_ai_analysis(
+            "Analyze these scan results and recommend the top 3 actions to free up disk space.",
+        )
+        .with_description(
+            "Runs a deep scan and uses local AI to provide intelligent cleanup recommendations.",
+        )
     }
 
     /// All available preconfigured workflows
@@ -361,7 +389,9 @@ pub struct StorageInsights;
 
 impl StorageInsights {
     /// Generate AI recommendations based on scan results
-    pub fn generate_recommendations(scan_result: &super::gui_common::ScanResult) -> Vec<AIRecommendation> {
+    pub fn generate_recommendations(
+        scan_result: &super::gui_common::ScanResult,
+    ) -> Vec<AIRecommendation> {
         let mut recommendations = Vec::new();
 
         // Check for large number of small files (potential fragmentation)
@@ -380,7 +410,9 @@ impl StorageInsights {
 
         // Check for dominance of specific file types
         if let Some((ext, count)) = scan_result.file_types.iter().max_by_key(|(_, &c)| c) {
-            if scan_result.total_files == 0 { return recommendations; }
+            if scan_result.total_files == 0 {
+                return recommendations;
+            }
             let percentage = (*count as f64 / scan_result.total_files as f64) * 100.0;
             if percentage > 30.0 {
                 recommendations.push(AIRecommendation {

@@ -60,13 +60,9 @@ Space-Analyzer/
 │   ├── native-gui/               # Archived experimental egui GUI
 │   ├── rust-tauri/               # Archived failed Tauri build
 │   └── python-orchestrator/      # Archived Python orchestrator
-├── server/                       # Node.js backend (optional)
-├── ai-service/                   # Python AI service (optional)
-├── tests/                        # Integration tests
-│   ├── gui_test.rs               # GUI headless regression tests
-│   ├── lib_shim.rs               # Test shim (legacy, tests now use crate directly)
+├── tests/                        # Unit tests
 │   └── unit/                     # Unit tests
-└── tools/                        # Development tools
+└── docs/                         # Documentation
 ```
 
 ## Version History

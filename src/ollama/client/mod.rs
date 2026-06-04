@@ -12,12 +12,12 @@
 //! - Model management (pull, delete, copy, create)
 
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use super::error::{OllamaError, OllamaResult};
-use super::types::*;
 use super::prompt_cache::{PromptCache, PromptCacheConfig};
+use super::types::*;
 
 mod chat;
 mod embeddings;
@@ -35,6 +35,7 @@ pub struct OllamaClient {
     metrics: Arc<Mutex<ClientMetrics>>,
     fallback_config: Arc<Mutex<ModelFallbackConfig>>,
     operation_timeouts: OperationTimeouts,
+    think: Option<TopLevelThink>,
 }
 
 impl std::fmt::Debug for OllamaClient {
@@ -59,6 +60,7 @@ pub struct OllamaClientBuilder {
     cache_config: Option<PromptCacheConfig>,
     fallback_config: Option<ModelFallbackConfig>,
     operation_timeouts: Option<OperationTimeouts>,
+    think: Option<TopLevelThink>,
 }
 
 impl OllamaClientBuilder {
@@ -73,6 +75,7 @@ impl OllamaClientBuilder {
             cache_config: None,
             fallback_config: None,
             operation_timeouts: None,
+            think: None,
         }
     }
 
@@ -114,11 +117,19 @@ impl OllamaClientBuilder {
         self
     }
 
+    /// Enable/disable extended thinking / reasoning
+    pub fn with_think(mut self, think: Option<TopLevelThink>) -> Self {
+        self.think = think;
+        self
+    }
+
     pub fn build(self) -> OllamaResult<OllamaClient> {
         // Validate base_url
         let base_url = self.base_url.trim_end_matches('/').to_string();
         if base_url.is_empty() {
-            return Err(OllamaError::ConfigError("base_url cannot be empty".to_string()));
+            return Err(OllamaError::ConfigError(
+                "base_url cannot be empty".to_string(),
+            ));
         }
         // Warn if not localhost
         if !base_url.contains("localhost")
@@ -135,7 +146,6 @@ impl OllamaClientBuilder {
         // OLLAMA_HOST env var override is handled in Database::load_settings()
         // so the URL passed here already has the correct precedence applied.
 
-
         // Validate model
         if self.model.is_empty() {
             return Err(OllamaError::ConfigError(
@@ -150,11 +160,13 @@ impl OllamaClientBuilder {
             .pool_max_idle_per_host(4)
             .build()?;
 
-        let cache = self.cache_config
-            .map(|cfg| PromptCache::new(cfg))
+        let cache = self
+            .cache_config
+            .map(PromptCache::new)
             .or_else(|| Some(PromptCache::new(PromptCacheConfig::default())));
 
-        let fallback_config = self.fallback_config
+        let fallback_config = self
+            .fallback_config
             .unwrap_or_else(|| ModelFallbackConfig::with_common_fallbacks(&self.model));
 
         Ok(OllamaClient {
@@ -168,6 +180,7 @@ impl OllamaClientBuilder {
             metrics: Arc::new(Mutex::new(ClientMetrics::new())),
             fallback_config: Arc::new(Mutex::new(fallback_config)),
             operation_timeouts: self.operation_timeouts.unwrap_or_default(),
+            think: self.think,
         })
     }
 }
@@ -180,12 +193,13 @@ impl OllamaClient {
 
     /// Create a client with a different model, preserving cache and metrics
     pub fn with_model(&self, model: &str) -> OllamaResult<Self> {
-        let operation_timeouts = self.operation_timeouts.clone();
+        let operation_timeouts = self.operation_timeouts;
         let mut client = OllamaClientBuilder::new(&self.base_url, model)
             .timeout(self.timeout)
             .options(self.default_options.clone())
             .keep_alive(&self.keep_alive)
             .with_fallback(self.fallback_config.lock().unwrap().clone())
+            .with_think(self.think.clone())
             .build()?;
         client.cache = self.cache.clone();
         client.metrics = self.metrics.clone();
@@ -193,13 +207,26 @@ impl OllamaClient {
         Ok(client)
     }
 
+    /// Configure extended thinking for requests
+    pub fn with_think(&self, think: Option<TopLevelThink>) -> Self {
+        let mut client = self.clone();
+        client.think = think;
+        client
+    }
+
     // ── Internal Helpers ─────────────────────────────────────────
 
     /// Track a request in metrics
-    fn track_request(&self, category: &str, duration_ms: u64, prompt_tokens: u32, completion_tokens: u32) {
+    fn track_request(
+        &self,
+        category: &str,
+        duration_ms: u64,
+        prompt_tokens: u32,
+        completion_tokens: u32,
+    ) {
         if let Ok(mut metrics) = self.metrics.lock() {
             metrics.total_requests += 1;
-            metrics.cumulative_duration_ms += duration_ms as u64;
+            metrics.cumulative_duration_ms += duration_ms;
             metrics.total_tokens_prompt += prompt_tokens as u64;
             metrics.total_tokens_completion += completion_tokens as u64;
             match category {
@@ -237,7 +264,10 @@ impl OllamaClient {
         let status = response.status().as_u16();
         let body = response.text().await.unwrap_or_default();
         let message = if status == 404 {
-            format!("Endpoint not found. Check Ollama version. Response: {}", body)
+            format!(
+                "Endpoint not found. Check Ollama version. Response: {}",
+                body
+            )
         } else if status == 429 {
             "Rate limited by Ollama. Try again later.".to_string()
         } else if status >= 500 {

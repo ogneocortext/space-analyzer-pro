@@ -1,5 +1,7 @@
 # Space Analyzer Pro - Issue Tracker
 
+> **Note:** This is a historical issue tracker. Some issues reference the legacy web architecture (`server/`, `ai-service/`) which has been moved to a separate repository. Current development focuses on the Rust desktop application.
+
 **Created:** 2025
 **Version:** v3.2.0
 **Total Issues Found:** 32

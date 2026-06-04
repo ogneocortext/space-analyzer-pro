@@ -23,8 +23,62 @@ impl ToolRegistry {
             "analyze_file_patterns" => self.analyze_file_patterns(scan_result),
             "search_files" => self.search_files(args, scan_result),
             "get_largest_files" => self.get_largest_files(args, scan_result),
+            "preview_impact" => self.preview_impact(args),
+            "move_to_trash" => self.move_to_trash_preview(args),
+            "hardlink_duplicates" => self.hardlink_duplicates_preview(args),
             _ => format!("Unknown tool: {}", function_name),
         }
+    }
+
+    // ── Destructive-action preview gate tools (Tier 4) ───────────────
+    // These tools are READ-ONLY or PREVIEW-ONLY. Actual destructive
+    // actions (moving to trash, hardlinking duplicates) must be
+    // confirmed by the user through the GUI's Destructive-Action
+    // Preview modal or the Dedup tab. The AI agent cannot perform
+    // these actions directly — this is the "destructive-preview gate".
+
+    fn preview_impact(&self, args: &serde_json::Value) -> String {
+        let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
+        if path.is_empty() {
+            return "Error: 'path' parameter is required.".to_string();
+        }
+        let report = crate::file_relations::analyze_file_dependencies(path);
+        serde_json::to_string_pretty(&report).unwrap_or_else(|_| format!("{:#?}", report))
+    }
+
+    fn move_to_trash_preview(&self, args: &serde_json::Value) -> String {
+        let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
+        if path.is_empty() {
+            return "Error: 'path' parameter is required.".to_string();
+        }
+        let report = crate::file_relations::analyze_file_dependencies(path);
+        format!(
+            "PREVIEW ONLY — no filesystem changes made.\n\n\
+             Target: {}\n\n\
+             {}\n\n\
+             To actually move this file to trash, the user must confirm via the GUI:\n\
+             Dashboard → Destructive-Action Preview → enter the path → review → click Confirm.\n\
+             The AI agent cannot perform destructive actions without explicit user approval.",
+            report.target_path, report.summary
+        )
+    }
+
+    fn hardlink_duplicates_preview(&self, args: &serde_json::Value) -> String {
+        let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
+        if path.is_empty() {
+            return "Error: 'path' parameter is required.".to_string();
+        }
+        format!(
+            "PREVIEW ONLY — no filesystem changes made.\n\n\
+             To hard-link duplicates in '{}', the user must:\n\
+             1. Run a deduplication scan via the GUI (Dedup tab)\n\
+             2. Review the duplicate groups found\n\
+             3. Explicitly click 'Hardlink' on each group\n\n\
+             The AI agent cannot perform destructive actions without explicit user approval.\n\
+             You can use preview_impact on a specific file to assess the impact of any\n\
+             individual file deletion or move.",
+            path
+        )
     }
 
     fn get_scan_summary(&self, scan_result: Option<&ScanResult>) -> String {
@@ -40,7 +94,11 @@ impl ToolRegistry {
             if !result.largest_files.is_empty() {
                 summary.push_str("\nLargest files:\n");
                 for (path, size) in result.largest_files.iter().take(10) {
-                    summary.push_str(&format!("  {} ({})\n", path, formatting::format_bytes(*size)));
+                    summary.push_str(&format!(
+                        "  {} ({})\n",
+                        path,
+                        formatting::format_bytes(*size)
+                    ));
                 }
             }
             summary
@@ -62,13 +120,19 @@ impl ToolRegistry {
                         for record in &records {
                             output.push_str(&format!(
                                 "  [{}] {} - {} files, {:.2} MB\n",
-                                record.timestamp, record.path, record.total_files, record.total_size_mb
+                                record.timestamp,
+                                record.path,
+                                record.total_files,
+                                record.total_size_mb
                             ));
                         }
                         output
                     }
                 }
-                Err(_) => "Unable to retrieve scan history. The database may be corrupt or unavailable.".to_string(),
+                Err(_) => {
+                    "Unable to retrieve scan history. The database may be corrupt or unavailable."
+                        .to_string()
+                }
             }
         } else {
             "Database not available.".to_string()
@@ -88,10 +152,12 @@ impl ToolRegistry {
                     0.0
                 };
                 output.push_str(&format!(
-                     "  {} ({}) - {:.1}% used, {} free of {}\n",
-                     vol.mount_point, vol.name, usage_pct,
-                     formatting::format_bytes(vol.available_bytes),
-                     formatting::format_bytes(vol.total_bytes)
+                    "  {} ({}) - {:.1}% used, {} free of {}\n",
+                    vol.mount_point,
+                    vol.name,
+                    usage_pct,
+                    formatting::format_bytes(vol.available_bytes),
+                    formatting::format_bytes(vol.total_bytes)
                 ));
             }
             output
@@ -106,12 +172,12 @@ impl ToolRegistry {
             0.0
         };
         format!(
-             "CPU usage: {:.1}%\nMemory: {:.1}% used ({} / {})\nSwap: {:.1}% used",
-                     resources.cpu_percent,
-                     resources.memory_percent,
-                     formatting::format_bytes(resources.memory_used_bytes),
-                     formatting::format_bytes(resources.memory_total_bytes),
-                     swap_pct
+            "CPU usage: {:.1}%\nMemory: {:.1}% used ({} / {})\nSwap: {:.1}% used",
+            resources.cpu_percent,
+            resources.memory_percent,
+            formatting::format_bytes(resources.memory_used_bytes),
+            formatting::format_bytes(resources.memory_total_bytes),
+            swap_pct
         )
     }
 
@@ -145,10 +211,7 @@ impl ToolRegistry {
         let templates = WorkflowTemplates::all_templates();
         let mut output = "Available workflows:\n".to_string();
         for wf in &templates {
-            output.push_str(&format!(
-                "  {} - {}\n",
-                wf.name, wf.description
-            ));
+            output.push_str(&format!("  {} - {}\n", wf.name, wf.description));
         }
         output
     }
@@ -174,7 +237,10 @@ impl ToolRegistry {
     }
 
     fn predict_storage(&self, args: &serde_json::Value, db: Option<&Database>) -> String {
-        let days_ahead = args.get("days_ahead").and_then(|v| v.as_u64()).unwrap_or(30) as usize;
+        let days_ahead = args
+            .get("days_ahead")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(30) as usize;
         if let Some(db) = db {
             match db.get_storage_trend(50) {
                 Ok(trend) => {
@@ -267,7 +333,10 @@ impl ToolRegistry {
                 }
             }
             if !dominant_types.is_empty() {
-                output.push_str(&format!("Dominant file types: {}\n", dominant_types.join(", ")));
+                output.push_str(&format!(
+                    "Dominant file types: {}\n",
+                    dominant_types.join(", ")
+                ));
             }
 
             // Large file analysis
@@ -303,7 +372,9 @@ impl ToolRegistry {
             let total_large: u64 = result.largest_files.iter().map(|(_, s)| *s).sum();
             let total_counted_files: usize = result.file_types.values().sum();
             if total_counted_files > 0 && total_large == 0 {
-                output.push_str("Note: All files are very small. Consider archiving or compressing.\n");
+                output.push_str(
+                    "Note: All files are very small. Consider archiving or compressing.\n",
+                );
             }
 
             output
@@ -317,12 +388,26 @@ impl ToolRegistry {
             return "No scan results available. Please run a scan first.".to_string();
         };
         let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
-        let ext_filter = args.get("extension").and_then(|v| v.as_str()).map(|s| s.to_lowercase());
-        let keyword = args.get("keyword").and_then(|v| v.as_str()).map(|s| s.to_lowercase());
-        let min_size = args.get("min_size_mb").and_then(|v| v.as_u64()).map(|mb| mb * 1024 * 1024);
-        let max_size = args.get("max_size_mb").and_then(|v| v.as_u64()).map(|mb| mb * 1024 * 1024);
+        let ext_filter = args
+            .get("extension")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_lowercase());
+        let keyword = args
+            .get("keyword")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_lowercase());
+        let min_size = args
+            .get("min_size_mb")
+            .and_then(|v| v.as_u64())
+            .map(|mb| mb * 1024 * 1024);
+        let max_size = args
+            .get("max_size_mb")
+            .and_then(|v| v.as_u64())
+            .map(|mb| mb * 1024 * 1024);
 
-        let mut matches: Vec<&(String, u64)> = result.largest_files.iter()
+        let mut matches: Vec<&(String, u64)> = result
+            .largest_files
+            .iter()
             .filter(|(path, size)| {
                 if let Some(ref ext) = ext_filter {
                     if !path.to_lowercase().ends_with(&format!(".{}", ext)) {
@@ -335,10 +420,14 @@ impl ToolRegistry {
                     }
                 }
                 if let Some(min) = min_size {
-                    if *size < min { return false; }
+                    if *size < min {
+                        return false;
+                    }
                 }
                 if let Some(max) = max_size {
-                    if *size > max { return false; }
+                    if *size > max {
+                        return false;
+                    }
                 }
                 true
             })
@@ -349,26 +438,37 @@ impl ToolRegistry {
             return "No files match the search criteria.".to_string();
         }
 
-        matches.sort_by(|a, b| b.1.cmp(&a.1));
+        matches.sort_by_key(|b| std::cmp::Reverse(b.1));
         let mut output = format!("Search results ({} files):\n", matches.len());
         for (path, size) in matches {
-            output.push_str(&format!("  {} ({})\n", path, formatting::format_bytes(*size)));
+            output.push_str(&format!(
+                "  {} ({})\n",
+                path,
+                formatting::format_bytes(*size)
+            ));
         }
         output
     }
 
-    fn get_largest_files(&self, args: &serde_json::Value, scan_result: Option<&ScanResult>) -> String {
+    fn get_largest_files(
+        &self,
+        args: &serde_json::Value,
+        scan_result: Option<&ScanResult>,
+    ) -> String {
         let Some(result) = scan_result else {
             return "No scan results available. Please run a scan first.".to_string();
         };
         let count = args.get("count").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
         let count = count.min(100);
-        let min_size = args.get("min_size_mb")
+        let min_size = args
+            .get("min_size_mb")
             .and_then(|v| v.as_u64())
             .map(|mb| mb * 1024 * 1024);
 
-        let files: Vec<&(String, u64)> = result.largest_files.iter()
-            .filter(|(_, size)| min_size.map_or(true, |min| *size >= min))
+        let files: Vec<&(String, u64)> = result
+            .largest_files
+            .iter()
+            .filter(|(_, size)| min_size.is_none_or(|min| *size >= min))
             .take(count)
             .collect();
 
@@ -378,7 +478,11 @@ impl ToolRegistry {
 
         let mut output = format!("Largest files (top {}):\n", files.len());
         for (path, size) in &files {
-            output.push_str(&format!("  {} ({})\n", path, formatting::format_bytes(*size)));
+            output.push_str(&format!(
+                "  {} ({})\n",
+                path,
+                formatting::format_bytes(*size)
+            ));
         }
         output
     }

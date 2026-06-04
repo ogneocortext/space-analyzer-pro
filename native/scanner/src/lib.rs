@@ -1,13 +1,12 @@
+use crossbeam::channel::bounded;
 use napi_derive::napi;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::time::SystemTime;
 use walkdir::WalkDir;
-use serde::{Serialize, Deserialize};
-use rayon::prelude::*;
-use crossbeam::channel::bounded;
-use num_cpus;
 
 // Include the new scanner modules
 #[cfg(windows)]
@@ -104,6 +103,12 @@ pub struct SpaceAnalyzer {
     exclude_dirs: Vec<String>,
 }
 
+impl Default for SpaceAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SpaceAnalyzer {
     pub fn new() -> Self {
         Self {
@@ -138,8 +143,8 @@ impl SpaceAnalyzer {
             // Audio
             "mp3" | "wav" | "flac" | "aac" | "ogg" => "Audio",
             // Code
-            "js" | "jsx" | "ts" | "tsx" | "py" | "java" | "cpp" | "c" | "h" | "hpp" |
-            "cs" | "php" | "rb" | "go" | "rs" | "swift" | "kt" => "Code",
+            "js" | "jsx" | "ts" | "tsx" | "py" | "java" | "cpp" | "c" | "h" | "hpp" | "cs"
+            | "php" | "rb" | "go" | "rs" | "swift" | "kt" => "Code",
             // Web
             "html" | "htm" | "css" | "scss" | "less" | "xml" => "Web",
             // Config
@@ -172,7 +177,9 @@ impl SpaceAnalyzer {
 
         let path = Path::new(&directory_path);
         if !path.exists() || !path.is_dir() {
-            return Err(anyhow::anyhow!("Directory does not exist or is not a directory"));
+            return Err(anyhow::anyhow!(
+                "Directory does not exist or is not a directory"
+            ));
         }
 
         let _total_files = 0i64;
@@ -214,7 +221,13 @@ impl SpaceAnalyzer {
                 collected_files.push(file_info);
             }
 
-            (collected_files, collected_total, collected_size, collected_categories, collected_extensions)
+            (
+                collected_files,
+                collected_total,
+                collected_size,
+                collected_categories,
+                collected_extensions,
+            )
         });
 
         // Process directory entries
@@ -228,14 +241,16 @@ impl SpaceAnalyzer {
                     if let Ok(metadata) = entry.metadata() {
                         if let Some(file_info) = self.create_file_info(&entry, &metadata) {
                             if sender.send(file_info).is_err() {
-                                return;
                             }
                         }
                     }
                 });
         } else {
             // Sequential processing
-            for entry in walker.filter_map(|e| e.ok()).filter(|entry| self.should_include_entry(entry, include_hidden)) {
+            for entry in walker
+                .filter_map(|e| e.ok())
+                .filter(|entry| self.should_include_entry(entry, include_hidden))
+            {
                 if let Ok(metadata) = entry.metadata() {
                     if let Some(file_info) = self.create_file_info(&entry, &metadata) {
                         if sender.send(file_info).is_err() {
@@ -249,8 +264,15 @@ impl SpaceAnalyzer {
         drop(sender); // Close channel
 
         // Wait for collector
-        let (collected_files, collected_total, collected_size, collected_categories, collected_extensions) =
-            collector_handle.join().map_err(|_| anyhow::anyhow!("Thread join failed"))?;
+        let (
+            collected_files,
+            collected_total,
+            collected_size,
+            collected_categories,
+            collected_extensions,
+        ) = collector_handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("Thread join failed"))?;
 
         let analysis_time = start_time
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -258,10 +280,10 @@ impl SpaceAnalyzer {
             .as_millis();
 
         // Serialize HashMaps to JSON strings for NAPI compatibility
-        let categories_json = serde_json::to_string(&collected_categories)
-            .unwrap_or_else(|_| "{}".to_string());
-        let extension_stats_json = serde_json::to_string(&collected_extensions)
-            .unwrap_or_else(|_| "{}".to_string());
+        let categories_json =
+            serde_json::to_string(&collected_categories).unwrap_or_else(|_| "{}".to_string());
+        let extension_stats_json =
+            serde_json::to_string(&collected_extensions).unwrap_or_else(|_| "{}".to_string());
 
         Ok(AnalysisResult {
             total_files: collected_total,
@@ -318,7 +340,11 @@ impl SpaceAnalyzer {
         }
     }
 
-    fn create_file_info(&self, entry: &walkdir::DirEntry, metadata: &fs::Metadata) -> Option<FileInfo> {
+    fn create_file_info(
+        &self,
+        entry: &walkdir::DirEntry,
+        metadata: &fs::Metadata,
+    ) -> Option<FileInfo> {
         let path = entry.path();
         let file_name = entry.file_name().to_string_lossy().to_string();
         let file_path_str = path.to_string_lossy().to_string();
@@ -344,13 +370,31 @@ impl SpaceAnalyzer {
 
         // Windows API fields (only populated on Windows)
         #[cfg(windows)]
-        let (created, accessed, is_hard_link, hard_link_count, has_ads, ads_count, is_compressed, compressed_size, is_sparse, is_reparse_point, reparse_tag, owner) = {
+        let (
+            created,
+            accessed,
+            is_hard_link,
+            hard_link_count,
+            has_ads,
+            ads_count,
+            is_compressed,
+            compressed_size,
+            is_sparse,
+            is_reparse_point,
+            reparse_tag,
+            owner,
+        ) = {
             use std::os::windows::ffi::OsStrExt;
             use std::os::windows::fs::MetadataExt;
-            use winapi::um::fileapi::{CreateFileW, OPEN_EXISTING, BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle};
+            use winapi::um::fileapi::{
+                CreateFileW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, OPEN_EXISTING,
+            };
             use winapi::um::handleapi::CloseHandle;
-            use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE,
-                                     FILE_ATTRIBUTE_COMPRESSED, FILE_ATTRIBUTE_SPARSE_FILE, FILE_ATTRIBUTE_REPARSE_POINT};
+            use winapi::um::winnt::{
+                FILE_ATTRIBUTE_COMPRESSED, FILE_ATTRIBUTE_REPARSE_POINT,
+                FILE_ATTRIBUTE_SPARSE_FILE, FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ,
+                HANDLE,
+            };
 
             let attrs = metadata.file_attributes();
             let is_compressed = (attrs & FILE_ATTRIBUTE_COMPRESSED) != 0;
@@ -379,13 +423,17 @@ impl SpaceAnalyzer {
 
                     if result != 0 {
                         // Convert FILETIME to seconds string for created/accessed
-                        let ft_to_secs = |ft: winapi::shared::minwindef::FILETIME| -> Option<String> {
-                            let ft_64 = ((ft.dwHighDateTime as u64) << 32) | (ft.dwLowDateTime as u64);
-                            if ft_64 == 0 { return None; }
-                            let secs_since_1601 = ft_64 / 10_000_000;
-                            let secs_since_unix = secs_since_1601 as i64 - 11_644_473_600i64;
-                            Some(secs_since_unix.to_string())
-                        };
+                        let ft_to_secs =
+                            |ft: winapi::shared::minwindef::FILETIME| -> Option<String> {
+                                let ft_64 =
+                                    ((ft.dwHighDateTime as u64) << 32) | (ft.dwLowDateTime as u64);
+                                if ft_64 == 0 {
+                                    return None;
+                                }
+                                let secs_since_1601 = ft_64 / 10_000_000;
+                                let secs_since_unix = secs_since_1601 as i64 - 11_644_473_600i64;
+                                Some(secs_since_unix.to_string())
+                            };
 
                         (
                             file_info.nNumberOfLinks,
@@ -399,14 +447,57 @@ impl SpaceAnalyzer {
             };
 
             let is_hard_link = nlinks > 1;
-            let hard_link_count = if is_hard_link { Some(nlinks as i32) } else { None };
+            let hard_link_count = if is_hard_link {
+                Some(nlinks as i32)
+            } else {
+                None
+            };
 
-            (created_time, accessed_time, is_hard_link, hard_link_count, false, None::<i32>, is_compressed, None::<i64>, is_sparse, is_reparse_point, None::<String>, None::<String>)
+            (
+                created_time,
+                accessed_time,
+                is_hard_link,
+                hard_link_count,
+                false,
+                None::<i32>,
+                is_compressed,
+                None::<i64>,
+                is_sparse,
+                is_reparse_point,
+                None::<String>,
+                None::<String>,
+            )
         };
 
         #[cfg(not(windows))]
-        let (created, accessed, is_hard_link, hard_link_count, has_ads, ads_count, is_compressed, compressed_size, is_sparse, is_reparse_point, reparse_tag, owner) = {
-            (None::<String>, None::<String>, false, None::<i32>, false, None::<i32>, false, None::<i64>, false, false, None::<String>, None::<String>)
+        let (
+            created,
+            accessed,
+            is_hard_link,
+            hard_link_count,
+            has_ads,
+            ads_count,
+            is_compressed,
+            compressed_size,
+            is_sparse,
+            is_reparse_point,
+            reparse_tag,
+            owner,
+        ) = {
+            (
+                None::<String>,
+                None::<String>,
+                false,
+                None::<i32>,
+                false,
+                None::<i32>,
+                false,
+                None::<i64>,
+                false,
+                false,
+                None::<String>,
+                None::<String>,
+            )
         };
 
         Some(FileInfo {
@@ -414,7 +505,7 @@ impl SpaceAnalyzer {
             path: file_path_str,
             size: FileSize {
                 bytes: metadata.len() as i64,
-                formatted: self.format_size(metadata.len() as u64),
+                formatted: self.format_size(metadata.len()),
                 on_disk: compressed_size,
             },
             extension,

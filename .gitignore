@@ -1,3 +1,105 @@
-# Dependenciesnode_modulesdistdist-*/# Rust build artifactstargetcpp-build*.exe# Python*.pyc*.pyo__pycache__/ai-service/venv/ai-service/__pycache__/ai-service/models/*.pklai-service/models/*.joblib# Configuration secrets (never tracked)config/secrets/# Data filesdata/temp_analysis.jsontest_response*.jsonapi_test.jsontest-scan.jsonanalysis_result.jsonbuild-log.txtreports/analysis-results/reports/code-analysis-results/reports/code-centric-reports/reports/results/reports/performance-results/reports/webapp-analysis-results/backups/# Server artifactsserver/*.backupserver/knowledge.dbserver/knowledge.db-journalserver/output_*.jsonserver/server.log# Test artifactstest_results_*.jsontest_report_*.txttest-results/tests/coverage/test-screenshot*.pngtest-app.cjstest-app.mjstest-analysis.cjstest-ollama-services.mjsscanner.nodesqlite3-*.tgztsconfig.node.tsbuildinfo# Build artifactsbuild-artifacts/bin/macro_logs/# User-specific configuration.env.env.localbuild-env.ps1# Logs*.log# Databases*.sqlite*.db*.db-journal# OS generated files.DS_Store.DS_Store?._*.Spotlight-V100.Trashesehthumbs.dbThumbs.dbDesktop.ini$RECYCLE.BIN/# IDE files*.swp*.swo*~.idea/*.iml.ipr.iws.project.classpath.settings/.metadata/*.sublime-workspace*.sublime-project.vscode/!.vscode/settings.json!.vscode/tasks.json!.vscode/launch.json!.vscode/extensions.json# Backup files*.bak*.backup*.old*.orig*.tmp# Archive files*.7z*.dmg*.gz*.iso*.jar*.rar*.tar*.zip# Temp/instrumentation scripts from development (moved to scripts/fix/)scripts/fix/fix.pyscripts/fix/fix_escape_html.pyscripts/fix/fix_ollama_checking.pyscripts/fix/fix_line_continuations.pyscripts/fix/fix_mojibake.py# Shell/env debris*.venvvenv/.venv/# Tools cache# MCP state.playwright-mcp/archive/
-# Secrets
-server/.jwt-secret
+# Rust build artifacts
+target/
+cpp-build/
+*.exe
+
+# Python
+*.pyc
+*.pyo
+__pycache__/
+
+# Configuration secrets (never tracked)
+config/secrets/
+
+# Data files
+data/temp_analysis.json
+test_response*.json
+analysis_result.json
+build-log.txt
+reports/
+
+# Test artifacts
+test_results_*.json
+test_report_*.txt
+test-results/
+test-screenshot*.png
+
+# Build artifacts
+build-artifacts/
+bin/
+macro_logs/
+
+# User-specific configuration
+.env
+.env.local
+build-env.ps1
+
+# Logs
+*.log
+
+# Databases
+*.sqlite
+*.db
+*.db-journal
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# IDE files
+*.swp
+*.swo
+*~
+.idea/
+*.iml
+.ipr
+.iws
+.project
+.classpath
+.settings/
+.metadata/
+*.sublime-workspace
+*.sublime-project
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+*.tmp
+
+# Archive files
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Virtual environments
+.venv/
+venv/
+
+# Tools cache
+.playwright-mcp/
+
+# Agent config
+.devin/
+.kilo/
+
+# Archive (legacy code, do not modify)
+archive/

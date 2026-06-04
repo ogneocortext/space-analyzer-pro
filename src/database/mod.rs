@@ -3,9 +3,9 @@
 //! Provides self-contained persistence with zero external dependencies.
 //! Stores scan history, settings, workflow executions, and analysis data.
 
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
 
 /// Database manager for persistent storage
 pub struct Database {
@@ -40,9 +40,9 @@ pub struct FileEmbeddingRecord {
     pub created_at: String,
 }
 
-mod settings;
-mod scans;
 mod embeddings;
+mod scans;
+mod settings;
 mod workflows;
 
 pub use settings::*;
@@ -128,18 +128,18 @@ impl Database {
     #[allow(dead_code)] // Planned: trend visualization in dashboard
     pub fn get_storage_trend(&self, limit: usize) -> rusqlite::Result<Vec<(String, u64)>> {
         let mut stmt = self.conn.prepare(
-            "SELECT timestamp, total_size_bytes FROM scan_history ORDER BY timestamp ASC LIMIT ?1"
+            "SELECT timestamp, total_size_bytes FROM scan_history ORDER BY timestamp ASC LIMIT ?1",
         )?;
-        let rows = stmt.query_map(params![limit], |row| {
-            Ok((row.get(0)?, row.get(1)?))
-        })?;
+        let rows = stmt.query_map(params![limit], |row| Ok((row.get(0)?, row.get(1)?)))?;
         rows.collect()
     }
 
     /// Get the latest scan ID
     #[allow(dead_code)] // Planned: incremental scan support
     pub fn get_latest_scan_id(&self) -> rusqlite::Result<Option<i64>> {
-        let mut stmt = self.conn.prepare("SELECT id FROM scan_history ORDER BY timestamp DESC LIMIT 1")?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id FROM scan_history ORDER BY timestamp DESC LIMIT 1")?;
         let mut rows = stmt.query([])?;
         if let Some(row) = rows.next()? {
             Ok(Some(row.get(0)?))

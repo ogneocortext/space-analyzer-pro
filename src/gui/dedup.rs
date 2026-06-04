@@ -28,13 +28,13 @@ impl SimpleDeduplicator {
 
         // Hash using BatchHasher (parallel CPU or GPU-accelerated)
         let paths: Vec<PathBuf> = files.iter().map(|(p, _)| PathBuf::from(p)).collect();
-        let hasher = gpu_compute::hash::BatchHasher::new()
-            .with_gpu(self.use_gpu);
+        let hasher = gpu_compute::hash::BatchHasher::new().with_gpu(self.use_gpu);
         let hash_results = hasher.hash_files(&paths);
 
         let mut results = Vec::new();
         for (file_path, size) in files {
-            let hash = hash_results.iter()
+            let hash = hash_results
+                .iter()
                 .find(|r| r.path.to_string_lossy() == file_path)
                 .map(|r| r.hash.clone())
                 .unwrap_or_else(|| "unknown".to_string());
@@ -74,13 +74,15 @@ impl SimpleDeduplicator {
         for (path, size, hash) in files {
             by_hash.entry(hash).or_default().push((path, size));
         }
-        by_hash.into_values()
+        by_hash
+            .into_values()
             .filter(|group| group.len() > 1)
             .collect()
     }
 }
 
 /// Parsed dedup result for structured display
+#[allow(dead_code)]
 struct DedupResult {
     duplicate_groups: Vec<Vec<(String, u64)>>,
     total_scanned: usize,
@@ -94,7 +96,11 @@ impl SpaceAnalyzerApp {
         }
         self.is_deduplicating = true;
         let gpu_tag = if use_gpu { " (GPU)" } else { "" };
-        self.status_message = Some(format!("[Dedup] Scanning for duplicates in: {}{}", paths.join(", "), gpu_tag));
+        self.status_message = Some(format!(
+            "[Dedup] Scanning for duplicates in: {}{}",
+            paths.join(", "),
+            gpu_tag
+        ));
 
         let (tx, rx) = mpsc::channel();
         self.dedup_receiver = Some(rx);
@@ -120,10 +126,14 @@ impl SpaceAnalyzerApp {
             let duplicate_groups = deduplicator.find_duplicates(all_files);
 
             if duplicate_groups.is_empty() {
-                let _ = tx.send(format!("[DONE] Scanned {} files. No duplicates found.", total_scanned));
+                let _ = tx.send(format!(
+                    "[DONE] Scanned {} files. No duplicates found.",
+                    total_scanned
+                ));
             } else {
                 let total_duplicates: usize = duplicate_groups.iter().map(|g| g.len() - 1).sum();
-                let potential_savings: u64 = duplicate_groups.iter()
+                let potential_savings: u64 = duplicate_groups
+                    .iter()
                     .map(|g| g[0].1 * (g.len() as u64 - 1))
                     .sum();
                 let _ = tx.send(format!(
@@ -162,6 +172,7 @@ impl SpaceAnalyzerApp {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn render_dedup(&mut self, ui: &mut egui::Ui) {
         ui.heading("File Deduplication");
         ui.label("Find duplicate files using BLAKE3 hashing to recover disk space.");
@@ -180,10 +191,19 @@ impl SpaceAnalyzerApp {
 
         ui.horizontal(|ui| {
             ui.checkbox(&mut self.settings.default_deep_scan, "Deep scan");
-            if ui.add_enabled(!self.is_deduplicating, egui::Button::new("Find Duplicates")).clicked() {
-                self.start_deduplication(vec![self.current_path.to_string_lossy().to_string()], self.settings.dedup_use_gpu);
+            if ui
+                .add_enabled(!self.is_deduplicating, egui::Button::new("Find Duplicates"))
+                .clicked()
+            {
+                self.start_deduplication(
+                    vec![self.current_path.to_string_lossy().to_string()],
+                    self.settings.dedup_use_gpu,
+                );
             }
-            if ui.add_enabled(self.is_deduplicating, egui::Button::new("Cancel")).clicked() {
+            if ui
+                .add_enabled(self.is_deduplicating, egui::Button::new("Cancel"))
+                .clicked()
+            {
                 self.is_deduplicating = false;
                 self.dedup_receiver = None;
             }

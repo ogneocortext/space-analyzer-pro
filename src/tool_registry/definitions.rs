@@ -70,6 +70,51 @@ impl ToolRegistry {
             ),
         ));
 
+        // Tool: preview_impact (destructive-action preview gate - read-only)
+        self.definitions.push(ToolDefinition::new(
+            "preview_impact",
+            "Generate a destructive-action impact report for a file. Shows hardlinks, symlinks, sibling files, and an impact assessment. READ-ONLY \u{2014} does not modify the filesystem. The user must review the report and confirm any destructive action through the GUI (Dashboard \u{2192} Destructive-Action Preview).",
+            ToolParameters::new(
+                serde_json::json!({
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path to the file to analyze"
+                    }
+                }),
+                vec!["path".to_string()],
+            ),
+        ));
+
+        // Tool: move_to_trash (destructive-action preview gate - PREVIEW ONLY)
+        self.definitions.push(ToolDefinition::new(
+            "move_to_trash",
+            "PREVIEW ONLY: Returns an impact report for moving a file to trash. The AI agent CANNOT perform this action directly. The user must confirm via the GUI (Dashboard \u{2192} Destructive-Action Preview). Use preview_impact first to see the consequences.",
+            ToolParameters::new(
+                serde_json::json!({
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path to the file to move to trash"
+                    }
+                }),
+                vec!["path".to_string()],
+            ),
+        ));
+
+        // Tool: hardlink_duplicates (destructive-action preview gate - PREVIEW ONLY)
+        self.definitions.push(ToolDefinition::new(
+            "hardlink_duplicates",
+            "PREVIEW ONLY: Returns a plan for hard-linking duplicate files in a directory. The AI agent CANNOT perform this action directly. The user must run a dedup scan via the GUI (Dedup tab) and review results before any changes are made.",
+            ToolParameters::new(
+                serde_json::json!({
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path to the directory to scan for duplicates"
+                    }
+                }),
+                vec!["path".to_string()],
+            ),
+        ));
+
         // Scan-dependent tools (only available when a scan exists)
         if has_scan {
             // Tool: get_scan_summary

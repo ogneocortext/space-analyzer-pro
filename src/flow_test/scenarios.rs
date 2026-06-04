@@ -81,12 +81,13 @@ fn basic_scan_scenario() -> TestScenario {
 fn deep_scan_scenario() -> TestScenario {
     TestScenario {
         name: "deep_scan".to_string(),
-        description: "Perform a deep scan with maximum depth and verify comprehensive results".to_string(),
+        description: "Perform a deep scan with maximum depth and verify comprehensive results"
+            .to_string(),
         steps: vec![
             TestStep {
                 action: "Start deep scan".to_string(),
                 component: "scanner".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "scan_type".to_string() => "deep".to_string(),
                     "depth".to_string() => "10".to_string(),
                 },
@@ -96,7 +97,7 @@ fn deep_scan_scenario() -> TestScenario {
             TestStep {
                 action: "Monitor deep scan progress".to_string(),
                 component: "scanner".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_interval_ms".to_string() => "1000".to_string(),
                 },
                 timeout_ms: 120000,
@@ -105,7 +106,7 @@ fn deep_scan_scenario() -> TestScenario {
             TestStep {
                 action: "Verify deep scan results".to_string(),
                 component: "scanner".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "validate_empty_dirs".to_string() => "true".to_string(),
                     "validate_hidden_files".to_string() => "true".to_string(),
                 },
@@ -133,14 +134,14 @@ fn settings_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Load current settings".to_string(),
                 component: "settings".to_string(),
-                parameters: hashmap!{},
+                parameters: hashmap! {},
                 timeout_ms: 5000,
                 is_read_only: true,
             },
             TestStep {
                 action: "Verify default settings".to_string(),
                 component: "settings".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_ollama_enabled".to_string() => "false".to_string(),
                     "check_gpu_acceleration".to_string() => "true".to_string(),
                 },
@@ -150,7 +151,7 @@ fn settings_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Modify non-destructive settings".to_string(),
                 component: "settings".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "max_scan_depth".to_string() => "7".to_string(),
                     "large_file_threshold_mb".to_string() => "50".to_string(),
                 },
@@ -160,14 +161,14 @@ fn settings_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Save settings".to_string(),
                 component: "settings".to_string(),
-                parameters: hashmap!{},
+                parameters: hashmap! {},
                 timeout_ms: 5000,
                 is_read_only: true,
             },
             TestStep {
                 action: "Reload and verify settings".to_string(),
                 component: "settings".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "verify_max_scan_depth".to_string() => "7".to_string(),
                 },
                 timeout_ms: 5000,
@@ -189,12 +190,13 @@ fn settings_flow_scenario() -> TestScenario {
 fn history_flow_scenario() -> TestScenario {
     TestScenario {
         name: "history_flow".to_string(),
-        description: "Test loading scan history and drilling down into past scan details".to_string(),
+        description: "Test loading scan history and drilling down into past scan details"
+            .to_string(),
         steps: vec![
             TestStep {
                 action: "Load scan history".to_string(),
                 component: "history".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "limit".to_string() => "50".to_string(),
                 },
                 timeout_ms: 5000,
@@ -203,7 +205,7 @@ fn history_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Verify history list".to_string(),
                 component: "history".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_dates".to_string() => "true".to_string(),
                     "check_sizes".to_string() => "true".to_string(),
                 },
@@ -213,7 +215,7 @@ fn history_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Drill down into first history item".to_string(),
                 component: "history".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "show_file_types".to_string() => "true".to_string(),
                     "show_largest_files".to_string() => "true".to_string(),
                 },
@@ -241,7 +243,7 @@ fn smart_search_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Check embedding status".to_string(),
                 component: "smart_search".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_indexed".to_string() => "true".to_string(),
                 },
                 timeout_ms: 5000,
@@ -250,7 +252,7 @@ fn smart_search_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Execute semantic search query".to_string(),
                 component: "smart_search".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "query".to_string() => "large files".to_string(),
                 },
                 timeout_ms: 10000,
@@ -259,7 +261,7 @@ fn smart_search_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Verify search results".to_string(),
                 component: "smart_search".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_relevance".to_string() => "true".to_string(),
                 },
                 timeout_ms: 5000,
@@ -285,14 +287,14 @@ fn workflow_execution_scenario() -> TestScenario {
             TestStep {
                 action: "List available workflows".to_string(),
                 component: "workflows".to_string(),
-                parameters: hashmap!{},
+                parameters: hashmap! {},
                 timeout_ms: 5000,
                 is_read_only: true,
             },
             TestStep {
                 action: "Trigger read-only workflow".to_string(),
                 component: "workflows".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "workflow_name".to_string() => "Large Files Finder".to_string(),
                 },
                 timeout_ms: 30000,
@@ -301,7 +303,7 @@ fn workflow_execution_scenario() -> TestScenario {
             TestStep {
                 action: "Monitor workflow progress".to_string(),
                 component: "workflows".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_interval_ms".to_string() => "1000".to_string(),
                 },
                 timeout_ms: 60000,
@@ -310,7 +312,7 @@ fn workflow_execution_scenario() -> TestScenario {
             TestStep {
                 action: "Verify workflow results".to_string(),
                 component: "workflows".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_completion".to_string() => "true".to_string(),
                 },
                 timeout_ms: 5000,
@@ -337,14 +339,14 @@ fn ai_chat_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Check Ollama availability".to_string(),
                 component: "ai_chat".to_string(),
-                parameters: hashmap!{},
+                parameters: hashmap! {},
                 timeout_ms: 10000,
                 is_read_only: true,
             },
             TestStep {
                 action: "Send test query to AI".to_string(),
                 component: "ai_chat".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "query".to_string() => "What is the largest file type in the scan?".to_string(),
                 },
                 timeout_ms: 30000,
@@ -353,7 +355,7 @@ fn ai_chat_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Verify AI response".to_string(),
                 component: "ai_chat".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_response_format".to_string() => "true".to_string(),
                 },
                 timeout_ms: 5000,
@@ -379,14 +381,14 @@ fn system_info_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Refresh system info".to_string(),
                 component: "system".to_string(),
-                parameters: hashmap!{},
+                parameters: hashmap! {},
                 timeout_ms: 5000,
                 is_read_only: true,
             },
             TestStep {
                 action: "Verify disk volumes".to_string(),
                 component: "system".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_volumes".to_string() => "true".to_string(),
                 },
                 timeout_ms: 5000,
@@ -395,7 +397,7 @@ fn system_info_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Verify CPU and memory stats".to_string(),
                 component: "system".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_cpu".to_string() => "true".to_string(),
                     "check_memory".to_string() => "true".to_string(),
                 },
@@ -422,14 +424,14 @@ fn gpu_status_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Detect GPU".to_string(),
                 component: "gpu".to_string(),
-                parameters: hashmap!{},
+                parameters: hashmap! {},
                 timeout_ms: 10000,
                 is_read_only: true,
             },
             TestStep {
                 action: "Verify GPU info".to_string(),
                 component: "gpu".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_name".to_string() => "true".to_string(),
                     "check_vram".to_string() => "true".to_string(),
                 },
@@ -439,7 +441,7 @@ fn gpu_status_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Check GPU acceleration status".to_string(),
                 component: "gpu".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_acceleration".to_string() => "true".to_string(),
                 },
                 timeout_ms: 5000,
@@ -465,21 +467,21 @@ fn ollama_status_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Check Ollama availability".to_string(),
                 component: "ollama".to_string(),
-                parameters: hashmap!{},
+                parameters: hashmap! {},
                 timeout_ms: 10000,
                 is_read_only: true,
             },
             TestStep {
                 action: "List available models".to_string(),
                 component: "ollama".to_string(),
-                parameters: hashmap!{},
+                parameters: hashmap! {},
                 timeout_ms: 10000,
                 is_read_only: true,
             },
             TestStep {
                 action: "Verify model capabilities".to_string(),
                 component: "ollama".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_tool_calling".to_string() => "true".to_string(),
                     "check_embedding".to_string() => "true".to_string(),
                 },
@@ -501,12 +503,13 @@ fn ollama_status_flow_scenario() -> TestScenario {
 fn multi_directory_scan_scenario() -> TestScenario {
     TestScenario {
         name: "multi_directory_scan".to_string(),
-        description: "Test scanning multiple different directory types to verify UI presentation".to_string(),
+        description: "Test scanning multiple different directory types to verify UI presentation"
+            .to_string(),
         steps: vec![
             TestStep {
                 action: "Scan source directory".to_string(),
                 component: "scanner".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "path".to_string() => "src".to_string(),
                 },
                 timeout_ms: 30000,
@@ -515,7 +518,7 @@ fn multi_directory_scan_scenario() -> TestScenario {
             TestStep {
                 action: "Scan tests directory".to_string(),
                 component: "scanner".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "path".to_string() => "tests".to_string(),
                 },
                 timeout_ms: 30000,
@@ -524,7 +527,7 @@ fn multi_directory_scan_scenario() -> TestScenario {
             TestStep {
                 action: "Scan docs directory".to_string(),
                 component: "scanner".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "path".to_string() => "docs".to_string(),
                 },
                 timeout_ms: 30000,
@@ -533,7 +536,7 @@ fn multi_directory_scan_scenario() -> TestScenario {
             TestStep {
                 action: "Compare scan results".to_string(),
                 component: "scanner".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "compare_file_types".to_string() => "true".to_string(),
                     "compare_sizes".to_string() => "true".to_string(),
                 },
@@ -561,7 +564,7 @@ fn error_recovery_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Simulate scan error".to_string(),
                 component: "scanner".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "error_type".to_string() => "path_not_found".to_string(),
                 },
                 timeout_ms: 5000,
@@ -570,7 +573,7 @@ fn error_recovery_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Verify error message display".to_string(),
                 component: "ui".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_error_color".to_string() => "true".to_string(),
                     "check_retry_button".to_string() => "true".to_string(),
                 },
@@ -580,7 +583,7 @@ fn error_recovery_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Test retry mechanism".to_string(),
                 component: "scanner".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "retry_with_valid_path".to_string() => "true".to_string(),
                 },
                 timeout_ms: 30000,
@@ -589,7 +592,7 @@ fn error_recovery_flow_scenario() -> TestScenario {
             TestStep {
                 action: "Verify recovery success".to_string(),
                 component: "scanner".to_string(),
-                parameters: hashmap!{
+                parameters: hashmap! {
                     "check_scan_completed".to_string() => "true".to_string(),
                 },
                 timeout_ms: 5000,

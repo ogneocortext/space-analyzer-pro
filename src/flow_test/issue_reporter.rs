@@ -3,7 +3,7 @@
 use crate::flow_test::DetectedIssue;
 use serde_json;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Issue reporter that collects and saves detected issues
 pub struct IssueReporter {
@@ -12,13 +12,13 @@ pub struct IssueReporter {
 }
 
 impl IssueReporter {
-    pub fn new(report_path: &PathBuf) -> Self {
+    pub fn new(report_path: &Path) -> Self {
         if let Some(parent) = report_path.parent() {
             fs::create_dir_all(parent).ok();
         }
-        
+
         Self {
-            report_path: report_path.clone(),
+            report_path: report_path.to_path_buf(),
             issues: Vec::new(),
         }
     }
@@ -36,16 +36,22 @@ impl IssueReporter {
             "total_issues": issues.len(),
             "issues": issues,
         });
-        
-        let json = serde_json::to_string_pretty(&report).unwrap_or_else(|e| {
-            format!("{{\"error\": \"Failed to serialize report: {}\"}}", e)
-        });
-        
-        fs::write(&self.report_path, json).unwrap_or_else(|e| {
-            eprintln!("Failed to write issue report to {}: {}", self.report_path.display(), e);
-        });
-        
-        println!("[ISSUE REPORT] Saved {} issues to {}", issues.len(), self.report_path.display());
-    }
 
+        let json = serde_json::to_string_pretty(&report)
+            .unwrap_or_else(|e| format!("{{\"error\": \"Failed to serialize report: {}\"}}", e));
+
+        fs::write(&self.report_path, json).unwrap_or_else(|e| {
+            eprintln!(
+                "Failed to write issue report to {}: {}",
+                self.report_path.display(),
+                e
+            );
+        });
+
+        println!(
+            "[ISSUE REPORT] Saved {} issues to {}",
+            issues.len(),
+            self.report_path.display()
+        );
+    }
 }

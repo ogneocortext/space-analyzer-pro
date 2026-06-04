@@ -1,10 +1,9 @@
 use clap::Parser;
+use file_deduplicator::{DeduplicationConfig, FileDeduplicator};
+use shared_scanner::{FileScanner, ScanOptions};
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
-use shared_scanner::{FileScanner, ScanOptions};
-use file_deduplicator::{FileDeduplicator, DeduplicationConfig};
-
 
 #[derive(Parser)]
 #[command(author, version, about = "Space Analyzer Pro - Desktop Application")]
@@ -73,11 +72,13 @@ fn validate_input(path: &str, format: &str) -> Result<(), String> {
 
     // Check for path traversal vulnerabilities
     if path.contains("..") || path.contains('\0') {
-        return Err("Path contains potentially dangerous characters or traversal patterns".to_string());
+        return Err(
+            "Path contains potentially dangerous characters or traversal patterns".to_string(),
+        );
     }
 
     let scan_path = Path::new(path);
-    
+
     // Normalize path to absolute
     let canonical_path = match std::fs::canonicalize(scan_path) {
         Ok(p) => p,
@@ -89,13 +90,20 @@ fn validate_input(path: &str, format: &str) -> Result<(), String> {
     }
 
     if !canonical_path.is_dir() {
-        return Err(format!("Path is not a directory: {}", canonical_path.display()));
+        return Err(format!(
+            "Path is not a directory: {}",
+            canonical_path.display()
+        ));
     }
 
     // Validate format
     let valid_formats = ["text", "json", "csv"];
     if !valid_formats.contains(&format) {
-        return Err(format!("Invalid format '{}'. Valid formats: {}", format, valid_formats.join(", ")));
+        return Err(format!(
+            "Invalid format '{}'. Valid formats: {}",
+            format,
+            valid_formats.join(", ")
+        ));
     }
 
     Ok(())
@@ -133,19 +141,20 @@ fn scan_directory(path: &Path, verbose: bool, deep: bool) -> std::io::Result<Sca
         ScanOptions::medium()
     };
 
-    let app_result = scanner.scan_directory_sync(path.to_str().unwrap_or("."), options)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    let app_result = scanner
+        .scan_directory_sync(path.to_str().unwrap_or("."), options)
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     let mut result = ScanResult::new();
     result.total_files = app_result.total_files as usize;
     result.total_size_bytes = app_result.total_size;
     result.total_size_mb = app_result.total_size as f64 / (1024.0 * 1024.0);
     result.duration_secs = start_time.elapsed().as_secs_f64();
-    
+
     for (ext, count) in app_result.file_types {
         result.file_types.insert(ext, count as usize);
     }
-    
+
     for file in app_result.largest_files.into_iter().take(10) {
         result.largest_files.push((file.path, file.size));
     }
@@ -159,7 +168,11 @@ fn print_results(result: &ScanResult, format: &str) {
             println!("\n[RESULTS] SPACE ANALYSIS RESULTS");
             println!("{}", "=".repeat(50));
             println!("[FILES] Total Files: {}", result.total_files);
-            println!("[SIZE] Total Size: {} ({:.2} MB)", format_bytes(result.total_size_bytes), result.total_size_mb);
+            println!(
+                "[SIZE] Total Size: {} ({:.2} MB)",
+                format_bytes(result.total_size_bytes),
+                result.total_size_mb
+            );
             println!("[TIME] Scan Time: {:.2} seconds", result.duration_secs);
 
             if !result.file_types.is_empty() {
@@ -214,19 +227,25 @@ fn main() -> std::io::Result<()> {
 
     // Only show header for non-JSON formats
     if cli.format != "json" {
-        println!("=> Space Analyzer Pro - Desktop Application v{}", env!("CARGO_PKG_VERSION"));
-        println!("");
+        println!(
+            "=> Space Analyzer Pro - Desktop Application v{}",
+            env!("CARGO_PKG_VERSION")
+        );
+        println!();
     }
 
     let scan_path = Path::new(&cli.path);
-    let result = scan_directory(&scan_path, cli.verbose && cli.format != "json", cli.deep)?;
+    let result = scan_directory(scan_path, cli.verbose && cli.format != "json", cli.deep)?;
 
     print_results(&result, &cli.format);
 
     if let Some(export_path) = &cli.export {
         let content = match cli.format.as_str() {
             "json" => serde_json::to_string_pretty(&result).unwrap_or_default(),
-            _ => format!("Scan completed: {} files, {:.2} MB", result.total_files, result.total_size_mb),
+            _ => format!(
+                "Scan completed: {} files, {:.2} MB",
+                result.total_files, result.total_size_mb
+            ),
         };
 
         fs::write(export_path, content)?;
@@ -237,14 +256,26 @@ fn main() -> std::io::Result<()> {
         println!("\n[REPORT] Generating detailed report...");
         let mut report_content = String::new();
         report_content.push_str("# Space Analyzer Pro - Detailed Scan Report\n\n");
-        report_content.push_str(&format!("Generated on: {}\n", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")));
+        report_content.push_str(&format!(
+            "Generated on: {}\n",
+            chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
+        ));
         report_content.push_str(&format!("Target Directory: `{}`\n\n", cli.path));
-        
+
         report_content.push_str("## Summary Statistics\n\n");
-        report_content.push_str(&format!("- **Total Files Scanned:** {}\n", result.total_files));
-        report_content.push_str(&format!("- **Total Size:** {}\n", format_bytes(result.total_size_bytes)));
-        report_content.push_str(&format!("- **Scan Duration:** {:.3} seconds\n\n", result.duration_secs));
-        
+        report_content.push_str(&format!(
+            "- **Total Files Scanned:** {}\n",
+            result.total_files
+        ));
+        report_content.push_str(&format!(
+            "- **Total Size:** {}\n",
+            format_bytes(result.total_size_bytes)
+        ));
+        report_content.push_str(&format!(
+            "- **Scan Duration:** {:.3} seconds\n\n",
+            result.duration_secs
+        ));
+
         report_content.push_str("## Top 10 Largest Files\n\n");
         if result.largest_files.is_empty() {
             report_content.push_str("No files found.\n");
@@ -257,11 +288,16 @@ fn main() -> std::io::Result<()> {
                 } else {
                     0.0
                 };
-                report_content.push_str(&format!("| `{}` | {} | {:.2}% |\n", path, format_bytes(*size), pct));
+                report_content.push_str(&format!(
+                    "| `{}` | {} | {:.2}% |\n",
+                    path,
+                    format_bytes(*size),
+                    pct
+                ));
             }
         }
-        report_content.push_str("\n");
-        
+        report_content.push('\n');
+
         report_content.push_str("## File Types Distribution (Top 10)\n\n");
         if result.file_types.is_empty() {
             report_content.push_str("No file types discovered.\n");
@@ -277,32 +313,43 @@ fn main() -> std::io::Result<()> {
                     0.0
                 };
                 let ext_display = if ext.is_empty() { "no-extension" } else { ext };
-                report_content.push_str(&format!("| `.{}` | {} | {:.2}% |\n", ext_display, count, pct));
+                report_content.push_str(&format!(
+                    "| `.{}` | {} | {:.2}% |\n",
+                    ext_display, count, pct
+                ));
             }
         }
-        report_content.push_str("\n");
-        
+        report_content.push('\n');
+
         report_content.push_str("## Recommendations\n\n");
         if result.total_size_bytes > 1024 * 1024 * 1024 {
             report_content.push_str("- ⚠️ **Large directory footprint:** Total size exceeds 1 GB. Consider checking for duplicates or stale caches.\n");
         } else {
-            report_content.push_str("- ✅ **Healthy directory footprint:** Total size is within moderate limits.\n");
+            report_content.push_str(
+                "- ✅ **Healthy directory footprint:** Total size is within moderate limits.\n",
+            );
         }
-        
-        let has_node_modules = result.largest_files.iter().any(|(p, _)| p.contains("node_modules"));
+
+        let has_node_modules = result
+            .largest_files
+            .iter()
+            .any(|(p, _)| p.contains("node_modules"));
         if has_node_modules {
             report_content.push_str("- 📦 **Unused node_modules detected:** Running node modules cleanup could save significant disk space.\n");
         }
-        
+
         report_content.push_str("- 💡 Run with `--clean` to find and eliminate space wasted by duplicate files using high-performance hard-linking.\n");
-        
+
         let report_path = std::fs::canonicalize(Path::new(&cli.path))
             .unwrap_or_else(|_| Path::new(".").to_path_buf())
             .join("space-analyzer-report.md");
         if let Err(e) = fs::write(&report_path, report_content) {
             eprintln!("[REPORT] ❌ Failed to write report: {}", e);
         } else {
-            println!("[REPORT] Detailed markdown report successfully written to: {}", report_path.display());
+            println!(
+                "[REPORT] Detailed markdown report successfully written to: {}",
+                report_path.display()
+            );
         }
     }
 
@@ -321,17 +368,31 @@ fn main() -> std::io::Result<()> {
                 if duplicate_groups.is_empty() {
                     println!("[CLEAN] ✅ No duplicate files found!");
                 } else {
-                    let total_duplicates: usize = duplicate_groups.iter().map(|g| g.files.len() - 1).sum();
-                    let potential_savings: u64 = duplicate_groups.iter()
+                    let total_duplicates: usize =
+                        duplicate_groups.iter().map(|g| g.files.len() - 1).sum();
+                    let potential_savings: u64 = duplicate_groups
+                        .iter()
                         .map(|g| g.size * (g.files.len() as u64 - 1))
                         .sum();
-                    
-                    println!("[CLEAN] 🔗 Found {} duplicate groups ({} duplicate files).", duplicate_groups.len(), total_duplicates);
-                    println!("[CLEAN] 💾 Potential space savings: {}", format_bytes(potential_savings));
-                    
+
+                    println!(
+                        "[CLEAN] 🔗 Found {} duplicate groups ({} duplicate files).",
+                        duplicate_groups.len(),
+                        total_duplicates
+                    );
+                    println!(
+                        "[CLEAN] 💾 Potential space savings: {}",
+                        format_bytes(potential_savings)
+                    );
+
                     println!("\nDuplicates Breakdown:");
                     for (i, group) in duplicate_groups.iter().enumerate().take(10) {
-                        println!("  Group {}: size: {}, hash: {}", i + 1, format_bytes(group.size), &group.hash[..8]);
+                        println!(
+                            "  Group {}: size: {}, hash: {}",
+                            i + 1,
+                            format_bytes(group.size),
+                            &group.hash[..8]
+                        );
                         for f in &group.files {
                             println!("    📄 {}", f.path.display());
                         }
@@ -339,7 +400,7 @@ fn main() -> std::io::Result<()> {
                     if duplicate_groups.len() > 10 {
                         println!("  ... and {} more groups", duplicate_groups.len() - 10);
                     }
-                    
+
                     println!("\n[CLEAN] (Dry run is active. No files were modified. To perform actual hard-link deduplication, use the desktop GUI app or the dedicated file-deduplicator CLI tool.)");
                 }
             }

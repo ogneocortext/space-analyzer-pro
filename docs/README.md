@@ -93,8 +93,8 @@ Space-Analyzer/
 │   ├── native-gui/               # Archived experimental egui GUI
 │   ├── rust-tauri/               # Archived failed Tauri build
 │   └── python-orchestrator/      # Archived Python orchestrator
-├── server/                       # Node.js backend (optional, for web mode)
-├── ai-service/                   # Python AI service (optional, for web mode)
+├── server/                       # Node.js backend (moved to Space-Analyzer-Web)
+├── ai-service/                   # Python AI service (moved to Space-Analyzer-Web)
 └── tools/                        # Development tools
 ```
 

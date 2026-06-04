@@ -1,17 +1,17 @@
+use chrono::{DateTime, Utc};
 use clap::Parser;
+use crossbeam::channel::bounded;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 use walkdir::WalkDir;
-use chrono::{DateTime, Utc};
-use rayon::prelude::*;
-use crossbeam::channel::bounded;
-use std::sync::atomic::{AtomicU64, Ordering};
 
-mod windows_errors;
 mod windows_advanced;
+mod windows_errors;
 use windows_advanced::advanced as win_adv;
 mod ntfs_mft_scanner;
 mod usn_journal_scanner;
@@ -59,7 +59,8 @@ impl PerformanceTracker {
     }
 
     fn record_io_wait(&self, duration_ms: u64) {
-        self.io_wait_time_ms.fetch_add(duration_ms, Ordering::Relaxed);
+        self.io_wait_time_ms
+            .fetch_add(duration_ms, Ordering::Relaxed);
     }
 
     fn get_performance_metrics(&self) -> PerformanceMetrics {
@@ -68,12 +69,13 @@ impl PerformanceTracker {
             .ok();
 
         PerformanceMetrics {
-            scan_duration_ms: self.start_time
+            scan_duration_ms: self
+                .start_time
                 .map(|t| t.elapsed().as_millis())
                 .unwrap_or(0),
-            files_per_second: 0, // Will be calculated by caller
-            bytes_per_second: 0, // Will be calculated by caller
-            memory_peak_mb: None, // Not available without sysinfo
+            files_per_second: 0,     // Will be calculated by caller
+            bytes_per_second: 0,     // Will be calculated by caller
+            memory_peak_mb: None,    // Not available without sysinfo
             memory_current_mb: None, // Not available without sysinfo
             disk_reads: Some(self.disk_reads.load(Ordering::Relaxed)),
             disk_bytes_read: Some(self.disk_bytes_read.load(Ordering::Relaxed)),
@@ -87,7 +89,6 @@ impl PerformanceTracker {
     }
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 struct FileInfo {
     name: String,
@@ -98,10 +99,10 @@ struct FileInfo {
     timestamps: FileTimestamps,
     file_hash: Option<String>, // MD5 hash for duplicate detection
     #[serde(skip)]
-    inode: Option<u64>,       // File identifier for hard link detection
+    inode: Option<u64>, // File identifier for hard link detection
     #[serde(skip)]
-    device: Option<u64>,       // Volume identifier for hard link safety
-    is_hard_link: bool,       // True if this is a hard link (nlink > 1)
+    device: Option<u64>, // Volume identifier for hard link safety
+    is_hard_link: bool,        // True if this is a hard link (nlink > 1)
     attributes: FileAttributes,
 }
 
@@ -114,9 +115,9 @@ struct FileSize {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct FileTimestamps {
-    created: Option<String>,    // File creation time
-    modified: String,           // Last modification time
-    accessed: Option<String>,   // Last access time
+    created: Option<String>,  // File creation time
+    modified: String,         // Last modification time
+    accessed: Option<String>, // Last access time
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -127,21 +128,21 @@ struct FileAttributes {
 
     // Windows NTFS-specific fields
     #[cfg(windows)]
-    has_ads: bool,            // Has Alternate Data Streams
+    has_ads: bool, // Has Alternate Data Streams
     #[cfg(windows)]
-    ads_count: u32,           // Number of ADS streams
+    ads_count: u32, // Number of ADS streams
     #[cfg(windows)]
-    is_compressed: bool,    // NTFS compressed
+    is_compressed: bool, // NTFS compressed
     #[cfg(windows)]
     compressed_size: Option<u64>, // Actual compressed size on disk
     #[cfg(windows)]
-    is_sparse: bool,          // Sparse file
+    is_sparse: bool, // Sparse file
     #[cfg(windows)]
-    is_reparse_point: bool,   // Junction, symlink, mount point
+    is_reparse_point: bool, // Junction, symlink, mount point
     #[cfg(windows)]
     reparse_tag: Option<u32>, // Type of reparse point
     #[cfg(windows)]
-    owner: Option<String>,    // File owner (username)
+    owner: Option<String>, // File owner (username)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -409,8 +410,8 @@ impl Cli {
             // Audio
             "mp3" | "wav" | "flac" | "aac" | "ogg" => "Audio",
             // Code
-            "js" | "jsx" | "ts" | "tsx" | "py" | "java" | "cpp" | "c" | "h" | "hpp" |
-            "cs" | "php" | "rb" | "go" | "rs" | "swift" | "kt" => "Code",
+            "js" | "jsx" | "ts" | "tsx" | "py" | "java" | "cpp" | "c" | "h" | "hpp" | "cs"
+            | "php" | "rb" | "go" | "rs" | "swift" | "kt" => "Code",
             // Web
             "html" | "htm" | "css" | "scss" | "less" | "xml" => "Web",
             // Config
@@ -426,7 +427,8 @@ impl Cli {
             // System
             "dll" | "so" | "sys" | "tmp" | "log" => "System",
             // Development
-            "lock" | "package.json" | "package-lock.json" | "yarn.lock" | "pom.xml" | "build.gradle" | "requirements.txt" => "Development",
+            "lock" | "package.json" | "package-lock.json" | "yarn.lock" | "pom.xml"
+            | "build.gradle" | "requirements.txt" => "Development",
             // Documentation
             "chm" | "hlp" | "info" => "Documentation",
             // Scripts
@@ -458,7 +460,7 @@ impl Cli {
                 "hard_link_savings": hard_link_savings,
                 "timestamp": Utc::now().to_rfc3339()
             });
-            eprintln!("{}", progress.to_string());
+            eprintln!("{}", progress);
         }
     }
 
@@ -473,7 +475,7 @@ impl Cli {
     }
 
     fn should_emit_progress(files: u64, last_progress: u64) -> bool {
-        files != last_progress && (files <= 10 || files % 100 == 0)
+        files != last_progress && (files <= 10 || files.is_multiple_of(100))
     }
 
     /// Emit status event as JSON
@@ -485,7 +487,7 @@ impl Cli {
                 "message": message,
                 "timestamp": Utc::now().to_rfc3339()
             });
-            eprintln!("{}", event.to_string());
+            eprintln!("{}", event);
         }
     }
 
@@ -493,7 +495,10 @@ impl Cli {
         let start_time = Instant::now();
         let mut perf_tracker = PerformanceTracker::new();
         perf_tracker.start_monitoring();
-        self.emit_status("started", &format!("Starting scan of {}", self.path.display()));
+        self.emit_status(
+            "started",
+            &format!("Starting scan of {}", self.path.display()),
+        );
 
         // Try MFT fast reading first if requested (Windows only, requires admin)
         #[cfg(windows)]
@@ -507,7 +512,10 @@ impl Cli {
                     return Ok(result);
                 }
                 Err(e) => {
-                    eprintln!("MFT fast scan failed ({}), falling back to standard scan...", e);
+                    eprintln!(
+                        "MFT fast scan failed ({}), falling back to standard scan...",
+                        e
+                    );
                     self.emit_status("mft_failed", &format!("MFT failed: {}", e));
                 }
             }
@@ -515,8 +523,12 @@ impl Cli {
 
         // Default directories to exclude for performance
         let mut exclude_dirs = vec![
-            "node_modules", "__pycache__", "target", "build",
-            "temp", "tmp"
+            "node_modules",
+            "__pycache__",
+            "target",
+            "build",
+            "temp",
+            "tmp",
         ];
 
         // Add user-specified ignore patterns
@@ -527,8 +539,7 @@ impl Cli {
         // Add common hidden directories if skip_hidden is enabled
         if self.skip_hidden {
             exclude_dirs.extend([
-                ".git", ".svn", ".hg", ".cache", ".vscode", ".idea",
-                ".tmp", ".local", ".config"
+                ".git", ".svn", ".hg", ".cache", ".vscode", ".idea", ".tmp", ".local", ".config",
             ]);
         }
 
@@ -549,12 +560,19 @@ impl Cli {
         #[cfg(windows)]
         if self.enumerate_links {
             eprintln!("Enumerating all hard links (this may take a while)...");
-            let mut link_map: std::collections::HashMap<u64, Vec<String>> = std::collections::HashMap::new();
+            let mut link_map: std::collections::HashMap<u64, Vec<String>> =
+                std::collections::HashMap::new();
             for file in result.file_analysis.files.iter().filter(|f| f.is_hard_link) {
                 if let Some(inode) = file.inode {
                     let links = Self::find_hard_links_by_path(std::path::Path::new(&file.path));
                     if links.len() > 1 {
-                        link_map.insert(inode, links.iter().map(|p| p.to_string_lossy().to_string()).collect());
+                        link_map.insert(
+                            inode,
+                            links
+                                .iter()
+                                .map(|p| p.to_string_lossy().to_string())
+                                .collect(),
+                        );
                     }
                 }
             }
@@ -574,23 +592,35 @@ impl Cli {
 
         // Check for admin privileges
         if !NtfsMftScanner::check_admin_privileges() {
-            return Err(anyhow::anyhow!("Admin privileges required for MFT scanning"));
+            return Err(anyhow::anyhow!(
+                "Admin privileges required for MFT scanning"
+            ));
         }
 
         // Get drive letter from path
-        let drive_letter = self.path.to_string_lossy().chars().next()
+        let drive_letter = self
+            .path
+            .to_string_lossy()
+            .chars()
+            .next()
             .ok_or_else(|| anyhow::anyhow!("Invalid path"))?;
 
         if !drive_letter.is_alphabetic() {
-             return Err(anyhow::anyhow!("Path must start with a drive letter (e.g., C:\\)"));
+            return Err(anyhow::anyhow!(
+                "Path must start with a drive letter (e.g., C:\\)"
+            ));
         }
 
         let mut scanner = NtfsMftScanner::new();
         let volume = format!("{}:", drive_letter.to_uppercase());
-        scanner.initialize_volume(&volume).map_err(|e: String| anyhow::anyhow!(e))?;
+        scanner
+            .initialize_volume(&volume)
+            .map_err(|e: String| anyhow::anyhow!(e))?;
 
         // Scan the volume (pass None for max_entries to get all)
-        let scanner_results = scanner.scan_volume(None).map_err(|e: String| anyhow::anyhow!(e))?;
+        let scanner_results = scanner
+            .scan_volume(None)
+            .map_err(|e: String| anyhow::anyhow!(e))?;
 
         // Convert scanner results to AnalysisResult format
         let mut total_files = 0u64;
@@ -618,7 +648,8 @@ impl Cli {
                 total_files += 1;
                 total_size += entry.file_size;
 
-                let extension = entry.file_path
+                let extension = entry
+                    .file_path
                     .extension()
                     .and_then(|ext| ext.to_str())
                     .unwrap_or("")
@@ -674,12 +705,12 @@ impl Cli {
 
         let analysis_time_ms = analysis_time.as_millis();
         let files_per_second = if analysis_time_ms > 0 {
-            (total_files as u64 * 1000) / analysis_time_ms as u64
+            (total_files * 1000) / analysis_time_ms as u64
         } else {
             0
         };
         let bytes_per_second = if analysis_time_ms > 0 {
-            (total_size as u64 * 1000) / analysis_time_ms as u64
+            (total_size * 1000) / analysis_time_ms as u64
         } else {
             0
         };
@@ -704,8 +735,8 @@ impl Cli {
                 total_files,
                 total_size,
                 scan_duration_ms: analysis_time_ms,
-                files_scanned_per_second: files_per_second as u64,
-                bytes_scanned_per_second: bytes_per_second as u64,
+                files_scanned_per_second: files_per_second,
+                bytes_scanned_per_second: bytes_per_second,
             },
             file_analysis: FileAnalysis {
                 files,
@@ -720,8 +751,8 @@ impl Cli {
             },
             performance: PerformanceMetrics {
                 scan_duration_ms: analysis_time_ms,
-                files_per_second: files_per_second as u64,
-                bytes_per_second: bytes_per_second as u64,
+                files_per_second,
+                bytes_per_second,
                 memory_peak_mb: Some((total_size as f64 / 1024.0 / 1024.0) as u64),
                 memory_current_mb: None,
                 disk_reads: Some(total_files),
@@ -751,7 +782,10 @@ impl Cli {
     ) -> anyhow::Result<AnalysisResult> {
         // This would read USN Journal changes and update the previous scan result
         // For now, falls back to standard scan with USN tracking enabled
-        eprintln!("USN incremental scan: Journal ID={}, Start USN={}", journal_id, start_usn);
+        eprintln!(
+            "USN incremental scan: Journal ID={}, Start USN={}",
+            journal_id, start_usn
+        );
 
         // Get volume path
         let volume_path = win_adv::get_volume_path(&self.path)
@@ -763,8 +797,17 @@ impl Cli {
 
         // Fall back to standard scan but track USN for next time
         let exclude_dirs = [
-            ".git", "node_modules", "__pycache__", ".cache", "target", "build",
-            ".vscode", ".idea", ".tmp", "temp", "tmp"
+            ".git",
+            "node_modules",
+            "__pycache__",
+            ".cache",
+            "target",
+            "build",
+            ".vscode",
+            ".idea",
+            ".tmp",
+            "temp",
+            "tmp",
         ];
 
         let walker = WalkDir::new(&self.path)
@@ -812,31 +855,32 @@ impl Cli {
             let mut hard_link_savings = 0u64;
 
             for file_info in receiver {
-                let is_new_hard_link = if let (Some(inode), device) = (file_info.inode, file_info.device) {
-                    // Create a unique key from inode and device
-                    let key = (inode, device.unwrap_or(0));
+                let is_new_hard_link =
+                    if let (Some(inode), device) = (file_info.inode, file_info.device) {
+                        // Create a unique key from inode and device
+                        let key = (inode, device.unwrap_or(0));
 
-                    if file_info.is_hard_link {
-                        if let Some(first_size) = seen_inodes.get(&key) {
-                            // This is a hard link we've seen before
-                            hard_link_count += 1;
-                            hard_link_savings += first_size;
-                            apparent_size += file_info.size.bytes;
-                            false // Don't count again
+                        if file_info.is_hard_link {
+                            if let Some(first_size) = seen_inodes.get(&key) {
+                                // This is a hard link we've seen before
+                                hard_link_count += 1;
+                                hard_link_savings += first_size;
+                                apparent_size += file_info.size.bytes;
+                                false // Don't count again
+                            } else {
+                                // First time seeing this hard link
+                                seen_inodes.insert(key, file_info.size.bytes);
+                                apparent_size += file_info.size.bytes;
+                                true // Count this one
+                            }
                         } else {
-                            // First time seeing this hard link
-                            seen_inodes.insert(key, file_info.size.bytes);
                             apparent_size += file_info.size.bytes;
-                            true // Count this one
+                            true // Regular file, always count
                         }
                     } else {
                         apparent_size += file_info.size.bytes;
-                        true // Regular file, always count
-                    }
-                } else {
-                    apparent_size += file_info.size.bytes;
-                    true // Can't detect hard links, count normally
-                };
+                        true // Can't detect hard links, count normally
+                    };
 
                 if is_new_hard_link {
                     total_files += 1;
@@ -855,11 +899,15 @@ impl Cli {
                     ext_stats.size += file_info.size.bytes;
                 }
 
-                if (show_progress || json_progress) && Self::should_emit_progress(total_files, last_progress) {
+                if (show_progress || json_progress)
+                    && Self::should_emit_progress(total_files, last_progress)
+                {
                     last_progress = total_files;
                     if show_progress && !json_progress {
-                        eprintln!("Scanned: {} files, Size: {} (hard link savings: {}) - Current: {}",
-                            total_files, total_size, hard_link_savings, file_info.path);
+                        eprintln!(
+                            "Scanned: {} files, Size: {} (hard link savings: {}) - Current: {}",
+                            total_files, total_size, hard_link_savings, file_info.path
+                        );
                     }
                     Self::emit_progress_event(
                         json_progress,
@@ -873,8 +921,16 @@ impl Cli {
                 files.push(file_info);
             }
 
-            (files, total_files, total_size, apparent_size, categories, extension_stats,
-             hard_link_count, hard_link_savings)
+            (
+                files,
+                total_files,
+                total_size,
+                apparent_size,
+                categories,
+                extension_stats,
+                hard_link_count,
+                hard_link_savings,
+            )
         });
 
         // Parallel processing of directory entries
@@ -889,7 +945,8 @@ impl Cli {
                             if sender.send(file_info).is_err() {
                                 return;
                             }
-                            progress_counter_clone.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            progress_counter_clone
+                                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         }
                     }
                 }
@@ -898,9 +955,18 @@ impl Cli {
         drop(sender); // Close channel
 
         // Wait for collector
-        let (files, total_files, total_size, apparent_size, categories, extension_stats,
-             hard_link_count, hard_link_savings) =
-            collector_handle.join().map_err(|_| anyhow::anyhow!("Thread join failed"))?;
+        let (
+            files,
+            total_files,
+            total_size,
+            apparent_size,
+            categories,
+            extension_stats,
+            hard_link_count,
+            hard_link_savings,
+        ) = collector_handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("Thread join failed"))?;
 
         let analysis_time = start_time.elapsed();
 
@@ -913,12 +979,12 @@ impl Cli {
 
         let analysis_time_ms = analysis_time.as_millis();
         let files_per_second = if analysis_time_ms > 0 {
-            (total_files as u64 * 1000) / analysis_time_ms as u64
+            (total_files * 1000) / analysis_time_ms as u64
         } else {
             0
         };
         let bytes_per_second = if analysis_time_ms > 0 {
-            (total_size as u64 * 1000) / analysis_time_ms as u64
+            (total_size * 1000) / analysis_time_ms as u64
         } else {
             0
         };
@@ -943,8 +1009,8 @@ impl Cli {
                 total_files,
                 total_size,
                 scan_duration_ms: analysis_time_ms,
-                files_scanned_per_second: files_per_second as u64,
-                bytes_scanned_per_second: bytes_per_second as u64,
+                files_scanned_per_second: files_per_second,
+                bytes_scanned_per_second: bytes_per_second,
             },
             file_analysis: FileAnalysis {
                 files,
@@ -959,8 +1025,8 @@ impl Cli {
             },
             performance: PerformanceMetrics {
                 scan_duration_ms: analysis_time_ms,
-                files_per_second: files_per_second as u64,
-                bytes_per_second: bytes_per_second as u64,
+                files_per_second,
+                bytes_per_second,
                 memory_peak_mb: Some((total_size as f64 / 1024.0 / 1024.0) as u64),
                 memory_current_mb: None,
                 disk_reads: Some(total_files),
@@ -1017,12 +1083,45 @@ impl Cli {
                         let file_path = file_info.path.clone();
 
                         // Check for hard links
-                        let is_new = if let (Some(inode), device) = (file_info.inode, file_info.device) {
-                            let _key = (inode, device.unwrap_or(0));
-                            if file_info.is_hard_link {
-                                false // Don't count again for now
+                        let is_new =
+                            if let (Some(inode), device) = (file_info.inode, file_info.device) {
+                                let _key = (inode, device.unwrap_or(0));
+                                if file_info.is_hard_link {
+                                    false // Don't count again for now
+                                } else {
+                                    // Regular file processing
+                                    let ext_stats = extension_stats
+                                        .entry(file_extension.clone())
+                                        .or_insert(ExtensionStats { count: 0, size: 0 });
+                                    ext_stats.count += 1;
+                                    ext_stats.size += file_size;
+
+                                    // Report progress
+                                    if (self.progress || self.json_progress)
+                                        && Self::should_emit_progress(total_files, last_progress)
+                                    {
+                                        last_progress = total_files;
+                                        if self.progress && !self.json_progress {
+                                            eprintln!(
+                                                "Scanned: {} files, Size: {}",
+                                                total_files, total_size
+                                            );
+                                        }
+                                        self.emit_progress(
+                                            total_files,
+                                            total_size,
+                                            &file_path,
+                                            hard_link_savings,
+                                        );
+                                    }
+
+                                    if self.max_files == 0 || files.len() < self.max_files {
+                                        files.push(file_info);
+                                    }
+                                    true // Count this file
+                                }
                             } else {
-                                // Regular file processing
+                                // Can't detect hard links, count normally
                                 let ext_stats = extension_stats
                                     .entry(file_extension.clone())
                                     .or_insert(ExtensionStats { count: 0, size: 0 });
@@ -1035,40 +1134,24 @@ impl Cli {
                                 {
                                     last_progress = total_files;
                                     if self.progress && !self.json_progress {
-                                        eprintln!("Scanned: {} files, Size: {}", total_files, total_size);
+                                        eprintln!(
+                                            "Scanned: {} files, Size: {}",
+                                            total_files, total_size
+                                        );
                                     }
-                                    self.emit_progress(total_files, total_size, &file_path, hard_link_savings);
+                                    self.emit_progress(
+                                        total_files,
+                                        total_size,
+                                        &file_path,
+                                        hard_link_savings,
+                                    );
                                 }
 
                                 if self.max_files == 0 || files.len() < self.max_files {
                                     files.push(file_info);
                                 }
                                 true // Count this file
-                            }
-                        } else {
-                            // Can't detect hard links, count normally
-                            let ext_stats = extension_stats
-                                .entry(file_extension.clone())
-                                .or_insert(ExtensionStats { count: 0, size: 0 });
-                            ext_stats.count += 1;
-                            ext_stats.size += file_size;
-
-                            // Report progress
-                            if (self.progress || self.json_progress)
-                                && Self::should_emit_progress(total_files, last_progress)
-                            {
-                                last_progress = total_files;
-                                if self.progress && !self.json_progress {
-                                    eprintln!("Scanned: {} files, Size: {}", total_files, total_size);
-                                }
-                                self.emit_progress(total_files, total_size, &file_path, hard_link_savings);
-                            }
-
-                            if self.max_files == 0 || files.len() < self.max_files {
-                                files.push(file_info);
-                            }
-                            true // Count this file
-                        };
+                            };
 
                         if is_new {
                             total_files += 1;
@@ -1076,21 +1159,30 @@ impl Cli {
                         }
 
                         // Record warnings for large files
-                        if file_size > 1024 * 1024 * 1024 { // > 1GB
-                            Self::record_warning(&mut warnings, "large_file", &file_path,
-                                "File larger than 1GB", Some(file_size));
+                        if file_size > 1024 * 1024 * 1024 {
+                            // > 1GB
+                            Self::record_warning(
+                                &mut warnings,
+                                "large_file",
+                                &file_path,
+                                "File larger than 1GB",
+                                Some(file_size),
+                            );
                         }
                     }
                 }
             } else {
                 // Record access errors
-                Self::record_error(&mut errors, "access_denied",
+                Self::record_error(
+                    &mut errors,
+                    "access_denied",
                     entry.path().to_str().unwrap_or("unknown"),
-                    "Unable to access file metadata");
+                    "Unable to access file metadata",
+                );
             }
         }
 
-let analysis_time = start_time.elapsed();
+        let analysis_time = start_time.elapsed();
 
         // Find duplicates if enabled
         let (duplicate_groups, duplicate_count, duplicate_size) = if self.duplicates {
@@ -1101,12 +1193,12 @@ let analysis_time = start_time.elapsed();
 
         let analysis_time_ms = analysis_time.as_millis();
         let files_per_second = if analysis_time_ms > 0 {
-            (total_files as u64 * 1000) / analysis_time_ms as u64
+            (total_files * 1000) / analysis_time_ms as u64
         } else {
             0
         };
         let bytes_per_second = if analysis_time_ms > 0 {
-            (total_size as u64 * 1000) / analysis_time_ms as u64
+            (total_size * 1000) / analysis_time_ms as u64
         } else {
             0
         };
@@ -1131,8 +1223,8 @@ let analysis_time = start_time.elapsed();
                 total_files,
                 total_size,
                 scan_duration_ms: analysis_time_ms,
-                files_scanned_per_second: files_per_second as u64,
-                bytes_scanned_per_second: bytes_per_second as u64,
+                files_scanned_per_second: files_per_second,
+                bytes_scanned_per_second: bytes_per_second,
             },
             file_analysis: FileAnalysis {
                 files,
@@ -1156,14 +1248,13 @@ let analysis_time = start_time.elapsed();
                 cache_hits: None,
                 cache_misses: None,
                 cpu_usage_percent: None,
-                thread_count: std::thread::available_parallelism().map(|p| p.get() as u32).ok(),
+                thread_count: std::thread::available_parallelism()
+                    .map(|p| p.get() as u32)
+                    .ok(),
                 io_wait_time_ms: None,
                 system_load_average: None,
             },
-            issues: Some(Issues {
-                errors,
-                warnings,
-            }),
+            issues: Some(Issues { errors, warnings }),
         })
     }
 
@@ -1236,7 +1327,13 @@ let analysis_time = start_time.elapsed();
     }
 
     // Helper function to record a warning
-    fn record_warning(warnings: &mut Vec<Warning>, warning_type: &str, path: &str, message: &str, size: Option<u64>) {
+    fn record_warning(
+        warnings: &mut Vec<Warning>,
+        warning_type: &str,
+        path: &str,
+        message: &str,
+        size: Option<u64>,
+    ) {
         warnings.push(Warning {
             type_: warning_type.to_string(),
             path: path.to_string(),
@@ -1245,7 +1342,11 @@ let analysis_time = start_time.elapsed();
         });
     }
 
-    fn create_file_info(&self, entry: &walkdir::DirEntry, metadata: &fs::Metadata) -> Option<FileInfo> {
+    fn create_file_info(
+        &self,
+        entry: &walkdir::DirEntry,
+        metadata: &fs::Metadata,
+    ) -> Option<FileInfo> {
         let path = entry.path();
 
         // UTF-8 validation for filename
@@ -1253,7 +1354,12 @@ let analysis_time = start_time.elapsed();
             Some(name) => name.to_string(),
             None => {
                 // Handle non-UTF8 filenames
-                self.add_warning("invalid_filename", &path.to_string_lossy(), "Filename contains invalid UTF-8 characters", metadata.len() as usize);
+                self.add_warning(
+                    "invalid_filename",
+                    &path.to_string_lossy(),
+                    "Filename contains invalid UTF-8 characters",
+                    metadata.len() as usize,
+                );
                 entry.file_name().to_string_lossy().to_string()
             }
         };
@@ -1262,7 +1368,12 @@ let analysis_time = start_time.elapsed();
         let file_path_str = match path.to_str() {
             Some(path_str) => path_str.to_string(),
             None => {
-                self.add_warning("invalid_path", &path.to_string_lossy(), "Path contains invalid UTF-8 characters", metadata.len() as usize);
+                self.add_warning(
+                    "invalid_path",
+                    &path.to_string_lossy(),
+                    "Path contains invalid UTF-8 characters",
+                    metadata.len() as usize,
+                );
                 path.to_string_lossy().to_string()
             }
         };
@@ -1291,11 +1402,22 @@ let analysis_time = start_time.elapsed();
 
         // Detect hard links - platform specific
         let (inode, nlink, device) = Self::get_hard_link_info(path, metadata);
-        let is_hard_link = nlink.map_or(false, |n| n > 1);
+        let is_hard_link = nlink.is_some_and(|n| n > 1);
 
         // Get Windows-specific file info
         #[cfg(windows)]
-        let (created, accessed, has_ads, ads_count, is_compressed, compressed_size, is_sparse, is_reparse_point, reparse_tag, owner) = {
+        let (
+            created,
+            accessed,
+            has_ads,
+            ads_count,
+            is_compressed,
+            compressed_size,
+            is_sparse,
+            is_reparse_point,
+            reparse_tag,
+            owner,
+        ) = {
             let win_info = Self::get_windows_file_info(path);
             (
                 win_info.created,
@@ -1355,12 +1477,17 @@ let analysis_time = start_time.elapsed();
 
     /// Get hard link information - platform specific implementation
     #[cfg(windows)]
-    fn get_hard_link_info(path: &Path, _metadata: &fs::Metadata) -> (Option<u64>, Option<u32>, Option<u64>) {
+    fn get_hard_link_info(
+        path: &Path,
+        _metadata: &fs::Metadata,
+    ) -> (Option<u64>, Option<u32>, Option<u64>) {
+        use std::mem;
         use std::os::windows::ffi::OsStrExt;
-        use winapi::um::fileapi::{CreateFileW, GetFileInformationByHandle, OPEN_EXISTING, BY_HANDLE_FILE_INFORMATION};
+        use winapi::um::fileapi::{
+            CreateFileW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, OPEN_EXISTING,
+        };
         use winapi::um::handleapi::CloseHandle;
         use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE};
-        use std::mem;
 
         let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
 
@@ -1385,8 +1512,8 @@ let analysis_time = start_time.elapsed();
             CloseHandle(handle);
 
             if result != 0 {
-                let file_id = ((file_info.nFileIndexHigh as u64) << 32)
-                    | (file_info.nFileIndexLow as u64);
+                let file_id =
+                    ((file_info.nFileIndexHigh as u64) << 32) | (file_info.nFileIndexLow as u64);
                 let num_links = file_info.nNumberOfLinks;
                 let volume_serial = file_info.dwVolumeSerialNumber as u64;
                 (Some(file_id), Some(num_links), Some(volume_serial))
@@ -1397,13 +1524,23 @@ let analysis_time = start_time.elapsed();
     }
 
     #[cfg(unix)]
-    fn get_hard_link_info(_path: &Path, metadata: &fs::Metadata) -> (Option<u64>, Option<u32>, Option<u64>) {
+    fn get_hard_link_info(
+        _path: &Path,
+        metadata: &fs::Metadata,
+    ) -> (Option<u64>, Option<u32>, Option<u64>) {
         use std::os::unix::fs::MetadataExt;
-        (Some(metadata.ino()), Some(metadata.nlink() as u32), Some(metadata.dev()))
+        (
+            Some(metadata.ino()),
+            Some(metadata.nlink() as u32),
+            Some(metadata.dev()),
+        )
     }
 
     #[cfg(not(any(unix, windows)))]
-    fn get_hard_link_info(_path: &Path, _metadata: &fs::Metadata) -> (Option<u64>, Option<u32>, Option<u64>) {
+    fn get_hard_link_info(
+        _path: &Path,
+        _metadata: &fs::Metadata,
+    ) -> (Option<u64>, Option<u32>, Option<u64>) {
         (None, None, None)
     }
 
@@ -1417,7 +1554,9 @@ let analysis_time = start_time.elapsed();
 
         loop {
             let count = reader.read(&mut buffer).ok()?;
-            if count == 0 { break; }
+            if count == 0 {
+                break;
+            }
             context.consume(&buffer[..count]);
         }
 
@@ -1430,11 +1569,17 @@ let analysis_time = start_time.elapsed();
 
     #[cfg(windows)]
     fn get_windows_file_info(path: &Path) -> WindowsFileInfo {
-        use std::os::windows::ffi::OsStrExt;
-        use winapi::um::fileapi::{CreateFileW, GetFileAttributesW, GetFileTime, OPEN_EXISTING, BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle};
-        use winapi::um::handleapi::CloseHandle;
-        use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE, FILE_ATTRIBUTE_COMPRESSED, FILE_ATTRIBUTE_SPARSE_FILE, FILE_ATTRIBUTE_REPARSE_POINT};
         use std::mem;
+        use std::os::windows::ffi::OsStrExt;
+        use winapi::um::fileapi::{
+            CreateFileW, GetFileAttributesW, GetFileInformationByHandle, GetFileTime,
+            BY_HANDLE_FILE_INFORMATION, OPEN_EXISTING,
+        };
+        use winapi::um::handleapi::CloseHandle;
+        use winapi::um::winnt::{
+            FILE_ATTRIBUTE_COMPRESSED, FILE_ATTRIBUTE_REPARSE_POINT, FILE_ATTRIBUTE_SPARSE_FILE,
+            FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE,
+        };
 
         let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
 
@@ -1476,7 +1621,13 @@ let analysis_time = start_time.elapsed();
             let mut access_time = mem::zeroed();
             let mut _write_time = mem::zeroed();
 
-            if GetFileTime(handle, &mut creation_time, &mut access_time, &mut _write_time) != 0 {
+            if GetFileTime(
+                handle,
+                &mut creation_time,
+                &mut access_time,
+                &mut _write_time,
+            ) != 0
+            {
                 info.created = Some(Self::filetime_to_iso(&creation_time));
                 info.accessed = Some(Self::filetime_to_iso(&access_time));
             }
@@ -1518,9 +1669,12 @@ let analysis_time = start_time.elapsed();
     #[cfg(windows)]
     fn detect_alternate_data_streams(path: &Path) -> AdsInfo {
         use std::os::windows::ffi::OsStrExt;
-        use winapi::um::fileapi::{FindFirstStreamW, FindNextStreamW, FindClose};
+        use winapi::um::fileapi::{FindClose, FindFirstStreamW, FindNextStreamW};
 
-        let mut info = AdsInfo { has_streams: false, count: 0 };
+        let mut info = AdsInfo {
+            has_streams: false,
+            count: 0,
+        };
 
         let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
 
@@ -1538,10 +1692,12 @@ let analysis_time = start_time.elapsed();
                 // Skip the default (::DATA) stream
                 loop {
                     let stream_name = String::from_utf16_lossy(
-                        &find_data.c_stream_name.iter()
+                        &find_data
+                            .c_stream_name
+                            .iter()
                             .take_while(|&&c| c != 0)
                             .cloned()
-                            .collect::<Vec<_>>()
+                            .collect::<Vec<_>>(),
                     );
 
                     // Count only non-default streams
@@ -1587,8 +1743,8 @@ let analysis_time = start_time.elapsed();
     fn get_file_owner(path: &Path) -> Option<String> {
         use std::os::windows::ffi::OsStrExt;
         use winapi::um::aclapi::GetNamedSecurityInfoW;
-        use winapi::um::winnt::{OWNER_SECURITY_INFORMATION, PSID};
         use winapi::um::winbase::LookupAccountSidW;
+        use winapi::um::winnt::{OWNER_SECURITY_INFORMATION, PSID};
 
         // SE_FILE_OBJECT = 1
         const SE_FILE_OBJECT: u32 = 1;
@@ -1623,7 +1779,7 @@ let analysis_time = start_time.elapsed();
             let mut sid_use: u32 = 0;
 
             let lookup_result = LookupAccountSidW(
-                std::ptr::null(),  // local system
+                std::ptr::null(), // local system
                 sid,
                 name_buf.as_mut_ptr(),
                 &mut name_len,
@@ -1639,12 +1795,8 @@ let analysis_time = start_time.elapsed();
 
             if lookup_result != 0 {
                 // Successfully resolved to username
-                let name = String::from_utf16_lossy(
-                    &name_buf[..name_len as usize],
-                );
-                let domain = String::from_utf16_lossy(
-                    &domain_buf[..domain_len as usize],
-                );
+                let name = String::from_utf16_lossy(&name_buf[..name_len as usize]);
+                let domain = String::from_utf16_lossy(&domain_buf[..domain_len as usize]);
 
                 if domain.is_empty() {
                     Some(name)
@@ -1658,9 +1810,8 @@ let analysis_time = start_time.elapsed();
                 let mut sid_string: *mut u16 = std::ptr::null_mut();
                 if ConvertSidToStringSidW(sid, &mut sid_string) != 0 && !sid_string.is_null() {
                     let len = (0..).take_while(|&i| *sid_string.add(i) != 0).count();
-                    let sid_str = String::from_utf16_lossy(
-                        std::slice::from_raw_parts(sid_string, len),
-                    );
+                    let sid_str =
+                        String::from_utf16_lossy(std::slice::from_raw_parts(sid_string, len));
                     winapi::um::winbase::LocalFree(sid_string as *mut _);
                     Some(sid_str)
                 } else {
@@ -1730,7 +1881,7 @@ let analysis_time = start_time.elapsed();
         }
 
         // Sort by wasted space (largest first)
-        duplicate_groups.sort_by(|a, b| b.wasted_space.cmp(&a.wasted_space));
+        duplicate_groups.sort_by_key(|b| std::cmp::Reverse(b.wasted_space));
 
         (duplicate_groups, duplicate_count, duplicate_size)
     }
@@ -1755,15 +1906,14 @@ fn main() -> anyhow::Result<()> {
     // Set up panic handler for graceful error reporting
     std::panic::set_hook(Box::new(|info| {
         let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
-        let location = info.location()
+        let location = info
+            .location()
             .map(|loc| format!("{}:{}", loc.file(), loc.line()))
             .unwrap_or_else(|| "unknown location".to_string());
 
         let panic_msg = format!(
             "[{}] PANIC at {}\n  Message: {}\n",
-            timestamp,
-            location,
-            info
+            timestamp, location, info
         );
 
         // Log to panic log file
@@ -1780,7 +1930,10 @@ fn main() -> anyhow::Result<()> {
         // Print to stderr
         eprintln!("\n💥 Scanner Panic!");
         eprintln!("{}", panic_msg);
-        eprintln!("Please report this issue with the log file: {}", log_path.display());
+        eprintln!(
+            "Please report this issue with the log file: {}",
+            log_path.display()
+        );
     }));
 
     let cli = Cli::parse();
@@ -1802,27 +1955,31 @@ fn main() -> anyhow::Result<()> {
 
     let result = cli.analyze_directory()?;
 
-    cli.emit_status("complete", &format!("Analysis complete! Found {} files, {} bytes in {}ms",
-             result.summary.total_files,
-             result.summary.total_size,
-             result.summary.scan_duration_ms));
+    cli.emit_status(
+        "complete",
+        &format!(
+            "Analysis complete! Found {} files, {} bytes in {}ms",
+            result.summary.total_files, result.summary.total_size, result.summary.scan_duration_ms
+        ),
+    );
 
     if !cli.quiet {
-        println!("✅ Analysis complete! Found {} files, {} bytes in {}ms",
-                 result.summary.total_files,
-                 result.summary.total_size,
-                 result.summary.scan_duration_ms);
+        println!(
+            "✅ Analysis complete! Found {} files, {} bytes in {}ms",
+            result.summary.total_files, result.summary.total_size, result.summary.scan_duration_ms
+        );
     }
 
     // Print duplicate statistics if duplicates were detected
-    if result.file_analysis.duplicate_count > 0 {
-        if !cli.quiet {
-            println!("📋 Found {} duplicate files ({} groups), wasting {} bytes",
-                     result.file_analysis.duplicate_count,
-                     result.file_analysis.duplicate_groups.len(),
-                     result.file_analysis.duplicate_size);
+    if result.file_analysis.duplicate_count > 0
+        && !cli.quiet {
+            println!(
+                "📋 Found {} duplicate files ({} groups), wasting {} bytes",
+                result.file_analysis.duplicate_count,
+                result.file_analysis.duplicate_groups.len(),
+                result.file_analysis.duplicate_size
+            );
         }
-    }
 
     let json_output = serde_json::to_string_pretty(&result)?;
 
@@ -1836,7 +1993,10 @@ fn main() -> anyhow::Result<()> {
         if result.summary.total_files < 1000 {
             println!("{}", json_output);
         } else {
-            println!("💡 Large result set ({} files). Use --output <file> to save the full JSON.", result.summary.total_files);
+            println!(
+                "💡 Large result set ({} files). Use --output <file> to save the full JSON.",
+                result.summary.total_files
+            );
         }
     }
 

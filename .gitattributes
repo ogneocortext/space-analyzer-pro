@@ -7,17 +7,11 @@
 *.cpp text
 *.h text
 *.hpp text
-*.css text
-*.html text
-*.js text
-*.jsx text
 *.json text
 *.md text
 *.py text
 *.rs text
-*.ts text
-*.tsx text
-*.vue text
+*.toml text
 *.xml text
 *.yml text
 *.yaml text
@@ -35,7 +29,6 @@
 *.gz binary
 *.7z binary
 *.rar binary
-*.node binary
 *.dll binary
 *.exe binary
 *.so binary

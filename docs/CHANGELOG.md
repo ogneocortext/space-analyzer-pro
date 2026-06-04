@@ -2,16 +2,44 @@
 
 All notable changes to Space Analyzer Pro will be documented in this file.
 
-## [Unreleased] - 2026-05-29
+## [Unreleased] - 2026-06-04
 
-### v3.3.0 — Real GPU Kernels, Semantic Search & Performance
+### Web/Desktop Separation
 
-**Scope themes (not yet started):**
+- **Moved web app to sibling directory**: `server/`, `ai-service/`, `styles/`, `public/`, `.github/workflows/playwright-tests.yml`, web configs, web tests, and web-only scripts moved to `E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer-Web`
+- **Archived stale web-era docs**: 13 guides (Tauri, Vue, Docker, deployment) moved to `docs/archive/`
+- **Archived broken Python scripts**: `test_ollama_simple.py`, `ollama_cuda_benchmark.py`, `model_benchmark.py`, `vision_analyze.py`, `check-status.ps1` moved to `docs/archive/python-scripts-ai-service/` (all imported from now-removed `ai-service/`)
+- **Deleted 67 web-only scripts**: Node.js/Vite/Playwright test scripts, service starters, and web build scripts removed from `scripts/`
 
-- **Real GPU CUDA kernels**: Wire `process_gpu()` beyond the current CPU-fallback stub; activate `cuda` feature with actual CUDA kernels for scan post-processing and batch hashing
-- **Smart notifications**: Improve notification system accuracy to event triggers; add contextual hints and actionable next-step suggestions as a user flow guide
-- **Semantic search UX**: Build out the Smart Search tab with result previews, relevance scores, and inline file actions
-- **Performance**: Virtual-scrolled file lists for 100k+ results; lazy-load scan history; profile and reduce per-frame update overhead
+### Agent-Friendliness Improvements
+
+- **Rewrote `AGENTS.md`**: Rewritten for Rust desktop app (accurate quick start, directory structure, conventions)
+- **Rewrote `CONTRIBUTING.md`**: Updated for Rust workflow (fmt, clippy, test, verify)
+- **Created root `README.md`**: Project overview for the desktop app
+- **Rewrote `.clinerules`**: Removed Vue/React/Node.js references, now Rust-only
+- **Updated `opencode.json`**: Changed commands to `cargo build/test/check`, `just verify`
+- **Rewrote `justfile`**: Desktop-only (removed broken `shared/` lint target, server commands; added `build`, `test`, `fmt`, `clippy`, `verify`, `run-gui`, `run-cli`)
+- **Created `.github/workflows/rust-ci.yml`**: CI pipeline for format check, clippy, test, build (Windows)
+
+### Documentation Cleanup
+
+- **Updated `docs/development/DEVELOPMENT.md`**: Complete rewrite from React/NestJS to Rust
+- **Replaced `docs/development/TESTING.md`**: Replaced 985-line Playwright doc with Rust testing guide
+- **Updated `docs/architecture/ARCHITECTURE.md`**: Removed `server/`/`ai-service/` refs, removed "Web Mode" section
+- **Updated `docs/architecture/PROJECT_STRUCTURE.md`**: Removed `server/`/`ai-service/` from tree
+- **Updated `docs/architecture/ARCHITECTURE_DIAGRAMS.md`**: Removed Python AI Services subgraph
+- **Updated `docs/ISSUES.md`** and **`docs/FEATURE_EVALUATION.md`**: Added historical reference headers
+- **Rewrote `config/.editorconfig`**: Removed JS/Vue sections
+- **Updated `tests/README.md`**: Rewritten for Rust tests
+- **Updated `scripts/README.md`**: Updated to reflect current script inventory
+
+### Repo Hygiene
+
+- **Cleaned `.gitignore`**: Removed web-era patterns (`.env`, `dist/`, `.next/`, etc.); added `.devin/`, `.kilo/`
+- **Fixed `.gitattributes`**: Removed `*.vue` entry
+- **Fixed git tracking**: `git rm --cached` 21 phantom config files tracked from deleted web dirs
+- **Removed stale files**: `.bak`/`.orig` in `src/gui/`, build artifacts in `native/scanner/`, stale Tauri build scripts, `.husky/`, `nul` file, `node_modules/` at root, `.playwright-mcp/`, Prettier config files
+- **Removed deprecated crates**: `archive_manager`, `storage_predictor`, `file_monitor`, `design-screenshot` (all from `Cargo.toml` workspace members)
 
 ## [3.2.0] - 2026-05-29
 
@@ -92,7 +120,7 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 
 ## [3.1.0] - 2026-05-15
 
-### 🚀 GPU-Accelerated Rust Engine (CUDA + CPU Fallback)
+### GPU-Accelerated Rust Engine (CUDA + CPU Fallback)
 
 #### New `gpu-compute` Workspace Crate
 - **`gpu-compute/`** — shared GPU acceleration layer for all Rust components
@@ -127,20 +155,20 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 - Dynamic model selection display for Ollama chat
 - Model discovery UI showing all local Ollama models with capability tags
 
-### 🛠️ Build & Compilation Fixes
+### Build & Compilation Fixes
 - Fixed `src/main.rs`: `ScanOptions` API migration (`depth`/`size_filter` → `ScanOptions::deep()`/`medium()`)
 - Fixed `src/gui.rs`: egui 0.34 trait changes (`update` → `ui`, `Result` return type, removed `CentralPanel` wrapper)
 - Added `walkdir` to root `Cargo.toml` dependencies
 - Cleaned unused imports across `src/gui.rs` and `src/gui_common.rs`
 - Switched default toolchain to `stable-x86_64-pc-windows-msvc` (GNU toolchain had linker issues)
 
-### 📦 Dependency Updates
+### Dependency Updates
 - Added `gpu-compute` to workspace members
 - Added `gpu-compute` dependency to `shared-scanner`, `native-gui`, `file_deduplicator`, `storage_predictor`, and root package
 - Added `rand = "0.8"` to `gpu-compute` for K-Means centroid initialization
 - `cudarc = "0.12"` (optional, gated behind `cuda` feature)
 
-### 🎯 Performance Impact
+### Performance Impact
 | Component | GPU Operation | CPU Fallback | Est. Speedup |
 |-----------|--------------|--------------|-------------|
 | Scan post-processing | Histograms, extension extraction, top-N sort | rayon + introselect | 2-5x (large scans) |
@@ -148,11 +176,9 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 | ML model training | Matrix ops (linear regression, K-Means) | ndarray + rayon | 5-20x (large datasets) |
 | Ollama LLM inference | `num_gpu: -1` (all layers on GPU) | CPU inference | Already optimized |
 
-### Previous Versions
+## [3.0.0] - 2026-05-14
 
-#### [3.0.0] - 2026-05-14
-
-### 🚀 CUDA GPU-Accelerated Vision Analysis
+### CUDA GPU-Accelerated Vision Analysis
 
 #### New GPU Environment (`scripts/utility/vision-analysis/`)
 - **CUDA 12.4 + PyTorch 2.6.0** pipeline for NVIDIA GeForce GTX 1070 Ti (8GB VRAM)
@@ -180,41 +206,13 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 - `test_workspace.json` — realistic test data for UI population
 - Headless scan mode (`--scan <path>`) for generating new scan data on demand
 
-### Previous Versions
-
-#### [2.14.0] - 2025-05-12
+## [2.14.0] - 2025-05-12
 - Major repository streamlining, 70% duplicate code removal
 - Consolidated Rust GUI to single `src/gui.rs` (295 lines)
 - Cleaned TypeScript, test files, and build artifacts
 
-#### [2.13.0] - Previous
+## [2.13.0] - Previous
 - Multiple GUI implementations, experimental features, duplicate code
 
-#### [2.12.0] - Earlier
+## [2.12.0] - Earlier
 - Initial feature set, basic functionality
-
----
-
-## 📝 Quick Setup
-
-### CUDA GPU Environment (Windows + NVIDIA)
-```powershell
-# One-time setup (1.5GB download)
-conda create -n space-analyzer-cuda python=3.12 -y
-conda run -n space-analyzer-cuda pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-conda run -n space-analyzer-cuda pip install transformers timm accelerate scikit-learn pillow requests
-
-# Verify GPU
-conda run -n space-analyzer-cuda python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"N/A\"}')"
-
-# Run vision analysis
-conda run -n space-analyzer-cuda python scripts/utility/vision-analysis/gpu_vision_analyzer.py
-```
-
-### GUI Macro Test (Automated Screenshot Capture)
-```powershell
-# Run the macro (background, no cursor interference)
-python scripts/gui_macro_test.py
-
-# Then analyze screenshots with GPU
-conda run -n space-analyzer-cuda python scripts/utility/vision-analysis/gpu_vision_analyzer.py

@@ -47,10 +47,8 @@ Space-Analyzer/
 ├── shared-scanner/               # Shared scanner library
 ├── gpu-compute/                  # GPU acceleration layer
 ├── native/                       # Standalone native tools
-├── server/                       # Node.js backend (optional, for web mode)
-├── ai-service/                   # Python AI service (optional, for web mode)
-├── tests/                        # Integration tests
-└── tools/                        # Development tools
+├── tests/                        # Unit tests
+└── docs/                         # Documentation
 ```
 
 ## Active Components
@@ -163,11 +161,6 @@ User -> egui GUI (src/gui/mod.rs)
          ├── System Monitor (sysinfo)
          ├── Workflow Engine (workflows/mod.rs)
          └── Ollama Client (optional, reqwest -> localhost:11434)
-```
-
-### Web Mode (Optional - requires external services)
-```
-Vue.js Frontend (archived) -> Node.js Backend (server/) -> Python AI Service (ai-service/)
 ```
 
 ## Technology Stack

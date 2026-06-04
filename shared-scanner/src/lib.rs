@@ -1,5 +1,5 @@
 //! Shared file scanner library for Space Analyzer Pro
-//! 
+//!
 //! This crate provides a unified, high-performance file scanner
 //! that replaces the duplicate implementations across the project.
 
@@ -148,15 +148,25 @@ impl ScanOptions {
 
 /// Size bucket categorization
 fn size_bucket(size: u64) -> &'static str {
-    if size == 0 { "0 B" }
-    else if size < 1024 { "< 1 KB" }
-    else if size < 10 * 1024 { "1-10 KB" }
-    else if size < 100 * 1024 { "10-100 KB" }
-    else if size < 1024 * 1024 { "100 KB-1 MB" }
-    else if size < 10 * 1024 * 1024 { "1-10 MB" }
-    else if size < 100 * 1024 * 1024 { "10-100 MB" }
-    else if size < 1024 * 1024 * 1024 { "100 MB-1 GB" }
-    else { "> 1 GB" }
+    if size == 0 {
+        "0 B"
+    } else if size < 1024 {
+        "< 1 KB"
+    } else if size < 10 * 1024 {
+        "1-10 KB"
+    } else if size < 100 * 1024 {
+        "10-100 KB"
+    } else if size < 1024 * 1024 {
+        "100 KB-1 MB"
+    } else if size < 10 * 1024 * 1024 {
+        "1-10 MB"
+    } else if size < 100 * 1024 * 1024 {
+        "10-100 MB"
+    } else if size < 1024 * 1024 * 1024 {
+        "100 MB-1 GB"
+    } else {
+        "> 1 GB"
+    }
 }
 
 /// Format bytes to human-readable string
@@ -191,12 +201,23 @@ pub fn format_duration(seconds: f64) -> String {
 /// File scanner implementation
 pub struct FileScanner;
 
+impl Default for FileScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FileScanner {
     pub fn new() -> Self {
         Self
     }
 
-    fn should_include_file(&self, metadata: &std::fs::Metadata, path: &Path, options: &ScanOptions) -> bool {
+    fn should_include_file(
+        &self,
+        metadata: &std::fs::Metadata,
+        path: &Path,
+        options: &ScanOptions,
+    ) -> bool {
         // Check hidden files
         if !options.include_hidden {
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
@@ -233,10 +254,14 @@ impl FileScanner {
     }
 
     /// Synchronous directory scan with GPU-accelerated post-processing
-    /// 
+    ///
     /// Phase 1 (CPU): I/O-bound directory traversal and metadata collection
     /// Phase 2 (GPU/CPU): Compute-heavy post-processing (extension extraction, histograms, sorting)
-    pub fn scan_directory_sync(&self, path: &str, options: ScanOptions) -> anyhow::Result<ScanResult> {
+    pub fn scan_directory_sync(
+        &self,
+        path: &str,
+        options: ScanOptions,
+    ) -> anyhow::Result<ScanResult> {
         let mut result = ScanResult {
             total_files: 0,
             total_directories: 0,
@@ -267,7 +292,9 @@ impl FileScanner {
                 Ok(m) => m,
                 Err(e) => {
                     let path_str = entry_path.to_string_lossy().to_string();
-                    let error_msg = if e.io_error().map(|io_err| io_err.kind()) == Some(std::io::ErrorKind::PermissionDenied) {
+                    let error_msg = if e.io_error().map(|io_err| io_err.kind())
+                        == Some(std::io::ErrorKind::PermissionDenied)
+                    {
                         format!("Permission denied: {}", path_str)
                     } else {
                         format!("Metadata error: {}: {}", path_str, e)
@@ -307,7 +334,9 @@ impl FileScanner {
         result.extension_sizes = gpu_result.extension_sizes;
         result.size_distribution = gpu_result.size_distribution;
         result.empty_directories = gpu_result.empty_dirs;
-        result.subdirectories = gpu_result.subdirectories.into_iter()
+        result.subdirectories = gpu_result
+            .subdirectories
+            .into_iter()
             .map(|d| DirInfo {
                 path: d.path,
                 name: d.name,
@@ -323,7 +352,7 @@ impl FileScanner {
             let modified = std::fs::metadata(&info.path)
                 .ok()
                 .and_then(|m| m.modified().ok())
-                .and_then(|t| Self::format_timestamp(t));
+                .and_then(Self::format_timestamp);
 
             result.largest_files.push(FileInfo {
                 path: info.path,
@@ -390,7 +419,9 @@ impl FileScanner {
         }
         for _ in estimate_walker.into_iter().filter_map(|e| e.ok()) {
             total_estimate += 1;
-            if total_estimate > 50000 { break; }
+            if total_estimate > 50000 {
+                break;
+            }
         }
 
         let mut entries_processed: u64 = 0;
@@ -404,31 +435,57 @@ impl FileScanner {
                         continue;
                     }
                     let p = Path::new(&entry.path);
-                    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+                    let ext = p
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("")
+                        .to_lowercase();
                     *result.file_types.entry(ext.clone()).or_insert(0) += 1;
                     *result.extension_sizes.entry(ext).or_insert(0) += entry.size;
                     if options.size_buckets {
-                        *result.size_distribution.entry(size_bucket(entry.size).to_string()).or_insert(0) += 1;
+                        *result
+                            .size_distribution
+                            .entry(size_bucket(entry.size).to_string())
+                            .or_insert(0) += 1;
                     }
                     result.total_size += entry.size;
                     result.total_files += 1;
 
-                    if result.largest_files.len() < 100 || entry.size > result.largest_files.last().map(|f| f.size).unwrap_or(0) {
+                    if result.largest_files.len() < 100
+                        || entry.size > result.largest_files.last().map(|f| f.size).unwrap_or(0)
+                    {
                         result.largest_files.push(FileInfo {
                             path: entry.path.clone(),
-                            name: p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string(),
+                            name: p
+                                .file_name()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or("")
+                                .to_string(),
                             size: entry.size,
-                            modified: std::fs::metadata(&entry.path).ok().and_then(|m| m.modified().ok()).and_then(|t| Self::format_timestamp(t)),
+                            modified: std::fs::metadata(&entry.path)
+                                .ok()
+                                .and_then(|m| m.modified().ok())
+                                .and_then(Self::format_timestamp),
                             file_type: "file".to_string(),
-                            extension: p.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase(),
+                            extension: p
+                                .extension()
+                                .and_then(|e| e.to_str())
+                                .unwrap_or("")
+                                .to_lowercase(),
                         });
-                        result.largest_files.sort_by(|a, b| b.size.cmp(&a.size));
+                        result
+                            .largest_files
+                            .sort_by_key(|b| std::cmp::Reverse(b.size));
                         result.largest_files.truncate(100);
                     }
                 }
                 result.total_directories = dirs_scanned;
 
-                let pct = if total_estimate > 0 { ((entries_processed as f32 / total_estimate as f32) * 100.0).min(99.0) } else { 0.0 };
+                let pct = if total_estimate > 0 {
+                    ((entries_processed as f32 / total_estimate as f32) * 100.0).min(99.0)
+                } else {
+                    0.0
+                };
                 let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     progress_callback(ScanProgress {
                         files_scanned: result.total_files,
@@ -449,7 +506,9 @@ impl FileScanner {
                 Ok(m) => m,
                 Err(e) => {
                     let path_str = entry_path.to_string_lossy().to_string();
-                    let error_msg = if e.io_error().map(|io_err| io_err.kind()) == Some(std::io::ErrorKind::PermissionDenied) {
+                    let error_msg = if e.io_error().map(|io_err| io_err.kind())
+                        == Some(std::io::ErrorKind::PermissionDenied)
+                    {
                         format!("Permission denied: {}", path_str)
                     } else {
                         format!("Metadata error: {}: {}", path_str, e)
@@ -482,17 +541,30 @@ impl FileScanner {
             if !is_dir {
                 let file_info = FileInfo {
                     path: entry_path.to_string_lossy().to_string(),
-                    name: entry_path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string(),
+                    name: entry_path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string(),
                     size,
-                    modified: Self::format_timestamp(metadata.modified().ok().unwrap_or(std::time::SystemTime::UNIX_EPOCH)),
+                    modified: Self::format_timestamp(
+                        metadata
+                            .modified()
+                            .ok()
+                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
+                    ),
                     file_type: "file".to_string(),
-                    extension: entry_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase(),
+                    extension: entry_path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("")
+                        .to_lowercase(),
                 };
                 live_files.push(file_info.clone());
 
                 // Keep only top 100 largest for progress updates (avoid excessive cloning)
                 if live_files.len() > 200 {
-                    live_files.sort_by(|a, b| b.size.cmp(&a.size));
+                    live_files.sort_by_key(|b| std::cmp::Reverse(b.size));
                     live_files.truncate(100);
                 }
 
@@ -502,13 +574,21 @@ impl FileScanner {
             entries_processed += 1;
 
             // Progress update every 50 entries
-            if entries_processed % 50 == 0 {
-                let pct = if total_estimate > 0 { ((entries_processed as f32 / total_estimate as f32) * 100.0).min(99.0) } else { 0.0 };
+            if entries_processed.is_multiple_of(50) {
+                let pct = if total_estimate > 0 {
+                    ((entries_processed as f32 / total_estimate as f32) * 100.0).min(99.0)
+                } else {
+                    0.0
+                };
                 let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     progress_callback(ScanProgress {
                         files_scanned,
                         directories_scanned: dirs_scanned,
-                        total_size: raw_entries.iter().filter(|e| !e.is_dir).map(|e| e.size).sum(),
+                        total_size: raw_entries
+                            .iter()
+                            .filter(|e| !e.is_dir)
+                            .map(|e| e.size)
+                            .sum(),
                         current_file: entry_path.to_string_lossy().to_string(),
                         percentage: pct,
                         completed: false,
@@ -532,7 +612,9 @@ impl FileScanner {
         result.extension_sizes = gpu_result.extension_sizes;
         result.size_distribution = gpu_result.size_distribution;
         result.empty_directories = gpu_result.empty_dirs;
-        result.subdirectories = gpu_result.subdirectories.into_iter()
+        result.subdirectories = gpu_result
+            .subdirectories
+            .into_iter()
             .map(|d| DirInfo {
                 path: d.path,
                 name: d.name,
@@ -547,7 +629,7 @@ impl FileScanner {
             let modified = std::fs::metadata(&info.path)
                 .ok()
                 .and_then(|m| m.modified().ok())
-                .and_then(|t| Self::format_timestamp(t));
+                .and_then(Self::format_timestamp);
 
             result.largest_files.push(FileInfo {
                 path: info.path,
@@ -657,7 +739,8 @@ impl FileScanner {
                 Ok(m) => m,
                 Err(e) => {
                     let mut r = result_clone.lock().unwrap();
-                    r.errors.push(format!("Metadata error: {}: {}", path.to_string_lossy(), e));
+                    r.errors
+                        .push(format!("Metadata error: {}: {}", path.to_string_lossy(), e));
                     continue;
                 }
             };
@@ -694,17 +777,28 @@ impl FileScanner {
                         *r.size_distribution.entry(bucket.to_string()).or_insert(0) += 1;
                     }
 
-                    if r.largest_files.len() < 100 || size > r.largest_files.last().map(|f| f.size).unwrap_or(0) {
+                    if r.largest_files.len() < 100
+                        || size > r.largest_files.last().map(|f| f.size).unwrap_or(0)
+                    {
                         let file_info = FileInfo {
                             path: current_file_path.clone(),
-                            name: path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string(),
+                            name: path
+                                .file_name()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or("")
+                                .to_string(),
                             size,
-                            modified: Self::format_timestamp(metadata.modified().ok().unwrap_or(std::time::SystemTime::UNIX_EPOCH)),
+                            modified: Self::format_timestamp(
+                                metadata
+                                    .modified()
+                                    .ok()
+                                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
+                            ),
                             file_type: "file".to_string(),
                             extension: ext,
                         };
                         r.largest_files.push(file_info);
-                        r.largest_files.sort_by(|a, b| b.size.cmp(&a.size));
+                        r.largest_files.sort_by_key(|b| std::cmp::Reverse(b.size));
                         r.largest_files.truncate(100);
                     }
                 } else if is_dir {
@@ -730,7 +824,11 @@ impl FileScanner {
                 files_scanned,
                 directories_scanned,
                 total_size,
-                current_file: if should_process { current_file_path } else { "Skipping".to_string() },
+                current_file: if should_process {
+                    current_file_path
+                } else {
+                    "Skipping".to_string()
+                },
                 percentage: if current_total > 0 {
                     ((processed as f32 / current_total as f32) * 100.0).min(99.0)
                 } else {
@@ -770,7 +868,7 @@ impl FileScanner {
 
 /// Get system information
 pub fn get_system_info() -> SystemInfo {
-    use sysinfo::{System, Disks, RefreshKind, MemoryRefreshKind, CpuRefreshKind};
+    use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
     let mut system = System::new_with_specifics(
         RefreshKind::nothing()
@@ -781,14 +879,17 @@ pub fn get_system_info() -> SystemInfo {
     system.refresh_cpu_all();
 
     let disks = Disks::new_with_refreshed_list();
-    let drives = disks.iter().map(|disk| DriveInfo {
-        name: disk.name().to_string_lossy().to_string(),
-        mount_point: disk.mount_point().to_string_lossy().to_string(),
-        file_system: disk.file_system().to_string_lossy().to_string(),
-        total_space: disk.total_space(),
-        available_space: disk.available_space(),
-        is_removable: false,
-    }).collect();
+    let drives = disks
+        .iter()
+        .map(|disk| DriveInfo {
+            name: disk.name().to_string_lossy().to_string(),
+            mount_point: disk.mount_point().to_string_lossy().to_string(),
+            file_system: disk.file_system().to_string_lossy().to_string(),
+            total_space: disk.total_space(),
+            available_space: disk.available_space(),
+            is_removable: false,
+        })
+        .collect();
 
     SystemInfo {
         os: System::long_os_version().unwrap_or_else(|| "Unknown".to_string()),

@@ -1,10 +1,13 @@
-﻿//! Chat message handling functions
-//! 
+//! Chat message handling functions
+//!
 //! This module contains functions for processing chat messages,
 //! handling tool calls, and managing the chat conversation flow.
 
+use super::super::{
+    formatting, ChatMessage, OllamaChatMessage, OllamaMessage, ToolCall, ToolCallFunction,
+    ToolResultDisplay,
+};
 use std::sync::mpsc;
-use super::super::{OllamaChatMessage, OllamaMessage, ToolCall, ToolCallFunction, ChatMessage, ToolResultDisplay, formatting};
 
 use super::super::SpaceAnalyzerApp;
 
@@ -20,14 +23,22 @@ impl SpaceAnalyzerApp {
             return;
         }
         // Fast path: under budget
-        let total: usize = self.conversation_history.iter().map(|m| m.content.len()).sum();
+        let total: usize = self
+            .conversation_history
+            .iter()
+            .map(|m| m.content.len())
+            .sum();
         if total <= MAX_CONVERSATION_CHARS {
             return;
         }
         // Preserve system prompt, trim oldest messages
         let system = self.conversation_history.remove(0);
         while !self.conversation_history.is_empty() {
-            let remaining: usize = self.conversation_history.iter().map(|m| m.content.len()).sum();
+            let remaining: usize = self
+                .conversation_history
+                .iter()
+                .map(|m| m.content.len())
+                .sum();
             if remaining <= MAX_CONVERSATION_CHARS {
                 break;
             }
@@ -43,6 +54,7 @@ impl SpaceAnalyzerApp {
         if let Some(rx) = self.ollama_receiver.take() {
             let mut tool_calls_received: Vec<(String, serde_json::Value)> = Vec::new();
             let mut assistant_reply = String::new();
+            let mut assistant_thinking = None;
             let mut usage_received = None;
             let mut error_received = None;
 
@@ -62,17 +74,38 @@ impl SpaceAnalyzerApp {
                     OllamaMessage::ToolCall(name, args) => {
                         tool_calls_received.push((name, args));
                     }
-                    OllamaMessage::ChatReply(reply) => {
-                        assistant_reply = reply;
+                    OllamaMessage::ChatReply { content, thinking } => {
+                        assistant_reply = content;
+                        assistant_thinking = thinking;
                     }
-                    OllamaMessage::TokenUsage { prompt_tokens, completion_tokens, duration_ms } => {
+                    OllamaMessage::TokenUsage {
+                        prompt_tokens,
+                        completion_tokens,
+                        duration_ms,
+                    } => {
                         usage_received = Some((prompt_tokens, completion_tokens, duration_ms));
                     }
                     OllamaMessage::Error(e) => {
                         error_received = Some(e);
                     }
-                    OllamaMessage::CacheStore { key, system_prompt, user_prompt, response, prompt_tokens, completion_tokens, model } => {
-                        self.prompt_cache.store(key, system_prompt, user_prompt, response, prompt_tokens, completion_tokens, model);
+                    OllamaMessage::CacheStore {
+                        key,
+                        system_prompt,
+                        user_prompt,
+                        response,
+                        prompt_tokens,
+                        completion_tokens,
+                        model,
+                    } => {
+                        self.prompt_cache.store(
+                            key,
+                            system_prompt,
+                            user_prompt,
+                            response,
+                            prompt_tokens,
+                            completion_tokens,
+                            model,
+                        );
                     }
                 }
             }
@@ -84,10 +117,11 @@ impl SpaceAnalyzerApp {
                     self.chat_messages.push(ChatMessage {
                         role: "assistant".to_string(),
                         content: format!("[Tool call limit exceeded: stopped after {} rounds to prevent runaway execution. Please rephrase your request.]", MAX_TOOL_CALL_DEPTH),
+                        thinking: None,
                         tool_result: None,
                     });
                     self.conversation_history.push(OllamaChatMessage::assistant(
-                        &format!("Tool call limit exceeded: stopped after {} rounds. The final assistant response must now be given without further tool calls.", MAX_TOOL_CALL_DEPTH)
+                        format!("Tool call limit exceeded: stopped after {} rounds. The final assistant response must now be given without further tool calls.", MAX_TOOL_CALL_DEPTH)
                     ));
                     self.tool_call_depth = 0;
                     self.chat_processing = false;
@@ -98,6 +132,7 @@ impl SpaceAnalyzerApp {
                     self.chat_messages.push(ChatMessage {
                         role: "assistant".to_string(),
                         content: format!("[Calling tool: {}({})]", name, args),
+                        thinking: None,
                         tool_result: None,
                     });
 
@@ -112,7 +147,11 @@ impl SpaceAnalyzerApp {
                                 arguments: args.clone(),
                             },
                         };
-                        let result = registry.execute_tool(&tool_call, self.scan_result.as_ref(), self.db.as_ref());
+                        let result = registry.execute_tool(
+                            &tool_call,
+                            self.scan_result.as_ref(),
+                            self.db.as_ref(),
+                        );
 
                         // Create formatted tool result for user display
                         let display = ToolResultDisplay::from_raw(name, &result);
@@ -121,12 +160,16 @@ impl SpaceAnalyzerApp {
                         self.chat_messages.push(ChatMessage {
                             role: "assistant".to_string(),
                             content: format!("[Tool result: {}]", name),
+                            thinking: None,
                             tool_result: Some(display),
                         });
 
                         // Add tool result to conversation history (JSON format for functionary compatibility)
                         let result_json = serde_json::json!({"result": result});
-                        self.conversation_history.push(OllamaChatMessage::tool(result_json.to_string(), format!("call_{}", name)));
+                        self.conversation_history.push(OllamaChatMessage::tool(
+                            result_json.to_string(),
+                            format!("call_{}", name),
+                        ));
                     }
                 }
 
@@ -135,9 +178,11 @@ impl SpaceAnalyzerApp {
                     self.chat_messages.push(ChatMessage {
                         role: "assistant".to_string(),
                         content: assistant_reply.clone(),
+                        thinking: assistant_thinking.clone(),
                         tool_result: None,
                     });
-                    self.conversation_history.push(OllamaChatMessage::assistant(&assistant_reply));
+                    self.conversation_history
+                        .push(OllamaChatMessage::assistant(&assistant_reply));
                 }
 
                 // Send follow-up request with tool results
@@ -149,6 +194,7 @@ impl SpaceAnalyzerApp {
                 self.chat_messages.push(ChatMessage {
                     role: "assistant".to_string(),
                     content: format!("Error: {}. Make sure Ollama is running.", e),
+                    thinking: None,
                     tool_result: None,
                 });
                 self.chat_processing = false;
@@ -158,16 +204,24 @@ impl SpaceAnalyzerApp {
                 self.chat_messages.push(ChatMessage {
                     role: "assistant".to_string(),
                     content: assistant_reply.clone(),
+                    thinking: assistant_thinking.clone(),
                     tool_result: None,
                 });
-                self.conversation_history.push(OllamaChatMessage::assistant(&assistant_reply));
+                self.conversation_history
+                    .push(OllamaChatMessage::assistant(&assistant_reply));
 
                 self.tool_call_depth = 0;
                 if let Some((prompt, completion, duration)) = usage_received {
-                    let duration_str = duration.map(|ms| format!("{:.1}s", ms as f64 / 1000.0)).unwrap_or_default();
+                    let duration_str = duration
+                        .map(|ms| format!("{:.1}s", ms as f64 / 1000.0))
+                        .unwrap_or_default();
                     self.chat_messages.push(ChatMessage {
                         role: "assistant".to_string(),
-                        content: format!("[Tokens: {} prompt + {} completion | {}]", prompt, completion, duration_str),
+                        content: format!(
+                            "[Tokens: {} prompt + {} completion | {}]",
+                            prompt, completion, duration_str
+                        ),
+                        thinking: None,
                         tool_result: None,
                     });
                 }
@@ -183,16 +237,25 @@ impl SpaceAnalyzerApp {
     fn send_follow_up_with_tools(&mut self) {
         // Send a follow-up request to get the final response after tool execution
         let tools = if self.settings.agentic_tools_enabled {
-            self.tool_registry.as_ref().map(|tr| tr.get_definitions().to_vec())
+            self.tool_registry
+                .as_ref()
+                .map(|tr| tr.get_definitions().to_vec())
         } else {
             None
         };
         let client = self.ollama_client.clone().and_then(|c| {
-            if self.settings.agentic_tools_enabled {
+            let base = if self.settings.agentic_tools_enabled {
                 c.with_model(&self.settings.tool_calling_model).ok()
             } else {
                 Some(c)
-            }
+            };
+            base.map(|bc| {
+                if self.settings.ollama_think {
+                    bc.with_think(Some(crate::ollama::TopLevelThink::Bool(true)))
+                } else {
+                    bc.with_think(Some(crate::ollama::TopLevelThink::Bool(false)))
+                }
+            })
         });
 
         let tool_choice = self.settings.tool_choice.clone();
@@ -204,11 +267,13 @@ impl SpaceAnalyzerApp {
             std::thread::spawn(move || {
                 let rt = super::super::shared_runtime();
                 let response = rt.block_on(async {
-                    client.chat_with_tools(conversation, tools, Some(tool_choice)).await
+                    client
+                        .chat_with_tools(conversation, tools, Some(tool_choice))
+                        .await
                 });
 
                 match response {
-                    Ok((content, tool_calls, usage)) => {
+                    Ok((content, thinking, tool_calls, usage)) => {
                         if let Some(calls) = tool_calls {
                             for call in &calls {
                                 let _ = tx.send(OllamaMessage::ToolCall(
@@ -217,7 +282,7 @@ impl SpaceAnalyzerApp {
                                 ));
                             }
                         }
-                        let _ = tx.send(OllamaMessage::ChatReply(content));
+                        let _ = tx.send(OllamaMessage::ChatReply { content, thinking });
                         let _ = tx.send(OllamaMessage::TokenUsage {
                             prompt_tokens: usage.prompt_tokens,
                             completion_tokens: usage.completion_tokens,
@@ -243,32 +308,46 @@ impl SpaceAnalyzerApp {
 
         self.tool_call_depth = 0;
         let user_message = self.chat_input.clone();
-        
+
         // Auto-select model based on query content
         if self.settings.auto_model_selection {
             let msg_lower = user_message.to_lowercase();
-            let task_type = if msg_lower.contains("analyz") || msg_lower.contains("recommend") || msg_lower.contains("report") {
+            let task_type = if msg_lower.contains("analyz")
+                || msg_lower.contains("recommend")
+                || msg_lower.contains("report")
+            {
                 "Analysis"
-            } else if msg_lower.contains("run") || msg_lower.contains("execute") || msg_lower.contains("clean") || msg_lower.contains("delete") {
+            } else if msg_lower.contains("run")
+                || msg_lower.contains("execute")
+                || msg_lower.contains("clean")
+                || msg_lower.contains("delete")
+            {
                 "Tool Calling"
-            } else if msg_lower.contains("search") || msg_lower.contains("find") || msg_lower.contains("file") || msg_lower.contains("scan") {
+            } else if msg_lower.contains("search")
+                || msg_lower.contains("find")
+                || msg_lower.contains("file")
+                || msg_lower.contains("scan")
+            {
                 "Semantic Search"
             } else {
                 "General Chat"
             };
             self.select_model_for_task(task_type);
         }
-        
+
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
             content: user_message.clone(),
+            thinking: None,
             tool_result: None,
         });
         self.chat_input.clear();
         self.chat_processing = true;
 
         let tools = if self.settings.agentic_tools_enabled {
-            self.tool_registry.as_ref().map(|tr| tr.get_definitions().to_vec())
+            self.tool_registry
+                .as_ref()
+                .map(|tr| tr.get_definitions().to_vec())
         } else {
             None
         };
@@ -278,21 +357,32 @@ impl SpaceAnalyzerApp {
             self.settings.ollama_model.clone()
         };
         let client = self.ollama_client.clone().and_then(|c| {
-            if self.settings.agentic_tools_enabled {
+            let base = if self.settings.agentic_tools_enabled {
                 c.with_model(&self.settings.tool_calling_model).ok()
             } else {
                 Some(c)
-            }
+            };
+            base.map(|bc| {
+                if self.settings.ollama_think {
+                    bc.with_think(Some(crate::ollama::TopLevelThink::Bool(true)))
+                } else {
+                    bc.with_think(Some(crate::ollama::TopLevelThink::Bool(false)))
+                }
+            })
         });
 
         // Build scan context for analysis queries
         let scan_context = if let Some(ref result) = self.scan_result {
-            let file_type_summary: String = result.file_types.iter()
+            let file_type_summary: String = result
+                .file_types
+                .iter()
                 .take(10)
                 .map(|(ext, count)| format!("  .{}: {} files", ext, count))
                 .collect::<Vec<_>>()
                 .join("\n");
-            let large_files_summary: String = result.largest_files.iter()
+            let large_files_summary: String = result
+                .largest_files
+                .iter()
                 .take(5)
                 .map(|(path, size)| format!("  {} ({})", path, formatting::format_bytes(*size)))
                 .collect::<Vec<_>>()
@@ -307,32 +397,53 @@ impl SpaceAnalyzerApp {
                 result.path,
                 result.total_files,
                 formatting::format_bytes(result.total_size_bytes),
-                if file_type_summary.is_empty() { "  (none)" } else { &file_type_summary },
-                if large_files_summary.is_empty() { "  (none)" } else { &large_files_summary }
+                if file_type_summary.is_empty() {
+                    "  (none)"
+                } else {
+                    &file_type_summary
+                },
+                if large_files_summary.is_empty() {
+                    "  (none)"
+                } else {
+                    &large_files_summary
+                }
             )
         } else {
             "No scan results available.".to_string()
         };
 
         // Check prompt cache (only for single-turn, no tool calls)
-        let system_prompt = self.conversation_history.first()
+        let system_prompt = self
+            .conversation_history
+            .first()
             .map(|m| m.content.clone())
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| super::super::ollama::SYSTEM_PROMPT_ANALYSIS.to_string());
-        let cache_key = super::super::ollama::PromptCache::generate_key(&model_name, &system_prompt, &format!("{}\n{}", scan_context, user_message));
-        
+        let cache_key = super::super::ollama::PromptCache::generate_key(
+            &model_name,
+            &system_prompt,
+            &format!("{}\n{}", scan_context, user_message),
+        );
+
         if let Some(cached) = self.prompt_cache.lookup(&cache_key, &model_name) {
             // Cache hit - return cached response immediately
-            self.conversation_history.push(OllamaChatMessage::user(&user_message));
+            self.conversation_history
+                .push(OllamaChatMessage::user(&user_message));
             self.chat_messages.push(ChatMessage {
                 role: "assistant".to_string(),
                 content: cached.response.clone(),
+                thinking: None,
                 tool_result: None,
             });
-            self.conversation_history.push(OllamaChatMessage::assistant(&cached.response));
+            self.conversation_history
+                .push(OllamaChatMessage::assistant(&cached.response));
             self.chat_messages.push(ChatMessage {
                 role: "system".to_string(),
-                content: format!("[Cache hit] Response retrieved from prompt cache ({} tokens saved).", cached.total_tokens()),
+                content: format!(
+                    "[Cache hit] Response retrieved from prompt cache ({} tokens saved).",
+                    cached.total_tokens()
+                ),
+                thinking: None,
                 tool_result: None,
             });
             self.chat_processing = false;
@@ -343,13 +454,18 @@ impl SpaceAnalyzerApp {
         let tool_choice = self.settings.tool_choice.clone();
         if let Some(client) = client {
             // Inject scan context before user message if not already present
-            let has_context = self.conversation_history.iter().any(|m| m.content.contains("Total files:"));
+            let has_context = self
+                .conversation_history
+                .iter()
+                .any(|m| m.content.contains("Total files:"));
             if !has_context && !scan_context.starts_with("No scan") {
-                self.conversation_history.push(OllamaChatMessage::system(&scan_context));
+                self.conversation_history
+                    .push(OllamaChatMessage::system(&scan_context));
             }
-            
+
             // Add user message to conversation history
-            self.conversation_history.push(OllamaChatMessage::user(&user_message));
+            self.conversation_history
+                .push(OllamaChatMessage::user(&user_message));
 
             self.trim_conversation_history();
 
@@ -367,11 +483,13 @@ impl SpaceAnalyzerApp {
                 let tools_clone = tools.clone();
 
                 let response = rt.block_on(async {
-                    client.chat_with_tools(messages, tools_clone, Some(tool_choice)).await
+                    client
+                        .chat_with_tools(messages, tools_clone, Some(tool_choice))
+                        .await
                 });
 
                 match response {
-                    Ok((content, tool_calls, usage)) => {
+                    Ok((content, thinking, tool_calls, usage)) => {
                         // Store in cache (only if no tool calls - tool responses are dynamic)
                         if tool_calls.is_none() {
                             let _ = prompt_cache_tx.send(OllamaMessage::CacheStore {
@@ -392,7 +510,7 @@ impl SpaceAnalyzerApp {
                                 ));
                             }
                         }
-                        let _ = tx.send(OllamaMessage::ChatReply(content));
+                        let _ = tx.send(OllamaMessage::ChatReply { content, thinking });
                         let _ = tx.send(OllamaMessage::TokenUsage {
                             prompt_tokens: usage.prompt_tokens,
                             completion_tokens: usage.completion_tokens,
@@ -408,7 +526,9 @@ impl SpaceAnalyzerApp {
         } else {
             self.chat_messages.push(ChatMessage {
                 role: "assistant".to_string(),
-                content: "Ollama is not enabled. Enable it in Settings to use AI features.".to_string(),
+                content: "Ollama is not enabled. Enable it in Settings to use AI features."
+                    .to_string(),
+                thinking: None,
                 tool_result: None,
             });
             self.chat_processing = false;

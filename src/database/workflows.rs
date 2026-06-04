@@ -49,7 +49,8 @@ impl super::Database {
 
     /// Delete a workflow execution by ID
     pub fn delete_workflow_execution(&self, id: &str) -> rusqlite::Result<usize> {
-        self.conn.execute("DELETE FROM workflow_executions WHERE id = ?1", params![id])
+        self.conn
+            .execute("DELETE FROM workflow_executions WHERE id = ?1", params![id])
     }
 
     /// Clear all workflow execution history

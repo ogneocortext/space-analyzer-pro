@@ -3,7 +3,11 @@ use super::*;
 #[allow(dead_code)] // Planned: semantic search via embeddings
 impl super::Database {
     /// Save a batch of file embeddings for a scan
-    pub fn save_embeddings(&self, scan_id: i64, embeddings: &[(String, u64, String, Vec<f32>)]) -> rusqlite::Result<usize> {
+    pub fn save_embeddings(
+        &self,
+        scan_id: i64,
+        embeddings: &[(String, u64, String, Vec<f32>)],
+    ) -> rusqlite::Result<usize> {
         let mut count = 0;
         let tx = self.conn.unchecked_transaction()?;
         {
@@ -14,7 +18,14 @@ impl super::Database {
             for (path, size, ext, vec) in embeddings {
                 let embedding_json = serde_json::to_string(vec)
                     .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
-                stmt.execute(params![scan_id, path, size, ext, embedding_json, created_at])?;
+                stmt.execute(params![
+                    scan_id,
+                    path,
+                    size,
+                    ext,
+                    embedding_json,
+                    created_at
+                ])?;
                 count += 1;
             }
         }
@@ -23,7 +34,10 @@ impl super::Database {
     }
 
     /// Get all embeddings for a scan
-    pub fn get_embeddings_for_scan(&self, scan_id: i64) -> rusqlite::Result<Vec<FileEmbeddingRecord>> {
+    pub fn get_embeddings_for_scan(
+        &self,
+        scan_id: i64,
+    ) -> rusqlite::Result<Vec<FileEmbeddingRecord>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, scan_id, file_path, file_size, file_extension, embedding, created_at FROM file_embeddings WHERE scan_id = ?1 ORDER BY file_path"
         )?;
@@ -43,7 +57,10 @@ impl super::Database {
 
     /// Delete embeddings for a scan
     pub fn delete_scan_embeddings(&self, scan_id: i64) -> rusqlite::Result<usize> {
-        self.conn.execute("DELETE FROM file_embeddings WHERE scan_id = ?1", params![scan_id])
+        self.conn.execute(
+            "DELETE FROM file_embeddings WHERE scan_id = ?1",
+            params![scan_id],
+        )
     }
 
     /// Delete all embeddings

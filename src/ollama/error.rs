@@ -29,11 +29,14 @@ impl fmt::Display for OllamaError {
             }
             OllamaError::ParseError(msg) => write!(f, "Parse error: {}", msg),
             OllamaError::ModelNotFound(model) => {
-                write!(f, "Model not found: {}. Run 'ollama pull {}' first.", model, model)
+                write!(
+                    f,
+                    "Model not found: {}. Run 'ollama pull {}' first.",
+                    model, model
+                )
             }
             OllamaError::Timeout(msg) => write!(f, "Timeout: {}", msg),
             OllamaError::ConfigError(msg) => write!(f, "Config error: {}", msg),
-
         }
     }
 }

@@ -1,0 +1,26 @@
+# Space Analyzer Pro - AI Agent Rules
+
+## After Every Code Change
+- Run `just verify` to check formatting, linting, and tests pass
+
+## Never Modify
+- Files in `archive/` - historical reference only
+- `config/secrets/` - contains sensitive configuration
+- `.env` files - never commit secrets
+
+## Code Style
+- Rust: follow rustfmt.toml settings, pass `cargo clippy --all-targets --all-features -- -D warnings`
+- Format with `cargo fmt --all`
+- Use `thiserror` for error types, `anyhow` for application-level handling
+- Document public items with `///` doc comments
+
+## Commit Convention
+- Use conventional commits: `feat(scope): description`
+- Scopes: `gui`, `scanner`, `ai`, `native`, `shared`, `gpu`, `docs`, `test`
+
+## Project Structure
+- This is a **Rust desktop application** (egui/eframe GUI)
+- Core source: `src/` (GUI, Ollama client, database, workflows)
+- Native modules: `native/` (scanner, deduplicator, node_modules_cleaner)
+- Shared crates: `shared-scanner/`, `gpu-compute/`
+- See `AGENTS.md` for full directory map

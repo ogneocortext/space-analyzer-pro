@@ -1,101 +1,87 @@
-# Space Analyzer Pro - Task Runner
+# Space Analyzer Pro - Desktop App Task Runner
 # Requires: just (https://github.com/casey/just)
 # Install: cargo install just
+
+set shell := ["pwsh", "-Command"]
 
 # Default target
 default: help
 
 # Show help
 help:
-    @echo "Space Analyzer Pro - Available Tasks"
+    @echo "Space Analyzer Pro (Desktop) - Available Tasks"
     @echo ""
     @echo "Build:"
-    @echo "  just build-rust          Build all Rust workspace members"
-    @echo "  just build-tauri         Build Tauri desktop application"
-    @echo "  just build-server        Build Node.js server"
+    @echo "  just build               Build all Rust workspace members"
+    @echo "  just build-release       Build optimized release"
     @echo ""
     @echo "Test:"
-    @echo "  just test-rust           Run Rust tests"
-    @echo "  just test-e2e            Run Playwright E2E tests"
+    @echo "  just test                Run Rust tests"
     @echo "  just test-all            Run all tests"
     @echo ""
     @echo "Lint/Format:"
     @echo "  just fmt                 Format Rust code"
+    @echo "  just fmt-check           Check formatting"
     @echo "  just clippy              Run Clippy lints"
     @echo "  just lint                Run all linters"
     @echo ""
+    @echo "Verify (run after every change):"
+    @echo "  just verify              Format check + clippy + all tests"
+    @echo ""
     @echo "Setup:"
-    @echo "  just setup-rust          Setup Rust build environment"
-    @echo "  just setup-ai            Setup Python AI service"
-    @echo "  just setup-all           Setup all dependencies"
+    @echo "  just setup               Setup Rust build environment"
     @echo ""
     @echo "Run:"
-    @echo "  just run-server          Start development server"
-    @echo "  just run-vite            Start Vite dev server"
-    @echo "  just run-all             Start all services"
+    @echo "  just run-gui             Start the GUI application"
+    @echo "  just run-cli             Run the CLI scanner"
     @echo ""
     @echo "Clean:"
     @echo "  just clean               Remove build artifacts"
-    @echo "  just clean-all           Remove all artifacts including node_modules"
 
 # Build targets
-build-rust:
+build:
     cargo build --workspace
 
-build-tauri:
-    powershell -ExecutionPolicy Bypass -File scripts/build/build-tauri.ps1
-
-build-server:
-    cd server && npm run build
+build-release:
+    cargo build --workspace --release
 
 # Test targets
-test-rust:
+test:
     cargo test --workspace
 
-test-e2e:
-    npx playwright test --project=chromium
-
-test-all: test-rust test-e2e
+test-all: test
     @echo "All tests passed!"
 
 # Lint/Format targets
 fmt:
     cargo fmt --all
 
+fmt-check:
+    cargo fmt --all -- --check
+
 clippy:
     cargo clippy --all-targets --all-features -- -D warnings
 
 lint: fmt clippy
-    cd server && npm run lint
-    cd shared && npm run lint
+
+# Verify target - run after every code change
+verify:
+    cargo fmt --all -- --check
+    cargo clippy --all-targets --all-features -- -D warnings
+    cargo test --workspace
 
 # Setup targets
-setup-rust:
-    powershell -ExecutionPolicy Bypass -File scripts/build/setup-rust-permanent.bat
-
-setup-ai:
-    python scripts/setup/setup-ai-env.py
-
-setup-all: setup-rust
-    npm install
-    cd ai-service && pip install -r requirements.txt
+setup:
+    rustup component add rustfmt clippy
 
 # Run targets
-run-server:
-    powershell -ExecutionPolicy Bypass -File scripts/setup/start-server.ps1
+run-gui:
+    cargo run --bin space-analyzer-gui
 
-run-vite:
-    powershell -ExecutionPolicy Bypass -File scripts/setup/start-vite.ps1
-
-run-all:
-    powershell -ExecutionPolicy Bypass -File scripts/setup/start-all-services.ps1
+run-cli:
+    cargo run --bin space-analyzer
 
 # Clean targets
 clean:
     cargo clean
-    rm -rf dist/ build/ target/
-
-clean-all: clean
-    rm -rf node_modules/
-    rm -rf server/node_modules/ shared/node_modules/
-    rm -rf ai-service/venv/ ai-service/__pycache__/
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build-artifacts

@@ -10,9 +10,9 @@
 //! SAFETY: No destructive actions are performed without explicit user permission.
 //! All file operations are read-only during automated testing.
 
+pub mod issue_reporter;
 pub mod logger;
 pub mod scenarios;
-pub mod issue_reporter;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -255,7 +255,7 @@ impl FlowTestHarness {
     pub fn new(config: FlowTestConfig) -> Self {
         let logger = logger::FlowLogger::new(&config.log_file_path);
         let issue_reporter = issue_reporter::IssueReporter::new(&config.issue_report_path);
-        
+
         Self {
             config,
             logger,
@@ -284,8 +284,11 @@ impl FlowTestHarness {
 
     /// End the test session and generate reports
     pub fn end_session(&mut self) {
-        let duration = self.start_time.map(|t| t.elapsed().as_millis() as u64).unwrap_or(0);
-        
+        let duration = self
+            .start_time
+            .map(|t| t.elapsed().as_millis() as u64)
+            .unwrap_or(0);
+
         self.log_event(FlowEvent {
             timestamp: chrono::Utc::now().to_rfc3339(),
             event_type: FlowEventType::AppShutdown,
@@ -327,14 +330,17 @@ impl FlowTestHarness {
         if !self.config.allow_destructive_actions {
             return false;
         }
-        
+
         if self.config.require_permission_for_destructive {
             // In automated mode, always deny destructive actions
             // Manual testing would prompt the user
-            println!("[FLOW TEST] Destructive action blocked (requires manual permission): {}", action_description);
+            println!(
+                "[FLOW TEST] Destructive action blocked (requires manual permission): {}",
+                action_description
+            );
             return false;
         }
-        
+
         true
     }
 
@@ -413,8 +419,11 @@ impl FlowTestHarness {
 
     /// Execute a single test step
     async fn execute_step(&mut self, step: &TestStep) -> StepResult {
-        println!("[FLOW TEST] Executing: {} on {}", step.action, step.component);
-        
+        println!(
+            "[FLOW TEST] Executing: {} on {}",
+            step.action, step.component
+        );
+
         // This is where we would integrate with the actual app
         // For now, we simulate the step execution
         match step.component.as_str() {
@@ -436,8 +445,12 @@ impl FlowTestHarness {
 
     async fn execute_scan_step(&mut self, step: &TestStep) -> StepResult {
         // Simulate scan step - in real implementation, this would interact with the actual scanner
-        let path = step.parameters.get("path").cloned().unwrap_or_else(|| ".".to_string());
-        
+        let path = step
+            .parameters
+            .get("path")
+            .cloned()
+            .unwrap_or_else(|| ".".to_string());
+
         // Check if path exists
         if !std::path::Path::new(&path).exists() {
             return StepResult {
@@ -448,7 +461,7 @@ impl FlowTestHarness {
 
         // Simulate scan
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        
+
         StepResult {
             success: true,
             error: None,
@@ -458,7 +471,7 @@ impl FlowTestHarness {
     async fn execute_settings_step(&mut self, _step: &TestStep) -> StepResult {
         // Simulate settings step
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-        
+
         StepResult {
             success: true,
             error: None,
@@ -468,7 +481,7 @@ impl FlowTestHarness {
     async fn execute_workflow_step(&mut self, _step: &TestStep) -> StepResult {
         // Simulate workflow step
         tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-        
+
         StepResult {
             success: true,
             error: None,
@@ -515,7 +528,7 @@ impl FlowTestHarness {
 
         // Simulate smart search
         tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
-        
+
         StepResult {
             success: true,
             error: None,
@@ -525,7 +538,7 @@ impl FlowTestHarness {
     async fn execute_history_step(&mut self, _step: &TestStep) -> StepResult {
         // Simulate history step
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        
+
         StepResult {
             success: true,
             error: None,
@@ -535,7 +548,7 @@ impl FlowTestHarness {
     async fn execute_system_step(&mut self, _step: &TestStep) -> StepResult {
         // Simulate system info refresh
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
-        
+
         StepResult {
             success: true,
             error: None,
@@ -551,9 +564,7 @@ impl FlowTestHarness {
         }
 
         // Check GPU availability via nvidia-smi
-        let output = tokio::process::Command::new("nvidia-smi")
-            .output()
-            .await;
+        let output = tokio::process::Command::new("nvidia-smi").output().await;
 
         match output {
             Ok(out) => {

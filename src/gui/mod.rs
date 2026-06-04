@@ -1,5 +1,5 @@
 //! Space Analyzer Pro - Self-Contained Desktop Application
-//! 
+//!
 //! This is the PRIMARY and ONLY active GUI implementation for Space Analyzer Pro.
 //! It is a fully self-contained application with:
 //! - Embedded SQLite database for persistence
@@ -12,16 +12,18 @@
 //! DO NOT create new GUI implementations - extend this one.
 
 use eframe::egui::{self, Widget};
-use egui_plot::Plot;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::sync::mpsc;
+use std::sync::Arc;
 
 // Re-export crate-level modules so sub-modules can reach them via super::super::X
+pub(crate) use crate::category;
 pub(crate) use crate::database;
 pub(crate) use crate::embedding_service;
+pub(crate) use crate::file_relations;
 pub(crate) use crate::gui_common;
+pub(crate) use crate::offline_ai;
 pub(crate) use crate::ollama;
 pub(crate) use crate::session_logger;
 pub(crate) use crate::system_monitor;
@@ -29,28 +31,33 @@ pub(crate) use crate::tool_registry;
 pub(crate) use crate::utils;
 pub(crate) use crate::workflows;
 
-use gui_common::{ScanResult, formatting};
-use shared_scanner::{FileScanner, ScanOptions, ScanProgress};
-use workflows::{Workflow, WorkflowTemplates, StorageInsights, AIRecommendation, RecommendationPriority, WorkflowAction, WorkflowExecution, ExecutionStatus, WorkflowTrigger};
-use database::{Database, AppSettings, ScanHistoryRecord};
-use ollama::{OllamaClient, ChatMessage as OllamaChatMessage, ToolCall, ToolCallFunction};
-use tool_registry::ToolRegistry;
+use database::{AppSettings, Database, ScanHistoryRecord};
 use embedding_service::{embed_files, embed_query, search_files, SearchResult};
-use system_monitor::{SystemMonitor, DiskVolume, SystemResources, GpuInfo};
+use gui_common::{formatting, ScanResult};
+use ollama::{ChatMessage as OllamaChatMessage, OllamaClient, ToolCall, ToolCallFunction};
+use shared_scanner::{FileScanner, ScanOptions, ScanProgress};
+use system_monitor::{DiskVolume, GpuInfo, SystemMonitor, SystemResources};
+use tool_registry::ToolRegistry;
 use utils::sanitize_error_message;
+use workflows::{
+    AIRecommendation, ExecutionStatus, RecommendationPriority, StorageInsights, Workflow,
+    WorkflowAction, WorkflowExecution, WorkflowTemplates, WorkflowTrigger,
+};
 
 /// Shared Tokio runtime for all async operations
 fn shared_runtime() -> &'static tokio::runtime::Runtime {
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
-    RUNTIME.get_or_init(|| {
-        tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime")
-    })
+    RUNTIME.get_or_init(|| tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime"))
 }
 
 /// Scan message type for GUI communication
 #[derive(Debug, Clone)]
 pub enum ScanMessage {
-    Progress { percentage: f32, files: u64, bytes: u64 },
+    Progress {
+        percentage: f32,
+        files: u64,
+        bytes: u64,
+    },
     Complete(ScanResult),
     Error(String),
 }
@@ -109,7 +116,10 @@ impl ToolResultDisplay {
         }
     }
 
-    fn parse_tool_result(tool_name: &str, raw: &str) -> (Option<(u32, &'static str)>, String, Vec<String>) {
+    fn parse_tool_result(
+        tool_name: &str,
+        raw: &str,
+    ) -> (Option<(u32, &'static str)>, String, Vec<String>) {
         match tool_name {
             "get_scan_summary" => {
                 let lines: Vec<&str> = raw.lines().collect();
@@ -118,28 +128,47 @@ impl ToolResultDisplay {
                 (icons::scan(), summary, details)
             }
             "get_scan_history" => {
-                let count = raw.lines().next()
+                let count = raw
+                    .lines()
+                    .next()
                     .and_then(|l| l.strip_prefix("Recent scans ("))
                     .and_then(|l| l.strip_suffix("):"))
                     .unwrap_or("?");
-                (icons::history(), format!("{} scan(s) in history", count),
-                 raw.lines().skip(1).map(|s| s.trim().to_string()).collect())
+                (
+                    icons::history(),
+                    format!("{} scan(s) in history", count),
+                    raw.lines().skip(1).map(|s| s.trim().to_string()).collect(),
+                )
             }
             "get_disk_volumes" => {
-                let lines: Vec<&str> = raw.lines().filter(|l| {
-                    let t = l.trim();
-                    // Match any drive letter pattern (C:\, D:\, etc.) or Unix mount (/home, /mnt, etc.)
-                    (t.len() >= 2 && t.as_bytes()[1] == b':' && t.as_bytes()[0].is_ascii_alphabetic())
-                        || t.starts_with('/')
-                }).collect();
-                (icons::disk(), format!("{} disk volume(s) found", lines.len()),
-                 lines.iter().map(|s| s.trim().to_string()).collect())
+                let lines: Vec<&str> = raw
+                    .lines()
+                    .filter(|l| {
+                        let t = l.trim();
+                        // Match any drive letter pattern (C:\, D:\, etc.) or Unix mount (/home, /mnt, etc.)
+                        (t.len() >= 2
+                            && t.as_bytes()[1] == b':'
+                            && t.as_bytes()[0].is_ascii_alphabetic())
+                            || t.starts_with('/')
+                    })
+                    .collect();
+                (
+                    icons::disk(),
+                    format!("{} disk volume(s) found", lines.len()),
+                    lines.iter().map(|s| s.trim().to_string()).collect(),
+                )
             }
             "get_system_resources" => {
-                let cpu = raw.lines().find(|l| l.contains("CPU"))
-                    .map(|l| l.trim().to_string()).unwrap_or_default();
-                let mem = raw.lines().find(|l| l.contains("Memory"))
-                    .map(|l| l.trim().to_string()).unwrap_or_default();
+                let cpu = raw
+                    .lines()
+                    .find(|l| l.contains("CPU"))
+                    .map(|l| l.trim().to_string())
+                    .unwrap_or_default();
+                let mem = raw
+                    .lines()
+                    .find(|l| l.contains("Memory"))
+                    .map(|l| l.trim().to_string())
+                    .unwrap_or_default();
                 let summary = match (cpu.is_empty(), mem.is_empty()) {
                     (false, false) => format!("{}, {}", cpu, mem),
                     (false, true) => cpu,
@@ -150,54 +179,92 @@ impl ToolResultDisplay {
             }
             "get_storage_trend" => {
                 // Match lines that look like timestamps (contain a dash-separated date)
-                let lines: Vec<&str> = raw.lines().filter(|l| {
-                    let t = l.trim();
-                    t.contains('-') && t.len() > 10 && t.as_bytes().iter().take(4).all(|b| b.is_ascii_digit())
-                }).collect();
+                let lines: Vec<&str> = raw
+                    .lines()
+                    .filter(|l| {
+                        let t = l.trim();
+                        t.contains('-')
+                            && t.len() > 10
+                            && t.as_bytes().iter().take(4).all(|b| b.is_ascii_digit())
+                    })
+                    .collect();
                 let count = lines.len();
                 let latest = lines.last().map(|l| l.trim()).unwrap_or("N/A");
-                (icons::trend(), format!("{} data point(s). Latest: {}", count, latest),
-                 lines.iter().map(|s| s.trim().to_string()).collect())
+                (
+                    icons::trend(),
+                    format!("{} data point(s). Latest: {}", count, latest),
+                    lines.iter().map(|s| s.trim().to_string()).collect(),
+                )
             }
             "list_workflows" => {
                 // Count lines that look like workflow entries (non-header, non-empty)
-                let count = raw.lines().filter(|l| {
-                    let t = l.trim();
-                    !t.is_empty() && !t.starts_with("Available workflows") && !t.starts_with("  -")
-                }).count().max(1) - 1; // Subtract the header line
-                let count = count.max(0);
-                (icons::workflow(), format!("{} workflow(s) available", count),
-                 raw.lines().map(|s| s.trim().to_string()).collect())
+                let count = raw
+                    .lines()
+                    .filter(|l| {
+                        let t = l.trim();
+                        !t.is_empty()
+                            && !t.starts_with("Available workflows")
+                            && !t.starts_with("  -")
+                    })
+                    .count()
+                    .max(1)
+                    - 1; // Subtract the header line
+                (
+                    icons::workflow(),
+                    format!("{} workflow(s) available", count),
+                    raw.lines().map(|s| s.trim().to_string()).collect(),
+                )
             }
             "get_file_type_breakdown" => {
-                let total = raw.lines().next()
+                let total = raw
+                    .lines()
+                    .next()
                     .and_then(|l| l.strip_prefix("File type breakdown ("))
                     .and_then(|l| l.strip_suffix(" total files):"))
                     .unwrap_or("?");
-                (icons::filetype(), format!("{} file type(s) found", total),
-                 raw.lines().skip(1).map(|s| s.trim().to_string()).collect())
+                (
+                    icons::filetype(),
+                    format!("{} file type(s) found", total),
+                    raw.lines().skip(1).map(|s| s.trim().to_string()).collect(),
+                )
             }
             "predict_storage" => {
-                let prediction = raw.lines().find(|l| l.contains("Predicted size"))
-                    .map(|l| l.trim().to_string()).unwrap_or_default();
-                let growth = raw.lines().find(|l| l.contains("Average daily"))
-                    .map(|l| l.trim().to_string()).unwrap_or_default();
+                let prediction = raw
+                    .lines()
+                    .find(|l| l.contains("Predicted size"))
+                    .map(|l| l.trim().to_string())
+                    .unwrap_or_default();
+                let growth = raw
+                    .lines()
+                    .find(|l| l.contains("Average daily"))
+                    .map(|l| l.trim().to_string())
+                    .unwrap_or_default();
                 let summary = match (prediction.is_empty(), growth.is_empty()) {
                     (false, false) => format!("{} | {}", prediction, growth),
                     (false, true) => prediction,
                     (true, false) => growth,
                     (true, true) => "Prediction loaded".to_string(),
                 };
-                (icons::predict(), summary,
-                 raw.lines().map(|s| s.trim().to_string()).collect())
+                (
+                    icons::predict(),
+                    summary,
+                    raw.lines().map(|s| s.trim().to_string()).collect(),
+                )
             }
             "analyze_file_patterns" => {
                 let lines: Vec<&str> = raw.lines().filter(|l| !l.is_empty()).collect();
                 let first = lines.first().map(|s| s.to_string()).unwrap_or_default();
-                (icons::pattern(), first, lines.iter().skip(1).map(|s| s.to_string()).collect())
+                (
+                    icons::pattern(),
+                    first,
+                    lines.iter().skip(1).map(|s| s.to_string()).collect(),
+                )
             }
-            _ => (icons::tool(), format!("Tool: {}", tool_name),
-                  raw.lines().map(|s| s.to_string()).collect()),
+            _ => (
+                icons::tool(),
+                format!("Tool: {}", tool_name),
+                raw.lines().map(|s| s.to_string()).collect(),
+            ),
         }
     }
 }
@@ -235,6 +302,7 @@ impl std::fmt::Display for AppTab {
 pub struct ChatMessage {
     pub role: String,
     pub content: String,
+    pub thinking: Option<String>,
     pub tool_result: Option<ToolResultDisplay>,
 }
 
@@ -267,10 +335,17 @@ pub struct ModelPerformanceMetrics {
 /// Ollama response message for async communication
 pub(crate) enum OllamaMessage {
     Availability(bool),
-    ChatReply(String),
+    ChatReply {
+        content: String,
+        thinking: Option<String>,
+    },
     ToolCall(String, serde_json::Value),
     Error(String),
-    TokenUsage { prompt_tokens: u32, completion_tokens: u32, duration_ms: Option<u64> },
+    TokenUsage {
+        prompt_tokens: u32,
+        completion_tokens: u32,
+        duration_ms: Option<u64>,
+    },
     CacheStore {
         key: String,
         system_prompt: String,
@@ -421,7 +496,7 @@ impl ScanPerformanceTracker {
 pub struct SpaceAnalyzerApp {
     // Navigation
     pub active_tab: AppTab,
-    
+
     // Scanning
     pub current_path: PathBuf,
     pub scan_result: Option<ScanResult>,
@@ -431,15 +506,15 @@ pub struct SpaceAnalyzerApp {
     pub cancel_flag: Option<Arc<AtomicBool>>,
     pub status_message: Option<String>,
     pub scan_performance: ScanPerformanceTracker,
-    
+
     // Database
     pub db: Option<Database>,
     pub scan_history: Vec<ScanHistoryRecord>,
     pub selected_history_id: Option<i64>,
-    
+
     // Settings
     pub settings: AppSettings,
-    
+
     // Workflows
     pub workflows: Vec<Workflow>,
     pub active_workflow: Option<WorkflowExecution>,
@@ -462,20 +537,20 @@ pub struct SpaceAnalyzerApp {
     pub chat_processing: bool,
     pub conversation_history: Vec<OllamaChatMessage>,
     pub tool_registry: Option<ToolRegistry>,
-    
+
     // Prompt Cache
     pub prompt_cache: ollama::PromptCache,
     pub cache_stats_visible: bool,
-    
+
     // Ollama Model Discovery
     pub discovered_models: Vec<OllamaModelInfo>,
     pub models_discovering: bool,
     pub model_discovery_receiver: Option<mpsc::Receiver<Vec<OllamaModelInfo>>>,
-    
+
     // Automatic Model Selection
     pub current_active_model: Option<String>,
     pub current_model_task: Option<String>,
-    
+
     // Smart Search (Embeddings)
     pub search_query: String,
     pub search_results: Vec<SearchResult>,
@@ -487,16 +562,16 @@ pub struct SpaceAnalyzerApp {
     pub indexing_progress: f32,
     pub(crate) embedding_receiver: Option<mpsc::Receiver<EmbeddingMessage>>,
     pub(crate) search_receiver: Option<mpsc::Receiver<SearchMessage>>,
-    
+
     // Deduplication
     pub dedup_receiver: Option<mpsc::Receiver<String>>,
     pub is_deduplicating: bool,
-    
+
     // System
     pub disk_volumes: Vec<DiskVolume>,
     pub system_resources: Option<SystemResources>,
     pub gpu_info: Option<GpuInfo>,
-    
+
     // Tool Calling
     pub tool_call_depth: u32,
     pub ollama_auto_started: bool,
@@ -508,6 +583,12 @@ pub struct SpaceAnalyzerApp {
     // Notifications
     pub notifications: Vec<Notification>,
     pub notification_counter: u64,
+
+    // Destructive-action impact preview (F: preview before delete)
+    pub impact_preview_input: String,
+    pub current_impact_report: Option<file_relations::DependencyReport>,
+    pub impact_preview_open: bool,
+    pub impact_preview_pending: bool,
 }
 
 impl Default for SpaceAnalyzerApp {
@@ -515,10 +596,11 @@ impl Default for SpaceAnalyzerApp {
         let mut templates = WorkflowTemplates::all_templates();
         for workflow in &mut templates {
             if workflow.description.is_empty() {
-                workflow.description = format!("{} workflow for automated disk analysis.", workflow.name);
+                workflow.description =
+                    format!("{} workflow for automated disk analysis.", workflow.name);
             }
         }
-        
+
         let settings = AppSettings::default();
         let ollama_client = if settings.ollama_enabled {
             match OllamaClient::new(&settings.ollama_url, &settings.ollama_model) {
@@ -564,6 +646,7 @@ impl Default for SpaceAnalyzerApp {
                 ChatMessage {
                     role: "assistant".to_string(),
                     content: "Hello! I'm your local AI storage assistant. Run a scan first, then ask me questions about your disk usage.".to_string(),
+                    thinking: None,
                     tool_result: None,
                 }
             ],
@@ -605,6 +688,10 @@ impl Default for SpaceAnalyzerApp {
             }),
             notifications: Vec::new(),
             notification_counter: 0,
+            impact_preview_input: String::new(),
+            current_impact_report: None,
+            impact_preview_open: false,
+            impact_preview_pending: false,
         };
 
         // Initialize database
@@ -617,7 +704,10 @@ impl Default for SpaceAnalyzerApp {
                 app.db = Some(db);
             }
             Err(e) => {
-                app.status_message = Some(format!("Database warning: {}. Running without persistence.", sanitize_error_message(&e.to_string())));
+                app.status_message = Some(format!(
+                    "Database warning: {}. Running without persistence.",
+                    sanitize_error_message(&e.to_string())
+                ));
             }
         }
 
@@ -629,7 +719,7 @@ impl Default for SpaceAnalyzerApp {
 
         // Refresh system info
         app.refresh_system_info();
-        
+
         // Check Ollama availability
         if app.ollama_client.is_some() {
             app.check_ollama();
@@ -642,7 +732,7 @@ impl Default for SpaceAnalyzerApp {
             ..Default::default()
         };
         app.session_logger = session_logger::SessionLogger::new(logger_config);
-        
+
         // Log application launch
         if app.settings.log_session_to_file {
             app.session_logger.info("app", "Application launched");
@@ -652,12 +742,12 @@ impl Default for SpaceAnalyzerApp {
     }
 }
 
-pub mod scan;
 mod ai;
-mod embeddings;
-mod dedup;
 mod dashboard;
+mod dedup;
+mod embeddings;
 mod history;
+pub mod scan;
 mod settings;
 mod system;
 mod workflow_render;
@@ -670,7 +760,7 @@ fn classify_model(name: &str, size: &str) -> OllamaModelInfo {
     let mut vram_requirement = "8+ GB VRAM".to_string();
     let mut tooltip = String::new();
     let mut performance = ModelPerformanceMetrics::default();
-    
+
     // Determine capabilities based on model name
     if name_lower.contains("functionary") {
         capabilities.push("Tool Calling".to_string());
@@ -691,7 +781,8 @@ fn classify_model(name: &str, size: &str) -> OllamaModelInfo {
         capabilities.push("Semantic Embeddings".to_string());
         capabilities.push("Vector Search".to_string());
         capabilities.push("Similarity Detection".to_string());
-        recommended_for = "Semantic file search, finding similar files, content-based queries".to_string();
+        recommended_for =
+            "Semantic file search, finding similar files, content-based queries".to_string();
         vram_requirement = "274 MB (very lightweight)".to_string();
         tooltip = "nomic-embed-text converts files into vector embeddings for semantic search. \
             Enables finding files by meaning rather than name: 'find large log files' or 'show me documentation'. \
@@ -705,12 +796,15 @@ fn classify_model(name: &str, size: &str) -> OllamaModelInfo {
         capabilities.push("Vision-Language".to_string());
         capabilities.push("Image Analysis".to_string());
         capabilities.push("Screenshot Understanding".to_string());
-        recommended_for = "Screenshot analysis, UI/UX review, visual file identification".to_string();
+        recommended_for =
+            "Screenshot analysis, UI/UX review, visual file identification".to_string();
         vram_requirement = "3.3 GB (fits in 8GB VRAM)".to_string();
-        tooltip = "qwen3-vl:4b understands images and screenshots. Use it to analyze UI screenshots, \
+        tooltip =
+            "qwen3-vl:4b understands images and screenshots. Use it to analyze UI screenshots, \
             identify visual patterns in your files, or review design assets. \
             Can describe what's shown in images and answer questions about visual content. \
-            On GTX 1070 Ti: ~12 tokens/sec for image analysis, ~2s first token.".to_string();
+            On GTX 1070 Ti: ~12 tokens/sec for image analysis, ~2s first token."
+                .to_string();
         performance.tokens_per_second = Some(12.0);
         performance.time_to_first_token_ms = Some(2000.0);
         performance.avg_response_time_ms = Some(5000.0);
@@ -738,28 +832,30 @@ fn classify_model(name: &str, size: &str) -> OllamaModelInfo {
         capabilities.push("Quick Responses".to_string());
         recommended_for = "Lightweight general-purpose assistant, quick answers".to_string();
         vram_requirement = "4.4 GB (fits in 8GB VRAM)".to_string();
-        tooltip = "mistral:7b is a fast, efficient general-purpose model. Good for quick questions \
+        tooltip =
+            "mistral:7b is a fast, efficient general-purpose model. Good for quick questions \
             about disk usage, simple file categorization, and basic storage advice. \
             Faster than qwen3:8b but less capable at complex reasoning. \
-                On GTX 1070 Ti: ~22 tokens/sec, first token in ~500ms.".to_string();
+                On GTX 1070 Ti: ~22 tokens/sec, first token in ~500ms."
+                .to_string();
         performance.tokens_per_second = Some(22.0);
         performance.time_to_first_token_ms = Some(500.0);
         performance.avg_response_time_ms = Some(2000.0);
         performance.benchmark_samples = 6;
     }
-    
+
     // GTX 1070 Ti 8GB specific guidance
     if size.contains("GB") {
         if let Some(gb_str) = size.split_whitespace().next() {
             if let Ok(gb) = gb_str.parse::<f32>() {
                 if gb > 8.0 {
                     vram_requirement = format!("{} - May require CPU offload on 8GB GPU", size);
-                    tooltip.push_str(&format!("\n\n[!] This model exceeds your 8GB VRAM and will use CPU offload, significantly reducing performance."));
+                    tooltip.push_str("\n\n[!] This model exceeds your 8GB VRAM and will use CPU offload, significantly reducing performance.");
                 }
             }
         }
     }
-    
+
     OllamaModelInfo {
         name: name.to_string(),
         size: size.to_string(),
@@ -808,12 +904,20 @@ impl eframe::App for SpaceAnalyzerApp {
         });
 
         // Keep UI refreshing while background work is in progress
-        if self.is_scanning || self.chat_processing || self.is_indexing || self.is_deduplicating || self.ollama_checking {
+        if self.is_scanning
+            || self.chat_processing
+            || self.is_indexing
+            || self.is_deduplicating
+            || self.ollama_checking
+        {
             ui.ctx().request_repaint();
         }
 
         // Load embeddings from DB on first run if available
-        if self.cached_embeddings.is_empty() && self.embedding_scan_id.is_none() && !self.is_indexing {
+        if self.cached_embeddings.is_empty()
+            && self.embedding_scan_id.is_none()
+            && !self.is_indexing
+        {
             self.load_embeddings_from_db(None);
         }
 
@@ -825,7 +929,16 @@ impl eframe::App for SpaceAnalyzerApp {
         // Scrollable tab bar for narrow windows
         egui::ScrollArea::horizontal().show(ui, |ui| {
             ui.horizontal(|ui| {
-                for tab in [AppTab::Dashboard, AppTab::Scan, AppTab::History, AppTab::SmartSearch, AppTab::Workflows, AppTab::AIChat, AppTab::System, AppTab::Settings] {
+                for tab in [
+                    AppTab::Dashboard,
+                    AppTab::Scan,
+                    AppTab::History,
+                    AppTab::SmartSearch,
+                    AppTab::Workflows,
+                    AppTab::AIChat,
+                    AppTab::System,
+                    AppTab::Settings,
+                ] {
                     let selected = self.active_tab == tab;
                     let btn = ui.selectable_label(selected, tab.to_string());
                     if btn.clicked() {
@@ -848,7 +961,7 @@ impl eframe::App for SpaceAnalyzerApp {
                 } else {
                     ui.small("Idle");
                 }
-                
+
                 if self.settings.auto_model_selection {
                     ui.small("| Auto-select: ON");
                 }
@@ -859,7 +972,8 @@ impl eframe::App for SpaceAnalyzerApp {
         // Status message with interactive recovery
         if let Some(ref msg) = self.status_message {
             let msg_clone = msg.clone();
-            let is_error = msg.contains("failed") || msg.contains("Error") || msg.contains("Failed");
+            let is_error =
+                msg.contains("failed") || msg.contains("Error") || msg.contains("Failed");
             let is_warning = msg.contains("warning") || msg.contains("Warning");
             let color = if is_error {
                 egui::Color32::RED
@@ -869,36 +983,43 @@ impl eframe::App for SpaceAnalyzerApp {
                 egui::Color32::LIGHT_GREEN
             };
             ui.colored_label(color, &msg_clone);
-            
+
             // Context-aware recovery buttons
             if is_error || is_warning {
                 ui.horizontal(|ui| {
-                    if msg_clone.contains("Scan") || msg_clone.contains("scan") {
-                        if ui.small_button("Retry Scan").clicked() {
-                            self.start_scan();
-                        }
+                    if (msg_clone.contains("Scan") || msg_clone.contains("scan"))
+                        && ui.small_button("Retry Scan").clicked()
+                    {
+                        self.start_scan();
                     }
-                    if msg_clone.contains("Ollama") || msg_clone.contains("AI") || msg_clone.contains("ollama") {
-                        if ui.small_button("Retry Connection").clicked() {
-                            self.ollama_available = false;
-                            self.ollama_checking = false;
-                            self.ollama_receiver = None;
-                            self.check_ollama();
-                        }
+                    if (msg_clone.contains("Ollama")
+                        || msg_clone.contains("AI")
+                        || msg_clone.contains("ollama"))
+                        && ui.small_button("Retry Connection").clicked()
+                    {
+                        self.ollama_available = false;
+                        self.ollama_checking = false;
+                        self.ollama_receiver = None;
+                        self.check_ollama();
                     }
-                    if msg_clone.contains("Database") || msg_clone.contains("database") || msg_clone.contains("db") {
-                        if ui.small_button("Re-init DB").clicked() {
-                            match Database::default_open() {
-                                Ok(db) => {
-                                    self.settings = db.load_settings();
-                                    self.current_path = PathBuf::from(&self.settings.default_scan_path);
-                                    self.scan_history = db.get_scan_history(50).unwrap_or_default();
-                                    self.db = Some(db);
-                                    self.status_message = Some("Database reinitialized.".to_string());
-                                }
-                                Err(e) => {
-                                    self.status_message = Some(format!("DB re-init failed: {}", sanitize_error_message(&e.to_string())));
-                                }
+                    if (msg_clone.contains("Database")
+                        || msg_clone.contains("database")
+                        || msg_clone.contains("db"))
+                        && ui.small_button("Re-init DB").clicked()
+                    {
+                        match Database::default_open() {
+                            Ok(db) => {
+                                self.settings = db.load_settings();
+                                self.current_path = PathBuf::from(&self.settings.default_scan_path);
+                                self.scan_history = db.get_scan_history(50).unwrap_or_default();
+                                self.db = Some(db);
+                                self.status_message = Some("Database reinitialized.".to_string());
+                            }
+                            Err(e) => {
+                                self.status_message = Some(format!(
+                                    "DB re-init failed: {}",
+                                    sanitize_error_message(&e.to_string())
+                                ));
                             }
                         }
                     }
@@ -917,17 +1038,15 @@ impl eframe::App for SpaceAnalyzerApp {
         }
 
         // Main content
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            match self.active_tab {
-                AppTab::Dashboard => self.render_dashboard(ui),
-                AppTab::Scan => self.render_scan(ui),
-                AppTab::History => self.render_history(ui),
-                AppTab::SmartSearch => self.render_smart_search(ui),
-                AppTab::Workflows => self.render_workflows(ui),
-                AppTab::AIChat => self.render_ai_chat(ui),
-                AppTab::System => self.render_system(ui),
-                AppTab::Settings => self.render_settings(ui),
-            }
+        egui::ScrollArea::vertical().show(ui, |ui| match self.active_tab {
+            AppTab::Dashboard => self.render_dashboard(ui),
+            AppTab::Scan => self.render_scan(ui),
+            AppTab::History => self.render_history(ui),
+            AppTab::SmartSearch => self.render_smart_search(ui),
+            AppTab::Workflows => self.render_workflows(ui),
+            AppTab::AIChat => self.render_ai_chat(ui),
+            AppTab::System => self.render_system(ui),
+            AppTab::Settings => self.render_settings(ui),
         });
 
         // Toast notifications (rendered on top of everything)
@@ -962,9 +1081,7 @@ impl SpaceAnalyzerApp {
                 255
             };
 
-            let bg_color = egui::Color32::from_rgba_premultiplied(
-                40, 40, 40, alpha
-            );
+            let bg_color = egui::Color32::from_rgba_premultiplied(40, 40, 40, alpha);
             let text_color = notif.color();
 
             let notif_text = format!("{} {}", notif.icon(), notif.message);
@@ -1015,7 +1132,8 @@ fn apply_custom_theme(ctx: &egui::Context) {
     // Custom colors
     let mut visuals = egui::Visuals::dark();
     visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(30, 30, 46);
-    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(205, 214, 244));
+    visuals.widgets.noninteractive.fg_stroke =
+        egui::Stroke::new(1.0, egui::Color32::from_rgb(205, 214, 244));
     visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(42, 42, 62);
     visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(58, 58, 90);
     visuals.widgets.active.bg_fill = egui::Color32::from_rgb(74, 74, 122);
@@ -1059,8 +1177,3 @@ fn icon_text(codepoint: u32, _family: &str, size: f32, color: egui::Color32) -> 
 fn icon_char(codepoint: u32) -> char {
     char::from_u32(codepoint).unwrap_or('?')
 }
-
-
-
-
-

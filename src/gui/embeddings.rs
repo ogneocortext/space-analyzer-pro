@@ -27,7 +27,9 @@ impl SpaceAnalyzerApp {
         };
         // Use embedding_model if configured (may differ from chat model)
         if !self.settings.embedding_model.is_empty() {
-            client = client.with_model(&self.settings.embedding_model).unwrap_or(client);
+            client = client
+                .with_model(&self.settings.embedding_model)
+                .unwrap_or(client);
         }
         let batch_size = self.settings.embedding_batch_size;
         let file_limit = self.settings.embedding_file_limit;
@@ -57,15 +59,18 @@ impl SpaceAnalyzerApp {
 
             for chunk in files.chunks(batch_size) {
                 let chunk_files: Vec<(String, u64, String)> = chunk.to_vec();
-                let result = rt.block_on(async {
-                    embed_files(&client, &chunk_files).await
-                });
+                let result = rt.block_on(async { embed_files(&client, &chunk_files).await });
 
                 match result {
                     Ok(embeddings) => {
                         for (i, (path, size, ext)) in chunk_files.iter().enumerate() {
                             if i < embeddings.len() {
-                                all_embeddings.push((path.clone(), *size, ext.clone(), embeddings[i].clone()));
+                                all_embeddings.push((
+                                    path.clone(),
+                                    *size,
+                                    ext.clone(),
+                                    embeddings[i].clone(),
+                                ));
                             }
                         }
                         let progress = (all_embeddings.len() as f32 / total as f32).min(1.0);
@@ -184,7 +189,9 @@ impl SpaceAnalyzerApp {
                         self.cached_embeddings = records
                             .into_iter()
                             .filter_map(|r| {
-                                if let Ok(embedding) = serde_json::from_str::<Vec<f32>>(&r.embedding_json) {
+                                if let Ok(embedding) =
+                                    serde_json::from_str::<Vec<f32>>(&r.embedding_json)
+                                {
                                     Some((r.file_path, r.file_size, r.file_extension, embedding))
                                 } else {
                                     None
@@ -192,7 +199,10 @@ impl SpaceAnalyzerApp {
                             })
                             .collect();
                         self.embedding_scan_id = Some(sid);
-                        self.search_status = format!("Loaded {} indexed files from database.", self.cached_embeddings.len());
+                        self.search_status = format!(
+                            "Loaded {} indexed files from database.",
+                            self.cached_embeddings.len()
+                        );
                     }
                 }
             }
@@ -207,11 +217,22 @@ impl SpaceAnalyzerApp {
         if !self.settings.embedding_enabled {
             if let Some((cp, fam)) = icons::warning() {
                 ui.horizontal(|ui| {
-                    ui.add(egui::Label::new(icon_text(cp, fam, 14.0, egui::Color32::YELLOW)));
-                    ui.colored_label(egui::Color32::YELLOW, "Enable Semantic Indexing in Settings to use Smart Search.");
+                    ui.add(egui::Label::new(icon_text(
+                        cp,
+                        fam,
+                        14.0,
+                        egui::Color32::YELLOW,
+                    )));
+                    ui.colored_label(
+                        egui::Color32::YELLOW,
+                        "Enable Semantic Indexing in Settings to use Smart Search.",
+                    );
                 });
             } else {
-                ui.colored_label(egui::Color32::YELLOW, "[!] Enable Semantic Indexing in Settings to use Smart Search.");
+                ui.colored_label(
+                    egui::Color32::YELLOW,
+                    "[!] Enable Semantic Indexing in Settings to use Smart Search.",
+                );
             }
         }
 
@@ -219,8 +240,10 @@ impl SpaceAnalyzerApp {
         ui.add_enabled_ui(self.settings.embedding_enabled, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Search:");
-                let response = ui.add(egui::TextEdit::singleline(&mut self.search_query)
-                    .hint_text("Describe what you're looking for..."));
+                let response = ui.add(
+                    egui::TextEdit::singleline(&mut self.search_query)
+                        .hint_text("Describe what you're looking for..."),
+                );
                 if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     self.execute_smart_search();
                 }
@@ -235,7 +258,10 @@ impl SpaceAnalyzerApp {
         }
 
         if self.is_indexing {
-            ui.label(format!("Indexing progress: {:.1}%", self.indexing_progress * 100.0));
+            ui.label(format!(
+                "Indexing progress: {:.1}%",
+                self.indexing_progress * 100.0
+            ));
             ui.add(egui::ProgressBar::new(self.indexing_progress));
             ui.label(&self.search_status);
             return;
@@ -247,13 +273,26 @@ impl SpaceAnalyzerApp {
 
         // Indexed files counter
         if !self.is_indexing && !self.cached_embeddings.is_empty() {
-            let total_files = self.scan_result.as_ref().map(|r| r.total_files).unwrap_or(0);
+            let total_files = self
+                .scan_result
+                .as_ref()
+                .map(|r| r.total_files)
+                .unwrap_or(0);
             let indexed = self.cached_embeddings.len();
             let limit = self.settings.embedding_file_limit;
-            let limit_str = if limit == 0 { "unlimited" } else { &format!("{}", limit) };
+            let limit_str = if limit == 0 {
+                "unlimited"
+            } else {
+                &format!("{}", limit)
+            };
             ui.horizontal(|ui| {
                 if let Some((cp, fam)) = icons::index() {
-                    ui.add(egui::Label::new(icon_text(cp, fam, 12.0, egui::Color32::LIGHT_BLUE)));
+                    ui.add(egui::Label::new(icon_text(
+                        cp,
+                        fam,
+                        12.0,
+                        egui::Color32::LIGHT_BLUE,
+                    )));
                 }
                 ui.small(format!("Indexed: {} files", indexed));
                 if total_files > 0 {
@@ -262,9 +301,14 @@ impl SpaceAnalyzerApp {
                 ui.small(format!("(limit: {})", limit_str));
                 if limit > 0 && indexed >= limit {
                     if let Some((cp, _)) = icons::warning() {
-                        ui.small(egui::RichText::new(format!("{} Limit reached", icon_char(cp))).color(egui::Color32::YELLOW));
+                        ui.small(
+                            egui::RichText::new(format!("{} Limit reached", icon_char(cp)))
+                                .color(egui::Color32::YELLOW),
+                        );
                     } else {
-                        ui.small(egui::RichText::new("[!] Limit reached").color(egui::Color32::YELLOW));
+                        ui.small(
+                            egui::RichText::new("[!] Limit reached").color(egui::Color32::YELLOW),
+                        );
                     }
                 }
             });
@@ -278,7 +322,7 @@ impl SpaceAnalyzerApp {
         if !self.search_results.is_empty() {
             ui.separator();
             ui.heading(format!("{} Results", self.search_results.len()));
-            
+
             egui::ScrollArea::vertical().show(ui, |ui| {
                 egui::Grid::new("search_results")
                     .striped(true)

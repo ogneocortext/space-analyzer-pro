@@ -155,5 +155,3 @@ pub fn get_prompt_by_name(name: &str) -> Option<&'static str> {
         _ => None,
     }
 }
-
-

@@ -1,17 +1,17 @@
 //! File Deduplicator Library
-//! 
+//!
 //! High-performance file deduplication with BLAKE3 hashing and hard link support.
 //! Provides both library and binary interfaces for flexible integration.
 
+use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
+use gpu_compute::hash::BatchHasher;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use anyhow::{Result, Context};
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
-use walkdir::WalkDir;
 use std::sync::{Arc, Mutex};
-use gpu_compute::hash::BatchHasher;
+use walkdir::WalkDir;
 
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
@@ -79,10 +79,12 @@ impl Default for DeduplicationConfig {
     }
 }
 
+type ProgressCallback = Box<dyn Fn(usize) + Send + Sync>;
+
 /// Main deduplicator structure
 pub struct FileDeduplicator {
     config: DeduplicationConfig,
-    progress: Arc<Mutex<Option<Box<dyn Fn(usize) + Send + Sync>>>>,
+    progress: Arc<Mutex<Option<ProgressCallback>>>,
     batch_hasher: BatchHasher,
 }
 
@@ -103,9 +105,9 @@ impl FileDeduplicator {
     }
 
     /// Set progress callback
-    pub fn set_progress_callback<F>(&mut self, callback: F) 
-    where 
-        F: Fn(usize) + Send + Sync + 'static 
+    pub fn set_progress_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(usize) + Send + Sync + 'static,
     {
         *self.progress.lock().unwrap() = Some(Box::new(callback));
     }
@@ -132,7 +134,7 @@ impl FileDeduplicator {
             };
 
             let file_path = entry.path();
-            
+
             if !file_path.is_file() {
                 continue;
             }
@@ -144,7 +146,11 @@ impl FileDeduplicator {
             let metadata = match fs::metadata(file_path) {
                 Ok(meta) => meta,
                 Err(e) => {
-                    errors.push(format!("Error reading metadata for {}: {}", file_path.display(), e));
+                    errors.push(format!(
+                        "Error reading metadata for {}: {}",
+                        file_path.display(),
+                        e
+                    ));
                     continue;
                 }
             };
@@ -177,13 +183,18 @@ impl FileDeduplicator {
         // Build FileInfo list
         for (i, hash_result) in hash_results.into_iter().enumerate() {
             if let Some(ref error) = hash_result.error {
-                errors.push(format!("Error hashing {}: {}", hash_result.path.display(), error));
+                errors.push(format!(
+                    "Error hashing {}: {}",
+                    hash_result.path.display(),
+                    error
+                ));
                 continue;
             }
 
             let metadata = &file_paths[i].1;
-            let modified = metadata.modified()
-                .map(|t| DateTime::from(t))
+            let modified = metadata
+                .modified()
+                .map(DateTime::from)
                 .unwrap_or_else(|_| Utc::now());
 
             let file_info = FileInfo {
@@ -252,7 +263,7 @@ impl FileDeduplicator {
 
             // Sort files by modification time (oldest first)
             let mut files = group.files.clone();
-            files.sort_by(|a, b| a.modified.cmp(&b.modified));
+            files.sort_by_key(|a| a.modified);
 
             // Keep the oldest file as the source
             let source_file = &files[0];
@@ -287,24 +298,25 @@ impl FileDeduplicator {
     /// Compute BLAKE3 hash of a file
     #[cfg(test)]
     fn compute_file_hash(&self, path: &Path) -> Result<String> {
-        use std::fs::File;
-        use std::io::{Read, BufReader};
         use blake3::Hasher;
-        let file = File::open(path)
-            .with_context(|| format!("Failed to open file: {}", path.display()))?;
-        
+        use std::fs::File;
+        use std::io::{BufReader, Read};
+        let file =
+            File::open(path).with_context(|| format!("Failed to open file: {}", path.display()))?;
+
         let mut hasher = Hasher::new();
         let mut reader = BufReader::new(file);
         let mut buffer = vec![0u8; 8192]; // 8KB buffer
 
         loop {
-            let bytes_read = reader.read(&mut buffer)
+            let bytes_read = reader
+                .read(&mut buffer)
                 .with_context(|| format!("Failed to read file: {}", path.display()))?;
-            
+
             if bytes_read == 0 {
                 break;
             }
-            
+
             hasher.update(&buffer[..bytes_read]);
         }
 
@@ -341,14 +353,13 @@ impl FileDeduplicator {
         fs::remove_file(&duplicate.path)?;
 
         // Create hard link
-        fs::hard_link(&source.path, &duplicate.path)
-            .with_context(|| {
-                format!(
-                    "Failed to create hard link from {} to {}",
-                    source.path.display(),
-                    duplicate.path.display()
-                )
-            })?;
+        fs::hard_link(&source.path, &duplicate.path).with_context(|| {
+            format!(
+                "Failed to create hard link from {} to {}",
+                source.path.display(),
+                duplicate.path.display()
+            )
+        })?;
 
         Ok(())
     }
@@ -356,7 +367,7 @@ impl FileDeduplicator {
     /// Run complete deduplication process
     pub fn run<P: AsRef<Path>>(&self, path: P) -> Result<DeduplicationResult> {
         println!("🔍 Scanning directory: {}", path.as_ref().display());
-        
+
         // Scan files
         let files = self.scan_directory(path)?;
         println!("📁 Found {} files to analyze", files.len());
@@ -366,16 +377,17 @@ impl FileDeduplicator {
         println!("🔗 Found {} duplicate groups", duplicate_groups.len());
 
         // Calculate total duplicates
-        let total_duplicates: usize = duplicate_groups.iter()
-            .map(|g| g.files.len() - 1)
-            .sum();
+        let total_duplicates: usize = duplicate_groups.iter().map(|g| g.files.len() - 1).sum();
         println!("📊 Total duplicate files: {}", total_duplicates);
 
         // Deduplicate
         let result = self.deduplicate(&duplicate_groups)?;
 
         println!("✅ Deduplication complete!");
-        println!("💾 Space saved: {} bytes", self.format_bytes(result.space_saved));
+        println!(
+            "💾 Space saved: {} bytes",
+            self.format_bytes(result.space_saved)
+        );
 
         Ok(result)
     }
@@ -412,9 +424,9 @@ mod tests {
         let deduplicator = FileDeduplicator::new();
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        
+
         fs::write(&file_path, "Hello, World!").unwrap();
-        
+
         let hash = deduplicator.compute_file_hash(&file_path).unwrap();
         assert!(!hash.is_empty());
         assert_eq!(hash.len(), 64); // BLAKE3 hex string length
@@ -427,18 +439,18 @@ mod tests {
             ..Default::default()
         });
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create two identical files
         let file1_path = temp_dir.path().join("file1.txt");
         let file2_path = temp_dir.path().join("file2.txt");
-        
+
         let content = "This is test content for duplicate detection.";
         fs::write(&file1_path, content).unwrap();
         fs::write(&file2_path, content).unwrap();
-        
+
         let files = deduplicator.scan_directory(temp_dir.path()).unwrap();
         let duplicate_groups = deduplicator.find_duplicates(files);
-        
+
         assert_eq!(duplicate_groups.len(), 1);
         assert_eq!(duplicate_groups[0].files.len(), 2);
     }

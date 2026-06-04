@@ -3,22 +3,20 @@
 //! Provides incremental scanning by monitoring NTFS USN (Update Sequence Number) Journal
 //! Tracks file system changes in real-time for ultra-fast incremental updates
 
+use crate::windows_errors::WindowsError;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::mem;
 use std::path::PathBuf;
 use std::ptr;
 use std::time::{SystemTime, UNIX_EPOCH};
-use winapi::um::fileapi::{CreateFileW, OPEN_EXISTING};
-use winapi::um::handleapi::{INVALID_HANDLE_VALUE, CloseHandle};
-use winapi::um::ioapiset::DeviceIoControl;
-use winapi::um::winnt::{
-    FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE,
-};
-use winapi::um::winioctl::{FSCTL_QUERY_USN_JOURNAL, FSCTL_READ_USN_JOURNAL};
-use winapi::um::errhandlingapi::GetLastError;
 use winapi::shared::minwindef::{DWORD, LPVOID};
-use serde::{Deserialize, Serialize};
-use crate::windows_errors::WindowsError;
+use winapi::um::errhandlingapi::GetLastError;
+use winapi::um::fileapi::{CreateFileW, OPEN_EXISTING};
+use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
+use winapi::um::ioapiset::DeviceIoControl;
+use winapi::um::winioctl::{FSCTL_QUERY_USN_JOURNAL, FSCTL_READ_USN_JOURNAL};
+use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(dead_code)]
@@ -84,6 +82,12 @@ pub struct UsnJournalScanner {
 }
 
 #[allow(dead_code)]
+impl Default for UsnJournalScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UsnJournalScanner {
     pub fn new() -> Self {
         Self {
@@ -99,7 +103,10 @@ impl UsnJournalScanner {
     /// Initialize USN journal monitoring for a specific volume
     pub fn initialize_volume(&mut self, volume_path: &str) -> Result<(), String> {
         // Convert path to wide string for Windows API
-        let wide_path: Vec<u16> = volume_path.encode_utf16().chain(std::iter::once(0)).collect();
+        let wide_path: Vec<u16> = volume_path
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .collect();
 
         // Open volume handle
         let handle = unsafe {
@@ -115,10 +122,15 @@ impl UsnJournalScanner {
         };
 
         if handle == INVALID_HANDLE_VALUE {
-            let win_err = WindowsError::new(unsafe { GetLastError() }, "Open volume for USN journal")
-                .with_path(&volume_path);
+            let win_err =
+                WindowsError::new(unsafe { GetLastError() }, "Open volume for USN journal")
+                    .with_path(volume_path);
             eprintln!("USN Journal: {}", win_err.format_error());
-            return Err(format!("{} (Suggestion: {})", win_err.format_error(), win_err.suggestion()));
+            return Err(format!(
+                "{} (Suggestion: {})",
+                win_err.format_error(),
+                win_err.suggestion()
+            ));
         }
 
         self.volume_handle = Some(handle);
@@ -163,20 +175,28 @@ impl UsnJournalScanner {
         };
 
         if !success {
-            let volume_path = self.journal_info.as_ref()
+            let volume_path = self
+                .journal_info
+                .as_ref()
                 .map(|info| info.volume_path.clone())
                 .unwrap_or_else(|| "Unknown".to_string());
             let win_err = WindowsError::new(unsafe { GetLastError() }, "Query USN journal")
                 .with_path(&volume_path);
             eprintln!("USN Journal: {}", win_err.format_error());
-            return Err(format!("{} (Suggestion: {})", win_err.format_error(), win_err.suggestion()));
+            return Err(format!(
+                "{} (Suggestion: {})",
+                win_err.format_error(),
+                win_err.suggestion()
+            ));
         }
 
         // Parse USN journal data
         let journal_data = unsafe { &*(output_data.as_ptr() as *const USN_JOURNAL_DATA_V0) };
 
         // Preserve volume_path from initialization
-        let volume_path = self.journal_info.as_ref()
+        let volume_path = self
+            .journal_info
+            .as_ref()
             .map(|info| info.volume_path.clone())
             .unwrap_or_else(|| "Unknown".to_string());
 
@@ -197,7 +217,10 @@ impl UsnJournalScanner {
             return Ok(());
         }
 
-        let journal_info = self.journal_info.as_ref().ok_or("Journal not initialized")?;
+        let journal_info = self
+            .journal_info
+            .as_ref()
+            .ok_or("Journal not initialized")?;
 
         self.last_processed_usn = Some(journal_info.next_usn);
         self.is_monitoring = true;
@@ -213,7 +236,10 @@ impl UsnJournalScanner {
     /// Read changes from USN journal since last read
     pub fn read_changes(&mut self, max_changes: Option<usize>) -> Result<ChangeSet, String> {
         let handle = self.volume_handle.ok_or("Volume handle not available")?;
-        let journal_info = self.journal_info.as_ref().ok_or("Journal not initialized")?;
+        let journal_info = self
+            .journal_info
+            .as_ref()
+            .ok_or("Journal not initialized")?;
 
         let start_usn = self.last_processed_usn.unwrap_or(journal_info.next_usn);
         let max_to_read = max_changes.unwrap_or(1000);
@@ -252,7 +278,11 @@ impl UsnJournalScanner {
         if !success {
             let win_err = WindowsError::new(unsafe { GetLastError() }, "Read USN journal");
             eprintln!("USN Journal: {}", win_err.format_error());
-            return Err(format!("{} (Suggestion: {})", win_err.format_error(), win_err.suggestion()));
+            return Err(format!(
+                "{} (Suggestion: {})",
+                win_err.format_error(),
+                win_err.suggestion()
+            ));
         }
 
         // Parse USN records
@@ -266,8 +296,9 @@ impl UsnJournalScanner {
         // Cache changes
         for change in &changes {
             let file_ref = change.file_reference;
-            self.change_cache.entry(file_ref)
-                .or_insert_with(Vec::new)
+            self.change_cache
+                .entry(file_ref)
+                .or_default()
                 .push(change.clone());
         }
 
@@ -286,7 +317,11 @@ impl UsnJournalScanner {
     }
 
     /// Parse USN records from raw buffer
-    fn parse_usn_records(&self, buffer: &[u8], bytes_read: usize) -> Result<Vec<UsnRecord>, String> {
+    fn parse_usn_records(
+        &self,
+        buffer: &[u8],
+        bytes_read: usize,
+    ) -> Result<Vec<UsnRecord>, String> {
         let mut records = Vec::new();
         let mut offset = 0;
 
@@ -401,7 +436,9 @@ impl UsnJournalScanner {
             ChangeType::Created
         } else if reason & USN_REASON_FILE_DELETE != 0 {
             ChangeType::Deleted
-        } else if (reason & USN_REASON_RENAME_OLD_NAME != 0) || (reason & USN_REASON_RENAME_NEW_NAME != 0) {
+        } else if (reason & USN_REASON_RENAME_OLD_NAME != 0)
+            || (reason & USN_REASON_RENAME_NEW_NAME != 0)
+        {
             ChangeType::Renamed
         } else if reason & USN_REASON_SECURITY_CHANGE != 0 {
             ChangeType::SecurityChanged
@@ -411,12 +448,14 @@ impl UsnJournalScanner {
             ChangeType::ReparsePointChanged
         } else if reason & USN_REASON_STREAM_CHANGE != 0 {
             ChangeType::StreamChanged
-        } else if (reason & USN_REASON_DATA_OVERWRITE != 0) ||
-                  (reason & USN_REASON_DATA_EXTEND != 0) ||
-                  (reason & USN_REASON_DATA_TRUNCATION != 0) {
+        } else if (reason & USN_REASON_DATA_OVERWRITE != 0)
+            || (reason & USN_REASON_DATA_EXTEND != 0)
+            || (reason & USN_REASON_DATA_TRUNCATION != 0)
+        {
             ChangeType::Modified
-        } else if (reason & USN_REASON_EA_CHANGE != 0) ||
-                  (reason & USN_REASON_BASIC_INFO_CHANGE != 0) {
+        } else if (reason & USN_REASON_EA_CHANGE != 0)
+            || (reason & USN_REASON_BASIC_INFO_CHANGE != 0)
+        {
             ChangeType::AttributeChanged
         } else {
             ChangeType::Modified // Default
@@ -425,7 +464,10 @@ impl UsnJournalScanner {
 
     /// Get cached changes for a specific file
     pub fn get_file_changes(&self, file_reference: u64) -> &[UsnRecord] {
-        self.change_cache.get(&file_reference).map(|v| v.as_slice()).unwrap_or(&[])
+        self.change_cache
+            .get(&file_reference)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
     }
 
     /// Clear change cache
@@ -449,8 +491,14 @@ impl UsnJournalScanner {
         let mut stats = HashMap::new();
 
         stats.insert("is_monitoring".to_string(), self.is_monitoring.to_string());
-        stats.insert("buffer_size".to_string(), self.change_buffer.len().to_string());
-        stats.insert("cache_size".to_string(), self.change_cache.len().to_string());
+        stats.insert(
+            "buffer_size".to_string(),
+            self.change_buffer.len().to_string(),
+        );
+        stats.insert(
+            "cache_size".to_string(),
+            self.change_cache.len().to_string(),
+        );
 
         if let Some(ref info) = self.journal_info {
             stats.insert("journal_id".to_string(), info.usn_journal_id.to_string());

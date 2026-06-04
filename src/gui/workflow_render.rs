@@ -3,10 +3,10 @@ use super::*;
 /// Escape HTML special characters to prevent XSS
 fn escape_html(s: &str) -> String {
     s.replace('&', "&amp;")
-     .replace('<', "&lt;")
-     .replace('>', "&gt;")
-     .replace('"', "&quot;")
-     .replace('\'', "&#x27;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
 }
 
 impl SpaceAnalyzerApp {
@@ -33,7 +33,10 @@ impl SpaceAnalyzerApp {
                 self.chat_input = old_input;
             }
             WorkflowAction::AIAnalyze { .. } => {
-                self.push_notification("Ollama not available or no scan results", NotificationLevel::Warning);
+                self.push_notification(
+                    "Ollama not available or no scan results",
+                    NotificationLevel::Warning,
+                );
             }
             WorkflowAction::GenerateRecommendations => {
                 self.generate_ai_recommendations();
@@ -56,19 +59,35 @@ impl SpaceAnalyzerApp {
                                 (Some(f), Some(l)) => {
                                     let diff = l.signed_duration_since(f);
                                     let days = diff.num_seconds() as f64 / 86400.0;
-                                    if days > 0.0 { days } else { (trend.len() - 1) as f64 * 7.0 }
+                                    if days > 0.0 {
+                                        days
+                                    } else {
+                                        (trend.len() - 1) as f64 * 7.0
+                                    }
                                 }
                                 _ => (trend.len() - 1) as f64 * 7.0,
                             };
-                            let daily_growth = if days_between > 0.0 { growth / days_between } else { 0.0 };
+                            let daily_growth = if days_between > 0.0 {
+                                growth / days_between
+                            } else {
+                                0.0
+                            };
                             let predicted = last_size as f64 + daily_growth * *days_ahead as f64;
                             self.push_notification(
-                                format!("Prediction: In {} days: {:.2} MB (growth: {:.2} MB/day)",
-                                    days_ahead, predicted / (1024.0 * 1024.0), daily_growth / (1024.0 * 1024.0)),
-                                NotificationLevel::Info);
+                                format!(
+                                    "Prediction: In {} days: {:.2} MB (growth: {:.2} MB/day)",
+                                    days_ahead,
+                                    predicted / (1024.0 * 1024.0),
+                                    daily_growth / (1024.0 * 1024.0)
+                                ),
+                                NotificationLevel::Info,
+                            );
                         }
                         _ => {
-                            self.push_notification("Not enough historical data for prediction", NotificationLevel::Warning);
+                            self.push_notification(
+                                "Not enough historical data for prediction",
+                                NotificationLevel::Warning,
+                            );
                         }
                     }
                 }
@@ -99,7 +118,10 @@ impl SpaceAnalyzerApp {
                     _ => self.handle_workflow_action(action),
                 }
             }
-            self.push_notification(format!("Started: {}", workflow.name), NotificationLevel::Info);
+            self.push_notification(
+                format!("Started: {}", workflow.name),
+                NotificationLevel::Info,
+            );
         }
     }
 
@@ -111,10 +133,16 @@ impl SpaceAnalyzerApp {
                 workflows::ExportFormat::Html | workflows::ExportFormat::Pdf => "html",
             };
             let export_path = path.clone().unwrap_or_else(|| {
-                format!("scan_export_{}.{}", chrono::Utc::now().timestamp_millis(), ext)
+                format!(
+                    "scan_export_{}.{}",
+                    chrono::Utc::now().timestamp_millis(),
+                    ext
+                )
             });
             let content = match format {
-                workflows::ExportFormat::Json => serde_json::to_string_pretty(result).unwrap_or_default(),
+                workflows::ExportFormat::Json => {
+                    serde_json::to_string_pretty(result).unwrap_or_default()
+                }
                 workflows::ExportFormat::Csv => {
                     let mut csv = String::from("path,size_bytes\n");
                     for (p, s) in &result.largest_files {
@@ -126,20 +154,33 @@ impl SpaceAnalyzerApp {
                     let mut html = String::from("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Space Analyzer Report</title>");
                     html.push_str("<style>body{font-family:sans-serif;margin:20px;background:#1a1a1a;color:#e0e0e0}table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:8px;text-align:left}th{background:#2d5a27;color:white}tr:nth-child(even){background:#222}</style>");
                     html.push_str("</head><body>");
-                    html.push_str(&format!("<h1>Space Analyzer Report</h1>"));
+                    html.push_str("<h1>Space Analyzer Report</h1>");
                     html.push_str(&format!("<p>Path: {}</p>", escape_html(&result.path)));
-                    html.push_str(&format!("<p>Total Files: {} | Total Size: {:.2} MB | Duration: {:.1}s</p>",
-                        result.total_files, result.total_size_mb, result.duration_secs));
-                    html.push_str("<h2>File Types</h2><table><tr><th>Extension</th><th>Count</th></tr>");
+                    html.push_str(&format!(
+                        "<p>Total Files: {} | Total Size: {:.2} MB | Duration: {:.1}s</p>",
+                        result.total_files, result.total_size_mb, result.duration_secs
+                    ));
+                    html.push_str(
+                        "<h2>File Types</h2><table><tr><th>Extension</th><th>Count</th></tr>",
+                    );
                     let mut sorted: Vec<_> = result.file_types.iter().collect();
                     sorted.sort_by(|a, b| b.1.cmp(a.1));
                     for (ext, count) in sorted {
-                        html.push_str(&format!("<tr><td>.{}</td><td>{}</td></tr>", escape_html(ext), count));
+                        html.push_str(&format!(
+                            "<tr><td>.{}</td><td>{}</td></tr>",
+                            escape_html(ext),
+                            count
+                        ));
                     }
-                    html.push_str("</table><h2>Largest Files</h2><table><tr><th>Path</th><th>Size</th></tr>");
+                    html.push_str(
+                        "</table><h2>Largest Files</h2><table><tr><th>Path</th><th>Size</th></tr>",
+                    );
                     for (p, s) in &result.largest_files {
-                        html.push_str(&format!("<tr><td>{}</td><td>{:.2} MB</td></tr>",
-                            escape_html(p), *s as f64 / (1024.0 * 1024.0)));
+                        html.push_str(&format!(
+                            "<tr><td>{}</td><td>{:.2} MB</td></tr>",
+                            escape_html(p),
+                            *s as f64 / (1024.0 * 1024.0)
+                        ));
                     }
                     html.push_str("</table></body></html>");
                     html
@@ -148,23 +189,41 @@ impl SpaceAnalyzerApp {
                     let mut html = String::from("<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Space Analyzer Report</title>");
                     html.push_str("<style>@media print{body{margin:0}}body{font-family:sans-serif;margin:20px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px}th{background:#4CAF50;color:white}</style>");
                     html.push_str("</head><body>");
-                    html.push_str(&format!("<h1>Scan: {} files, {:.2} MB</h1>", result.total_files, result.total_size_mb));
+                    html.push_str(&format!(
+                        "<h1>Scan: {} files, {:.2} MB</h1>",
+                        result.total_files, result.total_size_mb
+                    ));
                     html.push_str(&format!("<p>Path: {}</p>", escape_html(&result.path)));
-                    html.push_str("<h2>File Types</h2><table><tr><th>Extension</th><th>Count</th></tr>");
+                    html.push_str(
+                        "<h2>File Types</h2><table><tr><th>Extension</th><th>Count</th></tr>",
+                    );
                     let mut sorted: Vec<_> = result.file_types.iter().collect();
                     sorted.sort_by(|a, b| b.1.cmp(a.1));
                     for (ext, count) in sorted {
-                        html.push_str(&format!("<tr><td>.{}</td><td>{}</td></tr>", escape_html(ext), count));
+                        html.push_str(&format!(
+                            "<tr><td>.{}</td><td>{}</td></tr>",
+                            escape_html(ext),
+                            count
+                        ));
                     }
                     html.push_str("</table><script>window.print();</script></body></html>");
-                    self.push_notification("PDF: opened print dialog for 'Save as PDF'", NotificationLevel::Info);
+                    self.push_notification(
+                        "PDF: opened print dialog for 'Save as PDF'",
+                        NotificationLevel::Info,
+                    );
                     html
                 }
             };
             if let Err(e) = std::fs::write(&export_path, content) {
-                self.push_notification(format!("Export failed: {}", sanitize_error_message(&e.to_string())), NotificationLevel::Error);
+                self.push_notification(
+                    format!("Export failed: {}", sanitize_error_message(&e.to_string())),
+                    NotificationLevel::Error,
+                );
             } else {
-                self.push_notification(format!("Exported to: {}", export_path), NotificationLevel::Success);
+                self.push_notification(
+                    format!("Exported to: {}", export_path),
+                    NotificationLevel::Success,
+                );
             }
         } else {
             self.push_notification("No scan results to export", NotificationLevel::Warning);
@@ -241,7 +300,11 @@ impl SpaceAnalyzerApp {
         if let Some(rx) = self.ai_recommendation_receiver.take() {
             if let Ok((recommendations, is_ai)) = rx.try_recv() {
                 self.ai_recommendations = recommendations;
-                self.ai_recommendation_source = if is_ai { "ai".to_string() } else { "heuristic".to_string() };
+                self.ai_recommendation_source = if is_ai {
+                    "ai".to_string()
+                } else {
+                    "heuristic".to_string()
+                };
                 self.ai_recommendation_pending = false;
             } else {
                 self.ai_recommendation_receiver = Some(rx);
@@ -256,7 +319,9 @@ impl SpaceAnalyzerApp {
         let now = Local::now();
         let current_minute = now.format("%Y-%m-%dT%H:%M").to_string();
 
-        let to_run: Vec<String> = self.workflows.iter()
+        let to_run: Vec<String> = self
+            .workflows
+            .iter()
             .filter(|w| w.enabled)
             .filter_map(|w| match &w.trigger {
                 WorkflowTrigger::Scheduled(cron_expr) => {
@@ -273,9 +338,10 @@ impl SpaceAnalyzerApp {
                 }
                 WorkflowTrigger::LowDiskSpace { threshold_percent } => {
                     // Check if any disk is below threshold
-                    let triggered = self.disk_volumes.iter().any(|v| {
-                        v.usage_percent >= *threshold_percent as f32
-                    });
+                    let triggered = self
+                        .disk_volumes
+                        .iter()
+                        .any(|v| v.usage_percent >= *threshold_percent as f32);
                     if triggered {
                         Some(w.id.clone())
                     } else {
@@ -286,7 +352,7 @@ impl SpaceAnalyzerApp {
             })
             .collect();
         for id in &to_run {
-            self.run_workflow(&id);
+            self.run_workflow(id);
         }
     }
 
@@ -315,7 +381,10 @@ impl SpaceAnalyzerApp {
         {
             if let Ok(data) = serde_json::to_string_pretty(&self.workflows) {
                 if let Err(e) = std::fs::write(&path, data) {
-                    self.push_notification(format!("Export failed: {}", e), NotificationLevel::Error);
+                    self.push_notification(
+                        format!("Export failed: {}", e),
+                        NotificationLevel::Error,
+                    );
                 } else {
                     self.push_notification("Workflows exported", NotificationLevel::Success);
                 }
@@ -338,7 +407,10 @@ impl SpaceAnalyzerApp {
                             self.workflows.push(workflow);
                         }
                     }
-                    self.push_notification(format!("Imported {} workflows", count), NotificationLevel::Success);
+                    self.push_notification(
+                        format!("Imported {} workflows", count),
+                        NotificationLevel::Success,
+                    );
                 } else {
                     self.push_notification("Invalid workflow file", NotificationLevel::Error);
                 }
@@ -377,9 +449,19 @@ impl SpaceAnalyzerApp {
                     ExecutionStatus::Failed => egui::Color32::RED,
                     _ => egui::Color32::GRAY,
                 };
-                ui.label(egui::RichText::new(format!("{}: {}", execution.workflow_name, execution.status)).color(status_color).strong());
+                ui.label(
+                    egui::RichText::new(format!(
+                        "{}: {}",
+                        execution.workflow_name, execution.status
+                    ))
+                    .color(status_color)
+                    .strong(),
+                );
                 if execution.status == ExecutionStatus::Running {
-                    ui.label(format!("{}/{} actions", execution.actions_completed, execution.total_actions));
+                    ui.label(format!(
+                        "{}/{} actions",
+                        execution.actions_completed, execution.total_actions
+                    ));
                 }
             });
             ui.separator();
@@ -396,7 +478,11 @@ impl SpaceAnalyzerApp {
                     ui.label(egui::RichText::new(&workflow.name).strong());
                     ui.small(&workflow.description);
                     ui.horizontal(|ui| {
-                        ui.small(format!("{} | {} actions", workflow.category, workflow.actions.len()));
+                        ui.small(format!(
+                            "{} | {} actions",
+                            workflow.category,
+                            workflow.actions.len()
+                        ));
                         if !workflow.enabled {
                             ui.small(egui::RichText::new("(disabled)").color(egui::Color32::GRAY));
                         }
@@ -409,7 +495,10 @@ impl SpaceAnalyzerApp {
                     if ui.small_button("Edit").clicked() {
                         edit_workflow_id = Some(workflow.id.clone());
                     }
-                    if ui.add_enabled(workflow.enabled, egui::Button::new("Run")).clicked() {
+                    if ui
+                        .add_enabled(workflow.enabled, egui::Button::new("Run"))
+                        .clicked()
+                    {
                         run_workflow_id = Some(workflow.id.clone());
                     }
                 });
@@ -436,7 +525,11 @@ impl SpaceAnalyzerApp {
         ui.horizontal(|ui| {
             if ui.button("+ New Workflow").clicked() {
                 let id = format!("custom-{}", chrono::Utc::now().timestamp_millis());
-                self.editing_workflow = Some(Workflow::new(&id, "New Workflow", workflows::WorkflowCategory::Custom));
+                self.editing_workflow = Some(Workflow::new(
+                    &id,
+                    "New Workflow",
+                    workflows::WorkflowCategory::Custom,
+                ));
                 self.show_workflow_editor = true;
             }
             if ui.button("Import").clicked() {
@@ -451,23 +544,28 @@ impl SpaceAnalyzerApp {
         if !self.workflow_history.is_empty() {
             ui.separator();
             egui::CollapsingHeader::new(
-                egui::RichText::new(format!("Execution History ({})", self.workflow_history.len())).strong())
-                .default_open(false)
-                .show(ui, |ui| {
-                    for exec in self.workflow_history.iter().rev().take(10) {
-                        let color = match exec.status {
-                            ExecutionStatus::Completed => egui::Color32::GREEN,
-                            ExecutionStatus::Failed => egui::Color32::RED,
-                            ExecutionStatus::Running => egui::Color32::YELLOW,
-                            _ => egui::Color32::GRAY,
-                        };
-                        ui.horizontal(|ui| {
-                            ui.label(egui::RichText::new(format!("{}", exec.status)).color(color));
-                            ui.label(&exec.workflow_name);
-                            ui.small(&exec.started_at);
-                        });
-                    }
-                });
+                egui::RichText::new(format!(
+                    "Execution History ({})",
+                    self.workflow_history.len()
+                ))
+                .strong(),
+            )
+            .default_open(false)
+            .show(ui, |ui| {
+                for exec in self.workflow_history.iter().rev().take(10) {
+                    let color = match exec.status {
+                        ExecutionStatus::Completed => egui::Color32::GREEN,
+                        ExecutionStatus::Failed => egui::Color32::RED,
+                        ExecutionStatus::Running => egui::Color32::YELLOW,
+                        _ => egui::Color32::GRAY,
+                    };
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new(format!("{}", exec.status)).color(color));
+                        ui.label(&exec.workflow_name);
+                        ui.small(&exec.started_at);
+                    });
+                }
+            });
         }
 
         // Workflow editor modal
@@ -494,14 +592,34 @@ impl SpaceAnalyzerApp {
                     });
                     ui.horizontal(|ui| {
                         ui.label("Category:");
-                        egui::ComboBox::from_id_source("category")
+                        egui::ComboBox::from_id_salt("category")
                             .selected_text(format!("{}", workflow.category))
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut workflow.category, workflows::WorkflowCategory::Maintenance, "Maintenance");
-                                ui.selectable_value(&mut workflow.category, workflows::WorkflowCategory::Optimization, "Optimization");
-                                ui.selectable_value(&mut workflow.category, workflows::WorkflowCategory::Organization, "Organization");
-                                ui.selectable_value(&mut workflow.category, workflows::WorkflowCategory::Monitoring, "Monitoring");
-                                ui.selectable_value(&mut workflow.category, workflows::WorkflowCategory::Custom, "Custom");
+                                ui.selectable_value(
+                                    &mut workflow.category,
+                                    workflows::WorkflowCategory::Maintenance,
+                                    "Maintenance",
+                                );
+                                ui.selectable_value(
+                                    &mut workflow.category,
+                                    workflows::WorkflowCategory::Optimization,
+                                    "Optimization",
+                                );
+                                ui.selectable_value(
+                                    &mut workflow.category,
+                                    workflows::WorkflowCategory::Organization,
+                                    "Organization",
+                                );
+                                ui.selectable_value(
+                                    &mut workflow.category,
+                                    workflows::WorkflowCategory::Monitoring,
+                                    "Monitoring",
+                                );
+                                ui.selectable_value(
+                                    &mut workflow.category,
+                                    workflows::WorkflowCategory::Custom,
+                                    "Custom",
+                                );
                             });
                     });
                     ui.horizontal(|ui| {
@@ -522,19 +640,55 @@ impl SpaceAnalyzerApp {
                         workflows::WorkflowTrigger::OnStartup => "On Startup",
                     };
 
-                    egui::ComboBox::from_id_source("trigger_type")
+                    egui::ComboBox::from_id_salt("trigger_type")
                         .selected_text(current_trigger_type)
                         .show_ui(ui, |ui| {
-                            if ui.selectable_label(matches!(workflow.trigger, workflows::WorkflowTrigger::Manual), "Manual").clicked() {
+                            if ui
+                                .selectable_label(
+                                    matches!(workflow.trigger, workflows::WorkflowTrigger::Manual),
+                                    "Manual",
+                                )
+                                .clicked()
+                            {
                                 workflow.trigger = workflows::WorkflowTrigger::Manual;
                             }
-                            if ui.selectable_label(matches!(workflow.trigger, workflows::WorkflowTrigger::Scheduled(_)), "Scheduled (Cron)").clicked() {
-                                workflow.trigger = workflows::WorkflowTrigger::Scheduled("0 0 * * *".to_string());
+                            if ui
+                                .selectable_label(
+                                    matches!(
+                                        workflow.trigger,
+                                        workflows::WorkflowTrigger::Scheduled(_)
+                                    ),
+                                    "Scheduled (Cron)",
+                                )
+                                .clicked()
+                            {
+                                workflow.trigger =
+                                    workflows::WorkflowTrigger::Scheduled("0 0 * * *".to_string());
                             }
-                            if ui.selectable_label(matches!(workflow.trigger, workflows::WorkflowTrigger::LowDiskSpace { .. }), "Low Disk Space").clicked() {
-                                workflow.trigger = workflows::WorkflowTrigger::LowDiskSpace { threshold_percent: 90 };
+                            if ui
+                                .selectable_label(
+                                    matches!(
+                                        workflow.trigger,
+                                        workflows::WorkflowTrigger::LowDiskSpace { .. }
+                                    ),
+                                    "Low Disk Space",
+                                )
+                                .clicked()
+                            {
+                                workflow.trigger = workflows::WorkflowTrigger::LowDiskSpace {
+                                    threshold_percent: 90,
+                                };
                             }
-                            if ui.selectable_label(matches!(workflow.trigger, workflows::WorkflowTrigger::OnStartup), "On Startup").clicked() {
+                            if ui
+                                .selectable_label(
+                                    matches!(
+                                        workflow.trigger,
+                                        workflows::WorkflowTrigger::OnStartup
+                                    ),
+                                    "On Startup",
+                                )
+                                .clicked()
+                            {
                                 workflow.trigger = workflows::WorkflowTrigger::OnStartup;
                             }
                         });
@@ -552,18 +706,28 @@ impl SpaceAnalyzerApp {
                             // Cron presets
                             ui.horizontal(|ui| {
                                 ui.small("Presets:");
-                                if ui.small_button("Daily").clicked() { *cron = "0 0 * * *".to_string(); }
-                                if ui.small_button("Weekly").clicked() { *cron = "0 0 * * 1".to_string(); }
-                                if ui.small_button("Monthly").clicked() { *cron = "0 0 1 * *".to_string(); }
-                                if ui.small_button("Hourly").clicked() { *cron = "0 * * * *".to_string(); }
+                                if ui.small_button("Daily").clicked() {
+                                    *cron = "0 0 * * *".to_string();
+                                }
+                                if ui.small_button("Weekly").clicked() {
+                                    *cron = "0 0 * * 1".to_string();
+                                }
+                                if ui.small_button("Monthly").clicked() {
+                                    *cron = "0 0 1 * *".to_string();
+                                }
+                                if ui.small_button("Hourly").clicked() {
+                                    *cron = "0 * * * *".to_string();
+                                }
                             });
                         }
                         workflows::WorkflowTrigger::LowDiskSpace { threshold_percent } => {
                             ui.horizontal(|ui| {
                                 ui.label("Alert when usage exceeds:");
-                                ui.add(egui::DragValue::new(threshold_percent)
-                                    .clamp_range(1..=99)
-                                    .suffix("%"));
+                                ui.add(
+                                    egui::DragValue::new(threshold_percent)
+                                        .range(1..=99)
+                                        .suffix("%"),
+                                );
                             });
                         }
                         workflows::WorkflowTrigger::OnStartup => {
@@ -593,15 +757,16 @@ impl SpaceAnalyzerApp {
                             }
 
                             let (label, details) = match action {
-                                workflows::WorkflowAction::Scan { path, deep, .. } => {
-                                    ("Scan", format!("{} ({})", path, if *deep { "deep" } else { "quick" }))
-                                }
+                                workflows::WorkflowAction::Scan { path, deep, .. } => (
+                                    "Scan",
+                                    format!("{} ({})", path, if *deep { "deep" } else { "quick" }),
+                                ),
                                 workflows::WorkflowAction::FindDuplicates { paths, .. } => {
                                     ("Find Duplicates", format!("{} path(s)", paths.len()))
                                 }
-                                workflows::WorkflowAction::PredictStorage { days_ahead, .. } => {
-                                    ("Predict Storage", format!("{} days ahead", days_ahead))
-                                }
+                                workflows::WorkflowAction::PredictStorage {
+                                    days_ahead, ..
+                                } => ("Predict Storage", format!("{} days ahead", days_ahead)),
                                 workflows::WorkflowAction::GenerateRecommendations => {
                                     ("Generate Recommendations", String::new())
                                 }
@@ -611,9 +776,10 @@ impl SpaceAnalyzerApp {
                                 workflows::WorkflowAction::Notify { title, .. } => {
                                     ("Notify", title.clone())
                                 }
-                                workflows::WorkflowAction::AIAnalyze { prompt } => {
-                                    ("AI Analyze", format!("{}...", &prompt[..prompt.len().min(25)]))
-                                }
+                                workflows::WorkflowAction::AIAnalyze { prompt } => (
+                                    "AI Analyze",
+                                    format!("{}...", &prompt[..prompt.len().min(25)]),
+                                ),
                             };
 
                             ui.label(egui::RichText::new(label).strong());
@@ -648,16 +814,22 @@ impl SpaceAnalyzerApp {
                             });
                         }
                         if ui.button("🔍 Find Duplicates").clicked() {
-                            workflow.actions.push(workflows::WorkflowAction::FindDuplicates {
-                                paths: vec![self.current_path.to_string_lossy().to_string()],
-                                use_gpu: self.settings.dedup_use_gpu,
-                            });
+                            workflow
+                                .actions
+                                .push(workflows::WorkflowAction::FindDuplicates {
+                                    paths: vec![self.current_path.to_string_lossy().to_string()],
+                                    use_gpu: self.settings.dedup_use_gpu,
+                                });
                         }
                         if ui.button("📈 Predict Storage").clicked() {
-                            workflow.actions.push(workflows::WorkflowAction::PredictStorage { days_ahead: 30 });
+                            workflow
+                                .actions
+                                .push(workflows::WorkflowAction::PredictStorage { days_ahead: 30 });
                         }
                         if ui.button("💡 Recommendations").clicked() {
-                            workflow.actions.push(workflows::WorkflowAction::GenerateRecommendations);
+                            workflow
+                                .actions
+                                .push(workflows::WorkflowAction::GenerateRecommendations);
                         }
                         if ui.button("📤 Export").clicked() {
                             workflow.actions.push(workflows::WorkflowAction::Export {
@@ -673,7 +845,8 @@ impl SpaceAnalyzerApp {
                         }
                         if ui.button("🤖 AI Analyze").clicked() {
                             workflow.actions.push(workflows::WorkflowAction::AIAnalyze {
-                                prompt: "Analyze the scan results and provide recommendations.".to_string(),
+                                prompt: "Analyze the scan results and provide recommendations."
+                                    .to_string(),
                             });
                         }
                     });
@@ -692,7 +865,10 @@ impl SpaceAnalyzerApp {
                     let workflow_clone = workflow.clone();
                     let can_save = !workflow.name.is_empty() && !workflow.actions.is_empty();
                     ui.horizontal(|ui| {
-                        if ui.add_enabled(can_save, egui::Button::new("Save")).clicked() {
+                        if ui
+                            .add_enabled(can_save, egui::Button::new("Save"))
+                            .clicked()
+                        {
                             self.save_custom_workflow(workflow_clone);
                         }
                         if ui.button("Cancel").clicked() {
@@ -715,14 +891,24 @@ async fn generate_ai_recommendations_async(
 ) -> (Vec<AIRecommendation>, bool) {
     use ollama::ChatMessage;
 
-    let file_type_summary: String = result.file_types.iter()
+    let file_type_summary: String = result
+        .file_types
+        .iter()
         .take(15)
         .map(|(ext, count)| format!("  .{}: {} files", ext, count))
         .collect::<Vec<_>>()
         .join("\n");
-    let large_files_summary: String = result.largest_files.iter()
+    let large_files_summary: String = result
+        .largest_files
+        .iter()
         .take(10)
-        .map(|(path, size)| format!("  {} ({})", path, crate::gui_common::formatting::format_bytes(*size)))
+        .map(|(path, size)| {
+            format!(
+                "  {} ({})",
+                path,
+                crate::gui_common::formatting::format_bytes(*size)
+            )
+        })
         .collect::<Vec<_>>()
         .join("\n");
 
@@ -752,23 +938,24 @@ async fn generate_ai_recommendations_async(
         ChatMessage::user(&user_prompt),
     ];
 
-    let response = ai_client.chat_with_tools(messages, None, Some("none".to_string())).await;
+    let response = ai_client
+        .chat_with_tools(messages, None, Some("none".to_string()))
+        .await;
 
     match response {
-        Ok((content, _, _)) => {
-            let cleaned = content.trim()
+        Ok((content, _, _, _)) => {
+            let cleaned = content
+                .trim()
                 .trim_start_matches("```json")
                 .trim_start_matches("```")
                 .trim_end_matches("```")
                 .trim();
             match serde_json::from_str::<Vec<AIRecommendation>>(cleaned) {
                 Ok(recs) if !recs.is_empty() => (recs, true),
-                _ => {
-                    match try_extract_recommendations(cleaned) {
-                        Some(recs) => (recs, true),
-                        None => (StorageInsights::generate_recommendations(result), false),
-                    }
-                }
+                _ => match try_extract_recommendations(cleaned) {
+                    Some(recs) => (recs, true),
+                    None => (StorageInsights::generate_recommendations(result), false),
+                },
             }
         }
         Err(_) => (StorageInsights::generate_recommendations(result), false),
@@ -780,7 +967,8 @@ fn try_extract_recommendations(text: &str) -> Option<Vec<AIRecommendation>> {
     // If the response wraps recommendations in an object with a "recommendations" field
     if let Ok(val) = serde_json::from_str::<serde_json::Value>(text) {
         if let Some(arr) = val.get("recommendations").and_then(|v| v.as_array()) {
-            let recs: Vec<AIRecommendation> = arr.iter()
+            let recs: Vec<AIRecommendation> = arr
+                .iter()
                 .filter_map(|v| serde_json::from_value(v.clone()).ok())
                 .collect();
             if !recs.is_empty() {

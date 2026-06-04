@@ -1,10 +1,10 @@
 //! System monitoring for Space Analyzer Pro
-//! 
+//!
 //! Provides disk usage information, system resource monitoring,
 //! and hardware detection (GPU status).
 #![allow(dead_code)] // Planned system monitoring features
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Disk volume information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,9 +45,9 @@ impl SystemMonitor {
     /// Get all disk volumes
     pub fn get_disk_volumes() -> Vec<DiskVolume> {
         let mut volumes = Vec::new();
-        
+
         let disks = sysinfo::Disks::new_with_refreshed_list();
-        
+
         for disk in &disks {
             let total = disk.total_space();
             let available = disk.available_space();
@@ -100,19 +100,22 @@ impl SystemMonitor {
     pub fn detect_gpu() -> GpuInfo {
         // Try nvidia-smi first
         if let Ok(output) = std::process::Command::new("nvidia-smi")
-            .args(["--query-gpu=name,memory.total", "--format=csv,noheader,nounits"])
+            .args([
+                "--query-gpu=name,memory.total",
+                "--format=csv,noheader,nounits",
+            ])
             .output()
         {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let lines: Vec<&str> = stdout.lines().collect();
-                
+
                 if let Some(first_line) = lines.first() {
                     let parts: Vec<&str> = first_line.split(',').collect();
                     if parts.len() >= 2 {
                         let name = parts[0].trim().to_string();
                         let vram_mb: u64 = parts[1].trim().parse().unwrap_or(0);
-                        
+
                         return GpuInfo {
                             available: true,
                             name: Some(name),
@@ -140,15 +143,17 @@ impl SystemMonitor {
 
         let mut summary = String::new();
         summary.push_str(&format!("CPU: {:.1}%\n", resources.cpu_percent));
-        summary.push_str(&format!("Memory: {} / {} ({:.1}%)\n",
+        summary.push_str(&format!(
+            "Memory: {} / {} ({:.1}%)\n",
             format_bytes(resources.memory_used_bytes),
             format_bytes(resources.memory_total_bytes),
             resources.memory_percent
         ));
-        
+
         if !volumes.is_empty() {
             let primary = &volumes[0];
-            summary.push_str(&format!("Disk ({}): {} / {} ({:.1}%)\n",
+            summary.push_str(&format!(
+                "Disk ({}): {} / {} ({:.1}%)\n",
                 primary.mount_point,
                 format_bytes(primary.used_bytes),
                 format_bytes(primary.total_bytes),
@@ -157,9 +162,12 @@ impl SystemMonitor {
         }
 
         if gpu.available {
-            summary.push_str(&format!("GPU: {} ({})\n",
+            summary.push_str(&format!(
+                "GPU: {} ({})\n",
                 gpu.name.as_deref().unwrap_or("Unknown"),
-                gpu.vram_bytes.map(|b| format_bytes(b)).unwrap_or("Unknown".to_string())
+                gpu.vram_bytes
+                    .map(format_bytes)
+                    .unwrap_or("Unknown".to_string())
             ));
         }
 

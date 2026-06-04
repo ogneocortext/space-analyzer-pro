@@ -1,11 +1,11 @@
-﻿//! Ollama process management functions
-//! 
+//! Ollama process management functions
+//!
 //! This module contains functions for checking Ollama availability,
 //! finding the Ollama executable, and starting the Ollama process.
 
+use super::super::OllamaMessage;
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
-use super::super::OllamaMessage;
 
 use super::super::SpaceAnalyzerApp;
 
@@ -32,13 +32,24 @@ impl SpaceAnalyzerApp {
     pub(crate) fn find_ollama_exe() -> Option<std::path::PathBuf> {
         let candidates = [
             // Common Windows install paths
-            format!("{}\\Programs\\Ollama\\ollama.exe", std::env::var("LOCALAPPDATA").unwrap_or_default()),
-            format!("{}\\Ollama\\ollama.exe", std::env::var("PROGRAMFILES").unwrap_or_default()),
-            format!("{}\\Ollama\\ollama.exe", std::env::var("PROGRAMFILES(X86)").unwrap_or_default()),
+            format!(
+                "{}\\Programs\\Ollama\\ollama.exe",
+                std::env::var("LOCALAPPDATA").unwrap_or_default()
+            ),
+            format!(
+                "{}\\Ollama\\ollama.exe",
+                std::env::var("PROGRAMFILES").unwrap_or_default()
+            ),
+            format!(
+                "{}\\Ollama\\ollama.exe",
+                std::env::var("PROGRAMFILES(X86)").unwrap_or_default()
+            ),
         ];
         for path in &candidates {
             let p = std::path::PathBuf::from(path);
-            if p.exists() { return Some(p); }
+            if p.exists() {
+                return Some(p);
+            }
         }
         // Fallback: try PATH lookup
         if let Ok(output) = Command::new("where").arg("ollama.exe").output() {
@@ -46,7 +57,9 @@ impl SpaceAnalyzerApp {
                 let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 if !path.is_empty() {
                     let p = std::path::PathBuf::from(path.lines().next().unwrap_or("").trim());
-                    if p.exists() { return Some(p); }
+                    if p.exists() {
+                        return Some(p);
+                    }
                 }
             }
         }
@@ -74,7 +87,10 @@ impl SpaceAnalyzerApp {
                 }
             }
         } else {
-            self.status_message = Some("Ollama executable not found. Install it from https://ollama.com/download".to_string());
+            self.status_message = Some(
+                "Ollama executable not found. Install it from https://ollama.com/download"
+                    .to_string(),
+            );
         }
     }
 }

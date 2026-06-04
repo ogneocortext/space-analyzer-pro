@@ -157,10 +157,12 @@ impl WindowsError {
 
     /// Format full error message with context
     pub fn format_error(&self) -> String {
-        let path_str = self.path.as_ref()
+        let path_str = self
+            .path
+            .as_ref()
             .map(|p| format!(" at '{}'", p))
             .unwrap_or_default();
-        
+
         format!(
             "{} failed{}: {} (Error {})",
             self.operation,
@@ -319,24 +321,26 @@ pub fn last_error(operation: &str) -> WindowsError {
 /// Check if error code indicates a fatal error that should stop scanning
 #[allow(dead_code)]
 pub fn is_fatal_error(code: u32) -> bool {
-    matches!(code, 
-        ERROR_ACCESS_DENIED |
-        ERROR_NOT_READY |
-        ERROR_DEV_NOT_EXIST |
-        ERROR_INVALID_DRIVE |
-        ERROR_NOT_SUPPORTED |
-        ERROR_OUTOFMEMORY |
-        ERROR_NOT_ENOUGH_MEMORY
+    matches!(
+        code,
+        ERROR_ACCESS_DENIED
+            | ERROR_NOT_READY
+            | ERROR_DEV_NOT_EXIST
+            | ERROR_INVALID_DRIVE
+            | ERROR_NOT_SUPPORTED
+            | ERROR_OUTOFMEMORY
+            | ERROR_NOT_ENOUGH_MEMORY
     )
 }
 
 /// Check if error code indicates a retryable error
 #[allow(dead_code)]
 pub fn is_retryable_error(code: u32) -> bool {
-    matches!(code,
-        ERROR_SHARING_VIOLATION |
-        ERROR_LOCK_VIOLATION |
-        ERROR_NETWORK_BUSY |
-        ERROR_TOO_MANY_OPEN_FILES
+    matches!(
+        code,
+        ERROR_SHARING_VIOLATION
+            | ERROR_LOCK_VIOLATION
+            | ERROR_NETWORK_BUSY
+            | ERROR_TOO_MANY_OPEN_FILES
     )
 }

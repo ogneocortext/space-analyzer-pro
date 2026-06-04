@@ -1,0 +1,26 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "command": {
+    "lint": {
+      "description": "Run Rust linters (fmt check + clippy)",
+      "template": "Run `just lint` to check Rust code for style and correctness issues."
+    },
+    "test": {
+      "description": "Run all Rust tests",
+      "template": "Run `just test` to execute the full test suite."
+    },
+    "build": {
+      "description": "Build all Rust workspace members",
+      "template": "Run `just build` to compile the Rust workspace."
+    },
+    "format": {
+      "description": "Format all Rust code",
+      "template": "Run `just fmt` to format Rust code with rustfmt."
+    },
+    "verify": {
+      "description": "Verify code correctness after changes",
+      "template": "Run `just verify` to check formatting, linting, and tests."
+    }
+  }
+}

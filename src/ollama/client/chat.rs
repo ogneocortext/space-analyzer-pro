@@ -8,8 +8,9 @@ impl OllamaClient {
         messages: Vec<ChatMessage>,
         tools: Option<Vec<ToolDefinition>>,
         tool_choice: Option<String>,
-    ) -> OllamaResult<(String, Option<Vec<ToolCall>>, TokenUsage)> {
-        self.chat_internal(&self.model, messages, tools, tool_choice, false).await
+    ) -> OllamaResult<(String, Option<String>, Option<Vec<ToolCall>>, TokenUsage)> {
+        self.chat_internal(&self.model, messages, tools, tool_choice, false)
+            .await
     }
 
     /// Shared helper: POST a ChatRequest, validate status, parse JSON, track timing, build TokenUsage.
@@ -27,10 +28,9 @@ impl OllamaClient {
         if !response.status().is_success() {
             return Err(Self::handle_http_error(response).await);
         }
-        let chat_response: ChatResponse = response
-            .json()
-            .await
-            .map_err(|e| OllamaError::ParseError(format!("Failed to parse chat response: {}", e)))?;
+        let chat_response: ChatResponse = response.json().await.map_err(|e| {
+            OllamaError::ParseError(format!("Failed to parse chat response: {}", e))
+        })?;
         let usage = TokenUsage::from_chat_response(&chat_response);
         self.track_request(tag, elapsed, usage.prompt_tokens, usage.completion_tokens);
         Ok((chat_response, usage, elapsed))
@@ -44,19 +44,27 @@ impl OllamaClient {
         tools: Option<Vec<ToolDefinition>>,
         tool_choice: Option<String>,
         force_json: bool,
-    ) -> OllamaResult<(String, Option<Vec<ToolCall>>, TokenUsage)> {
+    ) -> OllamaResult<(String, Option<String>, Option<Vec<ToolCall>>, TokenUsage)> {
         let request = ChatRequest {
             model: model.to_string(),
             messages,
             stream: Some(false),
             options: Some(self.default_options.clone()),
             keep_alive: Some(self.keep_alive.clone()),
-            format: if force_json { Some("json".to_string()) } else { None },
+            format: if force_json {
+                Some("json".to_string())
+            } else {
+                None
+            },
+            think: self.think.clone(),
             tools,
             tool_choice,
         };
-        let (chat_response, usage, _elapsed) = self.post_chat_and_parse(&request, self.operation_timeouts.chat, "chat").await?;
+        let (chat_response, usage, _elapsed) = self
+            .post_chat_and_parse(&request, self.operation_timeouts.chat, "chat")
+            .await?;
         let tool_calls = chat_response.message.tool_calls;
-        Ok((chat_response.message.content, tool_calls, usage))
+        let thinking = chat_response.message.thinking.clone();
+        Ok((chat_response.message.content, thinking, tool_calls, usage))
     }
 }

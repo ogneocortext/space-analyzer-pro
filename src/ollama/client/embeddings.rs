@@ -6,7 +6,9 @@ impl OllamaClient {
     /// Generate embeddings for text inputs
     pub async fn embed(&self, inputs: Vec<String>) -> OllamaResult<(Vec<Vec<f32>>, TokenUsage)> {
         if inputs.is_empty() {
-            return Err(OllamaError::ConfigError("inputs cannot be empty".to_string()));
+            return Err(OllamaError::ConfigError(
+                "inputs cannot be empty".to_string(),
+            ));
         }
 
         let start = Instant::now();
@@ -33,10 +35,9 @@ impl OllamaClient {
             return Err(Self::handle_http_error(response).await);
         }
 
-        let embed_response: EmbedResponse = response
-            .json()
-            .await
-            .map_err(|e| OllamaError::ParseError(format!("Failed to parse embed response: {}", e)))?;
+        let embed_response: EmbedResponse = response.json().await.map_err(|e| {
+            OllamaError::ParseError(format!("Failed to parse embed response: {}", e))
+        })?;
 
         let prompt_tokens = embed_response.prompt_eval_count.unwrap_or(0);
 

@@ -53,8 +53,13 @@ impl SpaceAnalyzerApp {
                 for record in &self.scan_history {
                     ui.horizontal(|ui| {
                         ui.vertical(|ui| {
-                            ui.label(egui::RichText::new(format!("{} - {} files, {:.2} MB",
-                                record.path, record.total_files, record.total_size_mb)).strong());
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "{} - {} files, {:.2} MB",
+                                    record.path, record.total_files, record.total_size_mb
+                                ))
+                                .strong(),
+                            );
                             ui.small(format!("{} (deep: {})", record.timestamp, record.deep_scan));
                         });
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -72,11 +77,23 @@ impl SpaceAnalyzerApp {
                 // Model Info Panel
                 if self.ollama_available && !self.discovered_models.is_empty() {
                     let current_model = &self.settings.ollama_model;
-                    if let Some(model_info) = self.discovered_models.iter().find(|m| m.name == *current_model) {
+                    if let Some(model_info) = self
+                        .discovered_models
+                        .iter()
+                        .find(|m| m.name == *current_model)
+                    {
                         let header_label = if let Some((cp, _)) = icons::model() {
-                            format!("{} Model: {} - {}", icon_char(cp), model_info.name, model_info.recommended_for)
+                            format!(
+                                "{} Model: {} - {}",
+                                icon_char(cp),
+                                model_info.name,
+                                model_info.recommended_for
+                            )
                         } else {
-                            format!("[AI] Model: {} - {}", model_info.name, model_info.recommended_for)
+                            format!(
+                                "[AI] Model: {} - {}",
+                                model_info.name, model_info.recommended_for
+                            )
                         };
                         egui::CollapsingHeader::new(&header_label)
                             .default_open(false)
@@ -92,7 +109,12 @@ impl SpaceAnalyzerApp {
                                         ui.small("Capabilities:");
                                         for cap in &model_info.capabilities {
                                             if let Some((cp, fam)) = icons::check() {
-                                                ui.add(egui::Label::new(icon_text(cp, fam, 12.0, egui::Color32::GREEN)));
+                                                ui.add(egui::Label::new(icon_text(
+                                                    cp,
+                                                    fam,
+                                                    12.0,
+                                                    egui::Color32::GREEN,
+                                                )));
                                                 ui.small(cap);
                                             } else {
                                                 ui.small(format!("[OK] {}", cap));
@@ -100,10 +122,13 @@ impl SpaceAnalyzerApp {
                                         }
                                     });
                                 }
-                                if let Some(tps) = model_info.performance_metrics.tokens_per_second {
+                                if let Some(tps) = model_info.performance_metrics.tokens_per_second
+                                {
                                     ui.small(format!("Speed: {:.1} tokens/s", tps));
                                 }
-                                if let Some(ftt) = model_info.performance_metrics.time_to_first_token_ms {
+                                if let Some(ftt) =
+                                    model_info.performance_metrics.time_to_first_token_ms
+                                {
                                     ui.small(format!("First token: {:.0}ms", ftt));
                                 }
                                 if !model_info.tooltip.is_empty() {
@@ -137,33 +162,42 @@ impl SpaceAnalyzerApp {
                 ui.separator();
 
                 // File types
-                if let Ok(file_types) = serde_json::from_str::<std::collections::HashMap<String, usize>>(&record.file_types_json) {
+                if let Ok(file_types) = serde_json::from_str::<
+                    std::collections::HashMap<String, usize>,
+                >(&record.file_types_json)
+                {
                     if !file_types.is_empty() {
                         ui.collapsing("File Types", |ui| {
                             let mut sorted: Vec<_> = file_types.iter().collect();
                             sorted.sort_by(|a, b| b.1.cmp(a.1));
-                            egui::Grid::new("history_file_types").num_columns(2).show(ui, |ui| {
-                                for (ext, count) in sorted.iter().take(50) {
-                                    ui.label(format!(".{}", ext));
-                                    ui.label(format!("{} files", count));
-                                    ui.end_row();
-                                }
-                            });
+                            egui::Grid::new("history_file_types")
+                                .num_columns(2)
+                                .show(ui, |ui| {
+                                    for (ext, count) in sorted.iter().take(50) {
+                                        ui.label(format!(".{}", ext));
+                                        ui.label(format!("{} files", count));
+                                        ui.end_row();
+                                    }
+                                });
                         });
                     }
                 }
 
                 // Largest files
-                if let Ok(largest) = serde_json::from_str::<Vec<(String, u64)>>(&record.largest_files_json) {
+                if let Ok(largest) =
+                    serde_json::from_str::<Vec<(String, u64)>>(&record.largest_files_json)
+                {
                     if !largest.is_empty() {
                         ui.collapsing("Largest Files", |ui| {
-                            egui::Grid::new("history_largest_files").num_columns(2).show(ui, |ui| {
-                                for (path, size) in largest.iter().take(50) {
-                                    ui.label(formatting::format_bytes(*size));
-                                    ui.label(path);
-                                    ui.end_row();
-                                }
-                            });
+                            egui::Grid::new("history_largest_files")
+                                .num_columns(2)
+                                .show(ui, |ui| {
+                                    for (path, size) in largest.iter().take(50) {
+                                        ui.label(formatting::format_bytes(*size));
+                                        ui.label(path);
+                                        ui.end_row();
+                                    }
+                                });
                         });
                     }
                 }

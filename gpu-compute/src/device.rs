@@ -19,13 +19,13 @@ impl GpuInfo {
         #[cfg(feature = "cuda")]
         {
             use cudarc::driver::CudaDevice;
-            
+
             match CudaDevice::new(0) {
                 Ok(device) => {
                     let props = device.properties();
                     let total_mem = device.primary_ctx().total_mem();
                     let total_mem_mb = total_mem / (1024 * 1024);
-                    
+
                     Self {
                         available: true,
                         device_name: props.name.clone(),
@@ -38,12 +38,15 @@ impl GpuInfo {
                 Err(_) => Self::default(),
             }
         }
-        
+
         #[cfg(not(feature = "cuda"))]
         {
             // Check for NVIDIA GPU via nvidia-smi
             if let Ok(output) = std::process::Command::new("nvidia-smi")
-                .args(["--query-gpu=name,memory.total,compute_cap", "--format=csv,noheader"])
+                .args([
+                    "--query-gpu=name,memory.total,compute_cap",
+                    "--format=csv,noheader",
+                ])
                 .output()
             {
                 if output.status.success() {
@@ -54,7 +57,7 @@ impl GpuInfo {
                             if parts.len() >= 3 {
                                 let mem_str = parts[1].trim_end_matches(" MiB");
                                 let total_mem_mb = mem_str.parse::<u64>().unwrap_or(0);
-                                
+
                                 return Self {
                                     available: true,
                                     device_name: parts[0].to_string(),
@@ -71,7 +74,7 @@ impl GpuInfo {
             Self::default()
         }
     }
-    
+
     /// Check if GPU acceleration is available
     pub fn is_available() -> bool {
         Self::detect().available

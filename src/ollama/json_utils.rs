@@ -81,9 +81,7 @@ fn find_matching_brace(s: &str, start: usize) -> Option<usize> {
     let mut in_string = false;
     let mut escaped = false;
 
-    for i in start..bytes.len() {
-        let b = bytes[i];
-
+    for (i, &b) in bytes.iter().enumerate().skip(start) {
         if escaped {
             escaped = false;
             continue;
@@ -113,9 +111,7 @@ fn find_matching_bracket(s: &str, start: usize) -> Option<usize> {
     let mut in_string = false;
     let mut escaped = false;
 
-    for i in start..bytes.len() {
-        let b = bytes[i];
-
+    for (i, &b) in bytes.iter().enumerate().skip(start) {
         if escaped {
             escaped = false;
             continue;
@@ -194,11 +190,11 @@ fn fix_trailing_commas(input: &str) -> String {
 /// Replace single quotes used as string delimiters with double quotes
 fn fix_single_quotes(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
-    let mut chars = input.chars().peekable();
+    let chars = input.chars().peekable();
     let mut in_double_string = false;
     let mut escaped = false;
 
-    while let Some(c) = chars.next() {
+    for c in chars {
         if escaped {
             result.push(c);
             escaped = false;
@@ -231,11 +227,11 @@ fn fix_single_quotes(input: &str) -> String {
 /// Escape literal newlines inside string values
 fn fix_unescaped_newlines(input: &str) -> String {
     let mut result = String::with_capacity(input.len() + 64);
-    let mut chars = input.chars().peekable();
+    let chars = input.chars().peekable();
     let mut in_string = false;
     let mut escaped = false;
 
-    while let Some(c) = chars.next() {
+    for c in chars {
         if escaped {
             result.push(c);
             escaped = false;
@@ -267,12 +263,12 @@ fn fix_unescaped_newlines(input: &str) -> String {
 /// Add missing commas between } {, } [, ] {, ] [, and between values
 fn fix_missing_commas(input: &str) -> String {
     let mut result = String::with_capacity(input.len() + 32);
-    let mut chars = input.chars().peekable();
+    let chars = input.chars().peekable();
     let mut in_string = false;
     let mut escaped = false;
     let mut prev_char = ' ';
 
-    while let Some(c) = chars.next() {
+    for c in chars {
         if escaped {
             result.push(c);
             escaped = false;
@@ -314,11 +310,11 @@ fn fix_missing_commas(input: &str) -> String {
 /// Escape bare backslashes in string values that aren't valid escape sequences
 fn fix_unescaped_backslashes(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
-    let mut chars = input.chars().peekable();
+    let chars = input.chars().peekable();
     let mut in_string = false;
     let mut just_saw_backslash = false;
 
-    while let Some(c) = chars.next() {
+    for c in chars {
         match c {
             '"' => {
                 if just_saw_backslash && in_string {
@@ -342,7 +338,8 @@ fn fix_unescaped_backslashes(input: &str) -> String {
             }
             _ if in_string && just_saw_backslash => {
                 // Check if this is a valid JSON escape sequence
-                let valid_escape = matches!(c, '"' | '\\' | '/' | 'b' | 'f' | 'n' | 'r' | 't' | 'u');
+                let valid_escape =
+                    matches!(c, '"' | '\\' | '/' | 'b' | 'f' | 'n' | 'r' | 't' | 'u');
                 if valid_escape {
                     result.push('\\');
                     result.push(c);
@@ -373,8 +370,7 @@ fn fix_unescaped_backslashes(input: &str) -> String {
 /// Validate that a string is parseable JSON and return the parsed value
 pub fn validate_json(input: &str) -> Result<serde_json::Value, String> {
     let repaired = repair_json(input);
-    serde_json::from_str(&repaired)
-        .map_err(|e| format!("JSON validation failed: {}", e))
+    serde_json::from_str(&repaired).map_err(|e| format!("JSON validation failed: {}", e))
 }
 
 /// Validate JSON against a minimal schema (checks required keys exist)
@@ -396,9 +392,7 @@ pub fn validate_json_schema(
 
 /// Attempt to parse JSON with automatic repair and retry
 /// Returns (parsed_value, was_repaired)
-pub fn parse_with_repair<T: serde::de::DeserializeOwned>(
-    raw: &str,
-) -> Result<(T, bool), String> {
+pub fn parse_with_repair<T: serde::de::DeserializeOwned>(raw: &str) -> Result<(T, bool), String> {
     // First try direct parse
     if let Ok(value) = serde_json::from_str::<T>(raw.trim()) {
         return Ok((value, false));
@@ -444,10 +438,7 @@ mod tests {
             fix_trailing_commas("{\"a\": 1, \"b\": 2,}"),
             "{\"a\": 1, \"b\": 2}"
         );
-        assert_eq!(
-            fix_trailing_commas("[1, 2, 3,]"),
-            "[1, 2, 3]"
-        );
+        assert_eq!(fix_trailing_commas("[1, 2, 3,]"), "[1, 2, 3]");
     }
 
     #[test]
@@ -475,7 +466,8 @@ mod tests {
 
     #[test]
     fn test_validate_json_schema() {
-        let value: serde_json::Value = serde_json::from_str("{\"title\": \"test\", \"priority\": \"high\"}").unwrap();
+        let value: serde_json::Value =
+            serde_json::from_str("{\"title\": \"test\", \"priority\": \"high\"}").unwrap();
         assert!(validate_json_schema(&value, &["title", "priority"]).is_ok());
         assert!(validate_json_schema(&value, &["title", "missing"]).is_err());
     }

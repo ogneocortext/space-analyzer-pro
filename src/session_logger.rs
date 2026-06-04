@@ -180,19 +180,22 @@ impl SessionLogger {
             let _ = fs::create_dir_all(parent);
         }
 
-        let mut file = match OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-        {
+        let mut file = match OpenOptions::new().create(true).append(true).open(path) {
             Ok(f) => f,
             Err(e) => {
-                eprintln!("[SESSION LOGGER] Failed to open log file {}: {}", path.display(), e);
+                eprintln!(
+                    "[SESSION LOGGER] Failed to open log file {}: {}",
+                    path.display(),
+                    e
+                );
                 self.error_count += 1;
                 // Re-queue the buffer instead of losing data
                 // but only if we haven't errored too many times
                 if self.error_count > 5 {
-                    eprintln!("[SESSION LOGGER] Too many errors, clearing buffer of {} entries", self.buffer.len());
+                    eprintln!(
+                        "[SESSION LOGGER] Too many errors, clearing buffer of {} entries",
+                        self.buffer.len()
+                    );
                     self.buffer.clear();
                 }
                 return;
@@ -373,7 +376,10 @@ fn estimate_rotation_count(path: &Path, _max_size: u64) -> u32 {
         return 0;
     }
     let parent = path.parent().unwrap_or(Path::new("."));
-    let stem = path.file_name().map(|n| n.to_string_lossy()).unwrap_or_default();
+    let stem = path
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
 
     let mut count = 0u32;
     if let Ok(entries) = fs::read_dir(parent) {

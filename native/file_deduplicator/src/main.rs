@@ -1,16 +1,16 @@
 //! File Deduplicator CLI
-//! 
+//!
 //! High-performance file deduplication tool with BLAKE3 hashing and hard link support.
 //! Provides command-line interface for easy use and integration.
 
-use clap::{Parser, Subcommand};
 use anyhow::Result;
+use clap::{Parser, Subcommand};
 use colored::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::PathBuf;
 use std::time::Duration;
 
-use file_deduplicator::{FileDeduplicator, DeduplicationConfig, DeduplicationResult};
+use file_deduplicator::{DeduplicationConfig, DeduplicationResult, FileDeduplicator};
 
 #[derive(Parser)]
 #[command(
@@ -102,7 +102,7 @@ fn main() -> Result<()> {
         pb.set_style(
             ProgressStyle::default_spinner()
                 .template("{spinner:.green} [{elapsed_precise}] {msg}")
-                .unwrap()
+                .unwrap(),
         );
         pb.set_message("Initializing...");
         pb.enable_steady_tick(Duration::from_millis(100));
@@ -118,29 +118,38 @@ fn main() -> Result<()> {
             println!("🔍 {}", "Scanning for duplicate files...".bold().blue());
             let files = deduplicator.scan_directory(&cli.directory)?;
             let duplicate_groups = deduplicator.find_duplicates(files);
-            
+
             print_results(&duplicate_groups, &cli.output, cli.dry_run);
         }
         Commands::Deduplicate => {
             if cli.dry_run {
-                println!("🔍 {}", "Dry run mode - no files will be modified".bold().yellow());
+                println!(
+                    "🔍 {}",
+                    "Dry run mode - no files will be modified".bold().yellow()
+                );
             }
-            
+
             println!("🔗 {}", "Deduplicating files...".bold().green());
             let files = deduplicator.scan_directory(&cli.directory)?;
             let duplicate_groups = deduplicator.find_duplicates(files);
             let result = deduplicator.deduplicate(&duplicate_groups)?;
-            
+
             print_deduplication_result(&result, &cli.output);
         }
         Commands::Run => {
             if cli.dry_run {
-                println!("🔍 {}", "Dry run mode - no files will be modified".bold().yellow());
+                println!(
+                    "🔍 {}",
+                    "Dry run mode - no files will be modified".bold().yellow()
+                );
             }
-            
-            println!("🚀 {}", "Running complete deduplication process...".bold().magenta());
+
+            println!(
+                "🚀 {}",
+                "Running complete deduplication process...".bold().magenta()
+            );
             let result = deduplicator.run(&cli.directory)?;
-            
+
             print_deduplication_result(&result, &cli.output);
         }
     }
@@ -148,7 +157,11 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn print_results(duplicate_groups: &[file_deduplicator::DuplicateGroup], output_format: &str, dry_run: bool) {
+fn print_results(
+    duplicate_groups: &[file_deduplicator::DuplicateGroup],
+    output_format: &str,
+    dry_run: bool,
+) {
     if duplicate_groups.is_empty() {
         println!("✅ {}", "No duplicate files found!".bold().green());
         return;
@@ -156,31 +169,36 @@ fn print_results(duplicate_groups: &[file_deduplicator::DuplicateGroup], output_
 
     match output_format {
         "json" => {
-            println!("{}", serde_json::to_string_pretty(duplicate_groups).unwrap());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(duplicate_groups).unwrap()
+            );
         }
         _ => {
             println!("\n{}", "Duplicate Files Found:".bold().underline());
             println!("{}", "=".repeat(50));
-            
+
             let mut total_duplicates = 0;
             let mut total_size = 0u64;
 
             for (i, group) in duplicate_groups.iter().enumerate() {
-                println!("\n{}. Group {} ({} files, {})", 
+                println!(
+                    "\n{}. Group {} ({} files, {})",
                     i + 1,
                     group.hash[..8].to_string().bright_black(),
                     group.files.len(),
                     format_bytes(group.size)
                 );
-                
+
                 for file in &group.files {
                     println!("   📄 {}", file.path.display());
-                    println!("      Size: {}, Modified: {}", 
+                    println!(
+                        "      Size: {}, Modified: {}",
                         format_bytes(file.size),
                         file.modified.format("%Y-%m-%d %H:%M:%S")
                     );
                 }
-                
+
                 total_duplicates += group.files.len() - 1;
                 total_size += group.size * (group.files.len() - 1) as u64;
             }
@@ -189,9 +207,14 @@ fn print_results(duplicate_groups: &[file_deduplicator::DuplicateGroup], output_
             println!("  Duplicate groups: {}", duplicate_groups.len());
             println!("  Total duplicate files: {}", total_duplicates);
             println!("  Potential space savings: {}", format_bytes(total_size));
-            
+
             if dry_run {
-                println!("\n{}", "💡 Run with --no-dry-run to actually deduplicate files".bold().yellow());
+                println!(
+                    "\n{}",
+                    "💡 Run with --no-dry-run to actually deduplicate files"
+                        .bold()
+                        .yellow()
+                );
             }
         }
     }
@@ -205,27 +228,28 @@ fn print_deduplication_result(result: &DeduplicationResult, output_format: &str)
         _ => {
             println!("\n{}", "Deduplication Results:".bold().underline());
             println!("{}", "=".repeat(50));
-            
+
             println!("📁 Files scanned: {}", result.total_files_scanned);
             println!("🔄 Duplicate groups: {}", result.duplicate_groups.len());
             println!("✅ Files processed: {}", result.files_processed);
-            
+
             if result.space_saved > 0 {
                 println!("💾 Space saved: {}", format_bytes(result.space_saved));
             }
-            
+
             if !result.errors.is_empty() {
                 println!("\n{}", "Errors:".bold().red());
                 for error in &result.errors {
                     println!("  ❌ {}", error);
                 }
             }
-            
+
             if !result.duplicate_groups.is_empty() {
                 println!("\n{}", "Deduplicated Groups:".bold());
                 for (i, group) in result.duplicate_groups.iter().enumerate() {
                     if group.files.len() > 1 {
-                        println!("  {}. {} ({} files)", 
+                        println!(
+                            "  {}. {} ({} files)",
                             i + 1,
                             group.hash[..8].to_string().bright_black(),
                             group.files.len()

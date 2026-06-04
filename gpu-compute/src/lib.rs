@@ -8,10 +8,10 @@
 //!
 //! Falls back to optimized CPU implementations when CUDA is unavailable.
 
+pub mod device;
 pub mod hash;
 pub mod ml;
 pub mod scan;
-pub mod device;
 
 pub use device::GpuInfo;
 pub use hash::BatchHasher;

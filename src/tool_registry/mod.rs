@@ -5,15 +5,13 @@
 //! the current application state.
 
 use super::database::Database;
-use super::gui_common::{ScanResult, formatting};
+use super::gui_common::{formatting, ScanResult};
 use super::ollama::{ToolCall, ToolDefinition, ToolParameters};
 use super::system_monitor::SystemMonitor;
 use super::workflows::WorkflowTemplates;
 
 pub mod definitions;
 pub mod execution;
-
-
 
 /// Registry of tools available for AI function calling
 pub struct ToolRegistry {
@@ -39,8 +37,8 @@ impl ToolRegistry {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::ollama::ToolCallFunction;
+    use super::*;
 
     /// Create a tool call struct for testing
     fn make_tool_call(name: &str, args: serde_json::Value) -> ToolCall {
@@ -82,35 +80,28 @@ mod tests {
     }
 
     #[test]
-    fn test_registry_creation() {
-        let registry = ToolRegistry::new(None);
-        assert!(!registry.definitions.is_empty());
-    }
-
-    #[test]
-    fn test_registry_creation_with_scan() {
-        let registry = ToolRegistry::new(Some(sample_scan()));
-        assert!(!registry.definitions.is_empty());
-    }
-
-    #[test]
     fn test_get_definitions_count_no_scan() {
+        // 6 original always-available + 3 new destructive-preview tools
+        // (preview_impact, move_to_trash, hardlink_duplicates)
         let registry = ToolRegistry::new(None);
-        // Without a scan: only always-available tools (6)
-        assert_eq!(registry.definitions.len(), 6);
+        assert_eq!(registry.definitions.len(), 9);
     }
 
     #[test]
     fn test_get_definitions_count_with_scan() {
+        // 11 with scan + 3 new destructive-preview tools
         let registry = ToolRegistry::new(Some(sample_scan()));
-        // With a scan: all 11 tools
-        assert_eq!(registry.definitions.len(), 11);
+        assert_eq!(registry.definitions.len(), 14);
     }
 
     #[test]
     fn test_get_definitions_no_scan_only_always_available() {
         let registry = ToolRegistry::new(None);
-        let names: Vec<&str> = registry.definitions.iter().map(|d| d.function.name.as_str()).collect();
+        let names: Vec<&str> = registry
+            .definitions
+            .iter()
+            .map(|d| d.function.name.as_str())
+            .collect();
         assert!(names.contains(&"get_scan_history"));
         assert!(names.contains(&"get_disk_volumes"));
         assert!(names.contains(&"get_system_resources"));
@@ -128,7 +119,11 @@ mod tests {
     #[test]
     fn test_get_definitions_includes_all_tools_with_scan() {
         let registry = ToolRegistry::new(Some(sample_scan()));
-        let names: Vec<&str> = registry.definitions.iter().map(|d| d.function.name.as_str()).collect();
+        let names: Vec<&str> = registry
+            .definitions
+            .iter()
+            .map(|d| d.function.name.as_str())
+            .collect();
         assert!(names.contains(&"get_scan_history"));
         assert!(names.contains(&"get_disk_volumes"));
         assert!(names.contains(&"get_system_resources"));
@@ -168,7 +163,10 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("get_scan_summary", serde_json::json!({}));
         let result = registry.execute_tool(&call, None, None);
-        assert_eq!(result, "No scan results available. Please run a scan first.");
+        assert_eq!(
+            result,
+            "No scan results available. Please run a scan first."
+        );
     }
 
     #[test]
@@ -256,7 +254,10 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("search_files", serde_json::json!({"extension": "pdf"}));
         let result = registry.execute_tool(&call, None, None);
-        assert_eq!(result, "No scan results available. Please run a scan first.");
+        assert_eq!(
+            result,
+            "No scan results available. Please run a scan first."
+        );
     }
 
     #[test]
@@ -296,7 +297,10 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("get_largest_files", serde_json::json!({}));
         let result = registry.execute_tool(&call, None, None);
-        assert_eq!(result, "No scan results available. Please run a scan first.");
+        assert_eq!(
+            result,
+            "No scan results available. Please run a scan first."
+        );
     }
 
     #[test]
@@ -312,7 +316,10 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("predict_storage", serde_json::json!({"days_ahead": 30}));
         let result = registry.execute_tool(&call, None, None);
-        assert_eq!(result, "Database not available. Cannot make predictions without historical data.");
+        assert_eq!(
+            result,
+            "Database not available. Cannot make predictions without historical data."
+        );
     }
 
     #[test]
@@ -332,7 +339,11 @@ mod tests {
         let defs = registry.get_definitions();
         for def in defs {
             let json = serde_json::to_string(def);
-            assert!(json.is_ok(), "Definition {} should serialize to JSON", def.function.name);
+            assert!(
+                json.is_ok(),
+                "Definition {} should serialize to JSON",
+                def.function.name
+            );
         }
     }
 }

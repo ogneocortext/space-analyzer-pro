@@ -1,12 +1,12 @@
 //! AI chat UI rendering functions
-//! 
+//!
 //! This module contains functions for rendering the AI chat interface,
 //! including message display and input handling.
 
 use eframe::egui;
 
-use super::super::{SpaceAnalyzerApp, icon_char, icon_text};
 use super::super::icons;
+use super::super::{icon_char, icon_text, SpaceAnalyzerApp};
 
 impl SpaceAnalyzerApp {
     pub(crate) fn render_ai_chat(&mut self, ui: &mut egui::Ui) {
@@ -17,7 +17,10 @@ impl SpaceAnalyzerApp {
             } else if self.ollama_checking {
                 ui.label("Ollama: Checking...");
             } else {
-                ui.label(egui::RichText::new("Ollama: Not available (using local analysis)").color(egui::Color32::YELLOW));
+                ui.label(
+                    egui::RichText::new("Ollama: Not available (using local analysis)")
+                        .color(egui::Color32::YELLOW),
+                );
             }
             // Model indicator
             if !self.settings.ollama_model.is_empty() {
@@ -30,10 +33,10 @@ impl SpaceAnalyzerApp {
                 self.cache_stats_visible = !self.cache_stats_visible;
             }
         });
-        
+
         // Prompt Cache Panel
         if self.cache_stats_visible {
-            egui::Frame::group(&ui.style()).show(ui, |ui| {
+            egui::Frame::group(ui.style()).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.heading("Prompt Cache");
                     if ui.small_button("Close").clicked() {
@@ -41,54 +44,85 @@ impl SpaceAnalyzerApp {
                     }
                 });
                 ui.separator();
-                
+
                 let stats = self.prompt_cache.stats();
                 let cache_enabled = self.prompt_cache.config().enabled;
-                
+
                 ui.horizontal(|ui| {
                     ui.checkbox(&mut self.settings.prompt_cache_enabled, "Enabled");
                     if ui.small_button("Clear Cache").clicked() {
                         self.prompt_cache.clear();
                     }
                 });
-                
+
                 ui.horizontal(|ui| {
-                    ui.small(format!("Entries: {}/{}", stats.total_entries, stats.max_entries));
+                    ui.small(format!(
+                        "Entries: {}/{}",
+                        stats.total_entries, stats.max_entries
+                    ));
                     ui.small(format!("Hit Rate: {:.1}%", stats.overall_hit_rate * 100.0));
-                    ui.small(format!("Memory: {}MB/{}MB", stats.estimated_memory_mb, stats.max_memory_mb));
+                    ui.small(format!(
+                        "Memory: {}MB/{}MB",
+                        stats.estimated_memory_mb, stats.max_memory_mb
+                    ));
                 });
-                
+
                 ui.horizontal(|ui| {
                     ui.small("TTL:");
                     let mut ttl = self.settings.prompt_cache_ttl_seconds as i32;
-                    if ui.add(egui::DragValue::new(&mut ttl).range(30..=3600).speed(10)).changed() {
+                    if ui
+                        .add(egui::DragValue::new(&mut ttl).range(30..=3600).speed(10))
+                        .changed()
+                    {
                         self.settings.prompt_cache_ttl_seconds = ttl as u64;
-                        self.prompt_cache.update_config(self.settings.to_prompt_cache_config());
+                        self.prompt_cache
+                            .update_config(self.settings.to_prompt_cache_config());
                     }
                     ui.small("s");
 
                     ui.small("Max mem:");
                     let mut max_mem = self.settings.prompt_cache_max_memory_mb as i32;
-                    if ui.add(egui::DragValue::new(&mut max_mem).range(16..=1024).speed(16)).changed() {
+                    if ui
+                        .add(
+                            egui::DragValue::new(&mut max_mem)
+                                .range(16..=1024)
+                                .speed(16),
+                        )
+                        .changed()
+                    {
                         self.settings.prompt_cache_max_memory_mb = max_mem as usize;
-                        self.prompt_cache.update_config(self.settings.to_prompt_cache_config());
+                        self.prompt_cache
+                            .update_config(self.settings.to_prompt_cache_config());
                     }
                     ui.small("MB");
 
                     ui.small("Max entries:");
                     let mut max_entries = self.settings.prompt_cache_max_entries as i32;
-                    if ui.add(egui::DragValue::new(&mut max_entries).range(10..=500).speed(5)).changed() {
+                    if ui
+                        .add(
+                            egui::DragValue::new(&mut max_entries)
+                                .range(10..=500)
+                                .speed(5),
+                        )
+                        .changed()
+                    {
                         self.settings.prompt_cache_max_entries = max_entries as usize;
-                        self.prompt_cache.update_config(self.settings.to_prompt_cache_config());
+                        self.prompt_cache
+                            .update_config(self.settings.to_prompt_cache_config());
                     }
                 });
-                
+
                 ui.horizontal(|ui| {
-                    ui.small(format!("Total cached: {} prompt + {} completion tokens",
-                        stats.total_prompt_tokens_cached, stats.total_completion_tokens_cached));
-                    ui.small(format!("Hits: {} | Misses: {}", stats.total_cache_hits, stats.total_cache_misses));
+                    ui.small(format!(
+                        "Total cached: {} prompt + {} completion tokens",
+                        stats.total_prompt_tokens_cached, stats.total_completion_tokens_cached
+                    ));
+                    ui.small(format!(
+                        "Hits: {} | Misses: {}",
+                        stats.total_cache_hits, stats.total_cache_misses
+                    ));
                 });
-                
+
                 // Model budgets
                 if !stats.model_budgets.is_empty() {
                     ui.separator();
@@ -96,12 +130,15 @@ impl SpaceAnalyzerApp {
                     for budget in &stats.model_budgets {
                         ui.horizontal(|ui| {
                             ui.small(format!("{}:", budget.model_name));
-                            ui.small(format!("{:.0} tokens/min remaining", budget.remaining_tokens_this_minute()));
+                            ui.small(format!(
+                                "{:.0} tokens/min remaining",
+                                budget.remaining_tokens_this_minute()
+                            ));
                             ui.small(format!("Hit rate: {:.1}%", budget.cache_hit_rate() * 100.0));
                         });
                     }
                 }
-                
+
                 // Update cache enabled state immediately (in-memory only; persisted on Save)
                 if !cache_enabled && self.settings.prompt_cache_enabled {
                     let mut new_config = self.settings.to_prompt_cache_config();
@@ -236,6 +273,19 @@ impl SpaceAnalyzerApp {
                 } else if is_quick_action {
                     ui.label(egui::RichText::new(&msg.content).size(11.0).color(egui::Color32::from_rgb(180, 130, 255)));
                 } else {
+                    if let Some(ref think) = msg.thinking {
+                        if !think.trim().is_empty() {
+                            egui::CollapsingHeader::new("Thinking Process")
+                                .default_open(false)
+                                .show(ui, |ui| {
+                                    ui.add(egui::Label::new(
+                                        egui::RichText::new(think)
+                                            .color(ui.visuals().weak_text_color())
+                                            .italics()
+                                    ));
+                                });
+                        }
+                    }
                     ui.label(&msg.content);
                 }
                 ui.separator();
@@ -250,11 +300,14 @@ impl SpaceAnalyzerApp {
 
         // Input
         ui.horizontal(|ui| {
-            let response = ui.add(egui::TextEdit::singleline(&mut self.chat_input)
-                .desired_width(f32::INFINITY)
-                .hint_text("Ask about your disk usage..."));
-            if (response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter))) ||
-               ui.button("Send").clicked() {
+            let response = ui.add(
+                egui::TextEdit::singleline(&mut self.chat_input)
+                    .desired_width(f32::INFINITY)
+                    .hint_text("Ask about your disk usage..."),
+            );
+            if (response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                || ui.button("Send").clicked()
+            {
                 self.send_chat_message();
             }
         });

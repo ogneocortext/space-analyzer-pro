@@ -35,6 +35,8 @@ pub struct ChatMessage {
     pub role: Role,
     pub content: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub images: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
@@ -44,25 +46,64 @@ pub struct ChatMessage {
 
 impl ChatMessage {
     pub fn system(content: impl Into<String>) -> Self {
-        Self { role: Role::System, content: content.into(), images: None, tool_calls: None, tool_call_id: None }
+        Self {
+            role: Role::System,
+            content: content.into(),
+            thinking: None,
+            images: None,
+            tool_calls: None,
+            tool_call_id: None,
+        }
     }
     pub fn user(content: impl Into<String>) -> Self {
-        Self { role: Role::User, content: content.into(), images: None, tool_calls: None, tool_call_id: None }
+        Self {
+            role: Role::User,
+            content: content.into(),
+            thinking: None,
+            images: None,
+            tool_calls: None,
+            tool_call_id: None,
+        }
     }
     pub fn assistant(content: impl Into<String>) -> Self {
-        Self { role: Role::Assistant, content: content.into(), images: None, tool_calls: None, tool_call_id: None }
+        Self {
+            role: Role::Assistant,
+            content: content.into(),
+            thinking: None,
+            images: None,
+            tool_calls: None,
+            tool_call_id: None,
+        }
     }
     pub fn tool(content: impl Into<String>, tool_call_id: impl Into<String>) -> Self {
-        Self { role: Role::Tool, content: content.into(), images: None, tool_calls: None, tool_call_id: Some(tool_call_id.into()) }
+        Self {
+            role: Role::Tool,
+            content: content.into(),
+            thinking: None,
+            images: None,
+            tool_calls: None,
+            tool_call_id: Some(tool_call_id.into()),
+        }
     }
-    pub fn assistant_with_tool_calls(content: impl Into<String>, tool_calls: Vec<ToolCall>) -> Self {
-        Self { role: Role::Assistant, content: content.into(), images: None, tool_calls: Some(tool_calls), tool_call_id: None }
+    pub fn assistant_with_tool_calls(
+        content: impl Into<String>,
+        tool_calls: Vec<ToolCall>,
+    ) -> Self {
+        Self {
+            role: Role::Assistant,
+            content: content.into(),
+            thinking: None,
+            images: None,
+            tool_calls: Some(tool_calls),
+            tool_call_id: None,
+        }
     }
     /// Create a user message with an image (base64-encoded)
     pub fn user_with_image(content: impl Into<String>, image_base64: impl Into<String>) -> Self {
         Self {
             role: Role::User,
             content: content.into(),
+            thinking: None,
             images: Some(vec![image_base64.into()]),
             tool_calls: None,
             tool_call_id: None,
@@ -73,6 +114,7 @@ impl ChatMessage {
         Self {
             role: Role::User,
             content: content.into(),
+            thinking: None,
             images: Some(images),
             tool_calls: None,
             tool_call_id: None,
@@ -202,6 +244,9 @@ pub struct OllamaOptions {
     /// Top-p sampling threshold
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f32>,
+    /// Minimum probability threshold for token selection
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min_p: Option<f32>,
     /// Top-k sampling threshold
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_k: Option<i32>,
@@ -239,6 +284,7 @@ impl Default for OllamaOptions {
             num_ctx: Some(8192),
             num_predict: Some(-1),
             top_p: None,
+            min_p: None,
             top_k: None,
             repeat_penalty: None,
             stop: None,
@@ -254,10 +300,16 @@ impl Default for OllamaOptions {
 
 impl OllamaOptions {
     /// Auto-size context window based on input length
-    pub fn with_auto_context(mut self, system_prompt: &str, user_prompt: &str, safety_margin: f32) -> Self {
+    pub fn with_auto_context(
+        mut self,
+        system_prompt: &str,
+        user_prompt: &str,
+        safety_margin: f32,
+    ) -> Self {
         let estimated_chars = system_prompt.len() + user_prompt.len();
         // ~4 chars per token, add 50% safety margin, minimum 2048
-        let estimated_tokens = ((estimated_chars as f32 / 4.0) * (1.0 + safety_margin)).ceil() as i32;
+        let estimated_tokens =
+            ((estimated_chars as f32 / 4.0) * (1.0 + safety_margin)).ceil() as i32;
         let min_ctx = 2048i32.max(estimated_tokens + 512); // +512 for output
         self.num_ctx = Some(min_ctx.min(128_000)); // cap at 128K
         self
@@ -273,6 +325,10 @@ pub struct ChatRequest {
     pub stream: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<OllamaOptions>,
+    /// Enable/disable extended thinking output (Ollama 0.30+).
+    /// Must be a top-level field; placing it inside options is silently ignored.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub think: Option<TopLevelThink>,
     /// How long to keep the model loaded (-1 = forever, 0 = immediate unload, "5m" = 5 minutes)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_alive: Option<String>,
@@ -298,10 +354,23 @@ pub struct GenerateRequest {
     pub stream: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<OllamaOptions>,
+    /// Extended thinking flag for generate endpoint (Ollama 0.30+).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub think: Option<TopLevelThink>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_alive: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
+}
+
+/// The think field on chat/generate requests in Ollama 0.30+.
+/// true/false toggles thinking; string levels ("low", "medium", "high")
+/// select tiered budgets (gpt-oss models).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TopLevelThink {
+    Bool(bool),
+    Level(String),
 }
 
 /// Embedding request
@@ -351,6 +420,9 @@ pub struct GenerateResponse {
     #[serde(default)]
     #[allow(dead_code)]
     pub done_reason: Option<String>,
+    /// Extended thinking trace when think is enabled on the request.
+    #[serde(default)]
+    pub thinking: Option<String>,
     #[serde(default)]
     pub total_duration: Option<u64>,
     #[serde(default)]
@@ -523,7 +595,10 @@ pub struct JsonSchema {
 
 impl JsonSchema {
     /// Create a simple object schema with string properties
-    pub fn object(properties: serde_json::Map<String, serde_json::Value>, required: Vec<String>) -> Self {
+    pub fn object(
+        properties: serde_json::Map<String, serde_json::Value>,
+        required: Vec<String>,
+    ) -> Self {
         Self {
             schema_type: "object".to_string(),
             properties: Some(properties),
@@ -589,13 +664,18 @@ impl ConversationHistory {
         // Trim oldest non-system entries if at capacity (each turn is user + assistant = 2 entries)
         while self.entries.len() >= self.max_turns * 2 {
             // Find the first non-system entry and remove it (along with its paired response if possible)
-            if let Some(pos) = self.entries.iter().position(|e| !matches!(e.message.role, Role::System)) {
+            if let Some(pos) = self
+                .entries
+                .iter()
+                .position(|e| !matches!(e.message.role, Role::System))
+            {
                 self.entries.remove(pos);
             } else {
                 break;
             }
         }
-        self.entries.push(ConversationEntry::new(message, token_usage));
+        self.entries
+            .push(ConversationEntry::new(message, token_usage));
     }
 
     /// Get all messages for API call (prepends system prompt if set)
@@ -627,7 +707,8 @@ impl ConversationHistory {
 
     /// Total tokens used in this conversation
     pub fn total_tokens(&self) -> u32 {
-        self.entries.iter()
+        self.entries
+            .iter()
             .filter_map(|e| e.token_usage.as_ref())
             .map(|u| u.total_tokens())
             .sum()
@@ -635,7 +716,8 @@ impl ConversationHistory {
 
     /// Number of turns (user messages)
     pub fn turn_count(&self) -> usize {
-        self.entries.iter()
+        self.entries
+            .iter()
             .filter(|e| matches!(e.message.role, Role::User))
             .count()
     }
@@ -764,7 +846,10 @@ impl ModelFallbackConfig {
         let primary_lower = primary_model.to_lowercase();
 
         // Build sensible fallback chain based on the primary model family
-        if primary_lower.contains("llama") || primary_lower.contains("mistral") || primary_lower.contains("phi") {
+        if primary_lower.contains("llama")
+            || primary_lower.contains("mistral")
+            || primary_lower.contains("phi")
+        {
             fallbacks.push("llama3.2:3b".to_string());
             fallbacks.push("phi4-mini".to_string());
             fallbacks.push("tinyllama".to_string());
@@ -789,6 +874,61 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_top_level_think_serialization() {
+        let req = ChatRequest {
+            model: "qwen3".into(),
+            messages: vec![ChatMessage::user("hello")],
+            stream: None,
+            options: None,
+            think: Some(TopLevelThink::Bool(true)),
+            keep_alive: None,
+            format: None,
+            tools: None,
+            tool_choice: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(json.contains("\"think\":true"), "{}", json);
+
+        let req2 = ChatRequest {
+            model: "gpt-oss".into(),
+            messages: vec![ChatMessage::user("hello")],
+            stream: None,
+            options: None,
+            think: Some(TopLevelThink::Level("low".into())),
+            keep_alive: None,
+            format: None,
+            tools: None,
+            tool_choice: None,
+        };
+        let json2 = serde_json::to_string(&req2).unwrap();
+        assert!(json2.contains("\"think\":\"low\""), "{}", json2);
+    }
+
+    #[test]
+    fn test_top_level_think_skips_none() {
+        let req = ChatRequest {
+            model: "gemma3".into(),
+            messages: vec![ChatMessage::user("hello")],
+            stream: None,
+            options: Some(OllamaOptions::default()),
+            think: None,
+            keep_alive: None,
+            format: None,
+            tools: None,
+            tool_choice: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(!json.contains("\"think\""));
+    }
+
+    #[test]
+    fn test_chat_message_thinking_field() {
+        let msg = ChatMessage::system("You are a helpful assistant.");
+        assert!(msg.thinking.is_none());
+        let json = serde_json::to_string(&msg).unwrap();
+        assert!(!json.contains("thinking"));
+    }
+
     fn test_role_serialization() {
         let msg = ChatMessage::system("test");
         let json = serde_json::to_string(&msg).unwrap();
@@ -802,6 +942,7 @@ mod tests {
             messages: vec![ChatMessage::user("hello")],
             stream: Some(false),
             options: Some(OllamaOptions::default()),
+            think: None,
             keep_alive: Some("5m".to_string()),
             format: None,
             tools: None,
@@ -825,6 +966,7 @@ mod tests {
             messages: vec![],
             stream: None,
             options: Some(options),
+            think: None,
             keep_alive: None,
             format: None,
             tools: None,
@@ -872,8 +1014,7 @@ mod tests {
 
     #[test]
     fn test_auto_context() {
-        let opts = OllamaOptions::default()
-            .with_auto_context("Short system", "Short user", 0.5);
+        let opts = OllamaOptions::default().with_auto_context("Short system", "Short user", 0.5);
         assert!(opts.num_ctx.unwrap() >= 2048);
     }
 

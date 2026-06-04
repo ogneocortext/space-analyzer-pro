@@ -1,5 +1,5 @@
-use super::*;
 use super::super::gui_common::ScanResult;
+use super::*;
 
 impl super::Database {
     /// Save a scan result to history
@@ -75,7 +75,8 @@ impl super::Database {
     /// Delete a scan record by ID (also removes associated embeddings)
     pub fn delete_scan(&self, id: i64) -> rusqlite::Result<usize> {
         self.delete_scan_embeddings(id)?;
-        self.conn.execute("DELETE FROM scan_history WHERE id = ?1", params![id])
+        self.conn
+            .execute("DELETE FROM scan_history WHERE id = ?1", params![id])
     }
 
     /// Clear all scan history (also removes associated embeddings)

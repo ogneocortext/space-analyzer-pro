@@ -66,7 +66,7 @@ impl FilePatternClassifier {
             rule.patterns.contains(&extension.to_lowercase())
                 && rule
                     .size_threshold
-                    .map_or(true, |threshold| size >= threshold)
+                    .is_none_or(|threshold| size >= threshold)
         })
     }
 }
@@ -80,6 +80,12 @@ impl Default for FilePatternClassifier {
 /// Built-in recommendation engine
 pub struct RecommendationEngine {
     _classifier: FilePatternClassifier,
+}
+
+impl Default for RecommendationEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RecommendationEngine {
@@ -107,11 +113,9 @@ impl RecommendationEngine {
         for (ext, count) in file_types {
             let ext_lower = ext.to_lowercase();
             match ext_lower.as_str() {
-                "log" | "tmp" | "cache" => {
-                    if *count > 100 {
-                        recommendations
-                            .push(format!("Found {} {} files - consider cleanup", count, ext));
-                    }
+                "log" | "tmp" | "cache" if *count > 100 => {
+                    recommendations
+                        .push(format!("Found {} {} files - consider cleanup", count, ext));
                 }
                 "dll" | "sys" => {
                     recommendations.push(

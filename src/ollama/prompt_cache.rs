@@ -97,7 +97,8 @@ impl ModelTokenBudget {
     }
 
     pub fn remaining_tokens_this_minute(&self) -> u32 {
-        self.max_tokens_per_minute.saturating_sub(self.tokens_used_this_minute)
+        self.max_tokens_per_minute
+            .saturating_sub(self.tokens_used_this_minute)
     }
 }
 
@@ -198,6 +199,7 @@ impl PromptCache {
     }
 
     /// Store response in cache
+    #[allow(clippy::too_many_arguments)]
     pub fn store(
         &mut self,
         key: String,
@@ -254,7 +256,9 @@ impl PromptCache {
     ) -> &mut ModelTokenBudget {
         self.model_budgets
             .entry(model.to_string())
-            .or_insert_with(|| ModelTokenBudget::new(model, max_tokens_per_request, max_tokens_per_minute))
+            .or_insert_with(|| {
+                ModelTokenBudget::new(model, max_tokens_per_request, max_tokens_per_minute)
+            })
     }
 
     /// Check if model can make a request within budget
@@ -345,18 +349,29 @@ impl PromptCache {
     fn evict_lru(&mut self) {
         if let Some(lru_key) = self.access_order.first().cloned() {
             if let Some(entry) = self.entries.remove(&lru_key) {
-                self.total_prompt_tokens_cached = self.total_prompt_tokens_cached.saturating_sub(entry.prompt_tokens);
-                self.total_completion_tokens_cached =
-                    self.total_completion_tokens_cached.saturating_sub(entry.completion_tokens);
+                self.total_prompt_tokens_cached = self
+                    .total_prompt_tokens_cached
+                    .saturating_sub(entry.prompt_tokens);
+                self.total_completion_tokens_cached = self
+                    .total_completion_tokens_cached
+                    .saturating_sub(entry.completion_tokens);
             }
             self.access_order.remove(0);
         }
     }
 
     fn estimated_memory_mb(&self) -> usize {
-        let total_bytes: usize = self.entries.values().map(|e| {
-            e.key.len() + e.system_prompt.len() + e.user_prompt.len() + e.response.len() + std::mem::size_of::<CacheEntry>()
-        }).sum();
+        let total_bytes: usize = self
+            .entries
+            .values()
+            .map(|e| {
+                e.key.len()
+                    + e.system_prompt.len()
+                    + e.user_prompt.len()
+                    + e.response.len()
+                    + std::mem::size_of::<CacheEntry>()
+            })
+            .sum();
         total_bytes / (1024 * 1024)
     }
 

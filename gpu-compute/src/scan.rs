@@ -8,10 +8,10 @@
 //! - Top-N largest file selection
 //! - Pattern filtering
 
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
-use serde::{Deserialize, Serialize};
-use rayon::prelude::*;
 
 /// Raw file entry collected during I/O phase
 #[derive(Debug, Clone)]
@@ -101,7 +101,8 @@ impl GpuScanProcessor {
         let mut empty_dirs = Vec::new();
 
         // Parallel extension extraction and categorization
-        let processed: Vec<_> = entries.par_iter()
+        let processed: Vec<_> = entries
+            .par_iter()
             .filter_map(|entry| {
                 if entry.is_dir {
                     return None;
@@ -124,7 +125,8 @@ impl GpuScanProcessor {
         }
 
         // Find top-N largest files (partial sort)
-        let mut largest: Vec<_> = processed.iter()
+        let mut largest: Vec<_> = processed
+            .iter()
             .map(|(path, size, ext, _)| GpuFileInfo {
                 path: path.clone(),
                 name: extract_filename(path),
@@ -174,10 +176,7 @@ impl GpuScanProcessor {
         #[cfg(feature = "cuda")]
         {
             // Separate files and directories
-            let files: Vec<_> = entries.iter()
-                .filter(|e| !e.is_dir)
-                .cloned()
-                .collect();
+            let files: Vec<_> = entries.iter().filter(|e| !e.is_dir).cloned().collect();
 
             if files.is_empty() {
                 return GpuScanResult {
@@ -233,7 +232,17 @@ impl GpuScanProcessor {
         // GPU kernel: compute size bucket histogram
         // Bucket boundaries: 0, 1KB, 10KB, 100KB, 1MB, 10MB, 100MB, 1GB
         const NUM_BUCKETS: usize = 9;
-        let bucket_names = ["0 B", "< 1 KB", "1-10 KB", "10-100 KB", "100 KB-1 MB", "1-10 MB", "10-100 MB", "100 MB-1 GB", "> 1 GB"];
+        let bucket_names = [
+            "0 B",
+            "< 1 KB",
+            "1-10 KB",
+            "10-100 KB",
+            "100 KB-1 MB",
+            "1-10 MB",
+            "10-100 MB",
+            "100 MB-1 GB",
+            "> 1 GB",
+        ];
 
         // Allocate histogram on GPU
         let mut d_histogram = vec![0u32; NUM_BUCKETS];
@@ -265,7 +274,8 @@ impl GpuScanProcessor {
         }
 
         // Find top-N largest files
-        let mut largest: Vec<GpuFileInfo> = files.iter()
+        let mut largest: Vec<GpuFileInfo> = files
+            .iter()
             .map(|f| GpuFileInfo {
                 path: f.path.clone(),
                 name: extract_filename(&f.path),
@@ -320,15 +330,25 @@ fn extract_filename(path: &str) -> String {
 }
 
 fn size_bucket(size: u64) -> String {
-    if size == 0 { "0 B".to_string() }
-    else if size < 1024 { "< 1 KB".to_string() }
-    else if size < 10 * 1024 { "1-10 KB".to_string() }
-    else if size < 100 * 1024 { "10-100 KB".to_string() }
-    else if size < 1024 * 1024 { "100 KB-1 MB".to_string() }
-    else if size < 10 * 1024 * 1024 { "1-10 MB".to_string() }
-    else if size < 100 * 1024 * 1024 { "10-100 MB".to_string() }
-    else if size < 1024 * 1024 * 1024 { "100 MB-1 GB".to_string() }
-    else { "> 1 GB".to_string() }
+    if size == 0 {
+        "0 B".to_string()
+    } else if size < 1024 {
+        "< 1 KB".to_string()
+    } else if size < 10 * 1024 {
+        "1-10 KB".to_string()
+    } else if size < 100 * 1024 {
+        "10-100 KB".to_string()
+    } else if size < 1024 * 1024 {
+        "100 KB-1 MB".to_string()
+    } else if size < 10 * 1024 * 1024 {
+        "1-10 MB".to_string()
+    } else if size < 100 * 1024 * 1024 {
+        "10-100 MB".to_string()
+    } else if size < 1024 * 1024 * 1024 {
+        "100 MB-1 GB".to_string()
+    } else {
+        "> 1 GB".to_string()
+    }
 }
 
 fn count_dir_entries(entries: &[RawFileEntry]) -> HashMap<String, u64> {
@@ -382,16 +402,15 @@ fn compute_subdirectories(entries: &[RawFileEntry]) -> Vec<DirInfo> {
     all_names.extend(dir_sizes.keys().cloned());
     all_names.extend(dir_dir_counts.keys().cloned());
 
-    let mut result: Vec<DirInfo> = all_names.into_iter()
-        .map(|name| {
-            DirInfo {
-                path: name.clone(),
-                name: name.clone(),
-                total_size: dir_sizes.get(&name).copied().unwrap_or(0),
-                file_count: dir_file_counts.get(&name).copied().unwrap_or(0),
-                dir_count: dir_dir_counts.get(&name).copied().unwrap_or(0),
-                largest_file_size: dir_largest.get(&name).copied().unwrap_or(0),
-            }
+    let mut result: Vec<DirInfo> = all_names
+        .into_iter()
+        .map(|name| DirInfo {
+            path: name.clone(),
+            name: name.clone(),
+            total_size: dir_sizes.get(&name).copied().unwrap_or(0),
+            file_count: dir_file_counts.get(&name).copied().unwrap_or(0),
+            dir_count: dir_dir_counts.get(&name).copied().unwrap_or(0),
+            largest_file_size: dir_largest.get(&name).copied().unwrap_or(0),
         })
         .collect();
 
@@ -400,7 +419,10 @@ fn compute_subdirectories(entries: &[RawFileEntry]) -> Vec<DirInfo> {
 }
 
 /// Benchmark scan post-processing performance
-pub fn benchmark_scan_processing(entries: &[RawFileEntry], iterations: usize) -> ScanBenchmarkResult {
+pub fn benchmark_scan_processing(
+    entries: &[RawFileEntry],
+    iterations: usize,
+) -> ScanBenchmarkResult {
     use std::time::Instant;
 
     let processor = GpuScanProcessor::new();
@@ -425,14 +447,22 @@ pub fn benchmark_scan_processing(entries: &[RawFileEntry], iterations: usize) ->
     }
 
     let cpu_avg = cpu_times.iter().sum::<u64>() / cpu_times.len() as u64;
-    let gpu_avg = if gpu_times.is_empty() { 0 } else { gpu_times.iter().sum::<u64>() / gpu_times.len() as u64 };
+    let gpu_avg = if gpu_times.is_empty() {
+        0
+    } else {
+        gpu_times.iter().sum::<u64>() / gpu_times.len() as u64
+    };
 
     ScanBenchmarkResult {
         entry_count: entries.len(),
         iterations,
         cpu_avg_us: cpu_avg,
         gpu_avg_us: gpu_avg,
-        speedup: if gpu_avg > 0 { cpu_avg as f64 / gpu_avg as f64 } else { 1.0 },
+        speedup: if gpu_avg > 0 {
+            cpu_avg as f64 / gpu_avg as f64
+        } else {
+            1.0
+        },
     }
 }
 

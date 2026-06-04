@@ -7,20 +7,19 @@ pub mod advanced {
     use std::os::windows::ffi::OsStrExt;
     use std::path::{Path, PathBuf};
 
-    use winapi::um::fileapi::{CreateFileW, OPEN_EXISTING, GetVolumePathNameW};
+    use winapi::um::errhandlingapi::GetLastError;
+    use winapi::um::fileapi::{CreateFileW, GetVolumePathNameW, OPEN_EXISTING};
     use winapi::um::handleapi::CloseHandle;
     use winapi::um::ioapiset::DeviceIoControl;
-    use winapi::um::winioctl::{FSCTL_QUERY_USN_JOURNAL, FSCTL_ENUM_USN_DATA};
-    use winapi::um::errhandlingapi::GetLastError;
+    use winapi::um::winioctl::{FSCTL_ENUM_USN_DATA, FSCTL_QUERY_USN_JOURNAL};
 
     // FSCTL_READ_USN_JOURNAL = 0x000900bb
     const FSCTL_READ_USN_JOURNAL: u32 = 0x000900bb;
-    use winapi::um::winnt::{
-        FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE,
-        FILE_ATTRIBUTE_DIRECTORY,
-    };
-    use std::mem;
     use crate::windows_errors::WindowsError;
+    use std::mem;
+    use winapi::um::winnt::{
+        FILE_ATTRIBUTE_DIRECTORY, FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE,
+    };
 
     // ============================================================================
     // USN JOURNAL - Incremental Change Tracking
@@ -70,7 +69,11 @@ pub mod advanced {
 
     /// Query USN Journal information for a volume
     pub fn query_usn_journal(volume_path: &Path) -> Option<USN_JOURNAL_DATA> {
-        let wide_path: Vec<u16> = volume_path.as_os_str().encode_wide().chain(Some(0)).collect();
+        let wide_path: Vec<u16> = volume_path
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect();
 
         unsafe {
             let handle: HANDLE = CreateFileW(
@@ -121,7 +124,11 @@ pub mod advanced {
         journal_id: u64,
         start_usn: i64,
     ) -> Vec<(u64, u64, i64, u32, String)> {
-        let wide_path: Vec<u16> = volume_path.as_os_str().encode_wide().chain(Some(0)).collect();
+        let wide_path: Vec<u16> = volume_path
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect();
         let mut changes = Vec::new();
 
         unsafe {
@@ -156,7 +163,7 @@ pub mod advanced {
             let result = DeviceIoControl(
                 handle,
                 FSCTL_READ_USN_JOURNAL,
-                &read_data as *const _ as *mut _,  // DeviceIoControl expects mutable even for input
+                &read_data as *const _ as *mut _, // DeviceIoControl expects mutable even for input
                 mem::size_of::<READ_USN_JOURNAL_DATA>() as u32,
                 buffer.as_mut_ptr() as *mut _,
                 buffer.len() as u32,
@@ -178,8 +185,10 @@ pub mod advanced {
                     }
 
                     // Extract filename
-                    let name_ptr = buffer.as_ptr().add(offset + rec.file_name_offset as usize) as *const u16;
-                    let name_slice = std::slice::from_raw_parts(name_ptr, rec.file_name_length as usize / 2);
+                    let name_ptr =
+                        buffer.as_ptr().add(offset + rec.file_name_offset as usize) as *const u16;
+                    let name_slice =
+                        std::slice::from_raw_parts(name_ptr, rec.file_name_length as usize / 2);
                     let filename = String::from_utf16_lossy(name_slice);
 
                     changes.push((
@@ -203,18 +212,10 @@ pub mod advanced {
     /// Check if file was created, modified, or deleted since last scan
     /// by querying USN Journal records for the given file ID
     #[allow(dead_code)]
-    pub fn has_file_changed(
-        volume_path: &Path,
-        file_id: u64,
-        since_usn: i64,
-    ) -> bool {
+    pub fn has_file_changed(volume_path: &Path, file_id: u64, since_usn: i64) -> bool {
         // Read recent USN Journal changes
         if let Some(journal) = query_usn_journal(volume_path) {
-            let changes = read_usn_journal_changes(
-                volume_path,
-                journal.usn_journal_id,
-                since_usn,
-            );
+            let changes = read_usn_journal_changes(volume_path, journal.usn_journal_id, since_usn);
 
             // Check if any change record matches this file's reference number
             for (ref_number, _parent_ref, _usn, _reason, _name) in &changes {
@@ -237,10 +238,8 @@ pub mod advanced {
 
     /// Find all paths (hard links) to a file using FindFirstFileNameW/FindNextFileNameW
     #[allow(dead_code)]
-    pub fn find_all_hard_links(
-        file_path: &Path,
-    ) -> Vec<PathBuf> {
-        use winapi::um::fileapi::{FindFirstFileNameW, FindNextFileNameW, FindClose};
+    pub fn find_all_hard_links(file_path: &Path) -> Vec<PathBuf> {
+        use winapi::um::fileapi::{FindClose, FindFirstFileNameW, FindNextFileNameW};
 
         let wide_path: Vec<u16> = file_path.as_os_str().encode_wide().chain(Some(0)).collect();
         let mut links = Vec::new();
@@ -263,16 +262,15 @@ pub mod advanced {
             }
 
             // Get the volume root for constructing full paths
-            let volume_root = get_volume_path(file_path)
-                .unwrap_or_else(|| {
-                    // Fallback: extract drive letter
-                    let path_str = file_path.to_string_lossy();
-                    if path_str.len() >= 3 && path_str.as_bytes()[1] == b':' {
-                        PathBuf::from(&path_str[..3])
-                    } else {
-                        PathBuf::from("C:\\")
-                    }
-                });
+            let volume_root = get_volume_path(file_path).unwrap_or_else(|| {
+                // Fallback: extract drive letter
+                let path_str = file_path.to_string_lossy();
+                if path_str.len() >= 3 && path_str.as_bytes()[1] == b':' {
+                    PathBuf::from(&path_str[..3])
+                } else {
+                    PathBuf::from("C:\\")
+                }
+            });
 
             loop {
                 // Parse the wide string result (it's a relative path like \dir\file.txt)
@@ -320,6 +318,12 @@ pub mod advanced {
         pub hard_link_count: u32,
     }
 
+    impl Default for MftFileInfo {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl MftFileInfo {
         #[allow(dead_code)]
         pub fn new() -> Self {
@@ -342,15 +346,15 @@ pub mod advanced {
     ///
     /// WARNING: Requires administrator privileges
     #[allow(dead_code)]
-    pub fn read_mft_direct(
-        drive_letter: char,
-        max_files: usize,
-    ) -> Vec<MftFileInfo> {
+    pub fn read_mft_direct(drive_letter: char, max_files: usize) -> Vec<MftFileInfo> {
         let mut files = Vec::new();
 
         // Build volume path (e.g., "\\.\C:")
         let volume_path = format!("\\\\.\\{}:", drive_letter);
-        let wide_path: Vec<u16> = OsStr::new(&volume_path).encode_wide().chain(Some(0)).collect();
+        let wide_path: Vec<u16> = OsStr::new(&volume_path)
+            .encode_wide()
+            .chain(Some(0))
+            .collect();
 
         unsafe {
             // Open volume with raw access (requires admin)
@@ -366,7 +370,10 @@ pub mod advanced {
 
             if handle.is_null() || handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
                 let win_err = WindowsError::new(GetLastError(), "Open volume for MFT scan");
-                eprintln!("Windows Advanced: {} - Administrator privileges may be required.", win_err.format_error());
+                eprintln!(
+                    "Windows Advanced: {} - Administrator privileges may be required.",
+                    win_err.format_error()
+                );
                 return files;
             }
 
@@ -417,12 +424,14 @@ pub mod advanced {
                     let record = buffer.as_ptr().add(offset) as *const USN_RECORD;
                     let rec = &*record;
 
-                    if rec.record_length == 0 || rec.record_length as usize > buffer.len() - offset {
+                    if rec.record_length == 0 || rec.record_length as usize > buffer.len() - offset
+                    {
                         break;
                     }
 
                     // Extract filename
-                    let name_ptr = buffer.as_ptr().add(offset + rec.file_name_offset as usize) as *const u16;
+                    let name_ptr =
+                        buffer.as_ptr().add(offset + rec.file_name_offset as usize) as *const u16;
                     let name_len = rec.file_name_length as usize / 2;
                     if name_len > 0 && name_len < 512 {
                         let name_slice = std::slice::from_raw_parts(name_ptr, name_len);

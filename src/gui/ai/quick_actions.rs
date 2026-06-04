@@ -1,10 +1,10 @@
-﻿//! Quick action functions
-//! 
+//! Quick action functions
+//!
 //! This module contains functions for handling quick actions
 //! that provide pre-defined prompts for common tasks.
 
+use super::super::{formatting, ChatMessage, OllamaChatMessage, OllamaMessage};
 use std::sync::mpsc;
-use super::super::{OllamaChatMessage, OllamaMessage, ChatMessage, formatting};
 
 use super::super::SpaceAnalyzerApp;
 
@@ -13,11 +13,12 @@ impl SpaceAnalyzerApp {
         if self.chat_processing || self.ollama_client.is_none() {
             return;
         }
-        
+
         // Display the quick action in chat
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
             content: format!("[Quick Action: {}]", action_type),
+            thinking: None,
             tool_result: None,
         });
 
@@ -27,7 +28,7 @@ impl SpaceAnalyzerApp {
 
         // Build user message content
         let user_content = if let Some(ref result) = self.scan_result {
-let scan_summary = format!(
+            let scan_summary = format!(
                 "Scan of: {}\nTotal files: {}\nTotal size: {:.2} MB\nDuration: {:.2}s\n\nFile types:\n{}\n\nLargest files:\n{}",
                 result.path,
                 result.total_files,
@@ -49,34 +50,47 @@ let scan_summary = format!(
             self.settings.ollama_model.clone()
         };
         let tools = if use_tools {
-            self.tool_registry.as_ref().map(|tr| tr.get_definitions().to_vec())
+            self.tool_registry
+                .as_ref()
+                .map(|tr| tr.get_definitions().to_vec())
         } else {
             None
         };
         let tool_choice = self.settings.tool_choice.clone();
 
         // Build messages with the specialized system prompt
-        let mut messages = vec![
-            super::super::ollama::ChatMessage::system(system_prompt),
-        ];
-        messages.push(super::super::ollama::ChatMessage::user(user_content.clone()));
+        let mut messages = vec![super::super::ollama::ChatMessage::system(system_prompt)];
+        messages.push(super::super::ollama::ChatMessage::user(
+            user_content.clone(),
+        ));
 
         // Add to conversation history
-        self.conversation_history.push(OllamaChatMessage::user(&user_content));
+        self.conversation_history
+            .push(OllamaChatMessage::user(&user_content));
 
         // Check prompt cache (only when not using tools - tool results are dynamic)
         if tools.is_none() {
-            let cache_key = super::super::ollama::PromptCache::generate_key(&model_name, system_prompt, &user_content);
+            let cache_key = super::super::ollama::PromptCache::generate_key(
+                &model_name,
+                system_prompt,
+                &user_content,
+            );
             if let Some(cached) = self.prompt_cache.lookup(&cache_key, &model_name) {
                 self.chat_messages.push(ChatMessage {
                     role: "assistant".to_string(),
                     content: cached.response.clone(),
+                    thinking: None,
                     tool_result: None,
                 });
-                self.conversation_history.push(OllamaChatMessage::assistant(&cached.response));
+                self.conversation_history
+                    .push(OllamaChatMessage::assistant(&cached.response));
                 self.chat_messages.push(ChatMessage {
                     role: "system".to_string(),
-                    content: format!("[Cache hit] Response retrieved from prompt cache ({} tokens saved).", cached.total_tokens()),
+                    content: format!(
+                        "[Cache hit] Response retrieved from prompt cache ({} tokens saved).",
+                        cached.total_tokens()
+                    ),
+                    thinking: None,
                     tool_result: None,
                 });
                 self.chat_processing = false;
@@ -87,11 +101,18 @@ let scan_summary = format!(
         self.chat_processing = true;
 
         let client = self.ollama_client.clone().and_then(|c| {
-            if use_tools {
+            let base = if use_tools {
                 c.with_model(&self.settings.tool_calling_model).ok()
             } else {
                 Some(c)
-            }
+            };
+            base.map(|bc| {
+                if self.settings.ollama_think {
+                    bc.with_think(Some(crate::ollama::TopLevelThink::Bool(true)))
+                } else {
+                    bc.with_think(Some(crate::ollama::TopLevelThink::Bool(false)))
+                }
+            })
         });
         if let Some(client) = client {
             let (tx, rx) = mpsc::channel();
@@ -104,15 +125,20 @@ let scan_summary = format!(
                 let rt = super::super::shared_runtime();
 
                 let response = rt.block_on(async {
-                    client.chat_with_tools(messages, tools, Some(tool_choice)).await
+                    client
+                        .chat_with_tools(messages, tools, Some(tool_choice))
+                        .await
                 });
 
                 match response {
-                    Ok((content, tool_calls, usage)) => {
-                        // Store in cache (only if no tool calls - tool results are dynamic)
+                    Ok((content, thinking, tool_calls, usage)) => {
+                        // Store in cache (only if no tool calls - tool responses are dynamic)
                         if tool_calls.is_none() {
                             let _ = prompt_cache_tx.send(OllamaMessage::CacheStore {
-                                key: format!("qa_{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)),
+                                key: format!(
+                                    "qa_{}",
+                                    chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+                                ),
                                 system_prompt: system_prompt_clone,
                                 user_prompt: user_content_clone,
                                 response: content.clone(),
@@ -129,7 +155,7 @@ let scan_summary = format!(
                                 ));
                             }
                         }
-                        let _ = tx.send(OllamaMessage::ChatReply(content));
+                        let _ = tx.send(OllamaMessage::ChatReply { content, thinking });
                         let _ = tx.send(OllamaMessage::TokenUsage {
                             prompt_tokens: usage.prompt_tokens,
                             completion_tokens: usage.completion_tokens,
@@ -146,6 +172,7 @@ let scan_summary = format!(
             self.chat_messages.push(ChatMessage {
                 role: "assistant".to_string(),
                 content: "Failed to initialize Ollama client for quick action.".to_string(),
+                thinking: None,
                 tool_result: None,
             });
             self.chat_processing = false;

@@ -1,11 +1,11 @@
 //! Common GUI types and utilities for Space Analyzer Pro
-//! 
+//!
 //! Uses the shared-scanner crate for all scanning operations.
 
 use clap::Parser;
-use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 use shared_scanner::{FileScanner, ScanOptions};
+use std::collections::HashMap;
 
 /// Common command-line interface for GUI applications
 #[derive(Parser)]
@@ -31,6 +31,12 @@ pub struct ScanResult {
     pub path: String,
 }
 
+impl Default for ScanResult {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScanResult {
     pub fn new() -> Self {
         Self {
@@ -45,7 +51,11 @@ impl ScanResult {
     }
 
     /// Convert from shared-scanner ScanResult
-    pub fn from_shared(result: &shared_scanner::ScanResult, path: String, duration_secs: f64) -> Self {
+    pub fn from_shared(
+        result: &shared_scanner::ScanResult,
+        path: String,
+        duration_secs: f64,
+    ) -> Self {
         let mut scan_result = Self::new();
         scan_result.total_files = result.total_files as usize;
         scan_result.total_size_bytes = result.total_size;
@@ -58,7 +68,9 @@ impl ScanResult {
         }
 
         for file in &result.largest_files {
-            scan_result.largest_files.push((file.path.clone(), file.size));
+            scan_result
+                .largest_files
+                .push((file.path.clone(), file.size));
         }
 
         scan_result
@@ -67,10 +79,7 @@ impl ScanResult {
 
 /// Common scanning function used by GUI implementations
 #[allow(dead_code)]
-pub fn scan_directory(
-    path: &std::path::Path,
-    deep: bool,
-) -> Result<ScanResult, String> {
+pub fn scan_directory(path: &std::path::Path, deep: bool) -> Result<ScanResult, String> {
     let start_time = std::time::Instant::now();
 
     if !path.exists() {
@@ -84,13 +93,16 @@ pub fn scan_directory(
     };
 
     let scanner = FileScanner::new();
-    let app_result = scanner.scan_directory_sync(
-        path.to_str().unwrap_or("."),
-        options,
-    ).map_err(|e| e.to_string())?;
+    let app_result = scanner
+        .scan_directory_sync(path.to_str().unwrap_or("."), options)
+        .map_err(|e| e.to_string())?;
 
     let duration = start_time.elapsed().as_secs_f64();
-    Ok(ScanResult::from_shared(&app_result, path.to_string_lossy().to_string(), duration))
+    Ok(ScanResult::from_shared(
+        &app_result,
+        path.to_string_lossy().to_string(),
+        duration,
+    ))
 }
 
 /// Common formatting utilities

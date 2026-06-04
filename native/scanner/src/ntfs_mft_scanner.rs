@@ -3,19 +3,19 @@
 //! Provides ultra-fast scanning by directly reading the NTFS Master File Table
 //! Achieves up to 46x faster scanning compared to traditional file system traversal
 
+use crate::windows_errors::{WindowsError, ERROR_HANDLE_EOF};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::mem;
 use std::path::PathBuf;
 use std::ptr;
-use winapi::um::fileapi::{CreateFileW, SetFilePointerEx, ReadFile, OPEN_EXISTING};
-use winapi::um::handleapi::{INVALID_HANDLE_VALUE, CloseHandle};
-use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE, LARGE_INTEGER};
-use winapi::um::errhandlingapi::GetLastError;
 use winapi::shared::minwindef::{DWORD, LPVOID};
-use serde::{Deserialize, Serialize};
-use crate::windows_errors::{WindowsError, ERROR_HANDLE_EOF};
+use winapi::um::errhandlingapi::GetLastError;
+use winapi::um::fileapi::{CreateFileW, ReadFile, SetFilePointerEx, OPEN_EXISTING};
+use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
+use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE, LARGE_INTEGER};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MftEntry {
@@ -51,6 +51,12 @@ pub struct NtfsMftScanner {
 }
 
 #[allow(dead_code)]
+impl Default for NtfsMftScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NtfsMftScanner {
     pub fn new() -> Self {
         Self {
@@ -64,7 +70,10 @@ impl NtfsMftScanner {
     /// Initialize scanner for a specific volume
     pub fn initialize_volume(&mut self, volume_path: &str) -> Result<(), String> {
         // Convert path to wide string for Windows API
-        let wide_path: Vec<u16> = volume_path.encode_utf16().chain(std::iter::once(0)).collect();
+        let wide_path: Vec<u16> = volume_path
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .collect();
 
         // Open volume handle with admin privileges required
         let handle = unsafe {
@@ -80,10 +89,14 @@ impl NtfsMftScanner {
         };
 
         if handle == INVALID_HANDLE_VALUE {
-            let win_err = WindowsError::new(unsafe { GetLastError() }, "Open volume")
-                .with_path(&volume_path);
+            let win_err =
+                WindowsError::new(unsafe { GetLastError() }, "Open volume").with_path(volume_path);
             eprintln!("MFT Scanner: {}", win_err.format_error());
-            return Err(format!("{} (Suggestion: {})", win_err.format_error(), win_err.suggestion()));
+            return Err(format!(
+                "{} (Suggestion: {})",
+                win_err.format_error(),
+                win_err.suggestion()
+            ));
         }
 
         self.volume_handle = Some(handle);
@@ -117,13 +130,22 @@ impl NtfsMftScanner {
 
         // MFT start LCN (Logical Cluster Number) at offset 0x30
         let mft_start_lcn = u64::from_le_bytes([
-            boot_sector[0x30], boot_sector[0x31], boot_sector[0x32], boot_sector[0x33],
-            boot_sector[0x34], boot_sector[0x35], boot_sector[0x36], boot_sector[0x37],
+            boot_sector[0x30],
+            boot_sector[0x31],
+            boot_sector[0x32],
+            boot_sector[0x33],
+            boot_sector[0x34],
+            boot_sector[0x35],
+            boot_sector[0x36],
+            boot_sector[0x37],
         ]);
 
         // Volume serial number at offset 0x43
         let volume_serial = u32::from_le_bytes([
-            boot_sector[0x43], boot_sector[0x44], boot_sector[0x45], boot_sector[0x46],
+            boot_sector[0x43],
+            boot_sector[0x44],
+            boot_sector[0x45],
+            boot_sector[0x46],
         ]);
 
         Ok(NtfsVolumeInfo {
@@ -166,25 +188,31 @@ impl NtfsMftScanner {
                     large_offset,
                     ptr::null_mut(),
                     0, // FILE_BEGIN
-                ) != 0 && ReadFile(
-                    handle,
-                    chunk.as_mut_ptr() as LPVOID,
-                    chunk_size as DWORD,
-                    &mut bytes_read_this_chunk,
-                    ptr::null_mut(),
                 ) != 0
+                    && ReadFile(
+                        handle,
+                        chunk.as_mut_ptr() as LPVOID,
+                        chunk_size as DWORD,
+                        &mut bytes_read_this_chunk,
+                        ptr::null_mut(),
+                    ) != 0
             };
 
             if !success {
                 let error = unsafe { GetLastError() };
                 if error != ERROR_HANDLE_EOF {
-                    let volume_path = self.volume_info.as_ref()
+                    let volume_path = self
+                        .volume_info
+                        .as_ref()
                         .map(|info| info.volume_path.clone())
                         .unwrap_or_else(|| "Unknown".to_string());
-                    let win_err = WindowsError::new(error, "Read MFT")
-                        .with_path(&volume_path);
+                    let win_err = WindowsError::new(error, "Read MFT").with_path(&volume_path);
                     eprintln!("MFT Scanner: {}", win_err.format_error());
-                    return Err(format!("{} (Suggestion: {})", win_err.format_error(), win_err.suggestion()));
+                    return Err(format!(
+                        "{} (Suggestion: {})",
+                        win_err.format_error(),
+                        win_err.suggestion()
+                    ));
                 }
                 break;
             }
@@ -193,7 +221,8 @@ impl NtfsMftScanner {
                 break; // End of file
             }
 
-            self.mft_data.extend_from_slice(&chunk[..bytes_read_this_chunk as usize]);
+            self.mft_data
+                .extend_from_slice(&chunk[..bytes_read_this_chunk as usize]);
             bytes_read += bytes_read_this_chunk as u64;
             offset += chunk_size as u64;
 
@@ -242,7 +271,8 @@ impl NtfsMftScanner {
         // Cache entries for path resolution
         self.cached_entries.clear();
         for entry in &entries {
-            self.cached_entries.insert(entry.file_reference, entry.clone());
+            self.cached_entries
+                .insert(entry.file_reference, entry.clone());
         }
 
         // Resolve all paths
@@ -253,7 +283,11 @@ impl NtfsMftScanner {
 
     /// Resolve full paths for all entries using parent references
     fn resolve_all_paths(&self, entries: &mut Vec<MftEntry>) {
-        let volume_path = self.volume_info.as_ref().map(|v| v.volume_path.clone()).unwrap_or_else(|| "C:".to_string());
+        let volume_path = self
+            .volume_info
+            .as_ref()
+            .map(|v| v.volume_path.clone())
+            .unwrap_or_else(|| "C:".to_string());
         let drive_root = format!("{}\\", volume_path.trim_end_matches('\\'));
 
         for entry in entries {
@@ -301,37 +335,68 @@ impl NtfsMftScanner {
     }
 
     /// Parse a single MFT entry
-    fn parse_mft_entry(&self, entry_data: &[u8], _volume_info: &NtfsVolumeInfo) -> Option<MftEntry> {
+    fn parse_mft_entry(
+        &self,
+        entry_data: &[u8],
+        _volume_info: &NtfsVolumeInfo,
+    ) -> Option<MftEntry> {
         if entry_data.len() < 1024 {
             return None;
         }
 
         // Extract file reference number
         let file_reference = u64::from_le_bytes([
-            entry_data[0x10], entry_data[0x11], entry_data[0x12], entry_data[0x13],
-            entry_data[0x14], entry_data[0x15], entry_data[0x16], entry_data[0x17],
+            entry_data[0x10],
+            entry_data[0x11],
+            entry_data[0x12],
+            entry_data[0x13],
+            entry_data[0x14],
+            entry_data[0x15],
+            entry_data[0x16],
+            entry_data[0x17],
         ]);
 
         // Extract parent reference
         let parent_reference = u64::from_le_bytes([
-            entry_data[0x20], entry_data[0x21], entry_data[0x22], entry_data[0x23],
-            entry_data[0x24], entry_data[0x25], entry_data[0x26], entry_data[0x27],
+            entry_data[0x20],
+            entry_data[0x21],
+            entry_data[0x22],
+            entry_data[0x23],
+            entry_data[0x24],
+            entry_data[0x25],
+            entry_data[0x26],
+            entry_data[0x27],
         ]);
 
         // Extract timestamps (FILETIME format)
         let creation_time = u64::from_le_bytes([
-            entry_data[0x18], entry_data[0x19], entry_data[0x1A], entry_data[0x1B],
-            entry_data[0x1C], entry_data[0x1D], entry_data[0x1E], entry_data[0x1F],
+            entry_data[0x18],
+            entry_data[0x19],
+            entry_data[0x1A],
+            entry_data[0x1B],
+            entry_data[0x1C],
+            entry_data[0x1D],
+            entry_data[0x1E],
+            entry_data[0x1F],
         ]);
 
         let modification_time = u64::from_le_bytes([
-            entry_data[0x28], entry_data[0x29], entry_data[0x2A], entry_data[0x2B],
-            entry_data[0x2C], entry_data[0x2D], entry_data[0x2E], entry_data[0x2F],
+            entry_data[0x28],
+            entry_data[0x29],
+            entry_data[0x2A],
+            entry_data[0x2B],
+            entry_data[0x2C],
+            entry_data[0x2D],
+            entry_data[0x2E],
+            entry_data[0x2F],
         ]);
 
         // Extract file attributes
         let attributes = u32::from_le_bytes([
-            entry_data[0x38], entry_data[0x39], entry_data[0x3A], entry_data[0x3B],
+            entry_data[0x38],
+            entry_data[0x39],
+            entry_data[0x3A],
+            entry_data[0x3B],
         ]);
 
         // Parse attribute list to find $FILE_NAME and $DATA attributes
@@ -375,18 +440,23 @@ impl NtfsMftScanner {
 
             // Attribute type (4 bytes)
             let attr_type = u32::from_le_bytes([
-                entry_data[offset], entry_data[offset + 1],
-                entry_data[offset + 2], entry_data[offset + 3]
+                entry_data[offset],
+                entry_data[offset + 1],
+                entry_data[offset + 2],
+                entry_data[offset + 3],
             ]);
 
-            if attr_type == 0xFFFFFFFF { // End of attributes
+            if attr_type == 0xFFFFFFFF {
+                // End of attributes
                 break;
             }
 
             // Attribute length (4 bytes)
             let attr_length = u32::from_le_bytes([
-                entry_data[offset + 4], entry_data[offset + 5],
-                entry_data[offset + 6], entry_data[offset + 7]
+                entry_data[offset + 4],
+                entry_data[offset + 5],
+                entry_data[offset + 6],
+                entry_data[offset + 7],
             ]);
 
             if attr_length == 0 || offset + attr_length as usize > entry_size {
@@ -394,14 +464,20 @@ impl NtfsMftScanner {
             }
 
             match attr_type {
-                0x30 => { // $FILE_NAME attribute
-                    if let Some((name, dir)) = self.parse_file_name_attribute(&entry_data[offset..offset + attr_length as usize]) {
+                0x30 => {
+                    // $FILE_NAME attribute
+                    if let Some((name, dir)) = self.parse_file_name_attribute(
+                        &entry_data[offset..offset + attr_length as usize],
+                    ) {
                         file_name = name;
                         is_directory = dir;
                     }
                 }
-                0x80 => { // $DATA attribute
-                    if let Some(size) = self.parse_data_attribute(&entry_data[offset..offset + attr_length as usize]) {
+                0x80 => {
+                    // $DATA attribute
+                    if let Some(size) = self
+                        .parse_data_attribute(&entry_data[offset..offset + attr_length as usize])
+                    {
                         file_size = size;
                     }
                 }
@@ -471,8 +547,14 @@ impl NtfsMftScanner {
             // For non-resident data, the size is at offset 48
             if attr_data.len() >= 56 {
                 let size = u64::from_le_bytes([
-                    attr_data[48], attr_data[49], attr_data[50], attr_data[51],
-                    attr_data[52], attr_data[53], attr_data[54], attr_data[55],
+                    attr_data[48],
+                    attr_data[49],
+                    attr_data[50],
+                    attr_data[51],
+                    attr_data[52],
+                    attr_data[53],
+                    attr_data[54],
+                    attr_data[55],
                 ]);
                 Some(size)
             } else {
@@ -480,9 +562,9 @@ impl NtfsMftScanner {
             }
         } else {
             // For resident data, the size is at offset 16
-            let size = u32::from_le_bytes([
-                attr_data[16], attr_data[17], attr_data[18], attr_data[19]
-            ]) as u64;
+            let size =
+                u32::from_le_bytes([attr_data[16], attr_data[17], attr_data[18], attr_data[19]])
+                    as u64;
             Some(size)
         }
     }
@@ -499,10 +581,10 @@ impl NtfsMftScanner {
 
     /// Check if running with admin privileges (required for MFT access)
     pub fn check_admin_privileges() -> bool {
+        use winapi::um::handleapi::CloseHandle;
         use winapi::um::processthreadsapi::{GetCurrentProcess, OpenProcessToken};
         use winapi::um::securitybaseapi::GetTokenInformation;
-        use winapi::um::winnt::{TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY, HANDLE};
-        use winapi::um::handleapi::CloseHandle;
+        use winapi::um::winnt::{TokenElevation, HANDLE, TOKEN_ELEVATION, TOKEN_QUERY};
 
         unsafe {
             let mut token_handle: HANDLE = ptr::null_mut();
@@ -533,12 +615,21 @@ impl NtfsMftScanner {
     pub fn get_performance_metrics(&self) -> HashMap<String, String> {
         let mut metrics = HashMap::new();
 
-        metrics.insert("entries_cached".to_string(), self.cached_entries.len().to_string());
-        metrics.insert("mft_size_bytes".to_string(), self.mft_data.len().to_string());
+        metrics.insert(
+            "entries_cached".to_string(),
+            self.cached_entries.len().to_string(),
+        );
+        metrics.insert(
+            "mft_size_bytes".to_string(),
+            self.mft_data.len().to_string(),
+        );
 
         if let Some(ref info) = self.volume_info {
             metrics.insert("volume_path".to_string(), info.volume_path.clone());
-            metrics.insert("bytes_per_cluster".to_string(), info.bytes_per_cluster.to_string());
+            metrics.insert(
+                "bytes_per_cluster".to_string(),
+                info.bytes_per_cluster.to_string(),
+            );
             metrics.insert("mft_start_lcn".to_string(), info.mft_start_lcn.to_string());
         }
 
@@ -548,9 +639,9 @@ impl NtfsMftScanner {
     /// Get current USN Journal ID for this volume
     pub fn get_journal_id(&self) -> Option<u64> {
         if let Some(ref info) = self.volume_info {
-             use std::path::Path;
-             crate::windows_advanced::advanced::query_usn_journal(Path::new(&info.volume_path))
-                 .map(|j| j.usn_journal_id)
+            use std::path::Path;
+            crate::windows_advanced::advanced::query_usn_journal(Path::new(&info.volume_path))
+                .map(|j| j.usn_journal_id)
         } else {
             None
         }
@@ -559,9 +650,9 @@ impl NtfsMftScanner {
     /// Get last USN from the journal
     pub fn get_last_usn(&self) -> Option<i64> {
         if let Some(ref info) = self.volume_info {
-             use std::path::Path;
-             crate::windows_advanced::advanced::query_usn_journal(Path::new(&info.volume_path))
-                 .map(|j| j.next_usn)
+            use std::path::Path;
+            crate::windows_advanced::advanced::query_usn_journal(Path::new(&info.volume_path))
+                .map(|j| j.next_usn)
         } else {
             None
         }
@@ -670,7 +761,10 @@ mod tests {
     fn test_scan_time_estimation() {
         let mft_size = 100 * 1024 * 1024; // 100MB
         let estimated_time = utils::estimate_scan_time(mft_size);
-        println!("Estimated scan time for 100MB MFT: {:.3} seconds", estimated_time);
+        println!(
+            "Estimated scan time for 100MB MFT: {:.3} seconds",
+            estimated_time
+        );
 
         // Should be very fast due to MFT direct reading
         assert!(estimated_time < 1.0);
@@ -685,7 +779,7 @@ pub mod napi_exports {
     use super::*;
 
     #[allow(dead_code)]
-pub fn create_mft_scanner() -> NtfsMftScanner {
+    pub fn create_mft_scanner() -> NtfsMftScanner {
         NtfsMftScanner::new()
     }
 

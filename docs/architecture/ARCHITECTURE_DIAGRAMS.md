@@ -25,11 +25,6 @@ graph TB
         ds["design-screenshot<br/>bin"]
     end
 
-    subgraph python["Python AI Services"]
-        ai_svc["ai-service/<br/>FastAPI + ML"]
-        py_ai["server/python-ai-service/<br/>Flask + Ollama"]
-    end
-
     root --> ss
     root --> gc
     root --> fd

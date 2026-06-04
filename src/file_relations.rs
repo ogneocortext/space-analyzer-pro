@@ -111,7 +111,7 @@ pub fn analyze_file_dependencies(path: &str) -> DependencyReport {
     let symlink_meta = fs::symlink_metadata(&target_path).ok();
     report.target_size = metadata.len();
     report.target_modified = format_modified(&metadata);
-    report.is_symlink = symlink_meta.map_or(false, |m| m.file_type().is_symlink());
+    report.is_symlink = symlink_meta.is_some_and(|m| m.file_type().is_symlink());
 
     if report.is_symlink {
         if let Ok(target) = fs::read_link(&target_path) {
@@ -168,7 +168,7 @@ pub fn analyze_file_dependencies(path: &str) -> DependencyReport {
                 .modified()
                 .ok()
                 .zip(metadata.modified().ok())
-                .map_or(false, |(a, b)| a == b)
+                .is_some_and(|(a, b)| a == b)
         {
             report.hardlink_count += 1;
             report.sibling_files.push(RelatedFile {
@@ -203,7 +203,7 @@ pub fn analyze_file_dependencies(path: &str) -> DependencyReport {
         }
 
         // --- Symlink source check (only if entry itself is a symlink) ---
-        if let Ok(sym_meta) = fs::symlink_metadata(&entry_path) {
+        if let Ok(sym_meta) = fs::symlink_metadata(entry_path) {
             if sym_meta.file_type().is_symlink() {
                 if let Ok(link_target) = fs::read_link(entry_path) {
                     let abs_target = if link_target.is_absolute() {
@@ -218,7 +218,7 @@ pub fn analyze_file_dependencies(path: &str) -> DependencyReport {
                         .canonicalize()
                         .ok()
                         .zip(target_path.canonicalize().ok())
-                        .map_or(false, |(a, b)| a == b)
+                        .is_some_and(|(a, b)| a == b)
                     {
                         report.symlink_sources.push(RelatedFile {
                             path: entry_path_str.clone(),
