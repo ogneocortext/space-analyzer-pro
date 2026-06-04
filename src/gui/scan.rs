@@ -173,14 +173,205 @@ impl SpaceAnalyzerApp {
         }
     }
 
+    pub(crate) fn render_scan(&mut self, ui: &mut egui::Ui) {
+        // ── Path Selector Card ────────────────────────────────────────
+        section_heading(ui, Some('📁'), "Scan Directory");
+        card_frame(ui.style()).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("Directory:").color(colors::TEXT_SECONDARY));
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.settings.default_scan_path)
+                        .desired_width(ui.available_width() - 120.0)
+                        .hint_text("Select a directory to scan..."),
+                );
+                if ui.button("Browse...").clicked() {
+                    if let Some(path) = rfd::FileDialog::new().pick_folder() {
+                        self.current_path = path.clone();
+                        self.settings.default_scan_path =
+                            self.current_path.to_string_lossy().to_string();
+                        self.save_settings();
+                    }
+                }
+            });
+        });
+
+        // ── Scan Controls Card ────────────────────────────────────────
+        section_heading(ui, None, "Controls");
+        card_frame(ui.style()).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.settings.default_deep_scan, "Deep Scan");
+
+                let scan_text = if self.is_scanning {
+                    "⏳ Scanning..."
+                } else {
+                    "🔍 Start Scan"
+                };
+                let scan_btn =
+                    egui::Button::new(egui::RichText::new(scan_text).size(13.0).strong())
+                        .min_size(egui::vec2(130.0, 32.0))
+                        .fill(if self.is_scanning {
+                            colors::TEXT_MUTED
+                        } else {
+                            colors::ACCENT
+                        });
+
+                if ui.add_enabled(!self.is_scanning, scan_btn).clicked() {
+                    self.start_scan();
+                }
+
+                let stop_btn = egui::Button::new(egui::RichText::new("■  Stop").size(13.0))
+                    .min_size(egui::vec2(80.0, 32.0))
+                    .fill(colors::ERROR);
+
+                if ui.add_enabled(self.is_scanning, stop_btn).clicked() {
+                    self.stop_scan();
+                }
+
+                let export_btn = egui::Button::new(egui::RichText::new("Export").size(13.0))
+                    .min_size(egui::vec2(90.0, 32.0));
+
+                if ui
+                    .add_enabled(self.scan_result.is_some(), export_btn)
+                    .clicked()
+                {
+                    self.export_results();
+                }
+            });
+        });
+
+        // ── Progress Card ─────────────────────────────────────────────
+        if self.is_scanning {
+            section_heading(ui, Some('⏳'), "Scanning...");
+            card_frame(ui.style()).show(ui, |ui| {
+                ui.add(
+                    egui::ProgressBar::new(self.scan_progress / 100.0)
+                        .text(format!("{:.0}%", self.scan_progress))
+                        .fill(colors::ACCENT),
+                );
+                ui.add_space(4.0);
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "⏱ {:.1}s",
+                            self.scan_performance.elapsed_secs()
+                        ))
+                        .size(11.0)
+                        .color(colors::TEXT_SECONDARY),
+                    );
+                    if self.scan_performance.files_per_sec > 0.0 {
+                        ui.separator();
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "📁 {:.0} files/sec",
+                                self.scan_performance.files_per_sec
+                            ))
+                            .size(11.0)
+                            .color(colors::TEXT_SECONDARY),
+                        );
+                    }
+                    if self.scan_performance.mb_per_sec > 0.0 {
+                        ui.separator();
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "💾 {:.1} MB/s",
+                                self.scan_performance.mb_per_sec
+                            ))
+                            .size(11.0)
+                            .color(colors::TEXT_SECONDARY),
+                        );
+                    }
+                    if self.scan_performance.current_files > 0 {
+                        ui.separator();
+                        ui.label(
+                            egui::RichText::new(format!(
+                                "📄 {} files",
+                                self.scan_performance.current_files
+                            ))
+                            .size(11.0)
+                            .color(colors::TEXT_SECONDARY),
+                        );
+                    }
+                });
+            });
+        }
+
+        // ── Scan Results ──────────────────────────────────────────────
+        if let Some(ref result) = self.scan_result {
+            section_heading(ui, Some('📊'), "Scan Results");
+
+            // Stats row
+            ui.horizontal(|ui| {
+                stat_card(
+                    ui,
+                    "Files",
+                    &format!("{}", result.total_files),
+                    colors::ACCENT,
+                );
+                stat_card(
+                    ui,
+                    "Size",
+                    &formatting::format_bytes(result.total_size_bytes),
+                    colors::SUCCESS,
+                );
+                stat_card(
+                    ui,
+                    "Duration",
+                    &format!("{:.1}s", result.duration_secs),
+                    colors::INFO,
+                );
+                if result.duration_secs > 0.0 {
+                    stat_card(
+                        ui,
+                        "Speed",
+                        &format!("{:.0}/s", result.total_files as f64 / result.duration_secs),
+                        colors::ACCENT,
+                    );
+                }
+            });
+
+            // Visual Analysis
+            section_heading(ui, Some('📊'), "File Distribution");
+            card_frame(ui.style()).show(ui, |ui| {
+                self.show_visual_analysis(ui, result);
+            });
+
+            // File Types
+            section_heading(ui, Some('📄'), "File Types");
+            card_frame(ui.style()).show(ui, |ui| {
+                egui::ScrollArea::vertical()
+                    .max_height(200.0)
+                    .show(ui, |ui| {
+                        self.show_file_types(ui, result);
+                    });
+            });
+
+            // Largest Files
+            section_heading(ui, Some('📦'), "Largest Files");
+            card_frame(ui.style()).show(ui, |ui| {
+                egui::ScrollArea::vertical()
+                    .max_height(250.0)
+                    .show(ui, |ui| {
+                        self.show_largest_files(ui, result);
+                    });
+            });
+        }
+    }
+
     fn show_visual_analysis(&self, ui: &mut egui::Ui, result: &ScanResult) {
-        ui.label("File distribution:");
         if result.total_files == 0 {
-            ui.label("No files found.");
+            ui.label(
+                egui::RichText::new("No files found")
+                    .italics()
+                    .color(colors::TEXT_MUTED),
+            );
             return;
         }
         if result.file_types.is_empty() {
-            ui.label("No file type data available.");
+            ui.label(
+                egui::RichText::new("No file type data available")
+                    .italics()
+                    .color(colors::TEXT_MUTED),
+            );
             return;
         }
         let total_files = result.total_files as f64;
@@ -189,30 +380,59 @@ impl SpaceAnalyzerApp {
         for (ext, count) in sorted_types.iter().take(10) {
             let count_val = **count;
             let percentage = (count_val as f64 / total_files) * 100.0;
-            let bar_length = (percentage / 100.0 * 30.0).max(1.0) as usize;
-            let bar = "\u{2588}".repeat(bar_length);
-            ui.monospace(format!(
-                "{:<8} {:5.1}% |{}| ({})",
-                format!(".{}", ext),
-                percentage,
-                bar,
-                count_val
-            ));
+            let bar_pct = (percentage / 100.0) as f32;
+
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new(format!(".{}", ext))
+                            .monospace()
+                            .color(colors::ACCENT),
+                    );
+                    ui.label(
+                        egui::RichText::new(format!("{:.1}% ({} files)", percentage, count_val))
+                            .size(11.0)
+                            .color(colors::TEXT_SECONDARY),
+                    );
+                });
+                gauge_bar(ui, bar_pct, ui.available_width(), 4.0);
+            });
+            ui.add_space(2.0);
         }
     }
 
     fn show_file_types(&self, ui: &mut egui::Ui, result: &ScanResult) {
         if result.file_types.is_empty() {
-            ui.label("No file types found.");
+            ui.label(
+                egui::RichText::new("No file types found")
+                    .italics()
+                    .color(colors::TEXT_MUTED),
+            );
             return;
         }
         let mut sorted_types: Vec<_> = result.file_types.iter().collect();
         sorted_types.sort_by(|a, b| b.1.cmp(a.1));
         egui::Grid::new("file_types_grid")
             .num_columns(2)
+            .spacing([20.0, 4.0])
             .show(ui, |ui| {
+                ui.label(
+                    egui::RichText::new("Extension")
+                        .strong()
+                        .color(colors::TEXT_SECONDARY),
+                );
+                ui.label(
+                    egui::RichText::new("Count")
+                        .strong()
+                        .color(colors::TEXT_SECONDARY),
+                );
+                ui.end_row();
                 for (ext, count) in sorted_types.iter().take(50) {
-                    ui.label(format!(".{}", ext));
+                    ui.label(
+                        egui::RichText::new(format!(".{}", ext))
+                            .monospace()
+                            .color(colors::ACCENT),
+                    );
                     ui.label(format!("{} files", count));
                     ui.end_row();
                 }
@@ -221,18 +441,37 @@ impl SpaceAnalyzerApp {
 
     fn show_largest_files(&self, ui: &mut egui::Ui, result: &ScanResult) {
         if result.largest_files.is_empty() {
-            ui.label("No files found.");
+            ui.label(
+                egui::RichText::new("No files found")
+                    .italics()
+                    .color(colors::TEXT_MUTED),
+            );
             return;
         }
         egui::Grid::new("largest_files_grid")
             .num_columns(4)
+            .spacing([20.0, 4.0])
             .show(ui, |ui| {
-                ui.strong("Size");
-                ui.strong("Path");
-                ui.strong("Actions");
+                ui.label(
+                    egui::RichText::new("Size")
+                        .strong()
+                        .color(colors::TEXT_SECONDARY),
+                );
+                ui.label(
+                    egui::RichText::new("Path")
+                        .strong()
+                        .color(colors::TEXT_SECONDARY),
+                );
+                ui.label(
+                    egui::RichText::new("Actions")
+                        .strong()
+                        .color(colors::TEXT_SECONDARY),
+                );
                 ui.end_row();
                 for (path, size) in &result.largest_files {
-                    ui.label(formatting::format_bytes(*size));
+                    ui.label(
+                        egui::RichText::new(formatting::format_bytes(*size)).color(colors::WARNING),
+                    );
                     ui.label(path);
                     ui.horizontal(|ui| {
                         let file_path = std::path::Path::new(path);
@@ -240,7 +479,7 @@ impl SpaceAnalyzerApp {
                             if ui.small_button("Open").clicked() {
                                 let _ = open::that(path);
                             }
-                            if ui.small_button("Location").clicked() {
+                            if ui.small_button("Folder").clicked() {
                                 if let Some(parent) = file_path.parent() {
                                     let _ = open::that(parent);
                                 }
@@ -250,128 +489,5 @@ impl SpaceAnalyzerApp {
                     ui.end_row();
                 }
             });
-    }
-
-    fn show_path_controls(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label("Directory:");
-            if ui.button("Browse...").clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                    self.current_path = path;
-                    self.settings.default_scan_path =
-                        self.current_path.to_string_lossy().to_string();
-                    self.save_settings();
-                }
-            }
-            ui.label(self.current_path.display().to_string());
-        });
-    }
-
-    fn show_scan_controls(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut self.settings.default_deep_scan, "Deep Scan");
-            if ui
-                .add_enabled(!self.is_scanning, egui::Button::new("Scan"))
-                .clicked()
-            {
-                self.start_scan();
-            }
-            if ui
-                .add_enabled(self.is_scanning, egui::Button::new("Stop"))
-                .clicked()
-            {
-                self.stop_scan();
-            }
-            if ui
-                .add_enabled(self.scan_result.is_some(), egui::Button::new("Export"))
-                .clicked()
-            {
-                self.export_results();
-            }
-        });
-    }
-
-    fn show_progress(&self, ui: &mut egui::Ui) {
-        if self.is_scanning {
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label("Progress:");
-                egui::ProgressBar::new(self.scan_progress / 100.0)
-                    .show_percentage()
-                    .ui(ui);
-            });
-            // Performance metrics
-            ui.horizontal(|ui| {
-                ui.small(format!("⏱ {:.1}s", self.scan_performance.elapsed_secs()));
-                if self.scan_performance.files_per_sec > 0.0 {
-                    ui.separator();
-                    ui.small(format!(
-                        "📁 {:.0} files/sec",
-                        self.scan_performance.files_per_sec
-                    ));
-                }
-                if self.scan_performance.mb_per_sec > 0.0 {
-                    ui.separator();
-                    ui.small(format!("💾 {:.1} MB/s", self.scan_performance.mb_per_sec));
-                }
-                if self.scan_performance.current_files > 0 {
-                    ui.separator();
-                    ui.small(format!("📄 {} files", self.scan_performance.current_files));
-                }
-            });
-        }
-    }
-
-    pub(crate) fn render_scan(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Directory Scan");
-        ui.separator();
-        self.show_path_controls(ui);
-        ui.separator();
-        self.show_scan_controls(ui);
-        self.show_progress(ui);
-        ui.separator();
-
-        if let Some(ref msg) = self.status_message {
-            ui.colored_label(egui::Color32::RED, msg);
-            ui.separator();
-        }
-
-        if let Some(ref result) = self.scan_result {
-            ui.heading("Scan Results");
-            ui.horizontal(|ui| {
-                ui.label(format!("Files: {}", result.total_files));
-                ui.separator();
-                ui.label(format!(
-                    "Size: {}",
-                    formatting::format_bytes(result.total_size_bytes)
-                ));
-                ui.separator();
-                ui.label(format!("Time: {:.1}s", result.duration_secs));
-                if result.duration_secs > 0.0 {
-                    ui.separator();
-                    ui.label(format!(
-                        "Speed: {:.0} files/sec",
-                        result.total_files as f64 / result.duration_secs
-                    ));
-                }
-            });
-            ui.separator();
-
-            ui.collapsing("Visual Analysis", |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    self.show_visual_analysis(ui, result);
-                });
-            });
-            ui.collapsing("File Types", |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    self.show_file_types(ui, result);
-                });
-            });
-            ui.collapsing("Largest Files", |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    self.show_largest_files(ui, result);
-                });
-            });
-        }
     }
 }

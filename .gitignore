@@ -12,7 +12,7 @@ __pycache__/
 config/secrets/
 
 # Data files
-data/temp_analysis.json
+data/
 test_response*.json
 analysis_result.json
 build-log.txt
@@ -52,6 +52,7 @@ ehthumbs.db
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+nul
 
 # IDE files
 *.swp

@@ -5,311 +5,341 @@
 
 use eframe::egui;
 
-use super::super::icons;
-use super::super::{icon_char, icon_text, SpaceAnalyzerApp};
+use super::super::{badge, card_frame, colors, section_heading, SpaceAnalyzerApp};
 
 impl SpaceAnalyzerApp {
     pub(crate) fn render_ai_chat(&mut self, ui: &mut egui::Ui) {
-        ui.heading("AI Storage Assistant");
-        ui.horizontal(|ui| {
-            if self.ollama_available {
-                ui.label(egui::RichText::new("Ollama: Connected").color(egui::Color32::GREEN));
-            } else if self.ollama_checking {
-                ui.label("Ollama: Checking...");
-            } else {
-                ui.label(
-                    egui::RichText::new("Ollama: Not available (using local analysis)")
-                        .color(egui::Color32::YELLOW),
-                );
-            }
-            // Model indicator
-            if !self.settings.ollama_model.is_empty() {
-                ui.separator();
-                ui.small(format!("Model: {}", self.settings.ollama_model));
-            }
-            // Cache stats toggle
-            ui.separator();
-            if ui.small_button("Cache").clicked() {
-                self.cache_stats_visible = !self.cache_stats_visible;
+        // ── Connection Status Card ────────────────────────────────────
+        section_heading(ui, Some('🤖'), "AI Assistant");
+        card_frame(ui.style()).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if self.ollama_available {
+                    badge(ui, "Connected", colors::SUCCESS);
+                    if !self.settings.ollama_model.is_empty() {
+                        badge(ui, &self.settings.ollama_model, colors::ACCENT);
+                    }
+                } else if self.ollama_checking {
+                    ui.spinner();
+                    ui.label(
+                        egui::RichText::new("Checking connection...").color(colors::TEXT_SECONDARY),
+                    );
+                } else {
+                    badge(ui, "Offline", colors::WARNING);
+                    ui.label(
+                        egui::RichText::new("Using local analysis")
+                            .size(11.0)
+                            .color(colors::TEXT_MUTED),
+                    );
+                }
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("Cache").clicked() {
+                        self.cache_stats_visible = !self.cache_stats_visible;
+                    }
+                });
+            });
+
+            // Prompt Cache Panel
+            if self.cache_stats_visible {
+                ui.add_space(8.0);
+                egui::Frame::NONE
+                    .fill(colors::CARD_BG)
+                    .stroke(egui::Stroke::new(1.0, colors::CARD_BORDER))
+                    .corner_radius(egui::CornerRadius::same(8))
+                    .inner_margin(egui::Margin::symmetric(12, 8))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new("Prompt Cache")
+                                    .strong()
+                                    .color(colors::TEXT_PRIMARY),
+                            );
+                            if ui.small_button("Close").clicked() {
+                                self.cache_stats_visible = false;
+                            }
+                        });
+
+                        let stats = self.prompt_cache.stats();
+
+                        ui.horizontal(|ui| {
+                            ui.checkbox(&mut self.settings.prompt_cache_enabled, "Enabled");
+                            if ui.small_button("Clear Cache").clicked() {
+                                self.prompt_cache.clear();
+                            }
+                        });
+
+                        ui.horizontal(|ui| {
+                            badge(
+                                ui,
+                                &format!("{}/{} entries", stats.total_entries, stats.max_entries),
+                                colors::ACCENT,
+                            );
+                            badge(
+                                ui,
+                                &format!("{:.1}% hit rate", stats.overall_hit_rate * 100.0),
+                                colors::SUCCESS,
+                            );
+                            badge(
+                                ui,
+                                &format!(
+                                    "{}MB/{}MB",
+                                    stats.estimated_memory_mb, stats.max_memory_mb
+                                ),
+                                colors::TEXT_SECONDARY,
+                            );
+                        });
+
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new("TTL:")
+                                    .size(11.0)
+                                    .color(colors::TEXT_SECONDARY),
+                            );
+                            let mut ttl = self.settings.prompt_cache_ttl_seconds as i32;
+                            if ui
+                                .add(egui::DragValue::new(&mut ttl).range(30..=3600).speed(10))
+                                .changed()
+                            {
+                                self.settings.prompt_cache_ttl_seconds = ttl as u64;
+                                self.prompt_cache
+                                    .update_config(self.settings.to_prompt_cache_config());
+                            }
+                            ui.label(
+                                egui::RichText::new("s")
+                                    .size(11.0)
+                                    .color(colors::TEXT_MUTED),
+                            );
+
+                            ui.label(
+                                egui::RichText::new("Max mem:")
+                                    .size(11.0)
+                                    .color(colors::TEXT_SECONDARY),
+                            );
+                            let mut max_mem = self.settings.prompt_cache_max_memory_mb as i32;
+                            if ui
+                                .add(
+                                    egui::DragValue::new(&mut max_mem)
+                                        .range(16..=1024)
+                                        .speed(16),
+                                )
+                                .changed()
+                            {
+                                self.settings.prompt_cache_max_memory_mb = max_mem as usize;
+                                self.prompt_cache
+                                    .update_config(self.settings.to_prompt_cache_config());
+                            }
+                            ui.label(
+                                egui::RichText::new("MB")
+                                    .size(11.0)
+                                    .color(colors::TEXT_MUTED),
+                            );
+                        });
+                    });
             }
         });
 
-        // Prompt Cache Panel
-        if self.cache_stats_visible {
-            egui::Frame::group(ui.style()).show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.heading("Prompt Cache");
-                    if ui.small_button("Close").clicked() {
-                        self.cache_stats_visible = false;
-                    }
-                });
-                ui.separator();
-
-                let stats = self.prompt_cache.stats();
-                let cache_enabled = self.prompt_cache.config().enabled;
-
-                ui.horizontal(|ui| {
-                    ui.checkbox(&mut self.settings.prompt_cache_enabled, "Enabled");
-                    if ui.small_button("Clear Cache").clicked() {
-                        self.prompt_cache.clear();
-                    }
-                });
-
-                ui.horizontal(|ui| {
-                    ui.small(format!(
-                        "Entries: {}/{}",
-                        stats.total_entries, stats.max_entries
-                    ));
-                    ui.small(format!("Hit Rate: {:.1}%", stats.overall_hit_rate * 100.0));
-                    ui.small(format!(
-                        "Memory: {}MB/{}MB",
-                        stats.estimated_memory_mb, stats.max_memory_mb
-                    ));
-                });
-
-                ui.horizontal(|ui| {
-                    ui.small("TTL:");
-                    let mut ttl = self.settings.prompt_cache_ttl_seconds as i32;
-                    if ui
-                        .add(egui::DragValue::new(&mut ttl).range(30..=3600).speed(10))
-                        .changed()
-                    {
-                        self.settings.prompt_cache_ttl_seconds = ttl as u64;
-                        self.prompt_cache
-                            .update_config(self.settings.to_prompt_cache_config());
-                    }
-                    ui.small("s");
-
-                    ui.small("Max mem:");
-                    let mut max_mem = self.settings.prompt_cache_max_memory_mb as i32;
-                    if ui
-                        .add(
-                            egui::DragValue::new(&mut max_mem)
-                                .range(16..=1024)
-                                .speed(16),
-                        )
-                        .changed()
-                    {
-                        self.settings.prompt_cache_max_memory_mb = max_mem as usize;
-                        self.prompt_cache
-                            .update_config(self.settings.to_prompt_cache_config());
-                    }
-                    ui.small("MB");
-
-                    ui.small("Max entries:");
-                    let mut max_entries = self.settings.prompt_cache_max_entries as i32;
-                    if ui
-                        .add(
-                            egui::DragValue::new(&mut max_entries)
-                                .range(10..=500)
-                                .speed(5),
-                        )
-                        .changed()
-                    {
-                        self.settings.prompt_cache_max_entries = max_entries as usize;
-                        self.prompt_cache
-                            .update_config(self.settings.to_prompt_cache_config());
-                    }
-                });
-
-                ui.horizontal(|ui| {
-                    ui.small(format!(
-                        "Total cached: {} prompt + {} completion tokens",
-                        stats.total_prompt_tokens_cached, stats.total_completion_tokens_cached
-                    ));
-                    ui.small(format!(
-                        "Hits: {} | Misses: {}",
-                        stats.total_cache_hits, stats.total_cache_misses
-                    ));
-                });
-
-                // Model budgets
-                if !stats.model_budgets.is_empty() {
-                    ui.separator();
-                    ui.small("Model Token Budgets:");
-                    for budget in &stats.model_budgets {
-                        ui.horizontal(|ui| {
-                            ui.small(format!("{}:", budget.model_name));
-                            ui.small(format!(
-                                "{:.0} tokens/min remaining",
-                                budget.remaining_tokens_this_minute()
-                            ));
-                            ui.small(format!("Hit rate: {:.1}%", budget.cache_hit_rate() * 100.0));
-                        });
-                    }
-                }
-
-                // Update cache enabled state immediately (in-memory only; persisted on Save)
-                if !cache_enabled && self.settings.prompt_cache_enabled {
-                    let mut new_config = self.settings.to_prompt_cache_config();
-                    new_config.enabled = true;
-                    self.prompt_cache.update_config(new_config);
-                } else if cache_enabled && !self.settings.prompt_cache_enabled {
-                    let mut new_config = self.settings.to_prompt_cache_config();
-                    new_config.enabled = false;
-                    self.prompt_cache.update_config(new_config);
-                }
-            });
-            ui.separator();
-        }
-        ui.separator();
-
-        // Quick Actions Toolbar
+        // ── Quick Actions Toolbar ─────────────────────────────────────
         if self.ollama_available && self.scan_result.is_some() {
-            ui.horizontal_wrapped(|ui| {
-                ui.small("Quick Actions:");
-                if let Some((cp, _)) = icons::filetype() {
-                    if ui.small_button(format!("{} Analyze", icon_char(cp))).clicked() {
-                        self.send_quick_action("Analyze this scan and give me prioritized recommendations for freeing up space.", "analysis");
+            section_heading(ui, None, "Quick Actions");
+            card_frame(ui.style()).show(ui, |ui| {
+                ui.horizontal_wrapped(|ui| {
+                    let actions = [
+                        ("📊", "Analyze", "Analyze this scan and give me prioritized recommendations for freeing up space.", "analysis"),
+                        ("🧹", "Cleanup", "What files can I safely clean up from this scan?", "cleanup"),
+                        ("📈", "Trends", "Analyze my storage usage trends and predict when my disk will be full.", "prediction"),
+                        ("🔍", "Patterns", "Analyze file patterns to find duplicates, orphans, and optimization opportunities.", "file_patterns"),
+                        ("🛡", "Security", "Scan for potential security issues like exposed credentials, sensitive files, or insecure backups.", "security"),
+                        ("🏎", "Performance", "Analyze file system structure for performance bottlenecks.", "performance"),
+                    ];
+
+                    for (icon, label, prompt, task) in actions {
+                        let btn = egui::Button::new(
+                            egui::RichText::new(format!("{} {}", icon, label)).size(12.0),
+                        )
+                        .fill(colors::ACCENT_BG);
+                        if ui.add(btn).clicked() {
+                            self.send_quick_action(prompt, task);
+                        }
                     }
-                } else if ui.small_button("Analyze Scan").clicked() {
-                    self.send_quick_action("Analyze this scan and give me prioritized recommendations for freeing up space.", "analysis");
-                }
-                if let Some((cp, _)) = icons::cleanup() {
-                    if ui.small_button(format!("{} Cleanup", icon_char(cp))).clicked() {
-                        self.send_quick_action("What files can I safely clean up from this scan?", "cleanup");
-                    }
-                } else if ui.small_button("Cleanup Advice").clicked() {
-                    self.send_quick_action("What files can I safely clean up from this scan?", "cleanup");
-                }
-                if let Some((cp, _)) = icons::trend() {
-                    if ui.small_button(format!("{} Trends", icon_char(cp))).clicked() {
-                        self.send_quick_action("Analyze my storage usage trends and predict when my disk will be full.", "prediction");
-                    }
-                } else if ui.small_button("Storage Trends").clicked() {
-                    self.send_quick_action("Analyze my storage usage trends and predict when my disk will be full.", "prediction");
-                }
-                if let Some((cp, _)) = icons::pattern() {
-                    if ui.small_button(format!("{} Patterns", icon_char(cp))).clicked() {
-                        self.send_quick_action("Analyze file patterns to find duplicates, orphans, and optimization opportunities.", "file_patterns");
-                    }
-                } else if ui.small_button("File Patterns").clicked() {
-                    self.send_quick_action("Analyze file patterns to find duplicates, orphans, and optimization opportunities.", "file_patterns");
-                }
-                if let Some((cp, _)) = icons::security() {
-                    if ui.small_button(format!("{} Security", icon_char(cp))).clicked() {
-                        self.send_quick_action("Scan for potential security issues like exposed credentials, sensitive files, or insecure backups.", "security");
-                    }
-                } else if ui.small_button("Security Scan").clicked() {
-                    self.send_quick_action("Scan for potential security issues like exposed credentials, sensitive files, or insecure backups.", "security");
-                }
-                if let Some((cp, _)) = icons::performance() {
-                    if ui.small_button(format!("{} Performance", icon_char(cp))).clicked() {
-                        self.send_quick_action("Analyze file system structure for performance bottlenecks.", "performance");
-                    }
-                } else if ui.small_button("Performance").clicked() {
-                    self.send_quick_action("Analyze file system structure for performance bottlenecks.", "performance");
-                }
-                if let Some((cp, _)) = icons::workflow() {
-                    if ui.small_button(format!("{} Workflows", icon_char(cp))).clicked() {
-                        self.send_quick_action("Recommend automated workflows based on my scan results.", "workflow");
-                    }
-                } else if ui.small_button("Workflows").clicked() {
-                    self.send_quick_action("Recommend automated workflows based on my scan results.", "workflow");
-                }
+                });
             });
-            ui.separator();
         }
 
-        // Chat messages
+        // ── Chat Messages ─────────────────────────────────────────────
         egui::ScrollArea::vertical().show(ui, |ui| {
             for msg in &self.chat_messages {
                 let is_user = msg.role == "user";
                 let is_tool_call = msg.content.starts_with("[Calling tool:");
                 let is_tool_result = msg.content.starts_with("[Tool result:");
                 let is_quick_action = msg.content.starts_with("[Quick Action:");
-                let color = if is_user {
-                    egui::Color32::LIGHT_BLUE
-                } else if is_tool_call || is_tool_result {
-                    egui::Color32::YELLOW
-                } else if is_quick_action {
-                    egui::Color32::from_rgb(180, 130, 255)
-                } else {
-                    egui::Color32::LIGHT_GREEN
-                };
-                ui.horizontal(|ui| {
-                    let label = if is_user {
-                        "You"
-                    } else if is_tool_call {
-                        "Tool Calling"
-                    } else if is_tool_result {
-                        "Tool Result"
-                    } else if is_quick_action {
-                        if let Some((cp, fam)) = icons::quick() {
-                            ui.add(egui::Label::new(icon_text(cp, fam, 14.0, color)));
-                        } else {
-                            ui.label(egui::RichText::new("[QA]").color(color).strong());
-                        }
-                        "AI"
-                    } else {
-                        "AI"
-                    };
-                    if !is_quick_action {
-                        ui.label(egui::RichText::new(label).color(color).strong());
-                    }
-                });
 
-                if is_tool_call {
-                    ui.label(egui::RichText::new(&msg.content).italics().size(11.0));
-                } else if is_tool_result {
-                    if let Some(ref display) = msg.tool_result {
-                        let header_label = if let Some((cp, _)) = &display.tool_icon {
-                            format!("{} {} - {}", icon_char(*cp), display.tool_name, display.summary)
-                        } else {
-                            format!("{} - {}", display.tool_name, display.summary)
-                        };
-                        egui::CollapsingHeader::new(&header_label)
-                            .default_open(true)
-                            .show(ui, |ui| {
-                                egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
-                                    for line in &display.details {
-                                        ui.label(line);
-                                    }
-                                });
-                            });
-                    } else {
-                        ui.label(egui::RichText::new(&msg.content).italics().size(11.0));
-                    }
+                let (bg_color, border_color, _text_color) = if is_user {
+                    (
+                        colors::ACCENT_BG,
+                        colors::ACCENT.linear_multiply(0.3),
+                        colors::TEXT_PRIMARY,
+                    )
+                } else if is_tool_call || is_tool_result {
+                    (
+                        colors::CARD_BG,
+                        colors::WARNING.linear_multiply(0.3),
+                        colors::TEXT_SECONDARY,
+                    )
                 } else if is_quick_action {
-                    ui.label(egui::RichText::new(&msg.content).size(11.0).color(egui::Color32::from_rgb(180, 130, 255)));
+                    (
+                        egui::Color32::from_rgb(45, 35, 65),
+                        colors::ACCENT.linear_multiply(0.3),
+                        colors::ACCENT,
+                    )
                 } else {
-                    if let Some(ref think) = msg.thinking {
-                        if !think.trim().is_empty() {
-                            egui::CollapsingHeader::new("Thinking Process")
+                    (
+                        colors::CARD_BG,
+                        colors::CARD_BORDER,
+                        colors::TEXT_PRIMARY,
+                    )
+                };
+
+                egui::Frame::NONE
+                    .fill(bg_color)
+                    .stroke(egui::Stroke::new(1.0, border_color))
+                    .corner_radius(egui::CornerRadius::same(8))
+                    .inner_margin(egui::Margin::symmetric(12, 8))
+                    .outer_margin(egui::Margin::symmetric(0, 2))
+                    .show(ui, |ui| {
+                        // Role label
+                        ui.horizontal(|ui| {
+                            let role_label = if is_user {
+                                "You"
+                            } else if is_tool_call {
+                                "Tool Call"
+                            } else if is_tool_result {
+                                "Tool Result"
+                            } else if is_quick_action {
+                                "Quick Action"
+                            } else {
+                                "AI"
+                            };
+                            let role_color = if is_user {
+                                colors::ACCENT
+                            } else if is_tool_call || is_tool_result {
+                                colors::WARNING
+                            } else {
+                                colors::SUCCESS
+                            };
+                            badge(ui, role_label, role_color);
+                        });
+
+                        // Content
+                        if is_tool_call {
+                            ui.label(
+                                egui::RichText::new(&msg.content)
+                                    .italics()
+                                    .size(11.0)
+                                    .color(colors::TEXT_SECONDARY),
+                            );
+                        } else if is_tool_result {
+                            if let Some(ref display) = msg.tool_result {
+                                let header = format!(
+                                    "{} {}",
+                                    display.tool_name,
+                                    display.summary
+                                );
+                                egui::CollapsingHeader::new(
+                                    egui::RichText::new(header)
+                                        .size(11.0)
+                                        .color(colors::WARNING),
+                                )
                                 .default_open(false)
                                 .show(ui, |ui| {
-                                    ui.add(egui::Label::new(
-                                        egui::RichText::new(think)
-                                            .color(ui.visuals().weak_text_color())
-                                            .italics()
-                                    ));
+                                    egui::ScrollArea::vertical()
+                                        .max_height(120.0)
+                                        .show(ui, |ui| {
+                                            for line in &display.details {
+                                                ui.label(
+                                                    egui::RichText::new(line)
+                                                        .monospace()
+                                                        .size(10.0)
+                                                        .color(colors::TEXT_SECONDARY),
+                                                );
+                                            }
+                                        });
                                 });
+                            } else {
+                                ui.label(
+                                    egui::RichText::new(&msg.content)
+                                        .italics()
+                                        .size(11.0)
+                                        .color(colors::TEXT_SECONDARY),
+                                );
+                            }
+                        } else if is_quick_action {
+                            ui.label(
+                                egui::RichText::new(&msg.content)
+                                    .size(11.0)
+                                    .color(colors::ACCENT),
+                            );
+                        } else {
+                            // Show thinking process if available
+                            if let Some(ref think) = msg.thinking {
+                                if !think.trim().is_empty() {
+                                    egui::CollapsingHeader::new("Thinking Process")
+                                        .default_open(false)
+                                        .show(ui, |ui| {
+                                            ui.add(egui::Label::new(
+                                                egui::RichText::new(think)
+                                                    .color(colors::TEXT_MUTED)
+                                                    .italics()
+                                                    .size(11.0),
+                                            ));
+                                        });
+                                }
+                            }
+                            ui.label(&msg.content);
                         }
-                    }
-                    ui.label(&msg.content);
-                }
-                ui.separator();
+                    });
             }
+
+            // Processing indicator
             if self.chat_processing {
-                ui.label(egui::RichText::new("AI is thinking...").italics());
-                if !self.conversation_history.is_empty() {
-                    ui.small("Tool calling enabled - AI can access scan results, disk info, and system stats.");
-                }
+                card_frame(ui.style()).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spinner();
+                        ui.label(
+                            egui::RichText::new("AI is thinking...")
+                                .italics()
+                                .color(colors::TEXT_SECONDARY),
+                        );
+                    });
+                    if !self.conversation_history.is_empty() {
+                        ui.label(
+                            egui::RichText::new("Tool calling enabled — AI can access scan results, disk info, and system stats")
+                                .size(10.0)
+                                .color(colors::TEXT_MUTED),
+                        );
+                    }
+                });
             }
         });
 
-        // Input
-        ui.horizontal(|ui| {
-            let response = ui.add(
-                egui::TextEdit::singleline(&mut self.chat_input)
-                    .desired_width(f32::INFINITY)
-                    .hint_text("Ask about your disk usage..."),
-            );
-            if (response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)))
-                || ui.button("Send").clicked()
-            {
-                self.send_chat_message();
-            }
+        // ── Input ─────────────────────────────────────────────────────
+        ui.add_space(4.0);
+        card_frame(ui.style()).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                let response = ui.add(
+                    egui::TextEdit::singleline(&mut self.chat_input)
+                        .desired_width(ui.available_width() - 70.0)
+                        .hint_text("Ask about your disk usage..."),
+                );
+                let send_btn = egui::Button::new(egui::RichText::new("Send").size(13.0).strong())
+                    .min_size(egui::vec2(60.0, 28.0))
+                    .fill(colors::ACCENT);
+
+                if (response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                    || ui.add(send_btn).clicked()
+                {
+                    self.send_chat_message();
+                }
+            });
         });
     }
 }

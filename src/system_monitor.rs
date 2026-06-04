@@ -22,6 +22,9 @@ pub struct DiskVolume {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemResources {
     pub cpu_percent: f32,
+    pub cpu_model: String,
+    pub cpu_cores: usize,
+    pub cpu_physical_cores: usize,
     pub memory_total_bytes: u64,
     pub memory_used_bytes: u64,
     pub memory_percent: f32,
@@ -82,8 +85,13 @@ impl SystemMonitor {
         let swap_total = system.total_swap();
         let swap_used = system.used_swap();
 
+        let cpu_info = system.global_cpu_info();
+
         SystemResources {
-            cpu_percent: system.global_cpu_info().cpu_usage(),
+            cpu_percent: cpu_info.cpu_usage(),
+            cpu_model: cpu_info.brand().to_string(),
+            cpu_cores: system.cpus().len(),
+            cpu_physical_cores: system.physical_core_count().unwrap_or(0),
             memory_total_bytes: memory,
             memory_used_bytes: memory_used,
             memory_percent: if memory > 0 {
@@ -142,7 +150,10 @@ impl SystemMonitor {
         let gpu = Self::detect_gpu();
 
         let mut summary = String::new();
-        summary.push_str(&format!("CPU: {:.1}%\n", resources.cpu_percent));
+        summary.push_str(&format!(
+            "CPU: {} ({:.1}%)\n",
+            resources.cpu_model, resources.cpu_percent
+        ));
         summary.push_str(&format!(
             "Memory: {} / {} ({:.1}%)\n",
             format_bytes(resources.memory_used_bytes),

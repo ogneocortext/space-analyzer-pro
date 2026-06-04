@@ -4,6 +4,13 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 
 ## [Unreleased] - 2026-06-04
 
+### Code Quality
+
+- **Fixed clippy `field_reassign_with_default` errors** in `src/gui/dedup.rs` (lines 22-37): refactored two `DeduplicationConfig::default()` + field assignment patterns to use struct initializer with `..Default::default()`
+- **Applied rustfmt** to `src/gui/dedup.rs` (import ordering, chained method formatting)
+- **Verified release build**: `cargo build --workspace --release` succeeds in 7m48s
+- **Verified CI suite**: `just verify` passes (fmt-check + clippy -D warnings + all tests)
+
 ### Web/Desktop Separation
 
 - **Moved web app to sibling directory**: `server/`, `ai-service/`, `styles/`, `public/`, `.github/workflows/playwright-tests.yml`, web configs, web tests, and web-only scripts moved to `E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer-Web`

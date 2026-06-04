@@ -20,23 +20,19 @@ struct Cli {
     #[arg(short, long, default_value = "text")]
     format: String,
 
-    /// Enable ML categorization
-    #[arg(short, long)]
-    ml: bool,
-
     /// Deep scan mode
     #[arg(short, long)]
     deep: bool,
 
-    /// Export results to file
+    /// Export results to file (format matches --format)
     #[arg(short, long)]
     export: Option<String>,
 
-    /// Generate report only
+    /// Generate markdown report in scan directory
     #[arg(short, long)]
     report: bool,
 
-    /// Clean duplicates
+    /// Find duplicate files (dry run)
     #[arg(short, long)]
     clean: bool,
 }
@@ -111,13 +107,13 @@ fn validate_input(path: &str, format: &str) -> Result<(), String> {
 
 fn format_bytes(bytes: u64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
-    const THRESHOLD: u64 = 1024;
+    const THRESHOLD: f64 = 1024.0;
 
     if bytes == 0 {
-        return "0B".to_string();
+        return "0 B".to_string();
     }
 
-    let mut size = bytes;
+    let mut size = bytes as f64;
     let mut unit_index = 0;
 
     while size >= THRESHOLD && unit_index < UNITS.len() - 1 {
@@ -125,7 +121,11 @@ fn format_bytes(bytes: u64) -> String {
         unit_index += 1;
     }
 
-    format!("{:.2}{}", size, UNITS[unit_index])
+    if unit_index == 0 {
+        format!("{} B", size as u64)
+    } else {
+        format!("{:.2} {}", size, UNITS[unit_index])
+    }
 }
 
 fn scan_directory(path: &Path, verbose: bool, deep: bool) -> std::io::Result<ScanResult> {
@@ -204,9 +204,23 @@ fn print_results(result: &ScanResult, format: &str) {
             println!("{}", json_output);
         }
         "csv" => {
-            println!("files,size_mb");
+            println!("total_files,total_size_bytes,total_size_mb,duration_secs");
+            println!(
+                "{},{},{:.2},{:.3}",
+                result.total_files,
+                result.total_size_bytes,
+                result.total_size_mb,
+                result.duration_secs
+            );
+            println!("\nfile_type,count");
+            let mut sorted_types: Vec<_> = result.file_types.iter().collect();
+            sorted_types.sort_by(|a, b| b.1.cmp(a.1));
+            for (ext, count) in sorted_types.iter().take(10) {
+                println!(".{},{}", ext, count);
+            }
+            println!("\nfile_path,size_bytes");
             for (path, size) in &result.largest_files {
-                println!("{},{}", path, *size as f64 / (1024.0 * 1024.0));
+                println!("\"{}\",{}", path, size);
             }
         }
         _ => println!("Unknown format: {}", format),
@@ -214,9 +228,6 @@ fn print_results(result: &ScanResult, format: &str) {
 }
 
 fn main() -> std::io::Result<()> {
-    let args: Vec<String> = std::env::args().collect();
-    let is_interactive = args.len() == 1;
-
     let cli = Cli::parse();
 
     // Validate inputs
@@ -242,6 +253,28 @@ fn main() -> std::io::Result<()> {
     if let Some(export_path) = &cli.export {
         let content = match cli.format.as_str() {
             "json" => serde_json::to_string_pretty(&result).unwrap_or_default(),
+            "csv" => {
+                let mut csv =
+                    String::from("total_files,total_size_bytes,total_size_mb,duration_secs\n");
+                csv.push_str(&format!(
+                    "{},{},{:.2},{:.3}\n",
+                    result.total_files,
+                    result.total_size_bytes,
+                    result.total_size_mb,
+                    result.duration_secs
+                ));
+                csv.push_str("\nfile_type,count\n");
+                let mut sorted_types: Vec<_> = result.file_types.iter().collect();
+                sorted_types.sort_by(|a, b| b.1.cmp(a.1));
+                for (ext, count) in &sorted_types {
+                    csv.push_str(&format!(".{},{}\n", ext, count));
+                }
+                csv.push_str("\nfile_path,size_bytes\n");
+                for (path, size) in &result.largest_files {
+                    csv.push_str(&format!("\"{}\",{}\n", path, size));
+                }
+                csv
+            }
             _ => format!(
                 "Scan completed: {} files, {:.2} MB",
                 result.total_files, result.total_size_mb
@@ -408,12 +441,6 @@ fn main() -> std::io::Result<()> {
                 eprintln!("[CLEAN] ❌ Error scanning for duplicates: {}", e);
             }
         }
-    }
-
-    if is_interactive {
-        println!("\n[DONE] Scan complete. Press Enter to exit...");
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input)?;
     }
 
     Ok(())

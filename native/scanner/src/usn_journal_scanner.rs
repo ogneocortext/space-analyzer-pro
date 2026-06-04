@@ -462,6 +462,7 @@ impl UsnJournalScanner {
         }
     }
 
+    #[allow(dead_code)]
     /// Get cached changes for a specific file
     pub fn get_file_changes(&self, file_reference: u64) -> &[UsnRecord] {
         self.change_cache
@@ -470,17 +471,20 @@ impl UsnJournalScanner {
             .unwrap_or(&[])
     }
 
+    #[allow(dead_code)]
     /// Clear change cache
     pub fn clear_cache(&mut self) {
         self.change_cache.clear();
         self.change_buffer.clear();
     }
 
+    #[allow(dead_code)]
     /// Get journal information
     pub fn get_journal_info(&self) -> Option<&UsnJournalInfo> {
         self.journal_info.as_ref()
     }
 
+    #[allow(dead_code)]
     /// Check if currently monitoring
     pub fn is_monitoring(&self) -> bool {
         self.is_monitoring
@@ -513,6 +517,7 @@ impl UsnJournalScanner {
         stats
     }
 
+    #[allow(dead_code)]
     /// Resolve full file path from USN record by traversing parent references.
     /// Uses the change_cache to look up parent directories and build a complete path.
     pub fn resolve_file_path(&self, record: &UsnRecord) -> PathBuf {
@@ -538,7 +543,7 @@ impl UsnJournalScanner {
                     break;
                 }
             } else {
-                // Parent not in cache — we can't resolve further
+                // Parent not in cache â€” we can't resolve further
                 break;
             }
 

@@ -1,93 +1,6 @@
 use super::*;
-use std::collections::HashMap;
-use std::path::PathBuf;
-
-struct SimpleDeduplicator {
-    exclude_patterns: Vec<String>,
-    use_gpu: bool,
-}
-
-impl SimpleDeduplicator {
-    fn new() -> Self {
-        Self {
-            exclude_patterns: vec!["node_modules".to_string(), ".git".to_string()],
-            use_gpu: false,
-        }
-    }
-
-    fn with_gpu(mut self, use_gpu: bool) -> Self {
-        self.use_gpu = use_gpu;
-        self
-    }
-
-    fn scan_directory(&self, path: &str) -> Result<Vec<(String, u64, String)>, String> {
-        let files = self.collect_files(path)?;
-        if files.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        // Hash using BatchHasher (parallel CPU or GPU-accelerated)
-        let paths: Vec<PathBuf> = files.iter().map(|(p, _)| PathBuf::from(p)).collect();
-        let hasher = gpu_compute::hash::BatchHasher::new().with_gpu(self.use_gpu);
-        let hash_results = hasher.hash_files(&paths);
-
-        let mut results = Vec::new();
-        for (file_path, size) in files {
-            let hash = hash_results
-                .iter()
-                .find(|r| r.path.to_string_lossy() == file_path)
-                .map(|r| r.hash.clone())
-                .unwrap_or_else(|| "unknown".to_string());
-            results.push((file_path, size, hash));
-        }
-        Ok(results)
-    }
-
-    fn collect_files(&self, dir: &str) -> Result<Vec<(String, u64)>, String> {
-        let path = std::path::Path::new(dir);
-        if !path.exists() {
-            return Err(format!("Path does not exist: {}", dir));
-        }
-
-        let mut files = Vec::new();
-        for entry in walkdir::WalkDir::new(path)
-            .follow_links(false)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            let entry_path = entry.path();
-            if entry_path.is_file() {
-                let path_str = entry_path.to_string_lossy().to_string();
-                if self.exclude_patterns.iter().any(|p| path_str.contains(p)) {
-                    continue;
-                }
-                if let Ok(metadata) = std::fs::metadata(entry_path) {
-                    files.push((path_str, metadata.len()));
-                }
-            }
-        }
-        Ok(files)
-    }
-
-    fn find_duplicates(&self, files: Vec<(String, u64, String)>) -> Vec<Vec<(String, u64)>> {
-        let mut by_hash: HashMap<String, Vec<(String, u64)>> = HashMap::new();
-        for (path, size, hash) in files {
-            by_hash.entry(hash).or_default().push((path, size));
-        }
-        by_hash
-            .into_values()
-            .filter(|group| group.len() > 1)
-            .collect()
-    }
-}
-
-/// Parsed dedup result for structured display
-#[allow(dead_code)]
-struct DedupResult {
-    duplicate_groups: Vec<Vec<(String, u64)>>,
-    total_scanned: usize,
-    scan_paths: Vec<String>,
-}
+use file_deduplicator::{DeduplicationConfig, DuplicateGroup, FileDeduplicator, FileInfo};
+use std::sync::mpsc;
 
 impl SpaceAnalyzerApp {
     pub fn start_deduplication(&mut self, paths: Vec<String>, use_gpu: bool) {
@@ -106,8 +19,30 @@ impl SpaceAnalyzerApp {
         self.dedup_receiver = Some(rx);
 
         std::thread::spawn(move || {
-            let deduplicator = SimpleDeduplicator::new().with_gpu(use_gpu);
-            let mut all_files = Vec::new();
+            let mut config = DeduplicationConfig {
+                dry_run: true,
+                create_hard_links: true,
+                ..Default::default()
+            };
+            config
+                .exclude_patterns
+                .extend(vec!["node_modules".to_string(), ".git".to_string()]);
+            // GPU is auto-detected by FileDeduplicator; force CPU if use_gpu is false
+            let deduplicator = if use_gpu {
+                FileDeduplicator::with_config(config)
+            } else {
+                let mut cpu_config = DeduplicationConfig {
+                    dry_run: true,
+                    create_hard_links: true,
+                    ..Default::default()
+                };
+                cpu_config
+                    .exclude_patterns
+                    .extend(vec!["node_modules".to_string(), ".git".to_string()]);
+                FileDeduplicator::with_config(cpu_config)
+            };
+
+            let mut all_files: Vec<FileInfo> = Vec::new();
             let mut errors = Vec::new();
 
             for path in &paths {
@@ -123,7 +58,7 @@ impl SpaceAnalyzerApp {
             }
 
             let total_scanned = all_files.len();
-            let duplicate_groups = deduplicator.find_duplicates(all_files);
+            let duplicate_groups: Vec<DuplicateGroup> = deduplicator.find_duplicates(all_files);
 
             if duplicate_groups.is_empty() {
                 let _ = tx.send(format!(
@@ -131,10 +66,11 @@ impl SpaceAnalyzerApp {
                     total_scanned
                 ));
             } else {
-                let total_duplicates: usize = duplicate_groups.iter().map(|g| g.len() - 1).sum();
+                let total_duplicates: usize =
+                    duplicate_groups.iter().map(|g| g.files.len() - 1).sum();
                 let potential_savings: u64 = duplicate_groups
                     .iter()
-                    .map(|g| g[0].1 * (g.len() as u64 - 1))
+                    .map(|g| g.size * (g.files.len() as u64 - 1))
                     .sum();
                 let _ = tx.send(format!(
                     "[DONE] {} groups, {} extra files, {} savings",
@@ -190,7 +126,7 @@ impl SpaceAnalyzerApp {
         });
 
         ui.horizontal(|ui| {
-            ui.checkbox(&mut self.settings.default_deep_scan, "Deep scan");
+            ui.checkbox(&mut self.settings.dedup_use_gpu, "Use GPU acceleration");
             if ui
                 .add_enabled(!self.is_deduplicating, egui::Button::new("Find Duplicates"))
                 .clicked()
@@ -240,6 +176,7 @@ impl SpaceAnalyzerApp {
             ui.label("• Skips node_modules and .git directories automatically");
             ui.label("• Only files with identical content hashes are considered duplicates");
             ui.label("• Potential savings = (duplicate copies - 1) × file size");
+            ui.label("• Hard links can reclaim space without copying data");
         });
     }
 }

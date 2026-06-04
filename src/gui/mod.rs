@@ -11,7 +11,7 @@
 //! Other GUI implementations (native-gui, rust/Tauri) have been archived.
 //! DO NOT create new GUI implementations - extend this one.
 
-use eframe::egui::{self, Widget};
+use eframe::egui::{self};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -67,6 +67,7 @@ pub enum ScanMessage {
 mod icons {
     macro_rules! icon_fn {
         ($name:ident, $char:literal) => {
+            #[allow(dead_code)]
             pub fn $name() -> Option<(u32, &'static str)> {
                 Some(($char.chars().next().unwrap_or('?') as u32, "emoji"))
             }
@@ -921,120 +922,219 @@ impl eframe::App for SpaceAnalyzerApp {
             self.load_embeddings_from_db(None);
         }
 
-        // Top menu bar
-        ui.horizontal(|ui| {
-            ui.heading("Space Analyzer Pro");
-            ui.separator();
-        });
-        // Scrollable tab bar for narrow windows
-        egui::ScrollArea::horizontal().show(ui, |ui| {
-            ui.horizontal(|ui| {
-                for tab in [
-                    AppTab::Dashboard,
-                    AppTab::Scan,
-                    AppTab::History,
-                    AppTab::SmartSearch,
-                    AppTab::Workflows,
-                    AppTab::AIChat,
-                    AppTab::System,
-                    AppTab::Settings,
-                ] {
-                    let selected = self.active_tab == tab;
-                    let btn = ui.selectable_label(selected, tab.to_string());
-                    if btn.clicked() {
-                        self.active_tab = tab;
-                    }
-                }
+        // ── Top bar ──────────────────────────────────────────────────────
+        egui::Frame::NONE
+            .fill(colors::CARD_BG)
+            .stroke(egui::Stroke::new(1.0, colors::CARD_BORDER))
+            .inner_margin(egui::Margin::symmetric(16, 8))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new("Space Analyzer Pro")
+                            .size(18.0)
+                            .strong()
+                            .color(colors::ACCENT),
+                    );
+                    ui.separator();
+                    ui.label(
+                        egui::RichText::new("v3.4.0")
+                            .size(11.0)
+                            .color(colors::TEXT_MUTED),
+                    );
+                });
             });
-        });
+
+        // ── Tab bar ─────────────────────────────────────────────────────
+        egui::Frame::NONE
+            .fill(colors::CARD_BG)
+            .inner_margin(egui::Margin::symmetric(12, 4))
+            .show(ui, |ui| {
+                egui::ScrollArea::horizontal().show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        for tab in [
+                            AppTab::Dashboard,
+                            AppTab::Scan,
+                            AppTab::History,
+                            AppTab::SmartSearch,
+                            AppTab::Workflows,
+                            AppTab::AIChat,
+                            AppTab::System,
+                            AppTab::Settings,
+                        ] {
+                            let selected = self.active_tab == tab;
+                            let tab_text = tab.to_string();
+
+                            // Tab icon mapping
+                            let icon = match tab {
+                                AppTab::Dashboard => "📊",
+                                AppTab::Scan => "🔍",
+                                AppTab::History => "📋",
+                                AppTab::SmartSearch => "🧠",
+                                AppTab::Workflows => "⚙",
+                                AppTab::AIChat => "🤖",
+                                AppTab::System => "🖥",
+                                AppTab::Settings => "⚙",
+                            };
+
+                            let label = format!("{} {}", icon, tab_text);
+                            let text_color = if selected {
+                                egui::Color32::WHITE
+                            } else {
+                                colors::TEXT_SECONDARY
+                            };
+                            let bg = if selected {
+                                colors::ACCENT
+                            } else {
+                                egui::Color32::TRANSPARENT
+                            };
+                            let stroke = if selected {
+                                egui::Stroke::NONE
+                            } else {
+                                egui::Stroke::new(0.5, colors::CARD_BORDER)
+                            };
+
+                            let btn = egui::Button::new(
+                                egui::RichText::new(label).size(12.0).color(text_color),
+                            )
+                            .fill(bg)
+                            .stroke(stroke)
+                            .corner_radius(egui::CornerRadius::same(6))
+                            .min_size(egui::vec2(0.0, 28.0));
+
+                            if ui.add(btn).clicked() {
+                                self.active_tab = tab;
+                            }
+                        }
+                    });
+                });
+            });
         ui.separator();
 
-        // Active model status indicator
+        // ── Active model status indicator ────────────────────────────────
         if self.settings.ollama_enabled && self.ollama_available {
-            ui.horizontal(|ui| {
-                ui.small("AI Model:");
-                if let Some(ref model) = self.current_active_model {
-                    ui.label(egui::RichText::new(model).color(egui::Color32::GREEN));
-                    if let Some(ref task) = self.current_model_task {
-                        ui.small(format!("(Task: {})", task));
-                    }
-                } else {
-                    ui.small("Idle");
-                }
+            egui::Frame::NONE
+                .fill(colors::CARD_BG)
+                .inner_margin(egui::Margin::symmetric(16, 4))
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new("AI Model:")
+                                .size(11.0)
+                                .color(colors::TEXT_MUTED),
+                        );
+                        if let Some(ref model) = self.current_active_model {
+                            badge(ui, model, colors::SUCCESS);
+                            if let Some(ref task) = self.current_model_task {
+                                ui.label(
+                                    egui::RichText::new(format!("for {}", task))
+                                        .size(11.0)
+                                        .color(colors::TEXT_SECONDARY)
+                                        .italics(),
+                                );
+                            }
+                        } else {
+                            ui.label(
+                                egui::RichText::new("Idle")
+                                    .size(11.0)
+                                    .color(colors::TEXT_MUTED),
+                            );
+                        }
 
-                if self.settings.auto_model_selection {
-                    ui.small("| Auto-select: ON");
-                }
-            });
-            ui.separator();
+                        if self.settings.auto_model_selection {
+                            badge(ui, "Auto-select", colors::ACCENT_DIM);
+                        }
+                    });
+                });
         }
 
-        // Status message with interactive recovery
+        // ── Status message with interactive recovery ────────────────────
         if let Some(ref msg) = self.status_message {
             let msg_clone = msg.clone();
             let is_error =
                 msg.contains("failed") || msg.contains("Error") || msg.contains("Failed");
             let is_warning = msg.contains("warning") || msg.contains("Warning");
-            let color = if is_error {
-                egui::Color32::RED
+            let (bg, icon_char) = if is_error {
+                (colors::ERROR.linear_multiply(0.15), "✗")
             } else if is_warning {
-                egui::Color32::YELLOW
+                (colors::WARNING.linear_multiply(0.15), "⚠")
             } else {
-                egui::Color32::LIGHT_GREEN
+                (colors::SUCCESS.linear_multiply(0.15), "✓")
             };
-            ui.colored_label(color, &msg_clone);
+            let text_color = if is_error {
+                colors::ERROR
+            } else if is_warning {
+                colors::WARNING
+            } else {
+                colors::SUCCESS
+            };
 
-            // Context-aware recovery buttons
-            if is_error || is_warning {
-                ui.horizontal(|ui| {
-                    if (msg_clone.contains("Scan") || msg_clone.contains("scan"))
-                        && ui.small_button("Retry Scan").clicked()
-                    {
-                        self.start_scan();
-                    }
-                    if (msg_clone.contains("Ollama")
-                        || msg_clone.contains("AI")
-                        || msg_clone.contains("ollama"))
-                        && ui.small_button("Retry Connection").clicked()
-                    {
-                        self.ollama_available = false;
-                        self.ollama_checking = false;
-                        self.ollama_receiver = None;
-                        self.check_ollama();
-                    }
-                    if (msg_clone.contains("Database")
-                        || msg_clone.contains("database")
-                        || msg_clone.contains("db"))
-                        && ui.small_button("Re-init DB").clicked()
-                    {
-                        match Database::default_open() {
-                            Ok(db) => {
-                                self.settings = db.load_settings();
-                                self.current_path = PathBuf::from(&self.settings.default_scan_path);
-                                self.scan_history = db.get_scan_history(50).unwrap_or_default();
-                                self.db = Some(db);
-                                self.status_message = Some("Database reinitialized.".to_string());
+            egui::Frame::NONE
+                .fill(bg)
+                .corner_radius(egui::CornerRadius::same(8))
+                .inner_margin(egui::Margin::symmetric(12, 8))
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new(icon_char)
+                                .size(14.0)
+                                .color(text_color)
+                                .strong(),
+                        );
+                        ui.label(egui::RichText::new(&msg_clone).size(12.0).color(text_color));
+                    });
+
+                    // Context-aware recovery buttons
+                    if is_error || is_warning {
+                        ui.horizontal(|ui| {
+                            if (msg_clone.contains("Scan") || msg_clone.contains("scan"))
+                                && ui.small_button("Retry Scan").clicked()
+                            {
+                                self.start_scan();
                             }
-                            Err(e) => {
-                                self.status_message = Some(format!(
-                                    "DB re-init failed: {}",
-                                    sanitize_error_message(&e.to_string())
-                                ));
+                            if (msg_clone.contains("Ollama")
+                                || msg_clone.contains("AI")
+                                || msg_clone.contains("ollama"))
+                                && ui.small_button("Retry Connection").clicked()
+                            {
+                                self.ollama_available = false;
+                                self.ollama_checking = false;
+                                self.ollama_receiver = None;
+                                self.check_ollama();
                             }
+                            if (msg_clone.contains("Database")
+                                || msg_clone.contains("database")
+                                || msg_clone.contains("db"))
+                                && ui.small_button("Re-init DB").clicked()
+                            {
+                                match Database::default_open() {
+                                    Ok(db) => {
+                                        self.settings = db.load_settings();
+                                        self.current_path =
+                                            PathBuf::from(&self.settings.default_scan_path);
+                                        self.scan_history =
+                                            db.get_scan_history(50).unwrap_or_default();
+                                        self.db = Some(db);
+                                        self.status_message =
+                                            Some("Database reinitialized.".to_string());
+                                    }
+                                    Err(e) => {
+                                        self.status_message = Some(format!(
+                                            "DB re-init failed: {}",
+                                            sanitize_error_message(&e.to_string())
+                                        ));
+                                    }
+                                }
+                            }
+                            if ui.small_button("Dismiss").clicked() {
+                                self.status_message = None;
+                            }
+                        });
+                    } else {
+                        if ui.small_button("Dismiss").clicked() {
+                            self.status_message = None;
                         }
                     }
-                    if ui.small_button("Dismiss").clicked() {
-                        self.status_message = None;
-                    }
                 });
-            } else {
-                ui.horizontal(|ui| {
-                    if ui.small_button("Dismiss").clicked() {
-                        self.status_message = None;
-                    }
-                });
-            }
-            ui.separator();
         }
 
         // Main content
@@ -1106,6 +1206,10 @@ impl SpaceAnalyzerApp {
 }
 
 pub fn run_gui() -> Result<(), eframe::Error> {
+    run_gui_with_tab(None)
+}
+
+pub fn run_gui_with_tab(initial_tab: Option<&str>) -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1400.0, 900.0])
@@ -1113,49 +1217,72 @@ pub fn run_gui() -> Result<(), eframe::Error> {
         ..Default::default()
     };
 
+    let tab = initial_tab.map(|s| s.to_string());
+
     eframe::run_native(
         "Space Analyzer Pro",
         options,
         Box::new(|cc| {
-            // Apply custom theme
             apply_custom_theme(&cc.egui_ctx);
             install_icon_fonts(&cc.egui_ctx);
-            Ok(Box::new(SpaceAnalyzerApp::default()))
+            let mut app = SpaceAnalyzerApp::default();
+            if let Some(ref tab_name) = tab {
+                app.active_tab = match tab_name.to_lowercase().as_str() {
+                    "scan" => AppTab::Scan,
+                    "history" => AppTab::History,
+                    "smart_search" | "smart search" | "search" => AppTab::SmartSearch,
+                    "workflows" | "workflow" => AppTab::Workflows,
+                    "ai_chat" | "ai chat" | "chat" | "ai" | "ai assistant" | "ai_assistant"
+                    | "assistant" => AppTab::AIChat,
+                    "system" => AppTab::System,
+                    "settings" => AppTab::Settings,
+                    _ => AppTab::Dashboard,
+                };
+            }
+            Ok(Box::new(app))
         }),
     )
 }
 
-/// Apply a custom dark theme with accent colors
+/// Apply a custom dark theme with accent colors (Catppuccin Mocha inspired)
 fn apply_custom_theme(ctx: &egui::Context) {
     let mut style = (*ctx.global_style()).clone();
 
-    // Custom colors
+    // Custom colors — Catppuccin Mocha palette
     let mut visuals = egui::Visuals::dark();
     visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(30, 30, 46);
     visuals.widgets.noninteractive.fg_stroke =
         egui::Stroke::new(1.0, egui::Color32::from_rgb(205, 214, 244));
     visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(42, 42, 62);
+    visuals.widgets.inactive.fg_stroke =
+        egui::Stroke::new(1.0, egui::Color32::from_rgb(186, 194, 222));
     visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(58, 58, 90);
-    visuals.widgets.active.bg_fill = egui::Color32::from_rgb(74, 74, 122);
+    visuals.widgets.hovered.fg_stroke =
+        egui::Stroke::new(1.0, egui::Color32::from_rgb(205, 214, 244));
+    visuals.widgets.active.bg_fill = egui::Color32::from_rgb(88, 91, 132);
+    visuals.widgets.active.fg_stroke =
+        egui::Stroke::new(1.0, egui::Color32::from_rgb(205, 214, 244));
     visuals.selection.bg_fill = egui::Color32::from_rgb(137, 180, 250);
     visuals.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(137, 180, 250));
     visuals.extreme_bg_color = egui::Color32::from_rgb(24, 24, 37);
     visuals.faint_bg_color = egui::Color32::from_rgb(27, 27, 38);
     visuals.window_fill = egui::Color32::from_rgb(30, 30, 46);
-    visuals.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(46, 46, 66));
+    visuals.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(58, 58, 82));
 
     style.visuals = visuals;
 
-    // Spacing
+    // Spacing — generous for readability
     style.spacing.item_spacing = egui::vec2(10.0, 8.0);
     style.spacing.window_margin = egui::Margin::same(16);
-    style.spacing.button_padding = egui::vec2(10.0, 6.0);
+    style.spacing.button_padding = egui::vec2(12.0, 6.0);
+    style.spacing.indent = 20.0;
 
-    // Rounding
+    // Rounding — consistent, slightly more rounded
     style.visuals.widgets.noninteractive.corner_radius = egui::CornerRadius::same(6);
     style.visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(6);
     style.visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(8);
     style.visuals.widgets.active.corner_radius = egui::CornerRadius::same(8);
+    style.visuals.widgets.open.corner_radius = egui::CornerRadius::same(8);
 
     ctx.set_global_style(style);
 }
@@ -1176,4 +1303,162 @@ fn icon_text(codepoint: u32, _family: &str, size: f32, color: egui::Color32) -> 
 /// Get just the icon character as a string
 fn icon_char(codepoint: u32) -> char {
     char::from_u32(codepoint).unwrap_or('?')
+}
+
+// ── Theme Colors ──────────────────────────────────────────────────────────────
+
+pub mod colors {
+    use eframe::egui::Color32;
+
+    // Accent / brand
+    pub const ACCENT: Color32 = Color32::from_rgb(137, 180, 250); // Catppuccin blue
+    pub const ACCENT_DIM: Color32 = Color32::from_rgb(88, 110, 165);
+    pub const ACCENT_BG: Color32 = Color32::from_rgb(35, 40, 65);
+
+    // Semantic
+    pub const SUCCESS: Color32 = Color32::from_rgb(166, 227, 161); // Catppuccin green
+    pub const WARNING: Color32 = Color32::from_rgb(249, 226, 175); // Catppuccin yellow
+    pub const ERROR: Color32 = Color32::from_rgb(243, 139, 168); // Catppuccin red
+    pub const INFO: Color32 = Color32::from_rgb(137, 180, 250); // Catppuccin blue
+
+    // Surface / backgrounds
+    pub const CARD_BG: Color32 = Color32::from_rgb(36, 37, 54); // Slightly lighter than base
+    pub const CARD_BORDER: Color32 = Color32::from_rgb(58, 58, 82);
+    pub const CARD_HOVER: Color32 = Color32::from_rgb(42, 42, 65);
+
+    // Text
+    pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(205, 214, 244); // Catppuccin text
+    pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(166, 173, 200);
+    pub const TEXT_MUTED: Color32 = Color32::from_rgb(108, 112, 134); // Catppuccin overlay
+
+    // Priority colors
+    pub const PRIORITY_CRITICAL: Color32 = Color32::from_rgb(243, 139, 168);
+    pub const PRIORITY_HIGH: Color32 = Color32::from_rgb(250, 179, 135);
+    pub const PRIORITY_MEDIUM: Color32 = Color32::from_rgb(249, 226, 175);
+    pub const PRIORITY_LOW: Color32 = Color32::from_rgb(166, 173, 200);
+}
+
+// ── UI Component Helpers ──────────────────────────────────────────────────────
+
+/// Render a styled card frame with background, border, and padding.
+/// Returns the inner Ui for content.
+pub fn card_frame(_style: &egui::Style) -> egui::Frame {
+    egui::Frame::NONE
+        .fill(colors::CARD_BG)
+        .stroke(egui::Stroke::new(1.0, colors::CARD_BORDER))
+        .corner_radius(egui::CornerRadius::same(10))
+        .inner_margin(egui::Margin::symmetric(16, 12))
+        .outer_margin(egui::Margin::symmetric(0, 4))
+}
+
+/// Render a section header with optional icon and strong text.
+pub fn section_heading(ui: &mut egui::Ui, icon: Option<char>, text: &str) {
+    ui.add_space(4.0);
+    ui.horizontal(|ui| {
+        if let Some(ch) = icon {
+            ui.label(
+                egui::RichText::new(ch.to_string())
+                    .size(15.0)
+                    .color(colors::ACCENT),
+            );
+        }
+        ui.label(
+            egui::RichText::new(text)
+                .size(15.0)
+                .strong()
+                .color(colors::TEXT_PRIMARY),
+        );
+    });
+    ui.add_space(2.0);
+}
+
+/// Render a stat card: large value + label underneath, inside a card.
+pub fn stat_card(ui: &mut egui::Ui, label: &str, value: &str, accent: egui::Color32) {
+    card_frame(ui.style()).show(ui, |ui| {
+        ui.vertical(|ui| {
+            ui.label(egui::RichText::new(value).size(22.0).strong().color(accent));
+            ui.label(
+                egui::RichText::new(label)
+                    .size(11.0)
+                    .color(colors::TEXT_SECONDARY),
+            );
+        });
+    });
+}
+
+/// Render a colored badge (pill-shaped label).
+pub fn badge(ui: &mut egui::Ui, text: &str, bg: egui::Color32) {
+    egui::Frame::NONE
+        .fill(bg)
+        .corner_radius(egui::CornerRadius::same(10))
+        .inner_margin(egui::Margin::symmetric(8, 2))
+        .show(ui, |ui| {
+            ui.label(
+                egui::RichText::new(text)
+                    .size(10.0)
+                    .strong()
+                    .color(egui::Color32::BLACK),
+            );
+        });
+}
+
+/// Render a horizontal gauge bar (0.0..=1.0) with color coding.
+pub fn gauge_bar(ui: &mut egui::Ui, value: f32, width: f32, height: f32) {
+    let (color, bg) = if value > 0.9 {
+        (colors::ERROR, colors::ERROR.linear_multiply(0.2))
+    } else if value > 0.7 {
+        (colors::WARNING, colors::WARNING.linear_multiply(0.2))
+    } else if value > 0.5 {
+        (
+            colors::PRIORITY_HIGH,
+            colors::PRIORITY_HIGH.linear_multiply(0.2),
+        )
+    } else {
+        (colors::SUCCESS, colors::SUCCESS.linear_multiply(0.2))
+    };
+
+    let (response, painter) = ui.allocate_painter(egui::vec2(width, height), egui::Sense::hover());
+    let rect = response.rect;
+
+    // Background
+    painter.rect_filled(rect, egui::CornerRadius::same(4), bg);
+
+    // Fill
+    let fill_width = (rect.width() * value.clamp(0.0, 1.0)).max(0.0);
+    if fill_width > 0.0 {
+        let fill_rect = egui::Rect::from_min_size(rect.min, egui::vec2(fill_width, rect.height()));
+        painter.rect_filled(fill_rect, egui::CornerRadius::same(4), color);
+    }
+}
+
+/// Render a small horizontal gauge with label and percentage text.
+pub fn labeled_gauge(ui: &mut egui::Ui, label: &str, value: f32, detail: Option<&str>) {
+    ui.vertical(|ui| {
+        ui.horizontal(|ui| {
+            ui.label(
+                egui::RichText::new(label)
+                    .size(12.0)
+                    .color(colors::TEXT_PRIMARY),
+            );
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let color = if value > 0.9 {
+                    colors::ERROR
+                } else if value > 0.7 {
+                    colors::WARNING
+                } else {
+                    colors::SUCCESS
+                };
+                ui.label(
+                    egui::RichText::new(format!("{:.1}%", value * 100.0))
+                        .size(11.0)
+                        .color(color)
+                        .strong(),
+                );
+            });
+        });
+        gauge_bar(ui, value, ui.available_width(), 8.0);
+        if let Some(d) = detail {
+            ui.label(egui::RichText::new(d).size(10.0).color(colors::TEXT_MUTED));
+        }
+    });
 }

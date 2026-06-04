@@ -3,27 +3,67 @@ use egui_plot::{CoordinatesFormatter, Corner, HLine, Legend, Line, Plot, PlotPoi
 
 impl SpaceAnalyzerApp {
     pub(crate) fn render_dashboard(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Space Analyzer Pro v3.3.0");
-        ui.label("Self-contained disk space analysis with embedded database and AI.");
-        ui.separator();
+        // ── Hero Stats Row ─────────────────────────────────────────────
+        self.render_hero_stats(ui);
 
-        // ── Quick Stats ─────────────────────────────────────────────
+        // ── Quick Actions ──────────────────────────────────────────────
+        self.render_quick_actions(ui);
+
+        // ── Two-column layout: File Categories + System Resources ─────
+        ui.columns(2, |cols| {
+            // Left column: File Categories + Bloat
+            self.render_categories_card(&mut cols[0]);
+            self.render_bloat_card(&mut cols[1]);
+        });
+
+        // ── Disk Volumes ──────────────────────────────────────────────
+        if !self.disk_volumes.is_empty() {
+            self.render_disk_volumes_card(ui);
+        }
+
+        // ── System Resources ──────────────────────────────────────────
+        self.render_system_resources_card(ui);
+
+        // ── Storage Trend Chart ───────────────────────────────────────
+        if self.scan_history.len() >= 2 {
+            self.render_trend_card(ui);
+        }
+
+        // ── AI Recommendations ────────────────────────────────────────
+        if !self.ai_recommendations.is_empty() {
+            self.render_recommendations_card(ui);
+        }
+    }
+
+    // ── Hero Stats Row ────────────────────────────────────────────────────
+    fn render_hero_stats(&self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             if let Some(ref result) = self.scan_result {
-                ui.label(
-                    egui::RichText::new(format!(
-                        "Last scan: {} files, {}",
-                        result.total_files,
-                        formatting::format_bytes(result.total_size_bytes)
-                    ))
-                    .strong(),
+                // Total Files
+                stat_card(
+                    ui,
+                    "Total Files",
+                    &format!("{}", result.total_files),
+                    colors::ACCENT,
                 );
-            } else {
-                ui.label(egui::RichText::new("No scans yet. Go to Scan tab to begin.").italics());
-            }
-            ui.separator();
-            ui.label(format!("History: {} records", self.scan_history.len()));
-            if let Some(ref result) = self.scan_result {
+
+                // Total Size
+                stat_card(
+                    ui,
+                    "Total Size",
+                    &formatting::format_bytes(result.total_size_bytes),
+                    colors::SUCCESS,
+                );
+
+                // Scan History
+                stat_card(
+                    ui,
+                    "Scans",
+                    &format!("{}", self.scan_history.len()),
+                    colors::INFO,
+                );
+
+                // Large Files
                 let threshold = self.settings.large_file_threshold_mb * 1024 * 1024;
                 let large_count = result
                     .largest_files
@@ -31,552 +71,318 @@ impl SpaceAnalyzerApp {
                     .filter(|(_, size)| *size > threshold)
                     .count();
                 if large_count > 0 {
-                    ui.separator();
-                    ui.label(
-                        egui::RichText::new(format!(
-                            "Large files (>{}MB): {}",
-                            self.settings.large_file_threshold_mb, large_count
-                        ))
-                        .color(egui::Color32::from_rgb(255, 180, 100)),
+                    stat_card(
+                        ui,
+                        &format!("Large (>{ }MB)", self.settings.large_file_threshold_mb),
+                        &format!("{}", large_count),
+                        colors::WARNING,
                     );
                 }
-            }
-            if let Some(ref gpu) = self.gpu_info {
-                ui.separator();
-                if gpu.available {
-                    ui.label(format!("GPU: {}", gpu.name.as_deref().unwrap_or("Unknown")));
-                } else {
-                    ui.small("GPU: CPU only");
+
+                // Speed
+                if result.duration_secs > 0.0 {
+                    stat_card(
+                        ui,
+                        "Speed",
+                        &format!("{:.0}/s", result.total_files as f64 / result.duration_secs),
+                        colors::ACCENT,
+                    );
                 }
+            } else {
+                stat_card(ui, "Total Files", "0", colors::TEXT_MUTED);
+                stat_card(ui, "Total Size", "0 B", colors::TEXT_MUTED);
+                stat_card(
+                    ui,
+                    "Scans",
+                    &format!("{}", self.scan_history.len()),
+                    colors::INFO,
+                );
             }
         });
+    }
 
-        // ── Quick Actions ───────────────────────────────────────────
+    // ── Quick Actions ─────────────────────────────────────────────────────
+    fn render_quick_actions(&mut self, ui: &mut egui::Ui) {
+        ui.add_space(4.0);
+        section_heading(ui, None, "Quick Actions");
         ui.horizontal(|ui| {
-            if ui
-                .add_enabled(!self.is_scanning, egui::Button::new("📁 Scan Now"))
-                .clicked()
-            {
+            let scan_btn =
+                egui::Button::new(egui::RichText::new("🔍  Start Scan").size(13.0).strong())
+                    .min_size(egui::vec2(120.0, 32.0))
+                    .fill(if self.is_scanning {
+                        colors::TEXT_MUTED
+                    } else {
+                        colors::ACCENT
+                    });
+
+            if ui.add_enabled(!self.is_scanning, scan_btn).clicked() {
                 self.active_tab = AppTab::Scan;
                 self.start_scan();
             }
-            if ui.button("📋 History").clicked() {
+
+            let hist_btn = egui::Button::new(egui::RichText::new("📋  History").size(13.0))
+                .min_size(egui::vec2(100.0, 32.0));
+            if ui.add(hist_btn).clicked() {
                 self.active_tab = AppTab::History;
             }
-            if ui.button("⚙ Workflows").clicked() {
+
+            let wf_btn = egui::Button::new(egui::RichText::new("⚙  Workflows").size(13.0))
+                .min_size(egui::vec2(110.0, 32.0));
+            if ui.add(wf_btn).clicked() {
                 self.active_tab = AppTab::Workflows;
             }
-            if ui.button("🤖 AI Assistant").clicked() {
+
+            let ai_btn = egui::Button::new(egui::RichText::new("🤖  AI Assistant").size(13.0))
+                .min_size(egui::vec2(120.0, 32.0))
+                .fill(colors::ACCENT_BG);
+            if ui.add(ai_btn).clicked() {
                 self.active_tab = AppTab::AIChat;
             }
         });
+        ui.add_space(4.0);
+    }
 
-        // ── File Categories (from most recent scan) ─────────────────────
-        if let Some(ref result) = self.scan_result {
-            ui.separator();
-            ui.heading("📁 File Categories");
-            let categories = category::categorize_files(&result.file_types);
-            let total: usize = categories.values().sum();
-            if total == 0 {
-                ui.small("No categorized files in last scan.");
-            } else {
-                let mut sorted: Vec<(&String, &usize)> = categories.iter().collect();
-                sorted.sort_by(|a, b| b.1.cmp(a.1));
-                for (cat, count) in sorted.iter().take(8) {
-                    let (r, g, b) = category::category_color(cat);
-                    let pct = if total > 0 {
-                        (**count as f64 / total as f64) * 100.0
-                    } else {
-                        0.0
-                    };
-                    ui.horizontal(|ui| {
-                        ui.colored_label(egui::Color32::from_rgb(r, g, b), format!("{:>12}", cat));
-                        ui.label(format!("{} files ({:.1}%)", count, pct));
-                    });
-                }
-            }
-        }
-
-        // ── Bloat Candidates (heuristic offline AI) ─────────────────────
-        if let Some(ref result) = self.scan_result {
-            ui.separator();
-            ui.heading("🧹 Bloat Candidates");
-            let classifier = offline_ai::FilePatternClassifier::new();
-            let mut flagged: Vec<(String, String, usize)> = Vec::new();
-            for (ext, count) in &result.file_types {
-                if let Some(rule) = classifier.classify_file(ext, 0) {
-                    flagged.push((ext.clone(), rule.name.clone(), *count));
-                }
-            }
-            if flagged.is_empty() {
-                ui.small(egui::RichText::new("No bloat patterns matched.").italics());
-            } else {
-                for (ext, name, count) in flagged.iter().take(5) {
-                    ui.horizontal(|ui| {
-                        ui.colored_label(egui::Color32::YELLOW, format!(".{}", ext));
-                        ui.label(format!("{} — {} file(s)", name, count));
-                    });
-                }
-            }
-        }
-
-        // ── Destructive-Action Preview (F) ──────────────────────────────
-        ui.separator();
-        ui.heading("🔍 Destructive-Action Preview");
-        ui.horizontal(|ui| {
-            ui.label("File path:");
-            ui.add(
-                egui::TextEdit::singleline(&mut self.impact_preview_input)
-                    .hint_text("e.g. C:\\path\\to\\file.txt")
-                    .desired_width(450.0),
-            );
-            if ui.button("Preview Impact").clicked() {
-                let path = self.impact_preview_input.trim().to_string();
-                if !path.is_empty() {
-                    let report = file_relations::analyze_file_dependencies(&path);
-                    self.current_impact_report = Some(report);
-                    self.impact_preview_open = true;
+    // ── File Categories Card ──────────────────────────────────────────────
+    fn render_categories_card(&self, ui: &mut egui::Ui) {
+        section_heading(ui, Some('📁'), "File Categories");
+        card_frame(ui.style()).show(ui, |ui| {
+            if let Some(ref result) = self.scan_result {
+                let categories = category::categorize_files(&result.file_types);
+                let total: usize = categories.values().sum();
+                if total == 0 {
+                    ui.label(
+                        egui::RichText::new("No categorized files in last scan")
+                            .italics()
+                            .color(colors::TEXT_MUTED),
+                    );
                 } else {
-                    self.push_notification("Enter a file path first", NotificationLevel::Warning);
-                }
-            }
-            if ui.button("From Scan").clicked() {
-                if let Some(ref result) = self.scan_result {
-                    if let Some((path, _)) = result.largest_files.first() {
-                        self.impact_preview_input = path.clone();
-                    } else {
-                        self.push_notification(
-                            "No files in current scan",
-                            NotificationLevel::Warning,
-                        );
-                    }
-                } else {
-                    self.push_notification("Run a scan first", NotificationLevel::Warning);
-                }
-            }
-        });
-        ui.small(
-            "See hardlinks, symlinks, sibling files, and an impact assessment before deleting or moving.",
-        );
+                    let mut sorted: Vec<(&String, &usize)> = categories.iter().collect();
+                    sorted.sort_by(|a, b| b.1.cmp(a.1));
 
-        // ── Impact Preview Modal ────────────────────────────────────────
-        if self.impact_preview_open {
-            let report_clone = self.current_impact_report.clone();
-            if let Some(report) = report_clone {
-                let mut open = self.impact_preview_open;
-                egui::Window::new("🔍 Destructive-Action Impact Preview")
-                    .open(&mut open)
-                    .resizable(true)
-                    .default_size([720.0, 540.0])
-                    .show(ui.ctx(), |ui| {
-                        ui.heading(format!("Target: {}", report.target_path));
-                        if !report.target_exists {
-                            ui.colored_label(egui::Color32::RED, "❌ File does not exist");
-                            return;
-                        }
-                        if report.target_is_dir {
-                            ui.colored_label(
-                                egui::Color32::YELLOW,
-                                "⚠ Target is a directory, not a file",
-                            );
-                            return;
-                        }
-                        ui.horizontal(|ui| {
-                            ui.label(format!(
-                                "Size: {}",
-                                formatting::format_bytes(report.target_size)
-                            ));
-                            ui.separator();
-                            ui.label(format!("Modified: {}", report.target_modified));
-                        });
-                        if report.is_symlink {
-                            ui.colored_label(
-                                egui::Color32::LIGHT_BLUE,
-                                format!(
-                                    "🔗 Symlink → {}",
-                                    report.symlink_target.as_deref().unwrap_or("?")
-                                ),
-                            );
-                        }
-                        if report.hardlink_count > 0 {
-                            ui.colored_label(
-                                egui::Color32::from_rgb(255, 180, 100),
-                                format!(
-                                    "🔗 {} potential duplicate(s) found (same size + modified time)",
-                                    report.hardlink_count
-                                ),
-                            );
-                        }
-                        ui.separator();
-                        ui.label(egui::RichText::new(&report.summary).strong());
-                        ui.separator();
-                        egui::ScrollArea::vertical()
-                            .max_height(320.0)
-                            .show(ui, |ui| {
-                                if !report.same_stem_files.is_empty() {
-                                    ui.heading("Same-name files (different extension):");
-                                    for f in report.same_stem_files.iter().take(20) {
-                                        ui.label(format!(
-                                            "  {} ({})",
-                                            f.path,
-                                            formatting::format_bytes(f.size)
-                                        ));
-                                    }
-                                }
-                                if !report.symlink_sources.is_empty() {
-                                    ui.heading("Symlinks pointing to this file:");
-                                    for f in &report.symlink_sources {
-                                        ui.label(format!("  {}", f.path));
-                                    }
-                                }
-                                if !report.sibling_files.is_empty() {
-                                    ui.heading("Sibling files (first 20):");
-                                    for f in report.sibling_files.iter().take(20) {
-                                        ui.label(format!("  {} — {}", f.path, f.relation));
-                                    }
-                                }
-                                if report.total_related == 0 {
-                                    ui.small(
-                                        "No related files detected — this file appears isolated.",
-                                    );
-                                }
+                    for (cat, count) in sorted.iter().take(8) {
+                        let (r, g, b) = category::category_color(cat);
+                        let pct = if total > 0 {
+                            (**count as f64 / total as f64) * 100.0
+                        } else {
+                            0.0
+                        };
+                        let bar_pct = (pct / 100.0) as f32;
+
+                        ui.vertical(|ui| {
+                            ui.horizontal(|ui| {
+                                ui.colored_label(
+                                    egui::Color32::from_rgb(r, g, b),
+                                    format!("{:>12}", cat),
+                                );
+                                ui.label(
+                                    egui::RichText::new(format!("{} ({:.1}%)", count, pct))
+                                        .size(11.0)
+                                        .color(colors::TEXT_SECONDARY),
+                                );
                             });
+                            gauge_bar(ui, bar_pct, ui.available_width(), 4.0);
+                        });
+                        ui.add_space(2.0);
+                    }
+                }
+            } else {
+                ui.label(
+                    egui::RichText::new("Run a scan to see file categories")
+                        .italics()
+                        .color(colors::TEXT_MUTED),
+                );
+            }
+        });
+    }
+
+    // ── Bloat Candidates Card ─────────────────────────────────────────────
+    fn render_bloat_card(&self, ui: &mut egui::Ui) {
+        section_heading(ui, Some('⚡'), "Bloat Candidates");
+        card_frame(ui.style()).show(ui, |ui| {
+            if let Some(ref result) = self.scan_result {
+                let classifier = offline_ai::FilePatternClassifier::new();
+                let mut flagged: Vec<(String, String, usize)> = Vec::new();
+                for (ext, count) in &result.file_types {
+                    if let Some(rule) = classifier.classify_file(ext, 0) {
+                        flagged.push((ext.clone(), rule.name.clone(), *count));
+                    }
+                }
+                if flagged.is_empty() {
+                    ui.label(
+                        egui::RichText::new("No bloat patterns detected — looking good!")
+                            .italics()
+                            .color(colors::SUCCESS),
+                    );
+                } else {
+                    for (ext, name, count) in flagged.iter().take(5) {
+                        ui.horizontal(|ui| {
+                            badge(ui, &format!(".{}", ext), colors::WARNING);
+                            ui.label(
+                                egui::RichText::new(format!("{} — {} file(s)", name, count))
+                                    .size(11.0),
+                            );
+                        });
+                    }
+                }
+            } else {
+                ui.label(
+                    egui::RichText::new("Run a scan to detect bloat")
+                        .italics()
+                        .color(colors::TEXT_MUTED),
+                );
+            }
+        });
+    }
+
+    // ── Disk Volumes Card ─────────────────────────────────────────────────
+    fn render_disk_volumes_card(&self, ui: &mut egui::Ui) {
+        section_heading(ui, Some('💾'), "Disk Volumes");
+        card_frame(ui.style()).show(ui, |ui| {
+            ui.vertical(|ui| {
+                for vol in &self.disk_volumes {
+                    labeled_gauge(
+                        ui,
+                        &format!("{} ({})", vol.mount_point, vol.name),
+                        vol.usage_percent / 100.0,
+                        Some(&format!(
+                            "{} free of {}",
+                            formatting::format_bytes(vol.available_bytes),
+                            formatting::format_bytes(vol.total_bytes)
+                        )),
+                    );
+                    ui.add_space(4.0);
+                }
+            });
+        });
+    }
+
+    // ── System Resources Card ─────────────────────────────────────────────
+    fn render_system_resources_card(&self, ui: &mut egui::Ui) {
+        section_heading(ui, Some('🖥'), "System Resources");
+        card_frame(ui.style()).show(ui, |ui| {
+            if let Some(ref sys) = self.system_resources {
+                ui.columns(2, |cols| {
+                    // CPU
+                    labeled_gauge(&mut cols[0], "CPU", sys.cpu_percent / 100.0, None);
+                    // Memory
+                    labeled_gauge(
+                        &mut cols[1],
+                        "Memory",
+                        sys.memory_percent / 100.0,
+                        Some(&format!(
+                            "{} / {}",
+                            formatting::format_bytes(sys.memory_used_bytes),
+                            formatting::format_bytes(sys.memory_total_bytes)
+                        )),
+                    );
+                });
+
+                // GPU info
+                if let Some(ref gpu) = self.gpu_info {
+                    ui.add_space(4.0);
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new("GPU:")
+                                .size(12.0)
+                                .color(colors::TEXT_SECONDARY),
+                        );
+                        if gpu.available {
+                            badge(
+                                ui,
+                                gpu.name.as_deref().unwrap_or("Unknown"),
+                                colors::SUCCESS,
+                            );
+                        } else {
+                            badge(ui, "CPU Only", colors::TEXT_MUTED);
+                        }
                     });
-                self.impact_preview_open = open;
+                }
             } else {
-                self.impact_preview_open = false;
+                ui.label(
+                    egui::RichText::new("Loading system info...")
+                        .italics()
+                        .color(colors::TEXT_MUTED),
+                );
             }
-        }
+        });
+    }
 
-        // ── System Resources (always visible) ───────────────────────
-        ui.separator();
-        ui.heading("System Resources");
-        if let Some(ref sys) = self.system_resources {
-            ui.horizontal(|ui| {
-                // CPU
-                let cpu_color = self.status_color(sys.cpu_percent, 50.0, 80.0);
-                ui.vertical(|ui| {
-                    ui.label(egui::RichText::new("CPU").strong());
-                    ui.add(
-                        egui::ProgressBar::new(sys.cpu_percent / 100.0)
-                            .text(format!("{:.1}%", sys.cpu_percent))
-                            .fill(cpu_color),
-                    );
-                });
-                ui.add_space(10.0);
-                // Memory
-                let mem_color = self.status_color(sys.memory_percent, 60.0, 80.0);
-                ui.vertical(|ui| {
-                    ui.label(egui::RichText::new("Memory").strong());
-                    ui.add(
-                        egui::ProgressBar::new(sys.memory_percent / 100.0)
-                            .text(format!(
-                                "{:.1}% ({}/{})",
-                                sys.memory_percent,
-                                formatting::format_bytes(sys.memory_used_bytes),
-                                formatting::format_bytes(sys.memory_total_bytes)
-                            ))
-                            .fill(mem_color),
-                    );
-                });
-            });
+    // ── Storage Trend Card ────────────────────────────────────────────────
+    fn render_trend_card(&self, ui: &mut egui::Ui) {
+        section_heading(ui, Some('📈'), "Storage Trend");
+        card_frame(ui.style()).show(ui, |ui| {
+            self.render_storage_chart_inner(ui);
+        });
+    }
+
+    // ── Recommendations Card ──────────────────────────────────────────────
+    fn render_recommendations_card(&self, ui: &mut egui::Ui) {
+        let source_label = if self.ai_recommendation_source == "ai" {
+            "🤖 AI"
         } else {
-            ui.small("Loading system info...");
-        }
+            "⚙ Heuristic"
+        };
 
-        // ── Disk Volumes (always visible) ───────────────────────────
-        if !self.disk_volumes.is_empty() {
-            ui.separator();
-            ui.heading("Disk Volumes");
-            for vol in &self.disk_volumes {
-                let usage_color = self.status_color(vol.usage_percent, 70.0, 90.0);
-                ui.horizontal(|ui| {
-                    ui.label(format!("{} ({})", vol.mount_point, vol.name));
-                    ui.add(
-                        egui::ProgressBar::new(vol.usage_percent / 100.0)
-                            .text(format!(
-                                "{:.1}% — {} free of {}",
-                                vol.usage_percent,
-                                formatting::format_bytes(vol.available_bytes),
-                                formatting::format_bytes(vol.total_bytes)
-                            ))
-                            .fill(usage_color),
-                    );
-                });
-            }
-        }
-
-        // ── Storage Trend Chart (always visible) ────────────────────
-        if self.scan_history.len() >= 2 {
-            ui.separator();
-            self.render_storage_chart(ui);
-        }
-
-        // ── AI Recommendations (if any) ─────────────────────────────
-        if !self.ai_recommendations.is_empty() {
-            ui.separator();
-            let source_label = if self.ai_recommendation_source == "ai" {
-                "🤖 AI"
-            } else {
-                "⚙ Heuristic"
-            };
-            ui.horizontal(|ui| {
-                ui.heading("Insights");
-                ui.small(format!("({})", source_label));
-            });
+        section_heading(ui, Some('💡'), &format!("Insights ({})", source_label));
+        card_frame(ui.style()).show(ui, |ui| {
             if self.ai_recommendation_pending {
-                ui.small("Generating AI recommendations…");
-            }
-            for rec in self.ai_recommendations.iter().take(3) {
-                let color = match rec.priority {
-                    RecommendationPriority::Critical => egui::Color32::RED,
-                    RecommendationPriority::High => egui::Color32::from_rgb(255, 165, 0),
-                    RecommendationPriority::Medium => egui::Color32::YELLOW,
-                    RecommendationPriority::Low => egui::Color32::LIGHT_GRAY,
-                };
-                ui.label(egui::RichText::new(&rec.title).color(color).strong());
-                ui.small(&rec.description);
-            }
-        }
-
-        // ── Collapsible: AI Status ──────────────────────────────────
-        ui.separator();
-        egui::CollapsingHeader::new(egui::RichText::new("AI Assistant").strong())
-            .default_open(true)
-            .show(ui, |ui| {
-                self.render_ai_status(ui);
-            });
-
-        // ── Collapsible: Activity Status ────────────────────────────
-        egui::CollapsingHeader::new(egui::RichText::new("Activity").strong())
-            .default_open(true)
-            .show(ui, |ui| {
-                self.render_activity_status(ui);
-            });
-
-        // ── Collapsible: Smart Search ───────────────────────────────
-        egui::CollapsingHeader::new(egui::RichText::new("Smart Search & Embeddings").strong())
-            .default_open(false)
-            .show(ui, |ui| {
-                self.render_smart_search_status(ui);
-            });
-
-        // ── Collapsible: AI Conversation ────────────────────────────
-        egui::CollapsingHeader::new(egui::RichText::new("AI Conversation").strong())
-            .default_open(false)
-            .show(ui, |ui| {
-                self.render_conversation_status(ui);
-            });
-
-        // ── Collapsible: System & Settings ──────────────────────────
-        egui::CollapsingHeader::new(egui::RichText::new("System & Settings").strong())
-            .default_open(false)
-            .show(ui, |ui| {
-                self.render_system_settings(ui);
-            });
-    }
-
-    // ── Helper: status color ────────────────────────────────────────
-    fn status_color(&self, value: f32, warn: f32, critical: f32) -> egui::Color32 {
-        if value > critical {
-            egui::Color32::RED
-        } else if value > warn {
-            egui::Color32::YELLOW
-        } else {
-            egui::Color32::GREEN
-        }
-    }
-
-    // ── AI Status ───────────────────────────────────────────────────
-    fn render_ai_status(&self, ui: &mut egui::Ui) {
-        if self.ollama_available {
-            ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new("Connected")
-                        .color(egui::Color32::GREEN)
-                        .strong(),
-                );
-                if let Some(ref model) = self.current_active_model {
-                    ui.label(format!("Model: {}", model));
-                }
-                if let Some(ref task) = self.current_model_task {
-                    ui.small(format!("({})", task));
-                }
-            });
-            if !self.discovered_models.is_empty() {
-                ui.small(format!(
-                    "{} models discovered",
-                    self.discovered_models.len()
-                ));
-            }
-        } else if self.ollama_checking {
-            ui.label("Checking connection...");
-        } else {
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Not connected").color(egui::Color32::YELLOW));
-                ui.small("Enable in Settings for AI features");
-            });
-        }
-    }
-
-    // ── Activity Status ─────────────────────────────────────────────
-    fn render_activity_status(&mut self, ui: &mut egui::Ui) {
-        let mut has_activity = false;
-
-        if self.is_scanning {
-            has_activity = true;
-            ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new("● Scanning")
-                        .color(egui::Color32::YELLOW)
-                        .strong(),
-                );
-                ui.add(
-                    egui::ProgressBar::new(self.scan_progress / 100.0)
-                        .text(format!("{:.0}%", self.scan_progress)),
-                );
-            });
-        }
-
-        if self.is_indexing {
-            has_activity = true;
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("● Indexing embeddings").color(egui::Color32::YELLOW));
-                ui.add(
-                    egui::ProgressBar::new(self.indexing_progress / 100.0)
-                        .text(format!("{:.0}%", self.indexing_progress)),
-                );
-            });
-        }
-
-        if self.is_deduplicating {
-            has_activity = true;
-            ui.label(egui::RichText::new("● Finding duplicates...").color(egui::Color32::YELLOW));
-        }
-
-        if let Some(ref execution) = self.active_workflow {
-            has_activity = true;
-            let status_color = match execution.status {
-                ExecutionStatus::Running => egui::Color32::YELLOW,
-                ExecutionStatus::Completed => egui::Color32::GREEN,
-                ExecutionStatus::Failed => egui::Color32::RED,
-                _ => egui::Color32::GRAY,
-            };
-            ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new(format!("Workflow: {}", execution.workflow_name))
-                        .color(status_color)
-                        .strong(),
-                );
-                if execution.status == ExecutionStatus::Running {
-                    ui.label(format!(
-                        "{}/{}",
-                        execution.actions_completed, execution.total_actions
-                    ));
-                }
-            });
-        }
-
-        if !self.pending_workflow_actions.is_empty() {
-            has_activity = true;
-            ui.small(format!(
-                "{} pending actions",
-                self.pending_workflow_actions.len()
-            ));
-        }
-
-        if !has_activity {
-            ui.label(
-                egui::RichText::new("No active processes")
-                    .italics()
-                    .color(egui::Color32::GRAY),
-            );
-        }
-    }
-
-    // ── Smart Search Status ─────────────────────────────────────────
-    fn render_smart_search_status(&self, ui: &mut egui::Ui) {
-        if self.cached_embeddings.is_empty() {
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("No embeddings indexed").italics());
-                ui.small("Enable embedding index in Settings to use Smart Search");
-            });
-        } else {
-            ui.horizontal(|ui| {
-                ui.label(format!(
-                    "{} embeddings indexed",
-                    self.cached_embeddings.len()
-                ));
-                if let Some(scan_id) = self.embedding_scan_id {
-                    ui.small(format!("(scan #{}))", scan_id));
-                }
-            });
-            if !self.search_results.is_empty() {
-                ui.label(format!(
-                    "Last search: {} results",
-                    self.search_results.len()
-                ));
-            }
-            if !self.search_status.is_empty() {
-                ui.small(&self.search_status);
-            }
-        }
-    }
-
-    // ── Conversation Status ─────────────────────────────────────────
-    fn render_conversation_status(&self, ui: &mut egui::Ui) {
-        if self.chat_messages.is_empty() {
-            ui.label(egui::RichText::new("No conversations yet").italics());
-        } else {
-            ui.horizontal(|ui| {
-                ui.label(format!("{} messages", self.chat_messages.len()));
-                ui.separator();
-                ui.label(format!(
-                    "{} turns of context",
-                    self.conversation_history.len()
-                ));
-                ui.separator();
-                ui.label(format!("Tool depth: {}", self.tool_call_depth));
-            });
-        }
-    }
-
-    // ── System & Settings ───────────────────────────────────────────
-    fn render_system_settings(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label(format!("Directory: {}", self.current_path.display()));
-            if ui.small_button("Change").clicked() {
-                if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                    self.current_path = path.clone();
-                    self.settings.default_scan_path = path.to_string_lossy().to_string();
-                    self.save_settings();
-                    self.push_notification("Directory updated", NotificationLevel::Success);
-                }
-            }
-        });
-        ui.horizontal(|ui| {
-            ui.label(format!("Workflows: {} available", self.workflows.len()));
-            ui.separator();
-            ui.label(format!("Notifications: {}", self.notifications.len()));
-        });
-        ui.horizontal(|ui| {
-            if self.session_logger.is_enabled() {
-                ui.label(egui::RichText::new("Logging: ON").color(egui::Color32::GREEN));
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(
+                        egui::RichText::new("Generating AI recommendations…")
+                            .italics()
+                            .color(colors::TEXT_SECONDARY),
+                    );
+                });
             } else {
-                ui.label("Logging: OFF");
-                if ui.small_button("Enable").clicked() {
-                    self.settings.log_session_to_file = true;
-                    self.save_settings();
-                    self.push_notification("Logging enabled", NotificationLevel::Success);
+                for rec in self.ai_recommendations.iter().take(3) {
+                    let (priority_color, priority_bg) = match rec.priority {
+                        RecommendationPriority::Critical => (
+                            colors::PRIORITY_CRITICAL,
+                            colors::PRIORITY_CRITICAL.linear_multiply(0.15),
+                        ),
+                        RecommendationPriority::High => (
+                            colors::PRIORITY_HIGH,
+                            colors::PRIORITY_HIGH.linear_multiply(0.15),
+                        ),
+                        RecommendationPriority::Medium => (
+                            colors::PRIORITY_MEDIUM,
+                            colors::PRIORITY_MEDIUM.linear_multiply(0.15),
+                        ),
+                        RecommendationPriority::Low => (
+                            colors::PRIORITY_LOW,
+                            colors::PRIORITY_LOW.linear_multiply(0.15),
+                        ),
+                    };
+
+                    egui::Frame::NONE
+                        .fill(priority_bg)
+                        .corner_radius(egui::CornerRadius::same(8))
+                        .inner_margin(egui::Margin::symmetric(12, 8))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                badge(ui, &format!("{:?}", rec.priority), priority_color);
+                                ui.label(
+                                    egui::RichText::new(&rec.title)
+                                        .strong()
+                                        .color(colors::TEXT_PRIMARY),
+                                );
+                            });
+                            ui.label(
+                                egui::RichText::new(&rec.description)
+                                    .size(11.0)
+                                    .color(colors::TEXT_SECONDARY),
+                            );
+                        });
+                    ui.add_space(4.0);
                 }
             }
         });
     }
 
-    // ── Storage Trend Chart ─────────────────────────────────────────
-    fn render_storage_chart(&self, ui: &mut egui::Ui) {
-        ui.heading("Storage Trend");
-
+    // ── Storage Trend Chart (inner) ───────────────────────────────────────
+    fn render_storage_chart_inner(&self, ui: &mut egui::Ui) {
         let timestamps: Vec<chrono::DateTime<chrono::Utc>> = self
             .scan_history
             .iter()
@@ -601,8 +407,8 @@ impl SpaceAnalyzerApp {
             .collect();
 
         let size_line = Line::new("Size (MB)", size_points)
-            .color(egui::Color32::from_rgb(100, 180, 255))
-            .width(2.0)
+            .color(colors::ACCENT)
+            .width(2.5)
             .fill_alpha(0.15);
 
         let max_files = self
@@ -636,14 +442,14 @@ impl SpaceAnalyzerApp {
             .collect();
 
         let file_line = Line::new("Files (normalized)", file_points)
-            .color(egui::Color32::from_rgb(255, 180, 100))
+            .color(colors::PRIORITY_HIGH)
             .width(1.5)
             .style(egui_plot::LineStyle::dashed_dense());
 
         let threshold_mb = self.settings.large_file_threshold_mb as f64;
 
         let mut plot = Plot::new("storage_trend")
-            .height(200.0)
+            .height(180.0)
             .legend(Legend::default())
             .coordinates_formatter(
                 Corner::LeftTop,
@@ -673,7 +479,7 @@ impl SpaceAnalyzerApp {
             if threshold_mb > 0.0 {
                 plot_ui.hline(
                     HLine::new("Large file threshold", threshold_mb)
-                        .color(egui::Color32::from_rgb(255, 80, 80))
+                        .color(colors::ERROR)
                         .width(1.5)
                         .style(egui_plot::LineStyle::dashed_dense()),
                 );
@@ -682,10 +488,14 @@ impl SpaceAnalyzerApp {
 
         ui.horizontal(|ui| {
             if let Some(latest) = self.scan_history.first() {
-                ui.small(format!(
-                    "Latest: {} files, {:.2} MB",
-                    latest.total_files, latest.total_size_mb
-                ));
+                ui.label(
+                    egui::RichText::new(format!(
+                        "Latest: {} files, {:.2} MB",
+                        latest.total_files, latest.total_size_mb
+                    ))
+                    .size(11.0)
+                    .color(colors::TEXT_SECONDARY),
+                );
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.small_button("Export CSV").clicked() {

@@ -30,7 +30,14 @@ fn main() -> Result<(), eframe::Error> {
         .with(tracing_subscriber::fmt::layer().with_writer(std::io::stdout))
         .init();
 
-    tracing::info!(target: "app", dir=%dir.display(), "Starting Space Analyzer Pro GUI");
+    // Parse --tab from argv (simple, no clap dependency for the GUI binary)
+    let args: Vec<String> = std::env::args().collect();
+    let initial_tab = args
+        .windows(2)
+        .find(|w| w[0] == "--tab")
+        .map(|w| w[1].clone());
 
-    space_analyzer_pro_desktop::gui::run_gui()
+    tracing::info!(target: "app", dir=%dir.display(), tab=?initial_tab, "Starting Space Analyzer Pro GUI");
+
+    space_analyzer_pro_desktop::gui::run_gui_with_tab(initial_tab.as_deref())
 }

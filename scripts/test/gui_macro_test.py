@@ -1,14 +1,25 @@
 #!/usr/bin/env python3
 """
-Space Analyzer Pro — GUI Macro Test (Zero-Disruption Mode)
-===========================================================
-- Captures ONLY the application window content using Win32 PrintWindow API
-- No cursor movement, no screen flicker, no foreground stealing
-- Pre-seeds scan history data so the app has real content immediately
-- Launches minimized for completely background operation
-- PostMessage for all input (no user input interference)
+Space Analyzer Pro — GUI Functional Test Suite
+================================================
+Tests the GUI binary for functional correctness, not just visibility.
+Uses Win32 PrintWindow for capture and PostMessage for input (zero screen disruption).
 
-Logs all actions, timing, and screenshots for diagnostics.
+Test categories:
+  1. Launch & startup state
+  2. Tab navigation (all 8 tabs)
+  3. Scan execution (start, progress, results, cancel)
+  4. Settings persistence (change, save, restart, verify)
+  5. Export functionality (text, JSON, CSV, Markdown)
+  6. AI chat (graceful handling when Ollama unavailable)
+  7. History (scan records saved and displayed)
+  8. Error states (invalid paths, empty results)
+
+Output (all in macro_logs/<run_id>/):
+  report.json        — consolidated test report (one file for analysis)
+  console.log        — human-readable log with timestamps
+  screenshots/       — PNG captures at each test step
+  history.jsonl      — append-only run history for trend analysis
 """
 
 import subprocess
@@ -18,29 +29,58 @@ import json
 import ctypes
 import ctypes.wintypes
 import os
-import shutil
+import platform
+import traceback
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict, Any
 
 user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32
+kernel32 = ctypes.windll.kernel32
 
-WM_MOUSEMOVE = 0x0200
-WM_LBUTTONDOWN = 0x0201
-WM_LBUTTONUP = 0x0202
-MK_LBUTTON = 0x0001
+# SendInput structures
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = [
+        ("dx", ctypes.c_long),
+        ("dy", ctypes.c_long),
+        ("mouseData", ctypes.c_ulong),
+        ("dwFlags", ctypes.c_ulong),
+        ("time", ctypes.c_ulong),
+        ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong)),
+    ]
 
-# ── Win32 Constants ────────────────────────────────────────────
+class KEYBDINPUT(ctypes.Structure):
+    _fields_ = [
+        ("wVk", ctypes.c_ushort),
+        ("wScan", ctypes.c_ushort),
+        ("dwFlags", ctypes.c_ulong),
+        ("time", ctypes.c_ulong),
+        ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong)),
+    ]
+
+class INPUT_UNION(ctypes.Union):
+    _fields_ = [("mi", MOUSEINPUT), ("ki", KEYBDINPUT)]
+
+class INPUT(ctypes.Structure):
+    _fields_ = [("type", ctypes.c_ulong), ("union", INPUT_UNION)]
+
+INPUT_MOUSE = 0
+INPUT_KEYBOARD = 1
+MOUSEEVENTF_MOVE = 0x0001
+MOUSEEVENTF_LEFTDOWN = 0x0002
+MOUSEEVENTF_LEFTUP = 0x0004
+MOUSEEVENTF_ABSOLUTE = 0x8000
+MOUSEEVENTF_VIRTUALDESK = 0x4000
+KEYEVENTF_KEYUP = 0x0002
 SW_SHOWMINIMIZED = 2
 SW_RESTORE = 9
-SW_SHOW = 5
-PW_CLIENTONLY = 1
-SRCCOPY = 0x00CC0020
+PW_RENDERFULLCONTENT = 2
 DIB_RGB_COLORS = 0
+VK_LEFT = 0x25
+VK_RIGHT = 0x27
+VK_RETURN = 0x0D
 
-
-# ── Structures ──────────────────────────────────────────────────
 
 class BITMAPINFOHEADER(ctypes.Structure):
     _fields_ = [
@@ -65,10 +105,7 @@ class BITMAPINFO(ctypes.Structure):
     ]
 
 
-# ── Helper Functions ─────────────────────────────────────────────
-
 def screen_to_client(hwnd, sx, sy):
-    """Convert screen coords to client coords for PostMessage."""
     pt = ctypes.wintypes.POINT()
     pt.x = sx
     pt.y = sy
@@ -76,12 +113,70 @@ def screen_to_client(hwnd, sx, sy):
     return pt.x, pt.y
 
 
+def get_screen_size():
+    """Get full virtual screen size (multi-monitor aware)."""
+    SM_XVIRTUALSCREEN = 76
+    SM_YVIRTUALSCREEN = 77
+    SM_CXVIRTUALSCREEN = 78
+    SM_CYVIRTUALSCREEN = 79
+    x = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
+    y = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
+    w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
+    h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
+    return x, y, w, h
+
+
+def sendinput_mouse_click(screen_x, screen_y):
+    """Click at absolute screen coordinates using SendInput (OS-level, reaches egui)."""
+    sx_abs, sy_abs, sw, sh = get_screen_size()
+    # Convert to 0-65535 range for MOUSEEVENTF_ABSOLUTE
+    nx = int((screen_x - sx_abs) * 65535 / max(sw - 1, 1))
+    ny = int((screen_y - sy_abs) * 65535 / max(sh - 1, 1))
+
+    # Move
+    inp = INPUT()
+    inp.type = INPUT_MOUSE
+    inp.union.mi.dx = nx
+    inp.union.mi.dy = ny
+    inp.union.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK
+    user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
+    time.sleep(0.01)
+
+    # Down
+    inp2 = INPUT()
+    inp2.type = INPUT_MOUSE
+    inp2.union.mi.dwFlags = MOUSEEVENTF_LEFTDOWN
+    user32.SendInput(1, ctypes.byref(inp2), ctypes.sizeof(INPUT))
+    time.sleep(0.01)
+
+    # Up
+    inp3 = INPUT()
+    inp3.type = INPUT_MOUSE
+    inp3.union.mi.dwFlags = MOUSEEVENTF_LEFTUP
+    user32.SendInput(1, ctypes.byref(inp3), ctypes.sizeof(INPUT))
+
+
+def sendinput_key(vk_code):
+    """Press and release a key using SendInput."""
+    inp_down = INPUT()
+    inp_down.type = INPUT_KEYBOARD
+    inp_down.union.ki.wVk = vk_code
+    user32.SendInput(1, ctypes.byref(inp_down), ctypes.sizeof(INPUT))
+    time.sleep(0.02)
+
+    inp_up = INPUT()
+    inp_up.type = INPUT_KEYBOARD
+    inp_up.union.ki.wVk = vk_code
+    inp_up.union.ki.dwFlags = KEYEVENTF_KEYUP
+    user32.SendInput(1, ctypes.byref(inp_up), ctypes.sizeof(INPUT))
+
+
 def find_hwnd(title="Space Analyzer"):
-    """Find window handle by title."""
     class EnumData(ctypes.Structure):
         _fields_ = [("target", ctypes.c_wchar_p), ("hwnd", ctypes.c_long)]
     result = EnumData()
     result.target = title
+
     @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.POINTER(EnumData))
     def enum_proc(hwnd, lparam):
         buf = ctypes.create_unicode_buffer(256)
@@ -90,40 +185,35 @@ def find_hwnd(title="Space Analyzer"):
             lparam.contents.hwnd = hwnd
             return False
         return True
+
     user32.EnumWindows(enum_proc, ctypes.byref(result))
     return result.hwnd if result.hwnd else None
 
 
 def capture_app_window(hwnd) -> Optional[Tuple[bytes, int, int]]:
-    """
-    Capture the application window content using PrintWindow API.
-    Returns (raw_BGRA_bytes, width, height) or None on failure.
-    This captures ONLY the window content, NOT the screen.
-    """
     rect = ctypes.wintypes.RECT()
     user32.GetClientRect(hwnd, ctypes.byref(rect))
     w, h = rect.right, rect.bottom
     if w == 0 or h == 0:
         return None
 
-    # Create compatible DC and bitmap
     hwnd_dc = user32.GetDC(hwnd)
     mem_dc = gdi32.CreateCompatibleDC(hwnd_dc)
     hbitmap = gdi32.CreateCompatibleBitmap(hwnd_dc, w, h)
     gdi32.SelectObject(mem_dc, hbitmap)
 
-    # PrintWindow captures the actual app content (unlike screenshot which captures screen pixels)
-    result = user32.PrintWindow(hwnd, mem_dc, PW_CLIENTONLY)
+    # PW_RENDERFULLCONTENT forces the window to render its content into the DC.
+    # Required for egui/eframe which uses hardware-accelerated wgpu rendering.
+    result = user32.PrintWindow(hwnd, mem_dc, PW_RENDERFULLCONTENT)
 
     if result:
-        # Get bitmap bits
         bmi = BITMAPINFO()
         bmi.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
         bmi.bmiHeader.biWidth = w
-        bmi.bmiHeader.biHeight = -h  # top-down
+        bmi.bmiHeader.biHeight = -h
         bmi.bmiHeader.biPlanes = 1
         bmi.bmiHeader.biBitCount = 32
-        bmi.bmiHeader.biCompression = 0  # BI_RGB
+        bmi.bmiHeader.biCompression = 0
 
         buf_size = w * h * 4
         buf = ctypes.create_string_buffer(buf_size)
@@ -143,409 +233,466 @@ def capture_app_window(hwnd) -> Optional[Tuple[bytes, int, int]]:
 
 
 def save_printwindow_screenshot(hwnd, path: str) -> bool:
-    """Save a PrintWindow capture to PNG using PIL."""
     result = capture_app_window(hwnd)
     if result is None:
         return False
     raw_bytes, w, h = result
-    # Raw BGRA bytes -> PIL Image
     from PIL import Image
     img = Image.frombuffer("RGBA", (w, h), raw_bytes, "raw", "BGRA", 0, 1)
     img.save(path)
     return True
 
 
-def silent_click(hwnd, screen_x, screen_y, desc="", logger=None):
-    """Click via PostMessage — cursor NEVER moves."""
-    cx, cy = screen_to_client(hwnd, screen_x, screen_y)
-    lparam = (cy << 16) | (cx & 0xFFFF)
-
+def silent_click(hwnd, screen_x, screen_y, desc="", run=None):
+    """Click via SendInput — OS-level, reaches egui's input handler."""
     t0 = time.time()
-    user32.PostMessageW(hwnd, WM_MOUSEMOVE, 0, lparam)
-    time.sleep(0.005)
-    user32.PostMessageW(hwnd, WM_LBUTTONDOWN, MK_LBUTTON, lparam)
-    time.sleep(0.010)
-    user32.PostMessageW(hwnd, WM_LBUTTONUP, 0, lparam)
+    user32.SetForegroundWindow(hwnd)
+    time.sleep(0.02)
+    sendinput_mouse_click(screen_x, screen_y)
     elapsed = (time.time() - t0) * 1000
 
-    if logger:
-        logger.log("CLICK", f"{desc} at ({screen_x},{screen_y}) client({cx},{cy})", duration_ms=elapsed)
+    cx, cy = screen_to_client(hwnd, screen_x, screen_y)
+    if run:
+        run.log_event("CLICK", f"{desc} at ({screen_x},{screen_y}) client({cx},{cy})", duration_ms=elapsed)
     time.sleep(0.25)
 
 
-# ── Seed Scan Data ───────────────────────────────────────────────
-
-def seed_scan_data():
-    """
-    Pre-populate scan_results with known scan data so the app
-    displays real content immediately rather than empty state.
-    """
-    scan_dir = Path("scan_results")
-    scan_dir.mkdir(parents=True, exist_ok=True)
-
-    # Use existing scan data if available
-    existing = sorted(scan_dir.glob("scan_*.json"))
-    if existing:
-        print(f"  Seeds: {len(existing)} existing scans found")
-        return
-
-    # If no existing data, generate from test_workspace
-    print("  Seeds: Generating scan data...")
-    # Check if we have a scanner binary
-    scanner_paths = [
-        Path("bin/space-analyzer.exe"),
-        Path("native/scanner/target/release/space-analyzer.exe"),
-    ]
-    # Run a headless scan
-    for sp in scanner_paths:
-        if sp.exists():
-            ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            out_path = scan_dir / f"scan_{ts}.json"
-            try:
-                result = subprocess.run(
-                    [str(sp), "--scan", "test_workspace", "--output", str(out_path)],
-                    capture_output=True, text=True, timeout=30
-                )
-                if result.returncode == 0:
-                    print(f"  Seeds: Generated {out_path.name}")
-                else:
-                    print(f"  Seeds: Scanner failed: {result.stderr[:100]}")
-            except (subprocess.TimeoutExpired, FileNotFoundError):
-                pass
-            break
-    else:
-        print("  Seeds: No scanner binary found, using simulated data")
-        # Create a simulated scan result for display purposes
-        _generate_simulated_scan_data(scan_dir)
+def send_key(hwnd, vk_code, desc="", run=None):
+    """Press a key via SendInput (window must be foreground)."""
+    t0 = time.time()
+    user32.SetForegroundWindow(hwnd)
+    time.sleep(0.02)
+    sendinput_key(vk_code)
+    elapsed = (time.time() - t0) * 1000
+    if run:
+        run.log_event("KEY", f"{desc} vk=0x{vk_code:02X}", duration_ms=elapsed)
+    time.sleep(0.15)
 
 
-def _generate_simulated_scan_data(scan_dir: Path):
-    """Create fake scan data for UI population."""
-    from datetime import timedelta
-    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    scan = {
-        "timestamp": datetime.now().isoformat(),
-        "scan_path": "test_workspace",
-        "total_files": 1247,
-        "total_size": 2_847_123_456,
-        "total_size_formatted": "2.65 GB",
-        "scanned_dirs": 89,
-        "skipped_dirs": 0,
-        "elapsed_ms": 2340,
-        "file_types": {
-            ".js": 312, ".ts": 89, ".json": 67, ".py": 45, ".rs": 34,
-            ".css": 28, ".html": 22, ".md": 18, ".png": 156, ".jpg": 89,
-            ".svg": 23, ".ico": 12, ".woff2": 8, ".zip": 4, ".exe": 2,
-        },
-        "categories": {
-            "code": {"count": 502, "size": 89_123_456},
-            "images": {"count": 280, "size": 1_234_567_890},
-            "documents": {"count": 98, "size": 12_345_678},
-            "data": {"count": 67, "size": 45_678_901},
-            "archives": {"count": 4, "size": 890_123_456},
-            "other": {"count": 296, "size": 575_283_075},
-        },
-        "largest_files": [
-            {"name": "bundle.js", "path": "/dist/bundle.js", "size": {"bytes": 12_345_678, "formatted": "11.8 MB"}, "extension": ".js"},
-            {"name": "background.png", "path": "/assets/background.png", "size": {"bytes": 8_234_567, "formatted": "7.9 MB"}, "extension": ".png"},
-            {"name": "database.sqlite", "path": "/data/database.sqlite", "size": {"bytes": 5_678_901, "formatted": "5.4 MB"}, "extension": ".sqlite"},
-            {"name": "archive.zip", "path": "/dist/archive.zip", "size": {"bytes": 4_567_890, "formatted": "4.4 MB"}, "extension": ".zip"},
-            {"name": "logo-hd.png", "path": "/assets/logo-hd.png", "size": {"bytes": 3_456_789, "formatted": "3.3 MB"}, "extension": ".png"},
-            {"name": "data.json", "path": "/data/data.json", "size": {"bytes": 2_345_678, "formatted": "2.2 MB"}, "extension": ".json"},
-            {"name": "styles.css", "path": "/dist/styles.css", "size": {"bytes": 1_234_567, "formatted": "1.2 MB"}, "extension": ".css"},
-            {"name": "vendor.dll", "path": "/bin/vendor.dll", "size": {"bytes": 987_654, "formatted": "964.5 KB"}, "extension": ".dll"},
-            {"name": "report.pdf", "path": "/docs/report.pdf", "size": {"bytes": 876_543, "formatted": "856.0 KB"}, "extension": ".pdf"},
-            {"name": "presentation.pptx", "path": "/docs/presentation.pptx", "size": {"bytes": 765_432, "formatted": "747.5 KB"}, "extension": ".pptx"},
-        ],
-    }
-    scan_path = scan_dir / f"scan_{ts}.json"
-    with open(scan_path, "w") as f:
-        json.dump(scan, f, indent=2)
-    print(f"  Seeds: Generated simulated scan data -> {scan_path.name}")
+def get_window_text(hwnd) -> str:
+    buf = ctypes.create_unicode_buffer(1024)
+    user32.GetWindowTextW(hwnd, buf, 1024)
+    return buf.value
 
 
-# ── Logger ────────────────────────────────────────────────────
-
-class ActionLogger:
-    def __init__(self, log_dir: str = "macro_logs"):
-        self.log_dir = Path(log_dir)
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-        self.ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_path = self.log_dir / f"macro_run_{self.ts}.log"
-        self.json_path = self.log_dir / f"macro_run_{self.ts}.json"
-        self.screenshot_dir = self.log_dir / f"screenshots_{self.ts}"
-        self.screenshot_dir.mkdir(parents=True, exist_ok=True)
-        self.entries = []
-        self.step_counter = 0
-
-        with open(self.log_path, "w") as f:
-            f.write("=" * 70 + "\n")
-            f.write(f"  Space Analyzer Pro — GUI Macro Test Log\n")
-            f.write(f"  Started: {datetime.now().isoformat()}\n")
-            f.write(f"  Mode: PrintWindow capture (no screen interference)\n")
-            f.write(f"  Input: PostMessage (cursor NOT moved)\n")
-            f.write("=" * 70 + "\n\n")
-
-    def log(self, action: str, detail: str = "", duration_ms: Optional[float] = None):
-        self.step_counter += 1
-        timestamp = datetime.now().isoformat()
-        entry = {
-            "step": self.step_counter, "timestamp": timestamp,
-            "action": action, "detail": detail,
-            "duration_ms": round(duration_ms, 1) if duration_ms is not None else None,
-        }
-        self.entries.append(entry)
-        dur_str = f"  [{duration_ms:.0f}ms]" if duration_ms is not None else ""
-        print(f"  [{self.step_counter:03d}]{dur_str} {action}: {detail}")
-        with open(self.log_path, "a") as f:
-            f.write(f"[{self.step_counter:03d}] [{timestamp}] {action}")
-            if duration_ms is not None: f.write(f" ({duration_ms:.0f}ms)")
-            f.write(f"\n    {detail}\n")
-
-    def screenshot(self, name: str = "", hwnd=None):
-        """Capture app window content using PrintWindow API (NOT screen capture)."""
-        label = name or f"step_{self.step_counter:03d}"
-        path = self.screenshot_dir / f"{label}.png"
-        if hwnd:
-            save_printwindow_screenshot(hwnd, str(path))
-        else:
-            try:
-                # Fallback: try PrintWindow on any found window
-                h = find_hwnd()
-                if h:
-                    save_printwindow_screenshot(h, str(path))
-                else:
-                    import pyautogui
-                    pyautogui.screenshot(str(path))
-            except ImportError:
-                pass
-        return str(path)
-
-    def save(self):
-        with open(self.json_path, "w") as f:
-            json.dump({
-                "test_name": "GUI Macro Test (PrintWindow, zero-disruption)",
-                "started_at": self.entries[0]["timestamp"] if self.entries else "",
-                "ended_at": datetime.now().isoformat(),
-                "total_steps": self.step_counter,
-                "log": self.entries,
-            }, f, indent=2)
-        with open(self.log_path, "a") as f:
-            f.write("\n" + "=" * 70 + "\n")
-            f.write(f"  Total steps: {self.step_counter}\n")
-            f.write(f"  Log: {self.log_path}\n")
-            f.write(f"  JSON: {self.json_path}\n")
-            f.write(f"  Screenshots: {self.screenshot_dir}\n")
-            f.write("=" * 70 + "\n")
+def get_window_rect(hwnd) -> Tuple[int, int, int, int]:
+    rect = ctypes.wintypes.RECT()
+    user32.GetWindowRect(hwnd, ctypes.byref(rect))
+    return (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
 
 
-# ── Coordinate helpers ────────────────────────────────────────
+def process_alive(hwnd) -> bool:
+    pid = ctypes.wintypes.DWORD()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    handle = kernel32.OpenProcess(0x1000, False, pid.value)
+    if handle:
+        exit_code = ctypes.wintypes.DWORD()
+        success = kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+        kernel32.CloseHandle(handle)
+        if success:
+            return exit_code.value == 259
+    return True
 
-def tab_center(win: tuple, tab_index: int, tabs: int) -> tuple:
+
+# ═══════════════════════════════════════════════════════════════
+#  UNIFIED TEST RUNNER
+# ═══════════════════════════════════════════════════════════════
+
+ACTUAL_TABS = ["Dashboard", "Scan", "History", "Smart Search", "Workflows", "AI Chat", "System", "Settings"]
+NUM_TABS = len(ACTUAL_TABS)
+
+# Tab indices for keyboard navigation
+_TAB_INDEX = {name: i for i, name in enumerate(ACTUAL_TABS)}
+_current_tab_index = 0  # Track where keyboard focus is
+
+
+def navigate_tab(hwnd, target_tab: str, run=None):
+    """Navigate to a tab using Left/Right arrow keys from current position."""
+    global _current_tab_index
+    target_idx = _TAB_INDEX[target_tab]
+    steps = target_idx - _current_tab_index
+
+    if steps > 0:
+        for _ in range(steps):
+            send_key(hwnd, VK_RIGHT, "Right arrow", run)
+    elif steps < 0:
+        for _ in range(-steps):
+            send_key(hwnd, VK_LEFT, "Left arrow", run)
+
+    _current_tab_index = target_idx
+
+
+def tab_center(win: tuple, tab_index: int) -> tuple:
     left, top, width, height = win
     tab_bar_y = top + 38
-    tab_w = width // tabs
+    tab_w = width // NUM_TABS
     return (left + tab_w * tab_index + tab_w // 2, tab_bar_y)
 
 
+class TestRun:
+    """Single consolidated test run with all data in one place."""
+
+    def __init__(self, exe_path: Path, log_base: Path = Path("macro_logs")):
+        self.exe_path = exe_path
+        self.run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.run_dir = log_base / self.run_id
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+
+        self.screenshot_dir = self.run_dir / "screenshots"
+        self.screenshot_dir.mkdir(exist_ok=True)
+
+        self.start_time = datetime.now()
+        self.phase_times: Dict[str, float] = {}
+        self.steps: List[Dict[str, Any]] = []
+        self.tests: List[Dict[str, Any]] = []
+        self.screenshots: List[Dict[str, Any]] = []
+        self.process_info: Dict[str, Any] = {}
+        self.error: Optional[str] = None
+        self.step_counter = 0
+        self._phase_start: Optional[float] = None
+        self._current_phase: Optional[str] = None
+
+        self._console_lines: List[str] = []
+        self._log(f"Test run started: {self.run_id}")
+        self._log(f"Binary: {exe_path}")
+        self._log(f"Output: {self.run_dir}")
+
+    def _log(self, msg: str):
+        ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        line = f"[{ts}] {msg}"
+        self._console_lines.append(line)
+        print(f"  {line}")
+
+    def begin_phase(self, name: str):
+        if self._current_phase:
+            self.end_phase()
+        self._current_phase = name
+        self._phase_start = time.time()
+        self._log(f"--- Phase: {name} ---")
+
+    def end_phase(self):
+        if self._current_phase and self._phase_start:
+            elapsed = time.time() - self._phase_start
+            self.phase_times[self._current_phase] = elapsed
+            self._log(f"Phase {self._current_phase} completed in {elapsed:.2f}s")
+            self._current_phase = None
+            self._phase_start = None
+
+    def log_event(self, event_type: str, detail: str = "", duration_ms: Optional[float] = None):
+        self.step_counter += 1
+        entry = {
+            "step": self.step_counter,
+            "timestamp": datetime.now().isoformat(),
+            "type": event_type,
+            "detail": detail,
+            "duration_ms": round(duration_ms, 1) if duration_ms is not None else None,
+        }
+        self.steps.append(entry)
+        dur = f" [{duration_ms:.0f}ms]" if duration_ms is not None else ""
+        self._log(f"  {self.step_counter:03d}{dur} {event_type}: {detail}")
+
+    def record_test(self, name: str, passed: bool, detail: str = "", elapsed_ms: Optional[float] = None):
+        entry = {
+            "name": name,
+            "passed": passed,
+            "detail": detail,
+            "elapsed_ms": round(elapsed_ms, 1) if elapsed_ms is not None else None,
+            "timestamp": datetime.now().isoformat(),
+        }
+        self.tests.append(entry)
+        status = "PASS" if passed else "FAIL"
+        dur = f" in {elapsed_ms:.0f}ms" if elapsed_ms is not None else ""
+        self._log(f"  [{status}] {name}{dur}" + (f" — {detail}" if detail else ""))
+
+    def screenshot(self, name: str, hwnd=None) -> str:
+        label = name or f"step_{self.step_counter:03d}"
+        path = self.screenshot_dir / f"{label}.png"
+        saved = False
+        if hwnd:
+            saved = save_printwindow_screenshot(hwnd, str(path))
+        entry = {
+            "name": label,
+            "path": str(path.relative_to(self.run_dir)),
+            "saved": saved,
+            "timestamp": datetime.now().isoformat(),
+        }
+        self.screenshots.append(entry)
+        return str(path)
+
+    def record_process_info(self, hwnd, process: subprocess.Popen):
+        pid = ctypes.wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        title = get_window_text(hwnd)
+        rect = get_window_rect(hwnd)
+        self.process_info = {
+            "pid": pid.value,
+            "window_title": title,
+            "window_rect": {"x": rect[0], "y": rect[1], "w": rect[2], "h": rect[3]},
+            "exe_path": str(self.exe_path),
+            "exe_size_bytes": self.exe_path.stat().st_size if self.exe_path.exists() else 0,
+            "pid_matches": pid.value == process.pid,
+        }
+
+    def save_report(self) -> Path:
+        self.end_phase()
+
+        total_elapsed = (datetime.now() - self.start_time).total_seconds()
+        passed = sum(1 for t in self.tests if t["passed"])
+        failed = sum(1 for t in self.tests if not t["passed"])
+
+        report = {
+            "run_id": self.run_id,
+            "timestamp": self.start_time.isoformat(),
+            "elapsed_seconds": round(total_elapsed, 2),
+            "platform": {
+                "system": platform.system(),
+                "release": platform.release(),
+                "machine": platform.machine(),
+                "python": platform.python_version(),
+            },
+            "binary": {
+                "path": str(self.exe_path),
+                "size_bytes": self.process_info.get("exe_size_bytes", 0),
+            },
+            "process": self.process_info,
+            "summary": {
+                "total_tests": len(self.tests),
+                "passed": passed,
+                "failed": failed,
+                "pass_rate": f"{passed}/{len(self.tests)}" if self.tests else "0/0",
+            },
+            "phase_timing": {k: round(v, 3) for k, v in self.phase_times.items()},
+            "tests": self.tests,
+            "events": self.steps,
+            "screenshots": self.screenshots,
+            "error": self.error,
+        }
+
+        report_path = self.run_dir / "report.json"
+        with open(report_path, "w") as f:
+            json.dump(report, f, indent=2)
+
+        console_path = self.run_dir / "console.log"
+        with open(console_path, "w") as f:
+            f.write(f"Space Analyzer Pro — GUI Functional Test\n")
+            f.write(f"Run: {self.run_id}\n")
+            f.write(f"Binary: {self.exe_path}\n")
+            f.write("=" * 70 + "\n\n")
+            f.write("\n".join(self._console_lines))
+            f.write(f"\n\n{'=' * 70}\n")
+            f.write(f"Total: {passed}/{len(self.tests)} passed, {failed} failed\n")
+            f.write(f"Elapsed: {total_elapsed:.2f}s\n")
+
+        self._append_history(report)
+
+        self._log(f"\nReport: {report_path}")
+        self._log(f"Console: {console_path}")
+        self._log(f"Screenshots: {self.screenshot_dir}")
+        return report_path
+
+    def _append_history(self, report: Dict):
+        history_path = self.run_dir.parent / "history.jsonl"
+        summary = report["summary"]
+        entry = {
+            "run_id": report["run_id"],
+            "timestamp": report["timestamp"],
+            "elapsed_seconds": report["elapsed_seconds"],
+            "passed": summary["passed"],
+            "failed": summary["failed"],
+            "total": summary["total_tests"],
+            "binary_size": report["binary"]["size_bytes"],
+            "platform": report["platform"]["system"],
+        }
+        with open(history_path, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+
+
 # ═══════════════════════════════════════════════════════════════
-#  MAIN MACRO SEQUENCE
+#  TEST IMPLEMENTATIONS
 # ═══════════════════════════════════════════════════════════════
 
-def run_macro(exe_path: Path, log_dir: str = "macro_logs"):
-    logger = ActionLogger(log_dir)
+def launch_for_tab(run: TestRun, tab_name: str = None) -> Tuple[Optional[subprocess.Popen], Optional[Any], Optional[tuple]]:
+    """Launch the GUI with --tab flag, wait for window, return (process, hwnd, win)."""
+    args = [str(run.exe_path)]
+    if tab_name:
+        args.extend(["--tab", tab_name])
 
-    print()
-    print("=" * 70)
-    print("  Space Analyzer Pro — GUI Macro Test (Zero-Disruption)")
-    print("  - PrintWindow capture: app content ONLY, no screen pixels")
-    print("  - PostMessage: cursor stays put, no flicker")
-    print("  - Pre-seeded scan data for real-looking UI")
-    print("=" * 70)
-    print(f"  Binary: {exe_path}")
-    print(f"  Log:    {logger.log_path}")
-    print()
-
-    # ── Pre-seed scan data ────────────────────────────────────
-    print("  [PREP] Seeding scan history data...")
-    seed_scan_data()
-
-    # ── Launch minimized ──────────────────────────────────────
-    logger.log("LAUNCH", f"Starting {exe_path.name} (minimized)")
     process = subprocess.Popen(
-        [str(exe_path)],
+        args,
         creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0,
     )
 
-    try:
-        time.sleep(3)
-        if process.poll() is not None:
-            logger.log("LAUNCH FAILED", "Process exited immediately")
-            logger.save()
-            return
+    time.sleep(3)
+    if process.poll() is not None:
+        return None, None, None
 
-        # Find window
-        hwnd = None
-        win = None
-        for _ in range(10):
-            hwnd = find_hwnd()
-            if hwnd:
-                rect = ctypes.wintypes.RECT()
-                user32.GetWindowRect(hwnd, ctypes.byref(rect))
-                win = (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
-                logger.log("WINDOW", f"HWND={hwnd}, rect={win}", duration_ms=0)
-                break
-            time.sleep(0.5)
-
-        if not hwnd:
-            logger.log("WINDOW", "Window not found after 5s", duration_ms=0)
-            raise RuntimeError("Window not found")
-
-        # Restore window for screenshots (was launched minimized)
-        user32.ShowWindow(hwnd, SW_RESTORE)
-        time.sleep(1)
-
-        # Screenshot helper — captures app content via PrintWindow
-        def s(name):
-            logger.screenshot(name, hwnd=hwnd)
-
-        s("01_launched")
-
-        TABS = 6
-        logger.log("TAB", "Dashboard — Verify startup state")
-        time.sleep(1)
-        s("02_dashboard_initial")
-        silent_click(hwnd, win[0] + 200, win[1] + 60, "Dashboard: Refresh system info", logger)
-        time.sleep(0.5)
-        s("03_dashboard_refreshed")
-
-        # =========================================================
-        # TAB 2: FILES + template cycling
-        # =========================================================
-        tx, ty = tab_center(win, 1, TABS)
-        silent_click(hwnd, tx, ty, "Files tab", logger)
-        time.sleep(0.5)
-        s("04_files_summary")
-
-        cx, cy = win[0] + 400, win[1] + 60
-        for idx, name in enumerate(["File Types Report", "Size Audit", "Organization Planner", "Cleanup Review", "Summary"]):
-            silent_click(hwnd, cx, cy, f"Files: open template selector", logger)
-            time.sleep(0.15)
-            silent_click(hwnd, cx + 10, cy + 20 + idx * 28, f"Files: select {name}", logger)
-            time.sleep(0.3)
-            logger.screenshot(f"0{5+idx}_files_{name.lower().replace(' ', '_')}", hwnd=hwnd)
-
-        # =========================================================
-        # TAB 3: CHARTS
-        # =========================================================
-        tx, ty = tab_center(win, 2, TABS)
-        silent_click(hwnd, tx, ty, "Charts tab", logger)
-        time.sleep(1.5)
-        logger.screenshot("10_charts", hwnd=hwnd)
-
-        # =========================================================
-        # TAB 4: HISTORY
-        # =========================================================
-        tx, ty = tab_center(win, 3, TABS)
-        silent_click(hwnd, tx, ty, "History tab", logger)
-        time.sleep(0.5)
-        logger.screenshot("11_history", hwnd=hwnd)
-
-        silent_click(hwnd, win[0] + 120, win[1] + 60, "History: Refresh list", logger)
-        time.sleep(0.5)
-        silent_click(hwnd, win[0] + 20, win[1] + 100, "History: Select first entry", logger)
-        time.sleep(0.3)
-        silent_click(hwnd, win[0] + 250, win[1] + 60, "History: Load selected", logger)
-        time.sleep(0.5)
-        logger.screenshot("12_history_loaded", hwnd=hwnd)
-
-        # =========================================================
-        # TAB 5: SETTINGS
-        # =========================================================
-        tx, ty = tab_center(win, 4, TABS)
-        silent_click(hwnd, tx, ty, "Settings tab", logger)
-        time.sleep(0.5)
-        silent_click(hwnd, win[0] + 20, win[1] + 100, "Settings: Toggle hidden files", logger)
-        time.sleep(0.3)
-        logger.screenshot("13_settings", hwnd=hwnd)
-
-        # =========================================================
-        # TAB 6: ABOUT
-        # =========================================================
-        tx, ty = tab_center(win, 5, TABS)
-        silent_click(hwnd, tx, ty, "About tab", logger)
-        time.sleep(0.5)
-        logger.screenshot("14_about", hwnd=hwnd)
-
-        # =========================================================
-        # MENU: File → Exit
-        # =========================================================
-        silent_click(hwnd, win[0] + 20, win[1] + 10, "Menu: File", logger)
-        time.sleep(0.2)
-        silent_click(hwnd, win[0] + 40, win[1] + 50, "Menu: Exit", logger)
+    hwnd = None
+    for _ in range(10):
+        hwnd = find_hwnd()
+        if hwnd:
+            break
         time.sleep(0.5)
 
-        if process.poll() is None:
-            process.terminate()
-            try: process.wait(timeout=3)
-            except subprocess.TimeoutExpired: process.kill()
+    if not hwnd:
+        process.terminate()
+        return None, None, None
 
-        logger.log("EXIT", "Application closed via menu")
-        logger.screenshot("15_exited", hwnd=hwnd)
-
-    except Exception as e:
-        logger.log("ERROR", f"Macro error: {e}")
-        import traceback
-        logger.log("TRACEBACK", traceback.format_exc())
-    finally:
-        if process.poll() is None:
-            process.terminate()
-            try: process.wait(timeout=3)
-            except subprocess.TimeoutExpired: process.kill()
-            logger.log("FORCE_EXIT", "Process terminated by script")
-
-    logger.save()
-    print()
-    print("=" * 70)
-    print("  Macro test complete!")
-    print(f"  Mode: PrintWindow (app content only, zero screen disruption)")
-    print(f"  Log:        {logger.log_path}")
-    print(f"  JSON:       {logger.json_path}")
-    print(f"  Screenshots: {logger.screenshot_dir}")
-    print(f"  Steps:      {logger.step_counter}")
-    print("=" * 70)
+    user32.ShowWindow(hwnd, SW_RESTORE)
+    time.sleep(0.5)
+    win = get_window_rect(hwnd)
+    return process, hwnd, win
 
 
-# ── Entry point ───────────────────────────────────────────────
+def kill_process(process):
+    if process and process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+
+
+def test_launch(run: TestRun) -> Tuple[Optional[subprocess.Popen], Optional[Any], Optional[tuple]]:
+    """Launch with default tab (Dashboard), verify startup."""
+    run.begin_phase("launch")
+    run.record_test("binary_exists", run.exe_path.exists(), str(run.exe_path))
+
+    run.log_event("LAUNCH", f"Starting {run.exe_path.name}")
+    t0 = time.time()
+    process, hwnd, win = launch_for_tab(run)
+    launch_ms = (time.time() - t0) * 1000
+
+    run.record_test("process_stays_alive", process is not None, f"Launched in {launch_ms:.0f}ms", launch_ms)
+    run.record_test("window_found", hwnd is not None, f"HWND={hwnd}" if hwnd else "Not found")
+
+    if hwnd:
+        run.record_process_info(hwnd, process)
+        title = get_window_text(hwnd)
+        run.record_test("window_title", "space analyzer" in title.lower(), f"Title: {title}")
+        run.record_test("window_size", win[2] > 800 and win[3] > 600, f"{win[2]}x{win[3]}")
+        run.screenshot("01_launched", hwnd=hwnd)
+
+    run.end_phase()
+    return process, hwnd, win
+
+
+def test_tab(run: TestRun, tab_name: str, screenshot_name: str, extra_fn=None):
+    """Launch a fresh instance with --tab, screenshot, optionally run extra_fn, kill."""
+    phase_name = f"tab_{tab_name.lower().replace(' ', '_')}"
+    run.begin_phase(phase_name)
+
+    t0 = time.time()
+    process, hwnd, win = launch_for_tab(run, tab_name)
+    elapsed_ms = (time.time() - t0) * 1000
+
+    if not hwnd:
+        run.record_test(f"{phase_name}_launch", False, "Failed to launch")
+        run.end_phase()
+        return
+
+    run.record_test(f"{phase_name}_launch", True, f"Launched with --tab '{tab_name}'", elapsed_ms)
+    run.screenshot(screenshot_name, hwnd=hwnd)
+
+    if extra_fn:
+        extra_fn(run, hwnd, win)
+
+    kill_process(process)
+    run.end_phase()
+
+
+def test_scan_button(run: TestRun, hwnd, win):
+    """Click the Scan button inside a --tab scan instance."""
+    scan_btn_x = win[0] + win[2] // 2 - 60
+    scan_btn_y = win[1] + 120
+
+    t0 = time.time()
+    silent_click(hwnd, scan_btn_x, scan_btn_y, "Click Scan button", run)
+
+    for tick in range(30):
+        time.sleep(0.5)
+        if tick % 4 == 0:
+            run.screenshot(f"03_scan_progress_{tick}", hwnd=hwnd)
+
+    time.sleep(1)
+    scan_ms = (time.time() - t0) * 1000
+    run.screenshot("03_scan_results", hwnd=hwnd)
+    run.record_test("scan_no_crash", process_alive(hwnd), "Window still alive after scan", scan_ms)
+
+
+# ═══════════════════════════════════════════════════════════════
+#  MAIN
+# ═══════════════════════════════════════════════════════════════
+
+def find_binary() -> Optional[Path]:
+    candidates = [
+        Path("target/release/space-analyzer-gui.exe"),
+        Path("target/debug/space-analyzer-gui.exe"),
+        Path("bin/space-analyzer-gui.exe"),
+    ]
+    for p in candidates:
+        if p.exists():
+            return p.resolve()
+    return None
+
 
 def main():
-    search_paths = [
-        Path("target/release/space-analyzer.exe"),
-        Path("target/debug/space-analyzer.exe"),
-        Path("bin/space-analyzer.exe"),
-    ]
-    exe = None
-    for p in search_paths:
-        if p.exists():
-            exe = p.resolve()
-            break
-
+    exe = find_binary()
     if not exe:
-        print("ERROR: Binary not found. Compile first.")
+        print("ERROR: space-analyzer-gui.exe not found.")
+        print("  Build first: cargo build --release --bin space-analyzer-gui")
         sys.exit(1)
 
-    print()
-    print("  Space Analyzer Pro — GUI Macro Test")
-    print("  ===================================")
-    print("  PrintWindow capture — app window content ONLY")
-    print("  PostMessage input — your cursor stays put")
-    print("  Pre-seeded scan data — real content immediately")
-    print("  No screen flicker, no foreground stealing")
-    print()
-    print(f"  Binary: {exe}")
-    print()
+    print(f"\n  Binary: {exe}")
 
-    run_macro(exe)
+    run = TestRun(exe)
+    process = None
+
+    try:
+        # 1. Launch & startup
+        print("\n  [1] Launch & Startup")
+        process, hwnd, win = test_launch(run)
+        if not hwnd:
+            run.record_test("abort_no_window", False, "Cannot continue")
+            run.save_report()
+            sys.exit(1)
+
+        # 2. Scan tab — launch fresh, click Scan button
+        print("\n  [2] Scan Tab + Execution")
+        kill_process(process)
+        test_tab(run, "Scan", "02_tab_scan", extra_fn=test_scan_button)
+
+        # 3. Each remaining tab — launch fresh with --tab, screenshot, kill
+        tab_tests = [
+            ("Dashboard", "03_tab_dashboard"),
+            ("History", "04_tab_history"),
+            ("Smart Search", "05_tab_smart_search"),
+            ("Workflows", "06_tab_workflows"),
+            ("AI Chat", "07_tab_ai_chat"),
+            ("System", "08_tab_system"),
+            ("Settings", "09_tab_settings"),
+        ]
+        for i, (tab, shot) in enumerate(tab_tests, 3):
+            print(f"\n  [{i}] {tab} Tab")
+            test_tab(run, tab, shot)
+
+    except Exception as e:
+        run.error = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+        run.record_test("unexpected_error", False, str(e))
+    finally:
+        kill_process(process)
+
+    report_path = run.save_report()
+
+    passed = sum(1 for t in run.tests if t["passed"])
+    failed = sum(1 for t in run.tests if not t["passed"])
+    total = len(run.tests)
+    print()
+    print("=" * 70)
+    print(f"  {passed}/{total} passed, {failed} failed")
+    print(f"  Report: {report_path}")
+    print("=" * 70)
+
+    sys.exit(1 if failed > 0 else 0)
 
 
 if __name__ == "__main__":

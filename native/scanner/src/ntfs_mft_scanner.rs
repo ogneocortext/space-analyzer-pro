@@ -569,6 +569,7 @@ impl NtfsMftScanner {
         }
     }
 
+    #[allow(dead_code)]
     /// Get cached entry by file reference
     pub fn get_cached_entry(&self, file_reference: u64) -> Option<&MftEntry> {
         self.cached_entries.get(&file_reference)
@@ -611,6 +612,7 @@ impl NtfsMftScanner {
         }
     }
 
+    #[allow(dead_code)]
     /// Get performance metrics
     pub fn get_performance_metrics(&self) -> HashMap<String, String> {
         let mut metrics = HashMap::new();
@@ -636,6 +638,7 @@ impl NtfsMftScanner {
         metrics
     }
 
+    #[allow(dead_code)]
     /// Get current USN Journal ID for this volume
     pub fn get_journal_id(&self) -> Option<u64> {
         if let Some(ref info) = self.volume_info {
@@ -647,6 +650,7 @@ impl NtfsMftScanner {
         }
     }
 
+    #[allow(dead_code)]
     /// Get last USN from the journal
     pub fn get_last_usn(&self) -> Option<i64> {
         if let Some(ref info) = self.volume_info {

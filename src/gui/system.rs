@@ -66,123 +66,200 @@ impl SpaceAnalyzerApp {
     }
 
     pub(crate) fn render_system(&mut self, ui: &mut egui::Ui) {
-        ui.heading("System Monitor");
-        ui.separator();
+        // ── Refresh Button ────────────────────────────────────────────
+        section_heading(ui, Some('🖥'), "System Monitor");
+        card_frame(ui.style()).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if ui.button("🔄 Refresh").clicked() {
+                    self.refresh_system_info();
+                }
+                ui.label(
+                    egui::RichText::new("Real-time system resource monitoring")
+                        .size(11.0)
+                        .color(colors::TEXT_MUTED),
+                );
+            });
+        });
 
-        if ui.button("Refresh").clicked() {
-            self.refresh_system_info();
-        }
-        ui.separator();
-
-        // CPU & Memory
+        // ── CPU & Memory ──────────────────────────────────────────────
         if let Some(ref resources) = self.system_resources {
-            ui.label(format!("CPU Usage: {:.1}%", resources.cpu_percent));
-            ui.add(egui::ProgressBar::new(resources.cpu_percent / 100.0).show_percentage());
-            ui.label(format!(
-                "Memory: {} / {} ({:.1}%)",
-                formatting::format_bytes(resources.memory_used_bytes),
-                formatting::format_bytes(resources.memory_total_bytes),
-                resources.memory_percent
-            ));
-            ui.add(egui::ProgressBar::new(resources.memory_percent / 100.0).show_percentage());
-            ui.separator();
+            section_heading(ui, Some('💻'), "CPU & Memory");
+            card_frame(ui.style()).show(ui, |ui| {
+                // CPU info row
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new(&resources.cpu_model)
+                            .size(11.0)
+                            .color(colors::TEXT_SECONDARY),
+                    );
+                    ui.separator();
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "{} cores ({} physical)",
+                            resources.cpu_cores, resources.cpu_physical_cores
+                        ))
+                        .size(11.0)
+                        .color(colors::TEXT_MUTED),
+                    );
+                });
+                ui.add_space(4.0);
+
+                ui.columns(2, |cols| {
+                    labeled_gauge(
+                        &mut cols[0],
+                        "CPU Usage",
+                        resources.cpu_percent / 100.0,
+                        None,
+                    );
+                    labeled_gauge(
+                        &mut cols[1],
+                        "Memory",
+                        resources.memory_percent / 100.0,
+                        Some(&format!(
+                            "{} / {}",
+                            formatting::format_bytes(resources.memory_used_bytes),
+                            formatting::format_bytes(resources.memory_total_bytes)
+                        )),
+                    );
+                });
+            });
         }
 
-        // Disk volumes
-        ui.heading("Disk Volumes");
-        for volume in &self.disk_volumes {
-            ui.label(format!(
-                "{} ({}) - {:.1}% used",
-                volume.mount_point,
-                formatting::format_bytes(volume.total_bytes),
-                volume.usage_percent
-            ));
-            ui.add(egui::ProgressBar::new(volume.usage_percent / 100.0).show_percentage());
+        // ── Disk Volumes ──────────────────────────────────────────────
+        if !self.disk_volumes.is_empty() {
+            section_heading(ui, Some('💾'), "Disk Volumes");
+            card_frame(ui.style()).show(ui, |ui| {
+                for volume in &self.disk_volumes {
+                    labeled_gauge(
+                        ui,
+                        &format!("{} ({})", volume.mount_point, volume.name),
+                        volume.usage_percent / 100.0,
+                        Some(&format!(
+                            "{} free of {}",
+                            formatting::format_bytes(volume.available_bytes),
+                            formatting::format_bytes(volume.total_bytes)
+                        )),
+                    );
+                    ui.add_space(4.0);
+                }
+            });
         }
-        ui.separator();
 
-        // GPU
+        // ── GPU ───────────────────────────────────────────────────────
         if let Some(ref gpu) = self.gpu_info {
-            ui.heading("GPU");
-            if gpu.available {
-                ui.label(
-                    egui::RichText::new(format!(
-                        "{} (VRAM: {})",
-                        gpu.name.as_deref().unwrap_or("Unknown"),
-                        gpu.vram_bytes
-                            .map(formatting::format_bytes)
-                            .unwrap_or("Unknown".to_string())
-                    ))
-                    .color(egui::Color32::GREEN),
-                );
-            } else {
-                ui.label(
-                    egui::RichText::new("No NVIDIA GPU detected. Using CPU fallback.")
-                        .color(egui::Color32::YELLOW),
-                );
-            }
+            section_heading(ui, Some('🎮'), "GPU");
+            card_frame(ui.style()).show(ui, |ui| {
+                if gpu.available {
+                    ui.horizontal(|ui| {
+                        badge(
+                            ui,
+                            gpu.name.as_deref().unwrap_or("Unknown"),
+                            colors::SUCCESS,
+                        );
+                        if let Some(vram) = gpu.vram_bytes {
+                            badge(
+                                ui,
+                                &format!("VRAM: {}", formatting::format_bytes(vram)),
+                                colors::ACCENT,
+                            );
+                        }
+                    });
+                } else {
+                    ui.label(
+                        egui::RichText::new("No NVIDIA GPU detected — using CPU fallback")
+                            .color(colors::TEXT_MUTED),
+                    );
+                }
+            });
         }
 
-        // AI Model Resource Usage
+        // ── AI Model Resource Usage ───────────────────────────────────
         if self.settings.ollama_enabled && self.ollama_available {
-            ui.separator();
-            ui.heading("AI Model Resource Usage");
+            section_heading(ui, Some('🤖'), "AI Model Resource Usage");
+            card_frame(ui.style()).show(ui, |ui| {
+                let mut any_running = false;
+                for model in &self.discovered_models {
+                    if model.is_running {
+                        any_running = true;
+                        ui.horizontal(|ui| {
+                            badge(ui, &model.name, colors::WARNING);
+                            badge(ui, "Running", colors::SUCCESS);
+                        });
 
-            let mut any_running = false;
-            for model in &self.discovered_models {
-                if model.is_running {
-                    any_running = true;
-                    ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new(&model.name).color(egui::Color32::YELLOW));
-                        ui.small("(Running)");
-                    });
-
-                    if let Some(vram) = model.vram_usage_mb {
-                        ui.small(format!("VRAM Usage: {} MB", vram));
-                        if let Some(gpu_vram) = self.gpu_info.as_ref().and_then(|g| g.vram_bytes) {
-                            let vram_percent = (vram as f32 / gpu_vram as f32) * 100.0;
-                            ui.add(egui::ProgressBar::new(vram_percent / 100.0).show_percentage());
+                        if let Some(vram) = model.vram_usage_mb {
+                            labeled_gauge(
+                                ui,
+                                "VRAM Usage",
+                                if let Some(gpu_vram) =
+                                    self.gpu_info.as_ref().and_then(|g| g.vram_bytes)
+                                {
+                                    (vram as f32 / gpu_vram as f32).min(1.0)
+                                } else {
+                                    0.0
+                                },
+                                Some(&format!("{} MB", vram)),
+                            );
                         }
-                    }
 
-                    if let Some(cpu) = model.cpu_usage_percent {
-                        ui.small(format!("CPU Usage: {:.1}%", cpu));
-                    }
-
-                    if let Some(tokens) = model.performance_metrics.tokens_per_second {
-                        ui.small(format!("Performance: ~{:.0} tokens/sec", tokens));
+                        ui.horizontal(|ui| {
+                            if let Some(cpu) = model.cpu_usage_percent {
+                                ui.label(
+                                    egui::RichText::new(format!("CPU: {:.1}%", cpu))
+                                        .size(11.0)
+                                        .color(colors::TEXT_SECONDARY),
+                                );
+                            }
+                            if let Some(tokens) = model.performance_metrics.tokens_per_second {
+                                ui.label(
+                                    egui::RichText::new(format!("~{:.0} tok/s", tokens))
+                                        .size(11.0)
+                                        .color(colors::TEXT_SECONDARY),
+                                );
+                            }
+                        });
+                        ui.add_space(4.0);
                     }
                 }
-            }
 
-            if !any_running {
-                ui.small("No AI models currently running");
-            }
-
-            // Total AI resource impact
-            let total_vram: u64 = self
-                .discovered_models
-                .iter()
-                .filter(|m| m.is_running)
-                .filter_map(|m| m.vram_usage_mb)
-                .sum();
-            let total_cpu: f32 = self
-                .discovered_models
-                .iter()
-                .filter(|m| m.is_running)
-                .filter_map(|m| m.cpu_usage_percent)
-                .sum();
-
-            if total_vram > 0 || total_cpu > 0.0 {
-                ui.separator();
-                ui.small("Total AI Impact:");
-                if total_vram > 0 {
-                    ui.small(format!("VRAM: {} MB", total_vram));
+                if !any_running {
+                    ui.label(
+                        egui::RichText::new("No AI models currently running")
+                            .italics()
+                            .color(colors::TEXT_MUTED),
+                    );
                 }
-                if total_cpu > 0.0 {
-                    ui.small(format!("CPU: {:.1}%", total_cpu));
+
+                // Total AI resource impact
+                let total_vram: u64 = self
+                    .discovered_models
+                    .iter()
+                    .filter(|m| m.is_running)
+                    .filter_map(|m| m.vram_usage_mb)
+                    .sum();
+                let total_cpu: f32 = self
+                    .discovered_models
+                    .iter()
+                    .filter(|m| m.is_running)
+                    .filter_map(|m| m.cpu_usage_percent)
+                    .sum();
+
+                if total_vram > 0 || total_cpu > 0.0 {
+                    ui.separator();
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            egui::RichText::new("Total AI Impact:")
+                                .strong()
+                                .color(colors::TEXT_SECONDARY),
+                        );
+                        if total_vram > 0 {
+                            badge(ui, &format!("VRAM: {} MB", total_vram), colors::WARNING);
+                        }
+                        if total_cpu > 0.0 {
+                            badge(ui, &format!("CPU: {:.1}%", total_cpu), colors::WARNING);
+                        }
+                    });
                 }
-            }
+            });
         }
     }
 }
