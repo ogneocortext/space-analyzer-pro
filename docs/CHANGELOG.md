@@ -2,7 +2,14 @@
 
 All notable changes to Space Analyzer Pro will be documented in this file.
 
-## [Unreleased] - 2026-06-04
+## [3.4.0] - 2026-06-04
+
+### Documentation
+
+- **Rewrote root `README.md`**: Comprehensive feature inventory covering all 8 GUI tabs (Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, System, Settings), 5 workflow categories, 7 workflow actions, 4 triggers, 12+ tool registry entries, and full project structure with clickable doc links
+- **Added version badges** to README (Rust 1.95+, Windows, MIT license, version)
+- **Updated feature list** to reflect all wired-in modules: `category.rs` (12-category file grouping), `offline_ai.rs` (heuristic bloat detection), `file_relations.rs` (destructive-action preview / dependency report), `tool_registry/` (LLM-callable tools), workflow engine, system monitor
+- **Updated FEATURE_EVALUATION.md references**: noted that the 3 modules it flagged as "not compiled" are in fact declared in `src/lib.rs` and wired into the GUI
 
 ### Code Quality
 
@@ -10,6 +17,12 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 - **Applied rustfmt** to `src/gui/dedup.rs` (import ordering, chained method formatting)
 - **Verified release build**: `cargo build --workspace --release` succeeds in 7m48s
 - **Verified CI suite**: `just verify` passes (fmt-check + clippy -D warnings + all tests)
+
+### Version
+
+- **Bumped**: `3.3.0` → `3.4.0` in `Cargo.toml`
+
+## [Unreleased]
 
 ### Web/Desktop Separation
 
