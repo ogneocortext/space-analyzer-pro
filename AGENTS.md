@@ -56,21 +56,17 @@ Space Analyzer Pro is a **native Windows desktop application** built in Rust:
 ├── shared-scanner/        # Shared scanning logic crate
 ├── gpu-compute/           # GPU-accelerated compute crate
 │
-├── scripts/               # Development scripts (mostly PowerShell)
-│   ├── build/             # Build & environment setup
-│   ├── test/              # Test scripts
-│   ├── setup/             # Environment setup
-│   ├── fix/               # Quick fixes
-│   ├── debug/             # Debugging tools
-│   └── utility/           # General utilities
+├── scripts/               # Python utility scripts (justfile = main entry point)
+│   ├── test/              # GUI testing (Win32 API)
+│   ├── debug/             # Native binary testing
+│   └── utility/           # Ollama benchmarks, analysis, vision tools
 │
 ├── tests/                 # Test files
 │   └── unit/              # Rust unit tests
 │
 ├── config/                # Tool configuration
 │   ├── secrets/           # Secrets (gitignored, NOT tracked)
-│   ├── .editorconfig      # Editor formatting
-│   └── .prettierrc        # Code formatting (for future JS/TS)
+│   └── .editorconfig      # Editor formatting
 │
 ├── docs/                  # Documentation
 │   ├── architecture/      # Architecture docs

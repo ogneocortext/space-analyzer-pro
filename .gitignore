@@ -102,4 +102,4 @@ venv/
 .kilo/
 
 # Archive (legacy code, do not modify)
-archive/
+/archive/
