@@ -520,8 +520,9 @@ def run_macro(exe_path: Path, log_dir: str = "macro_logs"):
 
 def main():
     search_paths = [
-        Path("space-analyzer-native.exe"),
-        Path("native-gui/target/x86_64-pc-windows-msvc/release/space-analyzer.exe"),
+        Path("target/release/space-analyzer.exe"),
+        Path("target/debug/space-analyzer.exe"),
+        Path("bin/space-analyzer.exe"),
     ]
     exe = None
     for p in search_paths:

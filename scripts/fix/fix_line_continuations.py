@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Replace `\` line-continuations in tooltip strings with spaces.
+"""Replace backslash line-continuations in tooltip strings with spaces.
 
 Rust emits "multiple lines skipped by escaped newline" when 2+ consecutive
-`\` line continuations are used. This script joins those continuations
+backslash line continuations are used. This script joins those continuations
 into a single space-separated line.
 """
 from pathlib import Path

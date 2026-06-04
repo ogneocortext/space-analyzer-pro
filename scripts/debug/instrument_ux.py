@@ -49,11 +49,8 @@ if old_cancel in text:
 else:
     print('mod.rs: cancel_scan not found')
 
-# 6. Error/status message
-old_status = 'self.status_message = Some('
-new_status = 'self.status_message = Some('
-# Just log when status_message is set
-text = text.replace(old_status, new_status, 999)  # no-op for now
+# 6. Error/status message — no-op for now, left as placeholder
+# TODO: Add actual instrumentation when status_message logging is needed
 
 p.write_text(text, encoding='utf-8')
 

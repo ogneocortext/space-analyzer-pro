@@ -264,14 +264,13 @@ class ModelManager:
             data = json.load(f)
 
         recommendations_file = None
-        for f in sorted(Path(benchmark_dir).glob("recommendations_*.json"), reverse=True):
-            recommendations_file = f
+        for rec_path in sorted(Path(benchmark_dir).glob("recommendations_*.json"), reverse=True):
+            recommendations_file = rec_path
             break
 
         if recommendations_file:
-            with open(recommendations_file) as f:
-                recs = [json.loads(line) if line.strip() else None for line in f.read().split("\n") if line.strip()]
-                recs = [json.loads(f.read())] if not recs else recs
+            with open(recommendations_file) as rf:
+                recs = [json.loads(line) if line.strip() else None for line in rf.read().split("\n") if line.strip()]
 
         print("\n" + "=" * 60)
         print("  🧹 MODEL CLEANUP WIZARD")

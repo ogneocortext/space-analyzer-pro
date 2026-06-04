@@ -26,10 +26,10 @@ class SpaceAnalyzerTester:
     def __init__(self):
         # Locate binary relative to script location
         search_paths = [
-            Path("space-analyzer-native.exe"),
-            Path("native-gui/target/x86_64-pc-windows-msvc/release/space-analyzer.exe"),
-            Path("native-gui/target/release/space-analyzer.exe"),
-            Path("../native-gui/target/x86_64-pc-windows-msvc/release/space-analyzer.exe"),
+            Path("target/release/space-analyzer.exe"),
+            Path("target/debug/space-analyzer.exe"),
+            Path("bin/space-analyzer.exe"),
+            Path("../target/release/space-analyzer.exe"),
         ]
         self.exe_path = None
         for p in search_paths:

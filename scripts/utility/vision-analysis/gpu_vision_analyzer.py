@@ -22,24 +22,19 @@ from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, asdict
 
-print("DEBUG: Starting imports")
 # GPU-Accelerated Imports
 import torch
-print("DEBUG: Torch imported")
 import torch.nn.functional as F
 from torchvision import transforms, io
 from PIL import Image
 import numpy as np
 
-print("DEBUG: Basic imports done")
 # Configuration
 try:
     import requests
     HAS_REQUESTS = True
-    print("DEBUG: Requests imported")
 except ImportError:
     HAS_REQUESTS = False
-    print("DEBUG: Requests not available")
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -107,20 +102,13 @@ class GPUImageAnalyzer:
                                        dtype=torch.float32, device=self.device).view(1, 1, 3, 3)
 
     def load_image_gpu(self, image_path: str) -> Tuple[torch.Tensor, Image.Image]:
-        print(f"DEBUG: Loading image from {image_path}")
         pil_img = Image.open(image_path)
-        print(f"DEBUG: PIL image mode={pil_img.mode}, size={pil_img.size}")
         if pil_img.mode != "RGB":
             pil_img = pil_img.convert("RGB")
-            print(f"DEBUG: Converted to RGB, mode={pil_img.mode}")
-        print(f"DEBUG: Decoding image with torchvision.io")
         img_tensor = io.decode_image(image_path, mode="RGB").to(self.device)
-        print(f"DEBUG: Image tensor shape={img_tensor.shape}")
         if img_tensor.dim() == 3:
             img_tensor = img_tensor.unsqueeze(0)
-        print(f"DEBUG: Final tensor shape={img_tensor.shape}")
         result_tensor = img_tensor.float() / 255.0
-        print(f"DEBUG: Normalized tensor range [{result_tensor.min().item():.3f}, {result_tensor.max().item():.3f}]")
         return result_tensor, pil_img
 
     def analyze_quality(self, pil_img: Image.Image, file_size: int) -> ImageQualityMetrics:
@@ -221,7 +209,6 @@ class GPUImageAnalyzer:
         )
 
     def analyze_via_ollama(self, image_path: str, category: str) -> str:
-        print(f"DEBUG: Starting Ollama analysis for {image_path} with category {category}")
         if not HAS_REQUESTS:
             return "Ollama analysis unavailable (requests not installed)"
 
@@ -274,7 +261,6 @@ class GPUImageAnalyzer:
 4. Any visual issues or bugs
 5. Specific UX recommendations""")
 
-            print(f"DEBUG: Ollama prompt length: {len(prompt)}")
             payload = {
                 "model": self.ollama_model,
                 "prompt": prompt,
@@ -283,38 +269,30 @@ class GPUImageAnalyzer:
                 "stream": False
             }
 
-            print(f"DEBUG: Sending request to Ollama at {OLLAMA_BASE_URL}/api/generate")
             response = requests.post(
                 f"{OLLAMA_BASE_URL}/api/generate",
                 json=payload,
-                timeout=300  # Increased timeout to 5 minutes
+                timeout=300
             )
 
-            print(f"DEBUG: Ollama response status code: {response.status_code}")
             if response.status_code == 200:
                 result = response.json()
                 text = result.get("response", "")
                 thinking = result.get("thinking", "")
                 if text:
-                    print(f"DEBUG: Ollama response text length: {len(text)}")
                     return text
                 if thinking:
-                    print(f"DEBUG: Ollama thinking length: {len(thinking)}")
                     return f"[Model reasoning]: {thinking[:500]}"
                 return "No analysis generated (empty response)"
             else:
-                print(f"DEBUG: Ollama error: {response.status_code} - {response.text[:200]}")
                 return f"Error: {response.status_code} - {response.text[:200]}"
 
         except requests.exceptions.ConnectionError:
-            print("DEBUG: Ollama server not available (connection error)")
             return "Ollama server not available (is it running?)"
         except Exception as e:
-            print(f"DEBUG: Ollama analysis error: {str(e)}")
             return f"Analysis error: {str(e)[:200]}"
 
     def analyze_screenshot(self, image_path: str, category: str = "general") -> VisionAnalysisResult:
-        print(f"DEBUG: Starting analysis of {image_path}")
         start_time = time.time()
         gpu_mem_before = torch.cuda.memory_allocated() if torch.cuda.is_available() else 0
 
