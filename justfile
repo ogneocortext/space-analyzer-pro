@@ -174,11 +174,7 @@ package:
     @echo "Building release..."
     cargo build --workspace --release
     @echo "Creating package..."
-    $version = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version
-    $zipName = "space-analyzer-pro-$version-windows-x64.zip"
-    if (Test-Path $zipName) { Remove-Item $zipName }
-    Compress-Archive -Path "target/release/space-analyzer-gui.exe","target/release/space-analyzer-pro.exe" -DestinationPath $zipName
-    @echo "Package: $zipName"
+    @powershell -Command "$v = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version; $z = \"space-analyzer-pro-$v-windows-x64.zip\"; if (Test-Path $z) { Remove-Item $z }; Compress-Archive -Path 'target/release/space-analyzer-gui.exe','target/release/space-analyzer-pro.exe' -DestinationPath $z; echo \"Package: $z\""
 
 # Run criterion benchmarks
 bench:
@@ -191,19 +187,7 @@ bench:
 # Verify SQLite schema integrity
 db-check:
     @echo "Checking database schema..."
-    $dbPath = "$env:APPDATA\SpaceAnalyzer\space_analyzer.db"
-    if (Test-Path $dbPath) {
-        $tables = sqlite3 $dbPath ".tables" 2>$null
-        if ($tables) {
-            @echo "Tables: $tables"
-            $count = sqlite3 $dbPath "SELECT count(*) FROM sqlite_master WHERE type='table';" 2>$null
-            @echo "Table count: $count"
-        } else {
-            @echo "NOTE: sqlite3 CLI not found — install from https://www.sqlite.org/download.html"
-        }
-    } else {
-        @echo "No database found at $dbPath (app creates on first run)"
-    }
+    @if (Get-Command sqlite3 -ErrorAction SilentlyContinue) { $dbPath = "$env:APPDATA\SpaceAnalyzer\space_analyzer.db"; if (Test-Path $dbPath) { sqlite3 $dbPath ".tables"; $count = sqlite3 $dbPath "SELECT count(*) FROM sqlite_master WHERE type='table';"; echo "Table count: $count" } else { echo "No database found at $dbPath (app creates on first run)" } } else { echo "sqlite3 CLI not found — install from https://www.sqlite.org/download.html" }
 
 # ──────────────────────────────────────────────────────────────
 #  Code Quality
@@ -225,10 +209,10 @@ doc:
 # Remove build artifacts
 clean:
     cargo clean
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build-artifacts
+    @Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build-artifacts
 
 # Clean everything including target/
 clean-all:
     cargo clean
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build-artifacts
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue target
+    @Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build-artifacts
+    @Remove-Item -Recurse -Force -ErrorAction SilentlyContinue target

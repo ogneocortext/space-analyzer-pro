@@ -1971,15 +1971,14 @@ fn main() -> anyhow::Result<()> {
     }
 
     // Print duplicate statistics if duplicates were detected
-    if result.file_analysis.duplicate_count > 0
-        && !cli.quiet {
-            println!(
-                "📋 Found {} duplicate files ({} groups), wasting {} bytes",
-                result.file_analysis.duplicate_count,
-                result.file_analysis.duplicate_groups.len(),
-                result.file_analysis.duplicate_size
-            );
-        }
+    if result.file_analysis.duplicate_count > 0 && !cli.quiet {
+        println!(
+            "📋 Found {} duplicate files ({} groups), wasting {} bytes",
+            result.file_analysis.duplicate_count,
+            result.file_analysis.duplicate_groups.len(),
+            result.file_analysis.duplicate_size
+        );
+    }
 
     let json_output = serde_json::to_string_pretty(&result)?;
 

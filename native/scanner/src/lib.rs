@@ -240,8 +240,7 @@ impl SpaceAnalyzer {
                 .for_each(|entry| {
                     if let Ok(metadata) = entry.metadata() {
                         if let Some(file_info) = self.create_file_info(&entry, &metadata) {
-                            if sender.send(file_info).is_err() {
-                            }
+                            if sender.send(file_info).is_err() {}
                         }
                     }
                 });
