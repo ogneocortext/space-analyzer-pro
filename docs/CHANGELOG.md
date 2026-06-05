@@ -4,6 +4,14 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 
 ## [3.4.0] - 2026-06-04
 
+### Visual Identity
+
+- **App icon** — multi-resolution (16, 32, 48, 64, 128, 256 px) gradient disk icon with cyan center dot. `assets/icon/` includes PNG, raw RGBA (for `egui::IconData`), and Windows `.ico`. Embedded at compile time via `include_bytes!` and set via `ViewportBuilder::with_icon()` so the OS taskbar / Alt-Tab show the custom icon.
+- **Social preview banner** — 1280×640 PNG + SVG at `assets/banner/social-preview.png`. Features gradient disk icon, gradient "Pro" title, tagline, subtitle, 5 feature pills (`8 GUI TABS`, `12+ LLM TOOLS`, `GPU ACCELERATED`, `SQLITE EMBEDDED`, `WORKFLOW ENGINE`), and a `v3.4.0` badge. Upload this to **Settings → Social preview** on GitHub.
+- **Welcome splash screen** — new `show_welcome` app state and `render_welcome_splash()` method. Centered gradient disk icon, fade-in title, 4 feature pills, "Get Started" button, keyboard shortcut hint. Auto-dismisses after 120 frames (~2 s) or on click / Enter / Space.
+- **Mermaid diagrams** — `assets/diagrams/architecture.md` (full app architecture as a collapsible graph in the README) and `assets/diagrams/workflow.md` (data flow from scan → categorize → bloat → dashboard → AI / dedup / workflows).
+- **README polish** — hero banner, for-the-badge shield row (release, license, stars, CI), "What you get / don't get" comparison table, Prerequisites table, collapsible architecture diagram, Screenshots section.
+
 ### Documentation
 
 - **Rewrote root `README.md`**: Comprehensive feature inventory covering all 8 GUI tabs (Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, System, Settings), 5 workflow categories, 7 workflow actions, 4 triggers, 12+ tool registry entries, and full project structure with clickable doc links
