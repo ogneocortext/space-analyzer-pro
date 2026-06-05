@@ -181,6 +181,14 @@ impl SpaceAnalyzerApp {
             });
         }
 
+        // ── AI Tools Panel (v3.5.0+) ──────────────────────────────────
+        // Capability-driven buttons: Semantic Search (embedding),
+        // Summarize Scan (completion), Cleanup Plan (thinking),
+        // Describe Screenshot (vision). Each one targets a specific
+        // Ollama capability and the user can see the data flow in
+        // the resulting ChatMessage (tokens, duration, payload size).
+        self.render_ai_tools_panel(ui);
+
         // ── Chat Messages ─────────────────────────────────────────────
         egui::ScrollArea::vertical().show(ui, |ui| {
             for msg in &self.chat_messages {

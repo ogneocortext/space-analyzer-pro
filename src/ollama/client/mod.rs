@@ -214,6 +214,16 @@ impl OllamaClient {
         client
     }
 
+    /// Get the per-operation timeout durations.
+    pub fn operation_timeouts(&self) -> &OperationTimeouts {
+        &self.operation_timeouts
+    }
+
+    /// Get the base URL the client is talking to (e.g. `http://127.0.0.1:11434`).
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
     // ── Internal Helpers ─────────────────────────────────────────
 
     /// Track a request in metrics
@@ -239,7 +249,7 @@ impl OllamaClient {
         }
     }
 
-    async fn post_with_timeout(
+    pub(crate) async fn post_with_timeout(
         &self,
         url: &str,
         body: &impl serde::Serialize,

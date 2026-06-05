@@ -14,7 +14,7 @@ impl OllamaClient {
     }
 
     /// Shared helper: POST a ChatRequest, validate status, parse JSON, track timing, build TokenUsage.
-    pub(super) async fn post_chat_and_parse(
+    pub(crate) async fn post_chat_and_parse(
         &self,
         request: &ChatRequest,
         timeout: std::time::Duration,

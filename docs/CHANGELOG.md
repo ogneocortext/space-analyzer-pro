@@ -30,6 +30,61 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 
 - **Bumped**: `3.3.0` → `3.4.0` in `Cargo.toml`
 
+## [3.5.0] - 2026-06-04
+
+### Capability-Driven Ollama Features
+
+- **New `src/ollama/features.rs` module** (~620 lines, 20 inline unit tests) — five first-class features that exercise distinct Ollama 0.30+ capabilities end-to-end. Each feature has a typed `*Input` / `*Output` struct and posts tokens + duration back to the caller, so the data flow is visible in the chat scrollback.
+  - **`semantic_search`** (embedding) — batches up to 8 files into a single `POST /api/embed` roundtrip, returns top-K by cosine similarity. Sub-second warm with `nomic-embed-text:latest`.
+  - **`summarize_scan`** (completion) — compresses a scan to a 419-byte payload (top-5 files + 5 type buckets = 200:1 compression), asks the chat model for a 2-3 sentence summary. ~10 s, ~100 completion tokens.
+  - **`cleanup_plan`** (thinking) — sends a `think: true` chat request, captures the model's hidden reasoning in a separate `thinking` field, returns the numbered plan in `content`. ~3 min, ~5,000 completion tokens.
+  - **`describe_screenshot`** (vision) — reads a PNG/JPEG from disk, resizes to ≤1024 px, base64-encodes (~33% overhead), sends as `images: [b64]` multimodal message. ~60 s, ~1,400 prompt + ~1,400 completion tokens.
+  - **`agentic_question`** (tools) — multi-round loop with a `ToolExecutor` closure and `max_rounds` cap; the model calls only the tools it needs and results are appended as `tool` messages. ~30 s, 1-3 rounds.
+
+### Ollama Client Hardening
+
+- **New `OllamaClient::post_chat(&ChatRequest)`** and **`post_chat_raw(&ChatRequest) -> (status, body)`** methods — feature code can now send custom chat requests (thinking, vision, tools) without re-implementing HTTP plumbing.
+- **New public getters** `base_url()` and `operation_timeouts()` on `OllamaClient` so feature code and tests can read client config.
+- **`post_chat_and_parse` and `post_with_timeout` changed to `pub(crate)`** so the features module can use them.
+- **Fixed `ToolCall` parse regression**: `call_type` is now `#[serde(rename = "type", default = "default_call_type")]` with `default_call_type() -> "function"`. Models like `qwen3.5:4b`, `llama3.1:8b`, and `qwen2.5-coder:7b` omit the `type` field, which was breaking `/api/chat` deserialization.
+
+### Two New CLI Bins
+
+- **`src/bin/ollama-test.rs`** — read-only smoke test for any local Ollama server. Probes `/api/version`, lists `/api/tags` (filters cloud models with `remote_host` set), lists `/api/ps`, and exercises each local model with `/api/embeddings` (if capability=embedding) or `/api/chat`. 5/5 models passed on this machine.
+- **`src/bin/ollama-features.rs`** — runs all 5 features end-to-end and prints a metrics table. 5/5 features passed on this machine (qwen3.5:4b, qwen2.5-coder:7b, gemma3:4b, llama3.1:8b, nomic-embed-text:latest, total 5m48s).
+
+### AI Tools Panel in the GUI
+
+- **New `src/gui/ai/features_panel.rs`** (~360 lines) — 4 capability-driven quick-action buttons rendered between the Quick Actions toolbar and the chat scrollback in `render_ai_chat`:
+  - `🔎 Semantic Search` (TextEdit + button) — runs `semantic_search` over the current scan's largest files.
+  - `📝 Summarize Scan` (button) — runs `summarize_scan` over the current scan.
+  - `🧠 Cleanup Plan` (TextEdit + button) — runs `cleanup_plan` with a user question; thinking mode is force-on.
+  - `📷 Describe Screenshot` (file picker + button) — opens a PNG/JPEG via `rfd::FileDialog` and runs `describe_screenshot`.
+- **New `AppSettings::ai_features_panel_visible: bool`** (default `true`) — load/save key `ai_features_panel_visible` in `database/settings.rs`; toggle in `gui/settings.rs` with hover-text describing the four capabilities.
+- **New `SpaceAnalyzerApp` state**: `semantic_search_query`, `cleanup_plan_question`, `pending_screenshot_path`.
+- **Helper `push_ai_tool_error(msg: &str)`** writes to the chat as an `Error` message — `&str` signature avoids the `String` → `&str` dance at every call site.
+- **Type alias `FeatureReply = (String, Option<String>, u32, u32, u128, u64, u64)`** keeps clippy's `type_complexity` lint quiet at the runner call sites.
+
+### Tests
+
+- **98 tests pass, 4 ignored** (was 78 / 4) — added 20 inline tests in `src/ollama/features.rs` `mod tests`:
+  - Input struct construction (semantic / scan summary / cleanup plan / screenshot)
+  - `ToolCall` regression: with and without `type` field, string vs object `arguments`, wire serialization of `ToolDefinition`
+  - `ChatResponse`: with and without `thinking`, with `tool_calls` (qwen3.5/llama3.1/gemma3 payload shapes)
+  - `split_thinking` helper
+  - `encode_image_for_ollama`: PNG / JPEG pass-through, unknown format rejected
+  - `cosine_similarity` sanity (orthogonal / identical / opposite), `file_to_description`
+  - 4 network tests gated with `#[ignore = "requires local Ollama"]`
+
+### Code Quality
+
+- **Final clippy clean**: `cargo clippy --all-targets --all-features -- -D warnings` passes (fixed `useless_conversion`, `len_zero`, `explicit_into_iter`, `sort_by_key`, `type_complexity` from new code; `Skipped` enum variant and doc-list indentation in `ollama-test.rs`).
+- **Format clean**: `cargo fmt --all -- --check` passes.
+
+### Version
+
+- **Bumped**: `3.4.0` → `3.5.0` in `Cargo.toml`
+
 ## [Unreleased]
 
 ### Web/Desktop Separation

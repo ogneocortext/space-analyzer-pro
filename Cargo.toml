@@ -1,6 +1,6 @@
 [package]
 name = "space-analyzer-pro-desktop"
-version = "3.4.0"
+version = "3.5.0"
 description = "Self-Contained AI-Powered Space Analyzer Desktop Application"
 authors = ["Space Analyzer Team"]
 edition = "2021"
@@ -41,6 +41,14 @@ path = "src/main.rs"
 [[bin]]
 name = "space-analyzer-gui"
 path = "src/bin/space-analyzer-gui.rs"
+
+[[bin]]
+name = "ollama-test"
+path = "src/bin/ollama-test.rs"
+
+[[bin]]
+name = "ollama-features"
+path = "src/bin/ollama-features.rs"
 
 [dependencies]
 shared-scanner = { path = "shared-scanner" }

@@ -43,6 +43,13 @@ pub struct AppSettings {
     // Session Logging
     pub log_session_to_file: bool,
     pub log_file_path: String,
+
+    // AI Features Panel (v3.5.0+) — capability-driven buttons
+    /// Show the "AI Tools" section in the AI Assistant panel.
+    /// Each tool targets one Ollama capability (embedding, completion,
+    /// thinking, vision). Disabled by default to keep the panel tidy
+    /// for users who only use the chat.
+    pub ai_features_panel_visible: bool,
 }
 
 impl Default for AppSettings {
@@ -75,6 +82,7 @@ impl Default for AppSettings {
             ai_recommendation_enabled: true,
             log_session_to_file: false,
             log_file_path: "space-analyzer-session.log".to_string(),
+            ai_features_panel_visible: true,
         }
     }
 }
@@ -156,6 +164,9 @@ impl super::Database {
                                     settings.log_session_to_file = value == "true"
                                 }
                                 "log_file_path" => settings.log_file_path = value,
+                                "ai_features_panel_visible" => {
+                                    settings.ai_features_panel_visible = value == "true"
+                                }
                                 _ => {}
                             }
                         }
@@ -239,6 +250,10 @@ impl super::Database {
                 settings.log_session_to_file.to_string(),
             ),
             ("log_file_path", settings.log_file_path.clone()),
+            (
+                "ai_features_panel_visible",
+                settings.ai_features_panel_visible.to_string(),
+            ),
         ];
         let tx = self.conn.unchecked_transaction()?;
         for (key, value) in pairs {

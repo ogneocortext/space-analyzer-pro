@@ -25,6 +25,9 @@ pub mod prompts;
 pub mod stream;
 pub mod types;
 
+#[allow(dead_code)] // Used by ollama-features bin and planned GUI integration
+pub mod features;
+
 // Re-export everything at module root for backward compatibility.
 // Allow unused imports — these form the public API surface consumed by the GUI
 // once the Ollama integration is wired up end-to-end.

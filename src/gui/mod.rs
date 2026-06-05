@@ -596,6 +596,14 @@ pub struct SpaceAnalyzerApp {
     pub(crate) embedding_receiver: Option<mpsc::Receiver<EmbeddingMessage>>,
     pub(crate) search_receiver: Option<mpsc::Receiver<SearchMessage>>,
 
+    // AI Tools Panel (v3.5.0+) — capability-driven quick buttons
+    // Each input is paired with a feature in `gui::ai::features_panel`.
+    // Results are posted as ChatMessages so they render in the same
+    // scrollback as the rest of the AI panel.
+    pub semantic_search_query: String,
+    pub cleanup_plan_question: String,
+    pub pending_screenshot_path: Option<String>,
+
     // Deduplication
     pub dedup_receiver: Option<mpsc::Receiver<String>>,
     pub is_deduplicating: bool,
@@ -710,6 +718,9 @@ impl Default for SpaceAnalyzerApp {
             cached_embeddings: Vec::new(),
             embedding_scan_id: None,
             is_indexing: false,
+            semantic_search_query: String::new(),
+            cleanup_plan_question: String::new(),
+            pending_screenshot_path: None,
             indexing_progress: 0.0,
             embedding_receiver: None,
             search_receiver: None,
@@ -801,6 +812,9 @@ mod workflow_render;
 /// the primary signal. Falls back to name-substring heuristics only when the
 /// server omits the field (older Ollama versions).
 ///
+/// Cloud models are filtered out at the discovery layer before this function
+/// is called, so we don't need to handle them here.
+///
 /// The previous version of this function only matched a handful of model
 /// names (`qwen3:8b`, `mistral:7b`, `functionary`, …) and assigned empty
 /// capability lists to anything else — so a user with `qwen3.5:4b`,
@@ -808,8 +822,6 @@ mod workflow_render;
 /// indication of what it could do. That was the root cause of the
 /// "model selector status is completely broken" symptom.
 fn classify_model(info: &ollama::ModelInfo) -> OllamaModelInfo {
-    use ollama::is_cloud_model;
-
     let name = &info.name;
     let name_lower = name.to_lowercase();
     let mut capabilities = Vec::new();
@@ -817,14 +829,7 @@ fn classify_model(info: &ollama::ModelInfo) -> OllamaModelInfo {
     let mut tooltip = String::new();
     let mut vram_requirement = "8+ GB VRAM".to_string();
 
-    // Format size for display. Cloud models report a tiny `size` (it's only
-    // a manifest, the real weights are remote) — flag them as "Cloud" so the
-    // user isn't misled by a "0.0 GB" label.
-    let size_str = if is_cloud_model(info) {
-        "Cloud".to_string()
-    } else {
-        format!("{:.1} GB", info.size as f64 / 1_073_741_824.0)
-    };
+    let size_str = format!("{:.1} GB", info.size as f64 / 1_073_741_824.0);
 
     let caps_lower: Vec<String> = info.capabilities.iter().map(|s| s.to_lowercase()).collect();
     let has_cap = |needle: &str| caps_lower.iter().any(|c| c == needle);
@@ -954,16 +959,8 @@ fn classify_model(info: &ollama::ModelInfo) -> OllamaModelInfo {
         }
     }
 
-    // Mark as cloud model.
-    if is_cloud_model(info) {
-        tooltip.push_str(&format!(
-            "\n\n☁ Cloud model hosted at {}. Requires internet and an Ollama account.",
-            info.remote_host.as_deref().unwrap_or("ollama.com")
-        ));
-    }
-
     // Warn about models that may exceed 8GB VRAM.
-    if !is_cloud_model(info) && info.size > 8_589_934_592 {
+    if info.size > 8_589_934_592 {
         vram_requirement = format!(
             "{} GB - May require CPU offload on 8GB GPU",
             info.size / 1_073_741_824

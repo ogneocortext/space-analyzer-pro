@@ -124,6 +124,16 @@ impl SpaceAnalyzerApp {
                     "AI-Powered Recommendations (uses Ollama)",
                 );
                 ui.checkbox(
+                    &mut self.settings.ai_features_panel_visible,
+                    "Show 'AI Tools' panel in the AI Assistant tab",
+                )
+                .on_hover_text(
+                    "Capability-driven buttons: semantic search (embedding), \
+                     summarize scan (completion), cleanup plan (thinking), \
+                     describe screenshot (vision). Each one targets one Ollama \
+                     capability and shows the data flow (tokens, duration, payload).",
+                );
+                ui.checkbox(
                     &mut self.settings.auto_model_selection,
                     "Auto-select model based on task",
                 );

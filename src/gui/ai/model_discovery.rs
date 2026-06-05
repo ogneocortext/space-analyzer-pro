@@ -69,16 +69,39 @@ impl SpaceAnalyzerApp {
                     .await
                     .map_err(|e| format!("Failed to list models: {}", e))?;
 
-                let mut discovered: Vec<OllamaModelInfo> = Vec::with_capacity(infos.len());
-                for info in infos {
-                    discovered.push(classify_model(&info));
+                // Filter out cloud models (`remote_host.is_some()`) — the
+                // user only wants local models reachable on the LAN box.
+                // We do this at the discovery boundary so the UI never
+                // offers a remote endpoint as a selectable target, and the
+                // /api/ps snapshot also reflects only local loads.
+                let local_infos: Vec<_> = infos
+                    .into_iter()
+                    .filter(|m| m.remote_host.is_none())
+                    .collect();
+
+                let mut discovered: Vec<OllamaModelInfo> = Vec::with_capacity(local_infos.len());
+                for info in &local_infos {
+                    discovered.push(classify_model(info));
                 }
+
+                // Build a set of local model names so we can filter the
+                // /api/ps response too — if a cloud model happens to be
+                // loaded on the server, we don't want to display its
+                // (remote) VRAM as if it were using our GPU.
+                let local_names: std::collections::HashSet<&str> =
+                    local_infos.iter().map(|m| m.name.as_str()).collect();
 
                 // Fetch currently-running models. /api/ps may be missing on
                 // very old servers; treat the failure as "no running models"
-                // rather than a hard error.
-                let running: Vec<super::super::ollama::RunningModel> =
-                    client.list_running().await.unwrap_or_default();
+                // rather than a hard error. Then keep only the names that
+                // match a local install.
+                let running: Vec<super::super::ollama::RunningModel> = client
+                    .list_running()
+                    .await
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|r| local_names.contains(r.name.as_str()))
+                    .collect();
 
                 Ok((discovered, running, version))
             });

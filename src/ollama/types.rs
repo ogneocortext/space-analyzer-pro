@@ -154,9 +154,17 @@ pub struct ToolParameters {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
     pub id: String,
-    #[serde(rename = "type")]
+    /// `type` is always `"function"` per the Ollama spec, but some
+    /// models (qwen3.5:4b, llama3.1) omit the field entirely. We
+    /// default to `"function"` so a missing `type` does not break
+    /// deserialization of an otherwise-valid tool_calls array.
+    #[serde(rename = "type", default = "default_call_type")]
     pub call_type: String,
     pub function: ToolCallFunction,
+}
+
+fn default_call_type() -> String {
+    "function".to_string()
 }
 
 /// Function call details within a tool call
@@ -482,13 +490,13 @@ pub struct ModelInfo {
     /// Older servers omit the field; we default to an empty list.
     #[serde(default)]
     pub capabilities: Vec<String>,
-    /// Set when the model is hosted remotely (Ollama cloud models).
-    /// Examples: `https://ollama.com:443`.
+    /// `Some(url)` for Ollama cloud models. The app filters these out at the
+    /// discovery boundary so the model list and `/api/ps` snapshot contain
+    /// only locally-installed models — connecting to a cloud-hosted model
+    /// requires a different code path and the user explicitly asked to
+    /// avoid that surface area.
     #[serde(default)]
     pub remote_host: Option<String>,
-    /// The remote model identifier (only present for cloud models).
-    #[serde(default)]
-    pub remote_model: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -499,7 +507,12 @@ pub struct ModelDetails {
     pub format: String,
     #[serde(default)]
     pub family: String,
-    #[serde(default)]
+    /// Cloud models report `null` here (the family lives on the remote
+    /// host); pre-0.30 servers may omit the field entirely. Both cases
+    /// need to deserialize to an empty `Vec`, but `#[serde(default)]` only
+    /// covers the *missing* case — we also need to accept an explicit
+    /// JSON `null` so the whole response doesn't fail to decode.
+    #[serde(default, deserialize_with = "deserialize_null_to_default")]
     pub families: Vec<String>,
     #[serde(default)]
     pub parameter_size: String,
@@ -511,6 +524,21 @@ pub struct ModelDetails {
     /// Embedding vector dimension (Ollama 0.30+, embedding models only).
     #[serde(default)]
     pub embedding_length: Option<u32>,
+}
+
+/// Deserialize a field whose JSON value may be `null` (or absent) into `T`.
+/// `#[serde(default)]` alone only triggers for absent fields — it doesn't
+/// fire on an explicit `null`, which would otherwise be a hard error for
+/// types like `Vec<T>` that don't accept `null`. Used for fields where the
+/// server can legally respond with `null` (e.g. Ollama's `details.families`
+/// for cloud models).
+fn deserialize_null_to_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    T: Default + Deserialize<'de>,
+    D: serde::Deserializer<'de>,
+{
+    let opt = Option::<T>::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
 }
 
 /// Models list response
@@ -543,11 +571,6 @@ pub struct RunningModel {
     pub size_vram: u64,
     /// ISO 8601 timestamp when the model will be unloaded if no activity.
     pub expires_at: String,
-}
-
-/// Convenience: is the model hosted in the cloud rather than locally?
-pub fn is_cloud_model(info: &ModelInfo) -> bool {
-    info.remote_host.is_some() || info.remote_model.is_some()
 }
 
 /// Show model response
@@ -1143,8 +1166,9 @@ mod tests {
             info.capabilities,
             vec!["vision", "completion", "tools", "thinking"]
         );
-        // Check `is_cloud_model` before consuming `details` (partial move).
-        assert!(!is_cloud_model(&info));
+        // Locally-installed models don't carry a `remote_host` — the
+        // discovery layer uses that to filter out cloud entries.
+        assert!(info.remote_host.is_none());
         let details = info.details.unwrap();
         assert_eq!(details.context_length, Some(262144));
         assert_eq!(details.embedding_length, Some(2560));
@@ -1152,8 +1176,14 @@ mod tests {
     }
 
     #[test]
-    fn test_model_info_deserializes_cloud_payload() {
-        // Cloud models report `remote_host` and a tiny `size`.
+    fn test_model_info_parses_cloud_payload() {
+        // Ollama returns cloud models in /api/tags when the user is signed
+        // in to ollama.com. We never *use* them — the discovery layer
+        // filters them out — but the parser must still decode the payload
+        // so a single remote entry can't poison the whole list. Crucially,
+        // `details.families` is JSON `null` (not `[]`, not absent) — the
+        // deserializer has to accept explicit `null` for `Vec<String>`
+        // fields, otherwise the whole response would fail to decode.
         let json = r#"{
             "name": "deepseek-v4-pro:cloud",
             "model": "deepseek-v4-pro:cloud",
@@ -1162,15 +1192,28 @@ mod tests {
             "modified_at": "2026-06-03T12:19:28Z",
             "size": 344,
             "digest": "22bfd5026abd",
-            "details": {"context_length": 1048576},
+            "details": {
+                "parent_model": "",
+                "format": "",
+                "family": "",
+                "families": null,
+                "parameter_size": "",
+                "quantization_level": "",
+                "context_length": 1048576
+            },
             "capabilities": ["completion", "tools", "thinking"]
         }"#;
         let info: ModelInfo = serde_json::from_str(json).unwrap();
-        assert!(is_cloud_model(&info));
+        assert!(info.remote_host.is_some());
         assert_eq!(info.remote_host.as_deref(), Some("https://ollama.com:443"));
-        assert_eq!(info.remote_model.as_deref(), Some("deepseek-v4-pro"));
         assert_eq!(info.size, 344);
-        assert_eq!(info.details.unwrap().context_length, Some(1_048_576));
+        let details = info.details.unwrap();
+        assert_eq!(details.context_length, Some(1_048_576));
+        assert!(
+            details.families.is_empty(),
+            "families: null must decode to empty Vec, got {:?}",
+            details.families
+        );
     }
 
     #[test]
@@ -1187,7 +1230,6 @@ mod tests {
         assert!(info.capabilities.is_empty());
         assert!(info.remote_host.is_none());
         assert!(info.details.is_none());
-        assert!(!is_cloud_model(&info));
     }
 
     #[test]
