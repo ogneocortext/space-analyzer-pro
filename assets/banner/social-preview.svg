@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="Space Analyzer Pro — native Windows disk space analyzer with AI and GPU acceleration">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0e27"/>
+      <stop offset="50%" stop-color="#1a1a3e"/>
+      <stop offset="100%" stop-color="#0a0e27"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="60"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+
+  <circle cx="960" cy="200" r="240" fill="url(#glow)"/>
+  <circle cx="200" cy="500" r="200" fill="url(#glow)"/>
+
+  <g opacity="0.15" stroke="#6366f1" stroke-width="1" fill="none">
+    <path d="M 0 100 L 1280 100"/>
+    <path d="M 0 200 L 1280 200"/>
+    <path d="M 0 300 L 1280 300"/>
+    <path d="M 0 400 L 1280 400"/>
+    <path d="M 0 500 L 1280 500"/>
+    <path d="M 100 0 L 100 640"/>
+    <path d="M 320 0 L 320 640"/>
+    <path d="M 640 0 L 640 640"/>
+    <path d="M 960 0 L 960 640"/>
+  </g>
+
+  <g transform="translate(80, 130)">
+    <rect x="0" y="0" width="120" height="120" rx="24" fill="none" stroke="url(#accent)" stroke-width="4"/>
+    <g transform="translate(20, 20)">
+      <rect x="0" y="0" width="80" height="80" rx="16" fill="url(#accent)" opacity="0.15"/>
+      <circle cx="40" cy="40" r="32" fill="none" stroke="url(#cyan)" stroke-width="4"/>
+      <path d="M 40 16 A 24 24 0 0 1 64 40" fill="none" stroke="url(#cyan)" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="40" cy="40" r="4" fill="#06b6d4"/>
+    </g>
+  </g>
+
+  <g transform="translate(220, 175)">
+    <text x="0" y="0" font-family="Segoe UI, -apple-system, system-ui, sans-serif" font-size="72" font-weight="800" fill="#ffffff" letter-spacing="-2">Space Analyzer</text>
+    <text x="0" y="80" font-family="Segoe UI, -apple-system, system-ui, sans-serif" font-size="72" font-weight="800" letter-spacing="-2">
+      <tspan fill="url(#accent)">Pro</tspan>
+    </text>
+  </g>
+
+  <g transform="translate(80, 380)">
+    <text font-family="Segoe UI, -apple-system, system-ui, sans-serif" font-size="28" font-weight="500" fill="#a5b4fc">
+      Native Windows · GPU-Accelerated · AI-Powered · Self-Contained
+    </text>
+  </g>
+
+  <g transform="translate(80, 440)">
+    <text font-family="Segoe UI, -apple-system, system-ui, sans-serif" font-size="20" font-weight="400" fill="#94a3b8">
+      Single binary. No backend. No cloud. No telemetry. 100% local.
+    </text>
+  </g>
+
+  <g transform="translate(80, 510)">
+    <g transform="translate(0, 0)">
+      <rect x="0" y="0" width="170" height="38" rx="19" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="85" y="24" font-family="Segoe UI, system-ui, sans-serif" font-size="14" font-weight="600" fill="#a5b4fc" text-anchor="middle">8 GUI TABS</text>
+    </g>
+    <g transform="translate(190, 0)">
+      <rect x="0" y="0" width="170" height="38" rx="19" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="85" y="24" font-family="Segoe UI, system-ui, sans-serif" font-size="14" font-weight="600" fill="#a5b4fc" text-anchor="middle">12+ LLM TOOLS</text>
+    </g>
+    <g transform="translate(380, 0)">
+      <rect x="0" y="0" width="170" height="38" rx="19" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="85" y="24" font-family="Segoe UI, system-ui, sans-serif" font-size="14" font-weight="600" fill="#a5b4fc" text-anchor="middle">GPU ACCELERATED</text>
+    </g>
+    <g transform="translate(570, 0)">
+      <rect x="0" y="0" width="190" height="38" rx="19" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="95" y="24" font-family="Segoe UI, system-ui, sans-serif" font-size="14" font-weight="600" fill="#a5b4fc" text-anchor="middle">SQLITE EMBEDDED</text>
+    </g>
+  </g>
+
+  <g transform="translate(1080, 80)">
+    <rect x="0" y="0" width="120" height="32" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+    <text x="60" y="21" font-family="JetBrains Mono, Consolas, monospace" font-size="14" font-weight="700" fill="#06b6d4" text-anchor="middle">v3.4.0</text>
+  </g>
+</svg>

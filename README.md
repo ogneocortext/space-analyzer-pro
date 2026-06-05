@@ -1,15 +1,40 @@
-# Space Analyzer Pro
+<p align="center">
+  <img src="assets/banner/social-preview.svg" alt="Space Analyzer Pro — native Windows disk space analyzer with AI and GPU acceleration" width="800">
+</p>
 
-> A native, self-contained Windows desktop application for disk space analysis, deduplication, and AI-assisted file management. Single binary, no backend servers, no external runtime dependencies.
+<p align="center">
+  <a href="https://github.com/ogneocortext/space-analyzer-pro/releases/latest"><img src="https://img.shields.io/github/v/release/ogneocortext/space-analyzer-pro?style=for-the-badge&color=6366f1&logo=github" alt="Latest Release"/></a>
+  <a href="https://github.com/ogneocortext/space-analyzer-pro/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ogneocortext/space-analyzer-pro?style=for-the-badge&color=a855f7" alt="License"/></a>
+  <a href="https://github.com/ogneocortext/space-analyzer-pro/stargazers"><img src="https://img.shields.io/github/stars/ogneocortext/space-analyzer-pro?style=for-the-badge&color=06b6d4" alt="Stars"/></a>
+  <a href="https://github.com/ogneocortext/space-analyzer-pro/actions"><img src="https://img.shields.io/github/actions/workflow/status/ogneocortext/space-analyzer-pro/rust-ci.yml?style=for-the-badge&logo=github-actions&logoColor=white&label=CI" alt="CI"/></a>
+</p>
 
-[![Rust](https://img.shields.io/badge/rust-1.95%2B-orange.svg)](https://www.rust-lang.org)
-[![Platform](https://img.shields.io/badge/platform-Windows-blue.svg)](https://github.com/ogneocortext/space-analyzer-pro)
-[![Version](https://img.shields.io/badge/version-3.4.0-green.svg)](#changelog)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="#why-space-analyzer-pro">Why?</a> &nbsp;·&nbsp;
+  <a href="#quick-start">Quick Start</a> &nbsp;·&nbsp;
+  <a href="#features">Features</a> &nbsp;·&nbsp;
+  <a href="#architecture">Architecture</a> &nbsp;·&nbsp;
+  <a href="#screenshots">Screenshots</a> &nbsp;·&nbsp;
+  <a href="#development">Development</a> &nbsp;·&nbsp;
+  <a href="#documentation">Docs</a>
+</p>
+
+---
 
 ## Why Space Analyzer Pro?
 
 Unlike web-based space analyzers, Space Analyzer Pro runs as a **native Windows binary** with direct filesystem access, embedded SQLite, optional GPU acceleration, and an optional local LLM (Ollama) — all without spinning up servers, exposing ports, or sending data off-device.
+
+| What you get | What you don't |
+|---|---|
+| Single ~16 MB binary | No Node.js, no Python server, no Docker |
+| Embedded SQLite database | No PostgreSQL, no Redis, no cloud DB |
+| Optional local Ollama AI | No OpenAI API, no telemetry, no tracking |
+| Optional NVIDIA GPU accel | No vendor lock-in, CPU fallback works fine |
+| Recursive multi-volume scan | No browser limitations, no upload size limits |
+| Hardlink-based dedup | No re-encoding, no data loss |
+
+---
 
 ## Quick Start
 
@@ -24,12 +49,14 @@ just run-gui
 
 ### Prerequisites
 
-- **Rust 1.95+** ([rustup.rs](https://rustup.rs))
-- **Windows 10/11** (uses Windows-specific APIs in `native/scanner/`)
-- **NVIDIA GPU** (optional, for GPU-accelerated dedup and hashing)
-- **Ollama** (optional, for AI Assistant and Smart Search)
+| Requirement | Required? | Notes |
+|---|---|---|
+| **Rust 1.95+** | ✅ Yes | [rustup.rs](https://rustup.rs) |
+| **Windows 10/11 x64** | ✅ Yes | Uses Win32 APIs in `native/scanner/` |
+| **NVIDIA GPU** | ⚠️ Optional | For GPU-accelerated dedup; CPU fallback works |
+| **Ollama** | ⚠️ Optional | For AI Assistant and Smart Search tabs |
 
-## Command Line Interface
+### Command Line Interface
 
 ```bash
 # Basic scan
@@ -45,13 +72,15 @@ cargo run --bin space-analyzer-pro -- --path . --deep
 cargo run --bin space-analyzer-pro -- --path . --type "Documents" "Images"
 ```
 
+---
+
 ## Features
 
 ### Core Scanning
 - **Recursive directory scanning** with real-time progress, cancellation, and performance metrics
 - **Multi-volume disk support** (3+ drives) with usage gauges
-- **NTFS USN Journal scanner** for incremental change tracking (Windows)
-- **Hard-link detection** via MFT parsing (Windows)
+- **NTFS USN Journal scanner** for incremental change tracking
+- **Hard-link detection** via MFT parsing
 - **Scan history** with comparison, filtering, and SQLite-backed persistence
 
 ### Analysis
@@ -86,17 +115,71 @@ cargo run --bin space-analyzer-pro -- --path . --type "Documents" "Images"
 - **Storage trend** line chart (when ≥2 scans in history)
 - **Background refresh** without UI blocking
 
+---
+
 ## Architecture
 
-| Component | Implementation | Notes |
-|-----------|---------------|-------|
-| **GUI** | egui/eframe 0.34 (native Rust) | Single window, 8 tabs |
-| **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
-| **File Scanner** | `shared-scanner` (rayon-parallel) | CPU mode default |
-| **GPU Acceleration** | `gpu-compute` crate (optional) | Auto-detects NVIDIA, falls back to CPU |
-| **AI Backend** | Ollama (HTTP, local-only) | Off by default; opt-in via Settings |
-| **Workflow Engine** | `src/workflows/` | Native Rust, no external scheduler |
-| **System Monitor** | `sysinfo` crate | Cross-platform base + Windows-specific NTFS APIs |
+<details>
+<summary><b>Click to expand full architecture diagram</b></summary>
+
+```mermaid
+graph TB
+    subgraph Entry["Entry Points"]
+        GUI["space-analyzer-gui.exe<br/>(egui/eframe)"]
+        CLI["space-analyzer-pro.exe<br/>(CLI Scanner)"]
+        FTH["flow-test-harness.exe<br/>(Integration Tests)"]
+    end
+
+    subgraph App["Rust Application Core (src/)"]
+        direction TB
+        Gui["gui/<br/>8 tabs · dashboard · scan · history ·<br/>smart search · workflows · AI chat ·<br/>system · settings"]
+        Ollama["ollama/<br/>LLM client · chat · streaming ·<br/>embeddings · prompt cache"]
+        DB["database/<br/>SQLite (rusqlite)<br/>scans · embeddings · workflows · settings"]
+        WF["workflows/<br/>5 categories · 4 triggers · 7 actions"]
+        TR["tool_registry/<br/>12+ LLM-callable tools"]
+        Cat["category.rs<br/>12-category file grouping"]
+        OAI["offline_ai.rs<br/>Heuristic bloat detection"]
+        FR["file_relations.rs<br/>Dependency report /<br/>destructive-action preview"]
+        SM["system_monitor.rs<br/>CPU/RAM/GPU/disk"]
+        ES["embedding_service.rs<br/>Semantic search"]
+    end
+
+    subgraph Native["Native Crates (native/)"]
+        Scanner["scanner/<br/>NTFS USN Journal · MFT ·<br/>hardlinks · Windows API"]
+        Dedup["file_deduplicator/<br/>GPU-accelerated hashing"]
+        NMC["node_modules_cleaner/<br/>Node.js dev cleanup"]
+    end
+
+    subgraph Shared["Shared Crates"]
+        SS["shared-scanner/<br/>rayon-parallel walks"]
+        GPU["gpu-compute/<br/>Optional CUDA kernels"]
+    end
+
+    GUI --> Gui
+    CLI --> Scanner
+    FTH --> Gui
+    Gui --> Cat
+    Gui --> OAI
+    Gui --> FR
+    Gui --> ES
+    Gui --> SM
+    Gui --> WF
+    Gui --> Ollama
+    Gui --> TR
+    Gui --> DB
+    Ollama -.optional.-> OllamaExt[(Ollama<br/>local HTTP)]
+    TR --> Cat
+    TR --> FR
+    TR --> SS
+    TR --> DB
+    WF --> Scanner
+    WF --> Dedup
+    SS --> GPU
+    SS --> Scanner
+    Dedup --> GPU
+```
+
+</details>
 
 ### Tabs
 
@@ -111,6 +194,32 @@ cargo run --bin space-analyzer-pro -- --path . --type "Documents" "Images"
 | **System** | CPU/RAM/GPU/disk monitor with real-time gauges |
 | **Settings** | Configure Ollama endpoint, default scan paths, theme, GPU toggle |
 
+### Stack
+
+| Component | Implementation | Notes |
+|---|---|---|
+| **GUI** | egui/eframe 0.34 (native Rust) | Single window, 8 tabs |
+| **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
+| **File Scanner** | `shared-scanner` (rayon-parallel) | CPU mode default |
+| **GPU Acceleration** | `gpu-compute` crate (optional) | Auto-detects NVIDIA, falls back to CPU |
+| **AI Backend** | Ollama (HTTP, local-only) | Off by default; opt-in via Settings |
+| **Workflow Engine** | `src/workflows/` | Native Rust, no external scheduler |
+| **System Monitor** | `sysinfo` crate | Cross-platform base + Windows-specific NTFS APIs |
+
+---
+
+## Screenshots
+
+> Screenshots below are from the actual Rust desktop GUI (egui). For more, see [`assets/screenshots/docs/`](assets/screenshots/docs/).
+
+| Dashboard | AI Assistant |
+|---|---|
+| _Coming soon_ | _Coming soon_ |
+
+_To capture fresh screenshots, run `just test-gui` which uses the Win32 PrintWindow API to capture the actual GUI window._
+
+---
+
 ## Development
 
 ### Build & Test
@@ -124,6 +233,7 @@ just run-gui       # Start the GUI
 just run-cli       # Run the CLI scanner
 just clippy        # Run lints only
 just fmt           # Format all code
+just package       # Build release + create distributable zip
 just help          # Show all commands
 ```
 
@@ -131,7 +241,7 @@ just help          # Show all commands
 
 ```
 src/                       # Rust application source
-  bin/                     # Binary entry points (space-analyzer-gui, space-analyzer-pro)
+  bin/                     # Binary entry points (space-analyzer-gui, space-analyzer-pro, flow-test-harness)
   gui/                     # egui desktop GUI (8 tabs, dashboard, system, etc.)
     ai/                    # AI Assistant chat interface
   ollama/                  # Ollama LLM client (chat, embeddings, streaming, tool calls)
@@ -154,6 +264,12 @@ native/                    # Standalone Rust binaries
 shared-scanner/            # Shared scanning logic (used by GUI + CLI + dedup)
 gpu-compute/               # Optional CUDA kernels (parallel hashing, dedup)
 
+assets/                    # Visual assets
+  banner/                  # Social preview (1280×640 PNG + SVG)
+  icon/                    # App icon (multi-resolution .ico + 6 PNG sizes)
+  diagrams/                # Mermaid source (architecture.md, workflow.md)
+  screenshots/             # GUI captures (design/ for prototypes, docs/ for real app)
+
 docs/                      # Documentation
   architecture/            # Design decisions, diagrams, project structure
   development/             # Setup, testing, database migration guides
@@ -175,6 +291,8 @@ config/                    # Tool configuration (non-secret)
 - `///` doc comments on all public items
 - Workspace dependencies in root `Cargo.toml`; member crates pin versions from there
 
+---
+
 ## Documentation
 
 - [Full README](docs/README.md) — comprehensive project documentation
@@ -188,12 +306,16 @@ config/                    # Tool configuration (non-secret)
 - [Contributing](CONTRIBUTING.md) — how to contribute
 - [Agent Guide](AGENTS.md) — for AI coding agents
 
+---
+
 ## Versioning
 
 **v3.4.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
 
 - **v3.x** — Self-contained Rust desktop application (active development)
 - **v2.x and earlier** — Web-based Vue 3 + Node.js implementation (archived at [space-analyzer-pro-web](https://github.com/ogneocortext/space-analyzer-pro-web))
+
+---
 
 ## License
 
