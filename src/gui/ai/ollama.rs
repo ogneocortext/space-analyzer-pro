@@ -10,22 +10,64 @@ use std::sync::mpsc;
 use super::super::SpaceAnalyzerApp;
 
 impl SpaceAnalyzerApp {
-    /// Check if Ollama is available and start checking process
+    /// Probe Ollama for availability + server version.
+    ///
+    /// Builds a fresh client from the current settings URL/model (rather than
+    /// reusing `self.ollama_client`, which may be stale after an URL change)
+    /// and queries both `/api/version` and the bare TCP connection. The
+    /// outcome is reported via `OllamaMessage::AvailabilityDetailed` so the
+    /// UI can show the version and any error message — the old `Availability`
+    /// variant only carried a `bool` and silently dropped both pieces of
+    /// information.
     pub(crate) fn check_ollama(&mut self) {
         if self.ollama_receiver.is_some() {
             return;
         }
         self.ollama_checking = true;
-        let client = self.ollama_client.clone();
-        if let Some(client) = client {
-            let (tx, rx) = mpsc::channel();
-            std::thread::spawn(move || {
-                let rt = super::super::shared_runtime();
-                let available = rt.block_on(async { client.is_available().await });
-                let _ = tx.send(OllamaMessage::Availability(available));
+        let client = match super::super::ollama::OllamaClient::new(
+            &self.settings.ollama_url,
+            &self.settings.ollama_model,
+        ) {
+            Ok(c) => c,
+            Err(e) => {
+                self.ollama_checking = false;
+                let msg = format!("Ollama config error: {}", e);
+                self.last_ollama_error = Some(msg.clone());
+                self.status_message = Some(msg);
+                return;
+            }
+        };
+
+        // Keep `self.ollama_client` in sync with the URL the user just typed,
+        // even if the probe hasn't completed yet.
+        self.ollama_client = Some(client.clone());
+
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let rt = super::super::shared_runtime();
+            // First probe: is the server up at all?
+            let available = rt.block_on(async { client.is_available().await });
+            // Second probe (only if reachable): what version is it? Older
+            // servers don't expose /api/version, so a 404 is not a failure
+            // of the overall check.
+            let (version, error) = if available {
+                match rt.block_on(async { client.get_version().await }) {
+                    Ok(v) => (Some(v), None),
+                    Err(e) => (
+                        None,
+                        Some(format!("Server reachable but /api/version failed: {}", e)),
+                    ),
+                }
+            } else {
+                (None, None)
+            };
+            let _ = tx.send(OllamaMessage::AvailabilityDetailed {
+                available,
+                version,
+                error,
             });
-            self.ollama_receiver = Some(rx);
-        }
+        });
+        self.ollama_receiver = Some(rx);
     }
 
     /// Try to find the Ollama executable on the system

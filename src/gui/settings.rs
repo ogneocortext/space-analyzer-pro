@@ -214,20 +214,21 @@ impl SpaceAnalyzerApp {
                 self.render_ollama_model_list(ui);
 
                 ui.separator();
-                if ui.button("Test Connection").clicked() {
-                    match OllamaClient::new(&self.settings.ollama_url, &self.settings.ollama_model)
-                    {
-                        Ok(client) => {
-                            self.ollama_client = Some(client);
-                            self.check_ollama();
-                        }
-                        Err(e) => {
-                            self.status_message = Some(format!(
-                                "Ollama config error: {}",
-                                sanitize_error_message(&e.to_string())
-                            ));
-                        }
-                    }
+                if ui
+                    .button("Test Connection")
+                    .on_hover_text(
+                        "Probe the Ollama server, fetch the version, and clear any stale error",
+                    )
+                    .clicked()
+                {
+                    // The new `check_ollama` builds a fresh client from the
+                    // current URL and reports version + error in addition to
+                    // the boolean. The previous version reused `self.ollama_client`
+                    // and so tested the OLD URL even if the user had just
+                    // edited the field.
+                    self.ollama_checking = true;
+                    self.last_ollama_error = None;
+                    self.check_ollama();
                 }
             });
         }
@@ -339,26 +340,37 @@ impl SpaceAnalyzerApp {
 
                 self.save_settings();
 
-                if (self.settings.ollama_url != old_url
+                let ollama_config_changed = self.settings.ollama_url != old_url
                     || self.settings.ollama_model != old_model
-                    || self.settings.ollama_enabled != old_enabled)
-                    && self.settings.ollama_enabled
-                {
-                    match OllamaClient::new(&self.settings.ollama_url, &self.settings.ollama_model)
-                    {
-                        Ok(client) => {
-                            self.ollama_client = Some(client);
-                            self.ollama_available = false;
-                            self.ollama_checking = false;
-                            self.ollama_receiver = None;
-                            self.check_ollama();
-                        }
-                        Err(e) => {
-                            self.status_message = Some(format!(
-                                "Ollama config error: {}",
-                                sanitize_error_message(&e.to_string())
-                            ));
-                        }
+                    || self.settings.ollama_enabled != old_enabled;
+
+                if ollama_config_changed {
+                    if self.settings.ollama_enabled {
+                        // Reset transient state and probe the server with the
+                        // NEW URL. `check_ollama` builds a fresh client from
+                        // the current settings so the old client can't keep
+                        // a stale base_url around.
+                        self.ollama_available = false;
+                        self.ollama_checking = true;
+                        self.ollama_receiver = None;
+                        self.last_ollama_error = None;
+                        self.discovered_models.clear();
+                        self.running_models.clear();
+                        // Probe availability + version.
+                        self.check_ollama();
+                        // Probe the installed model list in parallel so the
+                        // UI shows "what models do I have?" without the user
+                        // having to click "Discover Models" after each save.
+                        self.discover_ollama_models();
+                    } else {
+                        // Disabling Ollama: drop cached state so the user
+                        // doesn't see a stale "Connected" badge.
+                        self.ollama_client = None;
+                        self.ollama_available = false;
+                        self.ollama_checking = false;
+                        self.ollama_receiver = None;
+                        self.last_ollama_error = None;
+                        self.ollama_version = None;
                     }
                 }
 

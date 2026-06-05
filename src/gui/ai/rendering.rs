@@ -18,6 +18,9 @@ impl SpaceAnalyzerApp {
                     if !self.settings.ollama_model.is_empty() {
                         badge(ui, &self.settings.ollama_model, colors::ACCENT);
                     }
+                    if let Some(ref v) = self.ollama_version {
+                        badge(ui, &format!("v{}", v), super::super::colors::TEXT_SECONDARY);
+                    }
                 } else if self.ollama_checking {
                     ui.spinner();
                     ui.label(
@@ -38,6 +41,19 @@ impl SpaceAnalyzerApp {
                     }
                 });
             });
+
+            // Surface the last error from the discovery / availability probes.
+            // Previously swallowed — the user would see "Offline" with no clue
+            // why the server was unreachable.
+            if let Some(ref err) = self.last_ollama_error {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new(format!("⚠ {}", err))
+                            .size(11.0)
+                            .color(egui::Color32::from_rgb(220, 80, 80)),
+                    );
+                });
+            }
 
             // Prompt Cache Panel
             if self.cache_stats_visible {

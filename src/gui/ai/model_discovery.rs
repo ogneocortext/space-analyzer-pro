@@ -3,105 +3,205 @@
 //! This module contains functions for discovering Ollama models,
 //! rendering model lists, and auto-selecting models based on task type.
 
-use super::super::{classify_model, icon_text, OllamaModelInfo};
+use super::super::{classify_model, icon_text, OllamaMessage, OllamaModelInfo};
 use std::sync::mpsc;
 
 use super::super::SpaceAnalyzerApp;
 
 impl SpaceAnalyzerApp {
-    /// Discover available Ollama models and their capabilities
+    /// Discover available Ollama models, server version, and currently-running
+    /// models. Uses the typed `OllamaClient` API (not bare `reqwest::get`) so
+    /// errors are reported back through the channel rather than silently
+    /// dropping into an empty list.
+    ///
+    /// The previous implementation used `reqwest::get` and discarded the
+    /// response on any failure — the user clicked "Discover Models" and saw
+    /// nothing happen. The new version reports the failure to `last_ollama_error`
+    /// and surfaces it in the UI.
     pub(crate) fn discover_ollama_models(&mut self) {
         if self.models_discovering || !self.settings.ollama_enabled {
             return;
         }
 
         self.models_discovering = true;
-        let url = self.settings.ollama_url.clone();
+        // Build a fresh client with the current URL so an unchanged host
+        // (e.g. just toggled "Enable Ollama AI") still produces a working
+        // client without depending on `self.ollama_client` being up-to-date.
+        let client = match super::super::ollama::OllamaClient::new(
+            &self.settings.ollama_url,
+            &self.settings.ollama_model,
+        ) {
+            Ok(c) => c,
+            Err(e) => {
+                self.models_discovering = false;
+                let msg = format!("Invalid Ollama config: {}", e);
+                self.last_ollama_error = Some(msg.clone());
+                self.status_message = Some(msg);
+                return;
+            }
+        };
 
-        // Use a simpler approach - spawn thread and update via message
-        // We'll poll for results in the main loop
-        let (tx, rx) = mpsc::channel::<Vec<OllamaModelInfo>>();
+        // Use a typed channel so we can ship models + running + version + error
+        // in a single message.
+        let (tx, rx) = mpsc::channel::<OllamaMessage>();
 
         std::thread::spawn(move || {
             let rt = super::super::shared_runtime();
 
-            let models = rt.block_on(async {
-                let mut discovered = Vec::new();
+            // Discovery payload: (installed models, currently running, server version).
+            // All three are fetched in one round-trip; partial failures are
+            // reported as `error: Some(...)` alongside whatever did succeed.
+            type DiscoveryResult = (
+                Vec<OllamaModelInfo>,
+                Vec<super::super::ollama::RunningModel>,
+                Option<String>,
+            );
+            let result: Result<DiscoveryResult, String> = rt.block_on(async {
+                // Older servers (pre ~0.4.10) don't expose /api/version, so a
+                // 404 here is non-fatal — treat the version as unknown.
+                let version = client.get_version().await.ok();
 
-                // Fetch model list from Ollama API
-                if let Ok(resp) = reqwest::get(format!("{}/api/tags", url)).await {
-                    if resp.status().is_success() {
-                        if let Ok(json) = resp.json::<serde_json::Value>().await {
-                            if let Some(models_array) =
-                                json.get("models").and_then(|m| m.as_array())
-                            {
-                                for model in models_array {
-                                    if let Some(name) = model.get("name").and_then(|n| n.as_str()) {
-                                        let size = model
-                                            .get("size")
-                                            .and_then(|s| s.as_u64())
-                                            .map(|s| {
-                                                format!("{:.1} GB", s as f64 / 1_073_741_824.0)
-                                            })
-                                            .unwrap_or_else(|| "Unknown".to_string());
+                // Fetch the installed model list. Capabilities reported by
+                // Ollama 0.30+ are used by `classify_model` to populate
+                // `OllamaModelInfo.capabilities` accurately.
+                let infos = client
+                    .list_models()
+                    .await
+                    .map_err(|e| format!("Failed to list models: {}", e))?;
 
-                                        let info = classify_model(name, &size);
-                                        discovered.push(info);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                let mut discovered: Vec<OllamaModelInfo> = Vec::with_capacity(infos.len());
+                for info in infos {
+                    discovered.push(classify_model(&info));
                 }
 
-                discovered
+                // Fetch currently-running models. /api/ps may be missing on
+                // very old servers; treat the failure as "no running models"
+                // rather than a hard error.
+                let running: Vec<super::super::ollama::RunningModel> =
+                    client.list_running().await.unwrap_or_default();
+
+                Ok((discovered, running, version))
             });
 
-            let _ = tx.send(models);
+            let msg = match result {
+                Ok((models, running, version)) => OllamaMessage::ModelDiscovery {
+                    models,
+                    running,
+                    version,
+                    error: None,
+                },
+                Err(e) => OllamaMessage::ModelDiscovery {
+                    models: Vec::new(),
+                    running: Vec::new(),
+                    version: None,
+                    error: Some(e),
+                },
+            };
+            let _ = tx.send(msg);
         });
 
-        // Store receiver to poll in main loop
         self.model_discovery_receiver = Some(rx);
     }
 
     /// Render the Ollama model list in settings
     pub(crate) fn render_ollama_model_list(&mut self, ui: &mut eframe::egui::Ui) {
+        use super::super::badge;
+        use super::super::colors;
         use eframe::egui;
 
-        if self.discovered_models.is_empty() && !self.models_discovering {
-            if ui.small_button("Discover Models").clicked() {
+        // ── Spinner / status header ────────────────────────────────────
+        if self.models_discovering {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label(
+                    egui::RichText::new("Querying Ollama…")
+                        .italics()
+                        .color(colors::TEXT_SECONDARY),
+                );
+            });
+        }
+
+        // ── Ollama version + last error (always visible when known) ─────
+        if let Some(ref v) = self.ollama_version {
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new("Ollama")
+                        .size(11.0)
+                        .color(colors::TEXT_MUTED),
+                );
+                badge(ui, v, colors::SUCCESS);
+            });
+        }
+        if let Some(ref err) = self.last_ollama_error {
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!("⚠ {}", err))
+                        .size(11.0)
+                        .color(egui::Color32::from_rgb(220, 80, 80)),
+                );
+            });
+        }
+
+        // ── Discover / Refresh controls ─────────────────────────────────
+        ui.horizontal(|ui| {
+            let btn_label = if self.discovered_models.is_empty() {
+                "Discover Models"
+            } else {
+                "↻ Refresh"
+            };
+            if ui
+                .small_button(btn_label)
+                .on_hover_text("Query /api/tags, /api/version, and /api/ps from Ollama")
+                .clicked()
+            {
                 self.discover_ollama_models();
             }
-            ui.small("Click to discover installed Ollama models");
-            return;
-        }
-
-        if self.models_discovering {
-            ui.small("Discovering models...");
-            return;
-        }
-
-        ui.horizontal(|ui| {
-            ui.small(format!("{} models found:", self.discovered_models.len()));
+            if !self.discovered_models.is_empty() {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "{} installed · {} running",
+                        self.discovered_models.len(),
+                        self.running_models.len()
+                    ))
+                    .size(11.0)
+                    .color(colors::TEXT_MUTED),
+                );
+            }
         });
 
-        // Clone data we need to avoid borrowing self in closures
+        // Nothing more to render if we have no models yet.
+        if self.discovered_models.is_empty() {
+            if !self.models_discovering {
+                ui.small(
+                    egui::RichText::new(
+                        "Click Discover to query the Ollama server, or check the URL above.",
+                    )
+                    .color(colors::TEXT_MUTED),
+                );
+            }
+            return;
+        }
+
+        // ── Model list ──────────────────────────────────────────────────
+        // Clone data we need to avoid borrowing self in closures.
         let models = self.discovered_models.clone();
         let current_active = self.current_active_model.clone();
         let chat_model = self.settings.ollama_model.clone();
         let tool_model = self.settings.tool_calling_model.clone();
         let agentic_enabled = self.settings.agentic_tools_enabled;
+        let running_names: std::collections::HashSet<String> =
+            self.running_models.iter().map(|r| r.name.clone()).collect();
         let mut clicked_chat: Option<String> = None;
         let mut clicked_tool: Option<String> = None;
 
         for model in &models {
             ui.separator();
 
-            // Model name with running indicator
+            // Model name with active/running indicators
             ui.horizontal(|ui| {
                 let is_active = current_active.as_ref() == Some(&model.name);
                 if is_active {
-                    ui.label(egui::RichText::new("?").color(egui::Color32::GREEN));
+                    ui.label(egui::RichText::new("★").color(egui::Color32::YELLOW));
                 }
 
                 let name_text = ui.label(egui::RichText::new(&model.name).strong());
@@ -109,48 +209,45 @@ impl SpaceAnalyzerApp {
                     name_text.on_hover_text(&model.tooltip);
                 }
 
-                ui.label(format!("({})", model.size));
+                ui.label(
+                    egui::RichText::new(format!("({})", model.size))
+                        .size(11.0)
+                        .color(colors::TEXT_MUTED),
+                );
 
-                if model.is_running {
-                    ui.label(egui::RichText::new("Running").color(egui::Color32::YELLOW));
+                if running_names.contains(&model.name) {
+                    badge(ui, "● Running", egui::Color32::from_rgb(80, 200, 120));
                 }
             });
 
             // VRAM requirement
-            ui.small(format!("VRAM: {}", model.vram_requirement));
+            ui.label(
+                egui::RichText::new(format!("VRAM: {}", model.vram_requirement))
+                    .size(11.0)
+                    .color(colors::TEXT_MUTED),
+            );
 
-            // Performance metrics
-            if let Some(tokens_sec) = model.performance_metrics.tokens_per_second {
-                ui.small(format!(
-                    "Performance: ~{:.0} tokens/sec | First token: {:.0}ms | Avg response: {:.0}ms",
-                    tokens_sec,
-                    model
-                        .performance_metrics
-                        .time_to_first_token_ms
-                        .unwrap_or(0.0),
-                    model
-                        .performance_metrics
-                        .avg_response_time_ms
-                        .unwrap_or(0.0)
-                ));
-            }
-
-            // Resource usage if running
-            if model.is_running {
-                let mut usage_parts = Vec::new();
-                if let Some(vram) = model.vram_usage_mb {
-                    usage_parts.push(format!("VRAM: {} MB", vram));
-                }
-                if let Some(cpu) = model.cpu_usage_percent {
-                    usage_parts.push(format!("CPU: {:.1}%", cpu));
-                }
-                if !usage_parts.is_empty() {
-                    ui.small(format!("Current usage: {}", usage_parts.join(" | ")));
-                }
+            // Real VRAM usage from /api/ps (not estimated from model size).
+            if let Some(running) = self.running_models.iter().find(|r| r.name == model.name) {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "Loaded: {:.1} GB total · {:.1} GB in VRAM",
+                            running.size as f64 / 1_073_741_824.0,
+                            running.size_vram as f64 / 1_073_741_824.0
+                        ))
+                        .size(11.0)
+                        .color(colors::TEXT_SECONDARY),
+                    );
+                });
             }
 
             // Recommended for
-            ui.small(format!("Best for: {}", model.recommended_for));
+            ui.label(
+                egui::RichText::new(format!("Best for: {}", model.recommended_for))
+                    .size(11.0)
+                    .color(colors::TEXT_SECONDARY),
+            );
 
             // Capabilities with tooltips
             if !model.capabilities.is_empty() {
@@ -178,6 +275,9 @@ impl SpaceAnalyzerApp {
                             "General Chat" => "Good for general conversation and quick answers",
                             "Text Analysis" => "Analyzes text content and patterns",
                             "Quick Responses" => "Fast response times for simple queries",
+                            "Text Insertion (fill-in-middle)" => {
+                                "Fill-in-middle / infill completion (used by code editors)"
+                            }
                             _ => "Model capability",
                         };
                         if let Some((cp, fam)) = super::super::icons::check() {
@@ -215,9 +315,11 @@ impl SpaceAnalyzerApp {
         }
 
         if let Some(name) = clicked_chat {
+            self.status_message = Some(format!("Chat model set to {}", name));
             self.settings.ollama_model = name;
         }
         if let Some(name) = clicked_tool {
+            self.status_message = Some(format!("Tool model set to {}", name));
             self.settings.tool_calling_model = name;
         }
     }
@@ -226,17 +328,40 @@ impl SpaceAnalyzerApp {
     pub fn process_model_discovery(&mut self) {
         if let Some(rx) = self.model_discovery_receiver.take() {
             match rx.try_recv() {
-                Ok(models) => {
+                Ok(OllamaMessage::ModelDiscovery {
+                    models,
+                    running,
+                    version,
+                    error,
+                }) => {
                     self.discovered_models = models;
+                    self.running_models = running;
+                    if version.is_some() {
+                        self.ollama_version = version;
+                    }
+                    if let Some(err) = error {
+                        self.last_ollama_error = Some(err.clone());
+                        self.status_message = Some(err);
+                    } else {
+                        // Clear any prior error on a successful probe.
+                        self.last_ollama_error = None;
+                    }
                     self.models_discovering = false;
                 }
+                Ok(_) => {
+                    // Spurious message on this channel — put the receiver back.
+                    self.model_discovery_receiver = Some(rx);
+                }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
-                    // Still waiting, put it back
                     self.model_discovery_receiver = Some(rx);
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                    // Sender was dropped, discovery is done
+                    // Sender was dropped, discovery is done (with no result).
                     self.models_discovering = false;
+                    if self.last_ollama_error.is_none() {
+                        self.last_ollama_error =
+                            Some("Discovery request was interrupted".to_string());
+                    }
                 }
             }
         }

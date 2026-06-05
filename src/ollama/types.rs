@@ -468,7 +468,8 @@ impl TokenUsage {
     }
 }
 
-/// Model information
+/// Server-reported capability strings. Ollama 0.30+ returns these on `/api/tags`.
+/// Recognized values: "completion", "tools", "thinking", "vision", "embedding", "insert".
 #[derive(Debug, Clone, Deserialize)]
 pub struct ModelInfo {
     pub name: String,
@@ -477,6 +478,17 @@ pub struct ModelInfo {
     pub modified_at: String,
     #[serde(default)]
     pub details: Option<ModelDetails>,
+    /// Capabilities reported by Ollama 0.30+ (completion, tools, thinking, vision, …).
+    /// Older servers omit the field; we default to an empty list.
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+    /// Set when the model is hosted remotely (Ollama cloud models).
+    /// Examples: `https://ollama.com:443`.
+    #[serde(default)]
+    pub remote_host: Option<String>,
+    /// The remote model identifier (only present for cloud models).
+    #[serde(default)]
+    pub remote_model: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -493,12 +505,49 @@ pub struct ModelDetails {
     pub parameter_size: String,
     #[serde(default)]
     pub quantization_level: String,
+    /// Context length in tokens (Ollama 0.30+).
+    #[serde(default)]
+    pub context_length: Option<u32>,
+    /// Embedding vector dimension (Ollama 0.30+, embedding models only).
+    #[serde(default)]
+    pub embedding_length: Option<u32>,
 }
 
 /// Models list response
 #[derive(Debug, Clone, Deserialize)]
 pub struct ModelsResponse {
     pub models: Vec<ModelInfo>,
+}
+
+/// Response of `GET /api/version`. Introduced in Ollama 0.4.10+ but present in
+/// 0.30+ as well — older servers may return 404, callers should treat the
+/// error as "unknown version".
+#[derive(Debug, Clone, Deserialize)]
+pub struct VersionResponse {
+    pub version: String,
+}
+
+/// Response of `GET /api/ps` — currently loaded / running models.
+#[derive(Debug, Clone, Deserialize)]
+pub struct PsResponse {
+    pub models: Vec<RunningModel>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct RunningModel {
+    pub name: String,
+    pub model: String,
+    /// Total model size in bytes.
+    pub size: u64,
+    /// Bytes resident in VRAM.
+    pub size_vram: u64,
+    /// ISO 8601 timestamp when the model will be unloaded if no activity.
+    pub expires_at: String,
+}
+
+/// Convenience: is the model hosted in the cloud rather than locally?
+pub fn is_cloud_model(info: &ModelInfo) -> bool {
+    info.remote_host.is_some() || info.remote_model.is_some()
 }
 
 /// Show model response
@@ -1061,5 +1110,107 @@ mod tests {
         let config = ModelFallbackConfig::with_common_fallbacks("llama3.1:8b");
         assert!(config.enabled);
         assert!(!config.fallback_models.is_empty());
+    }
+
+    // ── ModelInfo / Version / Ps tests (Ollama 0.30+ payload compatibility) ──
+
+    #[test]
+    fn test_model_info_deserializes_ollama_030_payload() {
+        // Captured from a real `GET /api/tags` on Ollama 0.30.5.
+        // Validates that capabilities, context_length, embedding_length, and
+        // remote_host are all parsed (previously silently dropped).
+        let json = r#"{
+            "name": "qwen3.5:4b",
+            "model": "qwen3.5:4b",
+            "modified_at": "2026-05-31T19:27:30Z",
+            "size": 3389983735,
+            "digest": "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd",
+            "details": {
+                "format": "gguf",
+                "family": "qwen35",
+                "families": ["qwen35"],
+                "parameter_size": "4.7B",
+                "quantization_level": "Q4_K_M",
+                "context_length": 262144,
+                "embedding_length": 2560
+            },
+            "capabilities": ["vision", "completion", "tools", "thinking"]
+        }"#;
+        let info: ModelInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.name, "qwen3.5:4b");
+        assert_eq!(info.size, 3_389_983_735);
+        assert_eq!(
+            info.capabilities,
+            vec!["vision", "completion", "tools", "thinking"]
+        );
+        // Check `is_cloud_model` before consuming `details` (partial move).
+        assert!(!is_cloud_model(&info));
+        let details = info.details.unwrap();
+        assert_eq!(details.context_length, Some(262144));
+        assert_eq!(details.embedding_length, Some(2560));
+        assert_eq!(details.family, "qwen35");
+    }
+
+    #[test]
+    fn test_model_info_deserializes_cloud_payload() {
+        // Cloud models report `remote_host` and a tiny `size`.
+        let json = r#"{
+            "name": "deepseek-v4-pro:cloud",
+            "model": "deepseek-v4-pro:cloud",
+            "remote_model": "deepseek-v4-pro",
+            "remote_host": "https://ollama.com:443",
+            "modified_at": "2026-06-03T12:19:28Z",
+            "size": 344,
+            "digest": "22bfd5026abd",
+            "details": {"context_length": 1048576},
+            "capabilities": ["completion", "tools", "thinking"]
+        }"#;
+        let info: ModelInfo = serde_json::from_str(json).unwrap();
+        assert!(is_cloud_model(&info));
+        assert_eq!(info.remote_host.as_deref(), Some("https://ollama.com:443"));
+        assert_eq!(info.remote_model.as_deref(), Some("deepseek-v4-pro"));
+        assert_eq!(info.size, 344);
+        assert_eq!(info.details.unwrap().context_length, Some(1_048_576));
+    }
+
+    #[test]
+    fn test_model_info_deserializes_pre_030_payload() {
+        // Older servers omit capabilities/context_length/remote_host entirely.
+        let json = r#"{
+            "name": "llama2:7b",
+            "size": 3800000000,
+            "digest": "abc",
+            "modified_at": "2025-01-01T00:00:00Z"
+        }"#;
+        let info: ModelInfo = serde_json::from_str(json).unwrap();
+        assert_eq!(info.name, "llama2:7b");
+        assert!(info.capabilities.is_empty());
+        assert!(info.remote_host.is_none());
+        assert!(info.details.is_none());
+        assert!(!is_cloud_model(&info));
+    }
+
+    #[test]
+    fn test_version_response_deserializes() {
+        let json = r#"{"version": "0.30.5"}"#;
+        let v: VersionResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(v.version, "0.30.5");
+    }
+
+    #[test]
+    fn test_ps_response_deserializes() {
+        let json = r#"{
+            "models": [{
+                "name": "llama3.1:8b",
+                "model": "llama3.1:8b",
+                "size": 4920753328,
+                "size_vram": 4920753328,
+                "expires_at": "2026-06-04T19:00:00Z"
+            }]
+        }"#;
+        let ps: PsResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(ps.models.len(), 1);
+        assert_eq!(ps.models[0].name, "llama3.1:8b");
+        assert_eq!(ps.models[0].size_vram, 4_920_753_328);
     }
 }

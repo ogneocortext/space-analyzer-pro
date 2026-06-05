@@ -335,7 +335,19 @@ pub struct ModelPerformanceMetrics {
 
 /// Ollama response message for async communication
 pub(crate) enum OllamaMessage {
+    /// Legacy availability variant (boolean only). Kept for backward
+    /// compatibility with any external code that may still construct it;
+    /// the in-tree `check_ollama` now sends `AvailabilityDetailed` instead.
+    #[allow(dead_code)]
     Availability(bool),
+    /// Result of an availability probe that also reports the server version
+    /// (Ollama 0.30+). The version is `None` when the server doesn't expose
+    /// `/api/version` (older than ~0.4.10) or when the probe failed.
+    AvailabilityDetailed {
+        available: bool,
+        version: Option<String>,
+        error: Option<String>,
+    },
     ChatReply {
         content: String,
         thinking: Option<String>,
@@ -355,6 +367,16 @@ pub(crate) enum OllamaMessage {
         prompt_tokens: u32,
         completion_tokens: u32,
         model: String,
+    },
+    /// Result of a model-discovery query. Replaces the silent
+    /// "click Discover → nothing happens" failure mode: errors now arrive
+    /// alongside the model list and the running-models list, so the UI can
+    /// show what actually went wrong.
+    ModelDiscovery {
+        models: Vec<OllamaModelInfo>,
+        running: Vec<ollama::RunningModel>,
+        version: Option<String>,
+        error: Option<String>,
     },
 }
 
@@ -546,7 +568,17 @@ pub struct SpaceAnalyzerApp {
     // Ollama Model Discovery
     pub discovered_models: Vec<OllamaModelInfo>,
     pub models_discovering: bool,
-    pub model_discovery_receiver: Option<mpsc::Receiver<Vec<OllamaModelInfo>>>,
+    pub(crate) model_discovery_receiver: Option<mpsc::Receiver<OllamaMessage>>,
+    /// Ollama server version reported by `/api/version` (e.g. "0.30.5").
+    /// `None` if the server is offline or doesn't expose the endpoint.
+    pub ollama_version: Option<String>,
+    /// Last error from the discovery / availability probes. Cleared on a
+    /// successful probe. Surfaced in the UI so the user knows why the model
+    /// list is empty.
+    pub last_ollama_error: Option<String>,
+    /// Currently running models reported by `/api/ps` (size, vram, expiry).
+    /// Used by the System tab to show real (not estimated) VRAM usage.
+    pub running_models: Vec<ollama::RunningModel>,
 
     // Automatic Model Selection
     pub current_active_model: Option<String>,
@@ -666,6 +698,9 @@ impl Default for SpaceAnalyzerApp {
             discovered_models: Vec::new(),
             models_discovering: false,
             model_discovery_receiver: None,
+            ollama_version: None,
+            last_ollama_error: None,
+            running_models: Vec::new(),
             current_active_model: None,
             current_model_task: None,
             search_query: String::new(),
@@ -759,118 +794,193 @@ mod settings;
 mod system;
 mod workflow_render;
 
-/// Classify an Ollama model based on its name and size
-fn classify_model(name: &str, size: &str) -> OllamaModelInfo {
+/// Classify an Ollama model into a UI-friendly `OllamaModelInfo`.
+///
+/// Uses the capability list reported by Ollama 0.30+ (`/api/tags` returns
+/// `["completion", "tools", "thinking", "vision", "embedding", "insert"]`) as
+/// the primary signal. Falls back to name-substring heuristics only when the
+/// server omits the field (older Ollama versions).
+///
+/// The previous version of this function only matched a handful of model
+/// names (`qwen3:8b`, `mistral:7b`, `functionary`, …) and assigned empty
+/// capability lists to anything else — so a user with `qwen3.5:4b`,
+/// `gemma3:4b`, or `llama3.1:8b` saw the model in the list but with no
+/// indication of what it could do. That was the root cause of the
+/// "model selector status is completely broken" symptom.
+fn classify_model(info: &ollama::ModelInfo) -> OllamaModelInfo {
+    use ollama::is_cloud_model;
+
+    let name = &info.name;
     let name_lower = name.to_lowercase();
     let mut capabilities = Vec::new();
     let mut recommended_for = "General chat and analysis".to_string();
-    let mut vram_requirement = "8+ GB VRAM".to_string();
     let mut tooltip = String::new();
-    let mut performance = ModelPerformanceMetrics::default();
+    let mut vram_requirement = "8+ GB VRAM".to_string();
 
-    // Determine capabilities based on model name
-    if name_lower.contains("functionary") {
-        capabilities.push("Tool Calling".to_string());
-        capabilities.push("Agentic Workflows".to_string());
-        capabilities.push("Function Execution".to_string());
-        recommended_for = "Automated workflows, file operations, system tasks".to_string();
-        vram_requirement = "4.7 GB (fits in 8GB VRAM)".to_string();
-        tooltip = "functionary-small-v3.1 excels at tool calling and agentic workflows. \
-            It can execute file operations, run scans, access system info, and automate repetitive tasks. \
-            Perfect for: dev environment cleanup, large file identification, duplicate detection, \
-            and any task requiring the AI to take action on your system. \
-            On GTX 1070 Ti: ~15-20 tokens/sec, first token in ~800ms.".to_string();
-        performance.tokens_per_second = Some(17.0);
-        performance.time_to_first_token_ms = Some(800.0);
-        performance.avg_response_time_ms = Some(3500.0);
-        performance.benchmark_samples = 5;
-    } else if name_lower.contains("embed") || name_lower.contains("nomic") {
+    // Format size for display. Cloud models report a tiny `size` (it's only
+    // a manifest, the real weights are remote) — flag them as "Cloud" so the
+    // user isn't misled by a "0.0 GB" label.
+    let size_str = if is_cloud_model(info) {
+        "Cloud".to_string()
+    } else {
+        format!("{:.1} GB", info.size as f64 / 1_073_741_824.0)
+    };
+
+    let caps_lower: Vec<String> = info.capabilities.iter().map(|s| s.to_lowercase()).collect();
+    let has_cap = |needle: &str| caps_lower.iter().any(|c| c == needle);
+
+    // Translate server-reported capabilities into UI strings.
+    if has_cap("embedding") {
         capabilities.push("Semantic Embeddings".to_string());
         capabilities.push("Vector Search".to_string());
         capabilities.push("Similarity Detection".to_string());
         recommended_for =
             "Semantic file search, finding similar files, content-based queries".to_string();
-        vram_requirement = "274 MB (very lightweight)".to_string();
-        tooltip = "nomic-embed-text converts files into vector embeddings for semantic search. \
-            Enables finding files by meaning rather than name: 'find large log files' or 'show me documentation'. \
-            Extremely lightweight at 274MB - always keep this enabled if you use Smart Search. \
-            On GTX 1070 Ti: ~50 files/sec indexing, instant search queries.".to_string();
-        performance.tokens_per_second = Some(50.0);
-        performance.time_to_first_token_ms = Some(50.0);
-        performance.avg_response_time_ms = Some(200.0);
-        performance.benchmark_samples = 10;
-    } else if name_lower.contains("vl") || name_lower.contains("vision") {
+        vram_requirement = "Lightweight (~250-500 MB)".to_string();
+        tooltip = format!(
+            "{} is an embedding model. It converts text into vectors for semantic search \
+             and finding similar files. Set it as the Smart Search embedding model in Settings.",
+            name
+        );
+    }
+
+    if has_cap("vision") {
         capabilities.push("Vision-Language".to_string());
         capabilities.push("Image Analysis".to_string());
         capabilities.push("Screenshot Understanding".to_string());
-        recommended_for =
-            "Screenshot analysis, UI/UX review, visual file identification".to_string();
-        vram_requirement = "3.3 GB (fits in 8GB VRAM)".to_string();
-        tooltip =
-            "qwen3-vl:4b understands images and screenshots. Use it to analyze UI screenshots, \
-            identify visual patterns in your files, or review design assets. \
-            Can describe what's shown in images and answer questions about visual content. \
-            On GTX 1070 Ti: ~12 tokens/sec for image analysis, ~2s first token."
-                .to_string();
-        performance.tokens_per_second = Some(12.0);
-        performance.time_to_first_token_ms = Some(2000.0);
-        performance.avg_response_time_ms = Some(5000.0);
-        performance.benchmark_samples = 3;
-    } else if name_lower.contains("qwen3") {
-        capabilities.push("Advanced Reasoning".to_string());
-        capabilities.push("Code Generation".to_string());
-        capabilities.push("Complex Analysis".to_string());
-        if name_lower.contains("8b") {
-            recommended_for = "Primary AI assistant for disk analysis, complex queries".to_string();
-            vram_requirement = "5.2 GB (fits in 8GB VRAM)".to_string();
-            tooltip = "qwen3:8b is a powerful general-purpose model with excellent reasoning and code understanding. \
-                Best for: analyzing scan results, answering complex questions about disk usage, \
-                generating cleanup recommendations, and explaining storage patterns. \
-                Strong at understanding file hierarchies and storage optimization. \
-                On GTX 1070 Ti: ~18 tokens/sec, first token in ~600ms.".to_string();
-            performance.tokens_per_second = Some(18.0);
-            performance.time_to_first_token_ms = Some(600.0);
-            performance.avg_response_time_ms = Some(2500.0);
-            performance.benchmark_samples = 8;
+        // Only override the recommendation if we don't already have something
+        // more specific (e.g. embedding).
+        if recommended_for.starts_with("General") {
+            recommended_for =
+                "Screenshot analysis, image understanding, visual file identification".to_string();
         }
-    } else if name_lower.contains("mistral") {
-        capabilities.push("General Chat".to_string());
-        capabilities.push("Text Analysis".to_string());
-        capabilities.push("Quick Responses".to_string());
-        recommended_for = "Lightweight general-purpose assistant, quick answers".to_string();
-        vram_requirement = "4.4 GB (fits in 8GB VRAM)".to_string();
-        tooltip =
-            "mistral:7b is a fast, efficient general-purpose model. Good for quick questions \
-            about disk usage, simple file categorization, and basic storage advice. \
-            Faster than qwen3:8b but less capable at complex reasoning. \
-                On GTX 1070 Ti: ~22 tokens/sec, first token in ~500ms."
-                .to_string();
-        performance.tokens_per_second = Some(22.0);
-        performance.time_to_first_token_ms = Some(500.0);
-        performance.avg_response_time_ms = Some(2000.0);
-        performance.benchmark_samples = 6;
+        vram_requirement = "Moderate (~3-5 GB VRAM)".to_string();
+        tooltip = format!(
+            "{} understands images and screenshots. Use it to analyze UI screenshots, \
+             identify visual patterns, or review design assets.",
+            name
+        );
     }
 
-    // GTX 1070 Ti 8GB specific guidance
-    if size.contains("GB") {
-        if let Some(gb_str) = size.split_whitespace().next() {
-            if let Ok(gb) = gb_str.parse::<f32>() {
-                if gb > 8.0 {
-                    vram_requirement = format!("{} - May require CPU offload on 8GB GPU", size);
-                    tooltip.push_str("\n\n[!] This model exceeds your 8GB VRAM and will use CPU offload, significantly reducing performance.");
-                }
-            }
+    if has_cap("tools") {
+        capabilities.push("Tool Calling".to_string());
+        capabilities.push("Agentic Workflows".to_string());
+        capabilities.push("Function Execution".to_string());
+        if recommended_for.starts_with("General") {
+            recommended_for = "Automated workflows, file operations, system tasks".to_string();
         }
+        if tooltip.is_empty() {
+            tooltip = format!(
+                "{} supports tool calling and agentic workflows. It can execute file \
+                 operations, run scans, and automate repetitive tasks.",
+                name
+            );
+        }
+    }
+
+    if has_cap("thinking") {
+        capabilities.push("Advanced Reasoning".to_string());
+        capabilities.push("Complex Analysis".to_string());
+        if recommended_for.starts_with("General") {
+            recommended_for = "Complex analysis tasks, multi-step reasoning".to_string();
+        }
+        if tooltip.is_empty() {
+            tooltip = format!(
+                "{} supports the Ollama 0.30+ \"thinking\" feature: it reasons step by step \
+                 before answering. Best for complex queries and analysis tasks.",
+                name
+            );
+        } else {
+            tooltip.push_str(
+                "\n\nSupports Ollama 0.30+ thinking mode — enable in Settings to see \
+                 step-by-step reasoning.",
+            );
+        }
+    }
+
+    if has_cap("insert") {
+        capabilities.push("Text Insertion (fill-in-middle)".to_string());
+    }
+
+    if has_cap("completion") {
+        // Only add general chat if we don't have a more specific category.
+        if capabilities.is_empty() {
+            capabilities.push("General Chat".to_string());
+            capabilities.push("Text Analysis".to_string());
+            recommended_for = "Lightweight general-purpose assistant, quick answers".to_string();
+            vram_requirement = "4-5 GB VRAM (typical 7B-8B model)".to_string();
+            tooltip = format!(
+                "{} is a general-purpose chat model. Use it for quick questions and analysis.",
+                name
+            );
+        } else {
+            capabilities.push("General Chat".to_string());
+        }
+    }
+
+    // Fall back to name-substring heuristics ONLY when the server gave us no
+    // capabilities at all. This keeps older Ollama versions functional.
+    if info.capabilities.is_empty() {
+        if name_lower.contains("embed") || name_lower.contains("nomic") {
+            capabilities.push("Semantic Embeddings".to_string());
+            capabilities.push("Vector Search".to_string());
+            recommended_for = "Semantic file search, content-based queries".to_string();
+        } else if name_lower.contains("vision") || name_lower.contains("vl") {
+            capabilities.push("Vision-Language".to_string());
+            capabilities.push("Image Analysis".to_string());
+        } else if name_lower.contains("coder") || name_lower.contains("code") {
+            capabilities.push("Code Generation".to_string());
+            capabilities.push("Complex Analysis".to_string());
+        } else {
+            // Truly unknown — give the user a hint about what to do.
+            capabilities.push("General Chat".to_string());
+            recommended_for = format!(
+                "Capabilities not reported by Ollama — upgrade to 0.30+ to see exact features \
+                 for {}",
+                name
+            );
+        }
+    }
+
+    // Add context length to the tooltip if reported.
+    if let Some(ctx) = info.details.as_ref().and_then(|d| d.context_length) {
+        tooltip.push_str(&format!("\n\nContext window: {}K tokens.", ctx / 1024));
+    }
+
+    // Add parameter size if reported.
+    if let Some(params) = info.details.as_ref().map(|d| &d.parameter_size) {
+        if !params.is_empty() {
+            tooltip.push_str(&format!(" Size: {}.", params));
+        }
+    }
+
+    // Mark as cloud model.
+    if is_cloud_model(info) {
+        tooltip.push_str(&format!(
+            "\n\n☁ Cloud model hosted at {}. Requires internet and an Ollama account.",
+            info.remote_host.as_deref().unwrap_or("ollama.com")
+        ));
+    }
+
+    // Warn about models that may exceed 8GB VRAM.
+    if !is_cloud_model(info) && info.size > 8_589_934_592 {
+        vram_requirement = format!(
+            "{} GB - May require CPU offload on 8GB GPU",
+            info.size / 1_073_741_824
+        );
+        tooltip.push_str(
+            "\n\n[!] This model exceeds 8GB VRAM and will use CPU offload, reducing performance.",
+        );
     }
 
     OllamaModelInfo {
-        name: name.to_string(),
-        size: size.to_string(),
+        name: name.clone(),
+        size: size_str,
         capabilities,
         recommended_for,
         vram_requirement,
         tooltip,
-        performance_metrics: performance,
+        performance_metrics: ModelPerformanceMetrics::default(),
         is_running: false,
         vram_usage_mb: None,
         cpu_usage_percent: None,

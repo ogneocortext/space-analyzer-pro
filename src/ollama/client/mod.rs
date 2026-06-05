@@ -311,4 +311,50 @@ impl OllamaClient {
 
         Ok(models.models)
     }
+
+    /// Probe the Ollama server version (`GET /api/version`).
+    ///
+    /// Returns the version string on success. Servers older than ~0.4.10 do
+    /// not expose this endpoint, so callers should treat the error as
+    /// "unknown version" rather than as a connection failure.
+    pub async fn get_version(&self) -> OllamaResult<String> {
+        let response = self
+            .client
+            .get(format!("{}/api/version", self.base_url))
+            .timeout(self.operation_timeouts.list_models)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(Self::handle_http_error(response).await);
+        }
+
+        let v: VersionResponse = response.json().await.map_err(|e| {
+            OllamaError::ParseError(format!("Failed to parse version response: {}", e))
+        })?;
+        Ok(v.version)
+    }
+
+    /// List currently running/loaded models (`GET /api/ps`).
+    ///
+    /// The `size_vram` field on each entry is the authoritative source for
+    /// VRAM usage — preferred over any estimation from model size.
+    pub async fn list_running(&self) -> OllamaResult<Vec<RunningModel>> {
+        let response = self
+            .client
+            .get(format!("{}/api/ps", self.base_url))
+            .timeout(self.operation_timeouts.list_models)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(Self::handle_http_error(response).await);
+        }
+
+        let ps: PsResponse = response
+            .json()
+            .await
+            .map_err(|e| OllamaError::ParseError(format!("Failed to parse ps response: {}", e)))?;
+        Ok(ps.models)
+    }
 }

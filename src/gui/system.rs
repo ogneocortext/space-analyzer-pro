@@ -20,47 +20,49 @@ impl SpaceAnalyzerApp {
         }
     }
 
-    /// Update running model status based on system monitoring
+    /// Update running model status based on the latest `/api/ps` payload.
+    ///
+    /// The previous implementation called `tasklist /FI "IMAGENAME eq ollama.exe"`
+    /// every 60 frames, treated ALL discovered models as running if ollama.exe
+    /// was found, and estimated VRAM by multiplying the model file size by
+    /// 0.8. None of that was accurate — running models show a `size_vram`
+    /// value reported by Ollama itself, which is the authoritative source.
+    ///
+    /// We refresh via `discover_ollama_models` (which now also queries
+    /// `/api/ps`) on a 60-frame cadence; the discovery path is the single
+    /// source of truth and includes the running-models list.
     pub fn update_model_resource_usage(&mut self) {
         if !self.settings.ollama_enabled || !self.ollama_available {
             return;
         }
 
-        // Throttle tasklist subprocess to once per ~60 frames (~1s at 60fps)
+        // Throttle to once per ~60 frames (~1s at 60fps) so we're not hammering
+        // the API. Uses `is_multiple_of` (Rust 1.84+) on the frame counter.
         if !self.frame_counter.is_multiple_of(60) {
             return;
         }
 
-        // Check if any Ollama models are running via nvidia-smi or process list
-        #[cfg(windows)]
-        {
-            // Check for ollama process
-            if let Ok(output) = std::process::Command::new("tasklist")
-                .args(["/FI", "IMAGENAME eq ollama.exe", "/NH", "/FO", "CSV"])
-                .output()
-            {
-                let output_str = String::from_utf8_lossy(&output.stdout);
-                let is_running = output_str.contains("ollama.exe");
+        // If we don't yet have a running-models snapshot, fetch one. Don't
+        // fire if a discovery is already in flight — it would race with
+        // the existing one and produce a confusing state.
+        if self.running_models.is_empty() && !self.models_discovering {
+            self.discover_ollama_models();
+        }
 
-                for model in &mut self.discovered_models {
-                    model.is_running = is_running;
-                    if is_running {
-                        // Estimate VRAM usage based on model size
-                        if let Some(size_gb) = model
-                            .size
-                            .split_whitespace()
-                            .next()
-                            .and_then(|s| s.parse::<f32>().ok())
-                        {
-                            model.vram_usage_mb = Some((size_gb * 1024.0 * 0.8) as u64);
-                            // ~80% of model size in VRAM
-                        }
-                        model.cpu_usage_percent = Some(5.0); // Estimate
-                    } else {
-                        model.vram_usage_mb = None;
-                        model.cpu_usage_percent = None;
-                    }
-                }
+        // Project the running-models list onto the discovered models so the
+        // System tab can show real VRAM numbers without re-querying.
+        for model in &mut self.discovered_models {
+            if let Some(running) = self.running_models.iter().find(|r| r.name == model.name) {
+                model.is_running = true;
+                model.vram_usage_mb = Some(running.size_vram / (1024 * 1024));
+                // CPU percent isn't reported by /api/ps (it's an Ollama API
+                // gap). Show 0 instead of the previous constant 5.0 estimate
+                // — better to be honest about not knowing.
+                model.cpu_usage_percent = Some(0.0);
+            } else {
+                model.is_running = false;
+                model.vram_usage_mb = None;
+                model.cpu_usage_percent = None;
             }
         }
     }

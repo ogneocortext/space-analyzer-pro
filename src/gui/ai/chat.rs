@@ -71,6 +71,31 @@ impl SpaceAnalyzerApp {
                             self.check_ollama();
                         }
                     }
+                    OllamaMessage::AvailabilityDetailed {
+                        available,
+                        version,
+                        error,
+                    } => {
+                        self.ollama_available = available;
+                        self.ollama_checking = false;
+                        if let Some(v) = version {
+                            self.ollama_version = Some(v);
+                        }
+                        if let Some(err) = error {
+                            self.last_ollama_error = Some(err);
+                        } else if available {
+                            // Clear any prior error from a stale connection
+                            // failure — the server is reachable now.
+                            self.last_ollama_error = None;
+                        }
+                        if available {
+                            self.ollama_auto_started = false;
+                        } else if self.settings.auto_start_ollama && !self.ollama_auto_started {
+                            self.ollama_auto_started = true;
+                            self.start_ollama_process();
+                            self.check_ollama();
+                        }
+                    }
                     OllamaMessage::ToolCall(name, args) => {
                         tool_calls_received.push((name, args));
                     }
@@ -107,6 +132,10 @@ impl SpaceAnalyzerApp {
                             model,
                         );
                     }
+                    // Model discovery is handled in `process_model_discovery`,
+                    // not here. Silently ignore any spurious delivery on this
+                    // channel rather than failing.
+                    OllamaMessage::ModelDiscovery { .. } => {}
                 }
             }
 
