@@ -247,6 +247,14 @@ GPU acceleration is automatically detected via `nvidia-smi`. No CUDA toolkit ins
 cargo build --features cuda -p gpu-compute
 ```
 
+### Python Scripts & CUDA Environment
+
+The Python utility scripts under `scripts/` (vision analysis, screenshot
+inspection, model management) require a dedicated conda environment with
+PyTorch + CUDA. See **[PYTHON_ENV_SETUP.md](PYTHON_ENV_SETUP.md)** for the
+canonical interpreter, the package versions, and how to recreate the
+environment from scratch.
+
 ## AI Integration (Optional)
 
 ### Ollama Setup

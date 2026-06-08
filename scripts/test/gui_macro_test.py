@@ -22,18 +22,22 @@ Output (all in macro_logs/<run_id>/):
   history.jsonl      — append-only run history for trend analysis
 """
 
-import subprocess
-import time
-import sys
-import json
+from __future__ import annotations
+
 import ctypes
 import ctypes.wintypes
-import os
+import json
+import logging
 import platform
+import subprocess
+import sys
+import time
 import traceback
-from pathlib import Path
 from datetime import datetime
-from typing import Optional, Tuple, List, Dict, Any
+from pathlib import Path
+from typing import Any
+
+logger = logging.getLogger("gui_macro_test")
 
 user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32
@@ -190,7 +194,7 @@ def find_hwnd(title="Space Analyzer"):
     return result.hwnd if result.hwnd else None
 
 
-def capture_app_window(hwnd) -> Optional[Tuple[bytes, int, int]]:
+def capture_app_window(hwnd) -> tuple[bytes, int, int] | None:
     rect = ctypes.wintypes.RECT()
     user32.GetClientRect(hwnd, ctypes.byref(rect))
     w, h = rect.right, rect.bottom
@@ -275,7 +279,7 @@ def get_window_text(hwnd) -> str:
     return buf.value
 
 
-def get_window_rect(hwnd) -> Tuple[int, int, int, int]:
+def get_window_rect(hwnd) -> tuple[int, int, int, int]:
     rect = ctypes.wintypes.RECT()
     user32.GetWindowRect(hwnd, ctypes.byref(rect))
     return (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
@@ -323,7 +327,7 @@ def navigate_tab(hwnd, target_tab: str, run=None):
 
 
 def tab_center(win: tuple, tab_index: int) -> tuple:
-    left, top, width, height = win
+    left, top, width, _height = win
     tab_bar_y = top + 38
     tab_w = width // NUM_TABS
     return (left + tab_w * tab_index + tab_w // 2, tab_bar_y)
@@ -342,35 +346,35 @@ class TestRun:
         self.screenshot_dir.mkdir(exist_ok=True)
 
         self.start_time = datetime.now()
-        self.phase_times: Dict[str, float] = {}
-        self.steps: List[Dict[str, Any]] = []
-        self.tests: List[Dict[str, Any]] = []
-        self.screenshots: List[Dict[str, Any]] = []
-        self.process_info: Dict[str, Any] = {}
-        self.error: Optional[str] = None
+        self.phase_times: dict[str, float] = {}
+        self.steps: list[dict[str, Any]] = []
+        self.tests: list[dict[str, Any]] = []
+        self.screenshots: list[dict[str, Any]] = []
+        self.process_info: dict[str, Any] = {}
+        self.error: str | None = None
         self.step_counter = 0
-        self._phase_start: Optional[float] = None
-        self._current_phase: Optional[str] = None
+        self._phase_start: float | None = None
+        self._current_phase: str | None = None
 
-        self._console_lines: List[str] = []
+        self._console_lines: list[str] = []
         self._log(f"Test run started: {self.run_id}")
         self._log(f"Binary: {exe_path}")
         self._log(f"Output: {self.run_dir}")
 
-    def _log(self, msg: str):
+    def _log(self, msg: str) -> None:
         ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         line = f"[{ts}] {msg}"
         self._console_lines.append(line)
-        print(f"  {line}")
+        logger.info("  %s", line)
 
-    def begin_phase(self, name: str):
+    def begin_phase(self, name: str) -> None:
         if self._current_phase:
             self.end_phase()
         self._current_phase = name
         self._phase_start = time.time()
         self._log(f"--- Phase: {name} ---")
 
-    def end_phase(self):
+    def end_phase(self) -> None:
         if self._current_phase and self._phase_start:
             elapsed = time.time() - self._phase_start
             self.phase_times[self._current_phase] = elapsed
@@ -378,7 +382,7 @@ class TestRun:
             self._current_phase = None
             self._phase_start = None
 
-    def log_event(self, event_type: str, detail: str = "", duration_ms: Optional[float] = None):
+    def log_event(self, event_type: str, detail: str = "", duration_ms: float | None = None):
         self.step_counter += 1
         entry = {
             "step": self.step_counter,
@@ -391,7 +395,7 @@ class TestRun:
         dur = f" [{duration_ms:.0f}ms]" if duration_ms is not None else ""
         self._log(f"  {self.step_counter:03d}{dur} {event_type}: {detail}")
 
-    def record_test(self, name: str, passed: bool, detail: str = "", elapsed_ms: Optional[float] = None):
+    def record_test(self, name: str, passed: bool, detail: str = "", elapsed_ms: float | None = None):
         entry = {
             "name": name,
             "passed": passed,
@@ -474,7 +478,7 @@ class TestRun:
 
         console_path = self.run_dir / "console.log"
         with open(console_path, "w") as f:
-            f.write(f"Space Analyzer Pro — GUI Functional Test\n")
+            f.write("Space Analyzer Pro — GUI Functional Test\n")
             f.write(f"Run: {self.run_id}\n")
             f.write(f"Binary: {self.exe_path}\n")
             f.write("=" * 70 + "\n\n")
@@ -490,7 +494,7 @@ class TestRun:
         self._log(f"Screenshots: {self.screenshot_dir}")
         return report_path
 
-    def _append_history(self, report: Dict):
+    def _append_history(self, report: dict):
         history_path = self.run_dir.parent / "history.jsonl"
         summary = report["summary"]
         entry = {
@@ -511,7 +515,7 @@ class TestRun:
 #  TEST IMPLEMENTATIONS
 # ═══════════════════════════════════════════════════════════════
 
-def launch_for_tab(run: TestRun, tab_name: str = None) -> Tuple[Optional[subprocess.Popen], Optional[Any], Optional[tuple]]:
+def launch_for_tab(run: TestRun, tab_name: str | None = None) -> tuple[subprocess.Popen | None, Any | None, tuple | None]:
     """Launch the GUI with --tab flag, wait for window, return (process, hwnd, win)."""
     args = [str(run.exe_path)]
     if tab_name:
@@ -552,7 +556,7 @@ def kill_process(process):
             process.kill()
 
 
-def test_launch(run: TestRun) -> Tuple[Optional[subprocess.Popen], Optional[Any], Optional[tuple]]:
+def test_launch(run: TestRun) -> tuple[subprocess.Popen | None, Any | None, tuple | None]:
     """Launch with default tab (Dashboard), verify startup."""
     run.begin_phase("launch")
     run.record_test("binary_exists", run.exe_path.exists(), str(run.exe_path))
@@ -565,7 +569,7 @@ def test_launch(run: TestRun) -> Tuple[Optional[subprocess.Popen], Optional[Any]
     run.record_test("process_stays_alive", process is not None, f"Launched in {launch_ms:.0f}ms", launch_ms)
     run.record_test("window_found", hwnd is not None, f"HWND={hwnd}" if hwnd else "Not found")
 
-    if hwnd:
+    if hwnd and process is not None and win is not None:
         run.record_process_info(hwnd, process)
         title = get_window_text(hwnd)
         run.record_test("window_title", "space analyzer" in title.lower(), f"Title: {title}")
@@ -623,7 +627,7 @@ def test_scan_button(run: TestRun, hwnd, win):
 #  MAIN
 # ═══════════════════════════════════════════════════════════════
 
-def find_binary() -> Optional[Path]:
+def find_binary() -> Path | None:
     candidates = [
         Path("target/release/space-analyzer-gui.exe"),
         Path("target/debug/space-analyzer-gui.exe"),
@@ -635,11 +639,16 @@ def find_binary() -> Optional[Path]:
     return None
 
 
-def main():
+def main() -> int:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
     exe = find_binary()
     if not exe:
-        print("ERROR: space-analyzer-gui.exe not found.")
-        print("  Build first: cargo build --release --bin space-analyzer-gui")
+        logger.error("space-analyzer-gui.exe not found.")
+        logger.info("Build first: cargo build --release --bin space-analyzer-gui")
         sys.exit(1)
 
     print(f"\n  Binary: {exe}")
@@ -650,7 +659,7 @@ def main():
     try:
         # 1. Launch & startup
         print("\n  [1] Launch & Startup")
-        process, hwnd, win = test_launch(run)
+        process, hwnd, _win = test_launch(run)
         if not hwnd:
             run.record_test("abort_no_window", False, "Cannot continue")
             run.save_report()

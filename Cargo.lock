@@ -4990,6 +4990,7 @@ dependencies = [
  "futures",
  "gpu-compute",
  "humantime",
+ "image",
  "indicatif",
  "nix 0.28.0",
  "num_cpus",

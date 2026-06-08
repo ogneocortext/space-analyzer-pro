@@ -231,11 +231,6 @@ impl SpaceAnalyzerApp {
                     )
                     .clicked()
                 {
-                    // The new `check_ollama` builds a fresh client from the
-                    // current URL and reports version + error in addition to
-                    // the boolean. The previous version reused `self.ollama_client`
-                    // and so tested the OLD URL even if the user had just
-                    // edited the field.
                     self.ollama_checking = true;
                     self.last_ollama_error = None;
                     self.check_ollama();
@@ -356,25 +351,15 @@ impl SpaceAnalyzerApp {
 
                 if ollama_config_changed {
                     if self.settings.ollama_enabled {
-                        // Reset transient state and probe the server with the
-                        // NEW URL. `check_ollama` builds a fresh client from
-                        // the current settings so the old client can't keep
-                        // a stale base_url around.
                         self.ollama_available = false;
                         self.ollama_checking = true;
                         self.ollama_receiver = None;
                         self.last_ollama_error = None;
                         self.discovered_models.clear();
                         self.running_models.clear();
-                        // Probe availability + version.
                         self.check_ollama();
-                        // Probe the installed model list in parallel so the
-                        // UI shows "what models do I have?" without the user
-                        // having to click "Discover Models" after each save.
                         self.discover_ollama_models();
                     } else {
-                        // Disabling Ollama: drop cached state so the user
-                        // doesn't see a stale "Connected" badge.
                         self.ollama_client = None;
                         self.ollama_available = false;
                         self.ollama_checking = false;
@@ -387,5 +372,14 @@ impl SpaceAnalyzerApp {
                 self.status_message = Some("Settings saved.".to_string());
             }
         });
+
+        // Reset Button
+        if ui.button("🔄 Reset to Defaults").clicked() {
+            self.settings = AppSettings::default();
+            if let Some(ref db) = self.db {
+                let _ = db.save_all_settings(&self.settings);
+            }
+            self.status_message = Some("Settings reset to defaults.".to_string());
+        }
     }
 }

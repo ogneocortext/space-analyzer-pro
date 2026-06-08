@@ -17,6 +17,11 @@ just verify
 
 All available commands: `just help`
 
+> The Python utility scripts under `scripts/` require a dedicated
+> PyTorch+CUDA environment at `D:\conda-envs\space-analyzer-cuda\python.exe`.
+> See **[docs/development/PYTHON_ENV_SETUP.md](docs/development/PYTHON_ENV_SETUP.md)**
+> before running any script that touches `scripts/utility/vision-analysis/`.
+
 ## Project Overview
 
 Space Analyzer Pro is a **native Windows desktop application** built in Rust:
@@ -56,10 +61,28 @@ Space Analyzer Pro is a **native Windows desktop application** built in Rust:
 ├── shared-scanner/        # Shared scanning logic crate
 ├── gpu-compute/           # GPU-accelerated compute crate
 │
-├── scripts/               # Python utility scripts (justfile = main entry point)
+├── ux-pipeline/           # Standalone Python UX pipeline package
+│   ├── src/ux_pipeline/   # Installable package (pip install -e ux-pipeline/)
+│   │   ├── _ollama_client.py        # Ollama HTTP client (stdlib-only)
+│   │   ├── _issue_tracker.py        # Consolidated tracker (CRUD + atomic write)
+│   │   ├── _vision_to_issues.py     # Vision finding → tracker row mapping
+│   │   ├── _pipeline_config.py      # Env-var-driven PipelineConfig dataclass
+│   │   ├── _quality_history.py      # Per-run 0-100 quality score
+│   │   ├── _screenshot_links.py     # Sidecar: issue → screenshot evidence
+│   │   ├── _llm_enrich.py           # Ollama vision enrichment
+│   │   ├── pipeline.py              # CLI: --all, --list, --report, --summary, --mark-done, --diff
+│   │   ├── web_dashboard.py         # Localhost HTTP dashboard
+│   │   └── gpu_vision_analyzer.py   # GPU vision analysis (PyTorch+CUDA)
+│   ├── tests/             # Python tests (pytest)
+│   ├── examples/          # Setup scripts
+│   ├── pyproject.toml     # Package config
+│   └── README.md          # Standalone docs
+│
+├── scripts/               # Python utility scripts
 │   ├── test/              # GUI testing (Win32 API)
 │   ├── debug/             # Native binary testing
-│   └── utility/           # Ollama benchmarks, analysis, vision tools
+│   └── utility/           # Legacy utilities + backward-compat shim
+│       └── pipeline.py    # Shim: imports from ux_pipeline (kept for compat)
 │
 ├── tests/                 # Test files
 │   └── unit/              # Rust unit tests
@@ -153,7 +176,7 @@ Space Analyzer Pro is a **native Windows desktop application** built in Rust:
 
 ## Important Notes
 
-- **This is a Rust desktop app** - no web server, no Node.js, no Python
+- **This is a Rust desktop app** - no web server, no Node.js. The Python UX pipeline lives in `ux-pipeline/` (standalone, installable via `pip install -e ux-pipeline/`). Legacy utility scripts remain in `scripts/` and require a dedicated PyTorch+CUDA env.
 - **Do NOT modify files in `archive/`** - it's historical reference only
 - **Do NOT delete `docs/`** without explicit permission
 - **Always run tests** after structural changes: `just verify`

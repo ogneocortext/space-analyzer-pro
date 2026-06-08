@@ -7,6 +7,9 @@ cpp-build/
 *.pyc
 *.pyo
 __pycache__/
+*.egg-info/
+dist/
+build/
 
 # Configuration secrets (never tracked)
 config/secrets/
