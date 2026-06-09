@@ -5,37 +5,9 @@ use std::fs;
 use std::path::Path;
 use std::time::Instant;
 
-#[derive(Parser)]
-#[command(author, version, about = "Space Analyzer Pro - Desktop Application")]
-struct Cli {
-    /// Directory to analyze (default: current directory)
-    #[arg(short, long, default_value = ".")]
-    path: String,
+mod cli;
 
-    /// Show detailed progress
-    #[arg(short, long)]
-    verbose: bool,
-
-    /// Output format (text, json, csv)
-    #[arg(short, long, default_value = "text")]
-    format: String,
-
-    /// Deep scan mode
-    #[arg(short, long)]
-    deep: bool,
-
-    /// Export results to file (format matches --format)
-    #[arg(short, long)]
-    export: Option<String>,
-
-    /// Generate markdown report in scan directory
-    #[arg(short, long)]
-    report: bool,
-
-    /// Find duplicate files (dry run)
-    #[arg(short, long)]
-    clean: bool,
-}
+use cli::Cli;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct ScanResult {

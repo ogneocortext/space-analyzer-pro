@@ -87,6 +87,24 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 
 ## [Unreleased]
 
+### UX Pipeline Dashboard — Issue Tracker Overhaul
+
+- **Complete dashboard rewrite** (`ux-pipeline/src/ux_pipeline/web_dashboard.py`): Redesigned from single-column layout to a two-column sidebar+main grid with sticky sidebar, constrained chart heights, and responsive breakpoints
+- **Fixed modal action buttons**: Previously used `classList.contains('danger')` instead of reading `data-action` attribute; now correctly routes Done/In Progress/Won't Fix/Reopen actions
+- **Metrics always show total counts**: Fixed bug where filtered results (e.g., "Open" only) were used for top-bar metrics and progress bar; now fetches all issues for stats separately
+- **Progress bar**: Top bar shows resolution percentage (e.g., "75% resolved (87/116)") with animated gradient fill
+- **Severity breakdown sidebar**: Per-severity progress bars with counts and percentages (critical/high/medium/low)
+- **Clickable category list**: Sidebar categories are clickable to filter issues by category; toggles on/off
+- **Sorting controls**: Sort issues by Last Seen, First Seen, Severity, Title, Category, or Occurrences (asc/desc)
+- **Card action buttons**: Each issue card shows context-aware actions: ✓ Done, ▶ WIP, ✗ Skip for open issues; ↺ Reopen for done/wontfix issues
+- **Create Issue form**: "+ New Issue" button opens inline form with title, category (27 options), severity, and notes fields; writes to `docs/issues.json` via `POST /api/issues/create`
+- **Server-side filtering**: `GET /api/issues` now accepts `?status=`, `?category=`, `?severity=`, `?q=` query parameters for efficient filtering
+- **Charts properly sized**: Timeline (180px), Severity doughnut (180px), Category bar (240px) in a 3-column grid with `maintainAspectRatio: false`
+- **AI Issue Resolution (Ollama Integration)**: "🤖 AI Fix" button on every open issue card and in modal; sends issue details to selected Ollama model with structured prompt requesting root cause analysis, fix instructions, code changes, and testing steps; response displayed in styled AI panel with spinner
+- **Model selector dropdown**: Auto-loads installed Ollama models via `GET /api/ollama/models`; persists selection across refreshes
+- **Code Testing Tools (Sidebar Panel)**: 4 buttons — ▶ Test (`cargo test --workspace`), ⚠ Clippy (`cargo clippy --all-targets --all-features -- -D warnings`), ✂ Fmt (`cargo fmt --all -- --check`), ✔ Verify (full pipeline: fmt + clippy + test); output panel with color-coded success/error; thread-safe with 5-minute timeout
+- **Backend API additions**: `GET /api/ollama/models`, `POST /api/issues/<id>/resolve`, `POST /api/issues/<id>/in_progress`, `POST /api/issues/create`, `POST /api/test/run`
+
 ### Web/Desktop Separation
 
 - **Moved web app to sibling directory**: `server/`, `ai-service/`, `styles/`, `public/`, `.github/workflows/playwright-tests.yml`, web configs, web tests, and web-only scripts moved to `E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer-Web`

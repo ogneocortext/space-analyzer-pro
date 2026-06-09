@@ -13,6 +13,7 @@ use walkdir::WalkDir;
 mod windows_advanced;
 mod windows_errors;
 use windows_advanced::advanced as win_adv;
+mod cli;
 mod ntfs_mft_scanner;
 mod usn_journal_scanner;
 
@@ -317,133 +318,11 @@ struct WIN32_FIND_STREAM_DATA {
     c_stream_name: [u16; 296],
 }
 
-#[derive(Parser)]
-#[command(name = "space-analyzer")]
-#[command(about = "High-performance file analysis CLI")]
-struct Cli {
-    /// Directory path to analyze
-    #[arg(value_name = "PATH")]
-    path: PathBuf,
-
-    /// Maximum files to analyze (0 = all)
-    #[arg(long, default_value = "0")]
-    max_files: usize,
-
-    /// Include hidden files
-    #[arg(long)]
-    hidden: bool,
-
-    /// Output results to a JSON file
-    #[arg(short, long)]
-    output: Option<String>,
-
-    /// Output format (json)
-    #[arg(long, default_value = "json")]
-    format: String,
-
-    /// Use high-speed NTFS MFT scanner (requires admin, Windows only)
-    #[arg(long)]
-    mft: bool,
-
-    /// Max depth for scanning
-    #[arg(long, default_value = "100")]
-    max_depth: usize,
-
-    /// Show progress output
-    #[arg(long)]
-    progress: bool,
-
-    /// Output progress as JSON lines for machine parsing
-    #[arg(long)]
-    json_progress: bool,
-
-    /// Suppress output to stdout
-    #[arg(short, long)]
-    quiet: bool,
-
-    /// Use parallel processing for faster scanning
-    #[arg(long, default_value = "true")]
-    parallel: bool,
-
-    /// Detect duplicate files (slower but finds duplicates)
-    #[arg(long)]
-    duplicates: bool,
-
-    /// Skip hashing files larger than this size (MB) for performance
-    #[arg(long, default_value = "1000")]
-    max_hash_size: u64,
-
-    /// Use USN Journal for incremental scanning (Windows only, requires NTFS)
-    #[arg(long)]
-    usn_incremental: bool,
-
-    /// Use NTFS MFT direct reading for 46x faster scanning (Windows only, requires admin)
-    #[arg(long)]
-    mft_fast: bool,
-
-    /// Enumerate all hard links for each file (Windows only, slower)
-    #[arg(long)]
-    enumerate_links: bool,
-
-    /// Skip hidden files and directories (those starting with .)
-    #[arg(long, default_value = "true")]
-    skip_hidden: bool,
-
-    /// Additional ignore patterns (comma-separated, supports wildcards)
-    #[arg(long, value_delimiter = ',')]
-    ignore_patterns: Vec<String>,
-}
-
 impl Cli {
     fn categorize_file(extension: &str) -> &'static str {
-        match extension.to_lowercase().as_str() {
-            // Documents
-            "pdf" | "doc" | "docx" | "txt" | "rtf" | "md" | "tex" => "Documents",
-            // Spreadsheets
-            "xls" | "xlsx" | "csv" | "ods" => "Spreadsheets",
-            // Presentations
-            "ppt" | "pptx" | "odp" => "Presentations",
-            // Images
-            "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "svg" | "ico" => "Images",
-            // Videos
-            "mp4" | "avi" | "mov" | "wmv" | "flv" | "mkv" => "Videos",
-            // Audio
-            "mp3" | "wav" | "flac" | "aac" | "ogg" => "Audio",
-            // Code
-            "js" | "jsx" | "ts" | "tsx" | "py" | "java" | "cpp" | "c" | "h" | "hpp" | "cs"
-            | "php" | "rb" | "go" | "rs" | "swift" | "kt" => "Code",
-            // Web
-            "html" | "htm" | "css" | "scss" | "less" | "xml" => "Web",
-            // Config
-            "json" | "yaml" | "yml" | "toml" | "ini" | "cfg" => "Config",
-            // Archives
-            "zip" | "rar" | "7z" | "tar" | "gz" => "Archives",
-            // Executables
-            "exe" | "msi" | "deb" | "rpm" | "dmg" => "Executables",
-            // Databases
-            "db" | "sqlite" | "mdb" => "Databases",
-            // Fonts
-            "ttf" | "otf" | "woff" | "woff2" => "Fonts",
-            // System
-            "dll" | "so" | "sys" | "tmp" | "log" => "System",
-            // Development
-            "lock" | "package.json" | "package-lock.json" | "yarn.lock" | "pom.xml"
-            | "build.gradle" | "requirements.txt" => "Development",
-            // Documentation
-            "chm" | "hlp" | "info" => "Documentation",
-            // Scripts
-            "sh" | "bat" | "cmd" | "ps1" => "Scripts",
-            // E-books
-            "epub" | "mobi" | "azw" | "azw3" => "E-books",
-            // Design
-            "psd" | "ai" | "sketch" | "fig" => "Design",
-            // 3D Models
-            "obj" | "fbx" | "dae" | "blend" => "3D Models",
-            _ => "Other",
-        }
+        cli::categorize_file(extension)
     }
 
-    /// Emit progress event as JSON to stderr for machine parsing
     fn emit_progress_event(
         json_progress: bool,
         files: u64,
@@ -451,21 +330,11 @@ impl Cli {
         current_file: &str,
         hard_link_savings: u64,
     ) {
-        if json_progress {
-            let progress = serde_json::json!({
-                "event": "progress",
-                "files": files,
-                "size": size,
-                "current_file": current_file,
-                "hard_link_savings": hard_link_savings,
-                "timestamp": Utc::now().to_rfc3339()
-            });
-            eprintln!("{}", progress);
-        }
+        cli::emit_progress_event(json_progress, files, size, current_file, hard_link_savings);
     }
 
     fn emit_progress(&self, files: u64, size: u64, current_file: &str, hard_link_savings: u64) {
-        Self::emit_progress_event(
+        cli::emit_progress_event(
             self.json_progress,
             files,
             size,
@@ -475,10 +344,9 @@ impl Cli {
     }
 
     fn should_emit_progress(files: u64, last_progress: u64) -> bool {
-        files != last_progress && (files <= 10 || files.is_multiple_of(100))
+        cli::should_emit_progress(files, last_progress)
     }
 
-    /// Emit status event as JSON
     fn emit_status(&self, status: &str, message: &str) {
         if self.json_progress {
             let event = serde_json::json!({
@@ -489,6 +357,32 @@ impl Cli {
             });
             eprintln!("{}", event);
         }
+    }
+
+    fn format_size(bytes: u64) -> String {
+        cli::format_size(bytes)
+    }
+
+    fn create_file_size(bytes: u64, on_disk: Option<u64>) -> FileSize {
+        cli::create_file_size(bytes, on_disk)
+    }
+
+    fn create_error_collector() -> (Vec<Issue>, Vec<Warning>) {
+        cli::create_error_collector()
+    }
+
+    fn record_error(errors: &mut Vec<Issue>, error_type: &str, path: &str, message: &str) {
+        cli::record_error(errors, error_type, path, message)
+    }
+
+    fn record_warning(
+        warnings: &mut Vec<Warning>,
+        warning_type: &str,
+        path: &str,
+        message: &str,
+        size: Option<u64>,
+    ) {
+        cli::record_warning(warnings, warning_type, path, message, size)
     }
 
     fn analyze_directory(&self) -> anyhow::Result<AnalysisResult> {

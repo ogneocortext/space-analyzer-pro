@@ -13,6 +13,7 @@ pub mod offline_ai;
 pub mod ollama;
 pub mod session_logger;
 pub mod system_monitor;
+pub mod thumbnails;
 pub mod tool_registry;
 pub mod utils;
 pub mod workflows;

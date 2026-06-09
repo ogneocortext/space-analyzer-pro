@@ -73,7 +73,7 @@ walkdir = "2"
 eframe = "0.34"
 egui = "0.34"
 egui_extras = { version = "0.34", features = ["image"] }
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "ico"] }
 egui_plot = "0.35"
 rfd = "0.14"
 

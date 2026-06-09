@@ -1,0 +1,49 @@
+{
+  "iteration": 3,
+  "processed": [],
+  "failed": [
+    "mainissuetracker:8e4f72b26717",
+    "mainissuetracker:e78a38cede46"
+  ],
+  "history": [
+    {
+      "iteration": 1,
+      "status": "failed",
+      "processed_count": 0,
+      "failed_count": 2,
+      "processed": [],
+      "failed": [
+        "mainissuetracker:e78a38cede46",
+        "mainissuetracker:8e4f72b26717"
+      ],
+      "model": "qwen3.5:4b",
+      "ended_at": "2026-06-08T21:24:42+00:00"
+    },
+    {
+      "iteration": 2,
+      "status": "failed",
+      "processed_count": 0,
+      "failed_count": 2,
+      "processed": [],
+      "failed": [
+        "mainissuetracker:e78a38cede46",
+        "mainissuetracker:8e4f72b26717"
+      ],
+      "model": "qwen3.5:4b",
+      "ended_at": "2026-06-08T21:24:42+00:00"
+    },
+    {
+      "iteration": 3,
+      "status": "failed",
+      "processed_count": 0,
+      "failed_count": 2,
+      "processed": [],
+      "failed": [
+        "mainissuetracker:e78a38cede46",
+        "mainissuetracker:8e4f72b26717"
+      ],
+      "model": "qwen3.5:4b",
+      "ended_at": "2026-06-08T21:24:42+00:00"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ux-pipeline"
+version = "0.1.0"
+description = "Standalone Python UX pipeline for Space Analyzer Pro: PIL feature extraction, Ollama vision analysis, issue tracking, and a localhost web dashboard."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Space Analyzer Pro contributors" },
+]
+keywords = ["ux", "ollama", "vision", "pipeline", "egui", "screenshots"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Quality Assurance",
+]
+# The package is intentionally stdlib-first. Only ``Pillow`` is required for the
+# ``analyze_screenshots`` feature extraction path. PyTorch / CUDA is optional
+# and only consulted by ``gpu_vision_analyzer`` at runtime.
+dependencies = [
+    "Pillow>=9.0",
+]
+
+[project.optional-dependencies]
+# Optional GPU vision stack. Imported lazily; if missing, the GPU analyzer
+# degrades to a CPU-only stub and the rest of the package keeps working.
+gpu = [
+    "torch>=2.0",
+]
+# Convenience meta-target used in ``just verify``.
+test = [
+    "pytest>=7.0",
+    "playwright>=1.40.0",
+]
+dev = [
+    "pytest>=7.0",
+    "build>=0.10",
+]
+
+[project.scripts]
+ux-pipeline = "ux_pipeline.pipeline:main"
+ux-pipeline-dashboard = "ux_pipeline.web_dashboard:main"
+
+[project.urls]
+Homepage = "https://github.com/ogneocortext/space-analyzer-pro"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ux_pipeline = ["py.typed"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = "-ra"
+# Make ``ux_pipeline`` importable without ``pip install -e .`` for fast local runs.
+pythonpath = ["src"]

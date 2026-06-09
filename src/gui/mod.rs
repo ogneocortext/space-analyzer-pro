@@ -44,475 +44,40 @@ use workflows::{
     WorkflowAction, WorkflowExecution, WorkflowTemplates, WorkflowTrigger,
 };
 
+// Sub-modules
+mod ai;
+pub mod colors;
+mod dashboard;
+mod dedup;
+mod embeddings;
+mod history;
+pub mod icons;
+mod model_classifier;
+mod notifications;
+pub mod scan;
+mod settings;
+mod splash;
+pub mod system;
+mod theme;
+pub mod tool_result_parser;
+mod ui_helpers;
+pub mod workflow_render;
+
+pub(crate) use model_classifier::classify_model;
+
+// Re-export types for sub-modules
+pub use types::*;
+mod types;
+
+// Re-export UI helpers
+pub use ui_helpers::{
+    badge, card_frame, gauge_bar, icon_char, icon_text, labeled_gauge, section_heading, stat_card,
+};
+
 /// Shared Tokio runtime for all async operations
 fn shared_runtime() -> &'static tokio::runtime::Runtime {
     static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
     RUNTIME.get_or_init(|| tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime"))
-}
-
-/// Scan message type for GUI communication
-#[derive(Debug, Clone)]
-pub enum ScanMessage {
-    Progress {
-        percentage: f32,
-        files: u64,
-        bytes: u64,
-    },
-    Complete(ScanResult),
-    Error(String),
-}
-
-// ── Icon Helpers (Simple Placeholder Icons) ──────────────────────
-
-mod icons {
-    macro_rules! icon_fn {
-        ($name:ident, $char:literal) => {
-            #[allow(dead_code)]
-            pub fn $name() -> Option<(u32, &'static str)> {
-                Some(($char.chars().next().unwrap_or('?') as u32, "emoji"))
-            }
-        };
-    }
-
-    icon_fn!(scan, "📁");
-    icon_fn!(history, "🕒");
-    icon_fn!(disk, "💾");
-    icon_fn!(system, "🖥");
-    icon_fn!(trend, "📈");
-    icon_fn!(workflow, "⚙");
-    icon_fn!(filetype, "📄");
-    icon_fn!(predict, "🔮");
-    icon_fn!(pattern, "🔍");
-    icon_fn!(tool, "🔧");
-    icon_fn!(quick, "⚡");
-    icon_fn!(model, "🤖");
-    icon_fn!(index, "📊");
-    icon_fn!(security, "🛡");
-    icon_fn!(cleanup, "🧹");
-    icon_fn!(performance, "🏎");
-    icon_fn!(check, "✓");
-    icon_fn!(warning, "⚠");
-}
-
-/// Tool result display data
-#[derive(Debug, Clone)]
-pub struct ToolResultDisplay {
-    pub tool_name: String,
-    pub tool_icon: Option<(u32, String)>,
-    pub summary: String,
-    pub details: Vec<String>,
-    #[allow(dead_code)]
-    pub raw_data: String,
-}
-
-impl ToolResultDisplay {
-    pub fn from_raw(tool_name: &str, raw_result: &str) -> Self {
-        let (icon_opt, summary, details) = Self::parse_tool_result(tool_name, raw_result);
-        Self {
-            tool_name: tool_name.to_string(),
-            tool_icon: icon_opt.map(|(cp, fam)| (cp, fam.to_string())),
-            summary,
-            details,
-            raw_data: raw_result.to_string(),
-        }
-    }
-
-    fn parse_tool_result(
-        tool_name: &str,
-        raw: &str,
-    ) -> (Option<(u32, &'static str)>, String, Vec<String>) {
-        match tool_name {
-            "get_scan_summary" => {
-                let lines: Vec<&str> = raw.lines().collect();
-                let summary = lines.first().unwrap_or(&"Scan Summary").to_string();
-                let details: Vec<String> = lines.iter().skip(1).map(|s| s.to_string()).collect();
-                (icons::scan(), summary, details)
-            }
-            "get_scan_history" => {
-                let count = raw
-                    .lines()
-                    .next()
-                    .and_then(|l| l.strip_prefix("Recent scans ("))
-                    .and_then(|l| l.strip_suffix("):"))
-                    .unwrap_or("?");
-                (
-                    icons::history(),
-                    format!("{} scan(s) in history", count),
-                    raw.lines().skip(1).map(|s| s.trim().to_string()).collect(),
-                )
-            }
-            "get_disk_volumes" => {
-                let lines: Vec<&str> = raw
-                    .lines()
-                    .filter(|l| {
-                        let t = l.trim();
-                        // Match any drive letter pattern (C:\, D:\, etc.) or Unix mount (/home, /mnt, etc.)
-                        (t.len() >= 2
-                            && t.as_bytes()[1] == b':'
-                            && t.as_bytes()[0].is_ascii_alphabetic())
-                            || t.starts_with('/')
-                    })
-                    .collect();
-                (
-                    icons::disk(),
-                    format!("{} disk volume(s) found", lines.len()),
-                    lines.iter().map(|s| s.trim().to_string()).collect(),
-                )
-            }
-            "get_system_resources" => {
-                let cpu = raw
-                    .lines()
-                    .find(|l| l.contains("CPU"))
-                    .map(|l| l.trim().to_string())
-                    .unwrap_or_default();
-                let mem = raw
-                    .lines()
-                    .find(|l| l.contains("Memory"))
-                    .map(|l| l.trim().to_string())
-                    .unwrap_or_default();
-                let summary = match (cpu.is_empty(), mem.is_empty()) {
-                    (false, false) => format!("{}, {}", cpu, mem),
-                    (false, true) => cpu,
-                    (true, false) => mem,
-                    (true, true) => "System resources loaded".to_string(),
-                };
-                (icons::system(), summary, Vec::new())
-            }
-            "get_storage_trend" => {
-                // Match lines that look like timestamps (contain a dash-separated date)
-                let lines: Vec<&str> = raw
-                    .lines()
-                    .filter(|l| {
-                        let t = l.trim();
-                        t.contains('-')
-                            && t.len() > 10
-                            && t.as_bytes().iter().take(4).all(|b| b.is_ascii_digit())
-                    })
-                    .collect();
-                let count = lines.len();
-                let latest = lines.last().map(|l| l.trim()).unwrap_or("N/A");
-                (
-                    icons::trend(),
-                    format!("{} data point(s). Latest: {}", count, latest),
-                    lines.iter().map(|s| s.trim().to_string()).collect(),
-                )
-            }
-            "list_workflows" => {
-                // Count lines that look like workflow entries (non-header, non-empty)
-                let count = raw
-                    .lines()
-                    .filter(|l| {
-                        let t = l.trim();
-                        !t.is_empty()
-                            && !t.starts_with("Available workflows")
-                            && !t.starts_with("  -")
-                    })
-                    .count()
-                    .max(1)
-                    - 1; // Subtract the header line
-                (
-                    icons::workflow(),
-                    format!("{} workflow(s) available", count),
-                    raw.lines().map(|s| s.trim().to_string()).collect(),
-                )
-            }
-            "get_file_type_breakdown" => {
-                let total = raw
-                    .lines()
-                    .next()
-                    .and_then(|l| l.strip_prefix("File type breakdown ("))
-                    .and_then(|l| l.strip_suffix(" total files):"))
-                    .unwrap_or("?");
-                (
-                    icons::filetype(),
-                    format!("{} file type(s) found", total),
-                    raw.lines().skip(1).map(|s| s.trim().to_string()).collect(),
-                )
-            }
-            "predict_storage" => {
-                let prediction = raw
-                    .lines()
-                    .find(|l| l.contains("Predicted size"))
-                    .map(|l| l.trim().to_string())
-                    .unwrap_or_default();
-                let growth = raw
-                    .lines()
-                    .find(|l| l.contains("Average daily"))
-                    .map(|l| l.trim().to_string())
-                    .unwrap_or_default();
-                let summary = match (prediction.is_empty(), growth.is_empty()) {
-                    (false, false) => format!("{} | {}", prediction, growth),
-                    (false, true) => prediction,
-                    (true, false) => growth,
-                    (true, true) => "Prediction loaded".to_string(),
-                };
-                (
-                    icons::predict(),
-                    summary,
-                    raw.lines().map(|s| s.trim().to_string()).collect(),
-                )
-            }
-            "analyze_file_patterns" => {
-                let lines: Vec<&str> = raw.lines().filter(|l| !l.is_empty()).collect();
-                let first = lines.first().map(|s| s.to_string()).unwrap_or_default();
-                (
-                    icons::pattern(),
-                    first,
-                    lines.iter().skip(1).map(|s| s.to_string()).collect(),
-                )
-            }
-            _ => (
-                icons::tool(),
-                format!("Tool: {}", tool_name),
-                raw.lines().map(|s| s.to_string()).collect(),
-            ),
-        }
-    }
-}
-
-/// Tab views for the main application
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AppTab {
-    Dashboard,
-    Scan,
-    History,
-    SmartSearch,
-    Workflows,
-    AIChat,
-    System,
-    Settings,
-}
-
-impl std::fmt::Display for AppTab {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AppTab::Dashboard => write!(f, "Dashboard"),
-            AppTab::Scan => write!(f, "Scan"),
-            AppTab::History => write!(f, "History"),
-            AppTab::SmartSearch => write!(f, "Smart Search"),
-            AppTab::Workflows => write!(f, "Workflows"),
-            AppTab::AIChat => write!(f, "AI Assistant"),
-            AppTab::System => write!(f, "System"),
-            AppTab::Settings => write!(f, "Settings"),
-        }
-    }
-}
-
-/// Chat message for AI assistant display
-#[derive(Debug, Clone)]
-pub struct ChatMessage {
-    pub role: String,
-    pub content: String,
-    pub thinking: Option<String>,
-    pub tool_result: Option<ToolResultDisplay>,
-}
-
-/// Information about a discovered Ollama model
-#[derive(Debug, Clone)]
-pub struct OllamaModelInfo {
-    pub name: String,
-    pub size: String,
-    pub capabilities: Vec<String>,
-    pub recommended_for: String,
-    pub vram_requirement: String,
-    pub tooltip: String,
-    pub performance_metrics: ModelPerformanceMetrics,
-    pub is_running: bool,
-    pub vram_usage_mb: Option<u64>,
-    pub cpu_usage_percent: Option<f32>,
-}
-
-/// Performance metrics for an Ollama model
-#[derive(Debug, Clone, Default)]
-pub struct ModelPerformanceMetrics {
-    pub tokens_per_second: Option<f32>,
-    pub time_to_first_token_ms: Option<f32>,
-    pub avg_response_time_ms: Option<f32>,
-    pub benchmark_samples: u32,
-    #[allow(dead_code)]
-    pub last_benchmark: Option<String>,
-}
-
-/// Ollama response message for async communication
-pub(crate) enum OllamaMessage {
-    /// Legacy availability variant (boolean only). Kept for backward
-    /// compatibility with any external code that may still construct it;
-    /// the in-tree `check_ollama` now sends `AvailabilityDetailed` instead.
-    #[allow(dead_code)]
-    Availability(bool),
-    /// Result of an availability probe that also reports the server version
-    /// (Ollama 0.30+). The version is `None` when the server doesn't expose
-    /// `/api/version` (older than ~0.4.10) or when the probe failed.
-    AvailabilityDetailed {
-        available: bool,
-        version: Option<String>,
-        error: Option<String>,
-    },
-    ChatReply {
-        content: String,
-        thinking: Option<String>,
-    },
-    ToolCall(String, serde_json::Value),
-    Error(String),
-    TokenUsage {
-        prompt_tokens: u32,
-        completion_tokens: u32,
-        duration_ms: Option<u64>,
-    },
-    CacheStore {
-        key: String,
-        system_prompt: String,
-        user_prompt: String,
-        response: String,
-        prompt_tokens: u32,
-        completion_tokens: u32,
-        model: String,
-    },
-    /// Result of a model-discovery query. Replaces the silent
-    /// "click Discover → nothing happens" failure mode: errors now arrive
-    /// alongside the model list and the running-models list, so the UI can
-    /// show what actually went wrong.
-    ModelDiscovery {
-        models: Vec<OllamaModelInfo>,
-        running: Vec<ollama::RunningModel>,
-        version: Option<String>,
-        error: Option<String>,
-    },
-}
-
-/// Embedding index message for async communication
-pub(crate) enum EmbeddingMessage {
-    Progress(f32),
-    Complete(Vec<(String, u64, String, Vec<f32>)>),
-    Error(String),
-}
-
-/// Smart search result message for async communication
-pub(crate) enum SearchMessage {
-    Complete(Vec<SearchResult>),
-    Error(String),
-}
-
-/// Notification level for toast messages
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NotificationLevel {
-    Info,
-    Success,
-    Warning,
-    Error,
-}
-
-/// Toast notification for user feedback
-#[derive(Debug, Clone)]
-pub struct Notification {
-    pub message: String,
-    pub level: NotificationLevel,
-    pub created_at: std::time::Instant,
-    pub id: u64,
-}
-
-impl Notification {
-    pub fn new(message: impl Into<String>, level: NotificationLevel) -> Self {
-        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        Self {
-            message: message.into(),
-            level,
-            created_at: std::time::Instant::now(),
-            id: COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
-        }
-    }
-
-    pub fn color(&self) -> egui::Color32 {
-        match self.level {
-            NotificationLevel::Info => egui::Color32::LIGHT_BLUE,
-            NotificationLevel::Success => egui::Color32::GREEN,
-            NotificationLevel::Warning => egui::Color32::YELLOW,
-            NotificationLevel::Error => egui::Color32::RED,
-        }
-    }
-
-    pub fn icon(&self) -> &'static str {
-        match self.level {
-            NotificationLevel::Info => "ℹ",
-            NotificationLevel::Success => "✓",
-            NotificationLevel::Warning => "⚠",
-            NotificationLevel::Error => "✗",
-        }
-    }
-
-    pub fn is_expired(&self) -> bool {
-        self.created_at.elapsed() > std::time::Duration::from_secs(5)
-    }
-}
-
-/// Scan performance tracker for real-time metrics
-pub struct ScanPerformanceTracker {
-    pub start_time: Option<std::time::Instant>,
-    pub files_scanned: u64,
-    pub bytes_scanned: u64,
-    pub last_update: Option<std::time::Instant>,
-    pub files_per_sec: f64,
-    pub mb_per_sec: f64,
-    pub current_files: u64,
-    pub current_bytes: u64,
-}
-
-impl Default for ScanPerformanceTracker {
-    fn default() -> Self {
-        Self {
-            start_time: None,
-            files_scanned: 0,
-            bytes_scanned: 0,
-            last_update: None,
-            files_per_sec: 0.0,
-            mb_per_sec: 0.0,
-            current_files: 0,
-            current_bytes: 0,
-        }
-    }
-}
-
-impl ScanPerformanceTracker {
-    pub fn start(&mut self) {
-        self.start_time = Some(std::time::Instant::now());
-        self.last_update = Some(std::time::Instant::now());
-        self.files_scanned = 0;
-        self.bytes_scanned = 0;
-        self.files_per_sec = 0.0;
-        self.mb_per_sec = 0.0;
-        self.current_files = 0;
-        self.current_bytes = 0;
-    }
-
-    pub fn update(&mut self, files: u64, bytes: u64) {
-        self.current_files = files;
-        self.current_bytes = bytes;
-
-        if let Some(last) = self.last_update {
-            let elapsed = last.elapsed().as_secs_f64();
-            if elapsed >= 0.5 {
-                let files_delta = files.saturating_sub(self.files_scanned);
-                let bytes_delta = bytes.saturating_sub(self.bytes_scanned);
-
-                self.files_per_sec = files_delta as f64 / elapsed;
-                self.mb_per_sec = (bytes_delta as f64 / (1024.0 * 1024.0)) / elapsed;
-
-                self.files_scanned = files;
-                self.bytes_scanned = bytes;
-                self.last_update = Some(std::time::Instant::now());
-            }
-        }
-    }
-
-    pub fn elapsed_secs(&self) -> f64 {
-        self.start_time
-            .map(|t| t.elapsed().as_secs_f64())
-            .unwrap_or(0.0)
-    }
-
-    pub fn reset(&mut self) {
-        *self = Self::default();
-    }
 }
 
 /// Main GUI application structure
@@ -597,9 +162,6 @@ pub struct SpaceAnalyzerApp {
     pub(crate) search_receiver: Option<mpsc::Receiver<SearchMessage>>,
 
     // AI Tools Panel (v3.5.0+) — capability-driven quick buttons
-    // Each input is paired with a feature in `gui::ai::features_panel`.
-    // Results are posted as ChatMessages so they render in the same
-    // scrollback as the rest of the AI panel.
     pub semantic_search_query: String,
     pub cleanup_plan_question: String,
     pub pending_screenshot_path: Option<String>,
@@ -634,6 +196,11 @@ pub struct SpaceAnalyzerApp {
     pub current_impact_report: Option<file_relations::DependencyReport>,
     pub impact_preview_open: bool,
     pub impact_preview_pending: bool,
+    // Thumbnail cache for image preview
+    pub thumbnail_cache: Arc<crate::thumbnails::ThumbnailCache>,
+    // File actions (move to trash, etc.)
+    pub pending_file_action: Option<FileAction>,
+    pub file_action_confirm_open: bool,
 }
 
 impl Default for SpaceAnalyzerApp {
@@ -745,6 +312,9 @@ impl Default for SpaceAnalyzerApp {
             current_impact_report: None,
             impact_preview_open: false,
             impact_preview_pending: false,
+            thumbnail_cache: Arc::new(crate::thumbnails::ThumbnailCache::default()),
+            pending_file_action: None,
+            file_action_confirm_open: false,
         };
 
         // Initialize database
@@ -795,195 +365,6 @@ impl Default for SpaceAnalyzerApp {
     }
 }
 
-mod ai;
-mod dashboard;
-mod dedup;
-mod embeddings;
-mod history;
-pub mod scan;
-mod settings;
-mod system;
-mod workflow_render;
-
-/// Classify an Ollama model into a UI-friendly `OllamaModelInfo`.
-///
-/// Uses the capability list reported by Ollama 0.30+ (`/api/tags` returns
-/// `["completion", "tools", "thinking", "vision", "embedding", "insert"]`) as
-/// the primary signal. Falls back to name-substring heuristics only when the
-/// server omits the field (older Ollama versions).
-///
-/// Cloud models are filtered out at the discovery layer before this function
-/// is called, so we don't need to handle them here.
-///
-/// The previous version of this function only matched a handful of model
-/// names (`qwen3:8b`, `mistral:7b`, `functionary`, …) and assigned empty
-/// capability lists to anything else — so a user with `qwen3.5:4b`,
-/// `gemma3:4b`, or `llama3.1:8b` saw the model in the list but with no
-/// indication of what it could do. That was the root cause of the
-/// "model selector status is completely broken" symptom.
-fn classify_model(info: &ollama::ModelInfo) -> OllamaModelInfo {
-    let name = &info.name;
-    let name_lower = name.to_lowercase();
-    let mut capabilities = Vec::new();
-    let mut recommended_for = "General chat and analysis".to_string();
-    let mut tooltip = String::new();
-    let mut vram_requirement = "8+ GB VRAM".to_string();
-
-    let size_str = format!("{:.1} GB", info.size as f64 / 1_073_741_824.0);
-
-    let caps_lower: Vec<String> = info.capabilities.iter().map(|s| s.to_lowercase()).collect();
-    let has_cap = |needle: &str| caps_lower.iter().any(|c| c == needle);
-
-    // Translate server-reported capabilities into UI strings.
-    if has_cap("embedding") {
-        capabilities.push("Semantic Embeddings".to_string());
-        capabilities.push("Vector Search".to_string());
-        capabilities.push("Similarity Detection".to_string());
-        recommended_for =
-            "Semantic file search, finding similar files, content-based queries".to_string();
-        vram_requirement = "Lightweight (~250-500 MB)".to_string();
-        tooltip = format!(
-            "{} is an embedding model. It converts text into vectors for semantic search \
-             and finding similar files. Set it as the Smart Search embedding model in Settings.",
-            name
-        );
-    }
-
-    if has_cap("vision") {
-        capabilities.push("Vision-Language".to_string());
-        capabilities.push("Image Analysis".to_string());
-        capabilities.push("Screenshot Understanding".to_string());
-        // Only override the recommendation if we don't already have something
-        // more specific (e.g. embedding).
-        if recommended_for.starts_with("General") {
-            recommended_for =
-                "Screenshot analysis, image understanding, visual file identification".to_string();
-        }
-        vram_requirement = "Moderate (~3-5 GB VRAM)".to_string();
-        tooltip = format!(
-            "{} understands images and screenshots. Use it to analyze UI screenshots, \
-             identify visual patterns, or review design assets.",
-            name
-        );
-    }
-
-    if has_cap("tools") {
-        capabilities.push("Tool Calling".to_string());
-        capabilities.push("Agentic Workflows".to_string());
-        capabilities.push("Function Execution".to_string());
-        if recommended_for.starts_with("General") {
-            recommended_for = "Automated workflows, file operations, system tasks".to_string();
-        }
-        if tooltip.is_empty() {
-            tooltip = format!(
-                "{} supports tool calling and agentic workflows. It can execute file \
-                 operations, run scans, and automate repetitive tasks.",
-                name
-            );
-        }
-    }
-
-    if has_cap("thinking") {
-        capabilities.push("Advanced Reasoning".to_string());
-        capabilities.push("Complex Analysis".to_string());
-        if recommended_for.starts_with("General") {
-            recommended_for = "Complex analysis tasks, multi-step reasoning".to_string();
-        }
-        if tooltip.is_empty() {
-            tooltip = format!(
-                "{} supports the Ollama 0.30+ \"thinking\" feature: it reasons step by step \
-                 before answering. Best for complex queries and analysis tasks.",
-                name
-            );
-        } else {
-            tooltip.push_str(
-                "\n\nSupports Ollama 0.30+ thinking mode — enable in Settings to see \
-                 step-by-step reasoning.",
-            );
-        }
-    }
-
-    if has_cap("insert") {
-        capabilities.push("Text Insertion (fill-in-middle)".to_string());
-    }
-
-    if has_cap("completion") {
-        // Only add general chat if we don't have a more specific category.
-        if capabilities.is_empty() {
-            capabilities.push("General Chat".to_string());
-            capabilities.push("Text Analysis".to_string());
-            recommended_for = "Lightweight general-purpose assistant, quick answers".to_string();
-            vram_requirement = "4-5 GB VRAM (typical 7B-8B model)".to_string();
-            tooltip = format!(
-                "{} is a general-purpose chat model. Use it for quick questions and analysis.",
-                name
-            );
-        } else {
-            capabilities.push("General Chat".to_string());
-        }
-    }
-
-    // Fall back to name-substring heuristics ONLY when the server gave us no
-    // capabilities at all. This keeps older Ollama versions functional.
-    if info.capabilities.is_empty() {
-        if name_lower.contains("embed") || name_lower.contains("nomic") {
-            capabilities.push("Semantic Embeddings".to_string());
-            capabilities.push("Vector Search".to_string());
-            recommended_for = "Semantic file search, content-based queries".to_string();
-        } else if name_lower.contains("vision") || name_lower.contains("vl") {
-            capabilities.push("Vision-Language".to_string());
-            capabilities.push("Image Analysis".to_string());
-        } else if name_lower.contains("coder") || name_lower.contains("code") {
-            capabilities.push("Code Generation".to_string());
-            capabilities.push("Complex Analysis".to_string());
-        } else {
-            // Truly unknown — give the user a hint about what to do.
-            capabilities.push("General Chat".to_string());
-            recommended_for = format!(
-                "Capabilities not reported by Ollama — upgrade to 0.30+ to see exact features \
-                 for {}",
-                name
-            );
-        }
-    }
-
-    // Add context length to the tooltip if reported.
-    if let Some(ctx) = info.details.as_ref().and_then(|d| d.context_length) {
-        tooltip.push_str(&format!("\n\nContext window: {}K tokens.", ctx / 1024));
-    }
-
-    // Add parameter size if reported.
-    if let Some(params) = info.details.as_ref().map(|d| &d.parameter_size) {
-        if !params.is_empty() {
-            tooltip.push_str(&format!(" Size: {}.", params));
-        }
-    }
-
-    // Warn about models that may exceed 8GB VRAM.
-    if info.size > 8_589_934_592 {
-        vram_requirement = format!(
-            "{} GB - May require CPU offload on 8GB GPU",
-            info.size / 1_073_741_824
-        );
-        tooltip.push_str(
-            "\n\n[!] This model exceeds 8GB VRAM and will use CPU offload, reducing performance.",
-        );
-    }
-
-    OllamaModelInfo {
-        name: name.clone(),
-        size: size_str,
-        capabilities,
-        recommended_for,
-        vram_requirement,
-        tooltip,
-        performance_metrics: ModelPerformanceMetrics::default(),
-        is_running: false,
-        vram_usage_mb: None,
-        cpu_usage_percent: None,
-    }
-}
-
 impl eframe::App for SpaceAnalyzerApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.process_scan_messages();
@@ -1006,13 +387,23 @@ impl eframe::App for SpaceAnalyzerApp {
             if i.key_pressed(egui::Key::F5) {
                 if !self.is_scanning {
                     self.start_scan();
-                    self.push_notification("Scan started", NotificationLevel::Info);
+                    notifications::push_notification(
+                        &mut self.notifications,
+                        &mut self.notification_counter,
+                        "Scan started",
+                        NotificationLevel::Info,
+                    );
                 }
                 shortcut_handled = true;
             }
             if i.modifiers.ctrl && i.key_pressed(egui::Key::S) {
                 self.save_settings();
-                self.push_notification("Settings saved", NotificationLevel::Success);
+                notifications::push_notification(
+                    &mut self.notifications,
+                    &mut self.notification_counter,
+                    "Settings saved",
+                    NotificationLevel::Success,
+                );
                 shortcut_handled = true;
             }
         });
@@ -1030,7 +421,7 @@ impl eframe::App for SpaceAnalyzerApp {
         // ── Welcome splash (auto-dismisses after ~120 frames or on click) ─
         if self.show_welcome {
             self.startup_frame = self.startup_frame.wrapping_add(1);
-            self.render_welcome_splash(ui);
+            splash::render_welcome_splash(ui, self.startup_frame, &mut self.show_welcome);
             if self.startup_frame > 120 {
                 self.show_welcome = false;
             }
@@ -1273,205 +664,26 @@ impl eframe::App for SpaceAnalyzerApp {
         });
 
         // Toast notifications (rendered on top of everything)
-        self.render_notifications(ui);
+        notifications::render_file_action_confirm(
+            ui,
+            &mut self.file_action_confirm_open,
+            &mut self.pending_file_action,
+            &mut self.notifications,
+            &mut self.notification_counter,
+        );
+        notifications::render_notifications(ui, &self.notifications);
     }
 }
 
 impl SpaceAnalyzerApp {
     /// Push a toast notification
     pub fn push_notification(&mut self, message: impl Into<String>, level: NotificationLevel) {
-        self.notification_counter += 1;
-        self.notifications.push(Notification::new(message, level));
-        // Keep only the last 5 notifications
-        if self.notifications.len() > 5 {
-            self.notifications.remove(0);
-        }
-    }
-
-    /// Render the welcome splash screen shown on app startup.
-    ///
-    /// Fades in over the first ~60 frames and auto-dismisses after 120 frames
-    /// (≈2 s at 60 fps), or immediately when the user clicks "Get Started"
-    /// or presses Enter.
-    fn render_welcome_splash(&mut self, ui: &mut egui::Ui) {
-        let fade = (self.startup_frame as f32 / 60.0).clamp(0.0, 1.0);
-        let bg_color = egui::Color32::from_rgb(99, 102, 241);
-        let accent_color = egui::Color32::from_rgb(168, 85, 247);
-        let splash_bg = ui.style().visuals.extreme_bg_color;
-
-        // Allow Enter / Space to dismiss
-        if ui.input(|i| i.key_pressed(egui::Key::Enter) || i.key_pressed(egui::Key::Space)) {
-            self.show_welcome = false;
-        }
-
-        egui::Frame::NONE.fill(splash_bg).show(ui, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.add_space(ui.available_height() * 0.18);
-
-                let icon_size = 96.0 + (fade * 16.0);
-                let (rect, _) =
-                    ui.allocate_exact_size(egui::vec2(icon_size, icon_size), egui::Sense::hover());
-                let center = rect.center();
-                let painter = ui.painter_at(rect);
-
-                let bg_rect =
-                    egui::Rect::from_center_size(center, egui::vec2(icon_size, icon_size));
-                painter.rect_filled(bg_rect, 18.0, bg_color);
-
-                let ring_pad = icon_size * 0.22;
-                painter.circle_stroke(
-                    center,
-                    (icon_size - ring_pad) * 0.5,
-                    egui::Stroke::new(5.0, egui::Color32::WHITE),
-                );
-                let ring2_pad = icon_size * 0.35;
-                painter.circle_stroke(
-                    center,
-                    (icon_size - ring2_pad) * 0.5,
-                    egui::Stroke::new(5.0, egui::Color32::WHITE),
-                );
-                let center_size = icon_size * 0.18;
-                painter.circle_filled(
-                    center,
-                    center_size * 0.5,
-                    egui::Color32::from_rgb(6, 182, 212),
-                );
-
-                ui.add_space(28.0);
-
-                let mut title_job = egui::text::LayoutJob::default();
-                title_job.append(
-                    "Space Analyzer ",
-                    0.0,
-                    egui::TextFormat {
-                        font_id: egui::FontId::proportional(42.0),
-                        color: egui::Color32::WHITE.gamma_multiply(fade),
-                        ..Default::default()
-                    },
-                );
-                title_job.append(
-                    "Pro",
-                    0.0,
-                    egui::TextFormat {
-                        font_id: egui::FontId::proportional(42.0),
-                        color: accent_color.gamma_multiply(fade),
-                        ..Default::default()
-                    },
-                );
-                ui.label(title_job);
-
-                ui.add_space(8.0);
-
-                ui.label(
-                    egui::RichText::new(format!(
-                        "v{}  ·  Native Windows Desktop",
-                        env!("CARGO_PKG_VERSION")
-                    ))
-                    .size(14.0)
-                    .color(colors::TEXT_MUTED.gamma_multiply(fade)),
-                );
-
-                ui.add_space(32.0);
-
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 10.0;
-                    for pill in [
-                        "8 GUI Tabs",
-                        "12+ LLM Tools",
-                        "GPU Accelerated",
-                        "SQLite Embedded",
-                    ] {
-                        let pill_size = egui::vec2(130.0, 30.0);
-                        let (pill_rect, _) =
-                            ui.allocate_exact_size(pill_size, egui::Sense::hover());
-                        ui.painter().rect_stroke(
-                            pill_rect,
-                            14.0,
-                            egui::Stroke::new(1.0, colors::ACCENT_DIM),
-                            egui::StrokeKind::Inside,
-                        );
-                        ui.painter().text(
-                            pill_rect.center(),
-                            egui::Align2::CENTER_CENTER,
-                            pill,
-                            egui::FontId::proportional(11.0),
-                            colors::ACCENT.gamma_multiply(fade),
-                        );
-                    }
-                });
-
-                ui.add_space(40.0);
-
-                if fade > 0.3 {
-                    let btn = egui::Button::new(
-                        egui::RichText::new("  Get Started  ")
-                            .size(15.0)
-                            .strong()
-                            .color(egui::Color32::WHITE),
-                    )
-                    .fill(colors::ACCENT)
-                    .corner_radius(20.0);
-                    if ui.add(btn).clicked() {
-                        self.show_welcome = false;
-                    }
-                    ui.add_space(8.0);
-                    ui.label(
-                        egui::RichText::new("or press Enter")
-                            .size(10.0)
-                            .italics()
-                            .color(colors::TEXT_MUTED),
-                    );
-                }
-
-                ui.add_space(ui.available_height() * 0.0);
-                ui.vertical_centered(|ui| {
-                    ui.label(
-                        egui::RichText::new("F5 = scan  ·  Ctrl+S = save settings  ·  ? = help")
-                            .size(11.0)
-                            .color(colors::TEXT_MUTED.gamma_multiply(0.7 * fade)),
-                    );
-                });
-            });
-        });
-    }
-
-    /// Render toast notifications in the top-right corner
-    fn render_notifications(&self, ui: &mut egui::Ui) {
-        if self.notifications.is_empty() {
-            return;
-        }
-
-        let mut y_offset = 10.0;
-
-        for notif in &self.notifications {
-            let age = notif.created_at.elapsed().as_secs_f64();
-            let alpha = if age > 4.0 {
-                ((5.0 - age) * 255.0) as u8
-            } else {
-                255
-            };
-
-            let bg_color = egui::Color32::from_rgba_premultiplied(40, 40, 40, alpha);
-            let text_color = notif.color();
-
-            let notif_text = format!("{} {}", notif.icon(), notif.message);
-            let ctx = ui.ctx().clone();
-
-            egui::Area::new(egui::Id::new(("notification", notif.id)))
-                .anchor(egui::Align2::RIGHT_TOP, [-10.0, y_offset])
-                .show(&ctx, |ui| {
-                    egui::Frame::NONE
-                        .fill(bg_color)
-                        .corner_radius(egui::CornerRadius::same(8))
-                        .inner_margin(12.0)
-                        .show(ui, |ui| {
-                            ui.set_min_width(280.0);
-                            ui.label(egui::RichText::new(notif_text).color(text_color).strong());
-                        });
-                });
-
-            y_offset += 45.0;
-        }
+        notifications::push_notification(
+            &mut self.notifications,
+            &mut self.notification_counter,
+            message,
+            level,
+        );
     }
 }
 
@@ -1516,8 +728,8 @@ pub fn run_gui_with_tab(initial_tab: Option<&str>) -> Result<(), eframe::Error> 
         "Space Analyzer Pro",
         options,
         Box::new(|cc| {
-            apply_custom_theme(&cc.egui_ctx);
-            install_icon_fonts(&cc.egui_ctx);
+            theme::apply_custom_theme(&cc.egui_ctx);
+            theme::install_icon_fonts(&cc.egui_ctx);
             let mut app = SpaceAnalyzerApp::default();
             if let Some(ref tab_name) = tab {
                 app.active_tab = match tab_name.to_lowercase().as_str() {
@@ -1535,223 +747,4 @@ pub fn run_gui_with_tab(initial_tab: Option<&str>) -> Result<(), eframe::Error> 
             Ok(Box::new(app))
         }),
     )
-}
-
-/// Apply a custom dark theme with accent colors (Catppuccin Mocha inspired)
-fn apply_custom_theme(ctx: &egui::Context) {
-    let mut style = (*ctx.global_style()).clone();
-
-    // Custom colors — Catppuccin Mocha palette
-    let mut visuals = egui::Visuals::dark();
-    visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(30, 30, 46);
-    visuals.widgets.noninteractive.fg_stroke =
-        egui::Stroke::new(1.0, egui::Color32::from_rgb(205, 214, 244));
-    visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(42, 42, 62);
-    visuals.widgets.inactive.fg_stroke =
-        egui::Stroke::new(1.0, egui::Color32::from_rgb(186, 194, 222));
-    visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(58, 58, 90);
-    visuals.widgets.hovered.fg_stroke =
-        egui::Stroke::new(1.0, egui::Color32::from_rgb(205, 214, 244));
-    visuals.widgets.active.bg_fill = egui::Color32::from_rgb(88, 91, 132);
-    visuals.widgets.active.fg_stroke =
-        egui::Stroke::new(1.0, egui::Color32::from_rgb(205, 214, 244));
-    visuals.selection.bg_fill = egui::Color32::from_rgb(137, 180, 250);
-    visuals.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(137, 180, 250));
-    visuals.extreme_bg_color = egui::Color32::from_rgb(24, 24, 37);
-    visuals.faint_bg_color = egui::Color32::from_rgb(27, 27, 38);
-    visuals.window_fill = egui::Color32::from_rgb(30, 30, 46);
-    visuals.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(58, 58, 82));
-
-    style.visuals = visuals;
-
-    // Spacing — generous for readability
-    style.spacing.item_spacing = egui::vec2(10.0, 8.0);
-    style.spacing.window_margin = egui::Margin::same(16);
-    style.spacing.button_padding = egui::vec2(12.0, 6.0);
-    style.spacing.indent = 20.0;
-
-    // Rounding — consistent, slightly more rounded
-    style.visuals.widgets.noninteractive.corner_radius = egui::CornerRadius::same(6);
-    style.visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(6);
-    style.visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(8);
-    style.visuals.widgets.active.corner_radius = egui::CornerRadius::same(8);
-    style.visuals.widgets.open.corner_radius = egui::CornerRadius::same(8);
-
-    ctx.set_global_style(style);
-}
-
-#[allow(dead_code)]
-fn install_icon_fonts(_ctx: &egui::Context) {
-    // Icons are bundled via iconflow crate at compile time — no runtime font installation needed
-}
-
-/// Create a RichText icon from emoji character
-fn icon_text(codepoint: u32, _family: &str, size: f32, color: egui::Color32) -> egui::RichText {
-    let glyph = char::from_u32(codepoint).unwrap_or('?');
-    egui::RichText::new(glyph.to_string())
-        .size(size)
-        .color(color)
-}
-
-/// Get just the icon character as a string
-fn icon_char(codepoint: u32) -> char {
-    char::from_u32(codepoint).unwrap_or('?')
-}
-
-// ── Theme Colors ──────────────────────────────────────────────────────────────
-
-pub mod colors {
-    use eframe::egui::Color32;
-
-    // Accent / brand
-    pub const ACCENT: Color32 = Color32::from_rgb(137, 180, 250); // Catppuccin blue
-    pub const ACCENT_DIM: Color32 = Color32::from_rgb(88, 110, 165);
-    pub const ACCENT_BG: Color32 = Color32::from_rgb(35, 40, 65);
-
-    // Semantic
-    pub const SUCCESS: Color32 = Color32::from_rgb(166, 227, 161); // Catppuccin green
-    pub const WARNING: Color32 = Color32::from_rgb(249, 226, 175); // Catppuccin yellow
-    pub const ERROR: Color32 = Color32::from_rgb(243, 139, 168); // Catppuccin red
-    pub const INFO: Color32 = Color32::from_rgb(137, 180, 250); // Catppuccin blue
-
-    // Surface / backgrounds
-    pub const CARD_BG: Color32 = Color32::from_rgb(36, 37, 54); // Slightly lighter than base
-    pub const CARD_BORDER: Color32 = Color32::from_rgb(58, 58, 82);
-    pub const CARD_HOVER: Color32 = Color32::from_rgb(42, 42, 65);
-
-    // Text
-    pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(205, 214, 244); // Catppuccin text
-    pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(166, 173, 200);
-    pub const TEXT_MUTED: Color32 = Color32::from_rgb(108, 112, 134); // Catppuccin overlay
-
-    // Priority colors
-    pub const PRIORITY_CRITICAL: Color32 = Color32::from_rgb(243, 139, 168);
-    pub const PRIORITY_HIGH: Color32 = Color32::from_rgb(250, 179, 135);
-    pub const PRIORITY_MEDIUM: Color32 = Color32::from_rgb(249, 226, 175);
-    pub const PRIORITY_LOW: Color32 = Color32::from_rgb(166, 173, 200);
-}
-
-// ── UI Component Helpers ──────────────────────────────────────────────────────
-
-/// Render a styled card frame with background, border, and padding.
-/// Returns the inner Ui for content.
-pub fn card_frame(_style: &egui::Style) -> egui::Frame {
-    egui::Frame::NONE
-        .fill(colors::CARD_BG)
-        .stroke(egui::Stroke::new(1.0, colors::CARD_BORDER))
-        .corner_radius(egui::CornerRadius::same(10))
-        .inner_margin(egui::Margin::symmetric(16, 12))
-        .outer_margin(egui::Margin::symmetric(0, 4))
-}
-
-/// Render a section header with optional icon and strong text.
-pub fn section_heading(ui: &mut egui::Ui, icon: Option<char>, text: &str) {
-    ui.add_space(4.0);
-    ui.horizontal(|ui| {
-        if let Some(ch) = icon {
-            ui.label(
-                egui::RichText::new(ch.to_string())
-                    .size(15.0)
-                    .color(colors::ACCENT),
-            );
-        }
-        ui.label(
-            egui::RichText::new(text)
-                .size(15.0)
-                .strong()
-                .color(colors::TEXT_PRIMARY),
-        );
-    });
-    ui.add_space(2.0);
-}
-
-/// Render a stat card: large value + label underneath, inside a card.
-pub fn stat_card(ui: &mut egui::Ui, label: &str, value: &str, accent: egui::Color32) {
-    card_frame(ui.style()).show(ui, |ui| {
-        ui.vertical(|ui| {
-            ui.label(egui::RichText::new(value).size(22.0).strong().color(accent));
-            ui.label(
-                egui::RichText::new(label)
-                    .size(11.0)
-                    .color(colors::TEXT_SECONDARY),
-            );
-        });
-    });
-}
-
-/// Render a colored badge (pill-shaped label).
-pub fn badge(ui: &mut egui::Ui, text: &str, bg: egui::Color32) {
-    egui::Frame::NONE
-        .fill(bg)
-        .corner_radius(egui::CornerRadius::same(10))
-        .inner_margin(egui::Margin::symmetric(8, 2))
-        .show(ui, |ui| {
-            ui.label(
-                egui::RichText::new(text)
-                    .size(10.0)
-                    .strong()
-                    .color(egui::Color32::BLACK),
-            );
-        });
-}
-
-/// Render a horizontal gauge bar (0.0..=1.0) with color coding.
-pub fn gauge_bar(ui: &mut egui::Ui, value: f32, width: f32, height: f32) {
-    let (color, bg) = if value > 0.9 {
-        (colors::ERROR, colors::ERROR.linear_multiply(0.2))
-    } else if value > 0.7 {
-        (colors::WARNING, colors::WARNING.linear_multiply(0.2))
-    } else if value > 0.5 {
-        (
-            colors::PRIORITY_HIGH,
-            colors::PRIORITY_HIGH.linear_multiply(0.2),
-        )
-    } else {
-        (colors::SUCCESS, colors::SUCCESS.linear_multiply(0.2))
-    };
-
-    let (response, painter) = ui.allocate_painter(egui::vec2(width, height), egui::Sense::hover());
-    let rect = response.rect;
-
-    // Background
-    painter.rect_filled(rect, egui::CornerRadius::same(4), bg);
-
-    // Fill
-    let fill_width = (rect.width() * value.clamp(0.0, 1.0)).max(0.0);
-    if fill_width > 0.0 {
-        let fill_rect = egui::Rect::from_min_size(rect.min, egui::vec2(fill_width, rect.height()));
-        painter.rect_filled(fill_rect, egui::CornerRadius::same(4), color);
-    }
-}
-
-/// Render a small horizontal gauge with label and percentage text.
-pub fn labeled_gauge(ui: &mut egui::Ui, label: &str, value: f32, detail: Option<&str>) {
-    ui.vertical(|ui| {
-        ui.horizontal(|ui| {
-            ui.label(
-                egui::RichText::new(label)
-                    .size(12.0)
-                    .color(colors::TEXT_PRIMARY),
-            );
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let color = if value > 0.9 {
-                    colors::ERROR
-                } else if value > 0.7 {
-                    colors::WARNING
-                } else {
-                    colors::SUCCESS
-                };
-                ui.label(
-                    egui::RichText::new(format!("{:.1}%", value * 100.0))
-                        .size(11.0)
-                        .color(color)
-                        .strong(),
-                );
-            });
-        });
-        gauge_bar(ui, value, ui.available_width(), 8.0);
-        if let Some(d) = detail {
-            ui.label(egui::RichText::new(d).size(10.0).color(colors::TEXT_MUTED));
-        }
-    });
 }

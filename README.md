@@ -1,3 +1,6 @@
+> **For AI agents:** Primary issue tracker is **`docs/issues.json`** (schema v1).
+> Quick reference: **`docs/ISSUES.md`** (~80 lines, token-efficient). Do not use `docs/CONSOLIDATED_ISSUE_TRACKER.csv` as source of truth.
+> Update workflow: find by `id:MAIN-XXX` tag in `tags[]` → fix code → update status in `issues.json` → `python docs/export_issues_to_csv.py`
 <p align="center">
   <img src="assets/banner/social-preview.svg" alt="Space Analyzer Pro — native Windows disk space analyzer with AI and GPU acceleration" width="800">
 </p>
@@ -320,3 +323,5 @@ config/                    # Tool configuration (non-secret)
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
+
+

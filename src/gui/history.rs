@@ -179,6 +179,24 @@ impl SpaceAnalyzerApp {
                     );
                 });
 
+                // Analyze with AI button
+                if self.ollama_client.is_some()
+                    && self.ollama_available
+                    && ui
+                        .add_sized(
+                            egui::vec2(120.0, 24.0),
+                            egui::Button::new(egui::RichText::new("Analyze with AI").size(11.0)),
+                        )
+                        .clicked()
+                {
+                    let scan_info = format!(
+                        "Analyze this historical scan and compare it to typical disk usage patterns.                          Path: {}\nTotal files: {}\nTotal size: {:.2} MB\nTimestamp: {}\n\n                         What does this scan tell you about the storage situation at this location?                          Are there any unusual patterns or recommendations for this path?",
+                        record.path, record.total_files, record.total_size_mb, record.timestamp
+                    );
+                    self.chat_input = scan_info;
+                    self.active_tab = AppTab::AIChat;
+                }
+
                 ui.label(
                     egui::RichText::new(&record.timestamp)
                         .size(11.0)

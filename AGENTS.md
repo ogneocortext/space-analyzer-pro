@@ -107,6 +107,49 @@ Space Analyzer Pro is a **native Windows desktop application** built in Rust:
 └── rust-toolchain.toml    # Pinned Rust toolchain
 ```
 
+## Issue Tracker
+
+All known issues are tracked in **`docs/issues.json`** (JSON, schema v1).
+Do NOT use the old `docs/CONSOLIDATED_ISSUE_TRACKER.csv` — it is a legacy export only.
+
+### Quick lookup (run these first when user says "fix issues")
+
+```bash
+# List all open issues
+python docs/export_issues_to_csv.py --filter open
+
+# List open Rust issues
+python docs/export_issues_to_csv.py --filter open --category architecture
+python docs/export_issues_to_csv.py --filter open --category performance
+python docs/export_issues_to_csv.py --filter open --category "code-quality"
+python docs/export_issues_to_csv.py --filter open --category "error-handling"
+python docs/export_issues_to_csv.py --filter open --category compatibility
+python docs/export_issues_to_csv.py --filter open --category "build-&-deployment"
+python docs/export_issues_to_csv.py --filter open --category functionality
+
+# Read the JSON directly for full details
+cat docs/issues.json | python -c "import sys,json; d=json.load(sys.stdin); [print(i['issue_id'], i['status'], i['title'][:80]) for i in d['issues'] if i['status']=='open']"
+```
+
+### Issue ID format
+
+IDs look like `mainissuetracker:34af6f76922f` (SHA-based, stable across runs).
+Human-readable source IDs are in `tags` (e.g. `id:MAIN-021`).
+
+### After fixing an issue
+
+Update its status in `docs/issues.json`:
+- `open` → `in_progress` when starting
+- `in_progress` → `done` when fixed
+- Update `last_seen` to today's date
+- Add a resolution note in `extra.resolution`
+
+Use the Python tracker API in `ux-pipeline/src/ux_pipeline/_issue_tracker.py`
+for atomic writes, or edit the JSON directly and run:
+```bash
+python docs/export_issues_to_csv.py   # refresh CSV export
+```
+
 ## Key Conventions
 
 ### Rust
@@ -163,10 +206,11 @@ Space Analyzer Pro is a **native Windows desktop application** built in Rust:
 4. Update docs in `docs/` if behavior changes
 
 ### Fixing a bug
-1. Check `docs/ISSUES.md` for known issues
-2. Look for related test files in `tests/unit/`
-3. Fix in source, add regression test
-4. Update docs if behavior changes
+1. Read `docs/issues.json` and filter for `open` issues in the relevant category
+2. Use `python docs/export_issues_to_csv.py --filter open --category <category>` to see candidates
+3. Match the issue by `issue_id` or `tags` (e.g. `id:MAIN-021`)
+4. Fix in source, add regression test
+5. Update the issue status in `docs/issues.json` and re-export CSV
 
 ### Refactoring
 1. Keep directory structure intact
