@@ -1,8 +1,7 @@
-use eframe::egui;
+﻿use eframe::egui;
 
 use crate::gui_common::ScanResult;
 use crate::ollama;
-use crate::workflows::{Workflow, WorkflowAction, WorkflowExecution};
 
 /// Scan message type for GUI communication
 #[derive(Debug, Clone)]
@@ -110,7 +109,7 @@ pub(crate) enum OllamaMessage {
     #[allow(dead_code)]
     Availability(bool),
     /// Result of an availability probe that also reports the server version
-    /// (Ollama 0.30+). The version is `None` when the server doesn't expose
+    /// (Ollama 0.30+). The version is `None` when the server doesnt expose
     /// `/api/version` (older than ~0.4.10) or when the probe failed.
     AvailabilityDetailed {
         available: bool,

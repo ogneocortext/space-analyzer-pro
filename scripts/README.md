@@ -1,4 +1,4 @@
-# Scripts Directory
+﻿# Scripts Directory
 
 Python utility scripts for Space Analyzer Pro. All build/test/lint tasks are in the **justfile** — run `just help` to see them.
 
@@ -8,7 +8,8 @@ Python utility scripts for Space Analyzer Pro. All build/test/lint tasks are in 
 scripts/
 ├── test/        # GUI testing (Win32 API)
 ├── debug/       # Native binary testing
-└── utility/     # Ollama benchmarks, analysis, vision tools
+├── utility/     # Ollama benchmarks, analysis, vision tools
+└── temporary/   # One-shot patches, test scripts (archived, not actively used)
 ```
 
 ## Scripts
@@ -28,7 +29,7 @@ just test-native
 ```
 
 ### utility/analyze_screenshots.py
-PIL feature extraction + Ollama vision model analysis of macro screenshots. Tracks quality scores across runs.
+PIL feature extraction + Ollama vision model analysis of macro screenshots. Tracks quality scores across runs. Generates `macro_logs/screenshots_*/ux_analysis_*.json`.
 
 ```bash
 python scripts/utility/analyze_screenshots.py
@@ -50,18 +51,6 @@ python scripts/utility/model_management.py --analyze
 python scripts/utility/model_management.py --cleanup
 ```
 
-### utility/vision-analysis/
-GPU-accelerated vision analysis pipeline (PyTorch CUDA + Ollama). Requires conda environment setup via `setup-cuda-env.ps1`.
-
-```bash
-# Setup (one-time)
-pwsh scripts/utility/vision-analysis/setup-cuda-env.ps1
-
-# Run
-python scripts/utility/vision-analysis/gpu_vision_analyzer.py --benchmark
-python scripts/utility/vision-analysis/gpu_vision_analyzer.py PATH_TO_SCREENSHOTS
-```
-
 ## Archived Scripts
 
-One-shot fix scripts, stale build scripts, and web-era tooling are in `docs/archive/scripts-*/`.
+One-shot fix scripts, stale build scripts, and web-era tooling are in `scripts/temporary/` and `docs/archive/scripts-*/`.

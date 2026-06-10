@@ -1,4 +1,4 @@
-# Space Analyzer Pro - Agent Guide
+﻿# Space Analyzer Pro - Agent Guide
 
 This document helps coding agents (AI assistants, linters, IDE tools) understand the project structure and conventions.
 
@@ -20,13 +20,13 @@ All available commands: `just help`
 > The Python utility scripts under `scripts/` require a dedicated
 > PyTorch+CUDA environment at `D:\conda-envs\space-analyzer-cuda\python.exe`.
 > See **[docs/development/PYTHON_ENV_SETUP.md](docs/development/PYTHON_ENV_SETUP.md)**
-> before running any script that touches `scripts/utility/vision-analysis/`.
+> before running any script that requires GPU vision analysis.
 
 ## Project Overview
 
 Space Analyzer Pro is a **native Windows desktop application** built in Rust:
 - **GUI**: egui/eframe native desktop GUI (in `src/gui/`)
-- **CLI**: Command-line scanner interface (in `src/bin/`)
+- **CLI**: Command-line scanner interface (in `src/main.rs` and `src/bin/`)
 - **AI Integration**: Local Ollama LLM client (in `src/ollama/`)
 - **Database**: Embedded SQLite via rusqlite (in `src/database/`)
 - **Scanning**: File system scanner with GPU acceleration (in `native/`, `shared-scanner/`, `gpu-compute/`)
@@ -36,7 +36,12 @@ Space Analyzer Pro is a **native Windows desktop application** built in Rust:
 
 ```
 ├── src/                    # Rust application source
-│   ├── gui/               # egui desktop GUI
+│   ├── bin/                # Binary entry points
+│   │   ├── space-analyzer-gui.rs  # GUI binary
+│   │   ├── space-analyzer-pro.rs  # CLI binary (alias)
+│   │   ├── ollama-test.rs         # Ollama testing binary
+│   │   └── flow-test-harness.rs   # Integration test binary
+│   ├── gui/               # egui desktop GUI (8 tabs)
 │   │   ├── ai/            # AI chat interface
 │   │   ├── dashboard.rs   # Main dashboard
 │   │   ├── scan.rs        # Scan configuration UI
@@ -46,59 +51,54 @@ Space Analyzer Pro is a **native Windows desktop application** built in Rust:
 │   │   ├── dedup.rs       # Duplicate finder UI
 │   │   ├── embeddings.rs  # Semantic search UI
 │   │   └── workflow_render.rs # Workflow visualization
-│   ├── ollama/            # Ollama LLM client
-│   ├── database/          # SQLite database layer
+│   ├── ollama/            # Ollama LLM client (chat, embeddings, tools)
+│   ├── database/          # SQLite layer (scans, embeddings, workflows, settings)
 │   ├── workflows/         # Analysis workflow engine
-│   ├── bin/               # Binary entry points
-│   ├── main.rs            # CLI entry point
+│   ├── tool_registry/     # LLM tool registry (12+ callable tools)
+│   ├── category.rs        # File extension → category mapping
+│   ├── offline_ai.rs      # Heuristic bloat detection
+│   ├── file_relations.rs  # Dependency report preview
+│   ├── system_monitor.rs  # CPU/RAM/GPU/disk monitoring
+│   ├── embedding_service.rs # Semantic search
+│   ├── session_logger.rs  # Diagnostic logging
+│   ├── thumbnails.rs      # Image preview cache
+│   ├── utils.rs           # Shared utilities
 │   └── lib.rs             # Library root
 │
-├── native/                # Rust native modules
-│   ├── scanner/           # File system scanner
-│   ├── file_deduplicator/ # Duplicate file finder
+├── native/                # Standalone Rust binaries (not workspace members)
+│   ├── scanner/           # Windows NTFS scanner (USN Journal, MFT, hardlinks)
+│   ├── file_deduplicator/ # GPU-accelerated duplicate finder
 │   └── node_modules_cleaner/ # Node.js cleanup tool
 │
-├── shared-scanner/        # Shared scanning logic crate
-├── gpu-compute/           # GPU-accelerated compute crate
+├── shared-scanner/        # Shared scanning logic (workspace member)
+├── gpu-compute/           # GPU-accelerated compute (workspace member)
 │
 ├── ux-pipeline/           # Standalone Python UX pipeline package
-│   ├── src/ux_pipeline/   # Installable package (pip install -e ux-pipeline/)
-│   │   ├── _ollama_client.py        # Ollama HTTP client (stdlib-only)
-│   │   ├── _issue_tracker.py        # Consolidated tracker (CRUD + atomic write)
-│   │   ├── _vision_to_issues.py     # Vision finding → tracker row mapping
-│   │   ├── _pipeline_config.py      # Env-var-driven PipelineConfig dataclass
-│   │   ├── _quality_history.py      # Per-run 0-100 quality score
-│   │   ├── _screenshot_links.py     # Sidecar: issue → screenshot evidence
-│   │   ├── _llm_enrich.py           # Ollama vision enrichment
-│   │   ├── pipeline.py              # CLI: --all, --list, --report, --summary, --mark-done, --diff
-│   │   ├── web_dashboard.py         # Localhost HTTP dashboard
-│   │   └── gpu_vision_analyzer.py   # GPU vision analysis (PyTorch+CUDA)
+│   ├── src/ux_pipeline/   # Main package modules
 │   ├── tests/             # Python tests (pytest)
-│   ├── examples/          # Setup scripts
 │   ├── pyproject.toml     # Package config
-│   └── README.md          # Standalone docs
+│   └── README.md          # Package documentation
 │
 ├── scripts/               # Python utility scripts
 │   ├── test/              # GUI testing (Win32 API)
 │   ├── debug/             # Native binary testing
-│   └── utility/           # Legacy utilities + backward-compat shim
-│       └── pipeline.py    # Shim: imports from ux_pipeline (kept for compat)
+│   ├── utility/           # Ollama tools, screenshot analysis
+│   └── temporary/         # One-shot patches, test scripts (archived)
 │
 ├── tests/                 # Test files
 │   └── unit/              # Rust unit tests
 │
 ├── config/                # Tool configuration
-│   ├── secrets/           # Secrets (gitignored, NOT tracked)
-│   └── .editorconfig      # Editor formatting
+│   └── secrets/           # Secrets (gitignored, NOT tracked)
 │
 ├── docs/                  # Documentation
-│   ├── architecture/      # Architecture docs
-│   ├── development/       # Developer guides
+│   ├── architecture/      # Design decisions, diagrams
+│   ├── development/       # Setup, testing, migration guides
 │   ├── guides/            # User guides
-│   ├── ai/                # AI/Ollama docs
-│   └── implementations/   # Implementation notes
+│   ├── ai/                # Ollama setup, ML integration
+│   └── implementations/   # Security, localhost tools
 │
-├── assets/                # Static assets (images, screenshots)
+├── assets/                # Visual assets (icons, screenshots)
 ├── Cargo.toml             # Rust workspace root
 ├── Cargo.lock             # Dependency lock file
 ├── justfile               # Task runner commands
@@ -106,6 +106,25 @@ Space Analyzer Pro is a **native Windows desktop application** built in Rust:
 ├── rustfmt.toml           # Rust formatting config
 └── rust-toolchain.toml    # Pinned Rust toolchain
 ```
+
+## File Lookup Quick Reference
+
+Looking for something specific? Use these paths:
+
+| Purpose | Primary File(s) |
+|---------|-----------------|
+| GUI Structure | `src/gui/mod.rs` - main app struct with 60+ state fields |
+| Scan Logic | `shared-scanner/src/lib.rs` - `scan_directory_sync()`, `format_bytes()` |
+| GPU Compute | `gpu-compute/src/scan.rs` - `GpuScanProcessor` |
+| Database Schema | `src/database/mod.rs` - tables for scans/embeddings/workflows |
+| AI Chat | `src/gui/ai/chat.rs` + `src/ollama/client/chat.rs` |
+| Issue Tracker | `docs/issues.json` (source) + `src/flow_test/` (embedded) |
+| Ollama Client | `src/ollama/client/` - HTTP client implementation |
+| UI Components | `src/gui/ui_helpers.rs` - reusable card, gauge, badge helpers |
+| Date Formatting | `src/gui/mod.rs` - `SpaceAnalyzerApp::format_timestamp()` |
+| Category Labels | `src/category.rs` - `CATEGORIES` hashmap (12 categories) |
+| Tool Registry | `src/tool_registry/` - `ToolRegistry`, `ToolCall` types |
+| Workflow Engine | `src/workflows/mod.rs` - `Workflow`, `WorkflowTemplates` |
 
 ## Issue Tracker
 
@@ -118,7 +137,7 @@ Do NOT use the old `docs/CONSOLIDATED_ISSUE_TRACKER.csv` — it is a legacy expo
 # List all open issues
 python docs/export_issues_to_csv.py --filter open
 
-# List open Rust issues
+# List open issues by category
 python docs/export_issues_to_csv.py --filter open --category architecture
 python docs/export_issues_to_csv.py --filter open --category performance
 python docs/export_issues_to_csv.py --filter open --category "code-quality"
@@ -126,9 +145,6 @@ python docs/export_issues_to_csv.py --filter open --category "error-handling"
 python docs/export_issues_to_csv.py --filter open --category compatibility
 python docs/export_issues_to_csv.py --filter open --category "build-&-deployment"
 python docs/export_issues_to_csv.py --filter open --category functionality
-
-# Read the JSON directly for full details
-cat docs/issues.json | python -c "import sys,json; d=json.load(sys.stdin); [print(i['issue_id'], i['status'], i['title'][:80]) for i in d['issues'] if i['status']=='open']"
 ```
 
 ### Issue ID format
@@ -143,12 +159,6 @@ Update its status in `docs/issues.json`:
 - `in_progress` → `done` when fixed
 - Update `last_seen` to today's date
 - Add a resolution note in `extra.resolution`
-
-Use the Python tracker API in `ux-pipeline/src/ux_pipeline/_issue_tracker.py`
-for atomic writes, or edit the JSON directly and run:
-```bash
-python docs/export_issues_to_csv.py   # refresh CSV export
-```
 
 ## Key Conventions
 
