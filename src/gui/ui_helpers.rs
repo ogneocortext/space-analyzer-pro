@@ -7,9 +7,10 @@ pub fn card_frame(_style: &egui::Style) -> egui::Frame {
     egui::Frame::NONE
         .fill(colors::CARD_BG)
         .stroke(egui::Stroke::new(1.0, colors::CARD_BORDER))
-        .corner_radius(egui::CornerRadius::same(10))
-        .inner_margin(egui::Margin::symmetric(16, 12))
-        .outer_margin(egui::Margin::symmetric(0, 4))
+        .corner_radius(egui::CornerRadius::same(12))
+        .inner_margin(egui::Margin::symmetric(18, 14))
+        .outer_margin(egui::Margin::symmetric(0, 6))
+        .shadow(egui::Shadow::NONE)
 }
 
 /// Render a section header with optional icon and strong text.

@@ -2,7 +2,12 @@ use clap::Parser;
 
 /// Command-line interface for the Space Analyzer Pro desktop binary.
 #[derive(Debug, Parser)]
-#[command(author, version, about = "Space Analyzer Pro - Desktop Application")]
+#[command(
+    author,
+    version,
+    about = "Space Analyzer Pro - Find and save disk space",
+    long_about = "Space Analyzer Pro CLI helps you identify space hogs on your disk.\nIt scans directories, shows breakdowns by folder and file type,\nfinds duplicate files, and provides actionable recommendations."
+)]
 pub struct Cli {
     /// Directory to scan
     #[arg(short, long, default_value = ".")]
@@ -16,7 +21,7 @@ pub struct Cli {
     #[arg(short, long)]
     pub verbose: bool,
 
-    /// Perform deeper scanning heuristics
+    /// Perform deeper scanning heuristics (unlimited depth)
     #[arg(long)]
     pub deep: bool,
 
@@ -31,4 +36,16 @@ pub struct Cli {
     /// Run duplicate-file cleanup analysis
     #[arg(long)]
     pub clean: bool,
+
+    /// Minimum file size to include in results (e.g. 1M, 500K, 1G)
+    #[arg(long)]
+    pub min_size: Option<String>,
+
+    /// Number of top items to show in breakdowns (default: 20)
+    #[arg(long, default_value = "20")]
+    pub top: usize,
+
+    /// Drop scan JSON into a GUI channel dir
+    #[arg(long)]
+    pub channel: Option<String>,
 }

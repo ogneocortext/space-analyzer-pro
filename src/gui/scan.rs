@@ -22,10 +22,11 @@ impl SpaceAnalyzerApp {
         self.scan_receiver = Some(rx);
 
         std::thread::spawn(move || {
-            let _ = tx.send(ScanMessage::Progress {
+let _ = tx.send(ScanMessage::Progress {
                 percentage: 0.0,
                 files: 0,
                 bytes: 0,
+                current_file: String::new(),
             });
 
             let start = std::time::Instant::now();
@@ -55,6 +56,7 @@ impl SpaceAnalyzerApp {
                         percentage: progress.percentage,
                         files: progress.files_scanned,
                         bytes: progress.total_size,
+                        current_file: progress.current_file,
                     });
                 },
                 &cancel_clone,
@@ -69,10 +71,11 @@ impl SpaceAnalyzerApp {
                         duration,
                     );
 
-                    let _ = tx.send(ScanMessage::Progress {
+let _ = tx.send(ScanMessage::Progress {
                         percentage: 100.0,
                         files: 0,
                         bytes: 0,
+                        current_file: String::new(),
                     });
                     let _ = tx.send(ScanMessage::Complete(result));
                 }
@@ -102,6 +105,7 @@ impl SpaceAnalyzerApp {
                         percentage,
                         files,
                         bytes,
+                        current_file: _,
                     } => {
                         self.scan_progress = percentage;
                         self.scan_performance.update(files, bytes);
@@ -174,8 +178,8 @@ impl SpaceAnalyzerApp {
     }
 
     pub(crate) fn render_scan(&mut self, ui: &mut egui::Ui) {
-        // ── Path Selector Card ────────────────────────────────────────
-        section_heading(ui, Some('📁'), "Scan Directory");
+        // ΓöÇΓöÇ Path Selector Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        section_heading(ui, Some('📂'), "Scan Directory");
         card_frame(ui.style()).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("Directory:").color(colors::TEXT_SECONDARY));
@@ -195,7 +199,7 @@ impl SpaceAnalyzerApp {
             });
         });
 
-        // ── Scan Controls Card ────────────────────────────────────────
+        // ΓöÇΓöÇ Scan Controls Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         section_heading(ui, None, "Controls");
         card_frame(ui.style()).show(ui, |ui| {
             ui.horizontal(|ui| {
@@ -204,7 +208,7 @@ impl SpaceAnalyzerApp {
                 let scan_text = if self.is_scanning {
                     "⏳ Scanning..."
                 } else {
-                    "🔍 Start Scan"
+                    "▶ Start Scan"
                 };
                 let scan_btn =
                     egui::Button::new(egui::RichText::new(scan_text).size(13.0).strong())
@@ -219,7 +223,7 @@ impl SpaceAnalyzerApp {
                     self.start_scan();
                 }
 
-                let stop_btn = egui::Button::new(egui::RichText::new("■  Stop").size(13.0))
+                let stop_btn = egui::Button::new(egui::RichText::new("⏹ Stop").size(13.0))
                     .min_size(egui::vec2(80.0, 32.0))
                     .fill(colors::ERROR);
 
@@ -239,7 +243,7 @@ impl SpaceAnalyzerApp {
             });
         });
 
-        // ── Progress Card ─────────────────────────────────────────────
+        // ΓöÇΓöÇ Progress Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if self.is_scanning {
             section_heading(ui, Some('⏳'), "Scanning...");
             card_frame(ui.style()).show(ui, |ui| {
@@ -262,7 +266,7 @@ impl SpaceAnalyzerApp {
                         ui.separator();
                         ui.label(
                             egui::RichText::new(format!(
-                                "📁 {:.0} files/sec",
+                                "📂 {:.0} files/sec",
                                 self.scan_performance.files_per_sec
                             ))
                             .size(11.0)
@@ -273,7 +277,7 @@ impl SpaceAnalyzerApp {
                         ui.separator();
                         ui.label(
                             egui::RichText::new(format!(
-                                "💾 {:.1} MB/s",
+                                "⚡ {:.1} MB/s",
                                 self.scan_performance.mb_per_sec
                             ))
                             .size(11.0)
@@ -295,7 +299,7 @@ impl SpaceAnalyzerApp {
             });
         }
 
-        // ── Scan Results ──────────────────────────────────────────────
+        // ΓöÇΓöÇ Scan Results ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if let Some(ref result) = self.scan_result {
             section_heading(ui, Some('📊'), "Scan Results");
 
@@ -491,3 +495,4 @@ impl SpaceAnalyzerApp {
             });
     }
 }
+
