@@ -1,0 +1,5 @@
+# Subtree-specific ignores for scripts/
+__pycache__/
+*.pyc
+*.pyo
+*.tmp

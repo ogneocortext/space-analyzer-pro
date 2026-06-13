@@ -1,0 +1,5 @@
+# Subtree-specific ignores for tests/
+__pycache__/
+*.pyc
+*.pyo
+*.tmp

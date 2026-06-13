@@ -21,6 +21,10 @@ pub struct Cli {
     #[arg(short, long)]
     pub verbose: bool,
 
+    /// Maximum scan depth (default: 5; unlimited when unset or with --deep)
+    #[arg(long)]
+    pub max_depth: Option<usize>,
+
     /// Perform deeper scanning heuristics (unlimited depth)
     #[arg(long)]
     pub deep: bool,

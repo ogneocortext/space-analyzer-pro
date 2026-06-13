@@ -168,6 +168,7 @@ fn validate_input(path: &str, format: &str) -> AppResult<()> {
 fn scan_directory(
     path: &Path,
     verbose: bool,
+    max_depth: Option<usize>,
     deep: bool,
     min_size: Option<u64>,
 ) -> AppResult<ScanResult> {
@@ -183,11 +184,20 @@ fn scan_directory(
 
     let start_time = Instant::now();
     let scanner = FileScanner::new();
-    let options = if deep {
+    let depth_mode = if deep {
         ScanOptions::deep()
+    } else if let Some(d) = max_depth {
+        ScanOptions {
+            max_depth: Some(d),
+            ..ScanOptions::default()
+        }
     } else {
-        ScanOptions::medium()
+        ScanOptions {
+            max_depth: Some(5),
+            ..ScanOptions::default()
+        }
     };
+    let options = depth_mode;
 
     let shared_result = scanner.scan_directory_sync(path.to_str().unwrap_or("."), options)?;
 
@@ -511,6 +521,56 @@ fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool) {
                 ext_display,
                 count,
                 format_bytes(**size),
+                pct
+            );
+        }
+        println!();
+    }
+
+    // ── Space breakdown by category (windows-aware path bucketing) ──
+    if !result.top_directories.is_empty() {
+        use space_analyzer_pro_desktop::category::path_based_category;
+        let mut cats: std::collections::HashMap<&str, u64> = std::collections::HashMap::new();
+        for d in &result.top_directories {
+            let cat = path_based_category(&d.path);
+            *cats.entry(cat).or_default() += d.total_size;
+        }
+        let mut sorted: Vec<_> = cats.iter().collect();
+        sorted.sort_by(|a, b| b.1.cmp(a.1));
+        println!(
+            "📂 SPACE BY CATEGORY (showing {} of {})",
+            top_n.min(sorted.len()),
+            sorted.len()
+        );
+        println!("   {:<16} {:>10}  {:>6}", "Category", "Size", "% Total");
+        println!(
+            "   {}─{:<16}─{}─{}",
+            "─".repeat(3),
+            "─".repeat(16),
+            "─".repeat(10),
+            "─".repeat(6)
+        );
+        for (&cat, &size) in sorted.iter().take(top_n) {
+            let pct = if result.total_size_bytes > 0 {
+                (size as f64 / result.total_size_bytes as f64) * 100.0
+            } else {
+                0.0
+            };
+            let emoji = match cat {
+                "Windows" => "🖥️",
+                "Program Files" => "⚙️",
+                "Temp/Cache" => "🗑️",
+                "Development" => "🛠️",
+                "AI Models" => "🤖",
+                "Videos" => "🎬",
+                "System" => "🔧",
+                _ => "📁",
+            };
+            println!(
+                "   {} {:<14} {:>10}  {:>5.1}%",
+                emoji,
+                cat,
+                format_bytes(size),
                 pct
             );
         }
@@ -1279,6 +1339,7 @@ fn main() -> AppResult<()> {
     let result = scan_directory(
         scan_path,
         cli.verbose && cli.format != "json",
+        cli.max_depth,
         cli.deep,
         min_size,
     )?;

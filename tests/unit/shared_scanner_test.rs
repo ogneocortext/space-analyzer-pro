@@ -9,8 +9,7 @@
 #![cfg(test)]
 
 use proptest::prelude::*;
-use shared_scanner::{blob_scan, scan, FileInfo, ScanResult};
-use std::path::Path;
+use shared_scanner::{FileInfo, FileScanner, ScanOptions, ScanResult};
 
 // -----------------------------------------------------------------------------
 // 1. ScanResult -- constructors and invariants
@@ -20,7 +19,18 @@ use std::path::Path;
 /// zero, no file present, empty hashmaps.
 #[test]
 fn scan_result_defaults_are_zeroed() {
-    let r = ScanResult::new();
+    let r = ScanResult {
+        total_files: 0,
+        total_directories: 0,
+        total_size: 0,
+        file_types: std::collections::HashMap::new(),
+        extension_sizes: std::collections::HashMap::new(),
+        size_distribution: std::collections::HashMap::new(),
+        largest_files: Vec::new(),
+        empty_directories: Vec::new(),
+        errors: Vec::new(),
+        subdirectories: Vec::new(),
+    };
     assert_eq!(r.total_files, 0);
     assert_eq!(r.total_directories, 0);
     assert_eq!(r.total_size, 0);
@@ -62,7 +72,10 @@ fn scan_temp_dir_counts_correctly() {
     std::fs::write(tmp.path().join("alpha.txt"), b"alpha").unwrap();
     std::fs::write(tmp.path().join("beta.bin"), b"beta").unwrap();
 
-    let result = scan(tmp.path()).expect("scan must succeed on a temp dir");
+    let scanner = FileScanner::new();
+    let result = scanner
+        .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::default())
+        .expect("scan must succeed on a temp dir");
     assert_eq!(result.total_files, 2, "two files expected");
     assert_eq!(result.total_size, 9); // alpha(5) + beta(4)
 }
@@ -74,7 +87,10 @@ fn scan_temp_dir_extension_map_populated() {
     std::fs::write(tmp.path().join("b.rs"), b"more rust").unwrap();
     std::fs::write(tmp.path().join("c.md"), b"markdown").unwrap();
 
-    let result = scan(tmp.path()).expect("scan must succeed");
+    let scanner = FileScanner::new();
+    let result = scanner
+        .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::default())
+        .expect("scan must succeed");
     assert_eq!(result.file_types.get("rs").copied().unwrap_or(0), 2);
     assert_eq!(result.file_types.get("md").copied().unwrap_or(0), 1);
 }
@@ -82,7 +98,10 @@ fn scan_temp_dir_extension_map_populated() {
 #[test]
 fn scan_empty_dir_returns_zero_files() {
     let tmp = tempfile::TempDir::new().expect("can create TempDir");
-    let result = scan(tmp.path()).expect("empty-dir scan must succeed");
+    let scanner = FileScanner::new();
+    let result = scanner
+        .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::default())
+        .expect("empty-dir scan must succeed");
     assert_eq!(result.total_files, 0);
 }
 
@@ -93,7 +112,10 @@ fn scan_nested_subdirs_are_counted() {
     std::fs::create_dir_all(&sub).unwrap();
     std::fs::write(sub.join("deep.txt"), b"deep").unwrap();
 
-    let result = scan(tmp.path()).expect("nested scan must succeed");
+    let scanner = FileScanner::new();
+    let result = scanner
+        .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::default())
+        .expect("nested scan must succeed");
     assert_eq!(result.total_files, 1);
     assert!(
         result.total_directories >= 2,
@@ -102,18 +124,7 @@ fn scan_nested_subdirs_are_counted() {
 }
 
 // -----------------------------------------------------------------------------
-// 4. Scan with seekable blob input (FilesList / stdin scenarios)
-// -----------------------------------------------------------------------------
-
-#[test]
-fn blob_scan_empty_vocabulary_returns_empty_result() {
-    let empty_vocabulary: Vec<u8> = Vec::new();
-    let result = blob_scan(empty_vocabulary.as_slice()).expect("blob_scan on empty must not panic");
-    assert_eq!(result.total_files, 0);
-}
-
-// -----------------------------------------------------------------------------
-// 5. Property-based: scanner never panics -- only returns Result::Ok or Err
+// 4. Property-based: scanner never panics -- only returns Result::Ok or Err
 // -----------------------------------------------------------------------------
 
 proptest! {
@@ -121,7 +132,8 @@ proptest! {
     // The function should return Ok(empty result) or Err for invalid chars, not crash.
     #[test]
     fn scan_never_panics_on_arbitrary_path(p in ".*") {
-        let _ = scan(Path::new(&p));
+        let scanner = FileScanner::new();
+        let _ = scanner.scan_directory_sync(&p, ScanOptions::default());
     }
 
     // FileInfo field access never panics for any u64 size

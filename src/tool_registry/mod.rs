@@ -61,6 +61,12 @@ mod tests {
         file_types.insert("jpg".to_string(), 75);
         file_types.insert("png".to_string(), 50);
         file_types.insert("zip".to_string(), 20);
+        let mut extension_sizes = std::collections::HashMap::new();
+        extension_sizes.insert("pdf".to_string(), 150);
+        extension_sizes.insert("txt".to_string(), 300);
+        extension_sizes.insert("jpg".to_string(), 75);
+        extension_sizes.insert("png".to_string(), 50);
+        extension_sizes.insert("zip".to_string(), 20);
 
         ScanResult {
             total_files: 595,
@@ -76,6 +82,7 @@ mod tests {
                 ("C:\\images\\photo.jpg".to_string(), 5_000_000),
             ],
             file_types,
+            extension_sizes,
             errors: Vec::new(),
         }
     }

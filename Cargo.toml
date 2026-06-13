@@ -1,6 +1,6 @@
 [package]
 name = "space-analyzer-pro-desktop"
-version = "3.5.0"
+version = "3.6.0"
 description = "Self-Contained AI-Powered Space Analyzer Desktop Application"
 authors = ["Space Analyzer Team"]
 edition = "2021"
@@ -84,6 +84,7 @@ regex = { workspace = true }
 base64 = "0.21"
 sha2 = "0.10"
 blake3 = { workspace = true }
+rayon = { workspace = true }
 
 # Compression and archives
 flate2 = "1.0"
