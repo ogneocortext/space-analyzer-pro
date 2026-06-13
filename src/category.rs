@@ -22,6 +22,27 @@ pub fn path_based_category(path: &str) -> &'static str {
     if lower.contains(".ollama") || lower.contains("ollama\\") || lower.contains("ollama/") {
         return "AI Models";
     }
+    if lower.contains("\\target\\") || lower.contains("/target/") {
+        let rest = if lower.contains("\\target\\") {
+            lower.split("\\target\\").last()
+        } else {
+            lower.split("/target/").last()
+        };
+        if let Some(suffix) = rest {
+            if suffix.starts_with("debug") || suffix.starts_with("release") {
+                return "Build Output";
+            }
+        }
+    }
+    if lower.contains(".git") {
+        return "VCS";
+    }
+    if lower.contains(".mypy_cache") || lower.contains("mypy_cache\\") || lower.contains("mypy_cache/") {
+        return "Cache";
+    }
+    if lower.contains("tests\\fixtures") || lower.contains("tests/fixtures") {
+        return "Test Fixtures";
+    }
     "Extension"
 }
 
@@ -132,6 +153,10 @@ pub fn category_color(category: &str) -> (u8, u8, u8) {
         "Program Files" => (90, 140, 180), // Steel Blue
         "Temp/Cache" => (200, 160, 80),    // Gold
         "AI Models" => (180, 80, 200),     // Violet
+        "Build Output" => (255, 140, 60),  // Orange
+        "VCS" => (100, 200, 100),          // Green
+        "Cache" => (200, 180, 80),         // Yellow-gold
+        "Test Fixtures" => (160, 160, 255),// Light Purple
         _ => (180, 180, 180),              // Light Gray
     }
 }

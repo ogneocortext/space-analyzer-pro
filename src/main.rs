@@ -564,6 +564,10 @@ fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool) {
                 "AI Models" => "🤖",
                 "Videos" => "🎬",
                 "System" => "🔧",
+                "Build Output" => "🔨",
+                "VCS" => "📚",
+                "Cache" => "💰",
+                "Test Fixtures" => "🧪",
                 _ => "📁",
             };
             println!(
