@@ -7,16 +7,6 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-/// Directory entry for database storage
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DirEntryForDb {
-    pub path: String,
-    pub name: String,
-    pub total_size: u64,
-    pub file_count: u64,
-    pub dir_count: u64,
-}
-
 /// Database manager for persistent storage
 pub struct Database {
     conn: Connection,
