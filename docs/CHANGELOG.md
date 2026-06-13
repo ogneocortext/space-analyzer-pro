@@ -104,6 +104,11 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 - Improved report filenames: `{path}_{timestamp}_{hash}.md` for unique identification
 - Example: `CUsersAomegaImaging_20260612_183059_ab12cd34.md`
 
+### CLI Performance Improvements
+- Added real-time progress reporting in verbose mode (`--verbose`)
+- Progress: files scanned + size every 10k files during scan
+- Final summary shows scan speed in files/sec
+
 ### Code Quality & Maintenance
 
 #### Duplicate File Cleanup

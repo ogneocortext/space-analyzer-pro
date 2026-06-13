@@ -203,6 +203,8 @@ fn scan_directory(
     let mut dir_sizes: HashMap<String, (u64, u64, u64)> = HashMap::new(); // path -> (size, file_count, dir_count)
     let mut filtered_file_count: usize = 0;
     let mut filtered_total_size: u64 = 0;
+    let mut last_progress_report: usize = 0;
+    let progress_interval = 10000; // Report every 10k files in verbose mode
 
     let scan_depth = if deep { usize::MAX } else { 5 };
     let walker = WalkDir::new(path).max_depth(scan_depth).into_iter();
@@ -236,6 +238,19 @@ fn scan_directory(
             let size = metadata.len();
             filtered_total_size += size;
             filtered_file_count += 1;
+
+            // Progress reporting in verbose mode
+            if verbose && filtered_file_count - last_progress_report >= progress_interval {
+                let elapsed = start_time.elapsed().as_secs_f64();
+                let rate = if elapsed > 0.0 { filtered_file_count as f64 / elapsed } else { 0.0 };
+                eprintln!(
+                    "[SCAN] Progress: {} files, {} scanned at {:.0} files/sec",
+                    filtered_file_count,
+                    format_bytes(filtered_total_size),
+                    rate
+                );
+                last_progress_report = filtered_file_count;
+            }
 
             // Track extension sizes
             let ext = entry_path
@@ -440,6 +455,23 @@ fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool) {
                 format_bytes(remaining)
             );
         }
+        println!();
+    }
+
+    // ── Scan performance summary ──
+    if verbose {
+        let scan_speed = if result.duration_secs > 0.0 {
+            result.total_files as f64 / result.duration_secs
+        } else {
+            0.0
+        };
+        println!();
+        println!("⚡ SCAN PERFORMANCE");
+        println!("   Scanned {} files in {:.2}s ({:.0} files/sec)",
+            result.total_files,
+            result.duration_secs,
+            scan_speed
+        );
         println!();
     }
 
