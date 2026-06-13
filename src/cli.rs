@@ -37,6 +37,10 @@ pub struct Cli {
     #[arg(long)]
     pub clean: bool,
 
+    /// Show actionable cleanup recommendations
+    #[arg(long)]
+    pub cleanup_recommendations: bool,
+
     /// Minimum file size to include in results (e.g. 1M, 500K, 1G)
     #[arg(long)]
     pub min_size: Option<String>,

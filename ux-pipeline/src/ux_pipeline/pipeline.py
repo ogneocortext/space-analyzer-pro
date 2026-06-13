@@ -49,54 +49,6 @@ def compute_quality_score(features: dict[str, Any]) -> int:
     return int(round(max(0.0, min(100.0, (bright_score + edge_score + color_score) / 3.0 - dark_penalty))))
 
 
-def process_screenshot_features(path: str) -> dict[str, Any] | None:
-    """Extract a minimal feature dict from a screenshot using Pillow."""
-    try:
-        from PIL import Image, ImageFilter
-    except ImportError:
-        logger.error("Pillow is required for --all; install with `pip install Pillow`")
-        return None
-    try:
-        img = Image.open(path)
-    except (FileNotFoundError, OSError) as exc:
-        logger.debug("Could not open %s: %s", path, exc)
-        return None
-    try:
-        gray = img.convert("L")
-        pixels = list(gray.getdata())
-        total = len(pixels)
-        if total == 0:
-            return None
-        avg_bright = sum(pixels) / total
-        dark_pct = sum(1 for p in pixels if p < 64) / total * 100
-        edges = gray.filter(ImageFilter.FIND_EDGES)
-        edge_pct = sum(1 for p in list(edges.getdata()) if p > 128) / total * 100
-        center = img.crop(
-            (img.size[0] // 4, img.size[1] // 4, 3 * img.size[0] // 4, 3 * img.size[1] // 4)
-        ).quantize(16)
-        return {
-            "dim": f"{img.size[0]}x{img.size[1]}",
-            "bright": round(avg_bright, 1),
-            "dark_pct": round(dark_pct, 1),
-            "edge_pct": round(edge_pct, 1),
-            "center_colors": len(set(center.getdata())),
-        }
-    except (OSError, ValueError) as exc:
-        logger.debug("Feature extraction failed for %s: %s", path, exc)
-        return None
-
-
-def _latest_screenshots_dir(shots_root: Path) -> Path | None:
-    """Return the most recent ``screenshots_*`` directory under ``shots_root``."""
-    if not shots_root.is_dir():
-        return None
-    candidates = sorted(
-        (d for d in shots_root.iterdir() if d.is_dir() and d.name.startswith("screenshots_")),
-        reverse=True,
-    )
-    return candidates[0] if candidates else None
-
-
 def _extract(path: Path) -> dict[str, Any] | None:
     """Extract a minimal feature dict from a screenshot using Pillow."""
     try:

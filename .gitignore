@@ -44,6 +44,8 @@ build-env.ps1
 *.sqlite
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 
 # OS generated files
 .DS_Store
@@ -107,3 +109,19 @@ venv/
 
 # Archive (legacy code, do not modify)
 /archive/
+
+# Temporary patch scripts (do not commit one-off fix/patch scripts)
+scripts/temporary/
+
+# Runtime data
+loop_feedback/
+scripts/loop/
+loop_feedback/
+
+# Agent config (OpenClaw, etc.)
+.openclaw/
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md

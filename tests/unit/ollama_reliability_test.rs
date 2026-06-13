@@ -10,8 +10,6 @@
 
 use space_analyzer_pro_desktop::ollama::client::OllamaClient;
 use space_analyzer_pro_desktop::ollama::types::ClientMetrics;
-use std::time::Instant;
-
 // ------------------------------------------------------------------------------
 
 /// Test Ollama client creation and basic configuration

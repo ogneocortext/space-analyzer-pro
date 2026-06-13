@@ -7,6 +7,7 @@
 pub mod category;
 pub mod database;
 pub mod embedding_service;
+pub mod error;
 pub mod file_relations;
 pub mod gui_common;
 pub mod offline_ai;

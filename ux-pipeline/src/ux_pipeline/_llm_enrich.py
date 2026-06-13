@@ -74,6 +74,7 @@ def enrich_screenshot(
             model=model,
             prompt=prompt,
             stream=False,
+            think=False,
             images=[image_bytes],
         )
     except OllamaError as exc:
@@ -96,7 +97,7 @@ def enrich_text(
     if client is None:
         client = OllamaClient()
     try:
-        return client.generate(model=model, prompt=prompt, stream=False)
+        return client.generate(model=model, prompt=prompt, stream=False, think=False)
     except OllamaError as exc:
         logger.debug("Ollama generate failed: %s", exc)
         return ""

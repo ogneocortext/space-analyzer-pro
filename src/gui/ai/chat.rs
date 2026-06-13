@@ -64,9 +64,11 @@ impl SpaceAnalyzerApp {
                         self.ollama_available = available;
                         self.ollama_checking = false;
                         if available {
-                            self.ollama_auto_started = false;
-                        } else if self.settings.auto_start_ollama && !self.ollama_auto_started {
-                            self.ollama_auto_started = true;
+                            self.tool_runtime_state.ollama_auto_started = false;
+                        } else if self.settings.auto_start_ollama
+                            && !self.tool_runtime_state.ollama_auto_started
+                        {
+                            self.tool_runtime_state.ollama_auto_started = true;
                             self.start_ollama_process();
                             self.check_ollama();
                         }
@@ -89,9 +91,11 @@ impl SpaceAnalyzerApp {
                             self.last_ollama_error = None;
                         }
                         if available {
-                            self.ollama_auto_started = false;
-                        } else if self.settings.auto_start_ollama && !self.ollama_auto_started {
-                            self.ollama_auto_started = true;
+                            self.tool_runtime_state.ollama_auto_started = false;
+                        } else if self.settings.auto_start_ollama
+                            && !self.tool_runtime_state.ollama_auto_started
+                        {
+                            self.tool_runtime_state.ollama_auto_started = true;
                             self.start_ollama_process();
                             self.check_ollama();
                         }
@@ -122,7 +126,7 @@ impl SpaceAnalyzerApp {
                         completion_tokens,
                         model,
                     } => {
-                        self.prompt_cache.store(
+                        self.prompt_cache_state.prompt_cache.store(
                             key,
                             system_prompt,
                             user_prompt,
@@ -141,8 +145,8 @@ impl SpaceAnalyzerApp {
 
             // Handle tool calls if any
             if !tool_calls_received.is_empty() {
-                self.tool_call_depth += 1;
-                if self.tool_call_depth >= MAX_TOOL_CALL_DEPTH {
+                self.tool_runtime_state.tool_call_depth += 1;
+                if self.tool_runtime_state.tool_call_depth >= MAX_TOOL_CALL_DEPTH {
                     self.chat_messages.push(ChatMessage {
                         role: "assistant".to_string(),
                         content: format!("[Tool call limit exceeded: stopped after {} rounds to prevent runaway execution. Please rephrase your request.]", MAX_TOOL_CALL_DEPTH),
@@ -152,7 +156,7 @@ impl SpaceAnalyzerApp {
                     self.conversation_history.push(OllamaChatMessage::assistant(
                         format!("Tool call limit exceeded: stopped after {} rounds. The final assistant response must now be given without further tool calls.", MAX_TOOL_CALL_DEPTH)
                     ));
-                    self.tool_call_depth = 0;
+                    self.tool_runtime_state.tool_call_depth = 0;
                     self.chat_processing = false;
                     return;
                 }
@@ -239,7 +243,7 @@ impl SpaceAnalyzerApp {
                 self.conversation_history
                     .push(OllamaChatMessage::assistant(&assistant_reply));
 
-                self.tool_call_depth = 0;
+                self.tool_runtime_state.tool_call_depth = 0;
                 if let Some((prompt, completion, duration)) = usage_received {
                     let duration_str = duration
                         .map(|ms| format!("{:.1}s", ms as f64 / 1000.0))
@@ -335,7 +339,7 @@ impl SpaceAnalyzerApp {
             return;
         }
 
-        self.tool_call_depth = 0;
+        self.tool_runtime_state.tool_call_depth = 0;
         let user_message = self.chat_input.clone();
 
         // Auto-select model based on query content
@@ -454,7 +458,11 @@ impl SpaceAnalyzerApp {
             &format!("{}\n{}", scan_context, user_message),
         );
 
-        if let Some(cached) = self.prompt_cache.lookup(&cache_key, &model_name) {
+        if let Some(cached) = self
+            .prompt_cache_state
+            .prompt_cache
+            .lookup(&cache_key, &model_name)
+        {
             // Cache hit - return cached response immediately
             self.conversation_history
                 .push(OllamaChatMessage::user(&user_message));

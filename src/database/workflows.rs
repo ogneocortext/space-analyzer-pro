@@ -11,7 +11,7 @@ impl super::Database {
                 exec.id, exec.workflow_id, exec.workflow_name,
                 format!("{:?}", exec.status),
                 exec.started_at, exec.completed_at, exec.error_message,
-                exec.actions_completed, exec.total_actions,
+                exec.actions_completed as i64, exec.total_actions as i64,
             ],
         )?;
         Ok(())

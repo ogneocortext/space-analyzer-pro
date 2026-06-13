@@ -22,6 +22,14 @@ class TestPageLoad:
         h1 = page.locator(".topbar h1")
         expect(h1).to_contain_text("Issue Tracker")
 
+    def test_rust_tools_panel_is_available(self, page: Page, dashboard_url: str) -> None:
+        page.goto(dashboard_url)
+        page.wait_for_load_state("networkidle")
+        expect(page.locator("#rust-path")).to_be_visible()
+        expect(page.locator("#rust-format")).to_be_visible()
+        expect(page.locator('[data-rust="cli"]')).to_be_visible()
+        expect(page.locator('[data-rust="gui"]')).to_be_visible()
+
     def test_metrics_bar_has_five_pills(self, page: Page, dashboard_url: str) -> None:
         page.goto(dashboard_url)
         page.wait_for_load_state("networkidle")

@@ -1,6 +1,8 @@
 use clap::Parser;
 use file_deduplicator::{DeduplicationConfig, FileDeduplicator};
 use shared_scanner::{FileScanner, ScanOptions};
+use space_analyzer_pro_desktop::database::Database;
+use space_analyzer_pro_desktop::error::{AppError, AppResult};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -10,6 +12,8 @@ use walkdir::WalkDir;
 mod cli;
 
 use cli::Cli;
+
+use space_analyzer_pro_desktop::gui_common::ScanResult as GuiScanResult;
 
 // ─── Enhanced scan result that captures everything the scanner provides ─────
 
@@ -69,7 +73,7 @@ impl ScanResult {
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 /// Parse a human-readable size string like "1M", "500K", "2G" into bytes.
-fn parse_size(s: &str) -> Result<u64, String> {
+fn parse_size(s: &str) -> Result<u64, AppError> {
     let s = s.trim().to_uppercase();
     let (num_str, unit) = if let Some(last) = s.chars().last() {
         if last.is_alphabetic() {
@@ -79,12 +83,12 @@ fn parse_size(s: &str) -> Result<u64, String> {
             (s.as_str(), "")
         }
     } else {
-        return Err("Empty size string".to_string());
+        return Err(AppError::InvalidMinSize("Empty size string".to_string()));
     };
 
     let num: f64 = num_str
         .parse()
-        .map_err(|e| format!("Invalid number '{}': {}", num_str, e))?;
+        .map_err(|e| AppError::InvalidMinSize(format!("Invalid number '{}': {}", num_str, e)))?;
 
     match unit {
         "" | "B" => Ok(num as u64),
@@ -92,7 +96,10 @@ fn parse_size(s: &str) -> Result<u64, String> {
         "M" | "MB" => Ok((num * 1024.0 * 1024.0) as u64),
         "G" | "GB" => Ok((num * 1024.0 * 1024.0 * 1024.0) as u64),
         "T" | "TB" => Ok((num * 1024.0 * 1024.0 * 1024.0 * 1024.0) as u64),
-        _ => Err(format!("Unknown unit '{}'. Use B, K(KB), M(MB), G(GB), or T(TB)", unit)),
+        _ => Err(AppError::InvalidMinSize(format!(
+            "Unknown unit '{}'. Use B, K(KB), M(MB), G(GB), or T(TB)",
+            unit
+        ))),
     }
 }
 
@@ -119,35 +126,38 @@ fn format_bytes(bytes: u64) -> String {
     }
 }
 
-fn validate_input(path: &str, format: &str) -> Result<(), String> {
+fn validate_input(path: &str, format: &str) -> AppResult<()> {
     if path.is_empty() {
-        return Err("Path cannot be empty".to_string());
+        return Err(AppError::Validation("Path cannot be empty".to_string()));
     }
 
     let scan_path = Path::new(path);
     let canonical_path = match std::fs::canonicalize(scan_path) {
         Ok(p) => p,
-        Err(e) => return Err(format!("Invalid path or cannot resolve path: {}", e)),
+        Err(e) => return Err(AppError::Io(e)),
     };
 
     if !canonical_path.exists() {
-        return Err(format!("Path does not exist: {}", canonical_path.display()));
+        return Err(AppError::Validation(format!(
+            "Path does not exist: {}",
+            canonical_path.display()
+        )));
     }
 
     if !canonical_path.is_dir() {
-        return Err(format!(
+        return Err(AppError::Validation(format!(
             "Path is not a directory: {}",
             canonical_path.display()
-        ));
+        )));
     }
 
     let valid_formats = ["text", "json", "csv"];
     if !valid_formats.contains(&format) {
-        return Err(format!(
+        return Err(AppError::Validation(format!(
             "Invalid format '{}'. Valid formats: {}",
             format,
             valid_formats.join(", ")
-        ));
+        )));
     }
 
     Ok(())
@@ -160,7 +170,7 @@ fn scan_directory(
     verbose: bool,
     deep: bool,
     min_size: Option<u64>,
-) -> std::io::Result<ScanResult> {
+) -> AppResult<ScanResult> {
     if verbose {
         eprintln!("[SCAN] Scanning: {}", path.display());
         if deep {
@@ -179,9 +189,7 @@ fn scan_directory(
         ScanOptions::medium()
     };
 
-    let shared_result = scanner
-        .scan_directory_sync(path.to_str().unwrap_or("."), options)
-        .map_err(|e| std::io::Error::other(e.to_string()))?;
+    let shared_result = scanner.scan_directory_sync(path.to_str().unwrap_or("."), options)?;
 
     let duration = start_time.elapsed().as_secs_f64();
     if verbose {
@@ -199,13 +207,31 @@ fn scan_directory(
     let scan_depth = if deep { usize::MAX } else { 5 };
     let walker = WalkDir::new(path).max_depth(scan_depth).into_iter();
 
-    for entry in walker.filter_map(|e| e.ok()) {
+    for entry in walker {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(e) => {
+                if verbose {
+                    eprintln!("[SCAN] Warning: Failed to read entry: {}", e);
+                }
+                continue;
+            }
+        };
         let entry_path = entry.path();
 
         if entry.file_type().is_file() {
             let metadata = match entry.metadata() {
                 Ok(m) => m,
-                Err(_) => continue,
+                Err(e) => {
+                    if verbose {
+                        eprintln!(
+                            "[SCAN] Warning: Failed to get metadata for {}: {}",
+                            entry_path.display(),
+                            e
+                        );
+                    }
+                    continue;
+                }
             };
             let size = metadata.len();
             filtered_total_size += size;
@@ -270,7 +296,7 @@ fn scan_directory(
             }
         })
         .collect();
-    top_dirs.sort_by(|a, b| b.total_size.cmp(&a.total_size));
+    top_dirs.sort_by_key(|b| std::cmp::Reverse(b.total_size));
     result.top_directories = top_dirs;
 
     // Collect largest files
@@ -288,7 +314,11 @@ fn get_disk_info(path: &str) -> Option<DiskInfo> {
     let display = if let Ok(canonical) = std::fs::canonicalize(path) {
         let s = canonical.to_string_lossy().to_uppercase();
         // Strip \\?\ UNC prefix on Windows
-        if s.starts_with("\\\\?\\") { s[4..].to_string() } else { s }
+        if let Some(stripped) = s.strip_prefix("\\\\?\\") {
+            stripped.to_string()
+        } else {
+            s
+        }
     } else {
         path.to_uppercase()
     };
@@ -346,19 +376,43 @@ fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool) {
     // ── Scan summary ──
     println!("📊 SCAN SUMMARY");
     println!("   Path:     {}", result.path);
-    println!("   Files:    {} files in {} directories", result.total_files, result.total_dirs);
-    println!("   Total:    {} ({:.2} MB)", format_bytes(result.total_size_bytes), result.total_size_mb);
+    println!(
+        "   Files:    {} files in {} directories",
+        result.total_files, result.total_dirs
+    );
+    println!(
+        "   Total:    {} ({:.2} MB)",
+        format_bytes(result.total_size_bytes),
+        result.total_size_mb
+    );
     println!("   Duration: {:.2} seconds", result.duration_secs);
     if !result.errors.is_empty() {
         println!("   Errors:   {} (access denied, etc.)", result.errors.len());
+        for error in result.errors.iter().take(10) {
+            println!("   - {}", error);
+        }
+        if result.errors.len() > 10 {
+            println!("   ... and {} more", result.errors.len() - 10);
+        }
     }
     println!();
 
     // ── Top directories by size ──
     if !result.top_directories.is_empty() {
-        println!("📁 TOP DIRECTORIES BY SIZE (showing {} of {})", top_n.min(result.top_directories.len()), result.top_directories.len());
-        println!("   {:<8} {:<8} {:>10}  {}", "Files", "Dirs", "Size", "Path");
-        println!("   {}─{:<8}─{}─{:>10}─{}", "─".repeat(3), "─".repeat(8), "─".repeat(3), "─".repeat(10), "─".repeat(30));
+        println!(
+            "📁 TOP DIRECTORIES BY SIZE (showing {} of {})",
+            top_n.min(result.top_directories.len()),
+            result.top_directories.len()
+        );
+        println!("   {:<8} {:<8} {:>10}  Path", "Files", "Dirs", "Size");
+        println!(
+            "   {}─{:<8}─{}─{:>10}─{}",
+            "─".repeat(3),
+            "─".repeat(8),
+            "─".repeat(3),
+            "─".repeat(10),
+            "─".repeat(30)
+        );
 
         for dir in result.top_directories.iter().take(top_n) {
             let pct = if result.total_size_bytes > 0 {
@@ -394,9 +448,23 @@ fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool) {
         let mut ext_sizes: Vec<_> = result.extension_sizes.iter().collect();
         ext_sizes.sort_by(|a, b| b.1.cmp(a.1));
 
-        println!("📄 FILE TYPES BY SIZE (showing {} of {})", top_n.min(ext_sizes.len()), ext_sizes.len());
-        println!("   {:<12} {:>8} {:>10}  {}", "Extension", "Count", "Size", "% of Total");
-        println!("   {}─{:<12}─{}─{:>10}─{}", "─".repeat(3), "─".repeat(12), "─".repeat(8), "─".repeat(10), "─".repeat(12));
+        println!(
+            "📄 FILE TYPES BY SIZE (showing {} of {})",
+            top_n.min(ext_sizes.len()),
+            ext_sizes.len()
+        );
+        println!(
+            "   {:<12} {:>8} {:>10}  % of Total",
+            "Extension", "Count", "Size"
+        );
+        println!(
+            "   {}─{:<12}─{}─{:>10}─{}",
+            "─".repeat(3),
+            "─".repeat(12),
+            "─".repeat(8),
+            "─".repeat(10),
+            "─".repeat(12)
+        );
 
         for (ext, size) in ext_sizes.iter().take(top_n) {
             let count = result.file_types.get(*ext).unwrap_or(&0);
@@ -419,7 +487,10 @@ fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool) {
 
     // ── Largest files ──
     if !result.largest_files.is_empty() {
-        println!("🏆 LARGEST FILES (top {})", top_n.min(result.largest_files.len()));
+        println!(
+            "🏆 LARGEST FILES (top {})",
+            top_n.min(result.largest_files.len())
+        );
         for (i, (path, size)) in result.largest_files.iter().take(top_n).enumerate() {
             let pct = if result.total_size_bytes > 0 {
                 (*size as f64 / result.total_size_bytes as f64) * 100.0
@@ -444,17 +515,15 @@ fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool) {
     print_recommendations(result);
 
     // ── Verbose details ──
-    if verbose {
-        if !result.empty_dirs.is_empty() {
-            println!("📂 EMPTY DIRECTORIES ({} found)", result.empty_dirs.len());
-            for dir in result.empty_dirs.iter().take(20) {
-                println!("   {}", dir);
-            }
-            if result.empty_dirs.len() > 20 {
-                println!("   ... and {} more", result.empty_dirs.len() - 20);
-            }
-            println!();
+    if verbose && !result.empty_dirs.is_empty() {
+        println!("📂 EMPTY DIRECTORIES ({} found)", result.empty_dirs.len());
+        for dir in result.empty_dirs.iter().take(20) {
+            println!("   {}", dir);
         }
+        if result.empty_dirs.len() > 20 {
+            println!("   ... and {} more", result.empty_dirs.len() - 20);
+        }
+        println!();
     }
 }
 
@@ -469,10 +538,15 @@ fn print_recommendations(result: &ScanResult) {
                 disk.mount_point, disk.usage_percent, format_bytes(disk.available_bytes)
             )));
         } else if disk.usage_percent > 80.0 {
-            recommendations.push((2, format!(
-                "🟡 WARNING: Drive {} is {:.0}% full. {} free. Consider cleanup soon.",
-                disk.mount_point, disk.usage_percent, format_bytes(disk.available_bytes)
-            )));
+            recommendations.push((
+                2,
+                format!(
+                    "🟡 WARNING: Drive {} is {:.0}% full. {} free. Consider cleanup soon.",
+                    disk.mount_point,
+                    disk.usage_percent,
+                    format_bytes(disk.available_bytes)
+                ),
+            ));
         }
     }
 
@@ -491,24 +565,19 @@ fn print_recommendations(result: &ScanResult) {
     }
 
     // Check for large log files
-    let log_size: u64 = result
-        .extension_sizes
-        .get("log")
-        .copied()
-        .unwrap_or(0);
+    let log_size: u64 = result.extension_sizes.get("log").copied().unwrap_or(0);
     if log_size > 100 * 1024 * 1024 {
-        recommendations.push((1, format!(
-            "📝 Log files are using {} of disk space. Consider clearing old logs.",
-            format_bytes(log_size)
-        )));
+        recommendations.push((
+            1,
+            format!(
+                "📝 Log files are using {} of disk space. Consider clearing old logs.",
+                format_bytes(log_size)
+            ),
+        ));
     }
 
     // Check for old installer executables
-    let exe_size: u64 = result
-        .extension_sizes
-        .get("exe")
-        .copied()
-        .unwrap_or(0);
+    let exe_size: u64 = result.extension_sizes.get("exe").copied().unwrap_or(0);
     if exe_size > 500 * 1024 * 1024 {
         recommendations.push((1, format!(
             "📦 Installer/executable files are using {}. Check Downloads for old installers you no longer need.",
@@ -518,14 +587,14 @@ fn print_recommendations(result: &ScanResult) {
 
     // Check for WSL/VM images
     for (path, size) in &result.largest_files {
-        if path.contains(".vhdx") || path.contains("ext4.vhdx") || path.contains("WSL") {
-            if *size > 1024 * 1024 * 1024 {
-                recommendations.push((2, format!(
-                    "🖥️  WSL/VM disk image found: {} ({}) — Consider compacting or removing unused distributions.",
-                    Path::new(path).file_name().unwrap_or_default().to_string_lossy(),
-                    format_bytes(*size)
-                )));
-            }
+        if (path.contains(".vhdx") || path.contains("ext4.vhdx") || path.contains("WSL"))
+            && *size > 1024 * 1024 * 1024
+        {
+            recommendations.push((2, format!(
+                "🖥️  WSL/VM disk image found: {} ({}) — Consider compacting or removing unused distributions.",
+                Path::new(path).file_name().unwrap_or_default().to_string_lossy(),
+                format_bytes(*size)
+            )));
         }
     }
 
@@ -542,16 +611,17 @@ fn print_recommendations(result: &ScanResult) {
     let cache_size: u64 = result
         .top_directories
         .iter()
-        .filter(|d| {
-            d.name == "cache" || d.name == "Cache" || d.name == "temp" || d.name == "Temp"
-        })
+        .filter(|d| d.name == "cache" || d.name == "Cache" || d.name == "temp" || d.name == "Temp")
         .map(|d| d.total_size)
         .sum();
     if cache_size > 500 * 1024 * 1024 {
-        recommendations.push((1, format!(
-            "🗑️  Cache/temp directories are using {}. Consider clearing application caches.",
-            format_bytes(cache_size)
-        )));
+        recommendations.push((
+            1,
+            format!(
+                "🗑️  Cache/temp directories are using {}. Consider clearing application caches.",
+                format_bytes(cache_size)
+            ),
+        ));
     }
 
     // Check for duplicate file potential
@@ -560,7 +630,7 @@ fn print_recommendations(result: &ScanResult) {
     }
 
     // Sort by priority (highest first)
-    recommendations.sort_by(|a, b| b.0.cmp(&a.0));
+    recommendations.sort_by_key(|b| std::cmp::Reverse(b.0));
 
     if !recommendations.is_empty() {
         println!("💡 RECOMMENDATIONS");
@@ -581,8 +651,14 @@ fn export_results(result: &ScanResult, export_path: &str, format: &str) {
             // Summary
             csv.push_str("section,key,value\n");
             csv.push_str(&format!("summary,total_files,{}\n", result.total_files));
-            csv.push_str(&format!("summary,total_size_bytes,{}\n", result.total_size_bytes));
-            csv.push_str(&format!("summary,duration_secs,{:.3}\n", result.duration_secs));
+            csv.push_str(&format!(
+                "summary,total_size_bytes,{}\n",
+                result.total_size_bytes
+            ));
+            csv.push_str(&format!(
+                "summary,duration_secs,{:.3}\n",
+                result.duration_secs
+            ));
             csv.push('\n');
 
             // Extension sizes
@@ -637,15 +713,9 @@ fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String {
     // Disk overview
     if let Some(disk) = get_disk_info(path) {
         report.push_str("## 💾 Disk Overview\n\n");
-        report.push_str(&format!("| Metric | Value |\n|--------|-------|\n"));
-        report.push_str(&format!(
-            "| Drive | `{}` |\n",
-            disk.mount_point
-        ));
-        report.push_str(&format!(
-            "| Total | {} |\n",
-            format_bytes(disk.total_bytes)
-        ));
+        report.push_str("| Metric | Value |\n|--------|-------|\n");
+        report.push_str(&format!("| Drive | `{}` |\n", disk.mount_point));
+        report.push_str(&format!("| Total | {} |\n", format_bytes(disk.total_bytes)));
         report.push_str(&format!(
             "| Used | {} ({:.1}%) |\n",
             format_bytes(disk.used_bytes),
@@ -713,7 +783,10 @@ fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String {
             let ext_display = if ext.is_empty() { "(no ext)" } else { ext };
             report.push_str(&format!(
                 "| `.{}` | {} | {} | {:.1}% |\n",
-                ext_display, format_bytes(**size), count, pct
+                ext_display,
+                format_bytes(**size),
+                count,
+                pct
             ));
         }
         report.push('\n');
@@ -750,18 +823,27 @@ fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String {
         .iter()
         .filter(|(p, _)| {
             let lower = p.to_lowercase();
-            lower.ends_with(".exe") || lower.ends_with(".msi") || lower.ends_with(".rar")
-                || lower.ends_with(".zip") || lower.ends_with(".dmg") || lower.ends_with(".deb")
-                || lower.ends_with(".rpm") || lower.ends_with(".pkg")
+            lower.ends_with(".exe")
+                || lower.ends_with(".msi")
+                || lower.ends_with(".rar")
+                || lower.ends_with(".zip")
+                || lower.ends_with(".dmg")
+                || lower.ends_with(".deb")
+                || lower.ends_with(".rpm")
+                || lower.ends_with(".pkg")
         })
         .map(|(p, s)| (p.as_str(), *s))
         .collect();
-    installers.sort_by(|a, b| b.1.cmp(&a.1));
+    installers.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     if !installers.is_empty() {
         let total_inst_size: u64 = installers.iter().map(|(_, s)| *s).sum();
-        report.push_str(&format!("## 📦 Installer & Executable Inventory\n\n"));
-        report.push_str(&format!("**Total:** {} across {} files\n\n", format_bytes(total_inst_size), installers.len()));
+        report.push_str("## 📦 Installer & Executable Inventory\n\n");
+        report.push_str(&format!(
+            "**Total:** {} across {} files\n\n",
+            format_bytes(total_inst_size),
+            installers.len()
+        ));
         report.push_str("These files are likely safe to delete after installation.\n\n");
 
         // Categorize
@@ -772,14 +854,20 @@ fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String {
 
         for &(path, size) in &installers {
             let lower = path.to_lowercase();
-            if lower.contains("driver") || lower.contains("realtek") || lower.contains("mb_driver") {
+            if lower.contains("driver") || lower.contains("realtek") || lower.contains("mb_driver")
+            {
                 drivers.push((path, size));
-            } else if lower.contains("cuda") || lower.contains("nvidia")
-                || lower.contains("596.21-desktop") || lower.contains("amd_ryzen")
+            } else if lower.contains("cuda")
+                || lower.contains("nvidia")
+                || lower.contains("596.21-desktop")
+                || lower.contains("amd_ryzen")
             {
                 gpu_cuda.push((path, size));
-            } else if lower.contains("setup") || lower.contains("installer") || lower.contains("user")
-                || lower.ends_with(".msi") || lower.contains("desktop")
+            } else if lower.contains("setup")
+                || lower.contains("installer")
+                || lower.contains("user")
+                || lower.ends_with(".msi")
+                || lower.contains("desktop")
             {
                 apps.push((path, size));
             } else {
@@ -787,7 +875,12 @@ fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String {
             }
         }
 
-        for (label, group) in [("🖥️ GPU/Drivers/Chipset", &gpu_cuda), ("🔧 Drivers", &drivers), ("📱 Application Installers", &apps), ("📄 Archives/Other", &other)] {
+        for (label, group) in [
+            ("🖥️ GPU/Drivers/Chipset", &gpu_cuda),
+            ("🔧 Drivers", &drivers),
+            ("📱 Application Installers", &apps),
+            ("📄 Archives/Other", &other),
+        ] {
             if !group.is_empty() {
                 let group_size: u64 = group.iter().map(|(_, s)| *s).sum();
                 report.push_str(&format!("### {} ({})\n\n", label, format_bytes(group_size)));
@@ -814,20 +907,29 @@ fn print_installer_inventory(result: &ScanResult) {
         .iter()
         .filter(|(p, _)| {
             let lower = p.to_lowercase();
-            lower.ends_with(".exe") || lower.ends_with(".msi") || lower.ends_with(".rar")
-                || lower.ends_with(".zip") || lower.ends_with(".dmg") || lower.ends_with(".deb")
-                || lower.ends_with(".rpm") || lower.ends_with(".pkg")
+            lower.ends_with(".exe")
+                || lower.ends_with(".msi")
+                || lower.ends_with(".rar")
+                || lower.ends_with(".zip")
+                || lower.ends_with(".dmg")
+                || lower.ends_with(".deb")
+                || lower.ends_with(".rpm")
+                || lower.ends_with(".pkg")
         })
         .map(|(p, s)| (p.as_str(), *s))
         .collect();
-    installers.sort_by(|a, b| b.1.cmp(&a.1));
+    installers.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     if installers.is_empty() {
         return;
     }
 
     let total_size: u64 = installers.iter().map(|(_, s)| *s).sum();
-    println!("📦 INSTALLER & EXECUTABLE INVENTORY ({}, {} files)", format_bytes(total_size), installers.len());
+    println!(
+        "📦 INSTALLER & EXECUTABLE INVENTORY ({}, {} files)",
+        format_bytes(total_size),
+        installers.len()
+    );
     println!("   These are likely safe to delete after installation. Sort by size and remove oldest/unneeded.");
     println!();
 
@@ -841,14 +943,19 @@ fn print_installer_inventory(result: &ScanResult) {
         let lower = path.to_lowercase();
         if lower.contains("driver") || lower.contains("realtek") || lower.contains("mb_driver") {
             driver_installers.push((path, size));
-        } else if lower.contains("cuda") || lower.contains("nvidia")
-            || lower.contains("596.21-desktop") || lower.contains("amd_ryzen")
+        } else if lower.contains("cuda")
+            || lower.contains("nvidia")
+            || lower.contains("596.21-desktop")
+            || lower.contains("amd_ryzen")
         {
             gpu_cuda_installers.push((path, size));
         } else {
             // Check if it's an app installer
-            if lower.contains("setup") || lower.contains("installer") || lower.contains("user")
-                || lower.ends_with(".msi") || lower.contains("desktop")
+            if lower.contains("setup")
+                || lower.contains("installer")
+                || lower.contains("user")
+                || lower.ends_with(".msi")
+                || lower.contains("desktop")
             {
                 app_installers.push((path, size));
             } else {
@@ -859,9 +966,15 @@ fn print_installer_inventory(result: &ScanResult) {
 
     if !gpu_cuda_installers.is_empty() {
         let size: u64 = gpu_cuda_installers.iter().map(|(_, s)| *s).sum();
-        println!("   ┌─ 🖥️  GPU/Drivers/Chipset: {} total ──────────────┐", format_bytes(size));
+        println!(
+            "   ┌─ 🖥️  GPU/Drivers/Chipset: {} total ──────────────┐",
+            format_bytes(size)
+        );
         for (path, size) in gpu_cuda_installers.iter().take(10) {
-            let name = Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let name = Path::new(path)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
             println!("   │  {:>10}  {} ", format_bytes(*size), name);
         }
         println!("   └────────────────────────────────────────────────────┘");
@@ -870,9 +983,15 @@ fn print_installer_inventory(result: &ScanResult) {
 
     if !driver_installers.is_empty() {
         let size: u64 = driver_installers.iter().map(|(_, s)| *s).sum();
-        println!("   ┌─ 🔧 Drivers: {} total ──────────────────────────┐", format_bytes(size));
+        println!(
+            "   ┌─ 🔧 Drivers: {} total ──────────────────────────┐",
+            format_bytes(size)
+        );
         for (path, size) in driver_installers.iter().take(10) {
-            let name = Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let name = Path::new(path)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
             println!("   │  {:>10}  {} ", format_bytes(*size), name);
         }
         println!("   └────────────────────────────────────────────────────┘");
@@ -881,13 +1000,20 @@ fn print_installer_inventory(result: &ScanResult) {
 
     if !app_installers.is_empty() {
         let size: u64 = app_installers.iter().map(|(_, s)| *s).sum();
-        println!("   ┌─ 📱 Application Installers: {} total ──────────┐", format_bytes(size));
+        println!(
+            "   ┌─ 📱 Application Installers: {} total ──────────┐",
+            format_bytes(size)
+        );
         for (path, size) in app_installers.iter().take(10) {
-            let name = Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let name = Path::new(path)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
             println!("   │  {:>10}  {} ", format_bytes(*size), name);
         }
         if app_installers.len() > 10 {
-            println!("   │  ... and {} more ({})  ",
+            println!(
+                "   │  ... and {} more ({})  ",
                 app_installers.len() - 10,
                 format_bytes(app_installers[10..].iter().map(|(_, s)| *s).sum::<u64>())
             );
@@ -898,13 +1024,20 @@ fn print_installer_inventory(result: &ScanResult) {
 
     if !other_installers.is_empty() {
         let size: u64 = other_installers.iter().map(|(_, s)| *s).sum();
-        println!("   ┌─ 📄 Archives/Other: {} total ─────────────────┐", format_bytes(size));
+        println!(
+            "   ┌─ 📄 Archives/Other: {} total ─────────────────┐",
+            format_bytes(size)
+        );
         for (path, size) in other_installers.iter().take(10) {
-            let name = Path::new(path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let name = Path::new(path)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
             println!("   │  {:>10}  {} ", format_bytes(*size), name);
         }
         if other_installers.len() > 10 {
-            println!("   │  ... and {} more ({})  ",
+            println!(
+                "   │  ... and {} more ({})  ",
                 other_installers.len() - 10,
                 format_bytes(other_installers[10..].iter().map(|(_, s)| *s).sum::<u64>())
             );
@@ -980,10 +1113,7 @@ fn run_clean_analysis(path: &str) {
                     }
                 }
                 if sorted_groups.len() > 15 {
-                    println!(
-                        "   ... and {} more groups",
-                        sorted_groups.len() - 15
-                    );
+                    println!("   ... and {} more groups", sorted_groups.len() - 15);
                 }
 
                 println!();
@@ -997,39 +1127,129 @@ fn run_clean_analysis(path: &str) {
     }
 }
 
-// ─── Main ──────────────────────────────────────────────────────────────────
+// ─── Cleanup Recommendations ───────────────────────────────────────────────────
 
-fn main() -> std::io::Result<()> {
-    let cli = Cli::parse();
+fn print_cleanup_recommendations(result: &ScanResult) {
+    println!("\n🧹 CLEANUP RECOMMENDATIONS");
+    println!("   Actionable steps to reclaim disk space:\n");
 
-    // Validate inputs
-    if let Err(error) = validate_input(&cli.path, &cli.format) {
-        eprintln!("❌ {}", error);
-        std::process::exit(1);
+    let mut actions: Vec<(u32, String)> = Vec::new();
+
+    // Cache directories
+    for dir in &result.top_directories {
+        let lower = dir.path.to_lowercase();
+        if lower.contains("cache") || lower.contains("temp") || lower.contains("tmp") {
+            actions.push((
+                3,
+                format!(
+                "🗑️  Cache/temp: `{}` ({} files) — Safe to clear via disk cleanup or app settings",
+                dir.path,
+                dir.file_count
+            ),
+            ));
+        }
     }
 
-    // Parse min_size
-    let min_size = match &cli.min_size {
-        Some(s) => match parse_size(s) {
-            Ok(size) => Some(size),
-            Err(e) => {
-                eprintln!("❌ Invalid --min-size: {}", e);
-                std::process::exit(1);
+    // Installer files
+    let installer_size: u64 = result
+        .largest_files
+        .iter()
+        .filter(|(p, _)| {
+            let lower = p.to_lowercase();
+            lower.ends_with(".exe") || lower.ends_with(".msi") || lower.ends_with(".zip")
+        })
+        .map(|(_, s)| *s)
+        .sum();
+    if installer_size > 100 * 1024 * 1024 {
+        actions.push((3, format!(
+            "📦 Installers: {} in installer files — Remove old installers after confirming apps work",
+            format_bytes(installer_size)
+        )));
+    }
+
+    // Large AI/model caches
+    for (path, size) in &result.largest_files {
+        let lower = path.to_lowercase();
+        if *size > 100 * 1024 * 1024 {
+            if lower.contains("ollama") || lower.contains("models") || lower.contains("blobs") {
+                actions.push((
+                    2,
+                    format!(
+                    "🤖 AI Model: `{}` ({}) — Consider `ollama prune` or removing unused models",
+                    path, format_bytes(*size)
+                ),
+                ));
+            } else if lower.contains(".cache") || lower.contains("pip") {
+                actions.push((
+                    2,
+                    format!(
+                        "🐍 Cache: `{}` ({}) — Consider `pip cache purge` or manual cleanup",
+                        path,
+                        format_bytes(*size)
+                    ),
+                ));
             }
-        },
-        None => None,
-    };
+        }
+    }
+
+    // Node modules
+    let node_modules_size: u64 = result
+        .largest_files
+        .iter()
+        .filter(|(p, _)| {
+            let lower = p.to_lowercase();
+            lower.contains("node_modules")
+        })
+        .map(|(_, s)| *s)
+        .sum();
+    if node_modules_size > 100 * 1024 * 1024 {
+        actions.push((
+            1,
+            format!(
+                "📦 Node modules: {} across projects — Run `npm prune` or delete in build folders",
+                format_bytes(node_modules_size)
+            ),
+        ));
+    }
+
+    // Sort by priority (highest first) and print
+    actions.sort_by_key(|a| std::cmp::Reverse(a.0));
+    for (_, action) in &actions {
+        println!("   {}", action);
+    }
+
+    if actions.is_empty() {
+        println!("   ✅ No major cleanup opportunities found.");
+    }
+
+    println!("\n💡 Pro tip: Use `--report` to save a detailed markdown report");
+}
+
+// ─── Main ──────────────────────────────────────────────────────────────────
+
+fn main() -> AppResult<()> {
+    let cli = Cli::parse();
+
+    validate_input(&cli.path, &cli.format)?;
+
+    let min_size = cli
+        .min_size
+        .as_ref()
+        .map(|size| parse_size(size))
+        .transpose()?;
 
     // Only show header for non-JSON formats
     if cli.format == "text" {
-        eprintln!(
-            "=> Space Analyzer Pro v{}",
-            env!("CARGO_PKG_VERSION")
-        );
+        eprintln!("=> Space Analyzer Pro v{}", env!("CARGO_PKG_VERSION"));
     }
 
     let scan_path = Path::new(&cli.path);
-    let result = scan_directory(scan_path, cli.verbose && cli.format != "json", cli.deep, min_size)?;
+    let result = scan_directory(
+        scan_path,
+        cli.verbose && cli.format != "json",
+        cli.deep,
+        min_size,
+    )?;
 
     // Print results
     match cli.format.as_str() {
@@ -1041,18 +1261,9 @@ fn main() -> std::io::Result<()> {
         "csv" => {
             // CSV output
             println!("section,key,value");
-            println!(
-                "summary,total_files,{}",
-                result.total_files
-            );
-            println!(
-                "summary,total_size_bytes,{}",
-                result.total_size_bytes
-            );
-            println!(
-                "summary,duration_secs,{:.3}",
-                result.duration_secs
-            );
+            println!("summary,total_files,{}", result.total_files);
+            println!("summary,total_size_bytes,{}", result.total_size_bytes);
+            println!("summary,duration_secs,{:.3}", result.duration_secs);
             println!();
             println!("extension,size_bytes,file_count");
             let mut ext_sizes: Vec<_> = result.extension_sizes.iter().collect();
@@ -1108,16 +1319,20 @@ fn main() -> std::io::Result<()> {
     // Report
     if cli.report {
         let report_content = generate_report(&result, &cli.path, cli.top);
-        // Write report to the project's reports directory
+        // Write report to the project's reports directory with improved naming
         let reports_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("reports");
         let _ = fs::create_dir_all(&reports_dir);
-        // Use a timestamped filename to avoid overwriting previous reports
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-        let target_dir_name = Path::new(&cli.path)
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "scan".to_string());
-        let report_filename = format!("{}_{}.md", target_dir_name, timestamp);
+        let sanitized_path: String = cli
+            .path
+            .chars()
+            .filter(|c| !['\\', '/', ':'].contains(c))
+            .collect();
+        let path_hash = format!(
+            "{:08x}",
+            sanitized_path.chars().map(|c| c as u32).sum::<u32>() % 100000000
+        );
+        let report_filename = format!("{}_{}_{}.md", sanitized_path, timestamp, path_hash);
         let report_path = reports_dir.join(&report_filename);
         match fs::write(&report_path, &report_content) {
             Ok(()) => eprintln!("✅ Report written to: {}", report_path.display()),
@@ -1125,9 +1340,30 @@ fn main() -> std::io::Result<()> {
         }
     }
 
+    // Save to database for trend tracking
+    if let Ok(db) = Database::default_open() {
+        // Convert CLI result to GUI result for database compatibility
+        let gui_result = GuiScanResult {
+            total_files: result.total_files,
+            total_size_bytes: result.total_size_bytes,
+            total_size_mb: result.total_size_mb,
+            duration_secs: result.duration_secs,
+            file_types: result.file_types.clone(),
+            largest_files: result.largest_files.clone(),
+            errors: result.errors.clone(),
+            path: result.path.clone(),
+        };
+        let _ = db.save_scan(&gui_result, cli.deep || cli.verbose);
+    }
+
     // Duplicate analysis
     if cli.clean {
         run_clean_analysis(&cli.path);
+    }
+
+    // Cleanup recommendations
+    if cli.cleanup_recommendations {
+        print_cleanup_recommendations(&result);
     }
 
     Ok(())

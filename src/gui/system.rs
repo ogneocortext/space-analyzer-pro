@@ -2,9 +2,9 @@ use super::*;
 
 impl SpaceAnalyzerApp {
     pub fn refresh_system_info(&mut self) {
-        self.disk_volumes = SystemMonitor::get_disk_volumes();
-        self.system_resources = Some(SystemMonitor::get_system_resources());
-        self.gpu_info = Some(SystemMonitor::detect_gpu());
+        self.system_state.disk_volumes = SystemMonitor::get_disk_volumes();
+        self.system_state.system_resources = Some(SystemMonitor::get_system_resources());
+        self.system_state.gpu_info = Some(SystemMonitor::detect_gpu());
     }
 
     pub fn export_results(&self) {
@@ -84,7 +84,7 @@ impl SpaceAnalyzerApp {
         });
 
         // ── CPU & Memory ──────────────────────────────────────────────
-        if let Some(ref resources) = self.system_resources {
+        if let Some(ref resources) = self.system_state.system_resources {
             section_heading(ui, Some('💻'), "CPU & Memory");
             card_frame(ui.style()).show(ui, |ui| {
                 // CPU info row
@@ -128,10 +128,10 @@ impl SpaceAnalyzerApp {
         }
 
         // ── Disk Volumes ──────────────────────────────────────────────
-        if !self.disk_volumes.is_empty() {
+        if !self.system_state.disk_volumes.is_empty() {
             section_heading(ui, Some('💾'), "Disk Volumes");
             card_frame(ui.style()).show(ui, |ui| {
-                for volume in &self.disk_volumes {
+                for volume in &self.system_state.disk_volumes {
                     labeled_gauge(
                         ui,
                         &format!("{} ({})", volume.mount_point, volume.name),
@@ -148,7 +148,7 @@ impl SpaceAnalyzerApp {
         }
 
         // ── GPU ───────────────────────────────────────────────────────
-        if let Some(ref gpu) = self.gpu_info {
+        if let Some(ref gpu) = self.system_state.gpu_info {
             section_heading(ui, Some('🎮'), "GPU");
             card_frame(ui.style()).show(ui, |ui| {
                 if gpu.available {
@@ -192,8 +192,11 @@ impl SpaceAnalyzerApp {
                             labeled_gauge(
                                 ui,
                                 "VRAM Usage",
-                                if let Some(gpu_vram) =
-                                    self.gpu_info.as_ref().and_then(|g| g.vram_bytes)
+                                if let Some(gpu_vram) = self
+                                    .system_state
+                                    .gpu_info
+                                    .as_ref()
+                                    .and_then(|g| g.vram_bytes)
                                 {
                                     (vram as f32 / gpu_vram as f32).min(1.0)
                                 } else {

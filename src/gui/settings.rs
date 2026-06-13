@@ -78,7 +78,7 @@ impl SpaceAnalyzerApp {
                         .color(colors::TEXT_MUTED),
                 );
 
-                if let Some(ref gpu) = self.gpu_info {
+                if let Some(ref gpu) = self.system_state.gpu_info {
                     ui.separator();
                     if let Some(ref name) = gpu.name {
                         badge(ui, &format!("Detected: {}", name), colors::SUCCESS);

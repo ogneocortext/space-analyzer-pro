@@ -22,7 +22,7 @@ impl SpaceAnalyzerApp {
         self.scan_receiver = Some(rx);
 
         std::thread::spawn(move || {
-let _ = tx.send(ScanMessage::Progress {
+            let _ = tx.send(ScanMessage::Progress {
                 percentage: 0.0,
                 files: 0,
                 bytes: 0,
@@ -71,7 +71,7 @@ let _ = tx.send(ScanMessage::Progress {
                         duration,
                     );
 
-let _ = tx.send(ScanMessage::Progress {
+                    let _ = tx.send(ScanMessage::Progress {
                         percentage: 100.0,
                         files: 0,
                         bytes: 0,
@@ -96,79 +96,87 @@ let _ = tx.send(ScanMessage::Progress {
         self.status_message = Some("Scan cancelled".to_string());
     }
 
-    pub fn process_scan_messages(&mut self) {
+    /// Process scan messages with proper error handling and resource cleanup
+    pub fn process_scan_messages_safe(&mut self) {
         let receiver = self.scan_receiver.take();
         if let Some(receiver) = receiver {
-            while let Ok(message) = receiver.try_recv() {
-                match message {
-                    ScanMessage::Progress {
-                        percentage,
-                        files,
-                        bytes,
-                        current_file: _,
-                    } => {
-                        self.scan_progress = percentage;
-                        self.scan_performance.update(files, bytes);
-                    }
-                    ScanMessage::Complete(result) => {
-                        // Save to database
-                        if let Some(ref db) = self.db {
-                            if let Err(e) = db.save_scan(&result, self.settings.default_deep_scan) {
-                                self.status_message = Some(format!(
-                                    "Failed to save scan: {}",
-                                    sanitize_error_message(&e.to_string())
-                                ));
+            loop {
+                match receiver.try_recv() {
+                    Ok(message) => match message {
+                        ScanMessage::Progress {
+                            percentage,
+                            files,
+                            bytes,
+                            current_file: _,
+                        } => {
+                            self.scan_progress = percentage;
+                            self.scan_performance.update(files, bytes);
+                        }
+                        ScanMessage::Complete(result) => {
+                            // Save to database
+                            if let Some(ref db) = self.db {
+                                if let Err(e) =
+                                    db.save_scan(&result, self.settings.default_deep_scan)
+                                {
+                                    self.status_message = Some(format!(
+                                        "Failed to save scan: {}",
+                                        sanitize_error_message(&e.to_string())
+                                    ));
+                                }
+                                self.scan_history = db.get_scan_history(50).unwrap_or_default();
                             }
-                            self.scan_history = db.get_scan_history(50).unwrap_or_default();
-                        }
 
-                        self.scan_result = Some(result.clone());
-                        self.is_scanning = false;
-                        self.scan_receiver = None;
-                        self.cancel_flag = None;
-                        self.tool_registry = Some(ToolRegistry::new(Some(result.clone())));
-                        self.generate_ai_recommendations();
+                            self.scan_result = Some(result.clone());
+                            self.is_scanning = false;
+                            self.scan_receiver = None;
+                            self.cancel_flag = None;
+                            self.tool_registry = Some(ToolRegistry::new(Some(result.clone())));
+                            self.generate_ai_recommendations();
 
-                        let elapsed = self.scan_performance.elapsed_secs();
-                        let files_per_sec = if elapsed > 0.0 {
-                            result.total_files as f64 / elapsed
-                        } else {
-                            0.0
-                        };
-                        self.push_notification(
-                            format!(
-                                "Scan complete: {} files in {:.1}s ({:.0} files/sec)",
-                                result.total_files, elapsed, files_per_sec
-                            ),
-                            super::NotificationLevel::Success,
-                        );
-                        self.scan_performance.reset();
+                            let elapsed = self.scan_performance.elapsed_secs();
+                            let files_per_sec = if elapsed > 0.0 {
+                                result.total_files as f64 / elapsed
+                            } else {
+                                0.0
+                            };
+                            self.push_notification(
+                                format!(
+                                    "Scan complete: {} files in {:.1}s ({:.0} files/sec)",
+                                    result.total_files, elapsed, files_per_sec
+                                ),
+                                super::NotificationLevel::Success,
+                            );
+                            self.scan_performance.reset();
 
-                        // Mark active workflow as completed and persist
-                        let completed_execution = self.active_workflow.as_mut().map(|exec| {
-                            exec.complete();
-                            exec.clone()
-                        });
-                        if let Some(exec) = completed_execution {
-                            self.save_workflow_execution_to_db(&exec);
+                            // Mark active workflow as completed and persist
+                            let completed_execution = self.active_workflow.as_mut().map(|exec| {
+                                exec.complete();
+                                exec.clone()
+                            });
+                            if let Some(exec) = completed_execution {
+                                self.save_workflow_execution_to_db(&exec);
+                            }
+                            // Start embedding index if enabled
+                            if self.settings.embedding_enabled && self.ollama_client.is_some() {
+                                self.start_embedding_index();
+                            }
                         }
-                        // Start embedding index if enabled
-                        if self.settings.embedding_enabled && self.ollama_client.is_some() {
-                            self.start_embedding_index();
+                        ScanMessage::Error(error) => {
+                            self.status_message = Some(error.clone());
+                            self.is_scanning = false;
+                            self.cancel_flag = None;
+                            self.scan_performance.reset();
+                            self.push_notification(
+                                format!("Scan failed: {}", error),
+                                super::NotificationLevel::Error,
+                            );
                         }
-                    }
-                    ScanMessage::Error(error) => {
-                        self.status_message = Some(error.clone());
-                        self.is_scanning = false;
-                        self.cancel_flag = None;
-                        self.scan_performance.reset();
-                        self.push_notification(
-                            format!("Scan failed: {}", error),
-                            super::NotificationLevel::Error,
-                        );
-                    }
+                    },
+                    Err(mpsc::TryRecvError::Empty) => break,
+                    Err(mpsc::TryRecvError::Disconnected) => break,
                 }
             }
+
             if self.is_scanning {
                 self.scan_receiver = Some(receiver);
             } else {
@@ -331,7 +339,26 @@ let _ = tx.send(ScanMessage::Progress {
                         colors::ACCENT,
                     );
                 }
+                if !result.errors.is_empty() {
+                    stat_card(
+                        ui,
+                        "Errors",
+                        &result.errors.len().to_string(),
+                        colors::ERROR,
+                    );
+                }
             });
+
+            if !result.errors.is_empty() {
+                section_heading(ui, Some('⚠'), "Scan Errors");
+                card_frame(ui.style()).show(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .max_height(140.0)
+                        .show(ui, |ui| {
+                            self.show_scan_errors(ui, result);
+                        });
+                });
+            }
 
             // Visual Analysis
             section_heading(ui, Some('📊'), "File Distribution");
@@ -402,6 +429,19 @@ let _ = tx.send(ScanMessage::Progress {
                 gauge_bar(ui, bar_pct, ui.available_width(), 4.0);
             });
             ui.add_space(2.0);
+        }
+    }
+
+    fn show_scan_errors(&self, ui: &mut egui::Ui, result: &ScanResult) {
+        for error in result.errors.iter().take(50) {
+            ui.label(egui::RichText::new(error).size(11.0).color(colors::ERROR));
+        }
+        if result.errors.len() > 50 {
+            ui.label(
+                egui::RichText::new(format!("... and {} more", result.errors.len() - 50))
+                    .size(11.0)
+                    .color(colors::TEXT_MUTED),
+            );
         }
     }
 
@@ -495,4 +535,3 @@ let _ = tx.send(ScanMessage::Progress {
             });
     }
 }
-

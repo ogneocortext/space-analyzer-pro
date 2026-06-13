@@ -76,6 +76,7 @@ mod tests {
                 ("C:\\images\\photo.jpg".to_string(), 5_000_000),
             ],
             file_types,
+            errors: Vec::new(),
         }
     }
 

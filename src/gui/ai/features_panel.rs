@@ -50,7 +50,11 @@ impl SpaceAnalyzerApp {
         if !self.ai_tools_enabled() {
             return;
         }
-        let query = self.semantic_search_query.trim().to_string();
+        let query = self
+            .ai_prompt_state
+            .semantic_search_query
+            .trim()
+            .to_string();
         if query.is_empty() {
             self.push_ai_tool_error("Semantic search query is empty.");
             return;
@@ -230,7 +234,11 @@ impl SpaceAnalyzerApp {
         if !self.ai_tools_enabled() {
             return;
         }
-        let question = self.cleanup_plan_question.trim().to_string();
+        let question = self
+            .ai_prompt_state
+            .cleanup_plan_question
+            .trim()
+            .to_string();
         if question.is_empty() {
             self.push_ai_tool_error("Cleanup question is empty.");
             return;
@@ -308,7 +316,7 @@ impl SpaceAnalyzerApp {
         if !self.ai_tools_enabled() {
             return;
         }
-        let path = match self.pending_screenshot_path.as_ref() {
+        let path = match self.ai_prompt_state.pending_screenshot_path.as_ref() {
             Some(p) => p.clone(),
             None => {
                 self.push_ai_tool_error(
@@ -408,12 +416,12 @@ impl SpaceAnalyzerApp {
                     egui::RichText::new("🔎 Semantic Search").size(12.0),
                 )
                 .fill(colors::ACCENT_BG);
-                let can_run = self.ai_tools_enabled() && !self.semantic_search_query.is_empty();
+                let can_run = self.ai_tools_enabled() && !self.ai_prompt_state.semantic_search_query.is_empty();
                 if ui.add_enabled(can_run, btn).clicked() {
                     self.run_semantic_search();
                 }
                 ui.add(
-                    egui::TextEdit::singleline(&mut self.semantic_search_query)
+                    egui::TextEdit::singleline(&mut self.ai_prompt_state.semantic_search_query)
                         .desired_width(ui.available_width() - 80.0)
                         .hint_text("e.g. 'find documents about my taxes'"),
                 );
@@ -451,12 +459,12 @@ impl SpaceAnalyzerApp {
                     egui::RichText::new("🧠 Cleanup Plan").size(12.0),
                 )
                 .fill(colors::ACCENT_BG);
-                let can_run = self.ai_tools_enabled() && !self.cleanup_plan_question.is_empty();
+                let can_run = self.ai_tools_enabled() && !self.ai_prompt_state.cleanup_plan_question.is_empty();
                 if ui.add_enabled(can_run, btn).clicked() {
                     self.run_cleanup_plan();
                 }
                 ui.add(
-                    egui::TextEdit::singleline(&mut self.cleanup_plan_question)
+                    egui::TextEdit::singleline(&mut self.ai_prompt_state.cleanup_plan_question)
                         .desired_width(ui.available_width() - 80.0)
                         .hint_text("e.g. 'Plan how to free 50 GB on D:'"),
                 );
@@ -477,7 +485,7 @@ impl SpaceAnalyzerApp {
                     egui::RichText::new("📷 Describe Screenshot").size(12.0),
                 )
                 .fill(colors::ACCENT_BG);
-                let can_run = self.ai_tools_enabled() && self.pending_screenshot_path.is_some();
+                let can_run = self.ai_tools_enabled() && self.ai_prompt_state.pending_screenshot_path.is_some();
                 if ui.add_enabled(can_run, btn).clicked() {
                     self.run_describe_screenshot();
                 }
@@ -486,10 +494,10 @@ impl SpaceAnalyzerApp {
                         .add_filter("Image", &["png", "jpg", "jpeg"])
                         .pick_file()
                     {
-                        self.pending_screenshot_path = Some(path.to_string_lossy().to_string());
+                        self.ai_prompt_state.pending_screenshot_path = Some(path.to_string_lossy().to_string());
                     }
                 }
-                if let Some(p) = &self.pending_screenshot_path {
+                if let Some(p) = &self.ai_prompt_state.pending_screenshot_path {
                     let name = PathBuf::from(p)
                         .file_name()
                         .map(|n| n.to_string_lossy().to_string())

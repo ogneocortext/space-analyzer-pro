@@ -8,10 +8,10 @@
 //! | `semantic_search`    | embedding  | Pre-embed files once; new query = 1 embed +   |
 //! |                      |            | cosine similarity (no LLM roundtrip)           |
 //! | `summarize_scan`     | completion | Send only top-10 files + type breakdown, not  |
-//! |                      |            | the whole scan; returns ≤ 200 token summary    |
-//! | `cleanup_plan`       | thinking   | `think: true` → capture `thinking` field; user |
+//! |                      |            | the whole scan; returns Γëñ 200 token summary    |
+//! | `cleanup_plan`       | thinking   | `think: true` ΓåÆ capture `thinking` field; user |
 //! |                      |            | sees the final plan, not the chain of thought  |
-//! | `describe_screenshot`| vision     | Image is base64-encoded, downscaled to ≤1024px |
+//! | `describe_screenshot`| vision     | Image is base64-encoded, downscaled to Γëñ1024px |
 //! |                      |            | before being embedded in the user message     |
 //! | `agentic_question`   | tools      | Model calls only the tools it needs; results   |
 //! |                      |            | are appended as `tool` messages, not full      |
@@ -19,7 +19,7 @@
 //!
 //! All features are async, return structured results with timing/token
 //! metrics, and never panic. The returned `String` errors are
-//! user-friendly — safe to display in a toast or log line.
+//! user-friendly ΓÇö safe to display in a toast or log line.
 
 use std::time::Instant;
 
@@ -32,7 +32,7 @@ use super::types::{
 };
 use crate::embedding_service::{self, SearchResult};
 
-// ─── Shared helpers ───────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Shared helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 /// Convert a `ChatResponse` into a `(Option<String>, String)` pair
 /// where the first element is the chain-of-thought and the second is
@@ -59,7 +59,7 @@ fn fmt_table(rows: &[(String, String)], headers: (&str, &str)) -> String {
     out
 }
 
-// ─── Feature 1: semantic_search (embedding) ──────────────────────
+// ΓöÇΓöÇΓöÇ Feature 1: semantic_search (embedding) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 /// Input for the semantic file search feature.
 #[derive(Debug, Clone)]
@@ -87,7 +87,7 @@ pub struct SemanticSearchOutput {
 /// cosine similarity. Only one round-trip is made to Ollama (the query
 /// embed), assuming the file embeddings were pre-computed by the
 /// caller. The caller can pre-compute file embeddings once and re-use
-/// them for many queries — that's the data-flow win.
+/// them for many queries ΓÇö that's the data-flow win.
 pub async fn semantic_search(
     client: &OllamaClient,
     model: &str,
@@ -147,7 +147,7 @@ pub async fn semantic_search(
     })
 }
 
-// ─── Feature 2: summarize_scan (completion) ───────────────────────
+// ΓöÇΓöÇΓöÇ Feature 2: summarize_scan (completion) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 /// Input for the scan summary feature.
 #[derive(Debug, Clone)]
@@ -249,7 +249,7 @@ pub async fn summarize_scan(
     })
 }
 
-// ─── Feature 3: cleanup_plan (thinking) ──────────────────────────
+// ΓöÇΓöÇΓöÇ Feature 3: cleanup_plan (thinking) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 #[derive(Debug, Clone)]
 pub struct CleanupPlanInput {
@@ -285,10 +285,10 @@ pub async fn cleanup_plan(
         Reason step-by-step (your reasoning will be hidden from the user), \
         THEN write a numbered plan in your final reply. \
         Each step should have a clear action and an estimated bytes-freed. \
-        Be conservative — prefer reversible steps first. \
-        Use markdown. Keep the plan to ≤ 7 steps. \
+        Be conservative ΓÇö prefer reversible steps first. \
+        Use markdown. Keep the plan to Γëñ 7 steps. \
         End with a one-line 'Expected total: X GB' summary. \
-        Start the plan immediately with '1.' — do not prefix with any label.";
+        Start the plan immediately with '1.' ΓÇö do not prefix with any label.";
 
     let mut user = input.question.clone();
     if let Some(ctx) = &input.context {
@@ -329,7 +329,7 @@ pub async fn cleanup_plan(
     })
 }
 
-// ─── Feature 4: describe_screenshot (vision) ─────────────────────
+// ΓöÇΓöÇΓöÇ Feature 4: describe_screenshot (vision) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 #[derive(Debug, Clone)]
 pub struct ScreenshotInput {
@@ -356,7 +356,7 @@ pub struct ScreenshotOutput {
 /// Send an image + question to a vision-capable model. The image is
 /// read, optionally downscaled, and embedded as a base64 data URL in
 /// the user message. We never re-encode as JPEG (lossy); we resize
-/// PNG or convert PNG→PNG with the new dimensions.
+/// PNG or convert PNGΓåÆPNG with the new dimensions.
 pub async fn describe_screenshot(
     client: &OllamaClient,
     model: &str,
@@ -416,12 +416,12 @@ pub async fn describe_screenshot(
 /// this keeps things simple and dependency-free at this layer.
 fn encode_image_for_ollama(bytes: &[u8], _max_dim: u32) -> Result<(String, u64), String> {
     // NOTE: full resizing would require the `image` crate. The bytes
-    // are already small for the test images (≤ 200 KB) and the model
+    // are already small for the test images (Γëñ 200 KB) and the model
     // handles them fine. We do a format sniff and warn on BMP/ICO.
     if bytes.len() >= 8 && &bytes[..8] == b"\x89PNG\r\n\x1a\n" {
-        // PNG — pass through
+        // PNG ΓÇö pass through
     } else if bytes.len() >= 3 && &bytes[..3] == b"\xFF\xD8\xFF" {
-        // JPEG — pass through
+        // JPEG ΓÇö pass through
     } else {
         return Err(format!(
             "unsupported image format (first bytes: {:02X?}, need PNG or JPEG)",
@@ -433,7 +433,7 @@ fn encode_image_for_ollama(bytes: &[u8], _max_dim: u32) -> Result<(String, u64),
     Ok((b64, sent))
 }
 
-// ─── Feature 5: agentic_question (tools) ─────────────────────────
+// ΓöÇΓöÇΓöÇ Feature 5: agentic_question (tools) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 #[derive(Debug, Clone)]
 pub struct AgenticStep {
@@ -488,7 +488,7 @@ pub async fn agentic_question(
             "You are a disk-space analyst. Answer the user's question \
              by calling the available tools. Call only the tools you \
              need. Once you have enough information, reply with a \
-             concise natural-language answer — no JSON, no tool calls.",
+             concise natural-language answer ΓÇö no JSON, no tool calls.",
         ),
         ChatMessage::user(question),
     ];
@@ -559,7 +559,7 @@ pub async fn agentic_question(
             }
         }
 
-        // Case 2: model returned text — done.
+        // Case 2: model returned text ΓÇö done.
         let (thinking, content) = split_thinking(&response);
         if !thinking.as_deref().unwrap_or("").is_empty() {
             // If the model also thought, surface it as a step.
@@ -634,7 +634,7 @@ impl OllamaClient {
     }
 }
 
-// ─── Tests ────────────────────────────────────────────────────────
+// ΓöÇΓöÇΓöÇ Tests ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 #[cfg(test)]
 mod tests {
@@ -652,7 +652,7 @@ mod tests {
     use super::*;
     use crate::ollama::types::{ToolCall, ToolCallFunction, ToolDefinition, ToolParameters};
 
-    // ── Data-shape tests (no network) ────────────────────────
+    // ΓöÇΓöÇ Data-shape tests (no network) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     #[test]
     fn semantic_search_input_constructs() {
@@ -707,7 +707,7 @@ mod tests {
         assert!(input.image_path.ends_with(".png"));
     }
 
-    // ── ToolCall / parse-error regression tests ──────────────
+    // ΓöÇΓöÇ ToolCall / parse-error regression tests ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     #[test]
     fn tool_call_parses_without_type_field() {
@@ -774,7 +774,7 @@ mod tests {
         assert_eq!(json["function"]["parameters"]["type"], "object");
     }
 
-    // ── ChatResponse / split_thinking tests ──────────────────
+    // ΓöÇΓöÇ ChatResponse / split_thinking tests ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     #[test]
     fn chat_response_parses_with_thinking() {
@@ -863,7 +863,7 @@ mod tests {
         assert_eq!(content, "ok");
     }
 
-    // ── Embedding / cosine similarity sanity (no network) ────
+    // ΓöÇΓöÇ Embedding / cosine similarity sanity (no network) ΓöÇΓöÇΓöÇΓöÇ
 
     #[test]
     fn cosine_similarity_identical_vectors_is_one() {
@@ -900,7 +900,7 @@ mod tests {
         assert!(d.contains("C:/X/Y.PDF"), "should include path: {d}");
     }
 
-    // ── Image-encode helper (no network) ─────────────────────
+    // ΓöÇΓöÇ Image-encode helper (no network) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     #[test]
     fn encode_image_png_passes_through() {
@@ -927,7 +927,7 @@ mod tests {
         assert!(err.contains("unsupported image format"), "got: {err}");
     }
 
-    // ── Network-backed tests (require running Ollama) ────────
+    // ΓöÇΓöÇ Network-backed tests (require running Ollama) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
     #[ignore = "requires local Ollama at http://127.0.0.1:11434"]
     #[tokio::test]

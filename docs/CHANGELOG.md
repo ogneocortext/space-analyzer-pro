@@ -87,6 +87,22 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 
 ## [Unreleased]
 
+### Code Quality & Maintenance
+
+#### Duplicate File Cleanup
+- Removed duplicate `src/offline_ai_clean.rs` (consolidated into `src/offline_ai.rs`)
+- Removed duplicate `src/gui/app.rs` (SpaceAnalyzerApp defined in mod.rs)
+- Removed duplicate `src/ollama/features/` directory (consolidated into `features.rs`)
+- Removed orphaned GUI modules: `run.rs`, `report.rs`, `gui_channel.rs`, `agent_channel.rs` (not declared in mod.rs)
+- Removed orphaned shared-scanner modules: `formatting.rs`, `system.rs`, `types.rs` (lib.rs is self-contained)
+- Removed 28 temporary patch scripts from `scripts/temporary/` per repo policy
+
+#### Missing Module Restoration
+- Created `src/error.rs` with `AppError` and `AppResult` types (referenced by lib.rs and main.rs)
+
+#### Documentation
+- Added CI/CD section to `AGENTS.md` documenting intentional lack of GitHub Actions (manual `just verify` workflow)
+
 ### UX Pipeline Dashboard — Issue Tracker Overhaul
 
 - **Complete dashboard rewrite** (`ux-pipeline/src/ux_pipeline/web_dashboard.py`): Redesigned from single-column layout to a two-column sidebar+main grid with sticky sidebar, constrained chart heights, and responsive breakpoints

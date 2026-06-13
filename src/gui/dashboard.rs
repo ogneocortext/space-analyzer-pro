@@ -17,7 +17,7 @@ impl SpaceAnalyzerApp {
         });
 
         // ── Disk Volumes ──────────────────────────────────────────────
-        if !self.disk_volumes.is_empty() {
+        if !self.system_state.disk_volumes.is_empty() {
             self.render_disk_volumes_card(ui);
         }
 
@@ -62,6 +62,14 @@ impl SpaceAnalyzerApp {
                     &format!("{}", self.scan_history.len()),
                     colors::INFO,
                 );
+                if let Some(last) = self.scan_history.last() {
+                    stat_card(
+                        ui,
+                        "Last Scan",
+                        &last.timestamp[..last.timestamp.len().min(16)],
+                        colors::SUCCESS,
+                    );
+                }
 
                 // Large Files
                 let threshold = self.settings.large_file_threshold_mb * 1024 * 1024;
@@ -239,7 +247,7 @@ impl SpaceAnalyzerApp {
         section_heading(ui, Some('💾'), "Disk Volumes");
         card_frame(ui.style()).show(ui, |ui| {
             ui.vertical(|ui| {
-                for vol in &self.disk_volumes {
+                for vol in &self.system_state.disk_volumes {
                     labeled_gauge(
                         ui,
                         &format!("{} ({})", vol.mount_point, vol.name),
@@ -260,7 +268,7 @@ impl SpaceAnalyzerApp {
     fn render_system_resources_card(&self, ui: &mut egui::Ui) {
         section_heading(ui, Some('🖥'), "System Resources");
         card_frame(ui.style()).show(ui, |ui| {
-            if let Some(ref sys) = self.system_resources {
+            if let Some(ref sys) = self.system_state.system_resources {
                 ui.columns(2, |cols| {
                     // CPU
                     labeled_gauge(&mut cols[0], "CPU", sys.cpu_percent / 100.0, None);
@@ -278,7 +286,7 @@ impl SpaceAnalyzerApp {
                 });
 
                 // GPU info
-                if let Some(ref gpu) = self.gpu_info {
+                if let Some(ref gpu) = self.system_state.gpu_info {
                     ui.add_space(4.0);
                     ui.separator();
                     ui.horizontal(|ui| {

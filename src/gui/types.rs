@@ -10,6 +10,7 @@ pub enum ScanMessage {
         percentage: f32,
         files: u64,
         bytes: u64,
+        current_file: String,
     },
     Complete(ScanResult),
     Error(String),

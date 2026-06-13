@@ -37,7 +37,8 @@ impl SpaceAnalyzerApp {
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.small_button("Cache").clicked() {
-                        self.cache_stats_visible = !self.cache_stats_visible;
+                        self.prompt_cache_state.cache_stats_visible =
+                            !self.prompt_cache_state.cache_stats_visible;
                     }
                 });
             });
@@ -56,7 +57,7 @@ impl SpaceAnalyzerApp {
             }
 
             // Prompt Cache Panel
-            if self.cache_stats_visible {
+            if self.prompt_cache_state.cache_stats_visible {
                 ui.add_space(8.0);
                 egui::Frame::NONE
                     .fill(colors::CARD_BG)
@@ -71,16 +72,16 @@ impl SpaceAnalyzerApp {
                                     .color(colors::TEXT_PRIMARY),
                             );
                             if ui.small_button("Close").clicked() {
-                                self.cache_stats_visible = false;
+                                self.prompt_cache_state.cache_stats_visible = false;
                             }
                         });
 
-                        let stats = self.prompt_cache.stats();
+                        let stats = self.prompt_cache_state.prompt_cache.stats();
 
                         ui.horizontal(|ui| {
                             ui.checkbox(&mut self.settings.prompt_cache_enabled, "Enabled");
                             if ui.small_button("Clear Cache").clicked() {
-                                self.prompt_cache.clear();
+                                self.prompt_cache_state.prompt_cache.clear();
                             }
                         });
 
@@ -117,7 +118,8 @@ impl SpaceAnalyzerApp {
                                 .changed()
                             {
                                 self.settings.prompt_cache_ttl_seconds = ttl as u64;
-                                self.prompt_cache
+                                self.prompt_cache_state
+                                    .prompt_cache
                                     .update_config(self.settings.to_prompt_cache_config());
                             }
                             ui.label(
@@ -141,7 +143,8 @@ impl SpaceAnalyzerApp {
                                 .changed()
                             {
                                 self.settings.prompt_cache_max_memory_mb = max_mem as usize;
-                                self.prompt_cache
+                                self.prompt_cache_state
+                                    .prompt_cache
                                     .update_config(self.settings.to_prompt_cache_config());
                             }
                             ui.label(

@@ -17,9 +17,12 @@
       "last_seen": "2026-05-07",
       "notes": "Implemented proper selection and open handling with file details,directory expansion and system file operations",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "Implemented proper selection and open handling with file details,directory expansion and system file operations"
     },
     {
@@ -39,9 +42,12 @@
       "last_seen": "2026-05-07",
       "notes": "Implemented actual file system API calls using Tauri desktop integration",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "Implemented actual file system API calls using Tauri desktop integration"
     },
     {
@@ -61,9 +67,12 @@
       "last_seen": "2026-05-07",
       "notes": "Implemented system API calls for file operations,environment variables and command execution",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "Implemented system API calls for file operations,environment variables and command execution"
     },
     {
@@ -83,9 +92,12 @@
       "last_seen": "2026-05-07",
       "notes": "Implemented category filtering with UI buttons and reactive state management",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Implemented category filtering with UI buttons and reactive state management"
     },
     {
@@ -105,9 +117,12 @@
       "last_seen": "2026-05-07",
       "notes": "Enhanced performance monitoring with verification function and proper metric collection",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Enhanced performance monitoring with verification function and proper metric collection"
     },
     {
@@ -127,9 +142,12 @@
       "last_seen": "2026-05-07",
       "notes": "Implemented comprehensive input validation utilities with protection against path traversal XSS SQL injection and command injection",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Implemented comprehensive input validation utilities with protection against path traversal XSS SQL injection and com..."
     },
     {
@@ -149,9 +167,12 @@
       "last_seen": "2026-05-07",
       "notes": "Enhanced error handling to prevent sensitive information disclosure while maintaining debugging capabilities",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Enhanced error handling to prevent sensitive information disclosure while maintaining debugging capabilities"
     },
     {
@@ -171,9 +192,12 @@
       "last_seen": "2026-05-07",
       "notes": "Fixed AppDebug reference by importing enhanced debug service",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Fixed AppDebug reference by importing enhanced debug service"
     },
     {
@@ -193,9 +217,12 @@
       "last_seen": "2026-05-07",
       "notes": "Enhanced debug utility with comprehensive logging,performance monitoring and error handling",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Enhanced debug utility with comprehensive logging,performance monitoring and error handling"
     },
     {
@@ -213,9 +240,12 @@
       "last_seen": "2026-05-07",
       "notes": "Added comprehensive progress indicator for directory selection with visual feedback and state management",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "Added comprehensive progress indicator for directory selection with visual feedback and state management"
     },
     {
@@ -233,9 +263,12 @@
       "last_seen": "2026-05-07",
       "notes": "Added comprehensive async error handling with unhandled promise rejection detection and proper cleanup",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Added comprehensive async error handling with unhandled promise rejection detection and proper cleanup"
     },
     {
@@ -255,9 +288,12 @@
       "last_seen": "2026-05-07",
       "notes": "Standardized API input validation using middleware for consistent error handling across all endpoints",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Standardized API input validation using middleware for consistent error handling across all endpoints"
     },
     {
@@ -277,9 +313,12 @@
       "last_seen": "2026-05-07",
       "notes": "Added comprehensive ARIA labels keyboard navigation and screen reader support to critical UI components",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Added comprehensive ARIA labels keyboard navigation and screen reader support to critical UI components"
     },
     {
@@ -299,9 +338,12 @@
       "last_seen": "2026-05-07",
       "notes": "Implemented comprehensive Three.js cleanup with proper disposal of geometries materials textures and scene objects",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Implemented comprehensive Three"
     },
     {
@@ -319,648 +361,13 @@
       "last_seen": "2026-05-07",
       "notes": "Added comprehensive unit tests for ErrorBoundary and input validation utilities covering edge cases and error scenarios",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Added comprehensive unit tests for ErrorBoundary and input validation utilities covering edge cases and error scenarios"
-    },
-    {
-      "category": "error-handling",
-      "extra": {
-        "assignee": "Rust",
-        "component": "src-tauri/src/commands.rs",
-        "estimated_hours": 6.0,
-        "file": "Structured error types needed",
-        "impact_area": "Windows Desktop",
-        "reporter": "Cascade",
-        "resolution": "2026-05-06",
-        "test_coverage": "Tauri"
-      },
-      "first_seen": "2026-05-06",
-      "issue_id": "windowsguitracker:9d9cdc839b39",
-      "last_seen": "2026-05-06",
-      "notes": "Structured error types added",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "high",
-      "status": "done",
-      "title": "Structured error types added"
-    },
-    {
-      "category": "error-handling",
-      "extra": {
-        "assignee": "Rust",
-        "component": "src-tauri/src/scanner.rs",
-        "estimated_hours": 4.0,
-        "file": "Error categorization needed",
-        "impact_area": "Windows Desktop",
-        "reporter": "Cascade",
-        "resolution": "2026-05-06",
-        "test_coverage": "Scanner"
-      },
-      "first_seen": "2026-05-06",
-      "issue_id": "windowsguitracker:a45bbe48d044",
-      "last_seen": "2026-05-06",
-      "notes": "Error categorization added",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "high",
-      "status": "done",
-      "title": "Error categorization added"
-    },
-    {
-      "category": "error-handling",
-      "extra": {
-        "assignee": "Windows",
-        "component": "native/scanner/src/windows_errors.rs",
-        "estimated_hours": 5.0,
-        "file": "Windows API error handling needed",
-        "impact_area": "Windows Desktop",
-        "reporter": "Cascade",
-        "resolution": "2026-05-06",
-        "test_coverage": "API"
-      },
-      "first_seen": "2026-05-06",
-      "issue_id": "windowsguitracker:8d53e83eb9e4",
-      "last_seen": "2026-05-06",
-      "notes": "Windows API error handling added",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "high",
-      "status": "done",
-      "title": "Windows API error handling added"
-    },
-    {
-      "category": "error-handling",
-      "extra": {
-        "assignee": "Native",
-        "component": "native/scanner/src/main.rs",
-        "estimated_hours": 3.0,
-        "file": "Panic handling in CLI tool needed",
-        "impact_area": "Windows Desktop",
-        "reporter": "Cascade",
-        "resolution": "2026-05-06",
-        "test_coverage": "CLI"
-      },
-      "first_seen": "2026-05-06",
-      "issue_id": "windowsguitracker:d75bdae3d178",
-      "last_seen": "2026-05-06",
-      "notes": "Panic handling in CLI tool added",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "Panic handling in CLI tool added"
-    },
-    {
-      "category": "error-handling",
-      "extra": {
-        "assignee": "Frontend",
-        "component": "src/composables/useTauriDesktop.ts",
-        "estimated_hours": 2.0,
-        "file": "Unhandled promise rejections",
-        "impact_area": "Windows Desktop",
-        "reporter": "Cascade",
-        "resolution": "2026-05-06",
-        "test_coverage": "Error"
-      },
-      "first_seen": "2026-05-06",
-      "issue_id": "windowsguitracker:76f8852035a3",
-      "last_seen": "2026-05-06",
-      "notes": "Unhandled promise rejections fixed",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "Unhandled promise rejections fixed"
-    },
-    {
-      "category": "error-handling",
-      "extra": {
-        "assignee": "Frontend",
-        "component": "src/components/vue/desktop/DesktopLayout.vue",
-        "estimated_hours": 3.0,
-        "file": "Error boundary needed",
-        "impact_area": "Windows Desktop",
-        "reporter": "Cascade",
-        "resolution": "2026-05-06",
-        "test_coverage": "Vue"
-      },
-      "first_seen": "2026-05-06",
-      "issue_id": "windowsguitracker:893311fd18e1",
-      "last_seen": "2026-05-06",
-      "notes": "Error boundary added",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "Error boundary added"
-    },
-    {
-      "category": "documentation",
-      "extra": {
-        "assignee": "Documentation",
-        "component": "WINDOWS_BUILD_PREREQUISITES.md",
-        "estimated_hours": 2.0,
-        "file": "Windows build documentation needed",
-        "impact_area": "Windows Desktop",
-        "reporter": "Cascade",
-        "resolution": "2026-05-06",
-        "test_coverage": "Windows"
-      },
-      "first_seen": "2026-05-06",
-      "issue_id": "windowsguitracker:99048407baf0",
-      "last_seen": "2026-05-06",
-      "notes": "Windows build documentation added",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "low",
-      "status": "done",
-      "title": "Windows build documentation added"
-    },
-    {
-      "category": "configuration",
-      "extra": {
-        "assignee": "Configuration",
-        "component": "src-tauri/tauri.conf.json",
-        "estimated_hours": 1.0,
-        "file": "Windows-specific settings needed",
-        "impact_area": "Windows Desktop",
-        "reporter": "Cascade",
-        "resolution": "2026-05-06",
-        "test_coverage": "Windows"
-      },
-      "first_seen": "2026-05-06",
-      "issue_id": "windowsguitracker:6e3d416027c6",
-      "last_seen": "2026-05-06",
-      "notes": "Windows-specific settings added",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "low",
-      "status": "done",
-      "title": "Windows-specific settings added"
-    },
-    {
-      "category": "logging",
-      "extra": {
-        "assignee": "Logging",
-        "component": "server/routes/analysis.js",
-        "estimated_hours": 4.0,
-        "file": "Console logging inconsistent",
-        "impact_area": "Backend Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "Structured"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "backenderrortracker:78da19281c27",
-      "last_seen": "2026-05-04",
-      "notes": "Console logging \u2192 Structured logger",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "high",
-      "status": "done",
-      "title": "Console logging \u2192 Structured logger"
-    },
-    {
-      "category": "memory-management",
-      "extra": {
-        "assignee": "Memory",
-        "component": "server/services/SpaceAnalyzerAIIntegration.js",
-        "estimated_hours": 3.0,
-        "file": "Scan history unbounded",
-        "impact_area": "Backend Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "History"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "backenderrortracker:251f6f93548a",
-      "last_seen": "2026-05-04",
-      "notes": "Scan history bounded",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "high",
-      "status": "done",
-      "title": "Scan history bounded"
-    },
-    {
-      "category": "memory-management",
-      "extra": {
-        "assignee": "Memory",
-        "component": "server/services/SpaceAnalyzerAIIntegration.js",
-        "estimated_hours": 2.0,
-        "file": "Event listeners excessive",
-        "impact_area": "Backend Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "Listeners"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "backenderrortracker:178b3786b923",
-      "last_seen": "2026-05-04",
-      "notes": "Event listeners acceptable",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "high",
-      "status": "done",
-      "title": "Event listeners acceptable"
-    },
-    {
-      "category": "user-experience",
-      "extra": {
-        "assignee": "UX",
-        "component": "server/routes/analysis.js",
-        "estimated_hours": 2.0,
-        "file": "Progress calculation incorrect",
-        "impact_area": "Backend Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "Calculation"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "backenderrortracker:a1f90f193b3c",
-      "last_seen": "2026-05-04",
-      "notes": "Progress calculation fixed",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "Progress calculation fixed"
-    },
-    {
-      "category": "stability",
-      "extra": {
-        "assignee": "Stability",
-        "component": "server/routes/reports.js",
-        "estimated_hours": 3.0,
-        "file": "Promise rejection handling",
-        "impact_area": "Backend Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "DB"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "backenderrortracker:c03b590446ca",
-      "last_seen": "2026-05-04",
-      "notes": "Promise rejection handling added",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "Promise rejection handling added"
-    },
-    {
-      "category": "configuration",
-      "extra": {
-        "assignee": "Configuration",
-        "component": "server/config.js",
-        "estimated_hours": 2.0,
-        "file": "Configurable file thresholds needed",
-        "impact_area": "Backend Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "Config"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "backenderrortracker:8be92ed7a925",
-      "last_seen": "2026-05-04",
-      "notes": "Configurable file thresholds added",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "Configurable file thresholds added"
-    },
-    {
-      "category": "configuration",
-      "extra": {
-        "assignee": "Configuration",
-        "component": "server/config.js",
-        "estimated_hours": 2.0,
-        "file": "Centralized AI timeouts needed",
-        "impact_area": "Backend Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "Timeouts"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "backenderrortracker:5bf262b7ca0a",
-      "last_seen": "2026-05-04",
-      "notes": "Centralized AI timeouts added",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "Centralized AI timeouts added"
-    },
-    {
-      "category": "reliability",
-      "extra": {
-        "assignee": "Reliability",
-        "component": "server/routes/analysis.js",
-        "estimated_hours": 1.0,
-        "file": "UUID temp filenames needed",
-        "impact_area": "Backend Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "Temp-Files"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "backenderrortracker:bf87cc92ce82",
-      "last_seen": "2026-05-04",
-      "notes": "UUID temp filenames added",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "UUID temp filenames added"
-    },
-    {
-      "category": "logging",
-      "extra": {
-        "assignee": "Logging",
-        "component": "Multiple Vue files",
-        "estimated_hours": 3.0,
-        "file": "Console logging inconsistency",
-        "impact_area": "Frontend Components",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "DebugLogger"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "frontenderrortracker:eb2715036dea",
-      "last_seen": "2026-05-04",
-      "notes": "Console statements now use DebugLogger",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "Console statements now use DebugLogger"
-    },
-    {
-      "category": "memory-management",
-      "extra": {
-        "assignee": "Memory",
-        "component": "src/composables/usePerformance.ts",
-        "estimated_hours": 2.0,
-        "file": "setInterval leak in usePerformanceMetrics",
-        "impact_area": "Frontend Components",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "Performance"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "frontenderrortracker:995a1c08d717",
-      "last_seen": "2026-05-04",
-      "notes": "setInterval leak fixed",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "setInterval leak fixed"
-    },
-    {
-      "category": "configuration",
-      "extra": {
-        "assignee": "Configuration",
-        "component": "Multiple Vue files",
-        "estimated_hours": 2.0,
-        "file": "Hardcoded magic numbers",
-        "impact_area": "Frontend Components",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "Config"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "frontenderrortracker:eb97448a2df2",
-      "last_seen": "2026-05-04",
-      "notes": "Hardcoded magic numbers replaced with config",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "Hardcoded magic numbers replaced with config"
-    },
-    {
-      "category": "code-quality",
-      "extra": {
-        "assignee": "Code-Quality",
-        "component": "src/features/3d/FileSystem3DView.vue",
-        "estimated_hours": 1.0,
-        "file": "Debug console.log statements",
-        "impact_area": "Frontend Components",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "Console"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "frontenderrortracker:7b6b2ce56a13",
-      "last_seen": "2026-05-04",
-      "notes": "Debug console.log statements removed",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "low",
-      "status": "done",
-      "title": "Debug console"
-    },
-    {
-      "category": "performance",
-      "extra": {
-        "assignee": "Performance",
-        "component": "Multiple Vue files",
-        "estimated_hours": 2.0,
-        "file": "Lazy loaded components without error boundaries",
-        "impact_area": "Frontend Components",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "Error-Boundary"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "frontenderrortracker:273a98bd7562",
-      "last_seen": "2026-05-04",
-      "notes": "Error boundaries added to lazy loaded components",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "low",
-      "status": "done",
-      "title": "Error boundaries added to lazy loaded components"
-    },
-    {
-      "category": "performance",
-      "extra": {
-        "assignee": "Performance",
-        "component": "server/services/",
-        "estimated_hours": 4.0,
-        "file": "Multiple Ollama availability checks",
-        "impact_area": "AI Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-03",
-        "test_coverage": "Ollama"
-      },
-      "first_seen": "2026-05-03",
-      "issue_id": "aiintegrationtracker:f8fd014ceaa2",
-      "last_seen": "2026-05-03",
-      "notes": "Implemented singleton pattern with immediate flag setting",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "critical",
-      "status": "done",
-      "title": "Implemented singleton pattern with immediate flag setting"
-    },
-    {
-      "category": "security",
-      "extra": {
-        "assignee": "Security",
-        "component": "server/services/",
-        "estimated_hours": 3.0,
-        "file": "No rate limiting protection",
-        "impact_area": "AI Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-03",
-        "test_coverage": "API"
-      },
-      "first_seen": "2026-05-03",
-      "issue_id": "aiintegrationtracker:b0ba1e49410f",
-      "last_seen": "2026-05-03",
-      "notes": "Added express-rate-limit middleware (30 requests/minute)",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "critical",
-      "status": "done",
-      "title": "Added express-rate-limit middleware (30 requests/minute)"
-    },
-    {
-      "category": "reliability",
-      "extra": {
-        "assignee": "Reliability",
-        "component": "server/services/",
-        "estimated_hours": 3.0,
-        "file": "Ollama connection timeouts not cleaned up",
-        "impact_area": "AI Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-03",
-        "test_coverage": "Connection"
-      },
-      "first_seen": "2026-05-03",
-      "issue_id": "aiintegrationtracker:e8b77984176e",
-      "last_seen": "2026-05-03",
-      "notes": "Added req.destroy() and increased timeout to 5 seconds",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "critical",
-      "status": "done",
-      "title": "Added req"
-    },
-    {
-      "category": "error-handling",
-      "extra": {
-        "assignee": "Error-Handling",
-        "component": "server/services/",
-        "estimated_hours": 2.0,
-        "file": "Basic error handling",
-        "impact_area": "AI Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-03",
-        "test_coverage": "AI"
-      },
-      "first_seen": "2026-05-03",
-      "issue_id": "aiintegrationtracker:c2783c7d7a32",
-      "last_seen": "2026-05-03",
-      "notes": "Enhanced error handling with user-friendly messages",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "high",
-      "status": "done",
-      "title": "Enhanced error handling with user-friendly messages"
-    },
-    {
-      "category": "security",
-      "extra": {
-        "assignee": "Security",
-        "component": "server/db/analysis.js",
-        "estimated_hours": 3.0,
-        "file": "SQL injection risk in ORDER BY clause",
-        "impact_area": "Backend Database",
-        "reporter": "Cascade",
-        "resolution": "2026-05-04",
-        "test_coverage": "Database"
-      },
-      "first_seen": "2026-05-04",
-      "issue_id": "historicalarchive:50c045e6d649",
-      "last_seen": "2026-05-04",
-      "notes": "Added strict validation for sort direction with whitelist check",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "critical",
-      "status": "done",
-      "title": "Added strict validation for sort direction with whitelist check"
-    },
-    {
-      "category": "database",
-      "extra": {
-        "assignee": "Database",
-        "component": "server/db/analysis.js",
-        "estimated_hours": 6.0,
-        "file": "Database schema inconsistencies",
-        "impact_area": "Backend Database",
-        "reporter": "Cascade",
-        "resolution": "2026-05-03",
-        "test_coverage": "Standardization"
-      },
-      "first_seen": "2026-05-03",
-      "issue_id": "historicalarchive:17704b93e7b8",
-      "last_seen": "2026-05-03",
-      "notes": "Standardized schema across all tables",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "high",
-      "status": "done",
-      "title": "Standardized schema across all tables"
-    },
-    {
-      "category": "api",
-      "extra": {
-        "assignee": "API",
-        "component": "server/routes/",
-        "estimated_hours": 4.0,
-        "file": "Missing error handling in API routes",
-        "impact_area": "Backend Routes",
-        "reporter": "Cascade",
-        "resolution": "2026-05-03",
-        "test_coverage": "Middleware"
-      },
-      "first_seen": "2026-05-03",
-      "issue_id": "historicalarchive:2d1c4715e7c7",
-      "last_seen": "2026-05-03",
-      "notes": "Added comprehensive error handling middleware",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "high",
-      "status": "done",
-      "title": "Added comprehensive error handling middleware"
-    },
-    {
-      "category": "performance",
-      "extra": {
-        "assignee": "Performance",
-        "component": "server/services/",
-        "estimated_hours": 5.0,
-        "file": "Memory leaks in long-running processes",
-        "impact_area": "Backend Services",
-        "reporter": "Cascade",
-        "resolution": "2026-05-02",
-        "test_coverage": "Leak"
-      },
-      "first_seen": "2026-05-02",
-      "issue_id": "historicalarchive:cc6e69aff3a2",
-      "last_seen": "2026-05-02",
-      "notes": "Implemented proper cleanup and resource management",
-      "occurrences": 1,
-      "screenshot": null,
-      "severity": "medium",
-      "status": "done",
-      "title": "Implemented proper cleanup and resource management"
     },
     {
       "category": "code-quality",
@@ -979,9 +386,12 @@
       "last_seen": "2026-05-08",
       "notes": "Fixed TypeScript any type usage by replacing with proper type definitions and adding performance memory type safety",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Fixed TypeScript any type usage by replacing with proper type definitions and adding performance memory type safety"
     },
     {
@@ -1001,9 +411,12 @@
       "last_seen": "2026-05-07",
       "notes": "Replace with environment variable or config",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Replace with environment variable or config"
     },
     {
@@ -1023,9 +436,12 @@
       "last_seen": "2026-05-07",
       "notes": "Implement proper Three.js cleanup in onUnmounted",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Implement proper Three"
     },
     {
@@ -1045,9 +461,12 @@
       "last_seen": "2026-05-07",
       "notes": "Add error boundaries to critical components",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Add error boundaries to critical components"
     },
     {
@@ -1067,9 +486,12 @@
       "last_seen": "2026-05-07",
       "notes": "Split component into smaller",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Split component into smaller"
     },
     {
@@ -1089,9 +511,12 @@
       "last_seen": "2026-05-07",
       "notes": "Audit and restructure service dependencies",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Audit and restructure service dependencies"
     },
     {
@@ -1111,9 +536,12 @@
       "last_seen": "2026-05-07",
       "notes": "Extract common AI functionality into shared composables",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Extract common AI functionality into shared composables"
     },
     {
@@ -1133,9 +561,12 @@
       "last_seen": "2026-05-07",
       "notes": "Add comprehensive test suite for validation functions",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Add comprehensive test suite for validation functions"
     },
     {
@@ -1155,9 +586,12 @@
       "last_seen": "2026-06-08",
       "notes": "archive",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "archive"
     },
     {
@@ -1177,9 +611,12 @@
       "last_seen": "2026-05-07",
       "notes": "Implement save/load analysis functionality",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Implement save/load analysis functionality"
     },
     {
@@ -1199,9 +636,12 @@
       "last_seen": "2026-05-07",
       "notes": "Add localStorage/sessionStorage persistence",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Add localStorage/sessionStorage persistence"
     },
     {
@@ -1221,9 +661,12 @@
       "last_seen": "2026-05-07",
       "notes": "Integrate AI tools into analysis pipeline",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Integrate AI tools into analysis pipeline"
     },
     {
@@ -1243,9 +686,12 @@
       "last_seen": "2026-05-07",
       "notes": "Add file operations to 3D interface",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Add file operations to 3D interface"
     },
     {
@@ -1265,9 +711,12 @@
       "last_seen": "2026-05-07",
       "notes": "Connect to actual analysis results",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "Connect to actual analysis results"
     },
     {
@@ -1287,9 +736,12 @@
       "last_seen": "2026-05-07",
       "notes": "Implement WebSocket server endpoint",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Implement WebSocket server endpoint"
     },
     {
@@ -1309,9 +761,12 @@
       "last_seen": "2026-05-07",
       "notes": "Implement feedback storage and analysis",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Implement feedback storage and analysis"
     },
     {
@@ -1331,9 +786,12 @@
       "last_seen": "2026-05-07",
       "notes": "Excel)",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Excel)"
     },
     {
@@ -1353,9 +811,12 @@
       "last_seen": "2026-05-07",
       "notes": "Add chat history persistence",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Add chat history persistence"
     },
     {
@@ -1375,9 +836,12 @@
       "last_seen": "2026-05-07",
       "notes": "Add inline editing capabilities",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Add inline editing capabilities"
     },
     {
@@ -1397,9 +861,12 @@
       "last_seen": "2026-05-07",
       "notes": "Add progress tracking and undo functionality",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Add progress tracking and undo functionality"
     },
     {
@@ -1419,9 +886,12 @@
       "last_seen": "2026-05-07",
       "notes": "Add export functionality for analytics",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Add export functionality for analytics"
     },
     {
@@ -1441,9 +911,12 @@
       "last_seen": "2026-05-07",
       "notes": "Create UI for tool management",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Create UI for tool management"
     },
     {
@@ -1463,9 +936,12 @@
       "last_seen": "2026-05-07",
       "notes": "Add hard link management features",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Add hard link management features"
     },
     {
@@ -1485,9 +961,12 @@
       "last_seen": "2026-05-07",
       "notes": "Connect to actual AI service for real responses",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Connect to actual AI service for real responses"
     },
     {
@@ -1507,9 +986,12 @@
       "last_seen": "2026-05-07",
       "notes": "Implement actual speech recognition integration",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Implement actual speech recognition integration"
     },
     {
@@ -1529,9 +1011,12 @@
       "last_seen": "2026-05-07",
       "notes": "Install @types/lucide-vue-next or add declaration file",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Install @types/lucide-vue-next or add declaration file"
     },
     {
@@ -1551,9 +1036,12 @@
       "last_seen": "2026-05-07",
       "notes": "attribute order)",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "attribute order)"
     },
     {
@@ -1562,7 +1050,7 @@
         "assignee": "rust-compilation",
         "component": "native/scanner/",
         "file": "Rust scanner compilation fails on Windows",
-        "resolution": "2026-05-08",
+        "resolution": "2026-06-10",
         "test_coverage": "8"
       },
       "first_seen": "2026-06-08",
@@ -1570,9 +1058,12 @@
       "last_seen": "2026-06-08",
       "notes": "Fix Rust compilation issues for Windows target",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Fix Rust compilation issues for Windows target"
     },
     {
@@ -1581,7 +1072,7 @@
         "assignee": "windows-sdk",
         "component": "native/scanner/",
         "file": "Missing Windows SDK dependencies",
-        "resolution": "2026-05-08",
+        "resolution": "2026-06-10",
         "test_coverage": "4"
       },
       "first_seen": "2026-06-08",
@@ -1589,9 +1080,12 @@
       "last_seen": "2026-06-08",
       "notes": "Install required Windows SDK and development tools",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Install required Windows SDK and development tools"
     },
     {
@@ -1600,7 +1094,7 @@
         "assignee": "cargo-config",
         "component": "native/scanner/Cargo.toml",
         "file": "Cargo configuration incompatible with Windows",
-        "resolution": "2026-05-08",
+        "resolution": "2026-06-10",
         "test_coverage": "3"
       },
       "first_seen": "2026-06-08",
@@ -1608,9 +1102,12 @@
       "last_seen": "2026-06-08",
       "notes": "Update Cargo.toml for Windows compatibility",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Update Cargo"
     },
     {
@@ -1628,9 +1125,12 @@
       "last_seen": "2026-05-08",
       "notes": "Enhanced validation middleware with SQL injection protection, path sanitization, and comprehensive input validation for all API endpoints",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "critical",
       "status": "done",
+      "tags": [],
       "title": "Enhanced validation middleware with SQL injection protection, path sanitization, and comprehensive input validation f..."
     },
     {
@@ -1648,9 +1148,12 @@
       "last_seen": "2026-05-08",
       "notes": "Added comprehensive path validation function with traversal detection, path sanitization, and canonical path resolution for all Tauri commands",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "Added comprehensive path validation function with traversal detection, path sanitization, and canonical path resoluti..."
     },
     {
@@ -1667,9 +1170,12 @@
       "last_seen": "2026-06-08",
       "notes": "Sanitize error messages for user display",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Sanitize error messages for user display"
     },
     {
@@ -1687,9 +1193,12 @@
       "last_seen": "2026-05-08",
       "notes": "Three.js memory cleanup already properly implemented with comprehensive disposal of geometries, materials, textures, renderers, and proper event listener cleanup",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "Three"
     },
     {
@@ -1707,9 +1216,12 @@
       "last_seen": "2026-05-08",
       "notes": "Added comprehensive database indexing for directory paths, analysis IDs, file categories, extensions, and sorting columns to optimize query performance",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Added comprehensive database indexing for directory paths, analysis IDs, file categories, extensions, and sorting col..."
     },
     {
@@ -1727,9 +1239,12 @@
       "last_seen": "2026-05-08",
       "notes": "LOD system already properly implemented with multiple geometry detail levels, frustum culling, object pooling, and distance-based LOD switching for optimal performance",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "LOD system already properly implemented with multiple geometry detail levels, frustum culling, object pooling, and di..."
     },
     {
@@ -1746,9 +1261,12 @@
       "last_seen": "2026-05-16",
       "notes": "README rewritten for Rust-only architecture, Rust GUI is primary interface",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "critical",
       "status": "done",
+      "tags": [],
       "title": "README rewritten for Rust-only architecture, Rust GUI is primary interface"
     },
     {
@@ -1765,9 +1283,12 @@
       "last_seen": "2026-05-16",
       "notes": "Archived native-gui and rust-tauri to archive/, src/gui.rs is primary",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "Archived native-gui and rust-tauri to archive/, src/gui"
     },
     {
@@ -1784,9 +1305,12 @@
       "last_seen": "2026-05-16",
       "notes": "README.md completely rewritten for Rust-only self-contained architecture",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "README"
     },
     {
@@ -1803,9 +1327,12 @@
       "last_seen": "2026-05-16",
       "notes": "Added reqwest + rusqlite + sysinfo, GUI is now self-contained with DB and optional Ollama",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "Added reqwest + rusqlite + sysinfo, GUI is now self-contained with DB and optional Ollama"
     },
     {
@@ -1822,9 +1349,12 @@
       "last_seen": "2026-05-16",
       "notes": "Archived native-gui to archive/native-gui/",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
       "status": "done",
+      "tags": [],
       "title": "Archived native-gui to archive/native-gui/"
     },
     {
@@ -1841,9 +1371,12 @@
       "last_seen": "2026-05-16",
       "notes": "Replaced by Rust-native workflow system in src/workflows/mod.rs",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Replaced by Rust-native workflow system in src/workflows/mod"
     },
     {
@@ -1860,9 +1393,12 @@
       "last_seen": "2026-05-16",
       "notes": "Archived Python orchestrator - replaced by Rust-native workflows",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Archived Python orchestrator - replaced by Rust-native workflows"
     },
     {
@@ -1879,9 +1415,12 @@
       "last_seen": "2026-06-08",
       "notes": "Add secure random default for development with warning on startup",
       "occurrences": 1,
+      "priority_note": "Must fix before release",
+      "priority_rank": 3,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Add secure random default for development with warning on startup"
     },
     {
@@ -1898,9 +1437,12 @@
       "last_seen": "2026-06-08",
       "notes": "Create root .env.example with all service configurations documented",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Create root"
     },
     {
@@ -1917,9 +1459,12 @@
       "last_seen": "2026-05-16",
       "notes": "Removed all test artifacts and added to .gitignore",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Removed all test artifacts and added to"
     },
     {
@@ -1936,9 +1481,12 @@
       "last_seen": "2026-05-16",
       "notes": "Updated .gitignore with server/output_*.json broader pattern",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Updated"
     },
     {
@@ -1947,7 +1495,7 @@
         "assignee": "unimplemented-flags",
         "component": "src/main.rs",
         "file": "CLI accepts --report and --clean flags but features are not implemented",
-        "resolution": "2026-05-16",
+        "resolution": "2026-06-10",
         "test_coverage": "6"
       },
       "first_seen": "2026-06-08",
@@ -1955,9 +1503,12 @@
       "last_seen": "2026-06-08",
       "notes": "Implement report generation and duplicate cleaning or remove flags",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Implement report generation and duplicate cleaning or remove flags"
     },
     {
@@ -1974,9 +1525,12 @@
       "last_seen": "2026-06-08",
       "notes": "Make scan recursive or add ?recursive=true parameter",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "blocked",
+      "tags": [],
       "title": "Make scan recursive or add ?recursive=true parameter"
     },
     {
@@ -1985,7 +1539,7 @@
         "assignee": "duplicate-changelogs",
         "component": "CHANGELOG.md + CHANGELOG-SIMPLIFIED.md + docs/CHANGELOG.md",
         "file": "Three separate changelogs with inconsistent version numbering",
-        "resolution": "2026-05-16",
+        "resolution": "2026-06-10",
         "test_coverage": "2"
       },
       "first_seen": "2026-06-08",
@@ -1993,9 +1547,12 @@
       "last_seen": "2026-06-08",
       "notes": "Consolidate to single CHANGELOG.md and archive old ones",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Consolidate to single CHANGELOG"
     },
     {
@@ -2012,33 +1569,53 @@
       "last_seen": "2026-05-16",
       "notes": "ARCHITECTURE.md completely rewritten with accurate Rust-only architecture",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "ARCHITECTURE"
     },
     {
       "category": "functionality",
       "extra": {
+        "ai_duration_s": 22.3,
+        "ai_last_error": "",
+        "ai_model": "qwen3:8b",
+        "ai_response": "{\n  \"root_cause\": \"The code is missing the closing section for the AI Model Resource Usage card, leading to incomplete UI rendering.\",\n  \"file\": \"src/gui/system.rs\",\n  \"line_range\": \"115-122\",\n  \"current_code\": \"                        badge(ui, \\\"Running\\\", colors::SUCCESS);\\n                    });\\n                }\\n            }\\n        }\\n    }\\n}\\n\\n\",\n  \"fixed_code\": \"                        badge(ui, \\\"Running\\\", colors::SUCCESS);\\n                    });\\n                }\\n            }\\n        }\\n    }\\n}\\n\\n\",\n  \"explanation\": \"The code was missing the closing brace for the AI Model Resource Usage card, which caused the UI to not render correctly. The fix adds the missing closing brace.\"\n}",
+        "ai_started_at": "2026-06-12T01:48:34+00:00",
+        "ai_status": "done",
         "assignee": "mock-data",
         "component": "server/server-improved.js",
         "file": "Analytics endpoints return random/mock data instead of real metrics",
         "resolution": "2026-05-16",
-        "test_coverage": "4"
+        "test_coverage": "4",
+        "wontfix_at": "2026-06-11T22:04:42+00:00",
+        "wontfix_reason": "test fix verification"
       },
       "first_seen": "2026-06-08",
       "issue_id": "session2review:02efdeb86f4b",
-      "last_seen": "2026-06-08",
+      "last_seen": "2026-06-12T01:48:56+00:00",
       "notes": "Connect to real system metrics and historical scan data",
-      "occurrences": 1,
+      "occurrences": 24,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Connect to real system metrics and historical scan data"
     },
     {
       "category": "reliability",
       "extra": {
+        "ai_duration_s": 57.3,
+        "ai_last_error": "",
+        "ai_model": "qwen3:8b",
+        "ai_response": "{\n  \"root_cause\": \"The application lacks startup health checks for critical services like Ollama and GPU, which could lead to unreliable behavior if these services are unavailable.\",\n  \"file\": \"src/gui/workflow_render.rs\",\n  \"line_range\": \"1-50\",\n  \"current_code\": \"impl SpaceAnalyzerApp {\\n    /// Common handler for workflow action types (except Scan first-run logic)\\n    fn handle_workflow_action(&mut self, action: &WorkflowAction) {\\n        match action {\\n            WorkflowAction::Scan { path, deep, .. } => {\\n                self.current_path = PathBuf::from(path);\\n                self.settings.default_deep_scan = *deep;\\n                self.start_scan();\\n            }\\n            WorkflowAction::Notify { title, message } => {\\n                self.push_notification(format!(\\\"{}: \\\", title, message), NotificationLevel::Info);\\n            }\\n            WorkflowAction::AIAnalyze { prompt }\\n                if self.ollama_client.is_some() && self.scan_result.is_some() =>\\n            {\\n                if self.settings.auto_model_selection {\\n                    self.select_model_for_task(\\\"Complex Analysis\\\");\\n                }\\n                let old_input = self.chat_input.clone();\\n                self.chat_input = prompt.clone();\\n                self.send_chat_message();\\n                self.chat_input = old_input;\\n            }\\n            WorkflowAction::AIAnalyze { .. } => {\\n                self.push_notification(\\n                    \\\"Ollama not available or no scan results\\\",\\n                    NotificationLevel::Warning,\\n                );\\n            }\\n            ... // other cases\\n        }\\n    }\\n}\",\n  \"fixed_code\": \"impl SpaceAnalyzerApp {\\n    fn handle_workflow_action(&mut self, action: &WorkflowAction) {\\n        match action {\\n            WorkflowAction::Scan { path, deep, .. } => {\\n                self.current_path = PathBuf::from(path);\\n                self.settings.default_deep_scan = *deep;\\n                self.st",
+        "ai_started_at": "2026-06-11T23:49:02+00:00",
+        "ai_status": "done",
         "assignee": "no-health-check",
         "component": "server/server-improved.js",
         "file": "No startup health checks for AI service and orchestrator dependencies",
@@ -2047,12 +1624,15 @@
       },
       "first_seen": "2026-06-08",
       "issue_id": "session2review:1ee7162cd151",
-      "last_seen": "2026-06-08",
+      "last_seen": "2026-06-11T23:49:59+00:00",
       "notes": "Add startup health checks with warnings if services unavailable",
-      "occurrences": 1,
+      "occurrences": 3,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Add startup health checks with warnings if services unavailable"
     },
     {
@@ -2069,14 +1649,23 @@
       "last_seen": "2026-05-16",
       "notes": "Archived Python orchestrator - no longer relevant",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
       "status": "done",
+      "tags": [],
       "title": "Archived Python orchestrator - no longer relevant"
     },
     {
       "category": "devops",
       "extra": {
+        "ai_duration_s": 66.2,
+        "ai_last_error": "",
+        "ai_model": "qwen3:8b",
+        "ai_response": "{\n  \"root_cause\": \"The issue is not in the provided source files but in the need to create startup scripts (.bat and .sh) with proper dependency ordering for the application.\",\n  \"file\": \"src/ollama/features.rs\",\n  \"line_range\": \"1-100\",\n  \"current_code\": \"//! High-level Ollama-driven features for Space Analyzer Pro.\\n//!\\n//! Each feature targets one specific model capability reported by Ollama\\n//! 0.30+ and is designed with a deliberate data-flow shape:\\n//!\\n//! | Feature              | Capability | Data flow                                      |\\n//! |----------------------|------------|------------------------------------------------|\\n//! | `semantic_search`    | embedding  | Pre-embed files once; new query = 1 embed +   |\\n//! |                      |            | cosine similarity (no LLM roundtrip)           |\\n//! | `summarize_scan`     | completion | Send only top-10 files + type breakdown, not  |\\n//! |                      |            | the whole scan; returns \u0393\u00eb\u00f1 200 token summary    |\\n//! | `cleanup_plan`       | thinking   | `think: true` \u0393\u00e5\u00c6 capture `thinking` field; user |\\n//! |                      |            | sees the final plan, not the chain of thought  |\\n//! | `describe_screenshot`| vision     | Image is base64-encoded, downscaled to \u0393\u00eb\u00f11024px |\\n//! |                      |            | before being embedded in the user message     |\\n//! | `agentic_question`   | tools      | Model calls only the tools it needs; results   |\\n//! |                      |            | are appended as `tool` messages, not full      |\\n//! |                      |            | transcripts. Loops until model returns text.  |\\n//!\\n//! All features are async, return structured results with timing/token\\n//! metrics, and never panic. The returned `String` errors are\\n//! user-friendly \u0393\u00c7\u00f6 safe to display in a toast or log line.\",\n  \"fixed_code\": \"//! High-level Ollama-driven features for Space Analyzer Pro.\\n//!\\n//! Each feature targets one specific model ",
+        "ai_started_at": "2026-06-12T01:31:04+00:00",
+        "ai_status": "done",
         "assignee": "no-startup-script",
         "component": "project root",
         "file": "No comprehensive startup script for all services together",
@@ -2085,12 +1674,15 @@
       },
       "first_seen": "2026-06-08",
       "issue_id": "session2review:bad033a06dd7",
-      "last_seen": "2026-06-08",
+      "last_seen": "2026-06-12T01:32:10+00:00",
       "notes": "Create startup scripts (.bat and .sh) with proper dependency ordering",
-      "occurrences": 1,
+      "occurrences": 3,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Create startup scripts ("
     },
     {
@@ -2106,9 +1698,12 @@
       "last_seen": "2026-06-06",
       "notes": "Dark image - may be hard to read Found in 18/18 screenshot(s). Categories: dashboard, general, history, settings. Screenshots: 01_launched.png, 03_tab_dashboard.png, 02_tab_scan.png, +15 more.",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Dark image - may be hard to read Found in 18/18 screenshot(s)"
     },
     {
@@ -2124,9 +1719,12 @@
       "last_seen": "2026-06-06",
       "notes": "Low contrast - readability concern Found in 18/18 screenshot(s). Categories: dashboard, general, history, settings. Screenshots: 01_launched.png, 03_tab_dashboard.png, 02_tab_scan.png, +15 more.",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Low contrast - readability concern Found in 18/18 screenshot(s)"
     },
     {
@@ -2141,9 +1739,12 @@
       "last_seen": "2026-06-06",
       "notes": "Minimal visual structure detected Found in 18/18 screenshot(s). Categories: dashboard, general, history, settings. Screenshots: 01_launched.png, 03_tab_dashboard.png, 02_tab_scan.png, +15 more.",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Minimal visual structure detected Found in 18/18 screenshot(s)"
     },
     {
@@ -2158,9 +1759,12 @@
       "last_seen": "2026-06-06",
       "notes": "Screenshot appears blurry or low resolution Found in 5/18 screenshot(s). Categories: dashboard, general, history. Screenshots: 03_tab_dashboard.png, 05_tab_smart_search.png, 06_tab_workflows.png, +2 more.",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Screenshot appears blurry or low resolution Found in 5/18 screenshot(s)"
     },
     {
@@ -2175,14 +1779,23 @@
       "last_seen": "2026-06-06",
       "notes": "Desaturated - may need more visual variety Found in 10/18 screenshot(s). Categories: dashboard, general, history. Screenshots: 03_tab_dashboard.png, 03_scan_progress_16.png, 03_scan_progress_20.png, +7 more.",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Desaturated - may need more visual variety Found in 10/18 screenshot(s)"
     },
     {
       "category": "architecture",
       "extra": {
+        "ai_duration_s": 174.6,
+        "ai_last_error": "",
+        "ai_model": "qwen3:8b",
+        "ai_response": "{\n  \"root_cause\": \"The SpaceAnalyzerApp struct has 60+ fields mixing unrelated domains (scanning, AI, workflows, DB, embeddings, UI state), leading to poor maintainability, scalability, and readability.\",\n  \"file\": \"src/gui/app.rs\",\n  \"line_range\": \"15-150\",\n  \"current_code\": \"/// Main GUI application structure\\npub struct SpaceAnalyzerApp {\\n    // Navigation\\n    pub active_tab: AppTab,\\n\\n    // Scanning\\n    pub current_path: PathBuf,\\n    pub scan_result: Option<ScanResult>,\\n    pub is_scanning: bool,\\n    pub scan_progress: f32,\\n    pub scan_receiver: Option<mpsc::Receiver<ScanMessage>>, \\n    pub cancel_flag: Option<Arc<AtomicBool>>, \\n    pub status_message: Option<String>,\\n    pub scan_performance: ScanPerformanceTracker,\\n    pub current_scan_file: String,\\n\\n    // Multi-drive scanning\\n    pub multi_scan_results: Vec<(DiskVolume, ScanResult)>,\\n    pub is_multi_scanning: bool,\\n\\n    // Database\\n    pub db: Option<Database>,\\n    pub scan_history: Vec<ScanHistoryRecord>,\\n    pub selected_history_id: Option<i64>,\\n\\n    // Settings\\n    pub settings: AppSettings,\\n\\n    // Workflows\\n    pub workflows: Vec<Workflow>,\\n    pub active_workflow: Option<WorkflowExecution>,\\n    pub pending_workflow_actions: Vec<WorkflowAction>,\\n    pub workflow_history: Vec<WorkflowExecution>,\\n    pub editing_workflow: Option<Workflow>,\\n    pub show_workflow_editor: bool,\\n\\n    // AI\\n    pub ai_recommendations: Vec<AIRecommendation>,\\n    pub ai_recommendation_source: String,\\n    pub ai_recommendation_pending: bool,\\n    pub ai_recommendation_receiver: Option<mpsc::Receiver<(Vec<AIRecommendation>, bool)>>,\\n    pub ollama_client: Option<OllamaClient>,\\n    pub ollama_available: bool,\\n    pub ollama_checking: bool,\\n    pub(crate) ollama_receiver: Option<mpsc::Receiver<OllamaMessage>>, \\n    pub chat_messages: Vec<ChatMessage>,\\n    pub chat_input: String,\\n    pub chat_processing: bool,\\n    pub conversation_history: Vec<OllamaChatMessage>,\\n    pub tool_registry:",
+        "ai_started_at": "2026-06-12T01:25:40+00:00",
+        "ai_status": "done",
         "estimated_hours": 8.0,
         "file": "src/gui/mod.rs",
         "impact_area": "GUI Architecture",
@@ -2192,12 +1805,15 @@
       },
       "first_seen": "2026-06-08",
       "issue_id": "mainissuetracker:e78a38cede46",
-      "last_seen": "2026-06-08",
+      "last_seen": "2026-06-12T01:28:34+00:00",
       "notes": "SpaceAnalyzerApp struct has 60+ fields mixing scanning, AI, workflows, DB, embeddings, and UI state",
-      "occurrences": 1,
+      "occurrences": 5,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "SpaceAnalyzerApp struct has 60+ fields mixing scanning, AI, workflows, DB, embeddings, and UI state"
     },
     {
@@ -2206,7 +1822,7 @@
         "estimated_hours": 4.0,
         "file": "src/ + shared-scanner/src/ + system_monitor.rs + workflows/mod.rs + native/scanner/src/",
         "impact_area": "Formatting Utilities",
-        "resolution": "Extract format_bytes into a single shared utility module and re-export it",
+        "resolution": "2026-06-10",
         "subcategory": "Code Duplication",
         "test_coverage": "Yes"
       },
@@ -2215,14 +1831,23 @@
       "last_seen": "2026-06-08",
       "notes": "format_bytes function is independently implemented 5 times with slight format variations (decimal places, TB support)",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "format_bytes function is independently implemented 5 times with slight format variations (decimal places, TB support)"
     },
     {
       "category": "functionality",
       "extra": {
+        "ai_duration_s": 186.2,
+        "ai_last_error": "",
+        "ai_model": "qwen3:8b",
+        "ai_response": "{\n  \"root_cause\": \"The issue is not related to the session logger code, but rather to a separate `matches_cron` function that is not handling cron syntax properly.\",\n  \"file\": \"src/session_logger.rs\",\n  \"line_range\": \"1-100\",\n  \"current_code\": \"//! Session logging for Space Analyzer Pro\\n//!\\n//! Provides structured JSON logging for the main application's runtime events.\\n//! Supports log rotation, buffered writes, and configurable log levels.\\n//! Respects the user's `log_session_to_file` and `log_file_path` settings.\\n\\nuse serde::Serialize;\\nuse std::fs::{self, OpenOptions};\\nuse std::io::Write;\\nuse std::path::{Path, PathBuf};\\nuse std::time::{SystemTime, UNIX_EPOCH};\\n\\n/// Log severity levels\\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]\\n#[serde(rename_all = \\\"lowercase\\\")]\\npub enum LogLevel {\\n    Debug,\\n    Info,\\n    Warning,\\n    Error,\\n    Critical,\\n}\\n\\nimpl std::fmt::Display for LogLevel {\\n    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\\n        match self {\\n            LogLevel::Debug => write!(f, \\\"DEBUG\\\"),\\n            LogLevel::Info => write!(f, \\\"INFO\\\"),\\n            LogLevel::Warning => write!(f, \\\"WARNING\\\"),\\n            LogLevel::Error => write!(f, \\\"ERROR\\\"),\\n            LogLevel::Critical => write!(f, \\\"CRITICAL\\\"),\\n        }\\n    }\\n}\\n\\n/// A single session log entry\\n#[derive(Debug, Clone, Serialize)]\\npub struct SessionLogEntry {\\n    pub timestamp: String,\\n    pub level: LogLevel,\\n    pub component: String,\\n    pub event: String,\\n    pub details: Option<String>,\\n    pub duration_ms: Option<u64>,\\n    pub data: Option<serde_json::Value>,\\n}\\n\\n/// Configuration for the session logger\\n#[derive(Debug, Clone)]\\npub struct SessionLoggerConfig {\\n    pub log_path: PathBuf,\\n    pub max_file_size_bytes: u64,\\n    pub max_buffer_size: usize,\\n    pub enabled: bool,\\n}\\n\\nimpl Default for SessionLoggerConfig {\\n    fn default() -> Self {\\n        Self {\\n            log_path: PathBuf::from(\\\"sp",
+        "ai_started_at": "2026-06-12T04:57:01+00:00",
+        "ai_status": "done",
         "estimated_hours": 3.0,
         "file": "src/workflows/mod.rs",
         "impact_area": "Workflow Scheduling",
@@ -2232,12 +1857,15 @@
       },
       "first_seen": "2026-06-08",
       "issue_id": "mainissuetracker:2c421f814a8a",
-      "last_seen": "2026-06-08",
+      "last_seen": "2026-06-12T05:00:07+00:00",
       "notes": "matches_cron only supports * and */n syntax - no ranges, names, or special values like L or W",
-      "occurrences": 1,
+      "occurrences": 3,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "matches_cron only supports * and */n syntax - no ranges, names, or special values like L or W"
     },
     {
@@ -2255,9 +1883,12 @@
       "last_seen": "2026-06-08",
       "notes": "scan_with_progress_sync clones live_files vector and does full sort on every 50-entry progress update",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "scan_with_progress_sync clones live_files vector and does full sort on every 50-entry progress update"
     },
     {
@@ -2275,9 +1906,12 @@
       "last_seen": "2026-06-08",
       "notes": "Async scan_with_progress acquires Mutex on every single file processed",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Async scan_with_progress acquires Mutex on every single file processed"
     },
     {
@@ -2293,11 +1927,14 @@
       "first_seen": "2026-06-08",
       "issue_id": "mainissuetracker:625da3bb4d51",
       "last_seen": "2026-06-08",
-      "notes": "total_files is u64 in shared_scanner::ScanResult but usize in gui_common::ScanResult requiring constant conversion",
+      "notes": "Intentional boundary conversion: u64 for scanner (storage/wire), usize for GUI (in-memory indexing). Standard Rust pattern with as casts at the boundary.",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "wontfix",
+      "tags": [],
       "title": "total_files is u64 in shared_scanner::ScanResult but usize in gui_common::ScanResult requiring constant conversion"
     },
     {
@@ -2313,16 +1950,25 @@
       "first_seen": "2026-06-08",
       "issue_id": "mainissuetracker:647a77b1db0f",
       "last_seen": "2026-06-08",
-      "notes": "FilePatternClassifier::classify_file uses Option::is_none_or which requires Rust 1.82+ while project declares edition 2021",
+      "notes": "rust-toolchain.toml uses stable channel; Rust 1.82+ has been stable since 2024. No MSRV bump needed, is_none_or is fine.",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "wontfix",
+      "tags": [],
       "title": "FilePatternClassifier::classify_file uses Option::is_none_or which requires Rust 1"
     },
     {
       "category": "architecture",
       "extra": {
+        "ai_duration_s": 120.0,
+        "ai_last_error": "",
+        "ai_model": "qwen3:8b",
+        "ai_response": "{\n  \"root_cause\": \"The two categorization systems have different category counts (12 vs 14) and divergent mappings, leading to inconsistencies in file classification.\",\n  \"file\": \"src/category.rs\",\n  \"line_range\": \"1-12\",\n  \"current_code\": \"pub const FILE_CATEGORIES: [(&str, &[&str]); 12] = [\\n    (\\n        \\\"Documents\\\",\\n        &[\\\"txt\\\", \\\"pdf\\\", \\\"doc\\\", \\\"docx\\\", \\\"xls\\\", \\\"xlsx\\\", \\\"ppt\\\", \\\"pptx\\\", \\\"odt\\\", \\\"ods\\\", \\\"odp\\\", \\\"rtf\\\",\\n         \\\"md\\\", \\\"csv\\\",\\n        ],\\n    ),\\n    (\\n        \\\"Images\\\",\\n        &[\\\"jpg\\\", \\\"jpeg\\\", \\\"png\\\", \\\"gif\\\", \\\"bmp\\\", \\\"svg\\\", \\\"webp\\\", \\\"ico\\\", \\\"tiff\\\", \\\"tif\\\",\\n        ],\\n    ),\\n    (\\n        \\\"Videos\\\",\\n        &[\\\"mp4\\\", \\\"avi\\\", \\\"mkv\\\", \\\"mov\\\", \\\"wmv\\\", \\\"flv\\\", \\\"webm\\\", \\\"m4v\\\", \\\"mpeg\\\", \\\"mpg\\\",\\n        ],\\n    ),\\n    (\\\"Audio\\\", &[\\\"mp3\\\", \\\"wav\\\", \\\"flac\\\", \\\"aac\\\", \\\"ogg\\\", \\\"wma\\\", \\\"m4a\\\"]),\\n    (\\n        \\\"Archives\\\",\\n        &[\\\"zip\\\", \\\"rar\\\", \\\"7z\\\", \\\"tar\\\", \\\"gz\\\", \\\"bz2\\\", \\\"xz\\\", \\\"iso\\\", \\\"cab\\\",\\n        ],\\n    ),\\n    (\\n        \\\"Code\\\",\\n        &[\\\"js\\\", \\\"ts\\\", \\\"py\\\", \\\"java\\\", \\\"c\\\", \\\"cpp\\\", \\\"h\\\", \\\"hpp\\\", \\\"cs\\\", \\\"go\\\", \\\"rs\\\", \\\"php\\\", \\\"rb\\\",\\n         \\\"swift\\\", \\\"kt\\\", \\\"scala\\\", \\\"html\\\", \\\"css\\\", \\\"scss\\\", \\\"sass\\\", \\\"less\\\", \\\"json\\\", \\\"xml\\\", \\\"yaml\\\",\\n         \\\"yml\\\",\\n        ],\\n    ),\\n    (\\\"Databases\\\", &[\\\"db\\\", \\\"sqlite\\\", \\\"sql\\\", \\\"mdb\\\", \\\"accdb\\\"]),\\n    (\\n        \\\"Executables\\\",\\n        &[\\\"exe\\\", \\\"msi\\\", \\\"bat\\\", \\\"cmd\\\", \\\"sh\\\", \\\"ps1\\\", \\\"app\\\", \\\"dmg\\\", \\\"deb\\\", \\\"rpm\\\",\\n        ],\\n    ),\\n    (\\n        \\\"System\\\",\\n        &[\\\"dll\\\", \\\"sys\\\", \\\"drv\\\", \\\"fon\\\", \\\"ttf\\\", \\\"otf\\\", \\\"log\\\", \\\"tmp\\\",\\n        ],\\n    ),\\n    (\\n        \\\"Development\\\",\\n        &[\\\"gradle\\\",\\n         \\\"maven\\\",\\n         \\\"node_modules\\\",\\n         \\\".git\\\",\\n         \\\"venv\\\",\\n         \\\"env\\\",\\n         \\\"dist\\\",\\n         \\\"build\\\",\\n        ],\\n    ),\\n    (\\\"Games\\\", &[\\\"sav\\\", \\\"save\\\", \\\"game\\\"]),\\n    (\\\"Other\\\", &[]), // Catch-all\\n];\",\n  \"",
+        "ai_started_at": "2026-06-12T08:07:18+00:00",
+        "ai_status": "done",
         "estimated_hours": 5.0,
         "file": "src/category.rs + native/scanner/src/lib.rs",
         "impact_area": "Architecture",
@@ -2332,12 +1978,15 @@
       },
       "first_seen": "2026-06-08",
       "issue_id": "mainissuetracker:8e4f72b26717",
-      "last_seen": "2026-06-08",
+      "last_seen": "2026-06-12T08:09:18+00:00",
       "notes": "Two independent file categorization systems with different categories (12 vs 14) and divergent mappings",
-      "occurrences": 1,
+      "occurrences": 3,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Two independent file categorization systems with different categories (12 vs 14) and divergent mappings"
     },
     {
@@ -2355,9 +2004,12 @@
       "last_seen": "2026-06-08",
       "notes": "shared-scanner directly imports gpu_compute creating compile-time coupling between CPU scanner and GPU backend",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "high",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "shared-scanner directly imports gpu_compute creating compile-time coupling between CPU scanner and GPU backend"
     },
     {
@@ -2375,9 +2027,12 @@
       "last_seen": "2026-06-08",
       "notes": "Mixed error types: anyhow::Result in shared-scanner, rusqlite::Result in DB, OllamaResult in ollama, String in main.rs CLI",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "open",
+      "tags": [],
       "title": "Mixed error types: anyhow::Result in shared-scanner, rusqlite::Result in DB, OllamaResult in ollama, String in main"
     },
     {
@@ -2395,9 +2050,12 @@
       "last_seen": "2026-06-08",
       "notes": "Permission denied and metadata errors are collected into result.errors but never surfaced to the caller or UI",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Permission denied and metadata errors are collected into result"
     },
     {
@@ -2406,7 +2064,7 @@
         "estimated_hours": 1.0,
         "file": "Cargo.toml",
         "impact_area": "Build System",
-        "resolution": "Remove from plain [dependencies] and use workspace inheritance: serde = { workspace = true }",
+        "resolution": "2026-06-10",
         "subcategory": "Dependency Duplication",
         "test_coverage": "Yes"
       },
@@ -2415,9 +2073,12 @@
       "last_seen": "2026-06-08",
       "notes": "Core dependencies (serde, tokio, chrono, thiserror, anyhow, regex, walkdir) listed in both [workspace.dependencies] and plain [dependencies]",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "low",
-      "status": "open",
+      "status": "done",
+      "tags": [],
       "title": "Core dependencies (serde, tokio, chrono, thiserror, anyhow, regex, walkdir) listed in both [workspace"
     },
     {
@@ -2428,12 +2089,15 @@
       "last_seen": "2026-06-08T23:04:22+00:00",
       "notes": "This is a test issue created from the dashboard",
       "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
       "screenshot": null,
       "severity": "medium",
       "status": "done",
+      "tags": [],
       "title": "Test issue from dashboard"
     }
   ],
   "schema_version": 1,
-  "updated_at": "2026-06-08T23:04:43+00:00"
+  "updated_at": "2026-06-12T09:12:31+00:00"
 }

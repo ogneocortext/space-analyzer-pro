@@ -75,7 +75,38 @@ impl Database {
     }
 
     /// Initialize database schema
+    fn migrate(&self) -> rusqlite::Result<()> {
+        let user_version: i64 = self
+            .conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap_or(0);
+        if user_version < 1 {
+            // Columns are now part of CREATE TABLE IF NOT EXISTS, but older
+            // databases may still need them. Keep schema and user_version in
+            // sync by running both ALTERs and the version bump atomically.
+            self.conn.execute_batch("BEGIN IMMEDIATE")?;
+            let migration_result = (|| -> rusqlite::Result<()> {
+                self.conn.execute_batch(
+                    "ALTER TABLE workflow_executions ADD COLUMN actions_completed INTEGER NOT NULL DEFAULT 0;",
+                )?;
+                self.conn.execute_batch(
+                    "ALTER TABLE workflow_executions ADD COLUMN total_actions INTEGER NOT NULL DEFAULT 0;",
+                )?;
+                self.conn.execute("PRAGMA user_version = 1", [])?;
+                Ok(())
+            })();
+            if migration_result.is_err() {
+                let _ = self.conn.execute_batch("ROLLBACK");
+            } else {
+                self.conn.execute_batch("COMMIT")?;
+            }
+            migration_result?;
+        }
+        Ok(())
+    }
+
     fn initialize(&self) -> rusqlite::Result<()> {
+        self.migrate()?;
         self.conn.execute_batch("
             CREATE TABLE IF NOT EXISTS scan_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

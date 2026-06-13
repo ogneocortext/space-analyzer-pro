@@ -22,7 +22,7 @@ from typing import Any, Iterable
 logger = logging.getLogger("ux_pipeline.ollama_client")
 
 DEFAULT_HOST: str = "http://localhost:11434"
-DEFAULT_TIMEOUT_S: float = 30.0
+DEFAULT_TIMEOUT_S: float = 180.0
 DEFAULT_RETRIES: int = 2
 USER_AGENT: str = "ux-pipeline/0.1 (+https://github.com/ogneocortext/space-analyzer-pro)"
 
@@ -80,6 +80,8 @@ class OllamaClient:
         prompt: str,
         *,
         stream: bool = False,
+        think: bool | None = None,
+        format: str | None = None,
         options: dict[str, Any] | None = None,
         images: Iterable[bytes] | None = None,
     ) -> str:
@@ -90,6 +92,11 @@ class OllamaClient:
             prompt: Prompt text.
             stream: When ``True``, the server streams NDJSON chunks. We always
                 aggregate them and return a single string.
+            think: Set to ``False`` to disable thinking/reasoning mode for
+                models that support it (e.g. Qwen3). ``None`` uses the
+                model default.
+            format: Response format constraint, e.g. ``"json"`` to force
+                valid JSON output.
             options: Generation options (temperature, num_predict, ...).
             images: Optional iterable of raw image bytes (base64 encoded
                 before being sent).
@@ -105,6 +112,10 @@ class OllamaClient:
             "prompt": prompt,
             "stream": bool(stream),
         }
+        if think is not None:
+            body["think"] = bool(think)
+        if format is not None:
+            body["format"] = format
         if options:
             body["options"] = dict(options)
         if images:
@@ -121,7 +132,7 @@ class OllamaClient:
     def pull(self, model: str) -> bool:
         """Trigger ``/api/pull`` for ``model``."""
         try:
-            self._request_json("POST", "/api/pull", json_body={"name": model, "stream": False})
+            self._request_json("POST", "/api/pull", json_body={"model": model, "stream": False})
         except OllamaError as exc:
             logger.debug("pull(%s) failed: %s", model, exc)
             return False
@@ -130,7 +141,7 @@ class OllamaClient:
     def delete(self, model: str) -> bool:
         """Trigger ``DELETE /api/delete`` for ``model``."""
         try:
-            self._request("DELETE", "/api/delete", json_body={"name": model})
+            self._request("DELETE", "/api/delete", json_body={"model": model})
         except OllamaError as exc:
             logger.debug("delete(%s) failed: %s", model, exc)
             return False
@@ -194,7 +205,11 @@ class OllamaClient:
         *,
         json_body: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Issue ``_request`` with retry/backoff and JSON-decode the body."""
+        """Issue ``_request`` with retry/backoff and JSON-decode the body.
+
+        Retries transport-level failures and transient HTTP statuses
+        (408, 429, 500, 502, 503, 504). Client HTTP errors fail immediately.
+        """
         attempts = self.retries + 1
         last_exc: OllamaError | None = None
         for attempt in range(1, attempts + 1):
@@ -202,6 +217,8 @@ class OllamaClient:
                 status, body, _ = self._request(method, path, json_body=json_body)
             except OllamaError as exc:
                 last_exc = exc
+                if not self._should_retry_ollama_error(exc):
+                    raise
                 if attempt >= attempts:
                     raise
                 backoff = min(2.0 ** (attempt - 1), 8.0)
@@ -226,3 +243,9 @@ class OllamaClient:
         if last_exc is not None:
             raise last_exc
         raise OllamaError(f"unreachable: {method} {path}")
+
+    def _should_retry_ollama_error(self, exc: OllamaError) -> bool:
+        msg = str(exc)
+        retryable_http = any(f"HTTP {status}" in msg for status in (408, 429, 500, 502, 503, 504))
+        retryable_transport = any(token in msg for token in ("URLError", "TimeoutError", "OSError"))
+        return retryable_http or retryable_transport

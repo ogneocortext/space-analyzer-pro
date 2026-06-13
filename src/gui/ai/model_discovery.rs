@@ -208,7 +208,7 @@ impl SpaceAnalyzerApp {
         // ── Model list ──────────────────────────────────────────────────
         // Clone data we need to avoid borrowing self in closures.
         let models = self.discovered_models.clone();
-        let current_active = self.current_active_model.clone();
+        let current_active = self.model_selection_state.current_active_model.clone();
         let chat_model = self.settings.ollama_model.clone();
         let tool_model = self.settings.tool_calling_model.clone();
         let agentic_enabled = self.settings.agentic_tools_enabled;
@@ -461,9 +461,9 @@ impl SpaceAnalyzerApp {
 
         if let Some(model) = best_model {
             let model_name = model.name.clone();
-            let old_active = self.current_active_model.clone();
-            self.current_active_model = Some(model_name.clone());
-            self.current_model_task = Some(task_type.to_string());
+            let old_active = self.model_selection_state.current_active_model.clone();
+            self.model_selection_state.current_active_model = Some(model_name.clone());
+            self.model_selection_state.current_model_task = Some(task_type.to_string());
 
             if task_lower.contains("tool")
                 || task_lower.contains("agentic")

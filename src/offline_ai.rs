@@ -1,8 +1,3 @@
-//! Offline AI capabilities for systems without Ollama
-//!
-//! Provides heuristic-based analysis, pattern matching, and built-in intelligence
-//! for storage analysis when no external AI service is available.
-
 use std::collections::HashMap;
 
 /// Built-in file pattern classifiers

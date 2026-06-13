@@ -2,7 +2,6 @@
 //!
 //! Provides disk usage information, system resource monitoring,
 //! and hardware detection (GPU status).
-#![allow(dead_code)] // Planned system monitoring features
 
 use serde::{Deserialize, Serialize};
 
@@ -33,7 +32,7 @@ pub struct SystemResources {
 }
 
 /// GPU information
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GpuInfo {
     pub available: bool,
     pub name: Option<String>,
@@ -104,43 +103,51 @@ impl SystemMonitor {
         }
     }
 
-    /// Detect GPU information
+    /// Detect GPU availability via nvidia-smi
     pub fn detect_gpu() -> GpuInfo {
-        // Try nvidia-smi first
+        // Try to get GPU info via nvidia-smi
         if let Ok(output) = std::process::Command::new("nvidia-smi")
-            .args([
-                "--query-gpu=name,memory.total",
-                "--format=csv,noheader,nounits",
-            ])
+            .args(["--query-gpu=name,memory.total", "--format=csv,noheader"])
             .output()
         {
             if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let lines: Vec<&str> = stdout.lines().collect();
-
-                if let Some(first_line) = lines.first() {
-                    let parts: Vec<&str> = first_line.split(',').collect();
-                    if parts.len() >= 2 {
-                        let name = parts[0].trim().to_string();
-                        let vram_mb: u64 = parts[1].trim().parse().unwrap_or(0);
-
-                        return GpuInfo {
-                            available: true,
-                            name: Some(name),
-                            vram_bytes: Some(vram_mb * 1024 * 1024),
-                            cuda_version: None,
-                        };
+                if let Ok(info) = String::from_utf8(output.stdout) {
+                    let lines: Vec<&str> = info.lines().collect();
+                    if !lines.is_empty() {
+                        let parts: Vec<&str> = lines[0].split(',').map(|s| s.trim()).collect();
+                        if parts.len() >= 2 {
+                            let mem_str = parts[1].trim_end_matches(" MiB");
+                            let vram_mb = mem_str.parse::<u64>().unwrap_or(0);
+                            return GpuInfo {
+                                available: true,
+                                name: Some(parts[0].to_string()),
+                                vram_bytes: Some(vram_mb * 1024 * 1024),
+                                cuda_version: Self::get_cuda_version(),
+                            };
+                        }
                     }
                 }
             }
         }
+        GpuInfo::default()
+    }
 
-        GpuInfo {
-            available: false,
-            name: None,
-            vram_bytes: None,
-            cuda_version: None,
+    /// Get CUDA version via nvidia-smi
+    fn get_cuda_version() -> Option<String> {
+        if let Ok(output) = std::process::Command::new("nvidia-smi")
+            .args(["--version"])
+            .output()
+        {
+            if let Ok(s) = String::from_utf8(output.stdout) {
+                if let Some(line) = s.lines().find(|l| l.contains("CUDA Version")) {
+                    let parts: Vec<&str> = line.split("CUDA Version:").collect();
+                    if parts.len() > 1 {
+                        return Some(parts[1].trim().to_string());
+                    }
+                }
+            }
         }
+        None
     }
 
     /// Get a formatted system summary

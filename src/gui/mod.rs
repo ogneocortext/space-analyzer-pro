@@ -80,6 +80,62 @@ fn shared_runtime() -> &'static tokio::runtime::Runtime {
     RUNTIME.get_or_init(|| tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime"))
 }
 
+#[derive(Clone)]
+pub struct AiPromptState {
+    pub semantic_search_query: String,
+    pub cleanup_plan_question: String,
+    pub pending_screenshot_path: Option<String>,
+}
+
+#[derive(Clone)]
+pub struct FileActionState {
+    pub pending_file_action: Option<FileAction>,
+    pub file_action_confirm_open: bool,
+    pub thumbnail_cache: Arc<crate::thumbnails::ThumbnailCache>,
+}
+
+#[derive(Clone)]
+pub struct WorkflowEditorState {
+    pub editing_workflow: Option<Workflow>,
+    pub show_workflow_editor: bool,
+}
+
+#[derive(Clone)]
+pub struct ModelSelectionState {
+    pub current_active_model: Option<String>,
+    pub current_model_task: Option<String>,
+}
+
+pub struct PromptCacheState {
+    pub prompt_cache: ollama::PromptCache,
+    pub cache_stats_visible: bool,
+}
+
+#[derive(Clone)]
+pub struct ToolRuntimeState {
+    pub tool_call_depth: u32,
+    pub ollama_auto_started: bool,
+}
+
+#[derive(Clone)]
+pub struct WelcomeState {
+    pub show_welcome: bool,
+    pub startup_frame: u64,
+}
+
+#[derive(Clone)]
+pub struct NotificationState {
+    pub notifications: Vec<Notification>,
+    pub notification_counter: u64,
+}
+
+#[derive(Clone)]
+pub struct SystemState {
+    pub disk_volumes: Vec<DiskVolume>,
+    pub system_resources: Option<SystemResources>,
+    pub gpu_info: Option<GpuInfo>,
+}
+
 /// Main GUI application structure
 pub struct SpaceAnalyzerApp {
     // Navigation
@@ -108,8 +164,7 @@ pub struct SpaceAnalyzerApp {
     pub active_workflow: Option<WorkflowExecution>,
     pub pending_workflow_actions: Vec<WorkflowAction>,
     pub workflow_history: Vec<WorkflowExecution>,
-    pub editing_workflow: Option<Workflow>,
-    pub show_workflow_editor: bool,
+    pub workflow_editor_state: WorkflowEditorState,
 
     // AI
     pub ai_recommendations: Vec<AIRecommendation>,
@@ -126,9 +181,7 @@ pub struct SpaceAnalyzerApp {
     pub conversation_history: Vec<OllamaChatMessage>,
     pub tool_registry: Option<ToolRegistry>,
 
-    // Prompt Cache
-    pub prompt_cache: ollama::PromptCache,
-    pub cache_stats_visible: bool,
+    pub prompt_cache_state: PromptCacheState,
 
     // Ollama Model Discovery
     pub discovered_models: Vec<OllamaModelInfo>,
@@ -145,9 +198,7 @@ pub struct SpaceAnalyzerApp {
     /// Used by the System tab to show real (not estimated) VRAM usage.
     pub running_models: Vec<ollama::RunningModel>,
 
-    // Automatic Model Selection
-    pub current_active_model: Option<String>,
-    pub current_model_task: Option<String>,
+    pub model_selection_state: ModelSelectionState,
 
     // Smart Search (Embeddings)
     pub search_query: String,
@@ -162,45 +213,31 @@ pub struct SpaceAnalyzerApp {
     pub(crate) search_receiver: Option<mpsc::Receiver<SearchMessage>>,
 
     // AI Tools Panel (v3.5.0+) — capability-driven quick buttons
-    pub semantic_search_query: String,
-    pub cleanup_plan_question: String,
-    pub pending_screenshot_path: Option<String>,
+    pub ai_prompt_state: AiPromptState,
 
     // Deduplication
     pub dedup_receiver: Option<mpsc::Receiver<String>>,
     pub is_deduplicating: bool,
 
-    // System
-    pub disk_volumes: Vec<DiskVolume>,
-    pub system_resources: Option<SystemResources>,
-    pub gpu_info: Option<GpuInfo>,
+    pub system_state: SystemState,
 
-    // Tool Calling
-    pub tool_call_depth: u32,
-    pub ollama_auto_started: bool,
+    pub tool_runtime_state: ToolRuntimeState,
     frame_counter: u64,
 
-    // Welcome splash
-    pub show_welcome: bool,
-    pub startup_frame: u64,
+    pub welcome_state: WelcomeState,
 
     // Session Logger
     pub session_logger: session_logger::SessionLogger,
 
-    // Notifications
-    pub notifications: Vec<Notification>,
-    pub notification_counter: u64,
+    pub notification_state: NotificationState,
 
     // Destructive-action impact preview (F: preview before delete)
     pub impact_preview_input: String,
     pub current_impact_report: Option<file_relations::DependencyReport>,
     pub impact_preview_open: bool,
     pub impact_preview_pending: bool,
-    // Thumbnail cache for image preview
-    pub thumbnail_cache: Arc<crate::thumbnails::ThumbnailCache>,
     // File actions (move to trash, etc.)
-    pub pending_file_action: Option<FileAction>,
-    pub file_action_confirm_open: bool,
+    pub file_action_state: FileActionState,
 }
 
 impl Default for SpaceAnalyzerApp {
@@ -214,7 +251,8 @@ impl Default for SpaceAnalyzerApp {
         }
 
         let settings = AppSettings::default();
-        let ollama_client = if settings.ollama_enabled {
+        let ollama_enabled = settings.ollama_enabled;
+        let ollama_client = if ollama_enabled {
             match OllamaClient::new(&settings.ollama_url, &settings.ollama_model) {
                 Ok(client) => Some(client),
                 Err(e) => {
@@ -244,8 +282,10 @@ impl Default for SpaceAnalyzerApp {
             active_workflow: None,
             pending_workflow_actions: Vec::new(),
             workflow_history: Vec::new(),
-            editing_workflow: None,
-            show_workflow_editor: false,
+            workflow_editor_state: WorkflowEditorState {
+                editing_workflow: None,
+                show_workflow_editor: false,
+            },
             ai_recommendations: Vec::new(),
             ai_recommendation_source: "heuristic".to_string(),
             ai_recommendation_pending: false,
@@ -268,16 +308,20 @@ impl Default for SpaceAnalyzerApp {
                 OllamaChatMessage::system("You are a helpful AI assistant for disk space analysis. You have access to tools that can retrieve scan results, disk info, and system stats. Use these tools to provide accurate answers. When you don't have enough information, say so rather than guessing."),
             ],
             tool_registry: None,
-            prompt_cache: ollama::PromptCache::new(ollama::PromptCacheConfig::default()),
-            cache_stats_visible: false,
+            prompt_cache_state: PromptCacheState {
+                prompt_cache: ollama::PromptCache::new(ollama::PromptCacheConfig::default()),
+                cache_stats_visible: false,
+            },
             discovered_models: Vec::new(),
             models_discovering: false,
             model_discovery_receiver: None,
             ollama_version: None,
             last_ollama_error: None,
             running_models: Vec::new(),
-            current_active_model: None,
-            current_model_task: None,
+            model_selection_state: ModelSelectionState {
+                current_active_model: None,
+                current_model_task: None,
+            },
             search_query: String::new(),
             search_results: Vec::new(),
             search_processing: false,
@@ -285,36 +329,48 @@ impl Default for SpaceAnalyzerApp {
             cached_embeddings: Vec::new(),
             embedding_scan_id: None,
             is_indexing: false,
-            semantic_search_query: String::new(),
-            cleanup_plan_question: String::new(),
-            pending_screenshot_path: None,
+            ai_prompt_state: AiPromptState {
+                semantic_search_query: String::new(),
+                cleanup_plan_question: String::new(),
+                pending_screenshot_path: None,
+            },
             indexing_progress: 0.0,
             embedding_receiver: None,
             search_receiver: None,
             dedup_receiver: None,
             is_deduplicating: false,
-            disk_volumes: Vec::new(),
-            system_resources: None,
-            gpu_info: None,
-            tool_call_depth: 0,
-            ollama_auto_started: false,
+            system_state: SystemState {
+                disk_volumes: Vec::new(),
+                system_resources: None,
+                gpu_info: None,
+            },
+            tool_runtime_state: ToolRuntimeState {
+                tool_call_depth: 0,
+                ollama_auto_started: false,
+            },
             frame_counter: 0,
-            show_welcome: true,
-            startup_frame: 0,
+            welcome_state: WelcomeState {
+                show_welcome: true,
+                startup_frame: 0,
+            },
             session_logger: session_logger::SessionLogger::new(session_logger::SessionLoggerConfig {
                 log_path: PathBuf::from("space-analyzer-session.log"),
                 enabled: false,
                 ..Default::default()
             }),
-            notifications: Vec::new(),
-            notification_counter: 0,
+            notification_state: NotificationState {
+                notifications: Vec::new(),
+                notification_counter: 0,
+            },
             impact_preview_input: String::new(),
             current_impact_report: None,
             impact_preview_open: false,
             impact_preview_pending: false,
-            thumbnail_cache: Arc::new(crate::thumbnails::ThumbnailCache::default()),
-            pending_file_action: None,
-            file_action_confirm_open: false,
+            file_action_state: FileActionState {
+                pending_file_action: None,
+                file_action_confirm_open: false,
+                thumbnail_cache: Arc::new(crate::thumbnails::ThumbnailCache::default()),
+            },
         };
 
         // Initialize database
@@ -335,17 +391,33 @@ impl Default for SpaceAnalyzerApp {
         }
 
         // Configure prompt cache from settings
-        app.prompt_cache = ollama::PromptCache::new(app.settings.to_prompt_cache_config());
+        app.prompt_cache_state.prompt_cache =
+            ollama::PromptCache::new(app.settings.to_prompt_cache_config());
 
         // Initialize tool registry
         app.tool_registry = Some(ToolRegistry::new(app.scan_result.clone()));
 
         // Refresh system info
         app.refresh_system_info();
+        if let Some(ref gpu) = app.system_state.gpu_info {
+            if !gpu.available {
+                let warning = "GPU warning: no NVIDIA GPU detected; GPU acceleration disabled.";
+                app.status_message = Some(match app.status_message.as_ref() {
+                    Some(existing) => format!("{}\n{}", existing, warning),
+                    None => warning.to_string(),
+                });
+            }
+        }
 
         // Check Ollama availability
         if app.ollama_client.is_some() {
             app.check_ollama();
+        } else if ollama_enabled {
+            let warning = "Ollama warning: AI is enabled but no Ollama client is available.";
+            app.status_message = Some(match app.status_message.as_ref() {
+                Some(existing) => format!("{}\n{}", existing, warning),
+                None => warning.to_string(),
+            });
         }
 
         // Initialize session logger from settings
@@ -367,7 +439,7 @@ impl Default for SpaceAnalyzerApp {
 
 impl eframe::App for SpaceAnalyzerApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        self.process_scan_messages();
+        self.process_scan_messages_safe();
         self.process_ollama_messages();
         self.process_embedding_messages();
         self.process_search_messages();
@@ -379,7 +451,9 @@ impl eframe::App for SpaceAnalyzerApp {
         self.update_model_resource_usage();
 
         // Remove expired notifications
-        self.notifications.retain(|n| !n.is_expired());
+        self.notification_state
+            .notifications
+            .retain(|n| !n.is_expired());
 
         // Keyboard shortcuts
         let mut shortcut_handled = false;
@@ -388,8 +462,8 @@ impl eframe::App for SpaceAnalyzerApp {
                 if !self.is_scanning {
                     self.start_scan();
                     notifications::push_notification(
-                        &mut self.notifications,
-                        &mut self.notification_counter,
+                        &mut self.notification_state.notifications,
+                        &mut self.notification_state.notification_counter,
                         "Scan started",
                         NotificationLevel::Info,
                     );
@@ -399,8 +473,8 @@ impl eframe::App for SpaceAnalyzerApp {
             if i.modifiers.ctrl && i.key_pressed(egui::Key::S) {
                 self.save_settings();
                 notifications::push_notification(
-                    &mut self.notifications,
-                    &mut self.notification_counter,
+                    &mut self.notification_state.notifications,
+                    &mut self.notification_state.notification_counter,
                     "Settings saved",
                     NotificationLevel::Success,
                 );
@@ -419,11 +493,15 @@ impl eframe::App for SpaceAnalyzerApp {
         }
 
         // ── Welcome splash (auto-dismisses after ~120 frames or on click) ─
-        if self.show_welcome {
-            self.startup_frame = self.startup_frame.wrapping_add(1);
-            splash::render_welcome_splash(ui, self.startup_frame, &mut self.show_welcome);
-            if self.startup_frame > 120 {
-                self.show_welcome = false;
+        if self.welcome_state.show_welcome {
+            self.welcome_state.startup_frame = self.welcome_state.startup_frame.wrapping_add(1);
+            splash::render_welcome_splash(
+                ui,
+                self.welcome_state.startup_frame,
+                &mut self.welcome_state.show_welcome,
+            );
+            if self.welcome_state.startup_frame > 120 {
+                self.welcome_state.show_welcome = false;
             }
             return;
         }
@@ -451,7 +529,7 @@ impl eframe::App for SpaceAnalyzerApp {
                     );
                     ui.separator();
                     ui.label(
-                        egui::RichText::new("v3.4.0")
+                        egui::RichText::new("v3.5.0")
                             .size(11.0)
                             .color(colors::TEXT_MUTED),
                     );
@@ -536,9 +614,9 @@ impl eframe::App for SpaceAnalyzerApp {
                                 .size(11.0)
                                 .color(colors::TEXT_MUTED),
                         );
-                        if let Some(ref model) = self.current_active_model {
+                        if let Some(ref model) = self.model_selection_state.current_active_model {
                             badge(ui, model, colors::SUCCESS);
-                            if let Some(ref task) = self.current_model_task {
+                            if let Some(ref task) = self.model_selection_state.current_model_task {
                                 ui.label(
                                     egui::RichText::new(format!("for {}", task))
                                         .size(11.0)
@@ -666,12 +744,12 @@ impl eframe::App for SpaceAnalyzerApp {
         // Toast notifications (rendered on top of everything)
         notifications::render_file_action_confirm(
             ui,
-            &mut self.file_action_confirm_open,
-            &mut self.pending_file_action,
-            &mut self.notifications,
-            &mut self.notification_counter,
+            &mut self.file_action_state.file_action_confirm_open,
+            &mut self.file_action_state.pending_file_action,
+            &mut self.notification_state.notifications,
+            &mut self.notification_state.notification_counter,
         );
-        notifications::render_notifications(ui, &self.notifications);
+        notifications::render_notifications(ui, &self.notification_state.notifications);
     }
 }
 
@@ -679,8 +757,8 @@ impl SpaceAnalyzerApp {
     /// Push a toast notification
     pub fn push_notification(&mut self, message: impl Into<String>, level: NotificationLevel) {
         notifications::push_notification(
-            &mut self.notifications,
-            &mut self.notification_counter,
+            &mut self.notification_state.notifications,
+            &mut self.notification_state.notification_counter,
             message,
             level,
         );
@@ -704,7 +782,7 @@ fn app_icon() -> Option<egui::IconData> {
 pub fn run_gui_with_tab(initial_tab: Option<&str>) -> Result<(), eframe::Error> {
     let mut viewport = egui::ViewportBuilder::default()
         .with_inner_size([1400.0, 900.0])
-        .with_title("Space Analyzer Pro v3.4.0 - Self-Contained")
+        .with_title("Space Analyzer Pro v3.5.0 - Self-Contained")
         .with_app_id("space-analyzer-pro")
         .with_icon(app_icon().unwrap_or_else(|| egui::IconData {
             rgba: vec![],

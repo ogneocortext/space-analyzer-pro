@@ -665,24 +665,15 @@ def main() -> int:
             run.save_report()
             sys.exit(1)
 
-        # 2. Scan tab — launch fresh, click Scan button
-        print("\n  [2] Scan Tab + Execution")
-        kill_process(process)
-        test_tab(run, "Scan", "02_tab_scan", extra_fn=test_scan_button)
-
-        # 3. Each remaining tab — launch fresh with --tab, screenshot, kill
-        tab_tests = [
-            ("Dashboard", "03_tab_dashboard"),
-            ("History", "04_tab_history"),
-            ("Smart Search", "05_tab_smart_search"),
-            ("Workflows", "06_tab_workflows"),
-            ("AI Chat", "07_tab_ai_chat"),
-            ("System", "08_tab_system"),
-            ("Settings", "09_tab_settings"),
-        ]
-        for i, (tab, shot) in enumerate(tab_tests, 3):
-            print(f"\n  [{i}] {tab} Tab")
-            test_tab(run, tab, shot)
+        run.begin_phase("tab_navigation")
+        for idx, tab_name in enumerate(ACTUAL_TABS, 1):
+            shot_name = f"0{idx}_tab_{tab_name.lower().replace(' ', '_')}"
+            print(f"\n  [{idx}] {tab_name} Tab")
+            navigate_tab(hwnd, tab_name, run)
+            time.sleep(0.5)
+            run.screenshot(shot_name, hwnd=hwnd)
+            run.record_test(f"tab_{tab_name.lower().replace(' ', '_')}_visible", True, f"Navigated to {tab_name}")
+        run.end_phase()
 
     except Exception as e:
         run.error = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"

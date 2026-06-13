@@ -339,6 +339,7 @@ impl SpaceAnalyzerApp {
                 WorkflowTrigger::LowDiskSpace { threshold_percent } => {
                     // Check if any disk is below threshold
                     let triggered = self
+                        .system_state
                         .disk_volumes
                         .iter()
                         .any(|v| v.usage_percent >= *threshold_percent as f32);
@@ -425,8 +426,8 @@ impl SpaceAnalyzerApp {
         } else {
             self.workflows.push(workflow);
         }
-        self.show_workflow_editor = false;
-        self.editing_workflow = None;
+        self.workflow_editor_state.show_workflow_editor = false;
+        self.workflow_editor_state.editing_workflow = None;
         self.push_notification("Workflow saved", NotificationLevel::Success);
     }
 
@@ -543,8 +544,8 @@ impl SpaceAnalyzerApp {
         }
         if let Some(id) = edit_workflow_id {
             if let Some(workflow) = self.workflows.iter().find(|w| w.id == id).cloned() {
-                self.editing_workflow = Some(workflow);
-                self.show_workflow_editor = true;
+                self.workflow_editor_state.editing_workflow = Some(workflow);
+                self.workflow_editor_state.show_workflow_editor = true;
             }
         }
 
@@ -556,12 +557,12 @@ impl SpaceAnalyzerApp {
                     .fill(colors::ACCENT);
                 if ui.add(new_btn).clicked() {
                     let id = format!("custom-{}", chrono::Utc::now().timestamp_millis());
-                    self.editing_workflow = Some(Workflow::new(
+                    self.workflow_editor_state.editing_workflow = Some(Workflow::new(
                         &id,
                         "New Workflow",
                         workflows::WorkflowCategory::Custom,
                     ));
-                    self.show_workflow_editor = true;
+                    self.workflow_editor_state.show_workflow_editor = true;
                 }
                 if ui.button("📥 Import").clicked() {
                     self.import_workflows();
@@ -605,7 +606,7 @@ impl SpaceAnalyzerApp {
         }
 
         // ── Workflow Editor Modal ─────────────────────────────────────
-        if self.show_workflow_editor {
+        if self.workflow_editor_state.show_workflow_editor {
             self.render_workflow_editor(ui);
         }
     }
@@ -616,7 +617,7 @@ impl SpaceAnalyzerApp {
             .resizable(false)
             .default_width(550.0)
             .show(ui.ctx(), |ui| {
-                if let Some(ref mut workflow) = self.editing_workflow {
+                if let Some(ref mut workflow) = self.workflow_editor_state.editing_workflow {
                     // Basic info
                     ui.horizontal(|ui| {
                         ui.label("Name:");
@@ -941,8 +942,8 @@ impl SpaceAnalyzerApp {
                             self.save_custom_workflow(workflow_clone);
                         }
                         if ui.button("Cancel").clicked() {
-                            self.show_workflow_editor = false;
-                            self.editing_workflow = None;
+                            self.workflow_editor_state.show_workflow_editor = false;
+                            self.workflow_editor_state.editing_workflow = None;
                         }
                     });
                 }

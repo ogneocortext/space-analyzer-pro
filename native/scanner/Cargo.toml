@@ -6,10 +6,6 @@ authors = ["Space Analyzer Team"]
 description = "High-performance file analysis CLI for Space Analyzer Pro"
 license = "MIT"
 
-[[bin]]
-name = "space-analyzer"
-path = "src/main.rs"
-
 [lib]
 name = "space_scanner"
 crate-type = ["cdylib", "lib"]

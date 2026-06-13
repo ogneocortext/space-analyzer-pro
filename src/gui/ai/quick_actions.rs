@@ -75,7 +75,11 @@ impl SpaceAnalyzerApp {
                 system_prompt,
                 &user_content,
             );
-            if let Some(cached) = self.prompt_cache.lookup(&cache_key, &model_name) {
+            if let Some(cached) = self
+                .prompt_cache_state
+                .prompt_cache
+                .lookup(&cache_key, &model_name)
+            {
                 self.chat_messages.push(ChatMessage {
                     role: "assistant".to_string(),
                     content: cached.response.clone(),

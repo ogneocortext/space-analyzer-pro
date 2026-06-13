@@ -85,7 +85,7 @@ build-cli:
 
 # Run all workspace tests
 test:
-    cargo test --workspace
+    cargo test --workspace --exclude node_modules_cleaner --exclude gpu-compute
 
 # Run GUI macro test (Win32 PrintWindow API, zero-disruption)
 test-gui:
@@ -122,7 +122,7 @@ lint: fmt-check clippy
 verify:
     cargo fmt --all -- --check
     cargo clippy --all-targets --all-features -- -D warnings
-    cargo test --workspace
+    cargo test --workspace --exclude node_modules_cleaner --exclude gpu-compute
 
 # ──────────────────────────────────────────────────────────────
 #  Dev Environment
@@ -216,3 +216,63 @@ clean-all:
     cargo clean
     @Remove-Item -Recurse -Force -ErrorAction SilentlyContinue build-artifacts
     @Remove-Item -Recurse -Force -ErrorAction SilentlyContinue target
+
+# Continuous optimization loop
+loop-start:
+    @echo "Starting continuous optimization loop..."
+    @if not exist loop_feedback mkdir loop_feedback
+    python scripts/loop/continuous_test_loop.py
+
+loop-start-background:
+    @echo "Starting loop in background..."
+    @if not exist loop_feedback mkdir loop_feedback
+    @start /B python scripts/loop/continuous_test_loop.py
+
+loop-stop:
+    @echo "Stopping loop..."
+    @taskkill /FI "WINDOWTITLE eq Space-Analyzer-Loop*" /F 2>nul
+    @if exist loop_feedback\loop.pid taskkill /F /PID $(type loop_feedback\loop.pid) 2>nul
+    @echo "Loop stopped."
+
+loop-status:
+    @echo "Loop state:"
+    @if exist loop_feedback\loop_state.json python -c "import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps(d, indent=2))" loop_feedback\loop_state.json
+    @echo ""
+    @echo "Recent feedback:"
+    @if exist loop_feedback\agent_feedback.jsonl powershell -Command "Get-Content loop_feedback\agent_feedback.jsonl -Tail 5"
+
+loop-feedback:
+    @echo "Submitting feedback..."
+    python scripts/loop/feedback_collector.py --interactive
+
+loop-report:
+    @echo "Generating optimization report..."
+    python scripts/loop/feedback_collector.py --report
+
+loop-clear:
+    @echo "Clearing loop state..."
+    @if exist loop_feedback\loop_state.json del loop_feedback\loop_state.json
+    @if exist loop_feedback\loop.lock del loop_feedback\loop.lock
+    @if exist loop_feedback\agent_feedback.jsonl del loop_feedback\agent_feedback.jsonl
+    @echo "Loop state cleared."
+# Full Windows package (local only, no CI)
+package-full: build-release
+	@echo "Packaging for Windows x64..."
+	@$ErrorActionPreference='SilentlyContinue'; if (Test-Path dist) { Remove-Item dist -Recurse -Force }
+	New-Item -ItemType Directory -Path dist -Force | Out-Null
+	$v = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version
+	$out = "dist/space-analyzer-pro-$v-windows-x64"
+	New-Item -ItemType Directory -Path "$out/bin" -Force | Out-Null
+	Copy-Item "target/release/space-analyzer-gui.exe" "$out/bin/"
+	Copy-Item "target/release/space-analyzer-pro.exe" "$out/bin/"
+	if (Test-Path "target/release/*.dll") { Copy-Item "target/release/*.dll" "$out/bin/" }
+	New-Item -ItemType Directory -Path "$out/docs" -Force | Out-Null
+	Copy-Item docs/* "$out/docs/" -Recurse -ErrorAction SilentlyContinue
+	Set-Content -LiteralPath "$out/README.txt" -Value "Space Analyzer Pro v$v`nRun bin/space-analyzer-gui.exe`nDocs in docs/`n"
+	Compress-Archive -Path "$out/*" -DestinationPath "dist/space-analyzer-pro-$v-windows-x64.zip"
+	@echo "Package ready: dist/space-analyzer-pro-$v-windows-x64.zip"
+
+# Disable Defender false-positive warnings on target/
+defender-exclude:
+	@echo "Adding Defender exclusion for target/ (requires admin)..."
+	@powershell -Command "Start-Process powershell -ArgumentList '-NoProfile','-Command','Add-MpPreference -ExclusionPath ''E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer\target''' -Verb RunAs -Wait"

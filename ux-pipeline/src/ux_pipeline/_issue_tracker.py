@@ -52,6 +52,8 @@ class IssueStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     DONE = "done"
     WONTFIX = "wontfix"
+    BLOCKED = "blocked"
+    PENDING = "pending"
 
     @classmethod
     def parse(cls, value: str | "IssueStatus") -> "IssueStatus":
@@ -105,6 +107,9 @@ class IssueRow:
     last_seen: str = ""
     occurrences: int = 1
     notes: str = ""
+    priority_rank: int = 0
+    priority_note: str = ""
+    tags: list[str] = field(default_factory=list)
     extra: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -125,6 +130,14 @@ class IssueRow:
                 kwargs[key] = data[key]
         if "status" in kwargs:
             kwargs["status"] = IssueStatus.parse(kwargs["status"])
+        if "tags" in kwargs:
+            raw = kwargs["tags"]
+            if isinstance(raw, str):
+                kwargs["tags"] = [t.strip() for t in raw.split(",") if t.strip()]
+            elif isinstance(raw, list):
+                kwargs["tags"] = [str(t) for t in raw]
+            else:
+                kwargs["tags"] = []
         if "extra" not in kwargs or not isinstance(kwargs.get("extra"), dict):
             kwargs["extra"] = {}
         return cls(**kwargs)
@@ -330,6 +343,30 @@ class IssueTracker:
     def __len__(self) -> int:
         self._ensure_loaded()
         return len(self._issues)
+
+    def set_priority(self, issue_id: str, priority_rank: int, priority_note: str = "") -> bool:
+        """Set priority fields for an issue."""
+        self._ensure_loaded()
+        row = self._issues.get(issue_id)
+        if row is None:
+            return False
+        row.priority_rank = max(0, int(priority_rank))
+        row.priority_note = priority_note or ""
+        self._sync_store()
+        return True
+
+    def list_priority(self) -> list[dict[str, Any]]:
+        """Return open/in-progress/blocked/pending issues ordered by priority rank."""
+        self._ensure_loaded()
+        allowed = {
+            IssueStatus.OPEN.value,
+            IssueStatus.IN_PROGRESS.value,
+            IssueStatus.BLOCKED.value,
+            IssueStatus.PENDING.value,
+        }
+        rows = [row for row in self._issues.values() if row.status.value in allowed]
+        rows.sort(key=lambda r: (r.priority_rank, (r.last_seen or "").lower()), reverse=True)
+        return [row.to_dict() for row in rows]
 
     def bulk_import(self, rows: Iterable[IssueRow | dict[str, Any]]) -> int:
         """Upsert many rows at once. Returns the number imported."""

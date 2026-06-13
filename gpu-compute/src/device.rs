@@ -13,6 +13,9 @@ pub struct GpuInfo {
     pub device_count: usize,
 }
 
+use std::sync::OnceLock;
+static GPU_AVAILABLE: OnceLock<bool> = OnceLock::new();
+
 impl GpuInfo {
     /// Detect available GPU devices
     pub fn detect() -> Self {
@@ -77,7 +80,21 @@ impl GpuInfo {
 
     /// Check if GPU acceleration is available
     pub fn is_available() -> bool {
-        Self::detect().available
+        *GPU_AVAILABLE.get_or_init(|| {
+            #[cfg(feature = "cuda")]
+            {
+                use cudarc::driver::CudaDevice;
+                CudaDevice::new(0).is_ok()
+            }
+            #[cfg(not(feature = "cuda"))]
+            {
+                std::process::Command::new("nvidia-smi")
+                    .args(["--query-gpu=name", "--format=csv,noheader"])
+                    .output()
+                    .map(|o| o.status.success())
+                    .unwrap_or(false)
+            }
+        })
     }
 }
 

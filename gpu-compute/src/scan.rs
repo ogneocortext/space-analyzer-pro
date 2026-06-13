@@ -64,7 +64,7 @@ pub struct GpuScanProcessor {
 impl GpuScanProcessor {
     pub fn new() -> Self {
         Self {
-            use_gpu: cfg!(feature = "cuda"),
+            use_gpu: false,
             top_n: 100,
         }
     }
@@ -173,135 +173,9 @@ impl GpuScanProcessor {
     /// - Size bucket computation (reduction kernel)
     /// - Top-N selection (parallel selection kernel)
     fn process_gpu(&self, entries: &[RawFileEntry]) -> GpuScanResult {
-        #[cfg(feature = "cuda")]
-        {
-            // Separate files and directories
-            let files: Vec<_> = entries.iter().filter(|e| !e.is_dir).cloned().collect();
-
-            if files.is_empty() {
-                return GpuScanResult {
-                    total_files: 0,
-                    total_size: 0,
-                    file_types: HashMap::new(),
-                    extension_sizes: HashMap::new(),
-                    size_distribution: HashMap::new(),
-                    largest_files: Vec::new(),
-                    empty_dirs: count_dir_entries(entries)
-                        .into_iter()
-                        .filter_map(|(p, c)| if c == 0 { Some(p) } else { None })
-                        .collect(),
-                    subdirectories: compute_subdirectories(entries),
-                    processing_time_ms: 0,
-                    device: "GPU".to_string(),
-                };
-            }
-
-            // Transfer sizes to GPU for parallel histogram computation
-            match self.process_files_on_gpu(&files) {
-                Ok(mut gpu_result) => {
-                    gpu_result.device = "GPU (CUDA)".to_string();
-
-                    // Add empty dir detection (still CPU-bound)
-                    gpu_result.empty_dirs = count_dir_entries(entries)
-                        .into_iter()
-                        .filter_map(|(p, c)| if c == 0 { Some(p) } else { None })
-                        .collect();
-
-                    return gpu_result;
-                }
-                Err(_) => {
-                    // GPU processing failed, fallback to CPU
-                }
-            }
-        }
-
-        // Fallback to CPU
+        // Fallback to CPU processing for now (GPU implementation incomplete)
+        // The GPU path was broken with undefined variables
         self.process_cpu(entries)
-    }
-
-    #[cfg(feature = "cuda")]
-    fn process_files_on_gpu(&self, files: &[RawFileEntry]) -> anyhow::Result<GpuScanResult> {
-        use cudarc::driver::{CudaDevice, LaunchAsync, LaunchConfig};
-
-        let dev = CudaDevice::new(0)?;
-
-        // Transfer file sizes to GPU for parallel histogram computation
-        let sizes: Vec<u64> = files.iter().map(|f| f.size).collect();
-        let d_sizes = dev.htod_sync_copy(&sizes)?;
-
-        // GPU kernel: compute size bucket histogram
-        // Bucket boundaries: 0, 1KB, 10KB, 100KB, 1MB, 10MB, 100MB, 1GB
-        const NUM_BUCKETS: usize = 9;
-        let bucket_names = [
-            "0 B",
-            "< 1 KB",
-            "1-10 KB",
-            "10-100 KB",
-            "100 KB-1 MB",
-            "1-10 MB",
-            "10-100 MB",
-            "100 MB-1 GB",
-            "> 1 GB",
-        ];
-
-        // Allocate histogram on GPU
-        let mut d_histogram = vec![0u32; NUM_BUCKETS];
-        let d_hist = dev.htod_sync_copy(&d_histogram)?;
-
-        // Launch histogram kernel
-        // Each thread processes one file size and atomically increments the appropriate bucket
-        let config = LaunchConfig::for_num_files(files.len() as u64);
-
-        // Note: In production, this would load a pre-compiled PTX kernel
-        // For now, we demonstrate the architecture with CPU-side histogram
-        // The GPU memory transfer overhead is shown for benchmarking
-
-        drop(d_sizes);
-        drop(d_hist);
-
-        // Compute histogram on CPU (GPU kernel would be loaded from PTX)
-        let mut size_distribution: HashMap<String, u64> = HashMap::new();
-        let mut file_types: HashMap<String, u64> = HashMap::new();
-        let mut total_size = 0u64;
-
-        for entry in files {
-            total_size += entry.size;
-            let bucket = size_bucket(entry.size);
-            *size_distribution.entry(bucket).or_insert(0) += 1;
-
-            let ext = extract_extension(&entry.path);
-            *file_types.entry(ext).or_insert(0) += 1;
-        }
-
-        // Find top-N largest files
-        let mut largest: Vec<GpuFileInfo> = files
-            .iter()
-            .map(|f| GpuFileInfo {
-                path: f.path.clone(),
-                name: extract_filename(&f.path),
-                size: f.size,
-                extension: extract_extension(&f.path),
-            })
-            .collect();
-
-        if largest.len() > self.top_n {
-            largest.select_nth_unstable_by(self.top_n, |a, b| b.size.cmp(&a.size));
-            largest.truncate(self.top_n);
-        }
-        largest.sort_by(|a, b| b.size.cmp(&a.size));
-
-        Ok(GpuScanResult {
-            total_files: files.len() as u64,
-            total_size,
-            file_types: file_types.clone(),
-            extension_sizes: file_types.clone(), // Will be computed properly when GPU kernel is implemented
-            size_distribution,
-            largest_files: largest,
-            empty_dirs: Vec::new(),
-            subdirectories: compute_subdirectories(&files),
-            processing_time_ms: 0,
-            device: "GPU".to_string(),
-        })
     }
 }
 

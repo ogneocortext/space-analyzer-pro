@@ -29,7 +29,7 @@ impl BatchHasher {
     pub fn new() -> Self {
         Self {
             batch_size: 64,
-            use_gpu: cfg!(feature = "cuda"),
+            use_gpu: false,
         }
     }
 
@@ -144,17 +144,11 @@ impl BatchHasher {
         let mut results = Vec::new();
 
         for (path, data) in batch {
-            // Allocate GPU memory for data
-            let d_data = dev.htod_sync_copy(data)?;
-
             // Compute hash on CPU (BLAKE3 is already SIMD-optimized)
             // GPU acceleration would use a custom BLAKE3 CUDA kernel
             let mut hasher = Hasher::new();
             hasher.update(data);
             let hash = hasher.finalize().to_hex().to_string();
-
-            // Free GPU memory
-            drop(d_data);
 
             results.push(HashResult {
                 path: path.clone(),

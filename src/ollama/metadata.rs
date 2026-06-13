@@ -81,7 +81,7 @@ pub struct ShowModelResponse {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PullRequest {
-    pub name: String,
+    pub model: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
 }
@@ -119,7 +119,7 @@ pub struct CopyModelRequest {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DeleteModelRequest {
-    pub name: String,
+    pub model: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -130,35 +130,26 @@ impl SpaceAnalyzer {
 
     pub fn categorize_file(&self, extension: &str) -> &'static str {
         match extension.to_lowercase().as_str() {
-            // Documents
-            "pdf" | "doc" | "docx" | "txt" | "rtf" | "md" | "tex" => "Documents",
-            // Spreadsheets
-            "xls" | "xlsx" | "csv" | "ods" => "Spreadsheets",
-            // Presentations
-            "ppt" | "pptx" | "odp" => "Presentations",
-            // Images
-            "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "svg" | "ico" => "Images",
-            // Videos
-            "mp4" | "avi" | "mov" | "wmv" | "flv" | "mkv" => "Videos",
-            // Audio
-            "mp3" | "wav" | "flac" | "aac" | "ogg" => "Audio",
-            // Code
-            "js" | "jsx" | "ts" | "tsx" | "py" | "java" | "cpp" | "c" | "h" | "hpp" | "cs"
-            | "php" | "rb" | "go" | "rs" | "swift" | "kt" => "Code",
-            // Web
-            "html" | "htm" | "css" | "scss" | "less" | "xml" => "Web",
-            // Config
-            "json" | "yaml" | "yml" | "toml" | "ini" | "cfg" => "Config",
-            // Archives
-            "zip" | "rar" | "7z" | "tar" | "gz" => "Archives",
-            // Executables
-            "exe" | "msi" | "deb" | "rpm" | "dmg" => "Executables",
-            // Databases
-            "db" | "sqlite" | "mdb" => "Databases",
-            // Fonts
-            "ttf" | "otf" | "woff" | "woff2" => "Fonts",
-            // System
-            "dll" | "so" | "sys" | "tmp" | "log" => "System",
+            "txt" | "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "odt" | "ods"
+            | "odp" | "rtf" | "md" | "csv" => "Documents",
+            "jpg" | "jpeg" | "png" | "gif" | "bmp" | "svg" | "webp" | "ico" | "tiff" | "tif" => {
+                "Images"
+            }
+            "mp4" | "avi" | "mkv" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpeg" | "mpg" => {
+                "Videos"
+            }
+            "mp3" | "wav" | "flac" | "aac" | "ogg" | "wma" | "m4a" => "Audio",
+            "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "iso" | "cab" => "Archives",
+            "js" | "ts" | "py" | "java" | "c" | "cpp" | "h" | "hpp" | "cs" | "go" | "rs"
+            | "php" | "rb" | "swift" | "kt" | "scala" | "html" | "css" | "scss" | "sass"
+            | "less" | "json" | "xml" | "yaml" | "yml" => "Code",
+            "db" | "sqlite" | "sql" | "mdb" | "accdb" => "Databases",
+            "exe" | "msi" | "bat" | "cmd" | "sh" | "ps1" | "app" | "dmg" | "deb" | "rpm" => {
+                "Executables"
+            }
+            "dll" | "sys" | "drv" | "fon" | "ttf" | "otf" | "log" | "tmp" => "System",
+            "gradle" | "maven" | "env" | "dist" | "build" => "Development",
+            "sav" | "save" | "game" => "Games",
             _ => "Other",
         }
     }

@@ -310,6 +310,11 @@ class SqliteIssueStore:
             out["extra"] = json.loads(out.pop("extra_json", "{}") or "{}")
         except json.JSONDecodeError:
             out["extra"] = {}
+        raw_tags = out.get("tags", "")
+        if isinstance(raw_tags, str):
+            out["tags"] = [t.strip() for t in raw_tags.split(",") if t.strip()]
+        else:
+            out["tags"] = []
         return out
 
     def __enter__(self) -> SqliteIssueStore:
