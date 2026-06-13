@@ -720,6 +720,83 @@ fn print_recommendations(result: &ScanResult) {
         ));
     }
 
+    // Check for Recycle Bin
+    let recycle_bin_size: u64 = result
+        .top_directories
+        .iter()
+        .filter(|d| d.path.to_lowercase().contains("$recycle.bin"))
+        .map(|d| d.total_size)
+        .sum();
+    if recycle_bin_size > 0 {
+        recommendations.push((2, format!(
+            "🗑️  Recycle Bin contains {} of deleted files. Empty it to reclaim space.",
+            format_bytes(recycle_bin_size)
+        )));
+    }
+
+    // Check for large Downloads folder
+    let downloads_size: u64 = result
+        .top_directories
+        .iter()
+        .filter(|d| d.path.to_lowercase().contains("\\downloads") || d.path.to_lowercase().contains("/downloads"))
+        .map(|d| d.total_size)
+        .sum();
+    if downloads_size > 1024 * 1024 * 1024 {
+        recommendations.push((1, format!(
+            "📥 Downloads folder is using {}. Look for old installers (CUDA, drivers, apps) you can delete.",
+            format_bytes(downloads_size)
+        )));
+    }
+
+    // Check for Windows Installer cache (large .msi/.msp files)
+    let installer_cache: u64 = result
+        .top_directories
+        .iter()
+        .filter(|d| d.path.to_lowercase().contains("windows\\installer"))
+        .map(|d| d.total_size)
+        .sum();
+    if installer_cache > 500 * 1024 * 1024 {
+        recommendations.push((1, format!(
+            "📦 Windows Installer cache is using {}. Use Disk Cleanup (cleanmgr) or PatchCleaner to remove orphaned .msi/.msp files.",
+            format_bytes(installer_cache)
+        )));
+    }
+
+    // Check for browser updater/crx caches
+    let browser_cache: u64 = result
+        .top_directories
+        .iter()
+        .filter(|d| {
+            let l = d.path.to_lowercase();
+            l.contains("googleupdater") || l.contains("crx_cache") || l.contains("edgecore")
+        })
+        .map(|d| d.total_size)
+        .sum();
+    if browser_cache > 100 * 1024 * 1024 {
+        recommendations.push((1, format!(
+            "🌐 Browser updater cache (Google, Edge) is using {}. Safe to clear — browsers will re-download on update.",
+            format_bytes(browser_cache)
+        )));
+    }
+
+    // Check for debug/log caches in user directories
+    let user_debug: u64 = result
+        .top_directories
+        .iter()
+        .filter(|d| {
+            let l = d.path.to_lowercase();
+            (l.contains("users") && (l.contains(".cache") || l.contains("mypy_cache")))
+                || (l.contains("documents") && l.ends_with(".csv"))
+        })
+        .map(|d| d.total_size)
+        .sum();
+    if user_debug > 50 * 1024 * 1024 {
+        recommendations.push((1, format!(
+            "📝 User debug/cache files are using {}. Check Downloads, Documents, and AppData for old logs and artifacts.",
+            format_bytes(user_debug)
+        )));
+    }
+
     // Check for duplicate file potential
     if result.total_files > 1000 {
         recommendations.push((0, "💡 Run with `--clean` to find duplicate files that can be deduplicated using hard links.".to_string()));
