@@ -27,6 +27,7 @@ pub struct ScanResult {
     pub total_size_mb: f64,
     pub duration_secs: f64,
     pub file_types: HashMap<String, usize>,
+    pub extension_sizes: HashMap<String, usize>,
     pub largest_files: Vec<(String, u64)>,
     pub errors: Vec<String>,
     pub path: String,
@@ -46,6 +47,7 @@ impl ScanResult {
             total_size_mb: 0.0,
             duration_secs: 0.0,
             file_types: HashMap::new(),
+            extension_sizes: HashMap::new(),
             largest_files: Vec::new(),
             errors: Vec::new(),
             path: String::new(),
@@ -67,6 +69,12 @@ impl ScanResult {
 
         for (ext, count) in &result.file_types {
             scan_result.file_types.insert(ext.clone(), *count as usize);
+        }
+
+        for (ext, size) in &result.extension_sizes {
+            scan_result
+                .extension_sizes
+                .insert(ext.clone(), *size as usize);
         }
 
         for file in &result.largest_files {

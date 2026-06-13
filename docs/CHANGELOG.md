@@ -87,6 +87,23 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 
 ## [Unreleased]
 
+### Database & Data Flow Improvements
+
+#### Enhanced Scan History Storage
+- Added `extension_sizes_json` column to `scan_history` — stores byte counts per extension for trend analysis
+- Added `top_directories_json` column — stores largest directories data for cross-scan analytics
+- Added `potential_cleanup_bytes` column — tracks estimated reclaimable space per scan
+- Added `duplicate_analysis` table — stores duplicate scan results linked to scan history
+
+#### CLI Database Integration
+- CLI scans now persist to embedded SQLite database at `%LOCALAPPDATA%\SpaceAnalyzer\space-analyzer.db`
+- Enables trend reporting and analytics in GUI dashboard
+- `--cleanup-recommendations` flag provides actionable space-saving suggestions
+
+#### Report Naming Convention
+- Improved report filenames: `{path}_{timestamp}_{hash}.md` for unique identification
+- Example: `CUsersAomegaImaging_20260612_183059_ab12cd34.md`
+
 ### Code Quality & Maintenance
 
 #### Duplicate File Cleanup

@@ -7,6 +7,16 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// Directory entry for database storage
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirEntryForDb {
+    pub path: String,
+    pub name: String,
+    pub total_size: u64,
+    pub file_count: u64,
+    pub dir_count: u64,
+}
+
 /// Database manager for persistent storage
 pub struct Database {
     conn: Connection,
@@ -22,8 +32,11 @@ pub struct ScanHistoryRecord {
     pub total_size_mb: f64,
     pub duration_secs: f64,
     pub file_types_json: String,
+    pub extension_sizes_json: String,
+    pub top_directories_json: String,
     pub largest_files_json: String,
     pub deep_scan: bool,
+    pub potential_cleanup_bytes: u64,
     pub timestamp: String,
 }
 
@@ -116,16 +129,28 @@ impl Database {
                 total_size_mb REAL NOT NULL,
                 duration_secs REAL NOT NULL,
                 file_types_json TEXT NOT NULL,
+                extension_sizes_json TEXT NOT NULL,
+                top_directories_json TEXT NOT NULL,
                 largest_files_json TEXT NOT NULL,
                 deep_scan BOOLEAN NOT NULL DEFAULT 0,
+                potential_cleanup_bytes INTEGER NOT NULL DEFAULT 0,
                 timestamp TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS duplicate_analysis (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                scan_id INTEGER NOT NULL,
+                duplicate_groups_json TEXT NOT NULL,
+                potential_savings_bytes INTEGER NOT NULL DEFAULT 0,
+                timestamp TEXT NOT NULL,
+                FOREIGN KEY (scan_id) REFERENCES scan_history(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_scan_history_timestamp ON scan_history(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_scan_history_path ON scan_history(path);
+            CREATE INDEX IF NOT EXISTS idx_duplicate_scan_id ON duplicate_analysis(scan_id);
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
-            CREATE INDEX IF NOT EXISTS idx_scan_history_timestamp ON scan_history(timestamp);
-            CREATE INDEX IF NOT EXISTS idx_scan_history_path ON scan_history(path);
             CREATE TABLE IF NOT EXISTS workflow_executions (
                 id TEXT PRIMARY KEY,
                 workflow_id TEXT NOT NULL,

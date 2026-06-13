@@ -1349,6 +1349,11 @@ fn main() -> AppResult<()> {
             total_size_mb: result.total_size_mb,
             duration_secs: result.duration_secs,
             file_types: result.file_types.clone(),
+            extension_sizes: result
+                .extension_sizes
+                .iter()
+                .map(|(k, v)| (k.clone(), *v as usize))
+                .collect(),
             largest_files: result.largest_files.clone(),
             errors: result.errors.clone(),
             path: result.path.clone(),
