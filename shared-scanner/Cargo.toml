@@ -24,11 +24,12 @@ walkdir = { workspace = true }
 # Additional dependencies
 sysinfo = "0.39"
 gpu-compute = { path = "../gpu-compute", optional = true }
+ignore = { version = "0.4", optional = true }
 
 [features]
 default = []
 gpu = ["dep:gpu-compute"] # GPU-accelerated scanning
-parallel = [] # Parallel I/O optimized for SSDs
+parallel = ["dep:ignore"] # Parallel I/O optimized for SSDs
 
 [dev-dependencies]
 tempfile = "3"
