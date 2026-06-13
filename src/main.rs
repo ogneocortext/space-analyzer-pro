@@ -625,6 +625,7 @@ fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool) {
 
 fn print_recommendations(result: &ScanResult) {
     let mut recommendations: Vec<(u32, String)> = Vec::new();
+    let mut potential_savings: u64 = 0;
 
     // Check disk usage
     if let Some(disk) = get_disk_info(&result.path) {
@@ -658,6 +659,7 @@ fn print_recommendations(result: &ScanResult) {
             "🤖 Ollama models are using {}. If you don't use all models, run `ollama rm <model>` to free space.",
             format_bytes(ollama_size)
         )));
+        potential_savings = potential_savings.saturating_add(ollama_size);
     }
 
     // Check for large log files
@@ -670,6 +672,7 @@ fn print_recommendations(result: &ScanResult) {
                 format_bytes(log_size)
             ),
         ));
+        potential_savings = potential_savings.saturating_add(log_size);
     }
 
     // Check for old installer executables
@@ -679,6 +682,7 @@ fn print_recommendations(result: &ScanResult) {
             "📦 Installer/executable files are using {}. Check Downloads for old installers you no longer need.",
             format_bytes(exe_size)
         )));
+        potential_savings = potential_savings.saturating_add(exe_size);
     }
 
     // Check for WSL/VM images
@@ -691,6 +695,7 @@ fn print_recommendations(result: &ScanResult) {
                 Path::new(path).file_name().unwrap_or_default().to_string_lossy(),
                 format_bytes(*size)
             )));
+            potential_savings = potential_savings.saturating_add(*size);
         }
     }
 
@@ -701,6 +706,7 @@ fn print_recommendations(result: &ScanResult) {
         .any(|d| d.name == "node_modules");
     if has_node_modules {
         recommendations.push((1, "📦 node_modules directories found. Run `npm prune` or delete unused project dependencies.".to_string()));
+        potential_savings = potential_savings.saturating_add(1024 * 1024 * 1024);
     }
 
     // Check for large caches
@@ -718,6 +724,7 @@ fn print_recommendations(result: &ScanResult) {
                 format_bytes(cache_size)
             ),
         ));
+        potential_savings = potential_savings.saturating_add(cache_size);
     }
 
     // Check for Recycle Bin
@@ -732,6 +739,7 @@ fn print_recommendations(result: &ScanResult) {
             "🗑️  Recycle Bin contains {} of deleted files. Empty it to reclaim space.",
             format_bytes(recycle_bin_size)
         )));
+        potential_savings = potential_savings.saturating_add(recycle_bin_size);
     }
 
     // Check for large Downloads folder
@@ -746,6 +754,7 @@ fn print_recommendations(result: &ScanResult) {
             "📥 Downloads folder is using {}. Look for old installers (CUDA, drivers, apps) you can delete.",
             format_bytes(downloads_size)
         )));
+        potential_savings = potential_savings.saturating_add(downloads_size);
     }
 
     // Check for Windows Installer cache (large .msi/.msp files)
@@ -760,6 +769,7 @@ fn print_recommendations(result: &ScanResult) {
             "📦 Windows Installer cache is using {}. Use Disk Cleanup (cleanmgr) or PatchCleaner to remove orphaned .msi/.msp files.",
             format_bytes(installer_cache)
         )));
+        potential_savings = potential_savings.saturating_add(installer_cache);
     }
 
     // Check for browser updater/crx caches
@@ -777,6 +787,7 @@ fn print_recommendations(result: &ScanResult) {
             "🌐 Browser updater cache (Google, Edge) is using {}. Safe to clear — browsers will re-download on update.",
             format_bytes(browser_cache)
         )));
+        potential_savings = potential_savings.saturating_add(browser_cache);
     }
 
     // Check for debug/log caches in user directories
@@ -795,6 +806,7 @@ fn print_recommendations(result: &ScanResult) {
             "📝 User debug/cache files are using {}. Check Downloads, Documents, and AppData for old logs and artifacts.",
             format_bytes(user_debug)
         )));
+        potential_savings = potential_savings.saturating_add(user_debug);
     }
 
     // Check for duplicate file potential
@@ -810,6 +822,14 @@ fn print_recommendations(result: &ScanResult) {
         for (_, msg) in &recommendations {
             println!("   {}", msg);
         }
+        println!();
+    }
+
+    if potential_savings > 0 {
+        println!(
+            "💾 Potential space savings: {} if you act on all recommendations above",
+            format_bytes(potential_savings)
+        );
         println!();
     }
 }
