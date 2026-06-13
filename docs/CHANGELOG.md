@@ -108,6 +108,7 @@ All notable changes to Space Analyzer Pro will be documented in this file.
 - Added real-time progress reporting in verbose mode (`--verbose`)
 - Progress: files scanned + size every 10k files during scan
 - Final summary shows scan speed in files/sec
+- **SSD Optimization Note**: Current scanner uses single-threaded `walkdir` (~13k files/sec). Future versions will use parallel I/O via `ignore` crate for better SSD throughput.
 
 ### Code Quality & Maintenance
 

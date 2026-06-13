@@ -27,7 +27,8 @@ gpu-compute = { path = "../gpu-compute", optional = true }
 
 [features]
 default = []
-gpu = ["dep:gpu-compute"]
+gpu = ["dep:gpu-compute"] # GPU-accelerated scanning
+parallel = [] # Parallel I/O optimized for SSDs
 
 [dev-dependencies]
 tempfile = "3"
