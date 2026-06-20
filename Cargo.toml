@@ -1,6 +1,6 @@
 [package]
 name = "space-analyzer-pro-desktop"
-version = "3.6.0"
+version = "3.7.0"
 description = "Self-Contained AI-Powered Space Analyzer Desktop Application"
 authors = ["Space Analyzer Team"]
 edition = "2021"

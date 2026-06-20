@@ -244,6 +244,7 @@ just help          # Show all commands
 ```
 src/                       # Rust application source
   bin/                     # Binary entry points (space-analyzer-gui, space-analyzer-pro, flow-test-harness)
+  cli/                     # CLI module (args, scan, output, recommendations, report, dedup)
   gui/                     # egui desktop GUI (8 tabs, dashboard, system, etc.)
     ai/                    # AI Assistant chat interface
   ollama/                  # Ollama LLM client (chat, embeddings, streaming, tool calls)
@@ -256,6 +257,7 @@ src/                       # Rust application source
   system_monitor.rs        # CPU/RAM/GPU/disk monitoring
   embedding_service.rs     # Semantic search via Ollama embeddings
   session_logger.rs        # Opt-in diagnostic logging
+  animation.rs             # Animated typewriter banner (CLI)
   utils.rs                 # Shared utilities (formatting, paths, etc.)
 
 native/                    # Standalone Rust binaries
@@ -279,10 +281,9 @@ docs/                      # Documentation
   guides/                  # User guides (troubleshooting, native builds, GPU fixes)
   performance/             # Performance docs
   implementations/         # Security, localhost tools, clean.md
-  archive/                 # Historical web-era docs (Vue, Tauri, Docker)
 
 tests/unit/                # Rust unit + integration tests
-scripts/                   # Python utility scripts (test/, debug/, utility/)
+scripts/                   # Python/PowerShell utility scripts (test/, debug/, utility/)
 config/                    # Tool configuration (non-secret)
 ```
 
@@ -312,7 +313,7 @@ config/                    # Tool configuration (non-secret)
 
 ## Versioning
 
-**v3.4.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
+**v3.7.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
 
 - **v3.x** — Self-contained Rust desktop application (active development)
 - **v2.x and earlier** — Web-based Vue 3 + Node.js implementation (archived at [space-analyzer-pro-web](https://github.com/ogneocortext/space-analyzer-pro-web))

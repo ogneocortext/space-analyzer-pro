@@ -1,6 +1,53 @@
 # Changelog
 
 
+## [3.7.0] - 2026-06-19
+
+### Architecture
+
+- **CLI module refactor** — split monolithic `src/cli.rs` (1,643 lines) and `src/main.rs` (1,570 lines) into 9 focused modules under `src/cli/` (args, types, helpers, scan, output, recommendations, report, dedup). `src/main.rs` reduced to 9 lines.
+
+- **Unified `ScanResult` type** — CLI and GUI now share the same `gui_common::ScanResult` struct. Added `total_dirs`, `top_directories`, `empty_dirs` fields; `extension_sizes` changed from `Vec<(String, u64)>` to `HashMap<String, u64>`. Backward-compatible via `#[serde(default)]`.
+
+- **Deduplicated `format_bytes`** — removed 3 duplicate implementations (main.rs, system_monitor.rs, workflows/mod.rs). Single canonical `shared_scanner::format_bytes` used everywhere.
+
+### Dependency Updates
+
+- Updated 30+ dependencies across all 6 workspace crates (thiserror 2, dirs 6, which 8, rusqlite 0.40, reqwest 0.13, sysinfo 0.39, trash 5, and many more)
+- API migration: rusqlite u64→i64 casts, sysinfo method renames, rand 0.9 API
+
+### CLI Improvements
+
+- **New flags**: `--max-size`, `--include-hidden`, `--no-animation`
+- **Fixed `--min-size`** — was parsed but never applied in WalkDir filtering
+- **Fixed `node_modules` estimation** — now uses actual directory size instead of hardcoded 1GB
+- **Fixed CSV export** — double-quotes now properly escaped as `""`
+- **Full text export** — `--export results.txt` now generates the complete report instead of a one-line summary
+- **Improved cache/temp detection** in cleanup recommendations
+
+### GUI
+
+- **Dedup tab** — added to GUI navigation with dedicated icon and tab parsing
+- **Move to Trash** — now uses `trash::delete()` (OS Recycle Bin) instead of permanent delete
+- **Removed 22 `#[allow(dead_code)]` annotations** across ollama/, database/, gui/
+
+### Database
+
+- `save_scan()` now serializes `top_directories` to DB instead of hardcoded `[]`
+- `clear_history()` cascades to `workflow_executions` table
+
+### Cleanup
+
+- Deleted 140 archived web-era docs (Vue, Tauri, Docker, old issue trackers)
+- Added `.cline/` to `.gitignore`
+- Updated justfile with system utility tasks (check-updates, dashboard)
+- Added `scripts/utility/check_updates.ps1` and `dashboard_server.ps1`
+
+### Version
+
+- **Bumped**: `3.6.0` → `3.7.0` in `Cargo.toml`
+
+
 ## [3.6.0] - 2026-06-13
 
 ### CLI Improvements
