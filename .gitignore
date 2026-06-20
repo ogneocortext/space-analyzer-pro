@@ -104,6 +104,7 @@ venv/
 .playwright-mcp/
 
 # Agent config
+.cline/
 .devin/
 .kilo/
 

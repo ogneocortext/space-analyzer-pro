@@ -51,6 +51,12 @@ help:
     @echo "Database:"
     @echo "  just db-check            Verify SQLite schema integrity"
     @echo ""
+    @echo "System Utilities:"
+    @echo "  just check-updates       Check app updates (portable online + winget + deps)"
+    @echo "  just check-deps          Check code dependencies only (npm, pip, cargo)"
+    @echo "  just check-updates-fast  Check apps only (skip dependency scan)"
+    @echo "  just dashboard          Open interactive HTML dashboard"
+    @echo "  just dashboard-server   Start server at localhost:3847 for live updates"
     @echo "Code Quality:"
     @echo "  just audit               Check for unused dependencies"
     @echo "  just doc                 Build docs (rustdoc)"
@@ -255,6 +261,35 @@ loop-clear:
     @if exist loop_feedback\loop.lock del loop_feedback\loop.lock
     @if exist loop_feedback\agent_feedback.jsonl del loop_feedback\agent_feedback.jsonl
     @echo "Loop state cleared."
+
+# ──────────────────────────────────────────────────────────────
+#  System Utilities
+# ──────────────────────────────────────────────────────────────
+
+# Check for app updates (portable apps online + winget + deps)
+check-updates:
+    @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/check_updates.ps1
+
+# Check only code dependencies (npm, pip, cargo) on E: drive
+check-deps:
+    @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/check_updates.ps1 -SkipPortable -SkipWinget
+
+# Check updates (JSON output)
+check-updates-json:
+    @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/check_updates.ps1 -OutputFormat json
+
+# Check updates (skip dependency scan)
+check-updates-fast:
+    @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/check_updates.ps1 -SkipDependencies
+
+# Open update dashboard in browser (generates HTML + opens)
+dashboard:
+    @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/check_updates.ps1 -SkipPortable -SkipWinget -Dashboard
+
+# Start dashboard server (http://localhost:3847) for live updates
+dashboard-server:
+    @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/dashboard_server.ps1
+
 # Full Windows package (local only, no CI)
 package-full: build-release
 	@echo "Packaging for Windows x64..."
