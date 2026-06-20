@@ -43,7 +43,6 @@ pub fn apply_custom_theme(ctx: &egui::Context) {
     ctx.set_global_style(style);
 }
 
-#[allow(dead_code)]
 pub fn install_icon_fonts(_ctx: &egui::Context) {
     // Icons are bundled via iconflow crate at compile time — no runtime font installation needed
 }

@@ -8,9 +8,8 @@ impl super::Database {
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
         let extension_sizes_json = serde_json::to_string(&result.extension_sizes)
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
-        // Note: top_directories_json stores an empty array since ScanResult doesn't have top_directories
-        // The GUI version populates this separately from its own scan data
-        let top_directories_json = "[]".to_string();
+        let top_directories_json = serde_json::to_string(&result.top_directories)
+            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
         let largest_files_json = serde_json::to_string(&result.largest_files)
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
@@ -21,10 +20,10 @@ impl super::Database {
             "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, potential_cleanup_bytes, timestamp)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             params![
-                result.path, result.total_files, result.total_size_bytes,
+                result.path, result.total_files as i64, result.total_size_bytes as i64,
                 result.total_size_mb, result.duration_secs,
                 file_types_json, extension_sizes_json, top_directories_json, largest_files_json,
-                deep_scan, potential_cleanup, timestamp,
+                deep_scan, potential_cleanup as i64, timestamp,
             ],
         )?;
         Ok(self.conn.last_insert_rowid())
@@ -38,7 +37,7 @@ impl super::Database {
         for (ext, size) in &result.extension_sizes {
             let lower = ext.to_lowercase();
             if lower == "tmp" || lower == "cache" || lower == "log" {
-                total += *size as u64;
+                total += *size;
             }
         }
 
@@ -69,7 +68,7 @@ impl super::Database {
         self.conn.execute(
             "INSERT INTO duplicate_analysis (scan_id, duplicate_groups_json, potential_savings_bytes, timestamp)
              VALUES (?1, ?2, ?3, ?4)",
-            params![scan_id, duplicate_groups_json, potential_savings, timestamp],
+            params![scan_id, duplicate_groups_json, potential_savings as i64, timestamp],
         )?;
         Ok(self.conn.last_insert_rowid())
     }
@@ -80,12 +79,12 @@ impl super::Database {
             "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, potential_cleanup_bytes, timestamp
              FROM scan_history ORDER BY timestamp DESC LIMIT ?1",
         )?;
-        let rows = stmt.query_map(params![limit], |row| {
+        let rows = stmt.query_map(params![limit as i64], |row| {
             Ok(ScanHistoryRecord {
                 id: row.get(0)?,
                 path: row.get(1)?,
-                total_files: row.get(2)?,
-                total_size_bytes: row.get(3)?,
+                total_files: row.get::<_, i64>(2)? as usize,
+                total_size_bytes: row.get::<_, i64>(3)? as u64,
                 total_size_mb: row.get(4)?,
                 duration_secs: row.get(5)?,
                 file_types_json: row.get(6)?,
@@ -93,7 +92,7 @@ impl super::Database {
                 top_directories_json: row.get(8)?,
                 largest_files_json: row.get(9)?,
                 deep_scan: row.get(10)?,
-                potential_cleanup_bytes: row.get(11)?,
+                potential_cleanup_bytes: row.get::<_, i64>(11)? as u64,
                 timestamp: row.get(12)?,
             })
         })?;
@@ -110,8 +109,8 @@ impl super::Database {
             Ok(ScanHistoryRecord {
                 id: row.get(0)?,
                 path: row.get(1)?,
-                total_files: row.get(2)?,
-                total_size_bytes: row.get(3)?,
+                total_files: row.get::<_, i64>(2)? as usize,
+                total_size_bytes: row.get::<_, i64>(3)? as u64,
                 total_size_mb: row.get(4)?,
                 duration_secs: row.get(5)?,
                 file_types_json: row.get(6)?,
@@ -119,7 +118,7 @@ impl super::Database {
                 top_directories_json: row.get(8)?,
                 largest_files_json: row.get(9)?,
                 deep_scan: row.get(10)?,
-                potential_cleanup_bytes: row.get(11)?,
+                potential_cleanup_bytes: row.get::<_, i64>(11)? as u64,
                 timestamp: row.get(12)?,
             })
         });
@@ -137,9 +136,10 @@ impl super::Database {
             .execute("DELETE FROM scan_history WHERE id = ?1", params![id])
     }
 
-    /// Clear all scan history (also removes associated embeddings)
+    /// Clear all scan history (also removes associated embeddings and workflow executions)
     pub fn clear_history(&self) -> rusqlite::Result<usize> {
         self.conn.execute("DELETE FROM file_embeddings", [])?;
+        self.conn.execute("DELETE FROM workflow_executions", [])?;
         self.conn.execute("DELETE FROM scan_history", [])
     }
 }

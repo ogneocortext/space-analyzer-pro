@@ -48,6 +48,7 @@ pub enum AppTab {
     SmartSearch,
     Workflows,
     AIChat,
+    Dedup,
     System,
     Settings,
 }
@@ -61,6 +62,7 @@ impl std::fmt::Display for AppTab {
             AppTab::SmartSearch => write!(f, "Smart Search"),
             AppTab::Workflows => write!(f, "Workflows"),
             AppTab::AIChat => write!(f, "AI Assistant"),
+            AppTab::Dedup => write!(f, "Dedup"),
             AppTab::System => write!(f, "System"),
             AppTab::Settings => write!(f, "Settings"),
         }

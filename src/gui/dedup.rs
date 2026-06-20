@@ -108,7 +108,6 @@ impl SpaceAnalyzerApp {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn render_dedup(&mut self, ui: &mut egui::Ui) {
         ui.heading("File Deduplication");
         ui.label("Find duplicate files using BLAKE3 hashing to recover disk space.");

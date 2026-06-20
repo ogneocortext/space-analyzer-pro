@@ -550,6 +550,7 @@ impl eframe::App for SpaceAnalyzerApp {
                             AppTab::SmartSearch,
                             AppTab::Workflows,
                             AppTab::AIChat,
+                            AppTab::Dedup,
                             AppTab::System,
                             AppTab::Settings,
                         ] {
@@ -564,6 +565,7 @@ impl eframe::App for SpaceAnalyzerApp {
                                 AppTab::SmartSearch => "🧠",
                                 AppTab::Workflows => "⚙",
                                 AppTab::AIChat => "🤖",
+                                AppTab::Dedup => "🔗",
                                 AppTab::System => "🖥",
                                 AppTab::Settings => "⚙",
                             };
@@ -737,6 +739,7 @@ impl eframe::App for SpaceAnalyzerApp {
             AppTab::SmartSearch => self.render_smart_search(ui),
             AppTab::Workflows => self.render_workflows(ui),
             AppTab::AIChat => self.render_ai_chat(ui),
+            AppTab::Dedup => self.render_dedup(ui),
             AppTab::System => self.render_system(ui),
             AppTab::Settings => self.render_settings(ui),
         });
@@ -817,6 +820,7 @@ pub fn run_gui_with_tab(initial_tab: Option<&str>) -> Result<(), eframe::Error> 
                     "workflows" | "workflow" => AppTab::Workflows,
                     "ai_chat" | "ai chat" | "chat" | "ai" | "ai assistant" | "ai_assistant"
                     | "assistant" => AppTab::AIChat,
+                    "dedup" | "deduplicate" | "duplicates" => AppTab::Dedup,
                     "system" => AppTab::System,
                     "settings" => AppTab::Settings,
                     _ => AppTab::Dashboard,

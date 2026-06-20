@@ -13,19 +13,14 @@
 //! - `json_utils` — JSON validation, repair, and extraction utilities
 //! - `prompt_cache` — LRU prompt cache with token budget tracking
 
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub mod client;
 pub mod error;
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub mod json_utils;
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub mod prompt_cache;
 pub mod prompts;
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub mod stream;
 pub mod types;
 
-#[allow(dead_code)] // Used by ollama-features bin and planned GUI integration
 pub mod features;
 
 // Re-export everything at module root for backward compatibility.

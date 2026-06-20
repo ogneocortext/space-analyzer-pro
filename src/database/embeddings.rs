@@ -1,6 +1,5 @@
 use super::*;
 
-#[allow(dead_code)] // Planned: semantic search via embeddings
 impl super::Database {
     /// Save a batch of file embeddings for a scan
     pub fn save_embeddings(
@@ -21,7 +20,7 @@ impl super::Database {
                 stmt.execute(params![
                     scan_id,
                     path,
-                    size,
+                    *size as i64,
                     ext,
                     embedding_json,
                     created_at
@@ -46,7 +45,7 @@ impl super::Database {
                 id: row.get(0)?,
                 scan_id: row.get(1)?,
                 file_path: row.get(2)?,
-                file_size: row.get(3)?,
+                file_size: row.get::<_, i64>(3)? as u64,
                 file_extension: row.get(4)?,
                 embedding_json: row.get(5)?,
                 created_at: row.get(6)?,

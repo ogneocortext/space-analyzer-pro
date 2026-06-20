@@ -32,7 +32,6 @@ pub struct ScanHistoryRecord {
 
 /// File embedding record for semantic search
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)] // Planned: semantic search integration
 pub struct FileEmbeddingRecord {
     pub id: i64,
     pub scan_id: i64,
@@ -171,17 +170,15 @@ impl Database {
     }
 
     /// Get storage trend data (size over time)
-    #[allow(dead_code)] // Planned: trend visualization in dashboard
     pub fn get_storage_trend(&self, limit: usize) -> rusqlite::Result<Vec<(String, u64)>> {
         let mut stmt = self.conn.prepare(
             "SELECT timestamp, total_size_bytes FROM scan_history ORDER BY timestamp ASC LIMIT ?1",
         )?;
-        let rows = stmt.query_map(params![limit], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        let rows = stmt.query_map(params![limit as i64], |row| Ok((row.get(0)?, row.get::<_, i64>(1)? as u64)))?;
         rows.collect()
     }
 
     /// Get the latest scan ID
-    #[allow(dead_code)] // Planned: incremental scan support
     pub fn get_latest_scan_id(&self) -> rusqlite::Result<Option<i64>> {
         let mut stmt = self
             .conn

@@ -52,18 +52,18 @@ pub fn render_file_action_confirm(
                             let path = action.path.clone();
                             match action.action {
                                 FileActionType::MoveToTrash => {
-                                    if let Err(e) = std::fs::remove_file(&path) {
+                                    if let Err(e) = trash::delete(&path) {
                                         push_notification(
                                             notifications,
                                             notification_counter,
-                                            format!("Failed: {}", e),
+                                            format!("Failed to trash: {}", e),
                                             NotificationLevel::Error,
                                         );
                                     } else {
                                         push_notification(
                                             notifications,
                                             notification_counter,
-                                            format!("Trashed: {}", path),
+                                            format!("Moved to trash: {}", path),
                                             NotificationLevel::Success,
                                         );
                                     }

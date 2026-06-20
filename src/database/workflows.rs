@@ -23,7 +23,7 @@ impl super::Database {
             "SELECT id, workflow_id, workflow_name, status, started_at, completed_at, error_message, actions_completed, total_actions
              FROM workflow_executions ORDER BY started_at DESC LIMIT ?1"
         )?;
-        let rows = stmt.query_map(params![limit], |row| {
+        let rows = stmt.query_map(params![limit as i64], |row| {
             let status_str: String = row.get(3)?;
             let status = match status_str.as_str() {
                 "Running" => crate::workflows::ExecutionStatus::Running,
@@ -40,8 +40,8 @@ impl super::Database {
                 completed_at: row.get(5)?,
                 current_action: None,
                 error_message: row.get(6)?,
-                actions_completed: row.get(7)?,
-                total_actions: row.get(8)?,
+                actions_completed: row.get::<_, i64>(7)? as usize,
+                total_actions: row.get::<_, i64>(8)? as usize,
             })
         })?;
         rows.collect()

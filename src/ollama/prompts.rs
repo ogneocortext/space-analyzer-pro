@@ -3,7 +3,6 @@
 // ── Core Analysis Prompts ────────────────────────────────────────
 
 /// System prompt for disk space analysis
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub const SYSTEM_PROMPT_ANALYSIS: &str =
     "You are a senior storage infrastructure engineer specializing in disk space optimization. \
      Analyze the provided scan results and deliver actionable, prioritized recommendations. \
@@ -16,7 +15,6 @@ pub const SYSTEM_PROMPT_ANALYSIS: &str =
      6. If data is insufficient, state what additional information would help.";
 
 /// System prompt for file cleanup recommendations
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub const SYSTEM_PROMPT_CLEANUP: &str =
     "You are a file lifecycle management expert. Your goal is to maximize safe space recovery \
      without data loss. Guidelines: \
@@ -29,7 +27,6 @@ pub const SYSTEM_PROMPT_CLEANUP: &str =
      7. If total size is under 1 GB, acknowledge that cleanup impact is minimal.";
 
 /// System prompt for general disk usage questions
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub const SYSTEM_PROMPT_QA: &str =
     "You are a helpful storage analysis assistant. Answer questions about disk usage using only \
      the provided scan context. Rules: \
@@ -43,7 +40,6 @@ pub const SYSTEM_PROMPT_QA: &str =
 // ── Structured Output Prompts ────────────────────────────────────
 
 /// System prompt for structured JSON analysis output
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub const SYSTEM_PROMPT_JSON_ANALYSIS: &str =
     "You are a disk space analysis expert. Analyze the provided scan results and return a JSON \
      object with the following structure: \
@@ -53,7 +49,6 @@ pub const SYSTEM_PROMPT_JSON_ANALYSIS: &str =
      The JSON must parse without errors. Use 0 for estimated_savings_bytes if unknown.";
 
 /// System prompt for storage prediction analysis
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub const SYSTEM_PROMPT_PREDICTION: &str =
     "You are a capacity planning analyst. Interpret storage trend data and provide forecasts. \
      Rules: \
@@ -66,7 +61,6 @@ pub const SYSTEM_PROMPT_PREDICTION: &str =
      7. Return a structured response with: trend_type, daily_growth_mb, days_to_80pct, days_to_90pct, days_to_full, confidence (low|medium|high), anomalies (array of strings).";
 
 /// System prompt for file pattern analysis
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub const SYSTEM_PROMPT_FILE_PATTERNS: &str =
     "You are a file system pattern detection specialist. Analyze file distributions to identify \
      optimization opportunities. Focus on: \
@@ -80,7 +74,6 @@ pub const SYSTEM_PROMPT_FILE_PATTERNS: &str =
 // ── Workflow & Automation Prompts ────────────────────────────────
 
 /// System prompt for workflow recommendations
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub const SYSTEM_PROMPT_WORKFLOW: &str =
     "You are a workflow automation advisor for disk space management. Based on the user's scan \
      results and goals, recommend appropriate automated workflows. Available workflows: \
@@ -97,7 +90,6 @@ pub const SYSTEM_PROMPT_WORKFLOW: &str =
      4. Warn about any destructive workflows before recommending them.";
 
 /// System prompt for scheduling recommendations
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub const SYSTEM_PROMPT_SCHEDULING: &str =
     "You are an automation scheduling advisor. Recommend optimal scan and cleanup schedules \
      based on usage patterns. Consider: \
@@ -110,7 +102,6 @@ pub const SYSTEM_PROMPT_SCHEDULING: &str =
 // ── Security & Compliance Prompts ────────────────────────────────
 
 /// System prompt for sensitive file detection
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub const SYSTEM_PROMPT_SECURITY: &str =
     "You are a data security analyst reviewing file system scan results. Identify potential \
      security and privacy concerns: \
@@ -125,7 +116,6 @@ pub const SYSTEM_PROMPT_SECURITY: &str =
 // ── Performance Optimization Prompts ─────────────────────────────
 
 /// System prompt for performance optimization
-#[allow(dead_code)] // Used by modular gui and tests, not the legacy binary
 pub const SYSTEM_PROMPT_PERFORMANCE: &str =
     "You are a storage performance optimization expert. Analyze file system structure for \
      performance bottlenecks: \
