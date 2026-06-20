@@ -669,7 +669,7 @@ impl StorageInsights {
                     title: "Very Large File Found".to_string(),
                     description: format!(
                         "File '{}' is {} in size. Consider moving to external storage or archiving.",
-                        path, format_bytes(*size)
+                        path, shared_scanner::format_bytes(*size)
                     ),
                     action: RecommendationAction::Archive,
                 });
@@ -677,19 +677,6 @@ impl StorageInsights {
         }
 
         recommendations
-    }
-}
-
-/// Format bytes to human-readable string
-fn format_bytes(bytes: u64) -> String {
-    if bytes >= 1_073_741_824 {
-        format!("{:.2} GB", bytes as f64 / 1_073_741_824.0)
-    } else if bytes >= 1_048_576 {
-        format!("{:.2} MB", bytes as f64 / 1_048_576.0)
-    } else if bytes >= 1_024 {
-        format!("{:.2} KB", bytes as f64 / 1_024.0)
-    } else {
-        format!("{} B", bytes)
     }
 }
 

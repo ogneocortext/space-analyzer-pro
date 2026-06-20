@@ -84,6 +84,9 @@ mod tests {
             file_types,
             extension_sizes,
             errors: Vec::new(),
+            total_dirs: 0,
+            top_directories: Vec::new(),
+            empty_dirs: Vec::new(),
         }
     }
 

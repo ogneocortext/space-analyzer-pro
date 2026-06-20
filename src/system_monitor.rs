@@ -84,13 +84,13 @@ impl SystemMonitor {
         let swap_total = system.total_swap();
         let swap_used = system.used_swap();
 
-        let cpu_info = system.global_cpu_info();
+        let cpu_usage = system.global_cpu_usage();
 
         SystemResources {
-            cpu_percent: cpu_info.cpu_usage(),
-            cpu_model: cpu_info.brand().to_string(),
+            cpu_percent: cpu_usage,
+            cpu_model: system.cpus().first().map(|c| c.brand().to_string()).unwrap_or_default(),
             cpu_cores: system.cpus().len(),
-            cpu_physical_cores: system.physical_core_count().unwrap_or(0),
+            cpu_physical_cores: sysinfo::System::physical_core_count().unwrap_or(0),
             memory_total_bytes: memory,
             memory_used_bytes: memory_used,
             memory_percent: if memory > 0 {
@@ -163,8 +163,8 @@ impl SystemMonitor {
         ));
         summary.push_str(&format!(
             "Memory: {} / {} ({:.1}%)\n",
-            format_bytes(resources.memory_used_bytes),
-            format_bytes(resources.memory_total_bytes),
+shared_scanner::format_bytes(resources.memory_used_bytes),
+            shared_scanner::format_bytes(resources.memory_total_bytes),
             resources.memory_percent
         ));
 
@@ -173,8 +173,8 @@ impl SystemMonitor {
             summary.push_str(&format!(
                 "Disk ({}): {} / {} ({:.1}%)\n",
                 primary.mount_point,
-                format_bytes(primary.used_bytes),
-                format_bytes(primary.total_bytes),
+                shared_scanner::format_bytes(primary.used_bytes),
+                shared_scanner::format_bytes(primary.total_bytes),
                 primary.usage_percent
             ));
         }
@@ -184,7 +184,7 @@ impl SystemMonitor {
                 "GPU: {} ({})\n",
                 gpu.name.as_deref().unwrap_or("Unknown"),
                 gpu.vram_bytes
-                    .map(format_bytes)
+                    .map(shared_scanner::format_bytes)
                     .unwrap_or("Unknown".to_string())
             ));
         }
@@ -193,17 +193,3 @@ impl SystemMonitor {
     }
 }
 
-/// Format bytes to human-readable string
-pub fn format_bytes(bytes: u64) -> String {
-    if bytes >= 1_099_511_627_776 {
-        format!("{:.2} TB", bytes as f64 / 1_099_511_627_776.0)
-    } else if bytes >= 1_073_741_824 {
-        format!("{:.2} GB", bytes as f64 / 1_073_741_824.0)
-    } else if bytes >= 1_048_576 {
-        format!("{:.2} MB", bytes as f64 / 1_048_576.0)
-    } else if bytes >= 1_024 {
-        format!("{:.2} KB", bytes as f64 / 1_024.0)
-    } else {
-        format!("{} B", bytes)
-    }
-}

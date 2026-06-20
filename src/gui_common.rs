@@ -27,10 +27,26 @@ pub struct ScanResult {
     pub total_size_mb: f64,
     pub duration_secs: f64,
     pub file_types: HashMap<String, usize>,
-    pub extension_sizes: HashMap<String, usize>,
+    pub extension_sizes: HashMap<String, u64>,
     pub largest_files: Vec<(String, u64)>,
     pub errors: Vec<String>,
     pub path: String,
+    #[serde(default)]
+    pub total_dirs: u64,
+    #[serde(default)]
+    pub top_directories: Vec<DirEntry>,
+    #[serde(default)]
+    pub empty_dirs: Vec<String>,
+}
+
+/// Directory entry used in scan results
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirEntry {
+    pub path: String,
+    pub name: String,
+    pub total_size: u64,
+    pub file_count: u64,
+    pub dir_count: u64,
 }
 
 impl Default for ScanResult {
@@ -51,6 +67,9 @@ impl ScanResult {
             largest_files: Vec::new(),
             errors: Vec::new(),
             path: String::new(),
+            total_dirs: 0,
+            top_directories: Vec::new(),
+            empty_dirs: Vec::new(),
         }
     }
 
@@ -74,7 +93,7 @@ impl ScanResult {
         for (ext, size) in &result.extension_sizes {
             scan_result
                 .extension_sizes
-                .insert(ext.clone(), *size as usize);
+                .insert(ext.clone(), *size);
         }
 
         for file in &result.largest_files {
@@ -83,13 +102,14 @@ impl ScanResult {
                 .push((file.path.clone(), file.size));
         }
         scan_result.errors = result.errors.clone();
+        scan_result.total_dirs = result.total_directories;
+        scan_result.empty_dirs = result.empty_directories.clone();
 
         scan_result
     }
 }
 
 /// Common scanning function used by GUI implementations
-#[allow(dead_code)]
 pub fn scan_directory(path: &std::path::Path, deep: bool) -> Result<ScanResult, String> {
     let start_time = std::time::Instant::now();
 

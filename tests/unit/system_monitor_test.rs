@@ -63,7 +63,7 @@ fn gpu_detection_works() {
 /// Test that format_bytes works correctly
 #[test]
 fn format_bytes_formats_correctly() {
-    use space_analyzer_pro_desktop::system_monitor::format_bytes;
+    use space_analyzer_pro_desktop::gui_common::formatting::format_bytes;
 
     assert!(format_bytes(1024).contains("KB"));
     assert!(format_bytes(1_048_576).contains("MB"));
