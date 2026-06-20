@@ -49,6 +49,18 @@ pub struct Cli {
     #[arg(long)]
     pub min_size: Option<String>,
 
+    /// Maximum file size to include in results (e.g. 100M, 1G)
+    #[arg(long)]
+    pub max_size: Option<String>,
+
+    /// Include hidden files and directories in scan
+    #[arg(long)]
+    pub include_hidden: bool,
+
+    /// Suppress animations and progress output (useful for piping/scripting)
+    #[arg(long)]
+    pub no_animation: bool,
+
     /// Number of top items to show in breakdowns (default: 20)
     #[arg(long, default_value = "20")]
     pub top: usize,
