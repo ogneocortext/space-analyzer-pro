@@ -323,14 +323,14 @@ fn solve_linear_system(a: &Array2<f64>, b: &Array2<f64>) -> Result<Vec<f64>, Str
 
 fn init_centroids_kpp(data: &Array2<f64>, k: usize) -> Array2<f64> {
     use rand::Rng;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let n = data.nrows();
     let dims = data.ncols();
     let mut centroids = Array2::zeros((k, dims));
 
     // Choose first centroid randomly
-    let first = rng.gen_range(0..n);
+    let first = rng.random_range(0..n);
     for d in 0..dims {
         centroids[[0, d]] = data[[first, d]];
     }
@@ -350,7 +350,7 @@ fn init_centroids_kpp(data: &Array2<f64>, k: usize) -> Array2<f64> {
         }
 
         // Choose next centroid with probability proportional to distance squared
-        let mut r = rng.gen_range(0.0..total_dist);
+        let mut r = rng.random_range(0.0..total_dist);
         let mut chosen = 0;
         for (i, dist) in distances.iter().enumerate().take(n) {
             r -= dist;

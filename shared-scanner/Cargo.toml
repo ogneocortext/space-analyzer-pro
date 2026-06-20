@@ -24,7 +24,7 @@ walkdir = { workspace = true }
 # Additional dependencies
 sysinfo = "0.39"
 gpu-compute = { path = "../gpu-compute", optional = true }
-num_cpus = "1.16"
+num_cpus = "1.17"
 
 [features]
 default = []

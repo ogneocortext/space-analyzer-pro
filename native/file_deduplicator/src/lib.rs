@@ -326,18 +326,45 @@ impl FileDeduplicator {
     /// Check if file should be processed based on patterns
     fn should_process_file(&self, path: &Path) -> bool {
         let path_str = path.to_string_lossy();
+        let path_lower = path_str.to_lowercase();
+        let ext = path
+            .extension()
+            .map(|e| e.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
 
-        // Check exclude patterns
+        // Check exclude patterns (support glob-like matching)
         for pattern in &self.config.exclude_patterns {
-            if path_str.contains(pattern) {
-                return false;
+            let pat_lower = pattern.to_lowercase();
+            if pat_lower.starts_with("*.") {
+                // Extension match: "*.tmp" matches files ending in .tmp
+                let pat_ext = &pat_lower[2..];
+                if ext == pat_ext {
+                    return false;
+                }
+            } else if pat_lower.ends_with("/*") {
+                // Directory name match: "node_modules/" matches any path containing node_modules
+                let dir_name = &pat_lower[..pat_lower.len() - 2];
+                if path_lower.contains(dir_name) {
+                    return false;
+                }
+            } else {
+                // Substring match for anything else
+                if path_lower.contains(&pat_lower) {
+                    return false;
+                }
             }
         }
 
         // Check include patterns (if any specified)
         if !self.config.include_patterns.is_empty() {
             for pattern in &self.config.include_patterns {
-                if path_str.contains(pattern) {
+                let pat_lower = pattern.to_lowercase();
+                if pat_lower.starts_with("*.") {
+                    let pat_ext = &pat_lower[2..];
+                    if ext == pat_ext {
+                        return true;
+                    }
+                } else if path_lower.contains(&pat_lower) {
                     return true;
                 }
             }

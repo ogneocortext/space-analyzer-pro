@@ -168,14 +168,22 @@ impl Default for BatchHasher {
     }
 }
 
-/// Compute BLAKE3 hash of a single file
+/// Compute BLAKE3 hash of a single file (auto-selects streaming for large files)
 pub fn compute_blake3(path: &Path) -> Result<String> {
-    let data =
-        std::fs::read(path).with_context(|| format!("Failed to read file: {}", path.display()))?;
+    const STREAMING_THRESHOLD: u64 = 64 * 1024 * 1024; // 64 MB
 
-    let mut hasher = Hasher::new();
-    hasher.update(&data);
-    Ok(hasher.finalize().to_hex().to_string())
+    let metadata = std::fs::metadata(path)
+        .with_context(|| format!("Failed to read metadata for {}", path.display()))?;
+
+    if metadata.len() > STREAMING_THRESHOLD {
+        compute_blake3_streaming(path, 1024 * 1024) // 1 MB chunks for large files
+    } else {
+        let data = std::fs::read(path)
+            .with_context(|| format!("Failed to read file: {}", path.display()))?;
+        let mut hasher = Hasher::new();
+        hasher.update(&data);
+        Ok(hasher.finalize().to_hex().to_string())
+    }
 }
 
 /// Compute BLAKE3 hash with streaming for large files
