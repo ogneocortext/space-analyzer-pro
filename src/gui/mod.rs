@@ -529,7 +529,7 @@ impl eframe::App for SpaceAnalyzerApp {
                     );
                     ui.separator();
                     ui.label(
-                        egui::RichText::new("v3.5.0")
+                        egui::RichText::new("v3.7.0")
                             .size(11.0)
                             .color(colors::TEXT_MUTED),
                     );
@@ -752,6 +752,12 @@ impl eframe::App for SpaceAnalyzerApp {
             &mut self.notification_state.notifications,
             &mut self.notification_state.notification_counter,
         );
+        notifications::render_impact_preview(
+            ui,
+            &mut self.impact_preview_open,
+            &mut self.impact_preview_input,
+            &mut self.current_impact_report,
+        );
         notifications::render_notifications(ui, &self.notification_state.notifications);
     }
 }
@@ -785,7 +791,7 @@ fn app_icon() -> Option<egui::IconData> {
 pub fn run_gui_with_tab(initial_tab: Option<&str>) -> Result<(), eframe::Error> {
     let mut viewport = egui::ViewportBuilder::default()
         .with_inner_size([1400.0, 900.0])
-        .with_title("Space Analyzer Pro v3.5.0 - Self-Contained")
+        .with_title("Space Analyzer Pro v3.7.0 - Self-Contained")
         .with_app_id("space-analyzer-pro")
         .with_icon(app_icon().unwrap_or_else(|| egui::IconData {
             rgba: vec![],

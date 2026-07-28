@@ -1,6 +1,6 @@
 # Space Analyzer Pro
 
-A powerful, self-contained disk space analysis tool with embedded database, GPU acceleration, and optional local AI - all in a single binary. No backend servers, no external dependencies required.
+A powerful, self-contained disk space analysis tool with embedded database, GPU acceleration, and optional local AI. Available as a **native Windows desktop app** or a **cross-platform web app** (Axum + Svelte).
 
 ## Quick Start
 
@@ -12,6 +12,19 @@ cargo run --bin space-analyzer-gui
 # Or build for release
 cargo build --release --bin space-analyzer-gui
 ./target/release/space-analyzer-gui
+```
+
+### Web Mode
+```bash
+# Start the Axum backend (port 3000)
+cargo run --bin space-analyzer-web
+
+# In another terminal, start the Svelte dev server (port 5173)
+cd frontend && npm install && npm run dev
+
+# Or build the frontend once and serve via the Rust backend
+cd frontend && npm install && npm run build
+cargo run --bin space-analyzer-web
 ```
 
 ### Command Line Interface

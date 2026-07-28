@@ -1,5 +1,4 @@
 //! Ollama client error types
-#![allow(dead_code)] // Planned Ollama integration — not yet wired into GUI
 
 use std::fmt;
 

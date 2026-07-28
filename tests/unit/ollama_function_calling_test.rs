@@ -59,7 +59,7 @@ fn tool_execution_returns_result() {
     );
 
     assert!(
-        !result.is_empty(),
+        !result.unwrap().is_empty(),
         "Disk volumes tool should return non-empty result"
     );
 }

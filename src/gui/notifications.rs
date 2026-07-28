@@ -1,6 +1,7 @@
 use eframe::egui;
 
 use super::types::{FileAction, FileActionType, Notification, NotificationLevel};
+use crate::file_relations::analyze_file_dependencies;
 
 /// Render file action confirmation dialog
 pub fn render_file_action_confirm(
@@ -151,5 +152,102 @@ pub fn push_notification(
     // Keep only the last 5 notifications
     if notifications.len() > 5 {
         notifications.remove(0);
+    }
+}
+
+/// Render the destructive-action impact preview modal.
+pub fn render_impact_preview(
+    ui: &mut egui::Ui,
+    is_open: &mut bool,
+    path_input: &mut String,
+    report: &mut Option<crate::file_relations::DependencyReport>,
+) {
+    if !*is_open {
+        return;
+    }
+
+    let mut should_close = false;
+    let mut should_analyze = false;
+
+    egui::Modal::new(egui::Id::new("impact_preview"))
+        .frame(
+            egui::Frame::new()
+                .fill(super::colors::CARD_BG)
+                .corner_radius(12.0),
+        )
+        .show(ui.ctx(), |ui| {
+            ui.vertical(|ui| {
+                ui.label(
+                    egui::RichText::new("Preview Impact")
+                        .size(18.0)
+                        .strong()
+                        .color(super::colors::ACCENT),
+                );
+                ui.add_space(8.0);
+                ui.label(
+                    egui::RichText::new(
+                        "See what depends on this file before deleting or moving it.",
+                    )
+                    .size(12.0)
+                    .color(super::colors::TEXT_SECONDARY),
+                );
+                ui.add_space(12.0);
+                ui.horizontal(|ui| {
+                    ui.label("File path:");
+                    ui.text_edit_singleline(path_input);
+                    if ui.button("Analyze").clicked() {
+                        should_analyze = true;
+                    }
+                });
+                ui.add_space(12.0);
+
+                if should_analyze && !path_input.is_empty() {
+                    *report = Some(analyze_file_dependencies(path_input));
+                }
+
+                if let Some(ref r) = report {
+                    ui.separator();
+                    ui.label(
+                        egui::RichText::new("Impact Report")
+                            .size(14.0)
+                            .strong()
+                            .color(super::colors::TEXT_PRIMARY),
+                    );
+                    ui.add_space(6.0);
+                    for line in r.summary.lines() {
+                        ui.label(egui::RichText::new(line).size(12.0));
+                    }
+                    ui.add_space(6.0);
+                    if !r.symlink_sources.is_empty() {
+                        ui.label(
+                            egui::RichText::new("Symlinks pointing here:")
+                                .size(12.0)
+                                .color(super::colors::WARNING),
+                        );
+                        for s in r.symlink_sources.iter().take(10) {
+                            ui.label(egui::RichText::new(format!("  {}", s.path)).size(11.0));
+                        }
+                    }
+                    if !r.same_stem_files.is_empty() {
+                        ui.label(
+                            egui::RichText::new("Same-name files:")
+                                .size(12.0)
+                                .color(super::colors::INFO),
+                        );
+                        for s in r.same_stem_files.iter().take(10) {
+                            ui.label(egui::RichText::new(format!("  {}", s.path)).size(11.0));
+                        }
+                    }
+                }
+
+                ui.add_space(16.0);
+                if ui.button("Close").clicked() {
+                    should_close = true;
+                }
+            });
+        });
+
+    if should_close {
+        *is_open = false;
     }
 }

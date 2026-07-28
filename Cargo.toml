@@ -12,6 +12,7 @@ members = [
     "native/scanner",
     "native/file_deduplicator",
     "native/node_modules_cleaner",
+    "web",
 ]
 
 [workspace.dependencies]
@@ -117,6 +118,13 @@ bytes = "1"
 
 # Async runtime for HTTP calls
 futures = "0.3"
+
+# Web server
+axum = { version = "0.8", features = ["json", "macros"] }
+tokio-tungstenite = "0.21"
+tower-http = { version = "0.6", features = ["cors", "fs", "trace"] }
+rust-embed = "8"
+mime_guess = "2"
 
 # System disk info
 sysinfo = "0.39"

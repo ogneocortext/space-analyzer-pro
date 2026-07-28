@@ -180,11 +180,14 @@ impl SpaceAnalyzerApp {
                                 arguments: args.clone(),
                             },
                         };
-                        let result = registry.execute_tool(
+                        let result = match registry.execute_tool(
                             &tool_call,
                             self.scan_result.as_ref(),
                             self.db.as_ref(),
-                        );
+                        ) {
+                            Ok(r) => r,
+                            Err(e) => format!("Tool execution error: {}", e),
+                        };
 
                         // Create formatted tool result for user display
                         let display = ToolResultDisplay::from_raw(name, &result);

@@ -25,16 +25,20 @@
 
 ## Why Space Analyzer Pro?
 
-Unlike web-based space analyzers, Space Analyzer Pro runs as a **native Windows binary** with direct filesystem access, embedded SQLite, optional GPU acceleration, and an optional local LLM (Ollama) — all without spinning up servers, exposing ports, or sending data off-device.
+Space Analyzer Pro is available in two modes:
+
+- **Desktop** — native Windows binary with direct filesystem access, embedded SQLite, optional GPU acceleration, and optional local LLM (Ollama). No servers, no ports, no telemetry.
+- **Web** — Axum + Svelte single-page app for cross-platform use. Same Rust scanning core, browser-based UI.
 
 | What you get | What you don't |
 |---|---|
-| Single ~16 MB binary | No Node.js, no Python server, no Docker |
+| Single ~16 MB desktop binary | No Node.js runtime required for desktop mode |
 | Embedded SQLite database | No PostgreSQL, no Redis, no cloud DB |
 | Optional local Ollama AI | No OpenAI API, no telemetry, no tracking |
 | Optional NVIDIA GPU accel | No vendor lock-in, CPU fallback works fine |
 | Recursive multi-volume scan | No browser limitations, no upload size limits |
 | Hardlink-based dedup | No re-encoding, no data loss |
+| Optional web UI (Svelte + Axum) | No Electron; lightweight static frontend |
 
 ---
 
@@ -73,6 +77,22 @@ cargo run --bin space-analyzer-pro -- --path . --deep
 # Filter by file type
 cargo run --bin space-analyzer-pro -- --path . --type "Documents" "Images"
 ```
+
+### Web Mode (Optional)
+
+```bash
+# Start the Axum backend (port 3000)
+cargo run --bin space-analyzer-web
+
+# In another terminal, start the Svelte dev server (port 5173)
+cd frontend && npm install && npm run dev
+
+# Or build the frontend once and serve via the Rust backend
+cd frontend && npm install && npm run build
+cargo run --bin space-analyzer-web
+```
+
+The web server serves the Svelte SPA from `web/static/` and proxies API routes (`/api/scan`, `/api/dedup`, `/api/ai/chat`, etc.) to the same Rust scanning core used by the desktop app.
 
 ---
 
@@ -237,6 +257,11 @@ just clippy        # Run lints only
 just fmt           # Format all code
 just package       # Build release + create distributable zip
 just help          # Show all commands
+
+# Web mode
+just build-web     # Build frontend + web backend
+just run-web       # Start web server (port 3000)
+just dev-frontend  # Start Vite dev server (port 5173)
 ```
 
 ### Project Structure
@@ -260,12 +285,29 @@ src/                       # Rust application source
   animation.rs             # Animated typewriter banner (CLI)
   utils.rs                 # Shared utilities (formatting, paths, etc.)
 
+web/                       # Axum web backend (workspace member)
+  src/
+    server.rs              # Axum routes: /api/scan, /api/dedup, /api/ai/chat, /api/large-files, /api/cleanup/suggestions
+    lib.rs                 # Shared web types
+    main.rs                # Binary entry point
+  static/                  # Built Svelte frontend assets (served by Axum)
+
+frontend/                  # Svelte 5 single-page app
+  src/
+    App.svelte             # Hash router + navbar
+    app.css                # Global styles
+    Dashboard.svelte       # Dashboard page
+    routes/                # Page components (Scan, Results, Dedup, System, LargeFiles, Cleanup, AiChat)
+    lib/                   # Shared stores/utils
+  vite.config.ts           # Vite config (dev proxy to :3000, build to ../web/static)
+  package.json             # Svelte 5 + Vite 8
+
 native/                    # Standalone Rust binaries
   scanner/                 # Windows NTFS scanner (USN Journal, MFT, hardlinks)
   file_deduplicator/       # GPU-accelerated duplicate file finder
   node_modules_cleaner/    # Node.js dev-dependency cleanup tool
 
-shared-scanner/            # Shared scanning logic (used by GUI + CLI + dedup)
+shared-scanner/            # Shared scanning logic (used by GUI + CLI + web + dedup)
 gpu-compute/               # Optional CUDA kernels (parallel hashing, dedup)
 
 assets/                    # Visual assets
@@ -315,7 +357,7 @@ config/                    # Tool configuration (non-secret)
 
 **v3.7.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
 
-- **v3.x** — Self-contained Rust desktop application (active development)
+- **v3.x** — Rust desktop application + optional Svelte/Axum web mode (active development)
 - **v2.x and earlier** — Web-based Vue 3 + Node.js implementation (archived at [space-analyzer-pro-web](https://github.com/ogneocortext/space-analyzer-pro-web))
 
 ---

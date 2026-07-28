@@ -1,4 +1,5 @@
 use super::*;
+use crate::error::AppError;
 
 impl ToolRegistry {
     /// Execute a tool call using the current application state
@@ -7,26 +8,26 @@ impl ToolRegistry {
         tool_call: &ToolCall,
         scan_result: Option<&ScanResult>,
         db: Option<&Database>,
-    ) -> String {
+    ) -> Result<String, AppError> {
         let function_name = &tool_call.function.name;
         let args = &tool_call.function.arguments;
 
         match function_name.as_str() {
-            "get_scan_summary" => self.get_scan_summary(scan_result),
+            "get_scan_summary" => Ok(self.get_scan_summary(scan_result)),
             "get_scan_history" => self.get_scan_history(args, db),
-            "get_disk_volumes" => self.get_disk_volumes(),
-            "get_system_resources" => self.get_system_resources(),
+            "get_disk_volumes" => Ok(self.get_disk_volumes()),
+            "get_system_resources" => Ok(self.get_system_resources()),
             "get_storage_trend" => self.get_storage_trend(args, db),
-            "list_workflows" => self.list_workflows(),
-            "get_file_type_breakdown" => self.get_file_type_breakdown(scan_result),
+            "list_workflows" => Ok(self.list_workflows()),
+            "get_file_type_breakdown" => Ok(self.get_file_type_breakdown(scan_result)),
             "predict_storage" => self.predict_storage(args, db),
-            "analyze_file_patterns" => self.analyze_file_patterns(scan_result),
-            "search_files" => self.search_files(args, scan_result),
-            "get_largest_files" => self.get_largest_files(args, scan_result),
-            "preview_impact" => self.preview_impact(args),
-            "move_to_trash" => self.move_to_trash_preview(args),
-            "hardlink_duplicates" => self.hardlink_duplicates_preview(args),
-            _ => format!("Unknown tool: {}", function_name),
+            "analyze_file_patterns" => Ok(self.analyze_file_patterns(scan_result)),
+            "search_files" => Ok(self.search_files(args, scan_result)),
+            "get_largest_files" => Ok(self.get_largest_files(args, scan_result)),
+            "preview_impact" => Ok(self.preview_impact(args)),
+            "move_to_trash" => Ok(self.move_to_trash_preview(args)),
+            "hardlink_duplicates" => Ok(self.hardlink_duplicates_preview(args)),
+            _ => Ok(format!("Unknown tool: {}", function_name)),
         }
     }
 
@@ -107,14 +108,14 @@ impl ToolRegistry {
         }
     }
 
-    fn get_scan_history(&self, args: &serde_json::Value, db: Option<&Database>) -> String {
+    fn get_scan_history(&self, args: &serde_json::Value, db: Option<&Database>) -> Result<String, AppError> {
         let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
         let limit = limit.min(50);
         if let Some(db) = db {
             match db.get_scan_history(limit) {
                 Ok(records) => {
                     if records.is_empty() {
-                        "No scan history available.".to_string()
+                        Ok("No scan history available.".to_string())
                     } else {
                         let mut output = format!("Recent scans ({}):\n", records.len());
                         for record in &records {
@@ -126,16 +127,13 @@ impl ToolRegistry {
                                 record.total_size_mb
                             ));
                         }
-                        output
+                        Ok(output)
                     }
                 }
-                Err(_) => {
-                    "Unable to retrieve scan history. The database may be corrupt or unavailable."
-                        .to_string()
-                }
+                Err(e) => Err(AppError::Scanner(e.into())),
             }
         } else {
-            "Database not available.".to_string()
+            Ok("Database not available.".to_string())
         }
     }
 
@@ -181,13 +179,13 @@ impl ToolRegistry {
         )
     }
 
-    fn get_storage_trend(&self, args: &serde_json::Value, db: Option<&Database>) -> String {
+    fn get_storage_trend(&self, args: &serde_json::Value, db: Option<&Database>) -> Result<String, AppError> {
         let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
         if let Some(db) = db {
             match db.get_storage_trend(limit) {
                 Ok(trend) => {
                     if trend.is_empty() {
-                        "No storage trend data available.".to_string()
+                        Ok("No storage trend data available.".to_string())
                     } else {
                         let mut output = "Storage trend (oldest to newest):\n".to_string();
                         for (timestamp, size) in &trend {
@@ -197,13 +195,13 @@ impl ToolRegistry {
                                 *size as f64 / (1024.0 * 1024.0)
                             ));
                         }
-                        output
+                        Ok(output)
                     }
                 }
-                Err(_) => "Unable to retrieve storage trend data. The database may be corrupt or unavailable.".to_string(),
+                Err(e) => Err(AppError::Scanner(e.into())),
             }
         } else {
-            "Database not available.".to_string()
+            Ok("Database not available.".to_string())
         }
     }
 
@@ -236,7 +234,7 @@ impl ToolRegistry {
         }
     }
 
-    fn predict_storage(&self, args: &serde_json::Value, db: Option<&Database>) -> String {
+    fn predict_storage(&self, args: &serde_json::Value, db: Option<&Database>) -> Result<String, AppError> {
         let days_ahead = args
             .get("days_ahead")
             .and_then(|v| v.as_u64())
@@ -245,7 +243,7 @@ impl ToolRegistry {
             match db.get_storage_trend(50) {
                 Ok(trend) => {
                     if trend.len() < 2 {
-                        return "Not enough historical data for prediction. Need at least 2 scans.".to_string();
+                        return Ok("Not enough historical data for prediction. Need at least 2 scans.".to_string());
                     }
 
                     // Calculate growth rate from trend data using actual timestamps
@@ -292,7 +290,7 @@ impl ToolRegistry {
                         }
                     }
 
-                    format!(
+                    Ok(format!(
                         "Storage Prediction ({} days ahead):\n\
                          Current total scanned size: {:.2} MB\n\
                          Average daily growth: {:.2} MB/day\n\
@@ -306,12 +304,12 @@ impl ToolRegistry {
                         predicted_size / (1024.0 * 1024.0),
                         if daily_growth > 0.0 { "Increasing" } else if daily_growth < 0.0 { "Decreasing" } else { "Stable" },
                         if disk_full_info.is_empty() { "  No disk full risk detected\n" } else { &disk_full_info }
-                    )
+                    ))
                 }
-                Err(_) => "Unable to retrieve storage data for prediction. The database may be corrupt or unavailable.".to_string(),
+                Err(e) => Err(AppError::Scanner(e.into())),
             }
         } else {
-            "Database not available. Cannot make predictions without historical data.".to_string()
+            Ok("Database not available. Cannot make predictions without historical data.".to_string())
         }
     }
 

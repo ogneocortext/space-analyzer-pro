@@ -153,7 +153,7 @@ mod tests {
     fn test_execute_unknown_tool() {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("non_existent_tool", serde_json::json!({}));
-        let result = registry.execute_tool(&call, None, None);
+        let result = registry.execute_tool(&call, None, None).unwrap();
         assert_eq!(result, "Unknown tool: non_existent_tool");
     }
 
@@ -162,7 +162,7 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let scan = sample_scan();
         let call = make_tool_call("get_scan_summary", serde_json::json!({}));
-        let result = registry.execute_tool(&call, Some(&scan), None);
+        let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         assert!(result.contains("Scan of: C:\\Users\\test"));
         assert!(result.contains("Total files: 595"));
         assert!(result.contains(".pdf: 150 files"));
@@ -173,7 +173,7 @@ mod tests {
     fn test_get_scan_summary_without_scan() {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("get_scan_summary", serde_json::json!({}));
-        let result = registry.execute_tool(&call, None, None);
+        let result = registry.execute_tool(&call, None, None).unwrap();
         assert_eq!(
             result,
             "No scan results available. Please run a scan first."
@@ -184,7 +184,7 @@ mod tests {
     fn test_get_scan_history_without_db() {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("get_scan_history", serde_json::json!({"limit": 5}));
-        let result = registry.execute_tool(&call, None, None);
+        let result = registry.execute_tool(&call, None, None).unwrap();
         assert_eq!(result, "Database not available.");
     }
 
@@ -192,7 +192,7 @@ mod tests {
     fn test_get_disk_volumes() {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("get_disk_volumes", serde_json::json!({}));
-        let result = registry.execute_tool(&call, None, None);
+        let result = registry.execute_tool(&call, None, None).unwrap();
         // Should return disk info or appropriate message
         assert!(result.contains("Disk volumes") || result.contains("No disk volumes"));
     }
@@ -201,7 +201,7 @@ mod tests {
     fn test_get_system_resources() {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("get_system_resources", serde_json::json!({}));
-        let result = registry.execute_tool(&call, None, None);
+        let result = registry.execute_tool(&call, None, None).unwrap();
         assert!(result.contains("CPU usage") || result.contains("Memory"));
     }
 
@@ -209,7 +209,7 @@ mod tests {
     fn test_list_workflows() {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("list_workflows", serde_json::json!({}));
-        let result = registry.execute_tool(&call, None, None);
+        let result = registry.execute_tool(&call, None, None).unwrap();
         assert!(result.contains("Available workflows"));
     }
 
@@ -218,7 +218,7 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let scan = sample_scan();
         let call = make_tool_call("get_file_type_breakdown", serde_json::json!({}));
-        let result = registry.execute_tool(&call, Some(&scan), None);
+        let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         assert!(result.contains("File type breakdown"));
         assert!(result.contains(".pdf: 150 files"));
         assert!(result.contains("595 total files"));
@@ -228,7 +228,7 @@ mod tests {
     fn test_get_file_type_breakdown_without_scan() {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("get_file_type_breakdown", serde_json::json!({}));
-        let result = registry.execute_tool(&call, None, None);
+        let result = registry.execute_tool(&call, None, None).unwrap();
         assert_eq!(result, "No scan results available.");
     }
 
@@ -237,7 +237,7 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let scan = sample_scan();
         let call = make_tool_call("analyze_file_patterns", serde_json::json!({}));
-        let result = registry.execute_tool(&call, Some(&scan), None);
+        let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         assert!(result.contains("File Pattern Analysis"));
     }
 
@@ -246,7 +246,7 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let scan = sample_scan();
         let call = make_tool_call("search_files", serde_json::json!({"extension": "pdf"}));
-        let result = registry.execute_tool(&call, Some(&scan), None);
+        let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         assert!(result.contains("Search results"));
         assert!(result.contains("report.pdf"));
     }
@@ -256,7 +256,7 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let scan = sample_scan();
         let call = make_tool_call("search_files", serde_json::json!({"extension": "xyz"}));
-        let result = registry.execute_tool(&call, Some(&scan), None);
+        let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         assert_eq!(result, "No files match the search criteria.");
     }
 
@@ -264,7 +264,7 @@ mod tests {
     fn test_search_files_without_scan() {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("search_files", serde_json::json!({"extension": "pdf"}));
-        let result = registry.execute_tool(&call, None, None);
+        let result = registry.execute_tool(&call, None, None).unwrap();
         assert_eq!(
             result,
             "No scan results available. Please run a scan first."
@@ -276,7 +276,7 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let scan = sample_scan();
         let call = make_tool_call("get_largest_files", serde_json::json!({}));
-        let result = registry.execute_tool(&call, Some(&scan), None);
+        let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         assert!(result.contains("Largest files"));
         assert!(result.contains("big_file.zip"));
         assert!(result.contains("476") || result.contains("MB"));
@@ -287,7 +287,7 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let scan = sample_scan();
         let call = make_tool_call("get_largest_files", serde_json::json!({"count": 3}));
-        let result = registry.execute_tool(&call, Some(&scan), None);
+        let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         assert!(result.contains("Largest files (top 3)"));
     }
 
@@ -296,7 +296,7 @@ mod tests {
         let registry = ToolRegistry::new(None);
         let scan = sample_scan();
         let call = make_tool_call("get_largest_files", serde_json::json!({"min_size_mb": 100}));
-        let result = registry.execute_tool(&call, Some(&scan), None);
+        let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         assert!(result.contains("Largest files"));
         assert!(result.contains("big_file.zip"));
         assert!(result.contains("large_video.mp4"));
@@ -307,7 +307,7 @@ mod tests {
     fn test_get_largest_files_without_scan() {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("get_largest_files", serde_json::json!({}));
-        let result = registry.execute_tool(&call, None, None);
+        let result = registry.execute_tool(&call, None, None).unwrap();
         assert_eq!(
             result,
             "No scan results available. Please run a scan first."
@@ -318,7 +318,7 @@ mod tests {
     fn test_get_storage_trend_without_db() {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("get_storage_trend", serde_json::json!({}));
-        let result = registry.execute_tool(&call, None, None);
+        let result = registry.execute_tool(&call, None, None).unwrap();
         assert_eq!(result, "Database not available.");
     }
 
@@ -326,7 +326,7 @@ mod tests {
     fn test_predict_storage_without_db() {
         let registry = ToolRegistry::new(None);
         let call = make_tool_call("predict_storage", serde_json::json!({"days_ahead": 30}));
-        let result = registry.execute_tool(&call, None, None);
+        let result = registry.execute_tool(&call, None, None).unwrap();
         assert_eq!(
             result,
             "Database not available. Cannot make predictions without historical data."
@@ -339,7 +339,7 @@ mod tests {
         let scan = sample_scan();
         // Even though count is 999, only 5 files exist in sample
         let call = make_tool_call("get_largest_files", serde_json::json!({"count": 999}));
-        let result = registry.execute_tool(&call, Some(&scan), None);
+        let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         assert!(result.contains("Largest files (top 5)"));
     }
 

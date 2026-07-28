@@ -1,7 +1,7 @@
 # Changelog
 
 
-## [3.7.0] - 2026-06-19
+## [3.7.0] - 2026-07-28
 
 ### Architecture
 
@@ -42,6 +42,13 @@
 - Added `.cline/` to `.gitignore`
 - Updated justfile with system utility tasks (check-updates, dashboard)
 - Added `scripts/utility/check_updates.ps1` and `dashboard_server.ps1`
+
+### Web Frontend (Svelte + Axum)
+
+- **New `web/` Axum backend** — workspace member `space-analyzer-web` serving the Svelte SPA on port 3000. Exposes `/api/scan`, `/api/dedup`, `/api/ai/chat`, `/api/large-files`, `/api/cleanup/suggestions`, `/api/system`, `/api/health`.
+- **New `frontend/` Svelte 5 app** — hash-routed SPA with 8 pages: Dashboard, Scan, Results, Duplicates, System, Large Files, Cleanup, AI Chat. Uses Vite 8 with build output to `web/static/`.
+- **Shared scanning core** — web backend reuses `shared-scanner` and `file-deduplicator` workspace crates so the web and desktop apps share the same scan/dedup logic.
+- **Dev workflow** — `npm run dev` starts Vite on `:5173` with `/api` proxied to `:3000`; `npm run build` outputs to `web/static/`.
 
 ### Version
 

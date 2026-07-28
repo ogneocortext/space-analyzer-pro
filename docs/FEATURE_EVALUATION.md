@@ -24,17 +24,17 @@ Anything that does not serve A–F is overhead. Anything that serves A–F but i
 
 ---
 
-## 2. Critical Discovery: 3 Modules Are Not Even Compiled
+## 2. Dormant Modules Now Compiled and Wired
 
-`src/lib.rs` declares the modules included in the library and the GUI binary. Three top-level files exist on disk but are **not declared**, which means they are not compiled and not reachable from any code:
+`src/lib.rs` already declares `category`, `offline_ai`, and `file_relations` as public modules. All three compile and are reachable from the GUI:
 
-| File | What it does | Vision capability |
-|------|--------------|-------------------|
-| `src/category.rs` | Maps file extensions → 12 human-readable categories (Documents, Images, Videos, Code, Development, etc.). | **E** (type breakdown) |
-| `src/offline_ai.rs` | Heuristic pattern classifier: large videos, cache files, code-build artifacts, etc. | **E** (unnecessary files, code bloat) |
-| `src/file_relations.rs` | Builds a `DependencyReport` for a target file: hardlinks, symlinks, sibling files, paired extensions, summary. | **F** (destructive-action preview) |
+| File | What it does | Vision capability | Current status |
+|------|--------------|-------------------|----------------|
+| `src/category.rs` | Maps file extensions → 12 human-readable categories (Documents, Images, Videos, Code, Development, etc.). | **E** (type breakdown) | ✅ Wired into Dashboard (`render_categories_card`) |
+| `src/offline_ai.rs` | Heuristic pattern classifier: large videos, cache files, code-build artifacts, etc. | **E** (unnecessary files, code bloat) | ✅ Wired into Dashboard (`render_bloat_card`) |
+| `src/file_relations.rs` | Builds a `DependencyReport` for a target file: hardlinks, symlinks, sibling files, paired extensions, summary. | **F** (destructive-action preview) | ⚠️ Compiled and exposed to AI tools (`preview_impact`), but the GUI modal was missing — now wired into scan results. |
 
-These are not "almost wired" — they are dead files that already implement three of the user's six stated capabilities. **Wiring them is the single highest-value simplification action available**, because it activates capability E (partial) and capability F (full) without writing new code.
+These modules already implement three of the user's six stated capabilities. The remaining gap is making the `file_relations` preview modal discoverable from the main GUI (now added to scan results).
 
 ---
 
@@ -56,10 +56,10 @@ These are not "almost wired" — they are dead files that already implement thre
 | Settings persistence | `src/gui/settings.rs`, `src/database/settings.rs` | ✅ Active | (cross-cutting) | **Keep**. |
 | Session logger | `src/session_logger.rs` | ✅ Active | (diagnostics) | **Keep** — opt-in, small, useful. |
 | Embedded SQLite (scan history, settings, workflow history, embeddings) | `src/database/` | ✅ Active | (persistence) | **Keep**. |
-| **File category table** | `src/category.rs` | ❌ **Not compiled** | E | **WIRE NOW** — declare in `lib.rs`, call from dashboard/scan results to group and label files. |
-| **Offline AI heuristics** | `src/offline_ai.rs` | ❌ **Not compiled** | E | **WIRE NOW** — declare in `lib.rs`, run during/after scan to flag bloat/cache/dev-artifact candidates. |
-| **File relations / dependency report** | `src/file_relations.rs` | ❌ **Not compiled** | F | **WIRE NOW** — declare in `lib.rs`, add a "Preview impact" action on files that runs `build_dependency_report` and shows a modal before destructive actions. |
-| Embedding schema (save/get embeddings for a scan) | `src/database/embeddings.rs` | ✅ Active but marked `#[allow(dead_code)]` "Planned: semantic search" | E | **WIRE NOW** (cosmetic) — remove the dead_code allow; the embeddings tab already calls into it. |
+| **File category table** | `src/category.rs` | ✅ Compiled and wired into Dashboard | E | **Keep** — active in Dashboard categories panel. |
+| **Offline AI heuristics** | `src/offline_ai.rs` | ✅ Compiled and wired into Dashboard | E | **Keep** — active in Dashboard bloat candidates panel. |
+| **File relations / dependency report** | `src/file_relations.rs` | ✅ Compiled; exposed via AI tools + scan result preview button | F | **Keep** — preview modal now available from scan results. |
+| Embedding schema (save/get embeddings for a scan) | `src/database/embeddings.rs` | ✅ Active | E | **Keep** — embeddings tab calls into it. |
 
 ### 3.2 Workspace Rust Crates (`Cargo.toml` `[workspace.members]`)
 
@@ -132,22 +132,20 @@ Same situation: not called from the active GUI. The Rust `src/ollama/` and `src/
 | A — Scan | ✅ Working | None. |
 | B — Data hogs / 3 drives | ✅ Working (Dashboard + System tab) | None. |
 | C — Manage files | ✅ Workflows + Dedup tab + CLI `--clean` | Could surface a "Preview impact" step (see F). |
-| D — AI agent | ✅ Tool registry + Ollama chat | None functional, but tools are read-only. Add **mutating tools** (delete-via-trash, move-to-folder, hardlink-duplicates) behind the destructive-preview gate. |
-| E — Code bloat / unnecessary / types / provenance | ⚠️ Partial | `category.rs` and `offline_ai.rs` exist but aren't compiled. **No provenance feature exists at all** — would need a new design (install-time hooks, package-manifest correlation, or accept `npx/pip install` logs as input). |
-| F — Destructive-action preview | ❌ Missing | `file_relations.rs` exists and can answer "what depends on this file" via `DependencyReport` (hardlinks, symlinks, paired-extension siblings). It is not compiled and not exposed in any UI. |
-
-The single most leveraged action is to wire `category.rs`, `offline_ai.rs`, and `file_relations.rs` into the GUI and add a "Preview impact" button on file rows. That activates 3/6 capabilities the user explicitly cares about, using code that already exists.
+| D — AI agent | ✅ Tool registry + Ollama chat | None functional; tools are read-only except `preview_impact`. Add **mutating tools** (delete-via-trash, move-to-folder, hardlink-duplicates) behind the destructive-preview gate. |
+| E — Code bloat / unnecessary / types / provenance | ✅ Partial | `category.rs` and `offline_ai.rs` are compiled and wired into Dashboard. **No provenance feature exists at all** — would need a new design (install-time hooks, package-manifest correlation, or accept `npx/pip install` logs as input). |
+| F — Destructive-action preview | ✅ Wired | `file_relations.rs` is compiled and exposed via AI `preview_impact` tool. A GUI preview modal is now available from scan results (largest files). |
 
 ---
 
 ## 5. Recommended Action Plan (Priority Order)
 
-### Tier 1 — Wire the dormant code (high value, low risk)
+### Tier 1 — Completed (already done in prior sessions)
 
-1. **Declare `category`, `offline_ai`, `file_relations` in `src/lib.rs`.** They already compile as standalone files (they have no other internal deps beyond `serde`/`chrono`/filesystem).
-2. **Add a "Categories" panel** to the Dashboard that uses `category::FILE_CATEGORIES` to bucket the most recent scan's files.
-3. **Run `offline_ai::FilePatternClassifier` after every scan** and surface matches in a new "Bloat candidates" section (cache, node_modules, .log, build artifacts).
-4. **Add a "Preview impact" button** to the file list in the History/Dashboard tabs. It calls `file_relations::build_dependency_report(path)` and shows a modal with: hardlink count, symlink sources, sibling files, paired-extension companions, and a confirmation checkbox before any destructive action. This is the destructive-preview capability F.
+1. ~~Declare `category`, `offline_ai`, `file_relations` in `src/lib.rs`.~~ ✅ Done.
+2. ~~Add a "Categories" panel to the Dashboard.~~ ✅ Done (`render_categories_card`).
+3. ~~Run `offline_ai::FilePatternClassifier` after every scan and surface matches.~~ ✅ Done (`render_bloat_card`).
+4. ~~Add a "Preview impact" button to file lists.~~ ✅ Done — scan results now have a "Preview" button that opens the impact modal; AI tools already expose `preview_impact`.
 
 ### Tier 2 — Trim dead/wrong-product code (zero functional loss)
 
@@ -181,8 +179,7 @@ The single most leveraged action is to wire `category.rs`, `offline_ai.rs`, and 
 
 | Bucket | Items | Disposition |
 |--------|-------|-------------|
-| **WIRE NOW** (already coded, not compiled/reachable) | `src/category.rs`, `src/offline_ai.rs`, `src/file_relations.rs` | Declare in `lib.rs`; expose in GUI; add "Preview impact" modal. |
-| **WIRE NOW (cosmetic)** | `src/database/embeddings.rs` `#[allow(dead_code)]` | Remove the allow; the embeddings tab already calls into it. |
+| **WIRED** (already coded, compiled, and reachable) | `src/category.rs`, `src/offline_ai.rs`, `src/file_relations.rs` | All declared in `lib.rs`; `category` and `offline_ai` used in Dashboard; `file_relations` exposed via AI tools + scan result preview modal. |
 | **KEEP** (active, serves the vision) | GUI shell, scan, dedup, history, smart-search, workflows, AI chat, tool registry, system monitor, settings, session logger, SQLite, `shared-scanner`, `gpu-compute`, `native/scanner`, `native/file_deduplicator`, `native/node_modules_cleaner` | No change. |
 | **DELETE from disk** | `native/archive_manager/`, `native/storage_predictor/`, `native/file_monitor/`, `native/design-screenshot/` | Already excluded from workspace; remove directories to stop misleading the next contributor. |
 | **INACTIVE — document only** | `server/**` (all 13 files + subtrees), `ai-service/**` (all 10 files) | Add READMEs explaining "not called by GUI; potential web-mode backend". Fix or delete the two broken-import files. |

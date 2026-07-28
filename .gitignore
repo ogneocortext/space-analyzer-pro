@@ -126,3 +126,15 @@ IDENTITY.md
 SOUL.md
 TOOLS.md
 USER.md
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/.vite/
+frontend/static/
+
+# Web build artifacts
+web/static/
+
+# Agent workspace state
+openclaw-workspace-state.json
+dashboard-screenshot.png

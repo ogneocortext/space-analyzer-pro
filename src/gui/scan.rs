@@ -308,7 +308,7 @@ impl SpaceAnalyzerApp {
         }
 
         // ΓöÇΓöÇ Scan Results ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-        if let Some(ref result) = self.scan_result {
+        if let Some(result) = self.scan_result.clone() {
             section_heading(ui, Some('📊'), "Scan Results");
 
             // Stats row
@@ -355,7 +355,7 @@ impl SpaceAnalyzerApp {
                     egui::ScrollArea::vertical()
                         .max_height(140.0)
                         .show(ui, |ui| {
-                            self.show_scan_errors(ui, result);
+                            self.show_scan_errors(ui, &result);
                         });
                 });
             }
@@ -363,7 +363,7 @@ impl SpaceAnalyzerApp {
             // Visual Analysis
             section_heading(ui, Some('📊'), "File Distribution");
             card_frame(ui.style()).show(ui, |ui| {
-                self.show_visual_analysis(ui, result);
+                self.show_visual_analysis(ui, &result);
             });
 
             // File Types
@@ -372,7 +372,7 @@ impl SpaceAnalyzerApp {
                 egui::ScrollArea::vertical()
                     .max_height(200.0)
                     .show(ui, |ui| {
-                        self.show_file_types(ui, result);
+                        self.show_file_types(ui, &result);
                     });
             });
 
@@ -382,7 +382,7 @@ impl SpaceAnalyzerApp {
                 egui::ScrollArea::vertical()
                     .max_height(250.0)
                     .show(ui, |ui| {
-                        self.show_largest_files(ui, result);
+                        self.show_largest_files(ui, &result);
                     });
             });
         }
@@ -483,7 +483,7 @@ impl SpaceAnalyzerApp {
             });
     }
 
-    fn show_largest_files(&self, ui: &mut egui::Ui, result: &ScanResult) {
+    fn show_largest_files(&mut self, ui: &mut egui::Ui, result: &ScanResult) {
         if result.largest_files.is_empty() {
             ui.label(
                 egui::RichText::new("No files found")
@@ -528,6 +528,11 @@ impl SpaceAnalyzerApp {
                                     let _ = open::that(parent);
                                 }
                             }
+                        }
+                        if ui.small_button("Preview").clicked() {
+                            self.impact_preview_input = path.clone();
+                            self.impact_preview_open = true;
+                            self.current_impact_report = None;
                         }
                     });
                     ui.end_row();

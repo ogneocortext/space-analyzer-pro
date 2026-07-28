@@ -24,19 +24,10 @@ pub mod types;
 pub mod features;
 
 // Re-export everything at module root for backward compatibility.
-// Allow unused imports — these form the public API surface consumed by the GUI
-// once the Ollama integration is wired up end-to-end.
-#[allow(unused_imports)]
 pub use client::{OllamaClient, OllamaClientBuilder};
-#[allow(unused_imports)]
 pub use error::{OllamaError, OllamaResult};
-#[allow(unused_imports)]
 pub use json_utils::{extract_and_validate, parse_with_repair, repair_json, validate_json};
-#[allow(unused_imports)]
 pub use prompt_cache::{CacheStats, ModelTokenBudget, PromptCache, PromptCacheConfig};
-#[allow(unused_imports)]
 pub use prompts::*;
-#[allow(unused_imports)]
 pub use stream::StreamChunk;
-#[allow(unused_imports)]
 pub use types::*;
