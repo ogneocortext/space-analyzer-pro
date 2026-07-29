@@ -13,7 +13,7 @@ pub struct Cli {
     #[arg(short, long, default_value = ".")]
     pub path: String,
 
-    /// Output format: text, json, or csv
+    /// Output format: text, json, csv, jsonl, or md
     #[arg(short, long, default_value = "text")]
     pub format: String,
 
@@ -45,6 +45,14 @@ pub struct Cli {
     #[arg(long)]
     pub cleanup_recommendations: bool,
 
+    /// Trace file origins and assess deletion safety for top dirs/files.
+    ///
+    /// Maps each scanned path to the application/system that created it and
+    /// assigns a SAFE / REVIEW / CAUTION / DO-NOT-DELETE verdict with reasoning,
+    /// so you can reclaim space without deleting something important.
+    #[arg(long)]
+    pub trace_origins: bool,
+
     /// Minimum file size to include in results (e.g. 1M, 500K, 1G)
     #[arg(long)]
     pub min_size: Option<String>,
@@ -68,4 +76,9 @@ pub struct Cli {
     /// Drop scan JSON into a GUI channel dir
     #[arg(long)]
     pub channel: Option<String>,
+
+    /// Ask an AI question about the scan results using Ollama
+    /// (e.g. --ask "What's taking up the most space?")
+    #[arg(long)]
+    pub ask: Option<String>,
 }

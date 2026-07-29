@@ -1,6 +1,7 @@
 pub mod args;
 pub mod dedup;
 pub mod helpers;
+pub mod origins;
 pub mod output;
 pub mod recommendations;
 pub mod report;
@@ -57,7 +58,15 @@ pub fn main() -> AppResult<()> {
             let json_output = serde_json::to_string_pretty(&result).unwrap_or_default();
             println!("{}", json_output);
         }
+        "jsonl" => {
+            let jsonl_output = report::generate_jsonl(&result);
+            println!("{}", jsonl_output);
+        }
         "csv" => output::print_csv(&result),
+        "md" | "markdown" => {
+            let md_report = report::generate_report(&result, &cli.path, cli.top);
+            println!("{}", md_report);
+        }
         _ => unreachable!(),
     }
 
@@ -121,6 +130,59 @@ pub fn main() -> AppResult<()> {
 
     if cli.cleanup_recommendations {
         recommendations::print_cleanup_recommendations(&result);
+    }
+
+    if cli.trace_origins {
+        let max_dirs = cli.top.max(60);
+        let max_files = cli.top.max(40);
+        let origin_report =
+            space_analyzer_pro_desktop::origin_tracer::build_report(&result, max_dirs, max_files);
+        origins::print_origin_report(&origin_report, cli.no_animation);
+    }
+
+    if let Some(question) = &cli.ask {
+        let settings = space_analyzer_pro_desktop::database::Database::default_open()
+            .ok()
+            .as_ref()
+            .map(|db| db.load_settings())
+            .unwrap_or_default();
+        let registry =
+            space_analyzer_pro_desktop::tool_registry::ToolRegistry::new(Some(result.clone()));
+        let tools = registry.get_definitions().to_vec();
+
+        let executor: space_analyzer_pro_desktop::ollama::features::ToolExecutor =
+            Box::new(move |call| {
+                let local_db = space_analyzer_pro_desktop::database::Database::default_open().ok();
+                let r = registry.execute_tool(call, Some(&result), local_db.as_ref());
+                r.unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}).to_string())
+            });
+
+        let rt = tokio::runtime::Runtime::new()
+            .expect("Failed to create async runtime for AI question");
+        let client = space_analyzer_pro_desktop::ollama::client::OllamaClient::new(
+            &settings.ollama_url,
+            &settings.ollama_model,
+        )
+        .expect("Failed to create Ollama client");
+        match rt.block_on(
+            space_analyzer_pro_desktop::ollama::features::agentic_question(
+                &client,
+                &settings.ollama_model,
+                question,
+                tools,
+                executor,
+                5,
+            ),
+        ) {
+            Ok(output) => {
+                if !cli.no_animation {
+                    println!("\n{}", output.final_answer);
+                } else {
+                    println!("{}", output.final_answer);
+                }
+            }
+            Err(e) => eprintln!("AI question failed: {}", e),
+        }
     }
 
     Ok(())
