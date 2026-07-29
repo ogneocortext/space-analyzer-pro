@@ -975,7 +975,8 @@ mod tests {
     async fn live_summarize_scan_returns_non_empty_summary() {
         use crate::ollama::OllamaClient;
 
-        let client = OllamaClient::new("http://127.0.0.1:11434", "gemma3:4b")
+        let model = std::env::var("OLLAMA_SUMMARIZE_MODEL").unwrap_or_else(|_| "llama3.2:3b".into());
+        let client = OllamaClient::new("http://127.0.0.1:11434", &model)
             .expect("client builder failed");
         let input = ScanSummaryInput {
             total_files: 100,
@@ -983,7 +984,7 @@ mod tests {
             top_files: vec![("C:/big.bin".to_string(), 500_000_000)],
             file_types: vec![("bin".to_string(), 50)],
         };
-        let out = summarize_scan(&client, "gemma3:4b", input)
+        let out = summarize_scan(&client, &model, input)
             .await
             .expect("summarize should succeed");
         assert!(!out.summary.is_empty());
