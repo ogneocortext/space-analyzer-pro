@@ -118,7 +118,7 @@ impl SpaceAnalyzerApp {
 
     // ── File Type Distribution Chart ──────────────────────────────────
     fn render_file_type_chart(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some('📊'), "File Type Distribution");
+        section_heading(ui, Some(icons::CHART_BAR), "File Type Distribution");
         card_frame(ui.style()).show(ui, |ui| {
             if let Some(ref result) = self.scan_result {
                 let mut sorted: Vec<(&String, &usize)> = result.file_types.iter().collect();
@@ -218,7 +218,7 @@ impl SpaceAnalyzerApp {
 
     // ── File Categories Card ──────────────────────────────────────────────
     fn render_categories_card(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some('📁'), "File Categories");
+        section_heading(ui, Some(icons::FOLDER), "File Categories");
         card_frame(ui.style()).show(ui, |ui| {
             if let Some(ref result) = self.scan_result {
                 let categories = category::categorize_files(&result.file_types);
@@ -271,7 +271,7 @@ impl SpaceAnalyzerApp {
 
     // ── Bloat Candidates Card ─────────────────────────────────────────────
     fn render_bloat_card(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some('⚡'), "Bloat Candidates");
+        section_heading(ui, Some(icons::QUICK), "Bloat Candidates");
         card_frame(ui.style()).show(ui, |ui| {
             if let Some(ref result) = self.scan_result {
                 let classifier = offline_ai::FilePatternClassifier::new();
@@ -310,7 +310,7 @@ impl SpaceAnalyzerApp {
 
     // ── Disk Volumes Card ─────────────────────────────────────────────────
     fn render_disk_volumes_card(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some('💾'), "Disk Volumes");
+        section_heading(ui, Some(icons::DISK), "Disk Volumes");
         card_frame(ui.style()).show(ui, |ui| {
             ui.vertical(|ui| {
                 for vol in &self.system_state.disk_volumes {
@@ -332,7 +332,7 @@ impl SpaceAnalyzerApp {
 
     // ── System Resources Card ─────────────────────────────────────────────
     fn render_system_resources_card(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some('🖥'), "System Resources");
+        section_heading(ui, Some(icons::SYSTEM), "System Resources");
         card_frame(ui.style()).show(ui, |ui| {
             if let Some(ref sys) = self.system_state.system_resources {
                 ui.columns(2, |cols| {
@@ -384,7 +384,7 @@ impl SpaceAnalyzerApp {
 
     // ── Storage Trend Card ────────────────────────────────────────────────
     fn render_trend_card(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some('📈'), "Storage Trend");
+        section_heading(ui, Some(icons::TREND), "Storage Trend");
         card_frame(ui.style()).show(ui, |ui| {
             self.render_storage_chart_inner(ui);
         });
@@ -393,12 +393,12 @@ impl SpaceAnalyzerApp {
     // ── Recommendations Card ──────────────────────────────────────────────
     fn render_recommendations_card(&self, ui: &mut egui::Ui) {
         let source_label = if self.ai_recommendation_source == "ai" {
-            "🤖 AI"
+            format!("{} AI", icons::MODEL)
         } else {
-            "⚙ Heuristic"
+            format!("{} Heuristic", icons::WORKFLOW)
         };
 
-        section_heading(ui, Some('💡'), &format!("Insights ({})", source_label));
+        section_heading(ui, Some(icons::LIGHTBULB), &format!("Insights ({})", source_label));
         card_frame(ui.style()).show(ui, |ui| {
             if self.ai_recommendation_pending {
                 ui.horizontal(|ui| {

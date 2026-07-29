@@ -13,14 +13,14 @@ pub fn card_frame(_style: &egui::Style) -> egui::Frame {
         .shadow(egui::Shadow::NONE)
 }
 
-/// Render a section header with optional icon and strong text.
-pub fn section_heading(ui: &mut egui::Ui, icon: Option<char>, text: &str) {
+/// Render a section header with optional Phosphor icon and strong text.
+pub fn section_heading(ui: &mut egui::Ui, icon: Option<&'static str>, text: &str) {
     ui.add_space(4.0);
     ui.horizontal(|ui| {
-        if let Some(ch) = icon {
+        if let Some(icon_str) = icon {
             ui.label(
-                egui::RichText::new(ch.to_string())
-                    .size(15.0)
+                egui::RichText::new(icon_str)
+                    .size(16.0)
                     .color(colors::ACCENT),
             );
         }
@@ -125,15 +125,9 @@ pub fn labeled_gauge(ui: &mut egui::Ui, label: &str, value: f32, detail: Option<
     });
 }
 
-/// Create a RichText icon from emoji character
-pub fn icon_text(codepoint: u32, _family: &str, size: f32, color: egui::Color32) -> egui::RichText {
-    let glyph = char::from_u32(codepoint).unwrap_or('?');
-    egui::RichText::new(glyph.to_string())
+/// Create a RichText icon from Phosphor icon string
+pub fn icon_text(icon: &'static str, size: f32, color: egui::Color32) -> egui::RichText {
+    egui::RichText::new(icon)
         .size(size)
         .color(color)
-}
-
-/// Get just the icon character as a string
-pub fn icon_char(codepoint: u32) -> char {
-    char::from_u32(codepoint).unwrap_or('?')
 }

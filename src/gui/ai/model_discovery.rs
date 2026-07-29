@@ -3,6 +3,7 @@
 //! This module contains functions for discovering Ollama models,
 //! rendering model lists, and auto-selecting models based on task type.
 
+use crate::gui::icons;
 use super::super::{classify_model, icon_text, OllamaMessage, OllamaModelInfo};
 use std::sync::mpsc;
 
@@ -168,9 +169,9 @@ impl SpaceAnalyzerApp {
         // ── Discover / Refresh controls ─────────────────────────────────
         ui.horizontal(|ui| {
             let btn_label = if self.discovered_models.is_empty() {
-                "Discover Models"
+                "Discover Models".to_string()
             } else {
-                "↻ Refresh"
+                format!("{} Refresh", icons::REFRESH)
             };
             if ui
                 .small_button(btn_label)
@@ -224,7 +225,7 @@ impl SpaceAnalyzerApp {
             ui.horizontal(|ui| {
                 let is_active = current_active.as_ref() == Some(&model.name);
                 if is_active {
-                    ui.label(egui::RichText::new("★").color(egui::Color32::YELLOW));
+                    ui.label(egui::RichText::new(icons::STAR).color(egui::Color32::YELLOW));
                 }
 
                 let name_text = ui.label(egui::RichText::new(&model.name).strong());
@@ -239,7 +240,7 @@ impl SpaceAnalyzerApp {
                 );
 
                 if running_names.contains(&model.name) {
-                    badge(ui, "● Running", egui::Color32::from_rgb(80, 200, 120));
+                    badge(ui, &format!("{} Running", icons::CIRCLE), egui::Color32::from_rgb(80, 200, 120));
                 }
             });
 
@@ -303,17 +304,12 @@ impl SpaceAnalyzerApp {
                             }
                             _ => "Model capability",
                         };
-                        if let Some((cp, fam)) = super::super::icons::check() {
-                            ui.add(egui::Label::new(icon_text(
-                                cp,
-                                fam,
-                                12.0,
-                                egui::Color32::GREEN,
-                            )))
-                            .on_hover_text(cap_tooltip);
-                        } else {
-                            ui.small(format!("[OK] {}", cap)).on_hover_text(cap_tooltip);
-                        }
+                        ui.add(egui::Label::new(icon_text(
+                            icons::CHECK,
+                            12.0,
+                            egui::Color32::GREEN,
+                        )))
+                        .on_hover_text(cap_tooltip);
                     }
                 });
             }

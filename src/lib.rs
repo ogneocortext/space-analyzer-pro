@@ -12,6 +12,7 @@ pub mod file_relations;
 pub mod gui_common;
 pub mod offline_ai;
 pub mod ollama;
+pub mod origin_tracer;
 pub mod session_logger;
 pub mod system_monitor;
 pub mod thumbnails;

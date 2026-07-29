@@ -1,10 +1,18 @@
 use super::*;
+use crate::gui::icons;
 
 impl SpaceAnalyzerApp {
     pub fn refresh_system_info(&mut self) {
         self.system_state.disk_volumes = SystemMonitor::get_disk_volumes();
         self.system_state.system_resources = Some(SystemMonitor::get_system_resources());
         self.system_state.gpu_info = Some(SystemMonitor::detect_gpu());
+    }
+
+    pub fn refresh_system_info_throttled(&mut self) {
+        if !self.frame_counter.is_multiple_of(120) {
+            return;
+        }
+        self.refresh_system_info();
     }
 
     pub fn export_results(&self) {
@@ -69,10 +77,10 @@ impl SpaceAnalyzerApp {
 
     pub(crate) fn render_system(&mut self, ui: &mut egui::Ui) {
         // ── Refresh Button ────────────────────────────────────────────
-        section_heading(ui, Some('🖥'), "System Monitor");
+        section_heading(ui, Some(icons::SYSTEM), "System Monitor");
         card_frame(ui.style()).show(ui, |ui| {
             ui.horizontal(|ui| {
-                if ui.button("🔄 Refresh").clicked() {
+                if ui.button(format!("{} Refresh", icons::REFRESH)).clicked() {
                     self.refresh_system_info();
                 }
                 ui.label(
@@ -85,7 +93,7 @@ impl SpaceAnalyzerApp {
 
         // ── CPU & Memory ──────────────────────────────────────────────
         if let Some(ref resources) = self.system_state.system_resources {
-            section_heading(ui, Some('💻'), "CPU & Memory");
+            section_heading(ui, Some(icons::PERFORMANCE), "CPU & Memory");
             card_frame(ui.style()).show(ui, |ui| {
                 // CPU info row
                 ui.horizontal(|ui| {
@@ -124,12 +132,32 @@ impl SpaceAnalyzerApp {
                         )),
                     );
                 });
+
+                // Swap usage
+                if resources.swap_total_bytes > 0 {
+                    ui.add_space(4.0);
+                    let swap_pct = if resources.swap_total_bytes > 0 {
+                        resources.swap_used_bytes as f32 / resources.swap_total_bytes as f32
+                    } else {
+                        0.0
+                    };
+                    labeled_gauge(
+                        ui,
+                        "Swap",
+                        swap_pct,
+                        Some(&format!(
+                            "{} / {}",
+                            formatting::format_bytes(resources.swap_used_bytes),
+                            formatting::format_bytes(resources.swap_total_bytes)
+                        )),
+                    );
+                }
             });
         }
 
         // ── Disk Volumes ──────────────────────────────────────────────
         if !self.system_state.disk_volumes.is_empty() {
-            section_heading(ui, Some('💾'), "Disk Volumes");
+            section_heading(ui, Some(icons::DISK), "Disk Volumes");
             card_frame(ui.style()).show(ui, |ui| {
                 for volume in &self.system_state.disk_volumes {
                     labeled_gauge(
@@ -149,7 +177,7 @@ impl SpaceAnalyzerApp {
 
         // ── GPU ───────────────────────────────────────────────────────
         if let Some(ref gpu) = self.system_state.gpu_info {
-            section_heading(ui, Some('🎮'), "GPU");
+            section_heading(ui, Some(icons::PERFORMANCE), "GPU");
             card_frame(ui.style()).show(ui, |ui| {
                 if gpu.available {
                     ui.horizontal(|ui| {
@@ -177,7 +205,7 @@ impl SpaceAnalyzerApp {
 
         // ── AI Model Resource Usage ───────────────────────────────────
         if self.settings.ollama_enabled && self.ollama_available {
-            section_heading(ui, Some('🤖'), "AI Model Resource Usage");
+            section_heading(ui, Some(icons::MODEL), "AI Model Resource Usage");
             card_frame(ui.style()).show(ui, |ui| {
                 let mut any_running = false;
                 for model in &self.discovered_models {

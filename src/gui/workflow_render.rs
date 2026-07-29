@@ -438,7 +438,7 @@ impl SpaceAnalyzerApp {
     }
 
     pub(crate) fn render_workflows(&mut self, ui: &mut egui::Ui) {
-        section_heading(ui, Some('⚙'), "Workflows");
+        section_heading(ui, Some(icons::WORKFLOW), "Workflows");
 
         // ── Active Workflow Status ────────────────────────────────────
         if let Some(ref execution) = self.active_workflow {
@@ -514,7 +514,7 @@ impl SpaceAnalyzerApp {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
                             .add(
-                                egui::Button::new(egui::RichText::new("×").color(colors::ERROR))
+                                egui::Button::new(egui::RichText::new(icons::X).color(colors::ERROR))
                                     .fill(colors::ERROR.linear_multiply(0.15)),
                             )
                             .clicked()
@@ -525,7 +525,7 @@ impl SpaceAnalyzerApp {
                             edit_workflow_id = Some(workflow.id.clone());
                         }
                         let run_btn =
-                            egui::Button::new(egui::RichText::new("▶ Run").size(12.0).strong())
+                            egui::Button::new(egui::RichText::new(format!("{} Run", icons::PLAY)).size(12.0).strong())
                                 .fill(colors::ACCENT);
                         if ui.add_enabled(workflow.enabled, run_btn).clicked() {
                             run_workflow_id = Some(workflow.id.clone());
@@ -577,7 +577,7 @@ impl SpaceAnalyzerApp {
         if !self.workflow_history.is_empty() {
             section_heading(
                 ui,
-                Some('📜'),
+                Some(icons::SCROLL),
                 &format!("Execution History ({})", self.workflow_history.len()),
             );
             card_frame(ui.style()).show(ui, |ui| {

@@ -33,6 +33,7 @@ pub(crate) use crate::workflows;
 
 use database::{AppSettings, Database, ScanHistoryRecord};
 use embedding_service::{embed_files, embed_query, search_files, SearchResult};
+
 use gui_common::{formatting, ScanResult};
 use ollama::{ChatMessage as OllamaChatMessage, OllamaClient, ToolCall, ToolCallFunction};
 use shared_scanner::{FileScanner, ScanOptions, ScanProgress};
@@ -71,7 +72,7 @@ mod types;
 
 // Re-export UI helpers
 pub use ui_helpers::{
-    badge, card_frame, gauge_bar, icon_char, icon_text, labeled_gauge, section_heading, stat_card,
+    badge, card_frame, gauge_bar, icon_text, labeled_gauge, section_heading, stat_card,
 };
 
 /// Shared Tokio runtime for all async operations
@@ -146,6 +147,7 @@ pub struct SpaceAnalyzerApp {
     pub scan_result: Option<ScanResult>,
     pub is_scanning: bool,
     pub scan_progress: f32,
+    pub current_scan_file: String,
     pub scan_receiver: Option<mpsc::Receiver<ScanMessage>>,
     pub cancel_flag: Option<Arc<AtomicBool>>,
     pub status_message: Option<String>,
@@ -238,6 +240,8 @@ pub struct SpaceAnalyzerApp {
     pub impact_preview_pending: bool,
     // File actions (move to trash, etc.)
     pub file_action_state: FileActionState,
+    // Scan result filters
+    pub largest_files_filter: String,
 }
 
 impl Default for SpaceAnalyzerApp {
@@ -270,6 +274,7 @@ impl Default for SpaceAnalyzerApp {
             scan_result: None,
             is_scanning: false,
             scan_progress: 0.0,
+            current_scan_file: String::new(),
             scan_receiver: None,
             cancel_flag: None,
             status_message: None,
@@ -371,6 +376,7 @@ impl Default for SpaceAnalyzerApp {
                 file_action_confirm_open: false,
                 thumbnail_cache: Arc::new(crate::thumbnails::ThumbnailCache::default()),
             },
+            largest_files_filter: String::new(),
         };
 
         // Initialize database
@@ -449,6 +455,7 @@ impl eframe::App for SpaceAnalyzerApp {
         self.process_model_discovery();
         self.frame_counter = self.frame_counter.wrapping_add(1);
         self.update_model_resource_usage();
+        self.refresh_system_info_throttled();
 
         // Remove expired notifications
         self.notification_state
@@ -504,6 +511,10 @@ impl eframe::App for SpaceAnalyzerApp {
                 self.active_tab = AppTab::AIChat;
                 shortcut_handled = true;
             }
+            if i.key_pressed(egui::Key::Escape) && self.is_scanning {
+                self.stop_scan();
+                shortcut_handled = true;
+            }
         });
 
         // Keep UI refreshing while background work is in progress
@@ -514,6 +525,18 @@ impl eframe::App for SpaceAnalyzerApp {
             || self.ollama_checking
         {
             ui.ctx().request_repaint();
+        }
+
+        // Update window title during scan
+        if self.is_scanning {
+            let pct = self.scan_progress;
+            let title = format!("Space Analyzer Pro — Scanning... {:.0}%", pct);
+            ui.ctx()
+                .send_viewport_cmd(egui::ViewportCommand::Title(title));
+        } else {
+            let title = "Space Analyzer Pro v3.7.0 - Self-Contained";
+            ui.ctx()
+                .send_viewport_cmd(egui::ViewportCommand::Title(title.to_string()));
         }
 
         // ── Welcome splash (auto-dismisses after ~120 frames or on click) ─
@@ -583,15 +606,15 @@ impl eframe::App for SpaceAnalyzerApp {
 
                             // Tab icon mapping
                             let icon = match tab {
-                                AppTab::Dashboard => "📊",
-                                AppTab::Scan => "🔍",
-                                AppTab::History => "📋",
-                                AppTab::SmartSearch => "🧠",
-                                AppTab::Workflows => "⚙",
-                                AppTab::AIChat => "🤖",
-                                AppTab::Dedup => "🔗",
-                                AppTab::System => "🖥",
-                                AppTab::Settings => "⚙",
+                                AppTab::Dashboard => icons::DASHBOARD,
+                                AppTab::Scan => icons::SCAN,
+                                AppTab::History => icons::HISTORY,
+                                AppTab::SmartSearch => icons::SMART_SEARCH,
+                                AppTab::Workflows => icons::WORKFLOWS,
+                                AppTab::AIChat => icons::AI_CHAT,
+                                AppTab::Dedup => icons::DEDUP,
+                                AppTab::System => icons::SYSTEM,
+                                AppTab::Settings => icons::SETTINGS,
                             };
 
                             let label = format!("{} {}", icon, tab_text);
@@ -672,11 +695,11 @@ impl eframe::App for SpaceAnalyzerApp {
                 msg.contains("failed") || msg.contains("Error") || msg.contains("Failed");
             let is_warning = msg.contains("warning") || msg.contains("Warning");
             let (bg, icon_char) = if is_error {
-                (colors::ERROR.linear_multiply(0.15), "✗")
+                (colors::ERROR.linear_multiply(0.15), icons::ERROR)
             } else if is_warning {
-                (colors::WARNING.linear_multiply(0.15), "⚠")
+                (colors::WARNING.linear_multiply(0.15), icons::WARNING)
             } else {
-                (colors::SUCCESS.linear_multiply(0.15), "✓")
+                (colors::SUCCESS.linear_multiply(0.15), icons::CHECK)
             };
             let text_color = if is_error {
                 colors::ERROR

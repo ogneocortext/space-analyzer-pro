@@ -1,4 +1,5 @@
 use super::*;
+use crate::gui::icons;
 
 impl SpaceAnalyzerApp {
     pub(crate) fn save_settings(&mut self) {
@@ -296,7 +297,7 @@ impl SpaceAnalyzerApp {
     }
 
     pub(crate) fn render_settings(&mut self, ui: &mut egui::Ui) {
-        section_heading(ui, Some('⚙'), "Settings");
+        section_heading(ui, Some(icons::SETTINGS), "Settings");
 
         // Scan Settings
         section_heading(ui, None, "Scan");
@@ -305,25 +306,25 @@ impl SpaceAnalyzerApp {
         });
 
         // GPU Settings
-        section_heading(ui, Some('🎮'), "GPU / CUDA");
+        section_heading(ui, Some(icons::PERFORMANCE), "GPU / CUDA");
         card_frame(ui.style()).show(ui, |ui| {
             self.render_gpu_settings(ui);
         });
 
         // AI Settings
-        section_heading(ui, Some('🤖'), "AI (Ollama)");
+        section_heading(ui, Some(icons::MODEL), "AI (Ollama)");
         card_frame(ui.style()).show(ui, |ui| {
             self.render_ai_settings(ui);
         });
 
         // Smart Search Settings
-        section_heading(ui, Some('🔍'), "Smart Search (Semantic File Search)");
+        section_heading(ui, Some(icons::SMART_SEARCH), "Smart Search (Semantic File Search)");
         card_frame(ui.style()).show(ui, |ui| {
             self.render_smart_search_settings(ui);
         });
 
         // Logging Settings
-        section_heading(ui, Some('📝'), "Session Logging");
+        section_heading(ui, Some(icons::HISTORY), "Session Logging");
         card_frame(ui.style()).show(ui, |ui| {
             self.render_logging_settings(ui);
         });
@@ -333,7 +334,7 @@ impl SpaceAnalyzerApp {
         card_frame(ui.style()).show(ui, |ui| {
             if ui
                 .add(
-                    egui::Button::new(egui::RichText::new("💾  Save Settings").size(14.0).strong())
+                    egui::Button::new(egui::RichText::new(format!("{}  Save Settings", icons::DISK)).size(14.0).strong())
                         .min_size(egui::vec2(160.0, 36.0))
                         .fill(colors::ACCENT),
                 )
@@ -374,7 +375,7 @@ impl SpaceAnalyzerApp {
         });
 
         // Reset Button
-        if ui.button("🔄 Reset to Defaults").clicked() {
+        if ui.button(format!("{} Reset to Defaults", icons::REFRESH)).clicked() {
             self.settings = AppSettings::default();
             if let Some(ref db) = self.db {
                 let _ = db.save_all_settings(&self.settings);

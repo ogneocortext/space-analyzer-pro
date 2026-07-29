@@ -91,9 +91,7 @@ impl ScanResult {
         }
 
         for (ext, size) in &result.extension_sizes {
-            scan_result
-                .extension_sizes
-                .insert(ext.clone(), *size);
+            scan_result.extension_sizes.insert(ext.clone(), *size);
         }
 
         for file in &result.largest_files {

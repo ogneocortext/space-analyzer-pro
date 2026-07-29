@@ -77,7 +77,7 @@ impl SpaceAnalyzerApp {
                         bytes: 0,
                         current_file: String::new(),
                     });
-                    let _ = tx.send(ScanMessage::Complete(result));
+                    let _ = tx.send(ScanMessage::Complete(Box::new(result)));
                 }
                 Err(e) => {
                     let _ = tx.send(ScanMessage::Error(format!("Scan failed: {}", e)));
@@ -126,11 +126,11 @@ impl SpaceAnalyzerApp {
                                 self.scan_history = db.get_scan_history(50).unwrap_or_default();
                             }
 
-                            self.scan_result = Some(result.clone());
+                            self.scan_result = Some(*result.clone());
                             self.is_scanning = false;
                             self.scan_receiver = None;
                             self.cancel_flag = None;
-                            self.tool_registry = Some(ToolRegistry::new(Some(result.clone())));
+                            self.tool_registry = Some(ToolRegistry::new(Some(*result.clone())));
                             self.generate_ai_recommendations();
 
                             let elapsed = self.scan_performance.elapsed_secs();
@@ -187,7 +187,7 @@ impl SpaceAnalyzerApp {
 
     pub(crate) fn render_scan(&mut self, ui: &mut egui::Ui) {
         // ΓöÇΓöÇ Path Selector Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-        section_heading(ui, Some('📂'), "Scan Directory");
+        section_heading(ui, Some(icons::FOLDER), "Scan Directory");
         card_frame(ui.style()).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("Directory:").color(colors::TEXT_SECONDARY));
@@ -253,7 +253,7 @@ impl SpaceAnalyzerApp {
 
         // ΓöÇΓöÇ Progress Card ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if self.is_scanning {
-            section_heading(ui, Some('⏳'), "Scanning...");
+            section_heading(ui, Some(icons::HOURGLASS), "Scanning...");
             card_frame(ui.style()).show(ui, |ui| {
                 ui.add(
                     egui::ProgressBar::new(self.scan_progress / 100.0)
@@ -263,10 +263,7 @@ impl SpaceAnalyzerApp {
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
                     ui.label(
-                        egui::RichText::new(format!(
-                            "⏱ {:.1}s",
-                            self.scan_performance.elapsed_secs()
-                        ))
+                        egui::RichText::new(format!("{} {:.1}s", icons::TIMER, self.scan_performance.elapsed_secs()))
                         .size(11.0)
                         .color(colors::TEXT_SECONDARY),
                     );
@@ -309,7 +306,7 @@ impl SpaceAnalyzerApp {
 
         // ΓöÇΓöÇ Scan Results ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if let Some(result) = self.scan_result.clone() {
-            section_heading(ui, Some('📊'), "Scan Results");
+            section_heading(ui, Some(icons::CHART_BAR), "Scan Results");
 
             // Stats row
             ui.horizontal(|ui| {
@@ -350,7 +347,7 @@ impl SpaceAnalyzerApp {
             });
 
             if !result.errors.is_empty() {
-                section_heading(ui, Some('⚠'), "Scan Errors");
+                section_heading(ui, Some(icons::WARNING), "Scan Errors");
                 card_frame(ui.style()).show(ui, |ui| {
                     egui::ScrollArea::vertical()
                         .max_height(140.0)
@@ -361,13 +358,13 @@ impl SpaceAnalyzerApp {
             }
 
             // Visual Analysis
-            section_heading(ui, Some('📊'), "File Distribution");
+            section_heading(ui, Some(icons::CHART_BAR), "File Distribution");
             card_frame(ui.style()).show(ui, |ui| {
                 self.show_visual_analysis(ui, &result);
             });
 
             // File Types
-            section_heading(ui, Some('📄'), "File Types");
+            section_heading(ui, Some(icons::FILETYPE), "File Types");
             card_frame(ui.style()).show(ui, |ui| {
                 egui::ScrollArea::vertical()
                     .max_height(200.0)
@@ -377,7 +374,7 @@ impl SpaceAnalyzerApp {
             });
 
             // Largest Files
-            section_heading(ui, Some('📦'), "Largest Files");
+            section_heading(ui, Some(icons::PACKAGE), "Largest Files");
             card_frame(ui.style()).show(ui, |ui| {
                 egui::ScrollArea::vertical()
                     .max_height(250.0)

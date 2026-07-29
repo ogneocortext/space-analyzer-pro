@@ -6,7 +6,7 @@ impl ToolResultDisplay {
         let (icon_opt, summary, details) = parse_tool_result(tool_name, raw_result);
         Self {
             tool_name: tool_name.to_string(),
-            tool_icon: icon_opt.map(|(cp, fam)| (cp, fam.to_string())),
+            tool_icon: icon_opt.map(|icon| (0, icon.to_string())),
             summary,
             details,
             raw_data: raw_result.to_string(),
@@ -17,13 +17,13 @@ impl ToolResultDisplay {
 fn parse_tool_result(
     tool_name: &str,
     raw: &str,
-) -> (Option<(u32, &'static str)>, String, Vec<String>) {
+) -> (Option<&'static str>, String, Vec<String>) {
     match tool_name {
         "get_scan_summary" => {
             let lines: Vec<&str> = raw.lines().collect();
             let summary = lines.first().unwrap_or(&"Scan Summary").to_string();
             let details: Vec<String> = lines.iter().skip(1).map(|s| s.to_string()).collect();
-            (icons::scan(), summary, details)
+            (Some(icons::SCAN), summary, details)
         }
         "get_scan_history" => {
             let count = raw
@@ -33,7 +33,7 @@ fn parse_tool_result(
                 .and_then(|l| l.strip_suffix("):"))
                 .unwrap_or("?");
             (
-                icons::history(),
+                Some(icons::HISTORY),
                 format!("{} scan(s) in history", count),
                 raw.lines().skip(1).map(|s| s.trim().to_string()).collect(),
             )
@@ -51,7 +51,7 @@ fn parse_tool_result(
                 })
                 .collect();
             (
-                icons::disk(),
+                Some(icons::DISK),
                 format!("{} disk volume(s) found", lines.len()),
                 lines.iter().map(|s| s.trim().to_string()).collect(),
             )
@@ -73,7 +73,7 @@ fn parse_tool_result(
                 (true, false) => mem,
                 (true, true) => "System resources loaded".to_string(),
             };
-            (icons::system(), summary, Vec::new())
+            (Some(icons::SYSTEM), summary, Vec::new())
         }
         "get_storage_trend" => {
             // Match lines that look like timestamps (contain a dash-separated date)
@@ -89,7 +89,7 @@ fn parse_tool_result(
             let count = lines.len();
             let latest = lines.last().map(|l| l.trim()).unwrap_or("N/A");
             (
-                icons::trend(),
+                Some(icons::TREND),
                 format!("{} data point(s). Latest: {}", count, latest),
                 lines.iter().map(|s| s.trim().to_string()).collect(),
             )
@@ -106,7 +106,7 @@ fn parse_tool_result(
                 .max(1)
                 - 1; // Subtract the header line
             (
-                icons::workflow(),
+                Some(icons::WORKFLOW),
                 format!("{} workflow(s) available", count),
                 raw.lines().map(|s| s.trim().to_string()).collect(),
             )
@@ -119,7 +119,7 @@ fn parse_tool_result(
                 .and_then(|l| l.strip_suffix(" total files):"))
                 .unwrap_or("?");
             (
-                icons::filetype(),
+                Some(icons::FILETYPE),
                 format!("{} file type(s) found", total),
                 raw.lines().skip(1).map(|s| s.trim().to_string()).collect(),
             )
@@ -142,7 +142,7 @@ fn parse_tool_result(
                 (true, true) => "Prediction loaded".to_string(),
             };
             (
-                icons::predict(),
+                Some(icons::PREDICT),
                 summary,
                 raw.lines().map(|s| s.trim().to_string()).collect(),
             )
@@ -151,13 +151,13 @@ fn parse_tool_result(
             let lines: Vec<&str> = raw.lines().filter(|l| !l.is_empty()).collect();
             let first = lines.first().map(|s| s.to_string()).unwrap_or_default();
             (
-                icons::pattern(),
+                Some(icons::PATTERN),
                 first,
                 lines.iter().skip(1).map(|s| s.to_string()).collect(),
             )
         }
         _ => (
-            icons::tool(),
+            Some(icons::TOOL),
             format!("Tool: {}", tool_name),
             raw.lines().map(|s| s.to_string()).collect(),
         ),

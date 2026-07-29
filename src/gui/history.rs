@@ -85,10 +85,10 @@ impl SpaceAnalyzerApp {
 
     pub(crate) fn render_history(&mut self, ui: &mut egui::Ui) {
         // ── Toolbar ─────────────────────────────────────────────────
-        section_heading(ui, Some('📋'), "Scan History");
+        section_heading(ui, Some(icons::CLIPBOARD), "Scan History");
         card_frame(ui.style()).show(ui, |ui| {
             ui.horizontal(|ui| {
-                if self.selected_history_id.is_some() && ui.button("← Back to List").clicked() {
+                if self.selected_history_id.is_some() && ui.button(format!("{} Back to List", icons::CARET_LEFT)).clicked() {
                     self.selected_history_id = None;
                 }
                 if ui.button("🔄 Refresh").clicked() {
@@ -184,7 +184,7 @@ impl SpaceAnalyzerApp {
                                     if ui
                                         .add(
                                             egui::Button::new(
-                                                egui::RichText::new("×").color(colors::ERROR),
+                                                egui::RichText::new(icons::X).color(colors::ERROR),
                                             )
                                             .fill(colors::ERROR.linear_multiply(0.15)),
                                         )
@@ -298,7 +298,7 @@ impl SpaceAnalyzerApp {
                 >(&record.file_types_json)
                 {
                     if !file_types.is_empty() {
-                        section_heading(ui, Some('📄'), "File Types");
+                        section_heading(ui, Some(icons::FILETYPE), "File Types");
                         card_frame(ui.style()).show(ui, |ui| {
                             egui::ScrollArea::vertical()
                                 .max_height(200.0)
@@ -340,7 +340,7 @@ impl SpaceAnalyzerApp {
                     serde_json::from_str::<Vec<(String, u64)>>(&record.largest_files_json)
                 {
                     if !largest.is_empty() {
-                        section_heading(ui, Some('📦'), "Largest Files");
+                        section_heading(ui, Some(icons::PACKAGE), "Largest Files");
                         card_frame(ui.style()).show(ui, |ui| {
                             egui::ScrollArea::vertical()
                                 .max_height(200.0)

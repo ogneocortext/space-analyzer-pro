@@ -180,6 +180,49 @@ impl SpaceAnalyzerApp {
         self.search_receiver = Some(rx);
     }
 
+    fn execute_keyword_search(&mut self) {
+        if self.search_query.trim().is_empty() {
+            return;
+        }
+
+        self.search_processing = true;
+        self.search_status = "Keyword matching...".to_string();
+        self.search_results.clear();
+
+        let query = self.search_query.trim().to_lowercase();
+        let keywords: Vec<&str> = query.split_whitespace().collect();
+
+        let mut matches: Vec<crate::embedding_service::SearchResult> = Vec::new();
+        if let Some(ref result) = self.scan_result {
+            for (path, size) in &result.largest_files {
+                let path_lower = path.to_lowercase();
+                let score = keywords
+                    .iter()
+                    .filter(|kw| path_lower.contains(*kw))
+                    .count() as f32
+                    / keywords.len() as f32;
+                if score > 0.0 {
+                    matches.push(crate::embedding_service::SearchResult {
+                        file_path: path.clone(),
+                        file_size: *size,
+                        file_extension: std::path::Path::new(path)
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        similarity: score,
+                    });
+                }
+            }
+            matches.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
+            matches.truncate(20);
+        }
+
+        self.search_results = matches;
+        self.search_processing = false;
+        self.search_status = format!("Found {} keyword matches", self.search_results.len());
+    }
+
     pub(crate) fn load_embeddings_from_db(&mut self, scan_id: Option<i64>) {
         if let Some(ref db) = self.db {
             let target_scan_id = scan_id.or_else(|| db.get_latest_scan_id().ok().flatten());
@@ -215,11 +258,9 @@ impl SpaceAnalyzerApp {
         ui.separator();
 
         if !self.settings.embedding_enabled {
-            if let Some((cp, fam)) = icons::warning() {
                 ui.horizontal(|ui| {
                     ui.add(egui::Label::new(icon_text(
-                        cp,
-                        fam,
+                        icons::WARNING,
                         14.0,
                         egui::Color32::YELLOW,
                     )));
@@ -234,7 +275,6 @@ impl SpaceAnalyzerApp {
                     "[!] Enable Semantic Indexing in Settings to use Smart Search.",
                 );
             }
-        }
 
         // Search input (disabled when embedding not enabled)
         ui.add_enabled_ui(self.settings.embedding_enabled, |ui| {
@@ -249,6 +289,13 @@ impl SpaceAnalyzerApp {
                 }
                 if ui.button("Search").clicked() {
                     self.execute_smart_search();
+                }
+                // Keyword fallback when embeddings aren't available
+                if !self.settings.embedding_enabled
+                    && !self.search_query.trim().is_empty()
+                    && ui.button("Keyword Match").clicked()
+                {
+                    self.execute_keyword_search();
                 }
             });
         });
@@ -286,30 +333,21 @@ impl SpaceAnalyzerApp {
                 &format!("{}", limit)
             };
             ui.horizontal(|ui| {
-                if let Some((cp, fam)) = icons::index() {
-                    ui.add(egui::Label::new(icon_text(
-                        cp,
-                        fam,
-                        12.0,
-                        egui::Color32::LIGHT_BLUE,
-                    )));
-                }
+                ui.add(egui::Label::new(icon_text(
+                    icons::CHART_BAR,
+                    12.0,
+                    egui::Color32::LIGHT_BLUE,
+                )));
                 ui.small(format!("Indexed: {} files", indexed));
                 if total_files > 0 {
                     ui.small(format!("of {} total", total_files));
                 }
                 ui.small(format!("(limit: {})", limit_str));
                 if limit > 0 && indexed >= limit {
-                    if let Some((cp, _)) = icons::warning() {
-                        ui.small(
-                            egui::RichText::new(format!("{} Limit reached", icon_char(cp)))
-                                .color(egui::Color32::YELLOW),
-                        );
-                    } else {
-                        ui.small(
-                            egui::RichText::new("[!] Limit reached").color(egui::Color32::YELLOW),
-                        );
-                    }
+                    ui.small(
+                        egui::RichText::new(format!("{} Limit reached", icons::WARNING))
+                            .color(egui::Color32::YELLOW),
+                    );
                 }
             });
         }
@@ -330,12 +368,26 @@ impl SpaceAnalyzerApp {
                         ui.strong("File");
                         ui.strong("Size");
                         ui.strong("Similarity");
+                        ui.strong("");
                         ui.end_row();
 
                         for result in &self.search_results {
                             ui.label(&result.file_path);
                             ui.label(formatting::format_bytes(result.file_size));
                             ui.label(format!("{:.1}%", result.similarity * 100.0));
+                            ui.horizontal(|ui| {
+                                let file_path = std::path::Path::new(&result.file_path);
+                                if file_path.exists() {
+                                    if ui.small_button("Open").clicked() {
+                                        let _ = open::that(&result.file_path);
+                                    }
+                                    if ui.small_button("Folder").clicked() {
+                                        if let Some(parent) = file_path.parent() {
+                                            let _ = open::that(parent);
+                                        }
+                                    }
+                                }
+                            });
                             ui.end_row();
                         }
                     });

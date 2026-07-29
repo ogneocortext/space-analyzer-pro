@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### GUI — Phosphor Icon Migration
+
+- **Replaced emoji icons with Phosphor font icons** across the entire GUI (dashboard, scan, history, settings, system, AI panels, tool results). Removed macro-generated icon functions returning `(codepoint, "emoji")` in favor of typed `&str` constants from `egui_phosphor::regular`.
+- **Restructured `icons.rs`** — constants live at module top level (no nested `pub mod icons`); added 30+ Phosphor constants (TIMER, REFRESH, CIRCLE, DASHBOARD, SMART_SEARCH, etc.).
+- **Fixed `section_heading()` signature** — `Option<char>` → `Option<&'static str>` to accept Phosphor icon strings instead of emoji chars.
+- **Fixed `tool_result_parser.rs`** — return type changed from `Option<(u32, &str)>` to `Option<&str>` to match new constant scheme.
+- **Fixed `icon_text()` call sites** — removed stale 4-arg invocations that were passing codepoint + family name.
+- **Fixed `badge()` and button-label type mismatches** — `.to_string()` / `&` conversions where `format!()` returns `String` but the target expects `&str`.
+- **Fixed double-wrapped `format!()` calls** in scan timer and dashboard date formatter (leftover from bulk fix script).
+- **Removed duplicate `use` imports** in `mod.rs` and `features_panel.rs`.
+- **Exported `labeled_gauge`** from `ui_helpers` (was private, causing build errors in dashboard and system panels).
+
 ### Scanner Performance
 
 - Removed the duplicate pre-scan used only to estimate progress. Progress now adapts while the active traversal runs, avoiding a second directory walk and reducing startup I/O on large profiles.
@@ -163,106 +175,7 @@
 
 - **Bumped**: `3.4.0` → `3.5.0` in `Cargo.toml`
 
-## [Unreleased]
 
-### Database & Data Flow Improvements
-
-#### Enhanced Scan History Storage
-- Added `extension_sizes_json` column to `scan_history` — stores byte counts per extension for trend analysis
-- Added `top_directories_json` column — stores largest directories data for cross-scan analytics
-- Added `potential_cleanup_bytes` column — tracks estimated reclaimable space per scan
-- Added `duplicate_analysis` table — stores duplicate scan results linked to scan history
-
-#### CLI Database Integration
-- CLI scans now persist to embedded SQLite database at `%LOCALAPPDATA%\SpaceAnalyzer\space-analyzer.db`
-- Enables trend reporting and analytics in GUI dashboard
-- `--cleanup-recommendations` flag provides actionable space-saving suggestions
-
-#### Report Naming Convention
-- Improved report filenames: `{path}_{timestamp}_{hash}.md` for unique identification
-- Example: `CUsersAomegaImaging_20260612_183059_ab12cd34.md`
-
-### CLI Performance Improvements
-- Added real-time progress reporting in verbose mode (`--verbose`)
-- Progress: files scanned + size every 10k files during scan
-- Final summary shows scan speed in files/sec
-
-#### SSD Performance Optimization
-- Added `scan_directory_parallel()` method using Rayon thread pool with `num_cpus::get()` threads
-- Parallel I/O for metadata collection (~3-5x faster on NVMe SSDs)
-- Uses `rayon::prelude::*` for parallel iterators over walkdir entries
-- Target: 50-100k files/sec on NVMe SSDs vs ~13k files/sec sequential
-
-### Code Quality & Maintenance
-
-#### Duplicate File Cleanup
-- Removed duplicate `src/offline_ai_clean.rs` (consolidated into `src/offline_ai.rs`)
-- Removed duplicate `src/gui/app.rs` (SpaceAnalyzerApp defined in mod.rs)
-- Removed duplicate `src/ollama/features/` directory (consolidated into `features.rs`)
-- Removed orphaned GUI modules: `run.rs`, `report.rs`, `gui_channel.rs`, `agent_channel.rs` (not declared in mod.rs)
-- Removed orphaned shared-scanner modules: `formatting.rs`, `system.rs`, `types.rs` (lib.rs is self-contained)
-- Removed 28 temporary patch scripts from `scripts/temporary/` per repo policy
-
-#### Missing Module Restoration
-- Created `src/error.rs` with `AppError` and `AppResult` types (referenced by lib.rs and main.rs)
-
-#### Documentation
-- Added CI/CD section to `AGENTS.md` documenting intentional lack of GitHub Actions (manual `just verify` workflow)
-
-### UX Pipeline Dashboard — Issue Tracker Overhaul
-
-- **Complete dashboard rewrite** (`ux-pipeline/src/ux_pipeline/web_dashboard.py`): Redesigned from single-column layout to a two-column sidebar+main grid with sticky sidebar, constrained chart heights, and responsive breakpoints
-- **Fixed modal action buttons**: Previously used `classList.contains('danger')` instead of reading `data-action` attribute; now correctly routes Done/In Progress/Won't Fix/Reopen actions
-- **Metrics always show total counts**: Fixed bug where filtered results (e.g., "Open" only) were used for top-bar metrics and progress bar; now fetches all issues for stats separately
-- **Progress bar**: Top bar shows resolution percentage (e.g., "75% resolved (87/116)") with animated gradient fill
-- **Severity breakdown sidebar**: Per-severity progress bars with counts and percentages (critical/high/medium/low)
-- **Clickable category list**: Sidebar categories are clickable to filter issues by category; toggles on/off
-- **Sorting controls**: Sort issues by Last Seen, First Seen, Severity, Title, Category, or Occurrences (asc/desc)
-- **Card action buttons**: Each issue card shows context-aware actions: ✓ Done, ▶ WIP, ✗ Skip for open issues; ↺ Reopen for done/wontfix issues
-- **Create Issue form**: "+ New Issue" button opens inline form with title, category (27 options), severity, and notes fields; writes to `docs/issues.json` via `POST /api/issues/create`
-- **Server-side filtering**: `GET /api/issues` now accepts `?status=`, `?category=`, `?severity=`, `?q=` query parameters for efficient filtering
-- **Charts properly sized**: Timeline (180px), Severity doughnut (180px), Category bar (240px) in a 3-column grid with `maintainAspectRatio: false`
-- **AI Issue Resolution (Ollama Integration)**: "🤖 AI Fix" button on every open issue card and in modal; sends issue details to selected Ollama model with structured prompt requesting root cause analysis, fix instructions, code changes, and testing steps; response displayed in styled AI panel with spinner
-- **Model selector dropdown**: Auto-loads installed Ollama models via `GET /api/ollama/models`; persists selection across refreshes
-- **Code Testing Tools (Sidebar Panel)**: 4 buttons — ▶ Test (`cargo test --workspace`), ⚠ Clippy (`cargo clippy --all-targets --all-features -- -D warnings`), ✂ Fmt (`cargo fmt --all -- --check`), ✔ Verify (full pipeline: fmt + clippy + test); output panel with color-coded success/error; thread-safe with 5-minute timeout
-- **Backend API additions**: `GET /api/ollama/models`, `POST /api/issues/<id>/resolve`, `POST /api/issues/<id>/in_progress`, `POST /api/issues/create`, `POST /api/test/run`
-
-### Web/Desktop Separation
-
-- **Moved web app to sibling directory**: `server/`, `ai-service/`, `styles/`, `public/`, `.github/workflows/playwright-tests.yml`, web configs, web tests, and web-only scripts moved to `E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer-Web`
-- **Archived stale web-era docs**: 13 guides (Tauri, Vue, Docker, deployment) moved to `docs/archive/`
-- **Archived broken Python scripts**: `test_ollama_simple.py`, `ollama_cuda_benchmark.py`, `model_benchmark.py`, `vision_analyze.py`, `check-status.ps1` moved to `docs/archive/python-scripts-ai-service/` (all imported from now-removed `ai-service/`)
-- **Deleted 67 web-only scripts**: Node.js/Vite/Playwright test scripts, service starters, and web build scripts removed from `scripts/`
-
-### Agent-Friendliness Improvements
-
-- **Rewrote `AGENTS.md`**: Rewritten for Rust desktop app (accurate quick start, directory structure, conventions)
-- **Rewrote `CONTRIBUTING.md`**: Updated for Rust workflow (fmt, clippy, test, verify)
-- **Created root `README.md`**: Project overview for the desktop app
-- **Rewrote `.clinerules`**: Removed Vue/React/Node.js references, now Rust-only
-- **Updated `opencode.json`**: Changed commands to `cargo build/test/check`, `just verify`
-- **Rewrote `justfile`**: Desktop-only (removed broken `shared/` lint target, server commands; added `build`, `test`, `fmt`, `clippy`, `verify`, `run-gui`, `run-cli`)
-- **Created `.github/workflows/rust-ci.yml`**: CI pipeline for format check, clippy, test, build (Windows)
-
-### Documentation Cleanup
-
-- **Updated `docs/development/DEVELOPMENT.md`**: Complete rewrite from React/NestJS to Rust
-- **Replaced `docs/development/TESTING.md`**: Replaced 985-line Playwright doc with Rust testing guide
-- **Updated `docs/architecture/ARCHITECTURE.md`**: Removed `server/`/`ai-service/` refs, removed "Web Mode" section
-- **Updated `docs/architecture/PROJECT_STRUCTURE.md`**: Removed `server/`/`ai-service/` from tree
-- **Updated `docs/architecture/ARCHITECTURE_DIAGRAMS.md`**: Removed Python AI Services subgraph
-- **Updated `docs/ISSUES.md`** and **`docs/FEATURE_EVALUATION.md`**: Added historical reference headers
-- **Rewrote `config/.editorconfig`**: Removed JS/Vue sections
-- **Updated `tests/README.md`**: Rewritten for Rust tests
-- **Updated `scripts/README.md`**: Updated to reflect current script inventory
-
-### Repo Hygiene
-
-- **Cleaned `.gitignore`**: Removed web-era patterns (`.env`, `dist/`, `.next/`, etc.); added `.devin/`, `.kilo/`
-- **Fixed `.gitattributes`**: Removed `*.vue` entry
-- **Fixed git tracking**: `git rm --cached` 21 phantom config files tracked from deleted web dirs
-- **Removed stale files**: `.bak`/`.orig` in `src/gui/`, build artifacts in `native/scanner/`, stale Tauri build scripts, `.husky/`, `nul` file, `node_modules/` at root, `.playwright-mcp/`, Prettier config files
-- **Removed deprecated crates**: `archive_manager`, `storage_predictor`, `file_monitor`, `design-screenshot` (all from `Cargo.toml` workspace members)
 
 ## [3.2.0] - 2026-05-29
 

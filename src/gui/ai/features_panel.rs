@@ -4,10 +4,10 @@
 //!
 //! | Button                | Capability   | Default model            | Time  |
 //! |-----------------------|--------------|--------------------------|-------|
-//! | 🔎 Semantic Search    | embedding    | `embedding_model`        | <1 s  |
-//! | 📝 Summarize Scan     | completion   | `ollama_model`           | ~10 s |
-//! | 🧠 Cleanup Plan       | thinking     | `ollama_model`           | ~3 m  |
-//! | 📷 Describe Screenshot| vision       | `ollama_model`           | ~60 s |
+//! | icons::PATTERN Semantic Search    | embedding    | `embedding_model`        | <1 s  |
+//! | icons::FILETYPE Summarize Scan     | completion   | `ollama_model`           | ~10 s |
+//! | icons::CLEANUP Cleanup Plan       | thinking     | `ollama_model`           | ~3 m  |
+//! | icons::CAMERA Describe Screenshot| vision       | `ollama_model`           | ~60 s |
 //!
 //! The chat-backed Agent Mode (tool calling) is in `chat.rs` and
 //! unchanged here.
@@ -19,6 +19,7 @@
 //! up on the next frame.
 
 use std::path::PathBuf;
+use crate::gui::icons;
 use std::sync::mpsc;
 
 use crate::ollama::features::{
@@ -96,7 +97,7 @@ impl SpaceAnalyzerApp {
 
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
-            content: format!("[AI Tool] 🔎 Semantic Search: \"{}\"", query),
+            content: format!("[AI Tool] icons::PATTERN Semantic Search: \"{}\"", query),
             thinking: None,
             tool_result: None,
         });
@@ -141,11 +142,11 @@ impl SpaceAnalyzerApp {
             });
             let _ = match result {
                 Ok(content) => tx.send(OllamaMessage::ChatReply {
-                    content: format!("🔎 Semantic Search\n\n{}", content),
+                    content: format!("icons::PATTERN Semantic Search\n\n{}", content),
                     thinking: None,
                 }),
                 Err(e) => tx.send(OllamaMessage::Error(format!(
-                    "🔎 Semantic Search failed: {}",
+                    "icons::PATTERN Semantic Search failed: {}",
                     e
                 ))),
             };
@@ -175,7 +176,7 @@ impl SpaceAnalyzerApp {
 
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
-            content: "[AI Tool] 📝 Summarize Scan".to_string(),
+            content: "[AI Tool] icons::FILETYPE Summarize Scan".to_string(),
             thinking: None,
             tool_result: None,
         });
@@ -259,7 +260,7 @@ impl SpaceAnalyzerApp {
 
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
-            content: format!("[AI Tool] 🧠 Cleanup Plan: \"{}\"", question),
+            content: format!("[AI Tool] icons::CLEANUP Cleanup Plan: \"{}\"", question),
             thinking: None,
             tool_result: None,
         });
@@ -294,13 +295,13 @@ impl SpaceAnalyzerApp {
             let _ = match result {
                 Ok((plan, thinking, p, c, ms)) => tx.send(OllamaMessage::ChatReply {
                     content: format!(
-                        "🧠 Cleanup Plan ({} prompt + {} completion tokens, {} ms)\n\n{}",
+                        "icons::CLEANUP Cleanup Plan ({} prompt + {} completion tokens, {} ms)\n\n{}",
                         p, c, ms, plan
                     ),
                     thinking,
                 }),
                 Err(e) => tx.send(OllamaMessage::Error(format!(
-                    "🧠 Cleanup Plan failed: {}",
+                    "icons::CLEANUP Cleanup Plan failed: {}",
                     e
                 ))),
             };
@@ -334,7 +335,7 @@ impl SpaceAnalyzerApp {
 
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
-            content: format!("[AI Tool] 📷 Describe Screenshot: {}", path),
+            content: format!("[AI Tool] icons::CAMERA Describe Screenshot: {}", path),
             thinking: None,
             tool_result: None,
         });
@@ -372,13 +373,13 @@ impl SpaceAnalyzerApp {
                 Ok((answer, thinking, p, c, ms, orig, sent)) => {
                     tx.send(OllamaMessage::ChatReply {
                         content: format!(
-                            "📷 Screenshot ({} B → {} B base64, {} prompt + {} completion tokens, {} ms)\n\n{}",
+                            "icons::CAMERA Screenshot ({} B → {} B base64, {} prompt + {} completion tokens, {} ms)\n\n{}",
                             orig, sent, p, c, ms, answer
                         ),
                         thinking,
                     })
                 }
-                Err(e) => tx.send(OllamaMessage::Error(format!("📷 Screenshot failed: {}", e))),
+                Err(e) => tx.send(OllamaMessage::Error(format!("icons::CAMERA Screenshot failed: {}", e))),
             };
         });
     }
@@ -413,7 +414,7 @@ impl SpaceAnalyzerApp {
             // ── 1. Semantic Search ────────────────────────────
             ui.horizontal(|ui| {
                 let btn = egui::Button::new(
-                    egui::RichText::new("🔎 Semantic Search").size(12.0),
+                    egui::RichText::new(format!("{} Semantic Search", icons::PATTERN)).size(12.0),
                 )
                 .fill(colors::ACCENT_BG);
                 let can_run = self.ai_tools_enabled() && !self.ai_prompt_state.semantic_search_query.is_empty();
@@ -432,7 +433,7 @@ impl SpaceAnalyzerApp {
             // ── 2. Summarize Scan ─────────────────────────────
             ui.horizontal(|ui| {
                 let btn = egui::Button::new(
-                    egui::RichText::new("📝 Summarize Scan").size(12.0),
+                    egui::RichText::new(format!("{} Summarize Scan", icons::FILETYPE)).size(12.0),
                 )
                 .fill(colors::ACCENT_BG);
                 let can_run = self.ai_tools_enabled() && self.scan_result.is_some();
@@ -456,7 +457,7 @@ impl SpaceAnalyzerApp {
             // ── 3. Cleanup Plan ───────────────────────────────
             ui.horizontal(|ui| {
                 let btn = egui::Button::new(
-                    egui::RichText::new("🧠 Cleanup Plan").size(12.0),
+                    egui::RichText::new(format!("{} Cleanup Plan", icons::CLEANUP)).size(12.0),
                 )
                 .fill(colors::ACCENT_BG);
                 let can_run = self.ai_tools_enabled() && !self.ai_prompt_state.cleanup_plan_question.is_empty();
@@ -482,7 +483,7 @@ impl SpaceAnalyzerApp {
             // ── 4. Describe Screenshot ────────────────────────
             ui.horizontal(|ui| {
                 let btn = egui::Button::new(
-                    egui::RichText::new("📷 Describe Screenshot").size(12.0),
+                    egui::RichText::new(format!("{} Describe Screenshot", icons::CAMERA)).size(12.0),
                 )
                 .fill(colors::ACCENT_BG);
                 let can_run = self.ai_tools_enabled() && self.ai_prompt_state.pending_screenshot_path.is_some();
@@ -503,7 +504,7 @@ impl SpaceAnalyzerApp {
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_else(|| p.clone());
                     ui.label(
-                        egui::RichText::new(format!("📎 {}", name))
+                        egui::RichText::new(format!("{} {}", icons::TOOL, name))
                             .size(11.0)
                             .color(colors::ACCENT),
                     );
@@ -521,7 +522,7 @@ impl SpaceAnalyzerApp {
     fn push_ai_tool_error(&mut self, msg: &str) {
         self.chat_messages.push(ChatMessage {
             role: "system".to_string(),
-            content: format!("[AI Tool] ⚠ {}", msg),
+            content: format!("[AI Tool] {} {}", icons::WARNING, msg),
             thinking: None,
             tool_result: None,
         });

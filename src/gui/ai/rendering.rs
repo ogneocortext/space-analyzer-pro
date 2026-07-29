@@ -5,12 +5,12 @@
 
 use eframe::egui;
 
-use super::super::{badge, card_frame, colors, section_heading, SpaceAnalyzerApp};
+use super::super::{badge, card_frame, colors, icons, section_heading, SpaceAnalyzerApp};
 
 impl SpaceAnalyzerApp {
     pub(crate) fn render_ai_chat(&mut self, ui: &mut egui::Ui) {
         // ── Connection Status Card ────────────────────────────────────
-        section_heading(ui, Some('🤖'), "AI Assistant");
+        section_heading(ui, Some(icons::MODEL), "AI Assistant");
         card_frame(ui.style()).show(ui, |ui| {
             ui.horizontal(|ui| {
                 if self.ollama_available {
@@ -49,7 +49,7 @@ impl SpaceAnalyzerApp {
             if let Some(ref err) = self.last_ollama_error {
                 ui.horizontal(|ui| {
                     ui.label(
-                        egui::RichText::new(format!("⚠ {}", err))
+                        egui::RichText::new(format!("{} {}", icons::WARNING, err))
                             .size(11.0)
                             .color(egui::Color32::from_rgb(220, 80, 80)),
                     );
@@ -163,12 +163,12 @@ impl SpaceAnalyzerApp {
             card_frame(ui.style()).show(ui, |ui| {
                 ui.horizontal_wrapped(|ui| {
                     let actions = [
-                        ("📊", "Analyze", "Analyze this scan and give me prioritized recommendations for freeing up space.", "analysis"),
-                        ("🧹", "Cleanup", "What files can I safely clean up from this scan?", "cleanup"),
-                        ("📈", "Trends", "Analyze my storage usage trends and predict when my disk will be full.", "prediction"),
-                        ("🔍", "Patterns", "Analyze file patterns to find duplicates, orphans, and optimization opportunities.", "file_patterns"),
-                        ("🛡", "Security", "Scan for potential security issues like exposed credentials, sensitive files, or insecure backups.", "security"),
-                        ("🏎", "Performance", "Analyze file system structure for performance bottlenecks.", "performance"),
+                        (icons::SCAN, "Analyze", "Analyze this scan and give me prioritized recommendations for freeing up space.", "analysis"),
+                        (icons::CLEANUP, "Cleanup", "What files can I safely clean up from this scan?", "cleanup"),
+                        (icons::TREND, "Trends", "Analyze my storage usage trends and predict when my disk will be full.", "prediction"),
+                        (icons::PATTERN, "Patterns", "Analyze file patterns to find duplicates, orphans, and optimization opportunities.", "file_patterns"),
+                        (icons::SECURITY, "Security", "Scan for potential security issues like exposed credentials, sensitive files, or insecure backups.", "security"),
+                        (icons::PERFORMANCE, "Performance", "Analyze file system structure for performance bottlenecks.", "performance"),
                     ];
 
                     for (icon, label, prompt, task) in actions {

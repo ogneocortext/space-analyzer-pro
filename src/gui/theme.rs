@@ -1,4 +1,5 @@
 use eframe::egui;
+use egui_phosphor::{Variant, add_to_fonts};
 
 /// Apply a custom dark theme with accent colors (Catppuccin Mocha inspired)
 pub fn apply_custom_theme(ctx: &egui::Context) {
@@ -43,6 +44,8 @@ pub fn apply_custom_theme(ctx: &egui::Context) {
     ctx.set_global_style(style);
 }
 
-pub fn install_icon_fonts(_ctx: &egui::Context) {
-    // Icons are bundled via iconflow crate at compile time — no runtime font installation needed
+pub fn install_icon_fonts(ctx: &egui::Context) {
+    let mut fonts = ctx.fonts(|_| egui::FontDefinitions::default());
+    add_to_fonts(&mut fonts, Variant::Regular);
+    ctx.set_fonts(fonts);
 }

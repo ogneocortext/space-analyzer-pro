@@ -1,6 +1,7 @@
 ﻿use eframe::egui;
 
 use crate::gui_common::ScanResult;
+use crate::gui::icons;
 use crate::ollama;
 
 /// Scan message type for GUI communication
@@ -12,7 +13,7 @@ pub enum ScanMessage {
         bytes: u64,
         current_file: String,
     },
-    Complete(ScanResult),
+    Complete(Box<ScanResult>),
     Error(String),
 }
 
@@ -201,10 +202,10 @@ impl Notification {
 
     pub fn icon(&self) -> &'static str {
         match self.level {
-            NotificationLevel::Info => "ℹ",
-            NotificationLevel::Success => "✓",
-            NotificationLevel::Warning => "⚠",
-            NotificationLevel::Error => "✗",
+            NotificationLevel::Info => icons::INFO,
+            NotificationLevel::Success => icons::CHECK_CIRCLE,
+            NotificationLevel::Warning => icons::WARNING,
+            NotificationLevel::Error => icons::X_CIRCLE,
         }
     }
 
