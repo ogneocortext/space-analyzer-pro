@@ -241,12 +241,16 @@ impl FileScanner {
             .build()
             .unwrap();
 
+        let walk_entries: Vec<walkdir::DirEntry> = WalkDir::new(path)
+            .max_depth(options.max_depth.unwrap_or(usize::MAX))
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .collect();
+
+        let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
+
         let raw_entries: Vec<gpu_compute::scan::RawFileEntry> = thread_pool.install(|| {
-            WalkDir::new(path)
-                .max_depth(options.max_depth.unwrap_or(usize::MAX))
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .collect::<Vec<_>>()
+            walk_entries
                 .into_par_iter()
                 .filter_map(|entry| {
                     let entry_path = entry.path();
@@ -279,7 +283,7 @@ impl FileScanner {
         result.file_types = gpu_result.file_types;
         result.extension_sizes = gpu_result.extension_sizes;
         result.size_distribution = gpu_result.size_distribution;
-        result.empty_directories = gpu_result.empty_dirs;
+        result.empty_directories = true_empty_dirs;
         result.subdirectories = gpu_result
             .subdirectories
             .into_iter()
@@ -332,6 +336,32 @@ impl FileScanner {
         true
     }
 
+    fn compute_true_empty_dirs(walk_entries: &[walkdir::DirEntry]) -> Vec<String> {
+        use std::collections::{HashMap, HashSet};
+
+        let mut all_dirs: HashSet<String> = HashSet::new();
+        let mut child_counts: HashMap<String, usize> = HashMap::new();
+
+        for entry in walk_entries {
+            let path = entry.path();
+            let path_str = path.to_string_lossy().to_string();
+
+            if entry.metadata().map(|m| m.is_dir()).unwrap_or(false) {
+                all_dirs.insert(path_str);
+            }
+
+            if let Some(parent) = path.parent() {
+                let parent_str = parent.to_string_lossy().to_string();
+                *child_counts.entry(parent_str).or_insert(0) += 1;
+            }
+        }
+
+        all_dirs
+            .into_iter()
+            .filter(|dir| *child_counts.get(dir).unwrap_or(&0) == 0)
+            .collect()
+    }
+
     fn format_timestamp(time: std::time::SystemTime) -> Option<String> {
         time.duration_since(std::time::UNIX_EPOCH)
             .ok()
@@ -372,7 +402,10 @@ impl FileScanner {
             walker = walker.follow_links(false);
         }
 
-        for entry_result in walker.into_iter().filter_map(|e| e.ok()) {
+        let walk_entries: Vec<walkdir::DirEntry> = walker.into_iter().filter_map(|e| e.ok()).collect();
+        let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
+
+        for entry_result in walk_entries {
             let entry_path = entry_result.path();
             let metadata = match entry_result.metadata() {
                 Ok(m) => m,
@@ -419,7 +452,7 @@ impl FileScanner {
         result.file_types = gpu_result.file_types;
         result.extension_sizes = gpu_result.extension_sizes;
         result.size_distribution = gpu_result.size_distribution;
-        result.empty_directories = gpu_result.empty_dirs;
+        result.empty_directories = true_empty_dirs;
         result.subdirectories = gpu_result
             .subdirectories
             .into_iter()
@@ -494,25 +527,16 @@ impl FileScanner {
             walker = walker.follow_links(false);
         }
 
-        // Estimate for progress percentage
-        let mut total_estimate = 0u64;
-        let mut estimate_walker = WalkDir::new(path);
-        if let Some(depth) = options.max_depth {
-            estimate_walker = estimate_walker.max_depth(depth);
-        }
-        if !options.follow_symlinks {
-            estimate_walker = estimate_walker.follow_links(false);
-        }
-        for _ in estimate_walker.into_iter().filter_map(|e| e.ok()) {
-            total_estimate += 1;
-            if total_estimate > 50000 {
-                break;
-            }
-        }
+        // Avoid a second full directory walk just to estimate progress. The
+        // estimate is deliberately conservative and grows as entries arrive.
+        let mut total_estimate = 1000u64;
 
         let mut entries_processed: u64 = 0;
 
-        for entry_result in walker.into_iter().filter_map(|e| e.ok()) {
+        let walk_entries: Vec<walkdir::DirEntry> = walker.into_iter().filter_map(|e| e.ok()).collect();
+        let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
+
+        for entry_result in walk_entries {
             if cancel_flag.load(Ordering::Relaxed) {
                 // Build partial result from what we have so far
                 for entry in &raw_entries {
@@ -697,7 +721,7 @@ impl FileScanner {
         result.file_types = gpu_result.file_types;
         result.extension_sizes = gpu_result.extension_sizes;
         result.size_distribution = gpu_result.size_distribution;
-        result.empty_directories = gpu_result.empty_dirs;
+        result.empty_directories = true_empty_dirs;
         result.subdirectories = gpu_result
             .subdirectories
             .into_iter()
@@ -784,26 +808,9 @@ impl FileScanner {
         let current_directories_clone = current_directories.clone();
         let current_size_clone = current_size.clone();
 
-        // Estimate total entries for progress calculation
-        let mut total_entries_estimate = 0u64;
-        let mut estimate_walker = WalkDir::new(path);
-        if let Some(depth) = options.max_depth {
-            estimate_walker = estimate_walker.max_depth(depth);
-        }
-        if !options.follow_symlinks {
-            estimate_walker = estimate_walker.follow_links(false);
-        }
-        for _ in estimate_walker.into_iter().filter_map(|e| e.ok()) {
-            if cancel.load(Ordering::Relaxed) {
-                return Err(anyhow::anyhow!("Scan cancelled"));
-            }
-            total_entries_estimate += 1;
-            if total_entries_estimate > 10000 {
-                break;
-            }
-        }
-
-        let total_estimate = Arc::new(AtomicU64::new(total_entries_estimate));
+        // Do not pre-walk the directory tree for progress estimation. That
+        // doubled startup I/O on large profiles; grow the estimate online.
+        let total_estimate = Arc::new(AtomicU64::new(1000));
         let total_estimate_clone = total_estimate.clone();
 
         // Main scan loop
@@ -815,7 +822,10 @@ impl FileScanner {
             walker = walker.follow_links(false);
         }
 
-        for entry_result in walker.into_iter().filter_map(|e| e.ok()) {
+        let walk_entries: Vec<walkdir::DirEntry> = walker.into_iter().filter_map(|e| e.ok()).collect();
+        let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
+
+        for entry_result in walk_entries {
             if cancel.load(Ordering::Relaxed) {
                 return Err(anyhow::anyhow!("Scan cancelled"));
             }
@@ -947,7 +957,8 @@ impl FileScanner {
             }));
         }
 
-        let r = Arc::try_unwrap(result).unwrap().into_inner().unwrap();
+        let mut r = Arc::try_unwrap(result).unwrap().into_inner().unwrap();
+        r.empty_directories = true_empty_dirs;
         Ok(r)
     }
 }

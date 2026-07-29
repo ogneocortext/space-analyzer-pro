@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Scanner Performance
+
+- Removed the duplicate pre-scan used only to estimate progress. Progress now adapts while the active traversal runs, avoiding a second directory walk and reducing startup I/O on large profiles.
+
 
 ## [3.7.0] - 2026-07-28
 
