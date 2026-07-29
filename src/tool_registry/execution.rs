@@ -27,21 +27,16 @@ impl ToolRegistry {
             "preview_impact" => Ok(self.preview_impact(args)),
             "move_to_trash" => Ok(self.move_to_trash_preview(args)),
             "hardlink_duplicates" => Ok(self.hardlink_duplicates_preview(args)),
-            _ => Ok(format!("Unknown tool: {}", function_name)),
+            _ => Ok(serde_json::json!({"error": format!("Unknown tool: {}", function_name)}).to_string()),
         }
     }
 
     // ── Destructive-action preview gate tools (Tier 4) ───────────────
-    // These tools are READ-ONLY or PREVIEW-ONLY. Actual destructive
-    // actions (moving to trash, hardlinking duplicates) must be
-    // confirmed by the user through the GUI's Destructive-Action
-    // Preview modal or the Dedup tab. The AI agent cannot perform
-    // these actions directly — this is the "destructive-preview gate".
 
     fn preview_impact(&self, args: &serde_json::Value) -> String {
         let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
         if path.is_empty() {
-            return "Error: 'path' parameter is required.".to_string();
+            return serde_json::json!({"error": "'path' parameter is required."}).to_string();
         }
         let report = crate::file_relations::analyze_file_dependencies(path);
         serde_json::to_string_pretty(&report).unwrap_or_else(|_| format!("{:#?}", report))
@@ -50,115 +45,110 @@ impl ToolRegistry {
     fn move_to_trash_preview(&self, args: &serde_json::Value) -> String {
         let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
         if path.is_empty() {
-            return "Error: 'path' parameter is required.".to_string();
+            return serde_json::json!({"error": "'path' parameter is required."}).to_string();
         }
         let report = crate::file_relations::analyze_file_dependencies(path);
-        format!(
-            "PREVIEW ONLY — no filesystem changes made.\n\n\
-             Target: {}\n\n\
-             {}\n\n\
-             To actually move this file to trash, the user must confirm via the GUI:\n\
-             Dashboard → Destructive-Action Preview → enter the path → review → click Confirm.\n\
-             The AI agent cannot perform destructive actions without explicit user approval.",
-            report.target_path, report.summary
-        )
+        serde_json::json!({
+            "preview": true,
+            "action": "move_to_trash",
+            "target_path": report.target_path,
+            "summary": report.summary,
+            "instructions": "To actually move this file to trash, the user must confirm via the GUI: Dashboard → Destructive-Action Preview → enter the path → review → click Confirm. The AI agent cannot perform destructive actions without explicit user approval."
+        }).to_string()
     }
 
     fn hardlink_duplicates_preview(&self, args: &serde_json::Value) -> String {
         let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
         if path.is_empty() {
-            return "Error: 'path' parameter is required.".to_string();
+            return serde_json::json!({"error": "'path' parameter is required."}).to_string();
         }
-        format!(
-            "PREVIEW ONLY — no filesystem changes made.\n\n\
-             To hard-link duplicates in '{}', the user must:\n\
-             1. Run a deduplication scan via the GUI (Dedup tab)\n\
-             2. Review the duplicate groups found\n\
-             3. Explicitly click 'Hardlink' on each group\n\n\
-             The AI agent cannot perform destructive actions without explicit user approval.\n\
-             You can use preview_impact on a specific file to assess the impact of any\n\
-             individual file deletion or move.",
-            path
-        )
+        serde_json::json!({
+            "preview": true,
+            "action": "hardlink_duplicates",
+            "path": path,
+            "instructions": [
+                "Run a deduplication scan via the GUI (Dedup tab)",
+                "Review the duplicate groups found",
+                "Explicitly click 'Hardlink' on each group"
+            ],
+            "note": "The AI agent cannot perform destructive actions without explicit user approval. Use preview_impact on a specific file to assess the impact of any individual file deletion or move."
+        }).to_string()
     }
 
     fn get_scan_summary(&self, scan_result: Option<&ScanResult>) -> String {
         if let Some(result) = scan_result {
-            let mut summary = format!(
-                "Scan of: {}\nTotal files: {}\nTotal size: {:.2} MB\nDuration: {:.2}s\n\n",
-                result.path, result.total_files, result.total_size_mb, result.duration_secs
-            );
-            summary.push_str("File types:\n");
-            for (ext, count) in &result.file_types {
-                summary.push_str(&format!("  .{}: {} files\n", ext, count));
-            }
-            if !result.largest_files.is_empty() {
-                summary.push_str("\nLargest files:\n");
-                for (path, size) in result.largest_files.iter().take(10) {
-                    summary.push_str(&format!(
-                        "  {} ({})\n",
-                        path,
-                        formatting::format_bytes(*size)
-                    ));
-                }
-            }
-            summary
+            let file_types: Vec<serde_json::Value> = result.file_types.iter()
+                .map(|(ext, count)| serde_json::json!({"extension": ext, "count": count}))
+                .collect();
+            let largest_files: Vec<serde_json::Value> = result.largest_files.iter().take(10)
+                .map(|(path, size)| serde_json::json!({"path": path, "size_bytes": size}))
+                .collect();
+            serde_json::json!({
+                "path": result.path,
+                "total_files": result.total_files,
+                "total_size_bytes": result.total_size_bytes,
+                "total_size_mb": result.total_size_mb,
+                "duration_secs": result.duration_secs,
+                "file_types": file_types,
+                "largest_files": largest_files
+            }).to_string()
         } else {
-            "No scan results available. Please run a scan first.".to_string()
+            serde_json::json!({"error": "No scan results available. Please run a scan first."}).to_string()
         }
     }
 
-    fn get_scan_history(&self, args: &serde_json::Value, db: Option<&Database>) -> Result<String, AppError> {
+    fn get_scan_history(
+        &self,
+        args: &serde_json::Value,
+        db: Option<&Database>,
+    ) -> Result<String, AppError> {
         let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
         let limit = limit.min(50);
         if let Some(db) = db {
             match db.get_scan_history(limit) {
                 Ok(records) => {
                     if records.is_empty() {
-                        Ok("No scan history available.".to_string())
+                        Ok(serde_json::json!({"status": "empty", "message": "No scan history available."}).to_string())
                     } else {
-                        let mut output = format!("Recent scans ({}):\n", records.len());
-                        for record in &records {
-                            output.push_str(&format!(
-                                "  [{}] {} - {} files, {:.2} MB\n",
-                                record.timestamp,
-                                record.path,
-                                record.total_files,
-                                record.total_size_mb
-                            ));
-                        }
-                        Ok(output)
+                        let entries: Vec<serde_json::Value> = records.iter().map(|r| {
+                            serde_json::json!({
+                                "timestamp": r.timestamp,
+                                "path": r.path,
+                                "total_files": r.total_files,
+                                "total_size_mb": r.total_size_mb
+                            })
+                        }).collect();
+                        Ok(serde_json::json!({"scans": entries, "count": entries.len()}).to_string())
                     }
                 }
                 Err(e) => Err(AppError::Scanner(e.into())),
             }
         } else {
-            Ok("Database not available.".to_string())
+            Ok(serde_json::json!({"error": "Database not available."}).to_string())
         }
     }
 
     fn get_disk_volumes(&self) -> String {
         let volumes = SystemMonitor::get_disk_volumes();
         if volumes.is_empty() {
-            "No disk volumes found.".to_string()
+            serde_json::json!({"status": "empty", "message": "No disk volumes found."}).to_string()
         } else {
-            let mut output = "Disk volumes:\n".to_string();
-            for vol in &volumes {
+            let entries: Vec<serde_json::Value> = volumes.iter().map(|vol| {
                 let usage_pct = if vol.total_bytes > 0 {
                     (vol.used_bytes as f64 / vol.total_bytes as f64) * 100.0
                 } else {
                     0.0
                 };
-                output.push_str(&format!(
-                    "  {} ({}) - {:.1}% used, {} free of {}\n",
-                    vol.mount_point,
-                    vol.name,
-                    usage_pct,
-                    formatting::format_bytes(vol.available_bytes),
-                    formatting::format_bytes(vol.total_bytes)
-                ));
-            }
-            output
+                serde_json::json!({
+                    "mount_point": vol.mount_point,
+                    "name": vol.name,
+                    "total_bytes": vol.total_bytes,
+                    "used_bytes": vol.used_bytes,
+                    "available_bytes": vol.available_bytes,
+                    "used_percent": (usage_pct * 100.0).round() / 100.0
+                })
+            }).collect();
+            serde_json::json!({"volumes": entries}).to_string()
         }
     }
 
@@ -169,72 +159,78 @@ impl ToolRegistry {
         } else {
             0.0
         };
-        format!(
-            "CPU usage: {:.1}%\nMemory: {:.1}% used ({} / {})\nSwap: {:.1}% used",
-            resources.cpu_percent,
-            resources.memory_percent,
-            formatting::format_bytes(resources.memory_used_bytes),
-            formatting::format_bytes(resources.memory_total_bytes),
-            swap_pct
-        )
+        serde_json::json!({
+            "cpu_percent": resources.cpu_percent,
+            "memory_percent": resources.memory_percent,
+            "memory_used_bytes": resources.memory_used_bytes,
+            "memory_total_bytes": resources.memory_total_bytes,
+            "swap_used_bytes": resources.swap_used_bytes,
+            "swap_total_bytes": resources.swap_total_bytes,
+            "swap_percent": (swap_pct * 100.0).round() / 100.0
+        }).to_string()
     }
 
-    fn get_storage_trend(&self, args: &serde_json::Value, db: Option<&Database>) -> Result<String, AppError> {
+    fn get_storage_trend(
+        &self,
+        args: &serde_json::Value,
+        db: Option<&Database>,
+    ) -> Result<String, AppError> {
         let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
         if let Some(db) = db {
             match db.get_storage_trend(limit) {
                 Ok(trend) => {
                     if trend.is_empty() {
-                        Ok("No storage trend data available.".to_string())
+                        Ok(serde_json::json!({"status": "empty", "message": "No storage trend data available."}).to_string())
                     } else {
-                        let mut output = "Storage trend (oldest to newest):\n".to_string();
-                        for (timestamp, size) in &trend {
-                            output.push_str(&format!(
-                                "  {}: {:.2} MB\n",
-                                timestamp,
-                                *size as f64 / (1024.0 * 1024.0)
-                            ));
-                        }
-                        Ok(output)
+                        let entries: Vec<serde_json::Value> = trend.iter().map(|(ts, size)| {
+                            serde_json::json!({"timestamp": ts, "size_bytes": size})
+                        }).collect();
+                        Ok(serde_json::json!({"trend": entries, "count": entries.len()}).to_string())
                     }
                 }
                 Err(e) => Err(AppError::Scanner(e.into())),
             }
         } else {
-            Ok("Database not available.".to_string())
+            Ok(serde_json::json!({"error": "Database not available."}).to_string())
         }
     }
 
     fn list_workflows(&self) -> String {
         let templates = WorkflowTemplates::all_templates();
-        let mut output = "Available workflows:\n".to_string();
-        for wf in &templates {
-            output.push_str(&format!("  {} - {}\n", wf.name, wf.description));
-        }
-        output
+        let entries: Vec<serde_json::Value> = templates.iter().map(|wf| {
+            serde_json::json!({"name": wf.name, "description": wf.description})
+        }).collect();
+        serde_json::json!({"workflows": entries}).to_string()
     }
 
     fn get_file_type_breakdown(&self, scan_result: Option<&ScanResult>) -> String {
         if let Some(result) = scan_result {
             let total: usize = result.file_types.values().sum();
-            let mut output = format!("File type breakdown ({} total files):\n", total);
             let mut types_vec: Vec<_> = result.file_types.iter().collect();
             types_vec.sort_by(|a, b| b.1.cmp(a.1));
-            for (ext, count) in types_vec {
+            let entries: Vec<serde_json::Value> = types_vec.iter().map(|(ext, count)| {
                 let pct = if total > 0 {
-                    (*count as f64 / total as f64) * 100.0
+                    (**count as f64 / total as f64) * 100.0
                 } else {
                     0.0
                 };
-                output.push_str(&format!("  .{}: {} files ({:.1}%)\n", ext, count, pct));
-            }
-            output
+                serde_json::json!({
+                    "extension": ext,
+                    "count": count,
+                    "percent": (pct * 100.0).round() / 100.0
+                })
+            }).collect();
+            serde_json::json!({"total_files": total, "types": entries}).to_string()
         } else {
-            "No scan results available.".to_string()
+            serde_json::json!({"error": "No scan results available."}).to_string()
         }
     }
 
-    fn predict_storage(&self, args: &serde_json::Value, db: Option<&Database>) -> Result<String, AppError> {
+    fn predict_storage(
+        &self,
+        args: &serde_json::Value,
+        db: Option<&Database>,
+    ) -> Result<String, AppError> {
         let days_ahead = args
             .get("days_ahead")
             .and_then(|v| v.as_u64())
@@ -243,15 +239,15 @@ impl ToolRegistry {
             match db.get_storage_trend(50) {
                 Ok(trend) => {
                     if trend.len() < 2 {
-                        return Ok("Not enough historical data for prediction. Need at least 2 scans.".to_string());
+                        return Ok(
+                            serde_json::json!({"error": "Not enough historical data for prediction. Need at least 2 scans."}).to_string(),
+                        );
                     }
 
-                    // Calculate growth rate from trend data using actual timestamps
                     let first_size = trend.first().map(|(_, s)| *s).unwrap_or(0) as f64;
                     let last_size = trend.last().map(|(_, s)| *s).unwrap_or(0) as f64;
                     let total_growth = last_size - first_size;
 
-                    // Parse actual timestamps to compute real days between scans
                     let days_between = if trend.len() >= 2 {
                         let first_ts = trend.first().map(|(ts, _)| ts.as_str()).unwrap_or("");
                         let last_ts = trend.last().map(|(ts, _)| ts.as_str()).unwrap_or("");
@@ -262,7 +258,7 @@ impl ToolRegistry {
                                 let diff = l.signed_duration_since(f);
                                 diff.num_seconds() as f64 / 86400.0
                             }
-                            _ => (trend.len() - 1) as f64 * 7.0, // Fallback to weekly assumption
+                            _ => (trend.len() - 1) as f64 * 7.0,
                         }
                     } else {
                         0.0
@@ -275,50 +271,49 @@ impl ToolRegistry {
                     };
 
                     let predicted_size = last_size + (daily_growth * days_ahead as f64);
-                    let growth_rate_mb_per_day = daily_growth / (1024.0 * 1024.0);
 
-                    // Get disk volumes to estimate when disk will be full
                     let volumes = SystemMonitor::get_disk_volumes();
-                    let mut disk_full_info = String::new();
+                    let mut disk_full_estimates = Vec::new();
                     for vol in &volumes {
                         if daily_growth > 0.0 && vol.available_bytes > 0 {
                             let days_until_full = vol.available_bytes as f64 / daily_growth;
-                            disk_full_info.push_str(&format!(
-                                "  {}: {:.0} days until full at current growth rate\n",
-                                vol.mount_point, days_until_full
-                            ));
+                            disk_full_estimates.push(serde_json::json!({
+                                "mount_point": vol.mount_point,
+                                "days_until_full": days_until_full.round() as u64
+                            }));
                         }
                     }
 
-                    Ok(format!(
-                        "Storage Prediction ({} days ahead):\n\
-                         Current total scanned size: {:.2} MB\n\
-                         Average daily growth: {:.2} MB/day\n\
-                         Predicted size in {} days: {:.2} MB\n\
-                         Growth trend: {}\n\n\
-                         Disk full estimates:\n{}",
-                        days_ahead,
-                        last_size / (1024.0 * 1024.0),
-                        growth_rate_mb_per_day,
-                        days_ahead,
-                        predicted_size / (1024.0 * 1024.0),
-                        if daily_growth > 0.0 { "Increasing" } else if daily_growth < 0.0 { "Decreasing" } else { "Stable" },
-                        if disk_full_info.is_empty() { "  No disk full risk detected\n" } else { &disk_full_info }
-                    ))
+                    let growth_trend = if daily_growth > 0.0 {
+                        "increasing"
+                    } else if daily_growth < 0.0 {
+                        "decreasing"
+                    } else {
+                        "stable"
+                    };
+
+                    Ok(serde_json::json!({
+                        "days_ahead": days_ahead,
+                        "current_size_bytes": last_size as u64,
+                        "daily_growth_bytes": daily_growth as u64,
+                        "predicted_size_bytes": predicted_size as u64,
+                        "growth_trend": growth_trend,
+                        "disk_full_estimates": disk_full_estimates
+                    }).to_string())
                 }
                 Err(e) => Err(AppError::Scanner(e.into())),
             }
         } else {
-            Ok("Database not available. Cannot make predictions without historical data.".to_string())
+            Ok(
+                serde_json::json!({"error": "Database not available. Cannot make predictions without historical data."}).to_string(),
+            )
         }
     }
 
     fn analyze_file_patterns(&self, scan_result: Option<&ScanResult>) -> String {
         if let Some(result) = scan_result {
-            let mut output = String::from("File Pattern Analysis:\n\n");
-
-            // File type concentration
             let total: usize = result.file_types.values().sum();
+
             let mut dominant_types = Vec::new();
             for (ext, count) in &result.file_types {
                 let pct = if total > 0 {
@@ -327,63 +322,64 @@ impl ToolRegistry {
                     0.0
                 };
                 if pct > 20.0 {
-                    dominant_types.push(format!(".{} ({:.1}%)", ext, pct));
+                    dominant_types.push(serde_json::json!({
+                        "extension": ext,
+                        "percent": (pct * 100.0).round() / 100.0,
+                        "count": count
+                    }));
                 }
             }
-            if !dominant_types.is_empty() {
-                output.push_str(&format!(
-                    "Dominant file types: {}\n",
-                    dominant_types.join(", ")
-                ));
-            }
 
-            // Large file analysis
-            if !result.largest_files.is_empty() {
+            let top_files_concentration = if !result.largest_files.is_empty() {
                 let total_large_size: u64 = result.largest_files.iter().map(|(_, s)| *s).sum();
                 let large_pct = if result.total_size_bytes > 0 {
                     (total_large_size as f64 / result.total_size_bytes as f64) * 100.0
                 } else {
                     0.0
                 };
-                output.push_str(&format!(
-                    "Top {} files account for {:.1}% of total space\n",
-                    result.largest_files.len(),
-                    large_pct
-                ));
+                Some(serde_json::json!({
+                    "count": result.largest_files.len(),
+                    "total_size_bytes": total_large_size,
+                    "percent_of_total": (large_pct * 100.0).round() / 100.0
+                }))
+            } else {
+                None
+            };
 
-                // Extension concentration in large files
+            let mut large_by_ext = Vec::new();
+            if !result.largest_files.is_empty() {
                 let mut ext_counts = std::collections::HashMap::new();
                 for (path, _) in &result.largest_files {
                     if let Some(ext) = path.rsplit('.').next() {
                         *ext_counts.entry(ext.to_lowercase()).or_insert(0) += 1;
                     }
                 }
-                if !ext_counts.is_empty() {
-                    output.push_str("Large files by extension:\n");
-                    for (ext, count) in ext_counts.iter().take(5) {
-                        output.push_str(&format!("  .{}: {} files\n", ext, count));
-                    }
+                for (ext, count) in ext_counts.iter().take(5) {
+                    large_by_ext.push(serde_json::json!({"extension": ext, "count": count}));
                 }
             }
 
-            // Small file analysis: use file type counts to detect small-file-heavy extensions
             let total_large: u64 = result.largest_files.iter().map(|(_, s)| *s).sum();
             let total_counted_files: usize = result.file_types.values().sum();
+            let mut notes = Vec::new();
             if total_counted_files > 0 && total_large == 0 {
-                output.push_str(
-                    "Note: All files are very small. Consider archiving or compressing.\n",
-                );
+                notes.push("All files are very small. Consider archiving or compressing.");
             }
 
-            output
+            serde_json::json!({
+                "dominant_file_types": dominant_types,
+                "top_files_concentration": top_files_concentration,
+                "large_files_by_extension": large_by_ext,
+                "notes": notes
+            }).to_string()
         } else {
-            "No scan results available for pattern analysis.".to_string()
+            serde_json::json!({"error": "No scan results available for pattern analysis."}).to_string()
         }
     }
 
     fn search_files(&self, args: &serde_json::Value, scan_result: Option<&ScanResult>) -> String {
         let Some(result) = scan_result else {
-            return "No scan results available. Please run a scan first.".to_string();
+            return serde_json::json!({"error": "No scan results available. Please run a scan first."}).to_string();
         };
         let limit = args.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
         let ext_filter = args
@@ -433,19 +429,14 @@ impl ToolRegistry {
             .collect();
 
         if matches.is_empty() {
-            return "No files match the search criteria.".to_string();
+            return serde_json::json!({"status": "empty", "message": "No files match the search criteria."}).to_string();
         }
 
         matches.sort_by_key(|b| std::cmp::Reverse(b.1));
-        let mut output = format!("Search results ({} files):\n", matches.len());
-        for (path, size) in matches {
-            output.push_str(&format!(
-                "  {} ({})\n",
-                path,
-                formatting::format_bytes(*size)
-            ));
-        }
-        output
+        let entries: Vec<serde_json::Value> = matches.iter().map(|(path, size)| {
+            serde_json::json!({"path": path, "size_bytes": size})
+        }).collect();
+        serde_json::json!({"results": entries, "count": entries.len()}).to_string()
     }
 
     fn get_largest_files(
@@ -454,7 +445,7 @@ impl ToolRegistry {
         scan_result: Option<&ScanResult>,
     ) -> String {
         let Some(result) = scan_result else {
-            return "No scan results available. Please run a scan first.".to_string();
+            return serde_json::json!({"error": "No scan results available. Please run a scan first."}).to_string();
         };
         let count = args.get("count").and_then(|v| v.as_u64()).unwrap_or(20) as usize;
         let count = count.min(100);
@@ -471,17 +462,12 @@ impl ToolRegistry {
             .collect();
 
         if files.is_empty() {
-            return "No files found matching the criteria.".to_string();
+            return serde_json::json!({"status": "empty", "message": "No files found matching the criteria."}).to_string();
         }
 
-        let mut output = format!("Largest files (top {}):\n", files.len());
-        for (path, size) in &files {
-            output.push_str(&format!(
-                "  {} ({})\n",
-                path,
-                formatting::format_bytes(*size)
-            ));
-        }
-        output
+        let entries: Vec<serde_json::Value> = files.iter().map(|(path, size)| {
+            serde_json::json!({"path": path, "size_bytes": size})
+        }).collect();
+        serde_json::json!({"files": entries, "count": entries.len()}).to_string()
     }
 }
