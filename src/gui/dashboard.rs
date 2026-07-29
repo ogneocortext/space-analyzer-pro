@@ -9,6 +9,13 @@ impl SpaceAnalyzerApp {
         // ── Quick Actions ──────────────────────────────────────────────
         self.render_quick_actions(ui);
 
+        // ── File Type Distribution Chart ──────────────────────────────
+        if let Some(ref result) = self.scan_result {
+            if !result.file_types.is_empty() {
+                self.render_file_type_chart(ui);
+            }
+        }
+
         // ── Two-column layout: File Categories + System Resources ─────
         ui.columns(2, |cols| {
             // Left column: File Categories + Bloat
@@ -107,6 +114,65 @@ impl SpaceAnalyzerApp {
                 );
             }
         });
+    }
+
+    // ── File Type Distribution Chart ──────────────────────────────────
+    fn render_file_type_chart(&self, ui: &mut egui::Ui) {
+        section_heading(ui, Some('📊'), "File Type Distribution");
+        card_frame(ui.style()).show(ui, |ui| {
+            if let Some(ref result) = self.scan_result {
+                let mut sorted: Vec<(&String, &usize)> = result.file_types.iter().collect();
+                sorted.sort_by(|a, b| b.1.cmp(a.1));
+                let top_n = sorted.iter().take(10);
+
+                let _max_count = top_n
+                    .clone()
+                    .map(|(_, c)| **c as f64)
+                    .fold(0.0_f64, f64::max);
+
+                let bar_points: PlotPoints = top_n
+                    .enumerate()
+                    .map(|(i, (_ext, count))| {
+                        let x = i as f64;
+                        let y = **count as f64;
+                        [x, y]
+                    })
+                    .collect();
+
+                let bar_line = Line::new("File count", bar_points)
+                    .color(colors::ACCENT)
+                    .width(3.0)
+                    .fill_alpha(0.3);
+
+                let mut plot = Plot::new("file_type_dist")
+                    .height(160.0)
+                    .legend(Legend::default())
+                    .show_x(false)
+                    .show_y(true)
+                    .y_axis_label("File count");
+
+                plot = plot.x_axis_label("Extension");
+
+                plot.show(ui, |plot_ui| {
+                    plot_ui.line(bar_line);
+                });
+
+                // Extension labels below the chart
+                ui.horizontal(|ui| {
+                    for (ext, count) in sorted.iter().take(10) {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(
+                                category::category_color(ext).0,
+                                category::category_color(ext).1,
+                                category::category_color(ext).2,
+                            ),
+                            format!(".{}: {}", ext, count),
+                        );
+                    }
+                });
+            }
+        });
+        ui.add_space(4.0);
     }
 
     // ── Quick Actions ─────────────────────────────────────────────────────

@@ -52,21 +52,6 @@ Space-Analyzer/
 │   ├── utils.rs                  # Error sanitization utilities
 │   └── bin/
 │       └── flow-test-harness.rs  # Automated flow test binary
-├── web/                          # Axum web backend (workspace member)
-│   ├── src/
-│   │   ├── server.rs             # Axum routes + static file serving
-│   │   ├── lib.rs                # Shared web types
-│   │   └── main.rs               # Binary entry point
-│   └── static/                   # Built Svelte frontend assets
-├── frontend/                     # Svelte 5 single-page app
-│   ├── src/
-│   │   ├── App.svelte            # Hash router + navbar
-│   │   ├── app.css               # Global styles
-│   │   ├── Dashboard.svelte      # Dashboard page
-│   │   ├── routes/               # Page components
-│   │   └── lib/                  # Shared stores/utils
-│   ├── vite.config.ts            # Vite config (build to ../web/static)
-│   └── package.json              # Svelte 5 + Vite 8
 ├── shared-scanner/               # Shared scanner library
 ├── gpu-compute/                  # GPU acceleration layer
 ├── native/                       # Standalone native tools
@@ -86,7 +71,7 @@ Space-Analyzer/
 
 | Version | Entry Point | Description |
 |---------|-------------|-------------|
-| v3.7.0 | `src/gui/mod.rs` + `web/src/server.rs` | Modular GUI with impact preview modal + Svelte/Axum web mode |
+| v3.7.0 | `src/gui/mod.rs` | Modular GUI with impact preview modal |
 | v3.3.0 | `src/gui/mod.rs` | Modular GUI with AI tool calling, model selection, prompt caching |
 | v3.2.0 | `archive/v3.2.0-monolithic/gui.rs` | Legacy monolithic GUI (archived) |
 
@@ -96,13 +81,11 @@ Space-Analyzer/
 |--------|-------------|-------------|
 | `space-analyzer-gui` | `src/bin/space-analyzer-gui.rs` (→ `gui::run_gui()`) | Desktop GUI (egui/eframe) |
 | `space-analyzer-pro` | `src/main.rs` | CLI for headless operation |
-| `space-analyzer-web` | `web/src/main.rs` | Axum web backend + Svelte SPA |
 | `flow-test-harness` | `src/bin/flow-test-harness.rs` | Automated flow test runner |
 
 ## Development Guidelines
 
 - **New features**: Add to `src/gui/` (modular GUI) or `src/ollama/` (AI client)
-- **Web mode**: Add pages to `frontend/src/routes/` and API routes to `web/src/server.rs`
 - **Dead code**: Move to `archive/legacy-modules/` if it was replaced
 - **Legacy code**: Move to `archive/v3.2.0-monolithic/` if it was superseded
 - **Tests**: Add to `tests/` directory; import from `space_analyzer_pro_desktop::` directly

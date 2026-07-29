@@ -13,14 +13,13 @@ default: help
 
 # Show all available tasks
 help:
-    @echo "Space Analyzer Pro (Rust Desktop + Web) — justfile tasks"
+    @echo "Space Analyzer Pro (Rust Desktop) — justfile tasks"
     @echo ""
     @echo "Build:"
     @echo "  just build               Build debug workspace"
     @echo "  just build-release       Build optimized release"
     @echo "  just build-gui           Build GUI binary only"
     @echo "  just build-cli           Build CLI binary only"
-    @echo "  just build-web           Build web frontend + backend"
     @echo ""
     @echo "Test:"
     @echo "  just test                Run all workspace tests"
@@ -44,8 +43,6 @@ help:
     @echo "  just run-gui             Start the GUI application"
     @echo "  just run-cli             Run the CLI scanner"
     @echo "  just run-cli-scan PATH   Scan a directory (headless)"
-    @echo "  just run-web             Start web server (port 3000)"
-    @echo "  just dev-frontend        Start Svelte dev server (port 5173)"
     @echo ""
     @echo "Release:"
     @echo "  just package             Build release + create zip"
@@ -87,11 +84,6 @@ build-gui:
 # Build CLI binary only
 build-cli:
     cargo build --bin space-analyzer-pro
-
-# Build web backend + frontend
-build-web:
-    cd frontend && npm run build
-    cargo build --bin space-analyzer-web
 
 # ──────────────────────────────────────────────────────────────
 #  Test
@@ -178,14 +170,6 @@ run-cli:
 # Scan a directory (headless CLI mode)
 run-cli-scan PATH:
     cargo run --bin space-analyzer-pro -- --scan {{PATH}}
-
-# Start the web backend (serves Svelte SPA on port 3000)
-run-web:
-    cargo run --bin space-analyzer-web
-
-# Start the Svelte dev server (proxies /api to :3000)
-dev-frontend:
-    cd frontend && npm run dev
 
 # ──────────────────────────────────────────────────────────────
 #  Release

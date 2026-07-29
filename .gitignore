@@ -108,9 +108,6 @@ venv/
 .devin/
 .kilo/
 
-# Archive (legacy code, do not modify)
-/archive/
-
 # Temporary patch scripts (do not commit one-off fix/patch scripts)
 scripts/temporary/
 
@@ -127,14 +124,9 @@ SOUL.md
 TOOLS.md
 USER.md
 
-# Frontend build artifacts
-frontend/node_modules/
-frontend/.vite/
-frontend/static/
-
-# Web build artifacts
-web/static/
-
 # Agent workspace state
 openclaw-workspace-state.json
 dashboard-screenshot.png
+
+# Node.js dependencies
+node_modules/

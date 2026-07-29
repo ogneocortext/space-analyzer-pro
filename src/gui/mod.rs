@@ -480,6 +480,30 @@ impl eframe::App for SpaceAnalyzerApp {
                 );
                 shortcut_handled = true;
             }
+            if i.modifiers.ctrl && i.key_pressed(egui::Key::N) {
+                self.active_tab = AppTab::Scan;
+                shortcut_handled = true;
+            }
+            if i.modifiers.ctrl && i.key_pressed(egui::Key::H) {
+                self.active_tab = AppTab::History;
+                shortcut_handled = true;
+            }
+            if i.modifiers.ctrl && i.key_pressed(egui::Key::D) {
+                self.active_tab = AppTab::Dedup;
+                shortcut_handled = true;
+            }
+            if i.modifiers.ctrl && i.key_pressed(egui::Key::K) {
+                self.active_tab = AppTab::SmartSearch;
+                shortcut_handled = true;
+            }
+            if i.modifiers.ctrl && i.key_pressed(egui::Key::W) {
+                self.active_tab = AppTab::Workflows;
+                shortcut_handled = true;
+            }
+            if i.modifiers.ctrl && i.key_pressed(egui::Key::A) {
+                self.active_tab = AppTab::AIChat;
+                shortcut_handled = true;
+            }
         });
 
         // Keep UI refreshing while background work is in progress

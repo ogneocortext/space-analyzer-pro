@@ -5405,25 +5405,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "space-analyzer-web"
-version = "3.7.0"
-dependencies = [
- "anyhow",
- "axum",
- "file-deduplicator",
- "reqwest",
- "serde",
- "serde_json",
- "shared-scanner",
- "thiserror 2.0.18",
- "tokio",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "spirv"
 version = "0.4.0+sdk-1.4.341.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6209,7 +6190,6 @@ version = "1.23.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "144d6b123cef80b301b8f72a9e2ca4370ddec21950d0a103dd22c437006d2db7"
 dependencies = [
- "getrandom 0.4.3",
  "js-sys",
  "serde_core",
  "wasm-bindgen",

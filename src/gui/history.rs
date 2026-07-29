@@ -16,7 +16,6 @@ impl SpaceAnalyzerApp {
 
     fn clear_all_history(&mut self) {
         if let Some(ref db) = self.db {
-            let _ = db.clear_all_embeddings();
             let _ = db.clear_history();
             self.scan_history.clear();
             self.cached_embeddings.clear();
@@ -24,8 +23,68 @@ impl SpaceAnalyzerApp {
         }
     }
 
+    fn export_scan_json(&self, record: &ScanHistoryRecord) {
+        let json = serde_json::json!({
+            "id": record.id,
+            "path": record.path,
+            "total_files": record.total_files,
+            "total_size_bytes": record.total_size_bytes,
+            "total_size_mb": record.total_size_mb,
+            "duration_secs": record.duration_secs,
+            "file_types": record.file_types_json,
+            "extension_sizes": record.extension_sizes_json,
+            "top_directories": record.top_directories_json,
+            "largest_files": record.largest_files_json,
+            "deep_scan": record.deep_scan,
+            "potential_cleanup_bytes": record.potential_cleanup_bytes,
+            "timestamp": record.timestamp,
+        });
+        let content = serde_json::to_string_pretty(&json).unwrap_or_default();
+        if let Some(path) = rfd::FileDialog::new()
+            .set_title("Export Scan as JSON")
+            .add_filter("JSON", &["json"])
+            .save_file()
+        {
+            if let Err(e) = std::fs::write(&path, content) {
+                eprintln!("Failed to export scan JSON: {}", e);
+            }
+        }
+    }
+
+    fn export_scan_csv(&self, record: &ScanHistoryRecord) {
+        let mut csv = String::from("field,value\n");
+        csv.push_str(&format!("id,{}\n", record.id));
+        csv.push_str(&format!("path,{}\n", record.path));
+        csv.push_str(&format!("total_files,{}\n", record.total_files));
+        csv.push_str(&format!("total_size_bytes,{}\n", record.total_size_bytes));
+        csv.push_str(&format!("total_size_mb,{}\n", record.total_size_mb));
+        csv.push_str(&format!("duration_secs,{}\n", record.duration_secs));
+        csv.push_str(&format!("deep_scan,{}\n", record.deep_scan));
+        csv.push_str(&format!("potential_cleanup_bytes,{}\n", record.potential_cleanup_bytes));
+        csv.push_str(&format!("timestamp,{}\n", record.timestamp));
+        if let Ok(file_types) = serde_json::from_str::<std::collections::HashMap<String, usize>>(&record.file_types_json) {
+            for (ext, count) in file_types {
+                csv.push_str(&format!("file_type_.{},{}\n", ext, count));
+            }
+        }
+        if let Ok(largest) = serde_json::from_str::<Vec<(String, u64)>>(&record.largest_files_json) {
+            for (path, size) in largest {
+                csv.push_str(&format!("largest_file,\"{}|{}\"\n", path, size));
+            }
+        }
+        if let Some(path) = rfd::FileDialog::new()
+            .set_title("Export Scan as CSV")
+            .add_filter("CSV", &["csv"])
+            .save_file()
+        {
+            if let Err(e) = std::fs::write(&path, csv) {
+                eprintln!("Failed to export scan CSV: {}", e);
+            }
+        }
+    }
+
     pub(crate) fn render_history(&mut self, ui: &mut egui::Ui) {
-        // ── Toolbar ───────────────────────────────────────────────────
+        // ── Toolbar ─────────────────────────────────────────────────
         section_heading(ui, Some('📋'), "Scan History");
         card_frame(ui.style()).show(ui, |ui| {
             ui.horizontal(|ui| {
@@ -54,7 +113,7 @@ impl SpaceAnalyzerApp {
             });
         });
 
-        // ── Content ───────────────────────────────────────────────────
+        // ── Content ─────────────────────────────────────────────────
         if let Some(selected_id) = self.selected_history_id {
             self.render_history_detail(ui, selected_id);
         } else if self.scan_history.is_empty() {
@@ -76,6 +135,8 @@ impl SpaceAnalyzerApp {
         } else {
             let mut delete_id: Option<i64> = None;
             let mut view_id: Option<i64> = None;
+            let mut export_json_id: Option<i64> = None;
+            let mut export_csv_id: Option<i64> = None;
 
             egui::ScrollArea::vertical().show(ui, |ui| {
                 for record in &self.scan_history {
@@ -111,6 +172,12 @@ impl SpaceAnalyzerApp {
                             ui.with_layout(
                                 egui::Layout::right_to_left(egui::Align::Center),
                                 |ui| {
+                                    if ui.small_button("Export JSON").clicked() {
+                                        export_json_id = Some(record.id);
+                                    }
+                                    if ui.small_button("Export CSV").clicked() {
+                                        export_csv_id = Some(record.id);
+                                    }
                                     if ui.small_button("View").clicked() {
                                         view_id = Some(record.id);
                                     }
@@ -137,6 +204,16 @@ impl SpaceAnalyzerApp {
             }
             if let Some(id) = delete_id {
                 self.delete_history_record(id);
+            }
+            if let Some(id) = export_json_id {
+                if let Some(record) = self.scan_history.iter().find(|r| r.id == id) {
+                    self.export_scan_json(record);
+                }
+            }
+            if let Some(id) = export_csv_id {
+                if let Some(record) = self.scan_history.iter().find(|r| r.id == id) {
+                    self.export_scan_csv(record);
+                }
             }
         }
     }
@@ -178,6 +255,17 @@ impl SpaceAnalyzerApp {
                         },
                     );
                 });
+
+                // Export buttons
+                ui.horizontal(|ui| {
+                    if ui.small_button("📥 Export JSON").clicked() {
+                        self.export_scan_json(&record);
+                    }
+                    if ui.small_button("📥 Export CSV").clicked() {
+                        self.export_scan_csv(&record);
+                    }
+                });
+                ui.add_space(4.0);
 
                 // Analyze with AI button
                 if self.ollama_client.is_some()

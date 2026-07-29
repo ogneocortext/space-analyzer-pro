@@ -12,7 +12,6 @@ members = [
     "native/scanner",
     "native/file_deduplicator",
     "native/node_modules_cleaner",
-    "web",
 ]
 
 [workspace.dependencies]
