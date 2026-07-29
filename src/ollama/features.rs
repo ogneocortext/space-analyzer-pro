@@ -217,6 +217,23 @@ pub async fn summarize_scan(
         input.total_files, size_mb, files_table, types_table
     );
 
+    // Structured output schema constrains the model to return parseable JSON
+    let format_schema = serde_json::json!({
+        "type": "object",
+        "properties": {
+            "summary": {
+                "type": "string",
+                "description": "2-3 sentence scan summary highlighting largest space hogs and cleanup wins"
+            },
+            "key_insights": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Up to 3 key observations about the scan"
+            }
+        },
+        "required": ["summary"]
+    });
+
     let request = ChatRequest {
         model: model.to_string(),
         messages: vec![ChatMessage::system(system), ChatMessage::user(user)],
@@ -224,7 +241,7 @@ pub async fn summarize_scan(
         options: Some(OllamaOptions::default()),
         think: None, // completion: keep it fast
         keep_alive: Some("2m".to_string()),
-        format: None,
+        format: Some(format_schema),
         tools: None,
         tool_choice: None,
     };
@@ -241,8 +258,14 @@ pub async fn summarize_scan(
         return Err("summarize_scan: model returned empty content".to_string());
     }
 
+    // If the model returned valid JSON (structured output), extract the summary field
+    let summary = serde_json::from_str::<serde_json::Value>(&content)
+        .ok()
+        .and_then(|v| v.get("summary").and_then(|s| s.as_str().map(String::from)))
+        .unwrap_or(content);
+
     Ok(ScanSummaryOutput {
-        summary: content,
+        summary,
         prompt_tokens: response.prompt_eval_count.unwrap_or(0),
         completion_tokens: response.eval_count.unwrap_or(0),
         duration_ms: started.elapsed().as_millis(),
@@ -469,6 +492,55 @@ pub struct AgenticOutput {
 /// small mock that returns canned strings.
 pub type ToolExecutor = Box<dyn Fn(&ToolCall) -> String + Send + Sync>;
 
+/// Decide whether to force tool calling based on the user's question.
+/// When the question clearly references disk-analysis tools, forcing
+/// tool_choice avoids a round where the model chats instead of acting.
+fn resolve_tool_choice(question: &str, tools: &[ToolDefinition]) -> String {
+    let q_lower = question.to_lowercase();
+    // If the question mentions any known domain keyword, force tool calling
+    let domain_keywords = [
+        "disk",
+        "space",
+        "storage",
+        "scan",
+        "volume",
+        "drive",
+        "file",
+        "folder",
+        "directory",
+        "largest",
+        "size",
+        "history",
+        "trend",
+        "prediction",
+        "cleanup",
+        "workflow",
+        "system",
+        "resource",
+        "cpu",
+        "memory",
+        "gpu",
+        "summary",
+        "breakdown",
+        "duplicate",
+        "dedup",
+    ];
+    let has_domain_keyword = domain_keywords.iter().any(|k| q_lower.contains(k));
+    // Also check if the question mentions any tool name directly
+    let has_tool_name = tools
+        .iter()
+        .any(|t| q_lower.contains(&t.function.name.to_lowercase()));
+    if tools.is_empty() || q_lower.contains("hello") || q_lower.contains("hi ") {
+        // No tools available or just a greeting — let the model decide
+        "auto".to_string()
+    } else if has_domain_keyword || has_tool_name {
+        // Domain-specific query — skip chit-chat, go straight to tool calling
+        "required".to_string()
+    } else {
+        "auto".to_string()
+    }
+}
+
 /// Run a multi-round tool-calling conversation. Each round:
 ///   1. Send the current message list (system + user + tool_results)
 ///   2. If the model returns tool_calls, execute them, append the
@@ -512,7 +584,11 @@ pub async fn agentic_question(
             keep_alive: Some("5m".to_string()),
             format: None,
             tools: Some(tools.clone()),
-            tool_choice: Some("auto".to_string()),
+            tool_choice: Some(if rounds == 1 {
+                resolve_tool_choice(question, &tools)
+            } else {
+                "auto".to_string()
+            }),
         };
 
         let response = client

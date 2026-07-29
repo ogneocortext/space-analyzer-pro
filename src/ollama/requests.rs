@@ -87,7 +87,7 @@ pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_alive: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub format: Option<String>,
+    pub format: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<ToolDefinition>>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -1009,7 +1009,7 @@ async fn generate_ai_recommendations_async(
     ];
 
     let response = ai_client
-        .chat_with_tools(messages, None, Some("none".to_string()))
+        .chat_with_tools(messages, None, Some("none".to_string()), None)
         .await;
 
     match response {

@@ -304,7 +304,7 @@ impl SpaceAnalyzerApp {
                 let rt = super::super::shared_runtime();
                 let response = rt.block_on(async {
                     client
-                        .chat_with_tools(conversation, tools, Some(tool_choice))
+                        .chat_with_tools(conversation, tools, Some(tool_choice), None)
                         .await
                 });
 
@@ -524,7 +524,7 @@ impl SpaceAnalyzerApp {
 
                 let response = rt.block_on(async {
                     client
-                        .chat_with_tools(messages, tools_clone, Some(tool_choice))
+                        .chat_with_tools(messages, tools_clone, Some(tool_choice), None)
                         .await
                 });
 

@@ -1,5 +1,17 @@
 use super::*;
 
+const CHAT_RETRIES: u32 = 2;
+const CHAT_RETRY_BASE_MS: u64 = 400;
+
+fn is_transient_chat_error(err: &OllamaError) -> bool {
+    match err {
+        OllamaError::Timeout(_) => true,
+        OllamaError::ConnectionError(_) => true,
+        OllamaError::HttpError { status, .. } => *status >= 500,
+        _ => false,
+    }
+}
+
 impl OllamaClient {
     /// Send chat messages with optional tool definitions and tool_choice control
     /// Returns (content, tool_calls, usage) - if tool_calls is Some, the model wants to call tools
@@ -8,8 +20,9 @@ impl OllamaClient {
         messages: Vec<ChatMessage>,
         tools: Option<Vec<ToolDefinition>>,
         tool_choice: Option<String>,
+        format: Option<serde_json::Value>,
     ) -> OllamaResult<(String, Option<String>, Option<Vec<ToolCall>>, TokenUsage)> {
-        self.chat_internal(&self.model, messages, tools, tool_choice, false)
+        self.chat_internal(&self.model, messages, tools, tool_choice, format)
             .await
     }
 
@@ -36,14 +49,14 @@ impl OllamaClient {
         Ok((chat_response, usage, elapsed))
     }
 
-    /// Internal chat implementation with model fallback
+    /// Internal chat implementation with model fallback and retry on transient failures.
     async fn chat_internal(
         &self,
         model: &str,
         messages: Vec<ChatMessage>,
         tools: Option<Vec<ToolDefinition>>,
         tool_choice: Option<String>,
-        force_json: bool,
+        format: Option<serde_json::Value>,
     ) -> OllamaResult<(String, Option<String>, Option<Vec<ToolCall>>, TokenUsage)> {
         let request = ChatRequest {
             model: model.to_string(),
@@ -51,20 +64,34 @@ impl OllamaClient {
             stream: Some(false),
             options: Some(self.default_options.clone()),
             keep_alive: Some(self.keep_alive.clone()),
-            format: if force_json {
-                Some("json".to_string())
-            } else {
-                None
-            },
+            format,
             think: self.think.clone(),
             tools,
             tool_choice,
         };
-        let (chat_response, usage, _elapsed) = self
-            .post_chat_and_parse(&request, self.operation_timeouts.chat, "chat")
-            .await?;
-        let tool_calls = chat_response.message.tool_calls;
-        let thinking = chat_response.message.thinking.clone();
-        Ok((chat_response.message.content, thinking, tool_calls, usage))
+        let mut last_err = None;
+        for attempt in 0..CHAT_RETRIES {
+            let tag = if attempt == 0 { "chat" } else { "chat_retry" };
+            match self
+                .post_chat_and_parse(&request, self.operation_timeouts.chat, tag)
+                .await
+            {
+                Ok((chat_response, usage, _elapsed)) => {
+                    let tool_calls = chat_response.message.tool_calls;
+                    let thinking = chat_response.message.thinking.clone();
+                    return Ok((chat_response.message.content, thinking, tool_calls, usage));
+                }
+                Err(err) => {
+                    if !is_transient_chat_error(&err) || attempt + 1 >= CHAT_RETRIES {
+                        last_err = Some(err);
+                        break;
+                    }
+                    let backoff = CHAT_RETRY_BASE_MS * 2u64.pow(attempt);
+                    tokio::time::sleep(std::time::Duration::from_millis(backoff)).await;
+                    last_err = Some(err);
+                }
+            }
+        }
+        Err(last_err.unwrap_or_else(|| OllamaError::ConnectionError("chat failed".to_string())))
     }
 }

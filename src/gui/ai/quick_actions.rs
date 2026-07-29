@@ -130,7 +130,7 @@ impl SpaceAnalyzerApp {
 
                 let response = rt.block_on(async {
                     client
-                        .chat_with_tools(messages, tools, Some(tool_choice))
+                        .chat_with_tools(messages, tools, Some(tool_choice), None)
                         .await
                 });
 
