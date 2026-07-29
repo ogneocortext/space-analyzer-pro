@@ -146,6 +146,45 @@ pub fn main() -> AppResult<()> {
             .as_ref()
             .map(|db| db.load_settings())
             .unwrap_or_default();
+
+        let rt = tokio::runtime::Runtime::new()
+            .expect("Failed to create async runtime for AI question");
+
+        // Discover available models and pick the best one for tool calling
+        let probe = space_analyzer_pro_desktop::ollama::client::OllamaClient::new(
+            &settings.ollama_url,
+            "list-models",
+        )
+        .expect("Failed to create Ollama discovery client");
+
+        let model = rt
+            .block_on(probe.list_models())
+            .ok()
+            .and_then(|models| {
+                // Filter out cloud models, prefer those with "tools" capability
+                let local: Vec<_> = models
+                    .iter()
+                    .filter(|m| m.remote_host.is_none())
+                    .collect();
+                // 1st choice: any model with "tools" capability
+                if let Some(m) = local.iter().find(|m| m.capabilities.iter().any(|c| c == "tools")) {
+                    return Some(m.name.clone());
+                }
+                // 2nd choice: any model with "completion" capability
+                if let Some(m) = local.iter().find(|m| m.capabilities.iter().any(|c| c == "completion")) {
+                    return Some(m.name.clone());
+                }
+                // 3rd choice: first available model
+                local.first().map(|m| m.name.clone())
+            })
+            .unwrap_or_else(|| {
+                eprintln!(
+                    "Warning: no Ollama models discovered at {}, falling back to '{}'",
+                    settings.ollama_url, settings.ollama_model
+                );
+                settings.ollama_model.clone()
+            });
+
         let registry =
             space_analyzer_pro_desktop::tool_registry::ToolRegistry::new(Some(result.clone()));
         let tools = registry.get_definitions().to_vec();
@@ -157,17 +196,13 @@ pub fn main() -> AppResult<()> {
                 r.unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}).to_string())
             });
 
-        let rt = tokio::runtime::Runtime::new()
-            .expect("Failed to create async runtime for AI question");
-        let client = space_analyzer_pro_desktop::ollama::client::OllamaClient::new(
-            &settings.ollama_url,
-            &settings.ollama_model,
-        )
-        .expect("Failed to create Ollama client");
+        let chat_client = probe
+            .with_model(&model)
+            .expect("Failed to create Ollama client with selected model");
         match rt.block_on(
             space_analyzer_pro_desktop::ollama::features::agentic_question(
-                &client,
-                &settings.ollama_model,
+                &chat_client,
+                &model,
                 question,
                 tools,
                 executor,
