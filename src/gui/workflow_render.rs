@@ -100,6 +100,8 @@ impl SpaceAnalyzerApp {
 
     pub fn run_workflow(&mut self, workflow_id: &str) {
         if let Some(index) = self.workflows.iter().position(|w| w.id == workflow_id) {
+            let now = chrono::Utc::now().to_rfc3339();
+            self.workflows[index].last_run = Some(now.clone());
             let workflow = self.workflows[index].clone();
             let execution = workflow.start_execution();
             self.active_workflow = Some(execution);
@@ -337,13 +339,24 @@ impl SpaceAnalyzerApp {
                     }
                 }
                 WorkflowTrigger::LowDiskSpace { threshold_percent } => {
-                    // Check if any disk is below threshold
+                    if let Some(ref last_run) = w.last_run {
+                        if last_run.starts_with(&current_minute[..16]) {
+                            return None;
+                        }
+                    }
                     let triggered = self
                         .system_state
                         .disk_volumes
                         .iter()
                         .any(|v| v.usage_percent >= *threshold_percent as f32);
                     if triggered {
+                        Some(w.id.clone())
+                    } else {
+                        None
+                    }
+                }
+                WorkflowTrigger::OnStartup => {
+                    if w.last_run.is_none() {
                         Some(w.id.clone())
                     } else {
                         None
@@ -438,187 +451,253 @@ impl SpaceAnalyzerApp {
     }
 
     pub(crate) fn render_workflows(&mut self, ui: &mut egui::Ui) {
-        section_heading(ui, Some(icons::WORKFLOW), "Workflows");
-
-        // ── Active Workflow Status ────────────────────────────────────
-        if let Some(ref execution) = self.active_workflow {
-            card_frame(ui.style()).show(ui, |ui| {
-                let status_color = match execution.status {
-                    ExecutionStatus::Running => colors::WARNING,
-                    ExecutionStatus::Completed => colors::SUCCESS,
-                    ExecutionStatus::Failed => colors::ERROR,
-                    _ => colors::TEXT_MUTED,
-                };
-                ui.horizontal(|ui| {
-                    badge(ui, &format!("{}", execution.status), status_color);
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
                     ui.label(
-                        egui::RichText::new(&execution.workflow_name)
-                            .strong()
+                        egui::RichText::new("Workflows")
+                            .text_style(egui::TextStyle::Name("PageTitle".into()))
                             .color(colors::TEXT_PRIMARY),
                     );
-                    if execution.status == ExecutionStatus::Running {
+                    ui.label(
+                        egui::RichText::new("Automate scans, analysis, and cleanup routines.")
+                            .color(colors::TEXT_SECONDARY)
+                            .small(),
+                    );
+                });
+            });
+            ui.add_space(12.0);
+
+            if let Some(ref execution) = self.active_workflow {
+                app_card(ui, |ui| {
+                    let status_color = match execution.status {
+                        ExecutionStatus::Running => colors::WARNING,
+                        ExecutionStatus::Completed => colors::SUCCESS,
+                        ExecutionStatus::Failed => colors::ERROR,
+                        _ => colors::TEXT_MUTED,
+                    };
+                    ui.horizontal(|ui| {
+                        badge(ui, &format!("{}", execution.status), status_color);
                         ui.label(
-                            egui::RichText::new(format!(
-                                "{}/{} actions",
-                                execution.actions_completed, execution.total_actions
-                            ))
-                            .size(11.0)
-                            .color(colors::TEXT_SECONDARY),
+                            egui::RichText::new(&execution.workflow_name)
+                                .strong()
+                                .color(colors::TEXT_PRIMARY),
                         );
-                        ui.spinner();
+                        if execution.status == ExecutionStatus::Running {
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "{}/{} actions",
+                                    execution.actions_completed, execution.total_actions
+                                ))
+                                .size(11.0)
+                                .color(colors::TEXT_SECONDARY),
+                            );
+                            ui.spinner();
+                        }
+                    });
+                });
+                ui.add_space(12.0);
+            }
+
+            let mut run_workflow_id: Option<String> = None;
+            let mut delete_workflow_id: Option<String> = None;
+            let mut edit_workflow_id: Option<String> = None;
+
+            if self.workflows.is_empty() {
+                empty_state(
+                    ui,
+                    icons::WORKFLOW,
+                    "No workflows yet",
+                    "Create a workflow to automate scans, analysis, and cleanup routines.",
+                    Some(("New workflow", &mut || {
+                        let id = format!("custom-{}", chrono::Utc::now().timestamp_millis());
+                        self.workflow_editor_state.editing_workflow = Some(Workflow::new(
+                            &id,
+                            "New Workflow",
+                            workflows::WorkflowCategory::Custom,
+                        ));
+                        self.workflow_editor_state.show_workflow_editor = true;
+                    })),
+                );
+            } else {
+                let mut enable_workflow_ids: Vec<String> = Vec::new();
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    for workflow in &self.workflows {
+                        let workflow_id = workflow.id.clone();
+                        app_card(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.vertical(|ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label(
+                                            egui::RichText::new(&workflow.name)
+                                                .strong()
+                                                .color(colors::TEXT_PRIMARY),
+                                        );
+                                        badge(
+                                            ui,
+                                            &format!("{}", workflow.category),
+                                            colors::ACCENT_DIM,
+                                        );
+                                        if workflow.enabled {
+                                            status_badge(ui, "Enabled", Tone::Success);
+                                        } else {
+                                            status_badge(ui, "Disabled", Tone::Neutral);
+                                        }
+                                    });
+                                    ui.label(
+                                        egui::RichText::new(&workflow.description)
+                                            .size(11.0)
+                                            .color(colors::TEXT_SECONDARY),
+                                    );
+                                    ui.horizontal(|ui| {
+                                        badge(
+                                            ui,
+                                            &format!("{} actions", workflow.actions.len()),
+                                            colors::TEXT_SECONDARY,
+                                        );
+                                        if let Some(ref last_run) = workflow.last_run {
+                                            ui.label(
+                                                egui::RichText::new(format!("Last: {}", last_run))
+                                                    .size(10.0)
+                                                    .color(colors::TEXT_MUTED),
+                                            );
+                                        }
+                                    });
+                                    if !workflow.enabled {
+                                        ui.add_space(4.0);
+                                        ui.horizontal(|ui| {
+                                            ui.label(
+                                                egui::RichText::new(
+                                                    "Enable this workflow before running it.",
+                                                )
+                                                .size(11.0)
+                                                .color(colors::TEXT_MUTED),
+                                            );
+                                            if secondary_button(ui, "Enable workflow").clicked() {
+                                                enable_workflow_ids.push(workflow_id.clone());
+                                            }
+                                        });
+                                    }
+                                });
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        if ui
+                                            .add(
+                                                egui::Button::new(
+                                                    egui::RichText::new(icons::X)
+                                                        .color(colors::ERROR),
+                                                )
+                                                .fill(colors::ERROR.linear_multiply(0.15))
+                                                .min_size(egui::vec2(28.0, 28.0)),
+                                            )
+                                            .clicked()
+                                        {
+                                            delete_workflow_id = Some(workflow.id.clone());
+                                        }
+                                        if ui.small_button("Edit").clicked() {
+                                            edit_workflow_id = Some(workflow.id.clone());
+                                        }
+                                        let run_btn = egui::Button::new(
+                                            egui::RichText::new(format!("{} Run", icons::PLAY))
+                                                .size(12.0)
+                                                .strong(),
+                                        )
+                                        .fill(colors::ACCENT)
+                                        .corner_radius(egui::CornerRadius::same(8))
+                                        .min_size(egui::vec2(80.0, 32.0));
+
+                                        if ui.add_enabled(workflow.enabled, run_btn).clicked() {
+                                            run_workflow_id = Some(workflow.id.clone());
+                                        }
+                                    },
+                                );
+                            });
+                        });
+                    }
+                });
+                for id in enable_workflow_ids {
+                    if let Some(w) = self.workflows.iter_mut().find(|w| w.id == id) {
+                        w.enabled = true;
+                    }
+                }
+            }
+
+            if let Some(id) = run_workflow_id {
+                self.run_workflow(&id);
+            }
+            if let Some(id) = delete_workflow_id {
+                self.delete_workflow(&id);
+            }
+            if let Some(id) = edit_workflow_id {
+                if let Some(workflow) = self.workflows.iter().find(|w| w.id == id).cloned() {
+                    self.workflow_editor_state.editing_workflow = Some(workflow);
+                    self.workflow_editor_state.show_workflow_editor = true;
+                }
+            }
+
+            ui.add_space(8.0);
+            app_card(ui, |ui| {
+                ui.horizontal(|ui| {
+                    if primary_button(ui, "+ New workflow").clicked() {
+                        let id = format!("custom-{}", chrono::Utc::now().timestamp_millis());
+                        self.workflow_editor_state.editing_workflow = Some(Workflow::new(
+                            &id,
+                            "New Workflow",
+                            workflows::WorkflowCategory::Custom,
+                        ));
+                        self.workflow_editor_state.show_workflow_editor = true;
+                    }
+                    if secondary_button(ui, "Import").clicked() {
+                        self.import_workflows();
+                    }
+                    if secondary_button(ui, "Export all").clicked() {
+                        self.export_workflows();
                     }
                 });
             });
-        }
 
-        // ── Workflow List ─────────────────────────────────────────────
-        let mut run_workflow_id: Option<String> = None;
-        let mut delete_workflow_id: Option<String> = None;
-        let mut edit_workflow_id: Option<String> = None;
-
-        for workflow in &self.workflows {
-            card_frame(ui.style()).show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.vertical(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(
-                                egui::RichText::new(&workflow.name)
-                                    .strong()
-                                    .color(colors::TEXT_PRIMARY),
-                            );
-                            badge(ui, &format!("{}", workflow.category), colors::ACCENT_DIM);
-                            if !workflow.enabled {
-                                badge(ui, "Disabled", colors::TEXT_MUTED);
+            if !self.workflow_history.is_empty() {
+                ui.add_space(8.0);
+                section_header(ui, Some(icons::SCROLL), "Execution history");
+                app_card(ui, |ui| {
+                    egui::ScrollArea::vertical()
+                        .max_height(150.0)
+                        .show(ui, |ui| {
+                            for exec in self.workflow_history.iter().rev().take(10) {
+                                let color = match exec.status {
+                                    ExecutionStatus::Completed => colors::SUCCESS,
+                                    ExecutionStatus::Failed => colors::ERROR,
+                                    ExecutionStatus::Running => colors::WARNING,
+                                    _ => colors::TEXT_MUTED,
+                                };
+                                ui.horizontal(|ui| {
+                                    badge(ui, &format!("{}", exec.status), color);
+                                    ui.label(&exec.workflow_name);
+                                    ui.label(
+                                        egui::RichText::new(&exec.started_at)
+                                            .size(10.0)
+                                            .color(colors::TEXT_MUTED),
+                                    );
+                                });
                             }
                         });
-                        ui.label(
-                            egui::RichText::new(&workflow.description)
-                                .size(11.0)
-                                .color(colors::TEXT_SECONDARY),
-                        );
-                        ui.horizontal(|ui| {
-                            badge(
-                                ui,
-                                &format!("{} actions", workflow.actions.len()),
-                                colors::TEXT_SECONDARY,
-                            );
-                            if let Some(ref last_run) = workflow.last_run {
-                                ui.label(
-                                    egui::RichText::new(format!("Last: {}", last_run))
-                                        .size(10.0)
-                                        .color(colors::TEXT_MUTED),
-                                );
-                            }
-                        });
-                    });
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui
-                            .add(
-                                egui::Button::new(egui::RichText::new(icons::X).color(colors::ERROR))
-                                    .fill(colors::ERROR.linear_multiply(0.15)),
-                            )
-                            .clicked()
-                        {
-                            delete_workflow_id = Some(workflow.id.clone());
-                        }
-                        if ui.small_button("Edit").clicked() {
-                            edit_workflow_id = Some(workflow.id.clone());
-                        }
-                        let run_btn =
-                            egui::Button::new(egui::RichText::new(format!("{} Run", icons::PLAY)).size(12.0).strong())
-                                .fill(colors::ACCENT);
-                        if ui.add_enabled(workflow.enabled, run_btn).clicked() {
-                            run_workflow_id = Some(workflow.id.clone());
-                        }
-                    });
                 });
-            });
-        }
-
-        // Execute actions
-        if let Some(id) = run_workflow_id {
-            self.run_workflow(&id);
-        }
-        if let Some(id) = delete_workflow_id {
-            self.delete_workflow(&id);
-        }
-        if let Some(id) = edit_workflow_id {
-            if let Some(workflow) = self.workflows.iter().find(|w| w.id == id).cloned() {
-                self.workflow_editor_state.editing_workflow = Some(workflow);
-                self.workflow_editor_state.show_workflow_editor = true;
             }
-        }
 
-        // ── Action Buttons ────────────────────────────────────────────
-        ui.add_space(8.0);
-        card_frame(ui.style()).show(ui, |ui| {
-            ui.horizontal(|ui| {
-                let new_btn = egui::Button::new(egui::RichText::new("+ New Workflow").size(12.0))
-                    .fill(colors::ACCENT);
-                if ui.add(new_btn).clicked() {
-                    let id = format!("custom-{}", chrono::Utc::now().timestamp_millis());
-                    self.workflow_editor_state.editing_workflow = Some(Workflow::new(
-                        &id,
-                        "New Workflow",
-                        workflows::WorkflowCategory::Custom,
-                    ));
-                    self.workflow_editor_state.show_workflow_editor = true;
-                }
-                if ui.button("📥 Import").clicked() {
-                    self.import_workflows();
-                }
-                if ui.button("📤 Export All").clicked() {
-                    self.export_workflows();
-                }
-            });
+            if self.workflow_editor_state.show_workflow_editor {
+                self.render_workflow_editor(ui);
+            }
         });
-
-        // ── Execution History ─────────────────────────────────────────
-        if !self.workflow_history.is_empty() {
-            section_heading(
-                ui,
-                Some(icons::SCROLL),
-                &format!("Execution History ({})", self.workflow_history.len()),
-            );
-            card_frame(ui.style()).show(ui, |ui| {
-                egui::ScrollArea::vertical()
-                    .max_height(150.0)
-                    .show(ui, |ui| {
-                        for exec in self.workflow_history.iter().rev().take(10) {
-                            let color = match exec.status {
-                                ExecutionStatus::Completed => colors::SUCCESS,
-                                ExecutionStatus::Failed => colors::ERROR,
-                                ExecutionStatus::Running => colors::WARNING,
-                                _ => colors::TEXT_MUTED,
-                            };
-                            ui.horizontal(|ui| {
-                                badge(ui, &format!("{}", exec.status), color);
-                                ui.label(&exec.workflow_name);
-                                ui.label(
-                                    egui::RichText::new(&exec.started_at)
-                                        .size(10.0)
-                                        .color(colors::TEXT_MUTED),
-                                );
-                            });
-                        }
-                    });
-            });
-        }
-
-        // ── Workflow Editor Modal ─────────────────────────────────────
-        if self.workflow_editor_state.show_workflow_editor {
-            self.render_workflow_editor(ui);
-        }
     }
 
     fn render_workflow_editor(&mut self, ui: &mut egui::Ui) {
-        egui::Window::new("Workflow Editor")
+        egui::Window::new("Workflow editor")
             .collapsible(false)
             .resizable(false)
             .default_width(550.0)
             .show(ui.ctx(), |ui| {
                 if let Some(ref mut workflow) = self.workflow_editor_state.editing_workflow {
-                    // Basic info
                     ui.horizontal(|ui| {
                         ui.label("Name:");
                         ui.text_edit_singleline(&mut workflow.name);
@@ -664,11 +743,9 @@ impl SpaceAnalyzerApp {
                         ui.checkbox(&mut workflow.enabled, "");
                     });
 
-                    // Trigger configuration
                     ui.separator();
                     ui.label(egui::RichText::new("Trigger").strong());
 
-                    // Trigger type selector
                     let current_trigger_type = match &workflow.trigger {
                         workflows::WorkflowTrigger::Manual => "Manual",
                         workflows::WorkflowTrigger::Scheduled(_) => "Scheduled (Cron)",
@@ -730,7 +807,6 @@ impl SpaceAnalyzerApp {
                             }
                         });
 
-                    // Trigger-specific configuration
                     match &mut workflow.trigger {
                         workflows::WorkflowTrigger::Manual => {
                             ui.label(
@@ -744,7 +820,6 @@ impl SpaceAnalyzerApp {
                                 ui.label("Schedule:");
                                 ui.text_edit_singleline(cron);
                             });
-                            // Cron presets
                             ui.horizontal(|ui| {
                                 ui.label(
                                     egui::RichText::new("Presets:")
@@ -791,7 +866,6 @@ impl SpaceAnalyzerApp {
                         }
                     }
 
-                    // Actions
                     ui.separator();
                     ui.label(egui::RichText::new("Actions").strong());
                     ui.label(
@@ -805,7 +879,6 @@ impl SpaceAnalyzerApp {
 
                     for (i, action) in workflow.actions.iter().enumerate() {
                         ui.horizontal(|ui| {
-                            // Move buttons
                             if ui.small_button("▲").clicked() && i > 0 {
                                 move_action = Some((i, -1));
                             }
@@ -863,13 +936,12 @@ impl SpaceAnalyzerApp {
                         }
                     }
 
-                    // Add action buttons
                     ui.separator();
-                    ui.label(egui::RichText::new("Add Action").strong());
+                    ui.label(egui::RichText::new("Add action").strong());
                     ui.horizontal_wrapped(|ui| {
                         let actions = [
                             (
-                                "📁 Scan",
+                                format!("{} Scan", icons::FOLDER),
                                 workflows::WorkflowAction::Scan {
                                     path: self.current_path.to_string_lossy().to_string(),
                                     deep: self.settings.default_deep_scan,
@@ -877,36 +949,36 @@ impl SpaceAnalyzerApp {
                                 },
                             ),
                             (
-                                "🔍 Find Duplicates",
+                                format!("{} Find duplicates", icons::MAGNIFYING_GLASS),
                                 workflows::WorkflowAction::FindDuplicates {
                                     paths: vec![self.current_path.to_string_lossy().to_string()],
                                     use_gpu: self.settings.dedup_use_gpu,
                                 },
                             ),
                             (
-                                "📈 Predict Storage",
+                                format!("{} Predict storage", icons::TREND),
                                 workflows::WorkflowAction::PredictStorage { days_ahead: 30 },
                             ),
                             (
-                                "💡 Recommendations",
+                                format!("{} Recommendations", icons::LIGHTBULB),
                                 workflows::WorkflowAction::GenerateRecommendations,
                             ),
                             (
-                                "📤 Export",
+                                format!("{} Export", icons::DOWNLOAD),
                                 workflows::WorkflowAction::Export {
                                     format: workflows::ExportFormat::Html,
                                     path: None,
                                 },
                             ),
                             (
-                                "🔔 Notify",
+                                format!("{} Notify", icons::BELL),
                                 workflows::WorkflowAction::Notify {
                                     title: "Workflow Complete".to_string(),
                                     message: "Your workflow has finished executing.".to_string(),
                                 },
                             ),
                             (
-                                "🤖 AI Analyze",
+                                format!("{} AI analyze", icons::MODEL),
                                 workflows::WorkflowAction::AIAnalyze {
                                     prompt: "Analyze the scan results and provide recommendations."
                                         .to_string(),
@@ -921,7 +993,6 @@ impl SpaceAnalyzerApp {
                         }
                     });
 
-                    // Validation
                     ui.separator();
                     if workflow.name.is_empty() {
                         badge(ui, "Workflow name is required", colors::ERROR);
@@ -930,18 +1001,14 @@ impl SpaceAnalyzerApp {
                         badge(ui, "Add at least one action", colors::WARNING);
                     }
 
-                    // Save/Cancel
                     ui.separator();
                     let workflow_clone = workflow.clone();
-                    let can_save = !workflow.name.is_empty() && !workflow.actions.is_empty();
+                    let _can_save = !workflow.name.is_empty() && !workflow.actions.is_empty();
                     ui.horizontal(|ui| {
-                        let save_btn =
-                            egui::Button::new(egui::RichText::new("Save").size(13.0).strong())
-                                .fill(colors::ACCENT);
-                        if ui.add_enabled(can_save, save_btn).clicked() {
+                        if primary_button(ui, "Save").clicked() {
                             self.save_custom_workflow(workflow_clone);
                         }
-                        if ui.button("Cancel").clicked() {
+                        if secondary_button(ui, "Cancel").clicked() {
                             self.workflow_editor_state.show_workflow_editor = false;
                             self.workflow_editor_state.editing_workflow = None;
                         }
@@ -1034,7 +1101,6 @@ async fn generate_ai_recommendations_async(
 
 /// Try to extract AIRecommendations from a non-array JSON structure
 fn try_extract_recommendations(text: &str) -> Option<Vec<AIRecommendation>> {
-    // If the response wraps recommendations in an object with a "recommendations" field
     if let Ok(val) = serde_json::from_str::<serde_json::Value>(text) {
         if let Some(arr) = val.get("recommendations").and_then(|v| v.as_array()) {
             let recs: Vec<AIRecommendation> = arr

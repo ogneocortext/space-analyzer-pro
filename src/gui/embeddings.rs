@@ -1,6 +1,197 @@
 use super::*;
 
 impl SpaceAnalyzerApp {
+    pub(crate) fn render_smart_search(&mut self, ui: &mut egui::Ui) {
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    ui.label(
+                        egui::RichText::new("Smart search")
+                            .text_style(egui::TextStyle::Name("PageTitle".into()))
+                            .color(colors::TEXT_PRIMARY),
+                    );
+                    ui.label(
+                        egui::RichText::new(
+                            "Search files by meaning, not just by name. Find files matching your description.",
+                        )
+                        .color(colors::TEXT_SECONDARY)
+                        .small(),
+                    );
+                });
+            });
+            ui.add_space(12.0);
+
+            if !self.settings.embedding_enabled {
+                inline_alert(
+                    ui,
+                    Tone::Warning,
+                    "Semantic indexing is off",
+                    "Enable it in Settings to search files by meaning, not only by filename.",
+                    Some("Open indexing settings"),
+                );
+                ui.add_space(12.0);
+            }
+
+            // Search input
+            ui.add_enabled_ui(self.settings.embedding_enabled, |ui| {
+                section_header(ui, Some(icons::SEARCH), "Search");
+                app_card(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new("Query:").color(colors::TEXT_SECONDARY));
+                        let response = ui.add(
+                            egui::TextEdit::singleline(&mut self.search_query)
+                                .desired_width(ui.available_width() - 120.0)
+                                .hint_text("Describe what you're looking for..."),
+                        );
+                        if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            self.execute_smart_search();
+                        }
+                        if primary_button(ui, "Search").clicked() {
+                            self.execute_smart_search();
+                        }
+                    });
+                    if !self.settings.embedding_enabled {
+                        ui.horizontal(|ui| {
+                            ui.colored_label(
+                                colors::WARNING,
+                                "Enable Semantic Indexing in Settings to use Smart Search.",
+                            );
+                            if ui.button("Go to Settings").clicked() {
+                                self.active_tab = AppTab::Settings;
+                            }
+                        });
+                    }
+                });
+            });
+            ui.add_space(12.0);
+
+            if !self.settings.embedding_enabled {
+                return;
+            }
+
+            if self.is_indexing {
+                section_header(ui, Some(icons::HOURGLASS), "Indexing...");
+                app_card(ui, |ui| {
+                    ui.add(egui::ProgressBar::new(self.indexing_progress));
+                    ui.label(&self.search_status);
+                });
+                ui.add_space(12.0);
+                return;
+            }
+
+            if !self.search_status.is_empty() {
+                ui.horizontal(|ui| {
+                    ui.add(egui::Label::new(icon_text(
+                        icons::CHECK_CIRCLE,
+                        12.0,
+                        colors::SUCCESS,
+                    )));
+                    ui.label(
+                        egui::RichText::new(&self.search_status)
+                            .size(12.0)
+                            .color(colors::TEXT_SECONDARY),
+                    );
+                });
+            }
+
+            // Indexed files counter
+            if !self.is_indexing && !self.cached_embeddings.is_empty() {
+                ui.horizontal(|ui| {
+                    ui.add(egui::Label::new(icon_text(
+                        icons::CHART_BAR,
+                        12.0,
+                        colors::INFO,
+                    )));
+                    let total_files = self
+                        .scan_result
+                        .as_ref()
+                        .map(|r| r.total_files)
+                        .unwrap_or(0);
+                    let indexed = self.cached_embeddings.len();
+                    let limit = self.settings.embedding_file_limit;
+                    let limit_str = if limit == 0 {
+                        "unlimited"
+                    } else {
+                        &format!("{}", limit)
+                    };
+                    ui.small(format!("Indexed: {} files", indexed));
+                    if total_files > 0 {
+                        ui.small(format!("of {} total", total_files));
+                    }
+                    ui.small(format!("(limit: {})", limit_str));
+                    if limit > 0 && indexed >= limit {
+                        ui.small(
+                            egui::RichText::new(format!("{} Limit reached", icons::WARNING))
+                                .color(colors::WARNING),
+                        );
+                    }
+                });
+            }
+
+            if self.search_processing {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label("Processing query...");
+                });
+                return;
+            }
+
+            if !self.search_results.is_empty() {
+                section_header(ui, Some(icons::SEARCH), "Results");
+                app_card(ui, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        egui::Grid::new("search_results")
+                            .striped(true)
+                            .show(ui, |ui| {
+                                ui.strong("File");
+                                ui.strong("Size");
+                                ui.strong("Similarity");
+                                ui.strong("");
+                                ui.end_row();
+
+                                for result in &self.search_results {
+                                    ui.label(&result.file_path);
+                                    ui.label(formatting::format_bytes(result.file_size));
+                                    ui.label(format!("{:.1}%", result.similarity * 100.0));
+                                    ui.horizontal(|ui| {
+                                        let file_path = std::path::Path::new(&result.file_path);
+                                        if file_path.exists() {
+                                            if ui.small_button("Open").clicked() {
+                                                let _ = open::that(&result.file_path);
+                                            }
+                                            if ui.small_button("Folder").clicked() {
+                                                if let Some(parent) = file_path.parent() {
+                                                    let _ = open::that(parent);
+                                                }
+                                            }
+                                        }
+                                    });
+                                    ui.end_row();
+                                }
+                            });
+                    });
+                });
+            } else if !self.search_query.is_empty() && !self.search_processing {
+                ui.horizontal(|ui| {
+                    ui.add(egui::Label::new(icon_text(
+                        icons::WARNING,
+                        12.0,
+                        colors::WARNING,
+                    )));
+                    ui.label(
+                        egui::RichText::new("No results found. Try a different description.")
+                            .color(colors::TEXT_MUTED),
+                    );
+                });
+            }
+
+            ui.add_space(8.0);
+            if ui.button("Rebuild index").clicked() {
+                self.start_embedding_index();
+            }
+        });
+    }
+
     pub(crate) fn start_embedding_index(&mut self) {
         if self.is_indexing || self.scan_result.is_none() || self.ollama_client.is_none() {
             return;
@@ -25,7 +216,6 @@ impl SpaceAnalyzerApp {
                 return;
             }
         };
-        // Use embedding_model if configured (may differ from chat model)
         if !self.settings.embedding_model.is_empty() {
             client = client
                 .with_model(&self.settings.embedding_model)
@@ -39,7 +229,6 @@ impl SpaceAnalyzerApp {
         std::thread::spawn(move || {
             let rt = shared_runtime();
 
-            // Build file list: largest files first, then by type diversity
             let mut files: Vec<(String, u64, String)> = scan_result
                 .largest_files
                 .iter()
@@ -49,7 +238,6 @@ impl SpaceAnalyzerApp {
                 })
                 .collect();
 
-            // Apply file limit (0 = unlimited)
             if file_limit > 0 && files.len() > file_limit {
                 files.truncate(file_limit);
             }
@@ -101,7 +289,6 @@ impl SpaceAnalyzerApp {
                         let count = self.cached_embeddings.len();
                         self.search_status = format!("Indexed {} files. Ready for search.", count);
 
-                        // Save to database
                         if let Some(ref db) = self.db {
                             if let Some(scan_id) = db.get_latest_scan_id().ok().flatten() {
                                 let _ = db.save_embeddings(scan_id, &self.cached_embeddings);
@@ -176,10 +363,10 @@ impl SpaceAnalyzerApp {
             }
         });
 
-        // Store the receiver to process results asynchronously
         self.search_receiver = Some(rx);
     }
 
+    #[allow(dead_code)]
     fn execute_keyword_search(&mut self) {
         if self.search_query.trim().is_empty() {
             return;
@@ -249,154 +436,6 @@ impl SpaceAnalyzerApp {
                     }
                 }
             }
-        }
-    }
-
-    pub(crate) fn render_smart_search(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Smart Search");
-        ui.small("Search files by meaning, not just name. Find files matching your description.");
-        ui.separator();
-
-        if !self.settings.embedding_enabled {
-                ui.horizontal(|ui| {
-                    ui.add(egui::Label::new(icon_text(
-                        icons::WARNING,
-                        14.0,
-                        egui::Color32::YELLOW,
-                    )));
-                    ui.colored_label(
-                        egui::Color32::YELLOW,
-                        "Enable Semantic Indexing in Settings to use Smart Search.",
-                    );
-                });
-            } else {
-                ui.colored_label(
-                    egui::Color32::YELLOW,
-                    "[!] Enable Semantic Indexing in Settings to use Smart Search.",
-                );
-            }
-
-        // Search input (disabled when embedding not enabled)
-        ui.add_enabled_ui(self.settings.embedding_enabled, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("Search:");
-                let response = ui.add(
-                    egui::TextEdit::singleline(&mut self.search_query)
-                        .hint_text("Describe what you're looking for..."),
-                );
-                if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                    self.execute_smart_search();
-                }
-                if ui.button("Search").clicked() {
-                    self.execute_smart_search();
-                }
-                // Keyword fallback when embeddings aren't available
-                if !self.settings.embedding_enabled
-                    && !self.search_query.trim().is_empty()
-                    && ui.button("Keyword Match").clicked()
-                {
-                    self.execute_keyword_search();
-                }
-            });
-        });
-
-        if !self.settings.embedding_enabled {
-            return;
-        }
-
-        if self.is_indexing {
-            ui.label(format!(
-                "Indexing progress: {:.1}%",
-                self.indexing_progress * 100.0
-            ));
-            ui.add(egui::ProgressBar::new(self.indexing_progress));
-            ui.label(&self.search_status);
-            return;
-        }
-
-        if !self.search_status.is_empty() {
-            ui.small(&self.search_status);
-        }
-
-        // Indexed files counter
-        if !self.is_indexing && !self.cached_embeddings.is_empty() {
-            let total_files = self
-                .scan_result
-                .as_ref()
-                .map(|r| r.total_files)
-                .unwrap_or(0);
-            let indexed = self.cached_embeddings.len();
-            let limit = self.settings.embedding_file_limit;
-            let limit_str = if limit == 0 {
-                "unlimited"
-            } else {
-                &format!("{}", limit)
-            };
-            ui.horizontal(|ui| {
-                ui.add(egui::Label::new(icon_text(
-                    icons::CHART_BAR,
-                    12.0,
-                    egui::Color32::LIGHT_BLUE,
-                )));
-                ui.small(format!("Indexed: {} files", indexed));
-                if total_files > 0 {
-                    ui.small(format!("of {} total", total_files));
-                }
-                ui.small(format!("(limit: {})", limit_str));
-                if limit > 0 && indexed >= limit {
-                    ui.small(
-                        egui::RichText::new(format!("{} Limit reached", icons::WARNING))
-                            .color(egui::Color32::YELLOW),
-                    );
-                }
-            });
-        }
-
-        if self.search_processing {
-            ui.label("Processing query...");
-            return;
-        }
-
-        if !self.search_results.is_empty() {
-            ui.separator();
-            ui.heading(format!("{} Results", self.search_results.len()));
-
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                egui::Grid::new("search_results")
-                    .striped(true)
-                    .show(ui, |ui| {
-                        ui.strong("File");
-                        ui.strong("Size");
-                        ui.strong("Similarity");
-                        ui.strong("");
-                        ui.end_row();
-
-                        for result in &self.search_results {
-                            ui.label(&result.file_path);
-                            ui.label(formatting::format_bytes(result.file_size));
-                            ui.label(format!("{:.1}%", result.similarity * 100.0));
-                            ui.horizontal(|ui| {
-                                let file_path = std::path::Path::new(&result.file_path);
-                                if file_path.exists() {
-                                    if ui.small_button("Open").clicked() {
-                                        let _ = open::that(&result.file_path);
-                                    }
-                                    if ui.small_button("Folder").clicked() {
-                                        if let Some(parent) = file_path.parent() {
-                                            let _ = open::that(parent);
-                                        }
-                                    }
-                                }
-                            });
-                            ui.end_row();
-                        }
-                    });
-            });
-        }
-
-        ui.separator();
-        if ui.button("Rebuild Index").clicked() {
-            self.start_embedding_index();
         }
     }
 }

@@ -40,6 +40,8 @@ pub const WORKFLOWS: &str = regular::GEAR_SIX;
 pub const AI_CHAT: &str = regular::CHAT_CIRCLE;
 pub const DEDUP: &str = regular::FILES;
 pub const SETTINGS: &str = regular::SLIDERS;
+pub const SLIDERS: &str = regular::SLIDERS;
+pub const MAGNIFYING_GLASS: &str = regular::MAGNIFYING_GLASS;
 
 // Notification level icons
 pub const INFO: &str = regular::INFO;

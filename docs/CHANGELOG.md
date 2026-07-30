@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### GUI — Complete Visual Redesign
+
+- **New unified design system** across all 8 GUI tabs (Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, System, Settings): layered near-black navy/slate surfaces, blue primary accent, green/amber/coral semantic colors, rounded cards with subtle borders, and an 8 px spacing system.
+- **`src/gui/colors.rs`** — added `BG_APP`, `BG_HEADER`, `SURFACE_1/2/3`, refined text colors, accent colors, and semantic colors; preserved legacy aliases; converted `ACCENT_SOFT` to a function because `Color32::from_rgba_unmultiplied` is not `const` in egui 0.34.
+- **`src/gui/theme.rs`** — new refined dark theme with improved widget states (noninteractive/inactive/hovered/active), 8 px spacing, updated text styles; replaced deprecated `ctx.set_style()` with `ctx.set_global_style()`.
+- **`src/gui/ui_helpers.rs`** — new reusable primitives: `Tone` enum, `app_card`, `section_header`, `status_badge`, `primary_button`, `secondary_button`, `danger_button`, `empty_state`, `inline_alert`, plus kept existing `card_frame`, `section_heading`, `stat_card`, `badge`, `gauge_bar`, `labeled_gauge`, `icon_text`.
+- **App shell (`mod.rs`)** — distinct header surface with branding/version/AI model status, compact horizontal-scrolling tab bar with active tab styling (blue-tinted fill, border, brighter text), improved status message bar with context-aware recovery actions.
+- **Dashboard** — page header with subtitle/actions, critical disk pressure alert (>=90% used), balanced responsive two-column layout on wide windows, metric cards, improved volume rows with color-coded progress bars and usage thresholds, quick actions, system resources, file type distribution, categories, bloat candidates, recommendations, storage trend.
+- **Scan** — guided form layout with "Scan a location" header, scan target card with path input and browse, scan options card with deep scan toggle, action row with Start/Stop/Export buttons and validation text, progress display with files/sec and MB/s, results section with stat cards, errors, file distribution, file types, largest files.
+- **History** — page header, toolbar with refresh and clear all, purposeful empty state ("No scans yet" with primary action), structured history records with badges and hover actions, detail view with export options.
+- **Smart Search (`embeddings.rs`)** — disabled state warning when semantic indexing is off with action to open settings, disabled search field with explanatory text, search input with keyboard Enter support, indexing progress display, indexed files counter with limit info, results grid, rebuild index button.
+- **Workflows (`workflow_render.rs`)** — active workflow execution status card, responsive workflow cards with category badge, enabled/disabled status badge, action count, last run, enable-workflow action for disabled workflows, run/edit/delete actions, execution history, workflow editor modal with trigger configuration (Manual, Scheduled with presets, Low Disk Space, On Startup) and action management.
+- **Notifications** — new notification system component for contextual app messages.
+
 ### GUI — Phosphor Icon Migration
 
 - **Replaced emoji icons with Phosphor font icons** across the entire GUI (dashboard, scan, history, settings, system, AI panels, tool results). Removed macro-generated icon functions returning `(codepoint, "emoji")` in favor of typed `&str` constants from `egui_phosphor::regular`.

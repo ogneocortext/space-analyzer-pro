@@ -3,8 +3,8 @@
 //! This module contains functions for discovering Ollama models,
 //! rendering model lists, and auto-selecting models based on task type.
 
-use crate::gui::icons;
 use super::super::{classify_model, icon_text, OllamaMessage, OllamaModelInfo};
+use crate::gui::icons;
 use std::sync::mpsc;
 
 use super::super::SpaceAnalyzerApp;
@@ -240,7 +240,11 @@ impl SpaceAnalyzerApp {
                 );
 
                 if running_names.contains(&model.name) {
-                    badge(ui, &format!("{} Running", icons::CIRCLE), egui::Color32::from_rgb(80, 200, 120));
+                    badge(
+                        ui,
+                        &format!("{} Running", icons::CIRCLE),
+                        egui::Color32::from_rgb(80, 200, 120),
+                    );
                 }
             });
 

@@ -18,8 +18,8 @@
 //! and stream results back over `OllamaMessage` for the UI to pick
 //! up on the next frame.
 
-use std::path::PathBuf;
 use crate::gui::icons;
+use std::path::PathBuf;
 use std::sync::mpsc;
 
 use crate::ollama::features::{

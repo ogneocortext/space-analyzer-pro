@@ -18,11 +18,40 @@ impl SpaceAnalyzerApp {
     pub fn export_results(&self) {
         if let Some(ref result) = self.scan_result {
             if let Some(path) = rfd::FileDialog::new()
+                .set_title("Export Scan Results")
                 .add_filter("JSON", &["json"])
+                .add_filter("CSV", &["csv"])
                 .save_file()
             {
-                if let Ok(json_content) = serde_json::to_string_pretty(result) {
-                    let _ = std::fs::write(path, json_content);
+                let is_csv = path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .map(|ext| ext.eq_ignore_ascii_case("csv"))
+                    .unwrap_or(false);
+
+                let content = if is_csv {
+                    let mut csv = String::from("field,value\n");
+                    csv.push_str(&format!("total_files,{}\n", result.total_files));
+                    csv.push_str(&format!("total_size_bytes,{}\n", result.total_size_bytes));
+                    csv.push_str(&format!("duration_secs,{}\n", result.duration_secs));
+                    csv.push_str(&format!("scanned_path,{}\n", result.path));
+                    for (ext, count) in &result.file_types {
+                        csv.push_str(&format!("file_type_.{},{}\n", ext, count));
+                    }
+                    for (path, size) in &result.largest_files {
+                        csv.push_str(&format!(
+                            "largest_file,\"{}|{}\"\n",
+                            path.replace('"', "\"\""),
+                            size
+                        ));
+                    }
+                    csv
+                } else {
+                    serde_json::to_string_pretty(result).unwrap_or_default()
+                };
+
+                if let Err(e) = std::fs::write(&path, content) {
+                    eprintln!("Failed to export scan results: {}", e);
                 }
             }
         }

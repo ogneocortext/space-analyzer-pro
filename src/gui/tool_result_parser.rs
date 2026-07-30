@@ -14,10 +14,7 @@ impl ToolResultDisplay {
     }
 }
 
-fn parse_tool_result(
-    tool_name: &str,
-    raw: &str,
-) -> (Option<&'static str>, String, Vec<String>) {
+fn parse_tool_result(tool_name: &str, raw: &str) -> (Option<&'static str>, String, Vec<String>) {
     match tool_name {
         "get_scan_summary" => {
             let lines: Vec<&str> = raw.lines().collect();

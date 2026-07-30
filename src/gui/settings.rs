@@ -13,7 +13,7 @@ impl SpaceAnalyzerApp {
         let should_enable = self.settings.log_session_to_file;
 
         // Reinitialize the logger whenever settings change
-        if should_enable != was_enabled || should_enable {
+        if should_enable != was_enabled {
             let new_config = session_logger::SessionLoggerConfig {
                 log_path: current_path,
                 enabled: should_enable,
@@ -96,8 +96,21 @@ impl SpaceAnalyzerApp {
                         egui::RichText::new("No GPU detected — using CPU fallback")
                             .color(colors::TEXT_MUTED),
                     );
+                    ui.label(
+                        egui::RichText::new("GPU acceleration requires NVIDIA GPU with nvidia-smi")
+                            .size(10.0)
+                            .color(colors::TEXT_MUTED),
+                    );
                 }
             });
+        } else {
+            ui.label(
+                egui::RichText::new(
+                    "GPU acceleration is disabled. Enable to use NVIDIA GPU for faster processing.",
+                )
+                .size(10.0)
+                .color(colors::TEXT_MUTED),
+            );
         }
     }
 
@@ -108,6 +121,26 @@ impl SpaceAnalyzerApp {
                 ui.horizontal(|ui| {
                     ui.label("Ollama URL:");
                     ui.text_edit_singleline(&mut self.settings.ollama_url);
+                });
+
+                // Show availability status
+                if self.ollama_available {
+                    badge(ui, "Ollama Connected", colors::SUCCESS);
+                } else if self.ollama_checking {
+                    badge(ui, "Checking...", colors::TEXT_MUTED);
+                } else if let Some(ref error) = self.last_ollama_error {
+                    badge(ui, &format!("Unavailable: {}", error), colors::WARNING);
+                } else {
+                    badge(ui, "Not Connected", colors::WARNING);
+                }
+
+                ui.horizontal(|ui| {
+                    if ui.button("Check Connection").clicked() {
+                        self.check_ollama();
+                    }
+                    if ui.button("Start Ollama").clicked() {
+                        self.start_ollama_process();
+                    }
                 });
 
                 ui.separator();
@@ -318,7 +351,11 @@ impl SpaceAnalyzerApp {
         });
 
         // Smart Search Settings
-        section_heading(ui, Some(icons::SMART_SEARCH), "Smart Search (Semantic File Search)");
+        section_heading(
+            ui,
+            Some(icons::SMART_SEARCH),
+            "Smart Search (Semantic File Search)",
+        );
         card_frame(ui.style()).show(ui, |ui| {
             self.render_smart_search_settings(ui);
         });
@@ -334,9 +371,13 @@ impl SpaceAnalyzerApp {
         card_frame(ui.style()).show(ui, |ui| {
             if ui
                 .add(
-                    egui::Button::new(egui::RichText::new(format!("{}  Save Settings", icons::DISK)).size(14.0).strong())
-                        .min_size(egui::vec2(160.0, 36.0))
-                        .fill(colors::ACCENT),
+                    egui::Button::new(
+                        egui::RichText::new(format!("{}  Save Settings", icons::DISK))
+                            .size(14.0)
+                            .strong(),
+                    )
+                    .min_size(egui::vec2(160.0, 36.0))
+                    .fill(colors::ACCENT),
                 )
                 .clicked()
             {
@@ -375,7 +416,10 @@ impl SpaceAnalyzerApp {
         });
 
         // Reset Button
-        if ui.button(format!("{} Reset to Defaults", icons::REFRESH)).clicked() {
+        if ui
+            .button(format!("{} Reset to Defaults", icons::REFRESH))
+            .clicked()
+        {
             self.settings = AppSettings::default();
             if let Some(ref db) = self.db {
                 let _ = db.save_all_settings(&self.settings);

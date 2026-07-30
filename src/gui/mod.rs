@@ -72,7 +72,9 @@ mod types;
 
 // Re-export UI helpers
 pub use ui_helpers::{
-    badge, card_frame, gauge_bar, icon_text, labeled_gauge, section_heading, stat_card,
+    app_card, badge, card_frame, danger_button, empty_state, gauge_bar, icon_text, inline_alert,
+    labeled_gauge, primary_button, secondary_button, section_header, section_heading, stat_card,
+    status_badge, Tone,
 };
 
 /// Shared Tokio runtime for all async operations
@@ -90,8 +92,6 @@ pub struct AiPromptState {
 
 #[derive(Clone)]
 pub struct FileActionState {
-    pub pending_file_action: Option<FileAction>,
-    pub file_action_confirm_open: bool,
     pub thumbnail_cache: Arc<crate::thumbnails::ThumbnailCache>,
 }
 
@@ -372,8 +372,6 @@ impl Default for SpaceAnalyzerApp {
             impact_preview_open: false,
             impact_preview_pending: false,
             file_action_state: FileActionState {
-                pending_file_action: None,
-                file_action_confirm_open: false,
                 thumbnail_cache: Arc::new(crate::thumbnails::ThumbnailCache::default()),
             },
             largest_files_filter: String::new(),
@@ -527,6 +525,11 @@ impl eframe::App for SpaceAnalyzerApp {
             ui.ctx().request_repaint();
         }
 
+        // Keep UI refreshing while splash or notifications are visible
+        if self.welcome_state.show_welcome || !self.notification_state.notifications.is_empty() {
+            ui.ctx().request_repaint();
+        }
+
         // Update window title during scan
         if self.is_scanning {
             let pct = self.scan_progress;
@@ -561,31 +564,70 @@ impl eframe::App for SpaceAnalyzerApp {
             self.load_embeddings_from_db(None);
         }
 
-        // ── Top bar ──────────────────────────────────────────────────────
+        // ── App shell ──────────────────────────────────────────────────────
         egui::Frame::NONE
-            .fill(colors::CARD_BG)
+            .fill(colors::BG_HEADER)
             .stroke(egui::Stroke::new(1.0, colors::CARD_BORDER))
-            .inner_margin(egui::Margin::symmetric(16, 8))
+            .inner_margin(egui::Margin::symmetric(16, 10))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new("Space Analyzer Pro")
-                            .size(18.0)
-                            .strong()
-                            .color(colors::ACCENT),
-                    );
-                    ui.separator();
-                    ui.label(
-                        egui::RichText::new("v3.7.0")
-                            .size(11.0)
-                            .color(colors::TEXT_MUTED),
-                    );
+                    ui.vertical(|ui| {
+                        ui.label(
+                            egui::RichText::new("Space Analyzer Pro")
+                                .size(18.0)
+                                .strong()
+                                .color(colors::ACCENT),
+                        );
+                        ui.label(
+                            egui::RichText::new("v3.7.0 — Self-Contained")
+                                .size(11.0)
+                                .color(colors::TEXT_MUTED),
+                        );
+                    });
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // AI model status
+                        if self.settings.ollama_enabled && self.ollama_available {
+                            ui.horizontal(|ui| {
+                                ui.label(
+                                    egui::RichText::new("AI Model:")
+                                        .size(11.0)
+                                        .color(colors::TEXT_MUTED),
+                                );
+                                if let Some(ref model) =
+                                    self.model_selection_state.current_active_model
+                                {
+                                    badge(ui, model, colors::SUCCESS);
+                                    if let Some(ref task) =
+                                        self.model_selection_state.current_model_task
+                                    {
+                                        ui.label(
+                                            egui::RichText::new(format!("for {}", task))
+                                                .size(11.0)
+                                                .color(colors::TEXT_SECONDARY)
+                                                .italics(),
+                                        );
+                                    }
+                                } else {
+                                    ui.label(
+                                        egui::RichText::new("Idle")
+                                            .size(11.0)
+                                            .color(colors::TEXT_MUTED),
+                                    );
+                                }
+
+                                if self.settings.auto_model_selection {
+                                    badge(ui, "Auto-select", colors::ACCENT_DIM);
+                                }
+                            });
+                        }
+                    });
                 });
             });
 
         // ── Tab bar ─────────────────────────────────────────────────────
         egui::Frame::NONE
-            .fill(colors::CARD_BG)
+            .fill(colors::BG_HEADER)
             .inner_margin(egui::Margin::symmetric(12, 4))
             .show(ui, |ui| {
                 egui::ScrollArea::horizontal().show(ui, |ui| {
@@ -604,7 +646,6 @@ impl eframe::App for SpaceAnalyzerApp {
                             let selected = self.active_tab == tab;
                             let tab_text = tab.to_string();
 
-                            // Tab icon mapping
                             let icon = match tab {
                                 AppTab::Dashboard => icons::DASHBOARD,
                                 AppTab::Scan => icons::SCAN,
@@ -618,29 +659,36 @@ impl eframe::App for SpaceAnalyzerApp {
                             };
 
                             let label = format!("{} {}", icon, tab_text);
-                            let text_color = if selected {
-                                egui::Color32::WHITE
-                            } else {
-                                colors::TEXT_SECONDARY
-                            };
-                            let bg = if selected {
-                                colors::ACCENT
+
+                            let fill = if selected {
+                                colors::accent_soft()
                             } else {
                                 egui::Color32::TRANSPARENT
                             };
+
                             let stroke = if selected {
-                                egui::Stroke::NONE
+                                egui::Stroke::new(
+                                    1.0,
+                                    egui::Color32::from_rgba_unmultiplied(112, 173, 255, 95),
+                                )
                             } else {
-                                egui::Stroke::new(0.5, colors::CARD_BORDER)
+                                egui::Stroke::new(
+                                    1.0,
+                                    egui::Color32::from_rgba_unmultiplied(48, 64, 98, 160),
+                                )
                             };
 
                             let btn = egui::Button::new(
-                                egui::RichText::new(label).size(12.0).color(text_color),
+                                egui::RichText::new(label).size(12.0).color(if selected {
+                                    colors::TEXT_PRIMARY
+                                } else {
+                                    colors::TEXT_SECONDARY
+                                }),
                             )
-                            .fill(bg)
+                            .fill(fill)
                             .stroke(stroke)
-                            .corner_radius(egui::CornerRadius::same(6))
-                            .min_size(egui::vec2(0.0, 28.0));
+                            .corner_radius(egui::CornerRadius::same(7))
+                            .min_size(egui::vec2(0.0, 32.0));
 
                             if ui.add(btn).clicked() {
                                 self.active_tab = tab;
@@ -651,80 +699,45 @@ impl eframe::App for SpaceAnalyzerApp {
             });
         ui.separator();
 
-        // ── Active model status indicator ────────────────────────────────
-        if self.settings.ollama_enabled && self.ollama_available {
-            egui::Frame::NONE
-                .fill(colors::CARD_BG)
-                .inner_margin(egui::Margin::symmetric(16, 4))
-                .show(ui, |ui| {
-                    ui.horizontal(|ui| {
-                        ui.label(
-                            egui::RichText::new("AI Model:")
-                                .size(11.0)
-                                .color(colors::TEXT_MUTED),
-                        );
-                        if let Some(ref model) = self.model_selection_state.current_active_model {
-                            badge(ui, model, colors::SUCCESS);
-                            if let Some(ref task) = self.model_selection_state.current_model_task {
-                                ui.label(
-                                    egui::RichText::new(format!("for {}", task))
-                                        .size(11.0)
-                                        .color(colors::TEXT_SECONDARY)
-                                        .italics(),
-                                );
-                            }
-                        } else {
-                            ui.label(
-                                egui::RichText::new("Idle")
-                                    .size(11.0)
-                                    .color(colors::TEXT_MUTED),
-                            );
-                        }
-
-                        if self.settings.auto_model_selection {
-                            badge(ui, "Auto-select", colors::ACCENT_DIM);
-                        }
-                    });
-                });
-        }
-
-        // ── Status message with interactive recovery ────────────────────
+        // ── Status message ────────────────────────────────────────────────
         if let Some(ref msg) = self.status_message {
-            let msg_clone = msg.clone();
             let is_error =
                 msg.contains("failed") || msg.contains("Error") || msg.contains("Failed");
             let is_warning = msg.contains("warning") || msg.contains("Warning");
-            let (bg, icon_char) = if is_error {
-                (colors::ERROR.linear_multiply(0.15), icons::ERROR)
+            let tone = if is_error {
+                Tone::Danger
             } else if is_warning {
-                (colors::WARNING.linear_multiply(0.15), icons::WARNING)
+                Tone::Warning
             } else {
-                (colors::SUCCESS.linear_multiply(0.15), icons::CHECK)
-            };
-            let text_color = if is_error {
-                colors::ERROR
-            } else if is_warning {
-                colors::WARNING
-            } else {
-                colors::SUCCESS
+                Tone::Success
             };
 
+            let msg_clone = msg.clone();
             egui::Frame::NONE
-                .fill(bg)
+                .fill(tone.soft_bg())
                 .corner_radius(egui::CornerRadius::same(8))
                 .inner_margin(egui::Margin::symmetric(12, 8))
                 .show(ui, |ui| {
                     ui.horizontal(|ui| {
                         ui.label(
-                            egui::RichText::new(icon_char)
-                                .size(14.0)
-                                .color(text_color)
-                                .strong(),
+                            egui::RichText::new(if is_error {
+                                icons::ERROR
+                            } else if is_warning {
+                                icons::WARNING
+                            } else {
+                                icons::CHECK
+                            })
+                            .size(14.0)
+                            .color(tone.text())
+                            .strong(),
                         );
-                        ui.label(egui::RichText::new(&msg_clone).size(12.0).color(text_color));
+                        ui.label(
+                            egui::RichText::new(&msg_clone)
+                                .size(12.0)
+                                .color(tone.text()),
+                        );
                     });
 
-                    // Context-aware recovery buttons
                     if is_error || is_warning {
                         ui.horizontal(|ui| {
                             if (msg_clone.contains("Scan") || msg_clone.contains("scan"))
@@ -792,13 +805,6 @@ impl eframe::App for SpaceAnalyzerApp {
         });
 
         // Toast notifications (rendered on top of everything)
-        notifications::render_file_action_confirm(
-            ui,
-            &mut self.file_action_state.file_action_confirm_open,
-            &mut self.file_action_state.pending_file_action,
-            &mut self.notification_state.notifications,
-            &mut self.notification_state.notification_counter,
-        );
         notifications::render_impact_preview(
             ui,
             &mut self.impact_preview_open,

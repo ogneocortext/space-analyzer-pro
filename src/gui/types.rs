@@ -1,7 +1,7 @@
-﻿use eframe::egui;
+use eframe::egui;
 
-use crate::gui_common::ScanResult;
 use crate::gui::icons;
+use crate::gui_common::ScanResult;
 use crate::ollama;
 
 /// Scan message type for GUI communication
@@ -210,7 +210,7 @@ impl Notification {
     }
 
     pub fn is_expired(&self) -> bool {
-        self.created_at.elapsed() > std::time::Duration::from_secs(5)
+        self.created_at.elapsed() >= std::time::Duration::from_secs(5)
     }
 }
 
@@ -224,6 +224,7 @@ pub struct ScanPerformanceTracker {
     pub mb_per_sec: f64,
     pub current_files: u64,
     pub current_bytes: u64,
+    pub current_file: String,
 }
 
 impl Default for ScanPerformanceTracker {
@@ -237,6 +238,7 @@ impl Default for ScanPerformanceTracker {
             mb_per_sec: 0.0,
             current_files: 0,
             current_bytes: 0,
+            current_file: String::new(),
         }
     }
 }
@@ -251,11 +253,15 @@ impl ScanPerformanceTracker {
         self.mb_per_sec = 0.0;
         self.current_files = 0;
         self.current_bytes = 0;
+        self.current_file.clear();
     }
 
-    pub fn update(&mut self, files: u64, bytes: u64) {
+    pub fn update(&mut self, files: u64, bytes: u64, current_file: String) {
         self.current_files = files;
         self.current_bytes = bytes;
+        if !current_file.is_empty() {
+            self.current_file = current_file;
+        }
 
         if let Some(last) = self.last_update {
             let elapsed = last.elapsed().as_secs_f64();

@@ -60,16 +60,22 @@ impl SpaceAnalyzerApp {
         csv.push_str(&format!("total_size_mb,{}\n", record.total_size_mb));
         csv.push_str(&format!("duration_secs,{}\n", record.duration_secs));
         csv.push_str(&format!("deep_scan,{}\n", record.deep_scan));
-        csv.push_str(&format!("potential_cleanup_bytes,{}\n", record.potential_cleanup_bytes));
+        csv.push_str(&format!(
+            "potential_cleanup_bytes,{}\n",
+            record.potential_cleanup_bytes
+        ));
         csv.push_str(&format!("timestamp,{}\n", record.timestamp));
-        if let Ok(file_types) = serde_json::from_str::<std::collections::HashMap<String, usize>>(&record.file_types_json) {
+        if let Ok(file_types) = serde_json::from_str::<std::collections::HashMap<String, usize>>(
+            &record.file_types_json,
+        ) {
             for (ext, count) in file_types {
                 csv.push_str(&format!("file_type_.{},{}\n", ext, count));
             }
         }
-        if let Ok(largest) = serde_json::from_str::<Vec<(String, u64)>>(&record.largest_files_json) {
+        if let Ok(largest) = serde_json::from_str::<Vec<(String, u64)>>(&record.largest_files_json)
+        {
             for (path, size) in largest {
-                csv.push_str(&format!("largest_file,\"{}|{}\"\n", path, size));
+                csv.push_str(&format!("largest_file,\"{}\",{}\n", path, size));
             }
         }
         if let Some(path) = rfd::FileDialog::new()
@@ -84,144 +90,139 @@ impl SpaceAnalyzerApp {
     }
 
     pub(crate) fn render_history(&mut self, ui: &mut egui::Ui) {
-        // ── Toolbar ─────────────────────────────────────────────────
-        section_heading(ui, Some(icons::CLIPBOARD), "Scan History");
-        card_frame(ui.style()).show(ui, |ui| {
+        ui.vertical(|ui| {
             ui.horizontal(|ui| {
-                if self.selected_history_id.is_some() && ui.button(format!("{} Back to List", icons::CARET_LEFT)).clicked() {
-                    self.selected_history_id = None;
-                }
-                if ui.button("🔄 Refresh").clicked() {
-                    self.load_history();
-                }
-                if !self.scan_history.is_empty() {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui
-                            .add(
-                                egui::Button::new(
-                                    egui::RichText::new("Clear All").color(colors::ERROR),
-                                )
-                                .fill(colors::ERROR.linear_multiply(0.15)),
-                            )
-                            .clicked()
-                        {
-                            self.clear_all_history();
-                            self.selected_history_id = None;
-                        }
-                    });
-                }
-            });
-        });
-
-        // ── Content ─────────────────────────────────────────────────
-        if let Some(selected_id) = self.selected_history_id {
-            self.render_history_detail(ui, selected_id);
-        } else if self.scan_history.is_empty() {
-            card_frame(ui.style()).show(ui, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(20.0);
+                ui.vertical(|ui| {
                     ui.label(
-                        egui::RichText::new("No scan history yet")
-                            .size(16.0)
-                            .color(colors::TEXT_MUTED),
+                        egui::RichText::new("Scan history")
+                            .text_style(egui::TextStyle::Name("PageTitle".into()))
+                            .color(colors::TEXT_PRIMARY),
                     );
                     ui.label(
-                        egui::RichText::new("Run a scan to start tracking your disk usage")
-                            .color(colors::TEXT_SECONDARY),
+                        egui::RichText::new(
+                            "Track storage usage, compare changes over time, and find cleanup opportunities.",
+                        )
+                        .color(colors::TEXT_SECONDARY)
+                        .small(),
                     );
-                    ui.add_space(20.0);
                 });
             });
-        } else {
-            let mut delete_id: Option<i64> = None;
-            let mut view_id: Option<i64> = None;
-            let mut export_json_id: Option<i64> = None;
-            let mut export_csv_id: Option<i64> = None;
+            ui.add_space(12.0);
 
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                for record in &self.scan_history {
-                    card_frame(ui.style()).show(ui, |ui| {
-                        ui.horizontal(|ui| {
-                            ui.vertical(|ui| {
-                                ui.label(
-                                    egui::RichText::new(&record.path)
-                                        .strong()
-                                        .color(colors::TEXT_PRIMARY),
-                                );
-                                ui.horizontal(|ui| {
-                                    badge(
-                                        ui,
-                                        &format!("{} files", record.total_files),
-                                        colors::ACCENT,
+            // Toolbar
+            app_card(ui, |ui| {
+                ui.horizontal(|ui| {
+                    if self.selected_history_id.is_some()
+                        && ui
+                            .button(format!("{} Back to list", icons::CARET_LEFT))
+                            .clicked()
+                    {
+                        self.selected_history_id = None;
+                    }
+                    if ui.button(format!("{} Refresh", icons::REFRESH)).clicked() {
+                        self.load_history();
+                    }
+                    if !self.scan_history.is_empty() {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if danger_button(ui, "Clear all").clicked() {
+                                self.clear_all_history();
+                                self.selected_history_id = None;
+                            }
+                        });
+                    }
+                });
+            });
+            ui.add_space(12.0);
+
+            // Content
+            if let Some(selected_id) = self.selected_history_id {
+                self.render_history_detail(ui, selected_id);
+            } else if self.scan_history.is_empty() {
+                empty_state(
+                    ui,
+                    icons::CLIPBOARD,
+                    "No scans yet",
+                    "Run your first scan to track storage usage, compare changes over time, and find cleanup opportunities.",
+                    Some(("Start your first scan", &mut || {
+                        self.active_tab = AppTab::Scan;
+                    })),
+                );
+            } else {
+                let records: Vec<_> = self.scan_history.iter().cloned().collect();
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    for record in &records {
+                        let record_id = record.id;
+                        app_card(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.vertical(|ui| {
+                                    ui.label(
+                                        egui::RichText::new(&record.path)
+                                            .strong()
+                                            .color(colors::TEXT_PRIMARY),
                                     );
-                                    badge(
-                                        ui,
-                                        &format!("{:.2} MB", record.total_size_mb),
-                                        colors::SUCCESS,
+                                    ui.horizontal(|ui| {
+                                        badge(
+                                            ui,
+                                            &format!("{} files", record.total_files),
+                                            colors::ACCENT,
+                                        );
+                                        badge(
+                                            ui,
+                                            &format!("{:.2} MB", record.total_size_mb),
+                                            colors::SUCCESS,
+                                        );
+                                        if record.deep_scan {
+                                            badge(ui, "Deep", colors::WARNING);
+                                        }
+                                    });
+                                    ui.label(
+                                        egui::RichText::new(&record.timestamp)
+                                            .size(10.0)
+                                            .color(colors::TEXT_MUTED),
                                     );
-                                    if record.deep_scan {
-                                        badge(ui, "Deep", colors::WARNING);
-                                    }
                                 });
-                                ui.label(
-                                    egui::RichText::new(&record.timestamp)
-                                        .size(10.0)
-                                        .color(colors::TEXT_MUTED),
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        if ui.small_button("Export JSON").clicked() {
+                                            if let Some(r) = self.scan_history.iter().find(|r| r.id == record_id) {
+                                                self.export_scan_json(r);
+                                            }
+                                        }
+                                        if ui.small_button("Export CSV").clicked() {
+                                            if let Some(r) = self.scan_history.iter().find(|r| r.id == record_id) {
+                                                self.export_scan_csv(r);
+                                            }
+                                        }
+                                        if ui.small_button("View").clicked() {
+                                            self.selected_history_id = Some(record_id);
+                                        }
+                                        if ui
+                                            .add(
+                                                egui::Button::new(
+                                                    egui::RichText::new(icons::X)
+                                                        .color(colors::ERROR),
+                                                )
+                                                .fill(colors::ERROR.linear_multiply(0.15))
+                                                .min_size(egui::vec2(28.0, 28.0)),
+                                            )
+                                            .clicked()
+                                        {
+                                            self.delete_history_record(record_id);
+                                        }
+                                    },
                                 );
                             });
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    if ui.small_button("Export JSON").clicked() {
-                                        export_json_id = Some(record.id);
-                                    }
-                                    if ui.small_button("Export CSV").clicked() {
-                                        export_csv_id = Some(record.id);
-                                    }
-                                    if ui.small_button("View").clicked() {
-                                        view_id = Some(record.id);
-                                    }
-                                    if ui
-                                        .add(
-                                            egui::Button::new(
-                                                egui::RichText::new(icons::X).color(colors::ERROR),
-                                            )
-                                            .fill(colors::ERROR.linear_multiply(0.15)),
-                                        )
-                                        .clicked()
-                                    {
-                                        delete_id = Some(record.id);
-                                    }
-                                },
-                            );
                         });
-                    });
-                }
-            });
-
-            if let Some(id) = view_id {
-                self.selected_history_id = Some(id);
+                    }
+                });
             }
-            if let Some(id) = delete_id {
-                self.delete_history_record(id);
-            }
-            if let Some(id) = export_json_id {
-                if let Some(record) = self.scan_history.iter().find(|r| r.id == id) {
-                    self.export_scan_json(record);
-                }
-            }
-            if let Some(id) = export_csv_id {
-                if let Some(record) = self.scan_history.iter().find(|r| r.id == id) {
-                    self.export_scan_csv(record);
-                }
-            }
-        }
+        });
     }
 
     fn render_history_detail(&mut self, ui: &mut egui::Ui, id: i64) {
         if let Some(ref db) = self.db {
             if let Ok(Some(record)) = db.get_scan_by_id(id) {
-                // Stats row
                 ui.horizontal(|ui| {
                     stat_card(
                         ui,
@@ -256,24 +257,22 @@ impl SpaceAnalyzerApp {
                     );
                 });
 
-                // Export buttons
                 ui.horizontal(|ui| {
-                    if ui.small_button("📥 Export JSON").clicked() {
+                    if ui.small_button("Export JSON").clicked() {
                         self.export_scan_json(&record);
                     }
-                    if ui.small_button("📥 Export CSV").clicked() {
+                    if ui.small_button("Export CSV").clicked() {
                         self.export_scan_csv(&record);
                     }
                 });
                 ui.add_space(4.0);
 
-                // Analyze with AI button
                 if self.ollama_client.is_some()
                     && self.ollama_available
                     && ui
                         .add_sized(
-                            egui::vec2(120.0, 24.0),
-                            egui::Button::new(egui::RichText::new("Analyze with AI").size(11.0)),
+                            egui::vec2(140.0, 28.0),
+                            egui::Button::new(egui::RichText::new("Analyze with AI").size(12.0)),
                         )
                         .clicked()
                 {
@@ -292,14 +291,13 @@ impl SpaceAnalyzerApp {
                 );
                 ui.add_space(8.0);
 
-                // File types
                 if let Ok(file_types) = serde_json::from_str::<
                     std::collections::HashMap<String, usize>,
                 >(&record.file_types_json)
                 {
                     if !file_types.is_empty() {
-                        section_heading(ui, Some(icons::FILETYPE), "File Types");
-                        card_frame(ui.style()).show(ui, |ui| {
+                        section_header(ui, Some(icons::FILETYPE), "File types");
+                        app_card(ui, |ui| {
                             egui::ScrollArea::vertical()
                                 .max_height(200.0)
                                 .show(ui, |ui| {
@@ -335,13 +333,12 @@ impl SpaceAnalyzerApp {
                     }
                 }
 
-                // Largest files
                 if let Ok(largest) =
                     serde_json::from_str::<Vec<(String, u64)>>(&record.largest_files_json)
                 {
                     if !largest.is_empty() {
-                        section_heading(ui, Some(icons::PACKAGE), "Largest Files");
-                        card_frame(ui.style()).show(ui, |ui| {
+                        section_header(ui, Some(icons::PACKAGE), "Largest files");
+                        app_card(ui, |ui| {
                             egui::ScrollArea::vertical()
                                 .max_height(200.0)
                                 .show(ui, |ui| {

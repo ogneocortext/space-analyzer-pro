@@ -1,52 +1,123 @@
 use super::*;
+use eframe::egui;
 use egui_plot::{CoordinatesFormatter, Corner, HLine, Legend, Line, Plot, PlotPoints};
 
 impl SpaceAnalyzerApp {
     pub(crate) fn render_dashboard(&mut self, ui: &mut egui::Ui) {
-        // ── Hero Stats Row ─────────────────────────────────────────────
+        self.render_dashboard_header(ui);
+        self.render_disk_alert(ui);
         self.render_hero_stats(ui);
 
-        // ── Quick Actions ──────────────────────────────────────────────
-        self.render_quick_actions(ui);
-
-        // ── File Type Distribution Chart ──────────────────────────────
-        if let Some(ref result) = self.scan_result {
-            if !result.file_types.is_empty() {
+        let is_compact = ui.available_width() < 980.0;
+        if is_compact {
+            ui.vertical(|ui| {
+                ui.add_space(8.0);
+                self.render_storage_by_volume(ui);
+                ui.add_space(8.0);
+                self.render_quick_actions(ui);
+                ui.add_space(8.0);
+                self.render_system_resources_card(ui);
+                ui.add_space(8.0);
                 self.render_file_type_chart(ui);
-            }
-        }
+                ui.add_space(8.0);
+                self.render_categories_card(ui);
+                ui.add_space(8.0);
+                self.render_bloat_card(ui);
+                if !self.ai_recommendations.is_empty() {
+                    ui.add_space(8.0);
+                    self.render_recommendations_card(ui);
+                }
+                if self.scan_history.len() >= 2 {
+                    ui.add_space(8.0);
+                    self.render_trend_card(ui);
+                }
+            });
+        } else {
+            ui.columns(2, |cols| {
+                let left = &mut cols[0];
+                left.add_space(8.0);
+                self.render_storage_by_volume(left);
+                left.add_space(8.0);
+                self.render_file_type_chart(left);
+                left.add_space(8.0);
+                self.render_categories_card(left);
+                left.add_space(8.0);
+                self.render_bloat_card(left);
+                if !self.ai_recommendations.is_empty() {
+                    left.add_space(8.0);
+                    self.render_recommendations_card(left);
+                }
 
-        // ── Two-column layout: File Categories + System Resources ─────
-        ui.columns(2, |cols| {
-            // Left column: File Categories + Bloat
-            self.render_categories_card(&mut cols[0]);
-            self.render_bloat_card(&mut cols[1]);
+                let right = &mut cols[1];
+                right.add_space(8.0);
+                self.render_quick_actions(right);
+                right.add_space(8.0);
+                self.render_system_resources_card(right);
+                if self.scan_history.len() >= 2 {
+                    right.add_space(8.0);
+                    self.render_trend_card(right);
+                }
+            });
+        }
+    }
+
+    fn render_dashboard_header(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.label(
+                    egui::RichText::new("Storage overview")
+                        .text_style(egui::TextStyle::Name("PageTitle".into()))
+                        .color(colors::TEXT_PRIMARY),
+                );
+                ui.label(
+                    egui::RichText::new(
+                        "Review disk health, recent scans, and cleanup opportunities.",
+                    )
+                    .color(colors::TEXT_SECONDARY)
+                    .small(),
+                );
+            });
+
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if secondary_button(ui, "View history").clicked() {
+                    self.active_tab = AppTab::History;
+                }
+                if primary_button(ui, "Start a scan").clicked() {
+                    self.active_tab = AppTab::Scan;
+                    self.start_scan();
+                }
+            });
         });
+        ui.add_space(12.0);
+    }
 
-        // ── Disk Volumes ──────────────────────────────────────────────
-        if !self.system_state.disk_volumes.is_empty() {
-            self.render_disk_volumes_card(ui);
-        }
-
-        // ── System Resources ──────────────────────────────────────────
-        self.render_system_resources_card(ui);
-
-        // ── Storage Trend Chart ───────────────────────────────────────
-        if self.scan_history.len() >= 2 {
-            self.render_trend_card(ui);
-        }
-
-        // ── AI Recommendations ────────────────────────────────────────
-        if !self.ai_recommendations.is_empty() {
-            self.render_recommendations_card(ui);
+    fn render_disk_alert(&mut self, ui: &mut egui::Ui) {
+        if let Some(volume) = self
+            .system_state
+            .disk_volumes
+            .iter()
+            .filter(|v| v.usage_percent >= 90.0)
+            .max_by(|a, b| a.usage_percent.total_cmp(&b.usage_percent))
+        {
+            ui.add_space(4.0);
+            let _ = inline_alert(
+                ui,
+                Tone::Danger,
+                &format!("{} is nearly full", volume.mount_point),
+                &format!(
+                    "Only {} is free. Run a scan to identify large files and cleanup opportunities.",
+                    formatting::format_bytes(volume.available_bytes)
+                ),
+                Some(&format!("Analyze {}", volume.mount_point)),
+            );
+            ui.add_space(4.0);
         }
     }
 
     // ── Hero Stats Row ────────────────────────────────────────────────────
     fn render_hero_stats(&self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if let Some(ref result) = self.scan_result {
-                // Total Files
                 stat_card(
                     ui,
                     "Total Files",
@@ -54,7 +125,6 @@ impl SpaceAnalyzerApp {
                     colors::ACCENT,
                 );
 
-                // Total Size
                 stat_card(
                     ui,
                     "Total Size",
@@ -62,7 +132,6 @@ impl SpaceAnalyzerApp {
                     colors::SUCCESS,
                 );
 
-                // Scan History
                 stat_card(
                     ui,
                     "Scans",
@@ -78,7 +147,6 @@ impl SpaceAnalyzerApp {
                     );
                 }
 
-                // Large Files
                 let threshold = self.settings.large_file_threshold_mb * 1024 * 1024;
                 let large_count = result
                     .largest_files
@@ -94,7 +162,6 @@ impl SpaceAnalyzerApp {
                     );
                 }
 
-                // Speed
                 if result.duration_secs > 0.0 {
                     stat_card(
                         ui,
@@ -116,19 +183,139 @@ impl SpaceAnalyzerApp {
         });
     }
 
+    // ── Storage by volume ──────────────────────────────────────────────
+    fn render_storage_by_volume(&self, ui: &mut egui::Ui) {
+        section_header(ui, Some(icons::DISK), "Storage by volume");
+        app_card(ui, |ui| {
+            if self.system_state.disk_volumes.is_empty() {
+                ui.label(
+                    egui::RichText::new("No volume data available yet.")
+                        .italics()
+                        .color(colors::TEXT_MUTED),
+                );
+                return;
+            }
+            ui.vertical(|ui| {
+                for vol in &self.system_state.disk_volumes {
+                    self.render_volume_row(ui, vol);
+                    ui.add_space(6.0);
+                }
+            });
+        });
+        ui.add_space(4.0);
+    }
+
+    fn render_volume_row(
+        &self,
+        ui: &mut egui::Ui,
+        vol: &system_monitor::DiskVolume,
+    ) -> egui::Response {
+        let tone = if vol.usage_percent >= 90.0 {
+            Tone::Danger
+        } else if vol.usage_percent >= 75.0 {
+            Tone::Warning
+        } else {
+            Tone::Success
+        };
+        let bar_color = tone.fill();
+        let pct = (vol.usage_percent / 100.0).clamp(0.0, 1.0);
+
+        let response = app_card(ui, |ui| {
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        ui.label(
+                            egui::RichText::new(&vol.mount_point)
+                                .strong()
+                                .color(colors::TEXT_PRIMARY),
+                        );
+                        ui.label(
+                            egui::RichText::new(&vol.name)
+                                .size(11.0)
+                                .color(colors::TEXT_MUTED),
+                        );
+                    });
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        status_badge(ui, &format!("{:.1}% used", vol.usage_percent), tone);
+                    });
+                });
+
+                ui.add_space(8.0);
+                ui.add(
+                    egui::ProgressBar::new(pct)
+                        .fill(bar_color)
+                        .desired_height(9.0)
+                        .show_percentage(),
+                );
+
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "{} free of {}",
+                            formatting::format_bytes(vol.available_bytes),
+                            formatting::format_bytes(vol.total_bytes)
+                        ))
+                        .size(11.0)
+                        .color(colors::TEXT_SECONDARY),
+                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(
+                            egui::RichText::new(vol.file_system.clone())
+                                .size(10.0)
+                                .color(colors::TEXT_MUTED),
+                        );
+                    });
+                });
+            });
+        })
+        .response;
+
+        response.on_hover_text(format!("Click to scan {}", vol.mount_point))
+    }
+
+    // ── Quick Actions ─────────────────────────────────────────────────────
+    fn render_quick_actions(&mut self, ui: &mut egui::Ui) {
+        section_header(ui, Some(icons::QUICK), "Quick actions");
+        app_card(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                let scan_text = if self.is_scanning {
+                    "Scanning..."
+                } else {
+                    "Start scan"
+                };
+                if primary_button(ui, scan_text).clicked() {
+                    self.active_tab = AppTab::Scan;
+                    if !self.is_scanning {
+                        self.start_scan();
+                    }
+                }
+
+                if secondary_button(ui, "View history").clicked() {
+                    self.active_tab = AppTab::History;
+                }
+
+                if secondary_button(ui, "Workflows").clicked() {
+                    self.active_tab = AppTab::Workflows;
+                }
+
+                if secondary_button(ui, "AI assistant").clicked() {
+                    self.active_tab = AppTab::AIChat;
+                }
+            });
+        });
+        ui.add_space(4.0);
+    }
+
     // ── File Type Distribution Chart ──────────────────────────────────
     fn render_file_type_chart(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some(icons::CHART_BAR), "File Type Distribution");
-        card_frame(ui.style()).show(ui, |ui| {
+        section_header(ui, Some(icons::CHART_BAR), "File type distribution");
+        app_card(ui, |ui| {
             if let Some(ref result) = self.scan_result {
                 let mut sorted: Vec<(&String, &usize)> = result.file_types.iter().collect();
                 sorted.sort_by(|a, b| b.1.cmp(a.1));
                 let top_n = sorted.iter().take(10);
-
-                let _max_count = top_n
-                    .clone()
-                    .map(|(_, c)| **c as f64)
-                    .fold(0.0_f64, f64::max);
 
                 let bar_points: PlotPoints = top_n
                     .enumerate()
@@ -145,7 +332,7 @@ impl SpaceAnalyzerApp {
                     .fill_alpha(0.3);
 
                 let mut plot = Plot::new("file_type_dist")
-                    .height(160.0)
+                    .height(140.0)
                     .legend(Legend::default())
                     .show_x(false)
                     .show_y(true)
@@ -157,7 +344,6 @@ impl SpaceAnalyzerApp {
                     plot_ui.line(bar_line);
                 });
 
-                // Extension labels below the chart
                 ui.horizontal(|ui| {
                     for (ext, count) in sorted.iter().take(10) {
                         ui.colored_label(
@@ -170,47 +356,12 @@ impl SpaceAnalyzerApp {
                         );
                     }
                 });
-            }
-        });
-        ui.add_space(4.0);
-    }
-
-    // ── Quick Actions ─────────────────────────────────────────────────────
-    fn render_quick_actions(&mut self, ui: &mut egui::Ui) {
-        ui.add_space(4.0);
-        section_heading(ui, None, "Quick Actions");
-        ui.horizontal(|ui| {
-            let scan_btn =
-                egui::Button::new(egui::RichText::new("🔍  Start Scan").size(13.0).strong())
-                    .min_size(egui::vec2(120.0, 32.0))
-                    .fill(if self.is_scanning {
-                        colors::TEXT_MUTED
-                    } else {
-                        colors::ACCENT
-                    });
-
-            if ui.add_enabled(!self.is_scanning, scan_btn).clicked() {
-                self.active_tab = AppTab::Scan;
-                self.start_scan();
-            }
-
-            let hist_btn = egui::Button::new(egui::RichText::new("📋  History").size(13.0))
-                .min_size(egui::vec2(100.0, 32.0));
-            if ui.add(hist_btn).clicked() {
-                self.active_tab = AppTab::History;
-            }
-
-            let wf_btn = egui::Button::new(egui::RichText::new("⚙  Workflows").size(13.0))
-                .min_size(egui::vec2(110.0, 32.0));
-            if ui.add(wf_btn).clicked() {
-                self.active_tab = AppTab::Workflows;
-            }
-
-            let ai_btn = egui::Button::new(egui::RichText::new("🤖  AI Assistant").size(13.0))
-                .min_size(egui::vec2(120.0, 32.0))
-                .fill(colors::ACCENT_BG);
-            if ui.add(ai_btn).clicked() {
-                self.active_tab = AppTab::AIChat;
+            } else {
+                ui.label(
+                    egui::RichText::new("Run a scan to see file type distribution")
+                        .italics()
+                        .color(colors::TEXT_MUTED),
+                );
             }
         });
         ui.add_space(4.0);
@@ -218,8 +369,8 @@ impl SpaceAnalyzerApp {
 
     // ── File Categories Card ──────────────────────────────────────────────
     fn render_categories_card(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some(icons::FOLDER), "File Categories");
-        card_frame(ui.style()).show(ui, |ui| {
+        section_header(ui, Some(icons::FOLDER), "File categories");
+        app_card(ui, |ui| {
             if let Some(ref result) = self.scan_result {
                 let categories = category::categorize_files(&result.file_types);
                 let total: usize = categories.values().sum();
@@ -271,8 +422,8 @@ impl SpaceAnalyzerApp {
 
     // ── Bloat Candidates Card ─────────────────────────────────────────────
     fn render_bloat_card(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some(icons::QUICK), "Bloat Candidates");
-        card_frame(ui.style()).show(ui, |ui| {
+        section_header(ui, Some(icons::QUICK), "Bloat candidates");
+        app_card(ui, |ui| {
             if let Some(ref result) = self.scan_result {
                 let classifier = offline_ai::FilePatternClassifier::new();
                 let mut flagged: Vec<(String, String, usize)> = Vec::new();
@@ -308,37 +459,13 @@ impl SpaceAnalyzerApp {
         });
     }
 
-    // ── Disk Volumes Card ─────────────────────────────────────────────────
-    fn render_disk_volumes_card(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some(icons::DISK), "Disk Volumes");
-        card_frame(ui.style()).show(ui, |ui| {
-            ui.vertical(|ui| {
-                for vol in &self.system_state.disk_volumes {
-                    labeled_gauge(
-                        ui,
-                        &format!("{} ({})", vol.mount_point, vol.name),
-                        vol.usage_percent / 100.0,
-                        Some(&format!(
-                            "{} free of {}",
-                            formatting::format_bytes(vol.available_bytes),
-                            formatting::format_bytes(vol.total_bytes)
-                        )),
-                    );
-                    ui.add_space(4.0);
-                }
-            });
-        });
-    }
-
     // ── System Resources Card ─────────────────────────────────────────────
     fn render_system_resources_card(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some(icons::SYSTEM), "System Resources");
-        card_frame(ui.style()).show(ui, |ui| {
+        section_header(ui, Some(icons::SYSTEM), "System resources");
+        app_card(ui, |ui| {
             if let Some(ref sys) = self.system_state.system_resources {
                 ui.columns(2, |cols| {
-                    // CPU
                     labeled_gauge(&mut cols[0], "CPU", sys.cpu_percent / 100.0, None);
-                    // Memory
                     labeled_gauge(
                         &mut cols[1],
                         "Memory",
@@ -351,7 +478,6 @@ impl SpaceAnalyzerApp {
                     );
                 });
 
-                // GPU info
                 if let Some(ref gpu) = self.system_state.gpu_info {
                     ui.add_space(4.0);
                     ui.separator();
@@ -384,8 +510,8 @@ impl SpaceAnalyzerApp {
 
     // ── Storage Trend Card ────────────────────────────────────────────────
     fn render_trend_card(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some(icons::TREND), "Storage Trend");
-        card_frame(ui.style()).show(ui, |ui| {
+        section_header(ui, Some(icons::TREND), "Storage trend");
+        app_card(ui, |ui| {
             self.render_storage_chart_inner(ui);
         });
     }
@@ -398,8 +524,12 @@ impl SpaceAnalyzerApp {
             format!("{} Heuristic", icons::WORKFLOW)
         };
 
-        section_heading(ui, Some(icons::LIGHTBULB), &format!("Insights ({})", source_label));
-        card_frame(ui.style()).show(ui, |ui| {
+        section_header(
+            ui,
+            Some(icons::LIGHTBULB),
+            &format!("Insights ({})", source_label),
+        );
+        app_card(ui, |ui| {
             if self.ai_recommendation_pending {
                 ui.horizontal(|ui| {
                     ui.spinner();
@@ -523,7 +653,7 @@ impl SpaceAnalyzerApp {
         let threshold_mb = self.settings.large_file_threshold_mb as f64;
 
         let mut plot = Plot::new("storage_trend")
-            .height(180.0)
+            .height(160.0)
             .legend(Legend::default())
             .coordinates_formatter(
                 Corner::LeftTop,
