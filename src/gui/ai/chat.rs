@@ -92,6 +92,10 @@ impl SpaceAnalyzerApp {
                         }
                         if available {
                             self.tool_runtime_state.ollama_auto_started = false;
+                            // Auto-discover models when Ollama becomes available
+                            if self.discovered_models.is_empty() && !self.models_discovering {
+                                self.discover_ollama_models();
+                            }
                         } else if self.settings.auto_start_ollama
                             && !self.tool_runtime_state.ollama_auto_started
                         {

@@ -27,7 +27,9 @@ use crate::ollama::features::{
 };
 use crate::ollama::OllamaClient;
 
-use super::super::{formatting, ChatMessage, OllamaMessage, SpaceAnalyzerApp};
+use super::super::{
+    formatting, secondary_button_small, ChatMessage, OllamaMessage, SpaceAnalyzerApp,
+};
 
 /// Result tuple returned by a feature runner. The 6 trailing numbers
 /// are shown in the chat reply (prompt/completion tokens, duration,
@@ -97,7 +99,11 @@ impl SpaceAnalyzerApp {
 
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
-            content: format!("[AI Tool] icons::PATTERN Semantic Search: \"{}\"", query),
+            content: format!(
+                "[AI Tool] {} Semantic Search: \"{}\"",
+                icons::PATTERN,
+                query
+            ),
             thinking: None,
             tool_result: None,
         });
@@ -142,11 +148,12 @@ impl SpaceAnalyzerApp {
             });
             let _ = match result {
                 Ok(content) => tx.send(OllamaMessage::ChatReply {
-                    content: format!("icons::PATTERN Semantic Search\n\n{}", content),
+                    content: format!("{} Semantic Search\n\n{}", icons::PATTERN, content),
                     thinking: None,
                 }),
                 Err(e) => tx.send(OllamaMessage::Error(format!(
-                    "icons::PATTERN Semantic Search failed: {}",
+                    "{} Semantic Search failed: {}",
+                    icons::PATTERN,
                     e
                 ))),
             };
@@ -176,7 +183,7 @@ impl SpaceAnalyzerApp {
 
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
-            content: "[AI Tool] icons::FILETYPE Summarize Scan".to_string(),
+            content: format!("[AI Tool] {} Summarize Scan", icons::FILETYPE),
             thinking: None,
             tool_result: None,
         });
@@ -260,7 +267,11 @@ impl SpaceAnalyzerApp {
 
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
-            content: format!("[AI Tool] icons::CLEANUP Cleanup Plan: \"{}\"", question),
+            content: format!(
+                "[AI Tool] {} Cleanup Plan: \"{}\"",
+                icons::CLEANUP,
+                question
+            ),
             thinking: None,
             tool_result: None,
         });
@@ -295,13 +306,18 @@ impl SpaceAnalyzerApp {
             let _ = match result {
                 Ok((plan, thinking, p, c, ms)) => tx.send(OllamaMessage::ChatReply {
                     content: format!(
-                        "icons::CLEANUP Cleanup Plan ({} prompt + {} completion tokens, {} ms)\n\n{}",
-                        p, c, ms, plan
+                        "{} Cleanup Plan ({} prompt + {} completion tokens, {} ms)\n\n{}",
+                        icons::CLEANUP,
+                        p,
+                        c,
+                        ms,
+                        plan
                     ),
                     thinking,
                 }),
                 Err(e) => tx.send(OllamaMessage::Error(format!(
-                    "icons::CLEANUP Cleanup Plan failed: {}",
+                    "{} Cleanup Plan failed: {}",
+                    icons::CLEANUP,
                     e
                 ))),
             };
@@ -335,7 +351,7 @@ impl SpaceAnalyzerApp {
 
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
-            content: format!("[AI Tool] icons::CAMERA Describe Screenshot: {}", path),
+            content: format!("[AI Tool] {} Describe Screenshot: {}", icons::CAMERA, path),
             thinking: None,
             tool_result: None,
         });
@@ -373,13 +389,16 @@ impl SpaceAnalyzerApp {
                 Ok((answer, thinking, p, c, ms, orig, sent)) => {
                     tx.send(OllamaMessage::ChatReply {
                         content: format!(
-                            "icons::CAMERA Screenshot ({} B → {} B base64, {} prompt + {} completion tokens, {} ms)\n\n{}",
-                            orig, sent, p, c, ms, answer
+                            "{} Screenshot ({} B → {} B base64, {} prompt + {} completion tokens, {} ms)\n\n{}",
+                            icons::CAMERA, orig, sent, p, c, ms, answer
                         ),
                         thinking,
                     })
                 }
-                Err(e) => tx.send(OllamaMessage::Error(format!("icons::CAMERA Screenshot failed: {}", e))),
+                Err(e) => tx.send(OllamaMessage::Error(format!(
+                    "{} Screenshot failed: {}",
+                    icons::CAMERA, e
+                ))),
             };
         });
     }
@@ -490,7 +509,7 @@ impl SpaceAnalyzerApp {
                 if ui.add_enabled(can_run, btn).clicked() {
                     self.run_describe_screenshot();
                 }
-                if ui.small_button("Pick image…").clicked() {
+                if secondary_button_small(ui, "Pick image…").clicked() {
                     if let Some(path) = rfd::FileDialog::new()
                         .add_filter("Image", &["png", "jpg", "jpeg"])
                         .pick_file()

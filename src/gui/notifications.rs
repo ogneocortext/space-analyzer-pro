@@ -1,6 +1,7 @@
 use eframe::egui;
 
 use super::types::{Notification, NotificationLevel};
+use super::ui_helpers;
 use crate::file_relations::analyze_file_dependencies;
 
 /// Render toast notifications in the top-right corner
@@ -98,7 +99,7 @@ pub fn render_impact_preview(
                 ui.horizontal(|ui| {
                     ui.label("File path:");
                     ui.text_edit_singleline(path_input);
-                    if ui.button("Analyze").clicked() {
+                    if ui_helpers::primary_button_small(ui, "Analyze").clicked() {
                         should_analyze = true;
                     }
                 });
@@ -144,7 +145,7 @@ pub fn render_impact_preview(
                 }
 
                 ui.add_space(16.0);
-                if ui.button("Close").clicked() {
+                if ui_helpers::secondary_button_small(ui, "Close").clicked() {
                     should_close = true;
                 }
             });

@@ -72,9 +72,10 @@ mod types;
 
 // Re-export UI helpers
 pub use ui_helpers::{
-    app_card, badge, card_frame, danger_button, empty_state, gauge_bar, icon_text, inline_alert,
-    labeled_gauge, primary_button, secondary_button, section_header, section_heading, stat_card,
-    status_badge, Tone,
+    app_card, badge, card_frame, danger_button, danger_button_small, empty_state, gauge_bar,
+    icon_text, inline_alert, labeled_gauge, primary_button, primary_button_small, secondary_button,
+    secondary_button_small, section_header, section_heading, stat_card, status_badge, tiny_button,
+    Tone,
 };
 
 /// Shared Tokio runtime for all async operations
@@ -242,6 +243,9 @@ pub struct SpaceAnalyzerApp {
     pub file_action_state: FileActionState,
     // Scan result filters
     pub largest_files_filter: String,
+
+    // Disk space monitor
+    pub disk_monitor: crate::disk_monitor::DiskMonitorState,
 }
 
 impl Default for SpaceAnalyzerApp {
@@ -375,6 +379,7 @@ impl Default for SpaceAnalyzerApp {
                 thumbnail_cache: Arc::new(crate::thumbnails::ThumbnailCache::default()),
             },
             largest_files_filter: String::new(),
+            disk_monitor: crate::disk_monitor::DiskMonitorState::default(),
         };
 
         // Initialize database
@@ -437,6 +442,18 @@ impl Default for SpaceAnalyzerApp {
             app.session_logger.info("app", "Application launched");
         }
 
+        // Start background disk space monitor
+        {
+            let mount_point = "C:\\".to_string();
+            let rx = crate::disk_monitor::start_disk_monitor(
+                mount_point,
+                5,   // sample every 5 seconds
+                100, // 100 MB threshold for significant change
+            );
+            app.disk_monitor.receiver = Some(rx);
+            app.disk_monitor.is_running = true;
+        }
+
         app
     }
 }
@@ -451,6 +468,7 @@ impl eframe::App for SpaceAnalyzerApp {
         self.process_ai_recommendations();
         self.process_scheduled_workflows();
         self.process_model_discovery();
+        self.process_disk_monitor_messages();
         self.frame_counter = self.frame_counter.wrapping_add(1);
         self.update_model_resource_usage();
         self.refresh_system_info_throttled();
@@ -567,20 +585,23 @@ impl eframe::App for SpaceAnalyzerApp {
         // ── App shell ──────────────────────────────────────────────────────
         egui::Frame::NONE
             .fill(colors::BG_HEADER)
-            .stroke(egui::Stroke::new(1.0, colors::CARD_BORDER))
+            .stroke(egui::Stroke::new(
+                1.0,
+                egui::Color32::from_rgba_unmultiplied(48, 64, 98, 100),
+            ))
             .inner_margin(egui::Margin::symmetric(16, 10))
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.vertical(|ui| {
                         ui.label(
                             egui::RichText::new("Space Analyzer Pro")
-                                .size(18.0)
+                                .size(16.0)
                                 .strong()
                                 .color(colors::ACCENT),
                         );
                         ui.label(
-                            egui::RichText::new("v3.7.0 — Self-Contained")
-                                .size(11.0)
+                            egui::RichText::new("v3.7.0")
+                                .size(10.0)
                                 .color(colors::TEXT_MUTED),
                         );
                     });
@@ -628,7 +649,7 @@ impl eframe::App for SpaceAnalyzerApp {
         // ── Tab bar ─────────────────────────────────────────────────────
         egui::Frame::NONE
             .fill(colors::BG_HEADER)
-            .inner_margin(egui::Margin::symmetric(12, 4))
+            .inner_margin(egui::Margin::symmetric(12, 2))
             .show(ui, |ui| {
                 egui::ScrollArea::horizontal().show(ui, |ui| {
                     ui.horizontal(|ui| {
@@ -668,27 +689,26 @@ impl eframe::App for SpaceAnalyzerApp {
 
                             let stroke = if selected {
                                 egui::Stroke::new(
-                                    1.0,
-                                    egui::Color32::from_rgba_unmultiplied(112, 173, 255, 95),
+                                    1.5,
+                                    egui::Color32::from_rgba_unmultiplied(112, 173, 255, 120),
                                 )
                             } else {
-                                egui::Stroke::new(
-                                    1.0,
-                                    egui::Color32::from_rgba_unmultiplied(48, 64, 98, 160),
-                                )
+                                egui::Stroke::NONE
+                            };
+
+                            let text_color = if selected {
+                                colors::ACCENT
+                            } else {
+                                colors::TEXT_MUTED
                             };
 
                             let btn = egui::Button::new(
-                                egui::RichText::new(label).size(12.0).color(if selected {
-                                    colors::TEXT_PRIMARY
-                                } else {
-                                    colors::TEXT_SECONDARY
-                                }),
+                                egui::RichText::new(label).size(12.0).color(text_color),
                             )
                             .fill(fill)
                             .stroke(stroke)
-                            .corner_radius(egui::CornerRadius::same(7))
-                            .min_size(egui::vec2(0.0, 32.0));
+                            .corner_radius(egui::CornerRadius::same(6))
+                            .min_size(egui::vec2(0.0, 30.0));
 
                             if ui.add(btn).clicked() {
                                 self.active_tab = tab;
@@ -741,14 +761,14 @@ impl eframe::App for SpaceAnalyzerApp {
                     if is_error || is_warning {
                         ui.horizontal(|ui| {
                             if (msg_clone.contains("Scan") || msg_clone.contains("scan"))
-                                && ui.small_button("Retry Scan").clicked()
+                                && tiny_button(ui, "Retry Scan").clicked()
                             {
                                 self.start_scan();
                             }
                             if (msg_clone.contains("Ollama")
                                 || msg_clone.contains("AI")
                                 || msg_clone.contains("ollama"))
-                                && ui.small_button("Retry Connection").clicked()
+                                && tiny_button(ui, "Retry Connection").clicked()
                             {
                                 self.ollama_available = false;
                                 self.ollama_checking = false;
@@ -758,7 +778,7 @@ impl eframe::App for SpaceAnalyzerApp {
                             if (msg_clone.contains("Database")
                                 || msg_clone.contains("database")
                                 || msg_clone.contains("db"))
-                                && ui.small_button("Re-init DB").clicked()
+                                && tiny_button(ui, "Re-init DB").clicked()
                             {
                                 match Database::default_open() {
                                     Ok(db) => {
@@ -779,12 +799,12 @@ impl eframe::App for SpaceAnalyzerApp {
                                     }
                                 }
                             }
-                            if ui.small_button("Dismiss").clicked() {
+                            if tiny_button(ui, "Dismiss").clicked() {
                                 self.status_message = None;
                             }
                         });
                     } else {
-                        if ui.small_button("Dismiss").clicked() {
+                        if tiny_button(ui, "Dismiss").clicked() {
                             self.status_message = None;
                         }
                     }
@@ -824,6 +844,60 @@ impl SpaceAnalyzerApp {
             message,
             level,
         );
+    }
+
+    /// Process messages from the background disk space monitor
+    pub fn process_disk_monitor_messages(&mut self) {
+        // Collect messages first to avoid borrow issues
+        let messages: Vec<_> = if let Some(ref rx) = self.disk_monitor.receiver {
+            std::iter::from_fn(|| rx.try_recv().ok()).collect()
+        } else {
+            return;
+        };
+
+        for msg in messages {
+            match msg {
+                crate::disk_monitor::DiskMonitorMessage::SnapshotRecorded {
+                    mount_point: _,
+                    available_bytes,
+                    used_bytes,
+                    usage_percent,
+                } => {
+                    self.disk_monitor
+                        .snapshots
+                        .push(crate::disk_monitor::SnapshotEntry {
+                            timestamp: chrono::Utc::now().to_rfc3339(),
+                            available_bytes,
+                            used_bytes,
+                            usage_percent,
+                        });
+                    // Keep last 30 minutes of snapshots in memory (360 at 5s intervals)
+                    if self.disk_monitor.snapshots.len() > 360 {
+                        self.disk_monitor
+                            .snapshots
+                            .drain(..self.disk_monitor.snapshots.len() - 360);
+                    }
+                }
+                crate::disk_monitor::DiskMonitorMessage::SignificantChange {
+                    mount_point,
+                    delta_bytes,
+                    top_processes,
+                } => {
+                    let sign = if delta_bytes > 0 { "+" } else { "" };
+                    let mb = (delta_bytes as f64 / 1024.0 / 1024.0).abs();
+                    self.push_notification(
+                        format!("Disk C: {}{:.1}MB — checking what changed", sign, mb),
+                        types::NotificationLevel::Warning,
+                    );
+                    self.disk_monitor.last_change = Some(crate::disk_monitor::SignificantChange {
+                        mount_point,
+                        delta_bytes,
+                        top_processes,
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    });
+                }
+            }
+        }
     }
 }
 

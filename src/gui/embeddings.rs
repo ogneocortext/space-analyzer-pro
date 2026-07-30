@@ -56,14 +56,14 @@ impl SpaceAnalyzerApp {
                                 colors::WARNING,
                                 "Enable Semantic Indexing in Settings to use Smart Search.",
                             );
-                            if ui.button("Go to Settings").clicked() {
+                            if secondary_button_small(ui, "Go to Settings").clicked() {
                                 self.active_tab = AppTab::Settings;
                             }
                         });
                     }
                 });
             });
-            ui.add_space(12.0);
+            ui.add_space(8.0);
 
             if !self.settings.embedding_enabled {
                 return;
@@ -75,7 +75,7 @@ impl SpaceAnalyzerApp {
                     ui.add(egui::ProgressBar::new(self.indexing_progress));
                     ui.label(&self.search_status);
                 });
-                ui.add_space(12.0);
+                ui.add_space(8.0);
                 return;
             }
 
@@ -139,37 +139,35 @@ impl SpaceAnalyzerApp {
             if !self.search_results.is_empty() {
                 section_header(ui, Some(icons::SEARCH), "Results");
                 app_card(ui, |ui| {
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        egui::Grid::new("search_results")
-                            .striped(true)
-                            .show(ui, |ui| {
-                                ui.strong("File");
-                                ui.strong("Size");
-                                ui.strong("Similarity");
-                                ui.strong("");
-                                ui.end_row();
+                    egui::Grid::new("search_results")
+                        .striped(true)
+                        .show(ui, |ui| {
+                            ui.strong("File");
+                            ui.strong("Size");
+                            ui.strong("Similarity");
+                            ui.strong("");
+                            ui.end_row();
 
-                                for result in &self.search_results {
-                                    ui.label(&result.file_path);
-                                    ui.label(formatting::format_bytes(result.file_size));
-                                    ui.label(format!("{:.1}%", result.similarity * 100.0));
-                                    ui.horizontal(|ui| {
-                                        let file_path = std::path::Path::new(&result.file_path);
-                                        if file_path.exists() {
-                                            if ui.small_button("Open").clicked() {
-                                                let _ = open::that(&result.file_path);
-                                            }
-                                            if ui.small_button("Folder").clicked() {
-                                                if let Some(parent) = file_path.parent() {
-                                                    let _ = open::that(parent);
-                                                }
+                            for result in &self.search_results {
+                                ui.label(&result.file_path);
+                                ui.label(formatting::format_bytes(result.file_size));
+                                ui.label(format!("{:.1}%", result.similarity * 100.0));
+                                ui.horizontal(|ui| {
+                                    let file_path = std::path::Path::new(&result.file_path);
+                                    if file_path.exists() {
+                                        if tiny_button(ui, "Open").clicked() {
+                                            let _ = open::that(&result.file_path);
+                                        }
+                                        if tiny_button(ui, "Folder").clicked() {
+                                            if let Some(parent) = file_path.parent() {
+                                                let _ = open::that(parent);
                                             }
                                         }
-                                    });
-                                    ui.end_row();
-                                }
-                            });
-                    });
+                                    }
+                                });
+                                ui.end_row();
+                            }
+                        });
                 });
             } else if !self.search_query.is_empty() && !self.search_processing {
                 ui.horizontal(|ui| {
@@ -186,7 +184,7 @@ impl SpaceAnalyzerApp {
             }
 
             ui.add_space(8.0);
-            if ui.button("Rebuild index").clicked() {
+            if secondary_button(ui, "Rebuild index").clicked() {
                 self.start_embedding_index();
             }
         });

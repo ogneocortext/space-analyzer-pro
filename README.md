@@ -43,12 +43,21 @@ Space Analyzer Pro is available in one mode:
 ## Quick Start
 
 ```bash
-# Build the GUI
-cargo build --release --bin space-analyzer-gui
-./target/release/space-analyzer-gui.exe
+# Build the egui GUI (Rust)
+cargo build --release -p space-analyzer-gui-egui
+./gui-egui/target/release/space-analyzer-gui.exe
 
 # Or use the task runner
 just run-gui
+```
+
+### WinUI 3 GUI (C#/.NET)
+
+```bash
+# Requires Visual Studio 2022+ or VS Build Tools with .NET desktop workload
+cd gui-winui
+dotnet build -c Debug
+dotnet run --project SpaceAnalyzer
 ```
 
 ### Prerequisites
@@ -123,67 +132,14 @@ cargo run --bin space-analyzer-pro -- --path . --type "Documents" "Images"
 
 ## Architecture
 
-<details>
-<summary><b>Click to expand full architecture diagram</b></summary>
+Two GUI implementations exist side-by-side for comparison:
 
-```mermaid
-graph TB
-    subgraph Entry["Entry Points"]
-        GUI["space-analyzer-gui.exe<br/>(egui/eframe)"]
-        CLI["space-analyzer-pro.exe<br/>(CLI Scanner)"]
-        FTH["flow-test-harness.exe<br/>(Integration Tests)"]
-    end
+| GUI | Path | Stack | Status |
+|-----|------|-------|--------|
+| **egui** | `gui-egui/` | Rust + eframe/egui 0.34 | Feature-complete, archived for comparison |
+| **WinUI 3** | `gui-winui/` | C# + Windows App SDK | Active development |
 
-    subgraph App["Rust Application Core (src/)"]
-        direction TB
-        Gui["gui/<br/>8 tabs · dashboard · scan · history ·<br/>smart search · workflows · AI chat ·<br/>system · settings"]
-        Ollama["ollama/<br/>LLM client · chat · streaming ·<br/>embeddings · prompt cache"]
-        DB["database/<br/>SQLite (rusqlite)<br/>scans · embeddings · workflows · settings"]
-        WF["workflows/<br/>5 categories · 4 triggers · 7 actions"]
-        TR["tool_registry/<br/>12+ LLM-callable tools"]
-        Cat["category.rs<br/>12-category file grouping"]
-        OAI["offline_ai.rs<br/>Heuristic bloat detection"]
-        FR["file_relations.rs<br/>Dependency report /<br/>destructive-action preview"]
-        SM["system_monitor.rs<br/>CPU/RAM/GPU/disk"]
-        ES["embedding_service.rs<br/>Semantic search"]
-    end
-
-    subgraph Native["Native Crates (native/)"]
-        Scanner["scanner/<br/>NTFS USN Journal · MFT ·<br/>hardlinks · Windows API"]
-        Dedup["file_deduplicator/<br/>GPU-accelerated hashing"]
-        NMC["node_modules_cleaner/<br/>Node.js dev cleanup"]
-    end
-
-    subgraph Shared["Shared Crates"]
-        SS["shared-scanner/<br/>rayon-parallel walks"]
-        GPU["gpu-compute/<br/>Optional CUDA kernels"]
-    end
-
-    GUI --> Gui
-    CLI --> Scanner
-    FTH --> Gui
-    Gui --> Cat
-    Gui --> OAI
-    Gui --> FR
-    Gui --> ES
-    Gui --> SM
-    Gui --> WF
-    Gui --> Ollama
-    Gui --> TR
-    Gui --> DB
-    Ollama -.optional.-> OllamaExt[(Ollama<br/>local HTTP)]
-    TR --> Cat
-    TR --> FR
-    TR --> SS
-    TR --> DB
-    WF --> Scanner
-    WF --> Dedup
-    SS --> GPU
-    SS --> Scanner
-    Dedup --> GPU
-```
-
-</details>
+The core Rust library (`src/`) provides the database, Ollama integration, system monitoring, and CLI. Both GUIs consume this library — egui directly as a Rust crate, WinUI 3 via subprocess calls to the CLI.
 
 ### Tabs
 
@@ -195,6 +151,7 @@ graph TB
 | **Smart Search** | Semantic search via local embeddings (requires Ollama) |
 | **Workflows** | Create, edit, schedule, and run automated cleanup/analysis workflows |
 | **AI Assistant** | Chat with local LLM; the LLM can call tools to scan, analyze, and act on your behalf |
+| **Duplicates** | Find and remove duplicate files with parallel hashing |
 | **System** | CPU/RAM/GPU/disk monitor with real-time gauges |
 | **Settings** | Configure Ollama endpoint, default scan paths, theme, GPU toggle |
 
@@ -202,7 +159,8 @@ graph TB
 
 | Component | Implementation | Notes |
 |---|---|---|
-| **GUI** | egui/eframe 0.34 (native Rust) | Single window, 8 tabs |
+| **GUI (egui)** | eframe 0.34 (native Rust) | Single window, 8 tabs |
+| **GUI (WinUI 3)** | Windows App SDK 1.6 (C#/.NET 8) | Fluent Design, Mica backdrop, 9 pages |
 | **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
 | **File Scanner** | `shared-scanner` (rayon-parallel) | CPU mode default |
 | **GPU Acceleration** | `gpu-compute` crate (optional) | Auto-detects NVIDIA, falls back to CPU |
@@ -218,7 +176,7 @@ graph TB
 
 | Dashboard | AI Assistant |
 |---|---|
-| _Coming soon_ | _Coming soon_ |
+| <img src="assets/screenshots/dashboard.png" alt="Dashboard" width="400"> | <img src="assets/screenshots/ai-chat.png" alt="AI Assistant" width="400"> |
 
 _To capture fresh screenshots, run `just test-gui` which uses the Win32 PrintWindow API to capture the actual GUI window._
 
@@ -244,11 +202,10 @@ just help          # Show all commands
 ### Project Structure
 
 ```
-src/                       # Rust application source
-  bin/                     # Binary entry points (space-analyzer-gui, space-analyzer-pro, flow-test-harness)
+src/                       # Core Rust library (no GUI)
+  main.rs                  # CLI entry point
+  lib.rs                   # Library exports
   cli/                     # CLI module (args, scan, output, recommendations, report, dedup)
-  gui/                     # egui desktop GUI (8 tabs, dashboard, system, etc.)
-    ai/                    # AI Assistant chat interface
   ollama/                  # Ollama LLM client (chat, embeddings, streaming, tool calls)
   database/                # SQLite layer (scans, embeddings, settings, workflows)
   workflows/               # Analysis workflow engine (5 categories, 7 actions, 4 triggers)
@@ -258,9 +215,30 @@ src/                       # Rust application source
   file_relations.rs        # Dependency report (hardlinks, symlinks, siblings)
   system_monitor.rs        # CPU/RAM/GPU/disk monitoring
   embedding_service.rs     # Semantic search via Ollama embeddings
-  session_logger.rs        # Opt-in diagnostic logging
-  animation.rs             # Animated typewriter banner (CLI)
-  utils.rs                 # Shared utilities (formatting, paths, etc.)
+  disk_monitor.rs          # Background disk space monitor
+  gui_common.rs            # Shared types for GUI implementations
+
+gui-egui/                  # egui desktop GUI (archived for comparison)
+  Cargo.toml               # Depends on root crate
+  src/
+    main.rs                # GUI binary entry point
+    lib.rs                 # Re-exports gui module
+    gui/                   # egui GUI modules (8 tabs, dashboard, system, etc.)
+      ai/                  # AI Assistant chat interface
+    thumbnails.rs          # Image thumbnail cache
+
+gui-winui/                 # WinUI 3 desktop GUI (active development)
+  SpaceAnalyzer.sln        # Visual Studio solution
+  SpaceAnalyzer/
+    SpaceAnalyzer.csproj   # .NET 8 + Windows App SDK
+    App.xaml(.cs)          # Application entry
+    MainWindow.xaml(.cs)   # NavigationView shell
+    Views/                 # XAML pages (Dashboard, Scan, Settings, etc.)
+    ViewModels/            # MVVM view models
+    Services/
+      ScannerService.cs    # Rust CLI interop (subprocess + JSON)
+    Models/                # Data models
+    Assets/                # Icons, images
 
 native/                    # Standalone Rust binaries
   scanner/                 # Windows NTFS scanner (USN Journal, MFT, hardlinks)

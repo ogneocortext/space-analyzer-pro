@@ -1,40 +1,45 @@
 ﻿# AGENTS.md
 
-Project: Space Analyzer Pro (Rust + eframe + Ollama + SQLite)
+Project: Space Analyzer Pro
 Root: `E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer`
+
+Two GUI implementations exist side-by-side for comparison:
 
 ## Workspace Structure
 
+### Core (Rust)
 | Crate | Path | Description |
 |-------|------|-------------|
-| Root crate | `src/` | GUI (eframe), CLI, Ollama integration, database |
+| Root crate | `src/` | Core library: database, Ollama, system monitor, CLI |
 | `shared-scanner` | `shared-scanner/` | Cross-platform disk scanner library |
 | `gpu-compute` | `gpu-compute/` | CUDA/PTX GPU-accelerated scanning |
 | `native/scanner` | `native/scanner/` | Native CLI scanner binary |
 | `native/file_deduplicator` | `native/file_deduplicator/` | File deduplication tool |
 | `native/node_modules_cleaner` | `native/node_modules_cleaner/` | node_modules cleanup tool |
 
-### UX Pipeline (Python)
+### GUI — egui (Rust)
+| Crate | Path | Description |
+|-------|------|-------------|
+| `space-analyzer-gui-egui` | `gui-egui/` | Desktop GUI built with eframe/egui |
 
-A standalone Python package at `ux-pipeline/` for PIL feature extraction, Ollama vision analysis, issue tracking, and a localhost web dashboard.
-
-```bash
-pip install -e ux-pipeline/        # install in dev mode
-ux-pipeline --all                  # run full pipeline
-ux-pipeline --list                 # list tracker rows
-ux-pipeline --summary              # text summary
-ux-pipeline --report               # write markdown report
-ux-pipeline-dashboard              # start web dashboard
-pytest ux-pipeline/tests/          # run Python tests
-```
+### GUI — WinUI 3 (C# / .NET)
+| Project | Path | Description |
+|---------|------|-------------|
+| `SpaceAnalyzer` | `gui-winui/` | Desktop GUI built with WinUI 3 + Windows App SDK |
 
 ## Commands
 
 ### Rust (cargo)
-- Build: `cargo build --workspace`
-- Test: `cargo test --workspace`
-- GUI: `cargo run --bin space-analyzer-gui`
+- Build core: `cargo build --workspace`
+- Test core: `cargo test --workspace`
 - CLI: `cargo run --bin space-analyzer-pro`
+- Build egui GUI: `cargo build -p space-analyzer-gui-egui`
+- Run egui GUI: `cargo run -p space-analyzer-gui-egui`
+
+### WinUI 3 (.NET)
+- Build: `dotnet build gui-winui/SpaceAnalyzer.sln` (requires VS MSBuild or VS Build Tools)
+- Run: `dotnet run --project gui-winui/SpaceAnalyzer`
+- NOTE: WinUI 3 XAML compiler requires Visual Studio MSBuild (not just dotnet CLI). Use VS 2022+ Build Tools or full VS.
 
 ### Task runner (just)
 - `just build` — build debug workspace
@@ -42,10 +47,18 @@ pytest ux-pipeline/tests/          # run Python tests
 - `just lint` — format check + clippy
 - `just fmt` — format all Rust code
 - `just verify` — fmt-check + clippy + test (full CI check)
-- `just run-gui` — start the GUI
+- `just run-gui` — start the egui GUI
 - `just run-cli` — run the CLI scanner
 - `just clippy` — run Clippy lints
 - `just db-check` — verify SQLite schema
+
+## Interop: WinUI 3 ↔ Rust
+
+The WinUI 3 app calls the Rust scanner as a subprocess:
+```
+space-analyzer-pro scan --path "C:\Users" --format json
+```
+JSON output is deserialized into C# models in `gui-winui/SpaceAnalyzer/Services/ScannerService.cs`.
 
 ## Rules
 - Edit files directly in this repo. Do not ask to clone, copy, or map drives.
@@ -56,10 +69,13 @@ pytest ux-pipeline/tests/          # run Python tests
 
 ## CI/CD
 - This project intentionally does NOT use GitHub Actions for CI/CD. All verification is done via `just verify` locally.
-- The deleted `.github/workflows/rust-ci.yml` was removed as this project uses manual quality gates instead.
 
 ## File Conventions
-- `src/gui/` — eframe GUI modules (app, settings, AI chat, scan, etc.)
+- `src/` — Core library (database, ollama, system_monitor, CLI, etc.)
+- `gui-egui/src/gui/` — eframe GUI modules (dashboard, scan, settings, AI chat, etc.)
+- `gui-winui/SpaceAnalyzer/Views/` — WinUI 3 XAML pages
+- `gui-winui/SpaceAnalyzer/Services/` — Rust CLI interop, data services
+- `gui-winui/SpaceAnalyzer/ViewModels/` — MVVM view models
 - `src/ollama/` — Ollama REST API client and feature detection
 - `src/database/` — SQLite schema and queries
 - `ux-pipeline/src/ux_pipeline/` — Python pipeline modules

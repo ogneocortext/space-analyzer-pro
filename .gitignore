@@ -2,6 +2,7 @@
 target/
 cpp-build/
 *.exe
+native/*/target/
 
 # Python
 *.pyc
@@ -20,6 +21,7 @@ test_response*.json
 analysis_result.json
 build-log.txt
 reports/
+releases/
 
 # Test artifacts
 test_results_*.json
@@ -65,8 +67,8 @@ nul
 *~
 .idea/
 *.iml
-.ipr
-.iws
+*.ipr
+*.iws
 .project
 .classpath
 .settings/
@@ -114,19 +116,34 @@ scripts/temporary/
 # Runtime data
 loop_feedback/
 scripts/loop/
-loop_feedback/
+
+# Docs runtime/generated files
+docs/issues.db*
+docs/issues.json
+docs/.loop_state.json
+docs/*.csv
 
 # Agent config (OpenClaw, etc.)
 .openclaw/
+AGENTS.md
 HEARTBEAT.md
 IDENTITY.md
 SOUL.md
 TOOLS.md
 USER.md
+.clinerules
 
 # Agent workspace state
 openclaw-workspace-state.json
 dashboard-screenshot.png
+opencode.json
+
+# Python/type-checker caches
+.mypy_cache/
+.ruff_cache/
 
 # Node.js dependencies
 node_modules/
+
+# Archived web assets
+archive/**/node_modules/

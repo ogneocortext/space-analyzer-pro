@@ -53,7 +53,7 @@ help:
     @echo ""
     @echo "System Utilities:"
     @echo "  just check-updates       Check app updates (portable online + winget + deps)"
-    @echo "  just check-deps          Check code dependencies only (npm, pip, cargo)"
+    @echo "  just check-code-deps     Check code dependencies only (npm, pip, cargo)"
     @echo "  just check-updates-fast  Check apps only (skip dependency scan)"
     @echo "  just dashboard           Open interactive HTML dashboard"
     @echo "  just dashboard-server    Start server at localhost:3847 for live updates"
@@ -79,7 +79,7 @@ build-release:
 
 # Build GUI binary only
 build-gui:
-    cargo build --bin space-analyzer-gui
+    cargo build -p space-analyzer-gui-egui
 
 # Build CLI binary only
 build-cli:
@@ -161,7 +161,7 @@ setup:
 
 # Start the GUI application
 run-gui:
-    cargo run --bin space-analyzer-gui
+    cargo run -p space-analyzer-gui-egui
 
 # Run the CLI scanner
 run-cli:
@@ -180,7 +180,7 @@ package:
     @echo "Building release..."
     cargo build --workspace --release
     @echo "Creating package..."
-    @powershell -Command "$v = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version; $z = \"space-analyzer-pro-$v-windows-x64.zip\"; if (Test-Path $z) { Remove-Item $z }; Compress-Archive -Path 'target/release/space-analyzer-gui.exe','target/release/space-analyzer-pro.exe' -DestinationPath $z; echo \"Package: $z\""
+    @powershell -Command "$v = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version; $z = \"space-analyzer-pro-$v-windows-x64.zip\"; if (Test-Path $z) { Remove-Item $z }; 	Compress-Archive -Path 'gui-egui/target/release/space-analyzer-gui.exe','target/release/space-analyzer-pro.exe' -DestinationPath $z; echo \"Package: $z\""
 
 # Run criterion benchmarks
 bench:
@@ -271,7 +271,7 @@ check-updates:
     @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/check_updates.ps1
 
 # Check only code dependencies (npm, pip, cargo) on E: drive
-check-deps:
+check-code-deps:
     @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/check_updates.ps1 -SkipPortable -SkipWinget
 
 # Check updates (JSON output)
@@ -298,7 +298,7 @@ package-full: build-release
 	$v = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version
 	$out = "dist/space-analyzer-pro-$v-windows-x64"
 	New-Item -ItemType Directory -Path "$out/bin" -Force | Out-Null
-	Copy-Item "target/release/space-analyzer-gui.exe" "$out/bin/"
+	Copy-Item "gui-egui/target/release/space-analyzer-gui.exe" "$out/bin/"
 	Copy-Item "target/release/space-analyzer-pro.exe" "$out/bin/"
 	if (Test-Path "target/release/*.dll") { Copy-Item "target/release/*.dll" "$out/bin/" }
 	New-Item -ItemType Directory -Path "$out/docs" -Force | Out-Null

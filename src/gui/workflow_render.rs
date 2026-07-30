@@ -521,101 +521,100 @@ impl SpaceAnalyzerApp {
                 );
             } else {
                 let mut enable_workflow_ids: Vec<String> = Vec::new();
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    for workflow in &self.workflows {
-                        let workflow_id = workflow.id.clone();
-                        app_card(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.vertical(|ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.label(
-                                            egui::RichText::new(&workflow.name)
-                                                .strong()
-                                                .color(colors::TEXT_PRIMARY),
-                                        );
-                                        badge(
-                                            ui,
-                                            &format!("{}", workflow.category),
-                                            colors::ACCENT_DIM,
-                                        );
-                                        if workflow.enabled {
-                                            status_badge(ui, "Enabled", Tone::Success);
-                                        } else {
-                                            status_badge(ui, "Disabled", Tone::Neutral);
-                                        }
-                                    });
+                for workflow in &self.workflows {
+                    let workflow_id = workflow.id.clone();
+                    app_card(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.vertical(|ui| {
+                                ui.horizontal(|ui| {
                                     ui.label(
-                                        egui::RichText::new(&workflow.description)
-                                            .size(11.0)
-                                            .color(colors::TEXT_SECONDARY),
+                                        egui::RichText::new(&workflow.name)
+                                            .strong()
+                                            .color(colors::TEXT_PRIMARY),
                                     );
-                                    ui.horizontal(|ui| {
-                                        badge(
-                                            ui,
-                                            &format!("{} actions", workflow.actions.len()),
-                                            colors::TEXT_SECONDARY,
-                                        );
-                                        if let Some(ref last_run) = workflow.last_run {
-                                            ui.label(
-                                                egui::RichText::new(format!("Last: {}", last_run))
-                                                    .size(10.0)
-                                                    .color(colors::TEXT_MUTED),
-                                            );
-                                        }
-                                    });
-                                    if !workflow.enabled {
-                                        ui.add_space(4.0);
-                                        ui.horizontal(|ui| {
-                                            ui.label(
-                                                egui::RichText::new(
-                                                    "Enable this workflow before running it.",
-                                                )
-                                                .size(11.0)
-                                                .color(colors::TEXT_MUTED),
-                                            );
-                                            if secondary_button(ui, "Enable workflow").clicked() {
-                                                enable_workflow_ids.push(workflow_id.clone());
-                                            }
-                                        });
+                                    badge(
+                                        ui,
+                                        &format!("{}", workflow.category),
+                                        colors::ACCENT_DIM,
+                                    );
+                                    if workflow.enabled {
+                                        status_badge(ui, "Enabled", Tone::Success);
+                                    } else {
+                                        status_badge(ui, "Disabled", Tone::Neutral);
                                     }
                                 });
-                                ui.with_layout(
-                                    egui::Layout::right_to_left(egui::Align::Center),
-                                    |ui| {
-                                        if ui
-                                            .add(
-                                                egui::Button::new(
-                                                    egui::RichText::new(icons::X)
-                                                        .color(colors::ERROR),
-                                                )
-                                                .fill(colors::ERROR.linear_multiply(0.15))
-                                                .min_size(egui::vec2(28.0, 28.0)),
-                                            )
-                                            .clicked()
-                                        {
-                                            delete_workflow_id = Some(workflow.id.clone());
-                                        }
-                                        if ui.small_button("Edit").clicked() {
-                                            edit_workflow_id = Some(workflow.id.clone());
-                                        }
-                                        let run_btn = egui::Button::new(
-                                            egui::RichText::new(format!("{} Run", icons::PLAY))
-                                                .size(12.0)
-                                                .strong(),
-                                        )
-                                        .fill(colors::ACCENT)
-                                        .corner_radius(egui::CornerRadius::same(8))
-                                        .min_size(egui::vec2(80.0, 32.0));
-
-                                        if ui.add_enabled(workflow.enabled, run_btn).clicked() {
-                                            run_workflow_id = Some(workflow.id.clone());
-                                        }
-                                    },
+                                ui.label(
+                                    egui::RichText::new(&workflow.description)
+                                        .size(11.0)
+                                        .color(colors::TEXT_SECONDARY),
                                 );
+                                ui.horizontal(|ui| {
+                                    badge(
+                                        ui,
+                                        &format!("{} actions", workflow.actions.len()),
+                                        colors::TEXT_SECONDARY,
+                                    );
+                                    if let Some(ref last_run) = workflow.last_run {
+                                        ui.label(
+                                            egui::RichText::new(format!("Last: {}", last_run))
+                                                .size(10.0)
+                                                .color(colors::TEXT_MUTED),
+                                        );
+                                    }
+                                });
+                                if !workflow.enabled {
+                                    ui.add_space(4.0);
+                                    ui.horizontal(|ui| {
+                                        ui.label(
+                                            egui::RichText::new(
+                                                "Enable this workflow before running it.",
+                                            )
+                                            .size(11.0)
+                                            .color(colors::TEXT_MUTED),
+                                        );
+                                        if secondary_button(ui, "Enable workflow").clicked() {
+                                            enable_workflow_ids.push(workflow_id.clone());
+                                        }
+                                    });
+                                }
                             });
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if ui
+                                        .add(
+                                            egui::Button::new(
+                                                egui::RichText::new(icons::X).color(colors::ERROR),
+                                            )
+                                            .fill(colors::ERROR.linear_multiply(0.15))
+                                            .corner_radius(egui::CornerRadius::same(4))
+                                            .min_size(egui::vec2(28.0, 28.0)),
+                                        )
+                                        .clicked()
+                                    {
+                                        delete_workflow_id = Some(workflow.id.clone());
+                                    }
+                                    if tiny_button(ui, "Edit").clicked() {
+                                        edit_workflow_id = Some(workflow.id.clone());
+                                    }
+                                    let run_btn = egui::Button::new(
+                                        egui::RichText::new(format!("{} Run", icons::PLAY))
+                                            .size(12.0)
+                                            .strong()
+                                            .color(colors::BG_APP),
+                                    )
+                                    .fill(colors::ACCENT)
+                                    .corner_radius(egui::CornerRadius::same(8))
+                                    .min_size(egui::vec2(80.0, 32.0));
+
+                                    if ui.add_enabled(workflow.enabled, run_btn).clicked() {
+                                        run_workflow_id = Some(workflow.id.clone());
+                                    }
+                                },
+                            );
                         });
-                    }
-                });
+                    });
+                }
                 for id in enable_workflow_ids {
                     if let Some(w) = self.workflows.iter_mut().find(|w| w.id == id) {
                         w.enabled = true;
@@ -658,30 +657,26 @@ impl SpaceAnalyzerApp {
             });
 
             if !self.workflow_history.is_empty() {
-                ui.add_space(8.0);
+                ui.add_space(4.0);
                 section_header(ui, Some(icons::SCROLL), "Execution history");
                 app_card(ui, |ui| {
-                    egui::ScrollArea::vertical()
-                        .max_height(150.0)
-                        .show(ui, |ui| {
-                            for exec in self.workflow_history.iter().rev().take(10) {
-                                let color = match exec.status {
-                                    ExecutionStatus::Completed => colors::SUCCESS,
-                                    ExecutionStatus::Failed => colors::ERROR,
-                                    ExecutionStatus::Running => colors::WARNING,
-                                    _ => colors::TEXT_MUTED,
-                                };
-                                ui.horizontal(|ui| {
-                                    badge(ui, &format!("{}", exec.status), color);
-                                    ui.label(&exec.workflow_name);
-                                    ui.label(
-                                        egui::RichText::new(&exec.started_at)
-                                            .size(10.0)
-                                            .color(colors::TEXT_MUTED),
-                                    );
-                                });
-                            }
+                    for exec in self.workflow_history.iter().rev().take(10) {
+                        let color = match exec.status {
+                            ExecutionStatus::Completed => colors::SUCCESS,
+                            ExecutionStatus::Failed => colors::ERROR,
+                            ExecutionStatus::Running => colors::WARNING,
+                            _ => colors::TEXT_MUTED,
+                        };
+                        ui.horizontal(|ui| {
+                            badge(ui, &format!("{}", exec.status), color);
+                            ui.label(&exec.workflow_name);
+                            ui.label(
+                                egui::RichText::new(&exec.started_at)
+                                    .size(10.0)
+                                    .color(colors::TEXT_MUTED),
+                            );
                         });
+                    }
                 });
             }
 
@@ -826,16 +821,16 @@ impl SpaceAnalyzerApp {
                                         .size(11.0)
                                         .color(colors::TEXT_SECONDARY),
                                 );
-                                if ui.small_button("Daily").clicked() {
+                                if tiny_button(ui, "Daily").clicked() {
                                     *cron = "0 0 * * *".to_string();
                                 }
-                                if ui.small_button("Weekly").clicked() {
+                                if tiny_button(ui, "Weekly").clicked() {
                                     *cron = "0 0 * * 1".to_string();
                                 }
-                                if ui.small_button("Monthly").clicked() {
+                                if tiny_button(ui, "Monthly").clicked() {
                                     *cron = "0 0 1 * *".to_string();
                                 }
-                                if ui.small_button("Hourly").clicked() {
+                                if tiny_button(ui, "Hourly").clicked() {
                                     *cron = "0 * * * *".to_string();
                                 }
                             });
@@ -879,10 +874,10 @@ impl SpaceAnalyzerApp {
 
                     for (i, action) in workflow.actions.iter().enumerate() {
                         ui.horizontal(|ui| {
-                            if ui.small_button("▲").clicked() && i > 0 {
+                            if tiny_button(ui, "▲").clicked() && i > 0 {
                                 move_action = Some((i, -1));
                             }
-                            if ui.small_button("▼").clicked() && i + 1 < workflow.actions.len() {
+                            if tiny_button(ui, "▼").clicked() && i + 1 < workflow.actions.len() {
                                 move_action = Some((i, 1));
                             }
 
@@ -920,7 +915,7 @@ impl SpaceAnalyzerApp {
                                         .color(colors::TEXT_SECONDARY),
                                 );
                             }
-                            if ui.small_button("X").clicked() {
+                            if tiny_button(ui, "X").clicked() {
                                 remove_action = Some(i);
                             }
                         });
@@ -987,7 +982,7 @@ impl SpaceAnalyzerApp {
                         ];
 
                         for (label, action) in actions {
-                            if ui.button(label).clicked() {
+                            if secondary_button_small(ui, &label).clicked() {
                                 workflow.actions.push(action);
                             }
                         }
