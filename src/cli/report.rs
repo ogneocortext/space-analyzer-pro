@@ -2,11 +2,13 @@ use shared_scanner::format_bytes;
 use std::fs;
 
 use super::helpers;
+use super::origins;
 use super::types::ScanResult;
 
 pub fn export_results(result: &ScanResult, export_path: &str, format: &str) {
     let content = match format {
         "json" => serde_json::to_string_pretty(result).unwrap_or_default(),
+        "jsonl" => generate_jsonl(result),
         "csv" => {
             let mut csv = String::new();
             csv.push_str("section,key,value\n");
@@ -34,7 +36,10 @@ pub fn export_results(result: &ScanResult, export_path: &str, format: &str) {
             for dir in &result.top_directories {
                 csv.push_str(&format!(
                     "\"{}\",{},{},{}\n",
-                    dir.path.replace('"', "\"\""), dir.total_size, dir.file_count, dir.dir_count
+                    dir.path.replace('"', "\"\""),
+                    dir.total_size,
+                    dir.file_count,
+                    dir.dir_count
                 ));
             }
             csv.push('\n');
@@ -45,6 +50,7 @@ pub fn export_results(result: &ScanResult, export_path: &str, format: &str) {
             }
             csv
         }
+        "md" | "markdown" => generate_report(result, &result.path, 20),
         _ => generate_report(result, &result.path, 20),
     };
 
@@ -52,6 +58,12 @@ pub fn export_results(result: &ScanResult, export_path: &str, format: &str) {
         Ok(()) => println!("✅ Results exported to: {}", export_path),
         Err(e) => eprintln!("❌ Failed to export: {}", e),
     }
+}
+
+pub fn generate_jsonl(result: &ScanResult) -> String {
+    let mut buf = Vec::new();
+    let _ = serde_json::to_writer(&mut buf, result);
+    String::from_utf8_lossy(&buf).into_owned()
 }
 
 pub fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String {
@@ -252,45 +264,65 @@ pub fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String 
                 disk.mount_point, disk.usage_percent, format_bytes(disk.available_bytes)
             )));
         } else if disk.usage_percent > 80.0 {
-            recommendations.push((2, format!(
-                "**WARNING:** Drive {} is {:.0}% full. {} free. Consider cleanup soon.",
-                disk.mount_point, disk.usage_percent, format_bytes(disk.available_bytes)
-            )));
+            recommendations.push((
+                2,
+                format!(
+                    "**WARNING:** Drive {} is {:.0}% full. {} free. Consider cleanup soon.",
+                    disk.mount_point,
+                    disk.usage_percent,
+                    format_bytes(disk.available_bytes)
+                ),
+            ));
         }
     }
 
-    let ollama_size: u64 = result.largest_files.iter()
+    let ollama_size: u64 = result
+        .largest_files
+        .iter()
         .filter(|(p, _)| p.contains(".ollama") || p.contains("ollama"))
-        .map(|(_, s)| s).sum();
+        .map(|(_, s)| s)
+        .sum();
     if ollama_size > 1024 * 1024 * 1024 {
-        recommendations.push((2, format!(
-            "Ollama models are using {}. Run `ollama rm <model>` to free space.",
-            format_bytes(ollama_size)
-        )));
+        recommendations.push((
+            2,
+            format!(
+                "Ollama models are using {}. Run `ollama rm <model>` to free space.",
+                format_bytes(ollama_size)
+            ),
+        ));
         potential_savings = potential_savings.saturating_add(ollama_size);
     }
 
     let log_size: u64 = result.extension_sizes.get("log").copied().unwrap_or(0);
     if log_size > 100 * 1024 * 1024 {
-        recommendations.push((1, format!(
-            "Log files are using {}. Consider clearing old logs.",
-            format_bytes(log_size)
-        )));
+        recommendations.push((
+            1,
+            format!(
+                "Log files are using {}. Consider clearing old logs.",
+                format_bytes(log_size)
+            ),
+        ));
         potential_savings = potential_savings.saturating_add(log_size);
     }
 
     let exe_size: u64 = result.extension_sizes.get("exe").copied().unwrap_or(0);
     if exe_size > 500 * 1024 * 1024 {
-        recommendations.push((1, format!(
-            "Installer/executable files are using {}. Check Downloads for old installers.",
-            format_bytes(exe_size)
-        )));
+        recommendations.push((
+            1,
+            format!(
+                "Installer/executable files are using {}. Check Downloads for old installers.",
+                format_bytes(exe_size)
+            ),
+        ));
         potential_savings = potential_savings.saturating_add(exe_size);
     }
 
-    let node_modules_size: u64 = result.top_directories.iter()
+    let node_modules_size: u64 = result
+        .top_directories
+        .iter()
         .filter(|d| d.name == "node_modules")
-        .map(|d| d.total_size).sum();
+        .map(|d| d.total_size)
+        .sum();
     if node_modules_size > 0 {
         recommendations.push((1, format!(
             "node_modules directories are using {}. Run `npm prune` or delete unused project dependencies.",
@@ -299,30 +331,45 @@ pub fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String 
         potential_savings = potential_savings.saturating_add(node_modules_size);
     }
 
-    let cache_size: u64 = result.top_directories.iter()
+    let cache_size: u64 = result
+        .top_directories
+        .iter()
         .filter(|d| {
             let l = d.path.to_lowercase();
-            l.contains("cache") || l.contains("temp") || l.contains("tmp")
-                || l.contains("dxcache") || l.contains("code cache")
+            l.contains("cache")
+                || l.contains("temp")
+                || l.contains("tmp")
+                || l.contains("dxcache")
+                || l.contains("code cache")
                 || l.contains("cachedata")
         })
-        .map(|d| d.total_size).sum();
+        .map(|d| d.total_size)
+        .sum();
     if cache_size > 500 * 1024 * 1024 {
-        recommendations.push((1, format!(
-            "Cache/temp directories are using {}. Consider clearing application caches.",
-            format_bytes(cache_size)
-        )));
+        recommendations.push((
+            1,
+            format!(
+                "Cache/temp directories are using {}. Consider clearing application caches.",
+                format_bytes(cache_size)
+            ),
+        ));
         potential_savings = potential_savings.saturating_add(cache_size);
     }
 
-    let recycle_bin_size: u64 = result.top_directories.iter()
+    let recycle_bin_size: u64 = result
+        .top_directories
+        .iter()
         .filter(|d| d.path.to_lowercase().contains("$recycle.bin"))
-        .map(|d| d.total_size).sum();
+        .map(|d| d.total_size)
+        .sum();
     if recycle_bin_size > 0 {
-        recommendations.push((2, format!(
-            "Recycle Bin contains {} of deleted files. Empty it to reclaim space.",
-            format_bytes(recycle_bin_size)
-        )));
+        recommendations.push((
+            2,
+            format!(
+                "Recycle Bin contains {} of deleted files. Empty it to reclaim space.",
+                format_bytes(recycle_bin_size)
+            ),
+        ));
         potential_savings = potential_savings.saturating_add(recycle_bin_size);
     }
 
@@ -342,6 +389,14 @@ pub fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String 
             format_bytes(potential_savings)
         ));
     }
+
+    // Origin-tracing + deletion-safety section.
+    let origin_report = space_analyzer_pro_desktop::origin_tracer::build_report(
+        result,
+        top_n.max(60),
+        top_n.max(40),
+    );
+    report.push_str(&origins::origin_markdown(&origin_report));
 
     report
 }

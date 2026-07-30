@@ -94,9 +94,13 @@ pub fn print_recommendations(result: &ScanResult) {
         .iter()
         .filter(|d| {
             let l = d.path.to_lowercase();
-            l.contains("cache") || l.contains("temp") || l.contains("tmp")
-                || l.contains("dxcache") || l.contains("code cache")
-                || l.contains("cachedata") || l.contains("cachedextensionvsixs")
+            l.contains("cache")
+                || l.contains("temp")
+                || l.contains("tmp")
+                || l.contains("dxcache")
+                || l.contains("code cache")
+                || l.contains("cachedata")
+                || l.contains("cachedextensionvsixs")
         })
         .map(|d| d.total_size)
         .sum();
@@ -118,17 +122,23 @@ pub fn print_recommendations(result: &ScanResult) {
         .map(|d| d.total_size)
         .sum();
     if recycle_bin_size > 0 {
-        recommendations.push((2, format!(
-            "🗑️  Recycle Bin contains {} of deleted files. Empty it to reclaim space.",
-            format_bytes(recycle_bin_size)
-        )));
+        recommendations.push((
+            2,
+            format!(
+                "🗑️  Recycle Bin contains {} of deleted files. Empty it to reclaim space.",
+                format_bytes(recycle_bin_size)
+            ),
+        ));
         potential_savings = potential_savings.saturating_add(recycle_bin_size);
     }
 
     let downloads_size: u64 = result
         .top_directories
         .iter()
-        .filter(|d| d.path.to_lowercase().contains("\\downloads") || d.path.to_lowercase().contains("/downloads"))
+        .filter(|d| {
+            d.path.to_lowercase().contains("\\downloads")
+                || d.path.to_lowercase().contains("/downloads")
+        })
         .map(|d| d.total_size)
         .sum();
     if downloads_size > 1024 * 1024 * 1024 {

@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Microsoft.UI;
+using Microsoft.UI.Xaml.Media;
 
 namespace SpaceAnalyzer.Services;
 
@@ -94,6 +96,108 @@ public class ScannerService
         }) ?? GetFallbackVolumes();
     }
 
+    /// <summary>
+    /// Get recent scan history from the embedded database.
+    /// </summary>
+    public async Task<List<ScanHistoryRecord>> GetScanHistoryAsync(int limit = 50, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return new List<ScanHistoryRecord>();
+
+        var args = $"history --limit {limit} --format json";
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = _scannerPath,
+            Arguments = args,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+        var stdout = await process.StandardOutput.ReadToEndAsync(ct);
+        await process.WaitForExitAsync(ct);
+
+        if (process.ExitCode != 0)
+            return new List<ScanHistoryRecord>();
+
+        return JsonSerializer.Deserialize<List<ScanHistoryRecord>>(stdout, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+        }) ?? new List<ScanHistoryRecord>();
+    }
+
+    /// <summary>
+    /// Get full details for a single scan by ID.
+    /// </summary>
+    public async Task<ScanHistoryRecord?> GetScanDetailsAsync(long id, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return null;
+
+        var args = $"history --id {id} --format json";
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = _scannerPath,
+            Arguments = args,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+        var stdout = await process.StandardOutput.ReadToEndAsync(ct);
+        await process.WaitForExitAsync(ct);
+
+        if (process.ExitCode != 0)
+            return null;
+
+        return JsonSerializer.Deserialize<ScanHistoryRecord>(stdout, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+        });
+    }
+
+    /// <summary>
+    /// Run duplicate-file analysis on a directory.
+    /// </summary>
+    public async Task<DedupResult?> RunDedupAnalysisAsync(string path, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return null;
+
+        var args = $"dedup --path \"{path}\" --format json";
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = _scannerPath,
+            Arguments = args,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+
+        var stdout = await process.StandardOutput.ReadToEndAsync(ct);
+        var stderr = await process.StandardError.ReadToEndAsync(ct);
+        await process.WaitForExitAsync(ct);
+
+        if (process.ExitCode != 0)
+            throw new Exception($"Dedup failed (exit {process.ExitCode}): {stderr}");
+
+        return JsonSerializer.Deserialize<DedupResult>(stdout, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+        });
+    }
+
     private static List<DiskVolume> GetFallbackVolumes()
     {
         return DriveInfo.GetDrives()
@@ -111,6 +215,77 @@ public class ScannerService
 }
 
 // ── Data models matching Rust CLI JSON output ──
+
+public class ScanHistoryRecord
+{
+    public long Id { get; set; }
+    public string Path { get; set; } = "";
+    public int TotalFiles { get; set; }
+    public ulong TotalSizeBytes { get; set; }
+    public double TotalSizeMb { get; set; }
+    public double DurationSecs { get; set; }
+    public string FileTypesJson { get; set; } = "";
+    public string ExtensionSizesJson { get; set; } = "";
+    public string TopDirectoriesJson { get; set; } = "";
+    public string LargestFilesJson { get; set; } = "";
+    public bool DeepScan { get; set; }
+    public ulong PotentialCleanupBytes { get; set; }
+    public string Timestamp { get; set; } = "";
+
+    public DateTime ScanDate => DateTime.Parse(Timestamp).ToLocalTime();
+    public string DateDisplay => ScanDate.ToString("yyyy-MM-dd HH:mm");
+    public string TotalSizeDisplay => FormatBytes(TotalSizeBytes);
+    public string DurationDisplay => $"{(int)DurationSecs / 60}m {(int)DurationSecs % 60}s";
+    public string FilesDisplay => $"{TotalFiles:N0} files";
+
+    private static string FormatBytes(ulong bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double size = bytes;
+        int unit = 0;
+        while (size >= 1024 && unit < units.Length - 1)
+        {
+            size /= 1024;
+            unit++;
+        }
+        return $"{size:F1} {units[unit]}";
+    }
+}
+
+public class DuplicateGroup
+{
+    public string Hash { get; set; } = "";
+    public ulong Size { get; set; }
+    public int FileCount { get; set; }
+    public List<string> Files { get; set; } = new();
+    public ulong WastedBytes { get; set; }
+    public string WastedDisplay => ByteFormatter.FormatBytes(WastedBytes);
+    public string SizeDisplay => ByteFormatter.FormatBytes(Size);
+}
+
+public class DedupResult
+{
+    public List<DuplicateGroup> DuplicateGroups { get; set; } = new();
+    public int TotalDuplicateFiles { get; set; }
+    public ulong PotentialSavingsBytes { get; set; }
+    public string PotentialSavingsDisplay => ByteFormatter.FormatBytes(PotentialSavingsBytes);
+}
+
+public static class ByteFormatter
+{
+    public static string FormatBytes(ulong bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        double size = bytes;
+        int unit = 0;
+        while (size >= 1024 && unit < units.Length - 1)
+        {
+            size /= 1024;
+            unit++;
+        }
+        return $"{size:F1} {units[unit]}";
+    }
+}
 
 public class ScanResult
 {
@@ -158,6 +333,18 @@ public class DiskVolume
     public string TotalFormatted => FormatBytes(TotalBytes);
     public string UsedFormatted => FormatBytes(UsedBytes);
     public string AvailableFormatted => FormatBytes(AvailableBytes);
+    public string UsagePercentFormatted => $"{UsagePercent:F1}%";
+    public string UsedDisplay => UsedFormatted;
+    public string TotalDisplay => TotalFormatted;
+    public string AvailableDisplay => AvailableFormatted;
+    public string UsagePercentDisplay => UsagePercentFormatted;
+
+    public SolidColorBrush UsageBrush => new(UsagePercent switch
+    {
+        >= 90 => Colors.Red,
+        >= 70 => Colors.Gold,
+        _ => Colors.Green,
+    });
 
     private static string FormatBytes(ulong bytes)
     {

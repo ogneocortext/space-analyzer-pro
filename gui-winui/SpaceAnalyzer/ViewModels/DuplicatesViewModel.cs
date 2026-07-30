@@ -1,0 +1,91 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using SpaceAnalyzer.Services;
+
+namespace SpaceAnalyzer.ViewModels;
+
+public class DuplicatesViewModel : INotifyPropertyChanged, IDisposable
+{
+    private readonly ScannerService _scanner = new();
+    private bool _disposed;
+
+    public DuplicatesViewModel()
+    {
+    }
+
+    private string _scanPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+    public string ScanPath
+    {
+        get => _scanPath;
+        set { _scanPath = value; OnPropertyChanged(); }
+    }
+
+    private bool _isScanning;
+    public bool IsScanning
+    {
+        get => _isScanning;
+        set { _isScanning = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotScanning)); }
+    }
+    public bool IsNotScanning => !_isScanning;
+
+    private string _statusMessage = "Ready to analyze";
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        set { _statusMessage = value; OnPropertyChanged(); }
+    }
+
+    private DedupResult? _lastResult;
+    public DedupResult? LastResult
+    {
+        get => _lastResult;
+        set { _lastResult = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasResult)); OnPropertyChanged(nameof(HasResultVisibility)); }
+    }
+    public bool HasResult => _lastResult != null;
+    public Microsoft.UI.Xaml.Visibility HasResultVisibility => HasResult ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+    public async Task AnalyzeAsync()
+    {
+        if (IsScanning || string.IsNullOrWhiteSpace(ScanPath))
+            return;
+
+        try
+        {
+            IsScanning = true;
+            StatusMessage = "Analyzing duplicates...";
+            LastResult = null;
+
+            var result = await _scanner.RunDedupAnalysisAsync(ScanPath);
+            LastResult = result;
+
+            if (result != null && result.DuplicateGroups.Any())
+            {
+                StatusMessage = $"Found {result.DuplicateGroups.Count} duplicate groups, {result.TotalDuplicateFiles} files, {result.PotentialSavingsDisplay} reclaimable";
+            }
+            else
+            {
+                StatusMessage = "No duplicate files found";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Analysis failed: {ex.Message}";
+        }
+        finally
+        {
+            IsScanning = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        GC.SuppressFinalize(this);
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}

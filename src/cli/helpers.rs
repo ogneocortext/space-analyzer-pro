@@ -58,7 +58,7 @@ pub fn validate_input(path: &str, format: &str) -> AppResult<()> {
         )));
     }
 
-    let valid_formats = ["text", "json", "csv"];
+    let valid_formats = ["text", "json", "csv", "jsonl", "md", "markdown"];
     if !valid_formats.contains(&format) {
         return Err(AppError::Validation(format!(
             "Invalid format '{}'. Valid formats: {}",

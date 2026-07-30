@@ -1,10 +1,29 @@
 use file_deduplicator::{DeduplicationConfig, FileDeduplicator};
 use shared_scanner::format_bytes;
+use serde::Serialize;
 
-pub fn run_clean_analysis(path: &str) {
-    println!("🔗 DUPLICATE FILE ANALYSIS");
-    println!("   Scanning for duplicate files (this may take a while)...");
-    println!();
+#[derive(Debug, Serialize)]
+pub struct DuplicateGroup {
+    pub hash: String,
+    pub size: u64,
+    pub file_count: usize,
+    pub files: Vec<String>,
+    pub wasted_bytes: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DedupResult {
+    pub duplicate_groups: Vec<DuplicateGroup>,
+    pub total_duplicate_files: usize,
+    pub potential_savings_bytes: u64,
+}
+
+pub fn run_clean_analysis(path: &str, output_format: &str) {
+    if output_format != "json" {
+        println!("🔗 DUPLICATE FILE ANALYSIS");
+        println!("   Scanning for duplicate files (this may take a while)...");
+        println!();
+    }
 
     let config = DeduplicationConfig {
         min_file_size: 1024,
@@ -17,15 +36,55 @@ pub fn run_clean_analysis(path: &str) {
         Ok(files) => {
             let duplicate_groups = deduplicator.find_duplicates(files);
             if duplicate_groups.is_empty() {
-                println!("   ✅ No duplicate files found!");
-            } else {
-                let total_duplicates: usize =
-                    duplicate_groups.iter().map(|g| g.files.len() - 1).sum();
-                let dup_savings: u64 = duplicate_groups
-                    .iter()
-                    .map(|g| g.size * (g.files.len() as u64 - 1))
-                    .sum();
+                if output_format == "json" {
+                    let result = DedupResult {
+                        duplicate_groups: vec![],
+                        total_duplicate_files: 0,
+                        potential_savings_bytes: 0,
+                    };
+                    println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+                } else {
+                    println!("   ✅ No duplicate files found!");
+                }
+                return;
+            }
 
+            let total_duplicates: usize =
+                duplicate_groups.iter().map(|g| g.files.len() - 1).sum();
+            let dup_savings: u64 = duplicate_groups
+                .iter()
+                .map(|g| g.size * (g.files.len() as u64 - 1))
+                .sum();
+
+            if output_format == "json" {
+                let mut sorted_groups = duplicate_groups;
+                sorted_groups.sort_by(|a, b| {
+                    let waste_a = a.size * (a.files.len() as u64 - 1);
+                    let waste_b = b.size * (b.files.len() as u64 - 1);
+                    waste_b.cmp(&waste_a)
+                });
+
+                let groups: Vec<DuplicateGroup> = sorted_groups
+                    .iter()
+                    .map(|g| {
+                        let waste = g.size * (g.files.len() as u64 - 1);
+                        DuplicateGroup {
+                            hash: g.hash.clone(),
+                            size: g.size,
+                            file_count: g.files.len(),
+                            files: g.files.iter().map(|f| f.path.display().to_string()).collect(),
+                            wasted_bytes: waste,
+                        }
+                    })
+                    .collect();
+
+                let result = DedupResult {
+                    duplicate_groups: groups,
+                    total_duplicate_files: total_duplicates,
+                    potential_savings_bytes: dup_savings,
+                };
+                println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+            } else {
                 println!(
                     "   Found {} duplicate groups ({} duplicate files)",
                     duplicate_groups.len(),
@@ -69,7 +128,16 @@ pub fn run_clean_analysis(path: &str) {
             }
         }
         Err(e) => {
-            eprintln!("   ❌ Error scanning for duplicates: {}", e);
+            if output_format == "json" {
+                let result = DedupResult {
+                    duplicate_groups: vec![],
+                    total_duplicate_files: 0,
+                    potential_savings_bytes: 0,
+                };
+                println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+            } else {
+                eprintln!("   ❌ Error scanning for duplicates: {}", e);
+            }
         }
     }
 }

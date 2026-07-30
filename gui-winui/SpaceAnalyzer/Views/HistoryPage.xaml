@@ -2,16 +2,67 @@
     x:Class="SpaceAnalyzer.Views.HistoryPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:SpaceAnalyzer.Views"
+    xmlns:vm="using:SpaceAnalyzer.ViewModels"
+    xmlns:models="using:SpaceAnalyzer.Services"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
+    <Page.DataContext>
+        <vm:HistoryViewModel x:Name="VM"/>
+    </Page.DataContext>
+
     <Grid Padding="24">
-        <StackPanel Spacing="16">
-            <TextBlock Text="History" FontSize="32" FontWeight="Bold"/>
-            <TextBlock Text="View and compare previous scan results." FontSize="16" Opacity="0.7"/>
-        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16" MaxWidth="1000" HorizontalAlignment="Center">
+
+                <!-- Header -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Scan History" FontSize="24" FontWeight="Bold"/>
+                    <TextBlock Text="View and compare previous scan results." FontSize="14" Opacity="0.6"/>
+                </StackPanel>
+
+                <!-- Refresh Button -->
+                <Button Content="Refresh History" Click="Refresh_Click" HorizontalAlignment="Stretch" Padding="12"/>
+
+                <!-- Status -->
+                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.7"/>
+
+                <!-- History List -->
+                <Border Style="{StaticResource DashboardCardBorder}" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Recent Scans" FontSize="16" FontWeight="SemiBold"/>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.History, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="8"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:ScanHistoryRecord">
+                                    <Border Padding="12" CornerRadius="6" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{x:Bind Path, Mode=OneWay}" TextTrimming="CharacterEllipsis"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="16" Opacity="0.7">
+                                                <TextBlock FontSize="12" Text="{x:Bind FilesDisplay, Mode=OneWay}"/>
+                                                <TextBlock FontSize="12" Text="{x:Bind TotalSizeDisplay, Mode=OneWay}"/>
+                                                <TextBlock FontSize="12" Text="{x:Bind DurationDisplay, Mode=OneWay}"/>
+                                                <TextBlock FontSize="12" Text="{x:Bind DateDisplay, Mode=OneWay}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Border>
+
+                <!-- Empty State -->
+                <TextBlock Text="No scan history found. Run a scan to get started." 
+                           FontSize="14" Opacity="0.5" 
+                            Visibility="{x:Bind VM.HasNoHistoryVisibility, Mode=OneWay}"
+                           HorizontalAlignment="Center" Margin="0,40,0,0"/>
+
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Page>

@@ -25,7 +25,7 @@ Two GUI implementations exist side-by-side for comparison:
 ### GUI — WinUI 3 (C# / .NET)
 | Project | Path | Description |
 |---------|------|-------------|
-| `SpaceAnalyzer` | `gui-winui/` | Desktop GUI built with WinUI 3 + Windows App SDK |
+| `SpaceAnalyzer` | `gui-winui/` | Desktop GUI built with WinUI 3 + Windows App SDK 2.2 |
 
 ## Commands
 
@@ -37,9 +37,13 @@ Two GUI implementations exist side-by-side for comparison:
 - Run egui GUI: `cargo run -p space-analyzer-gui-egui`
 
 ### WinUI 3 (.NET)
-- Build: `dotnet build gui-winui/SpaceAnalyzer.sln` (requires VS MSBuild or VS Build Tools)
+- Build with VS MSBuild (required — `dotnet build` fails with WMC9999 XAML compiler error on non-English Windows):
+  ```
+  "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
+  ```
 - Run: `dotnet run --project gui-winui/SpaceAnalyzer`
 - NOTE: WinUI 3 XAML compiler requires Visual Studio MSBuild (not just dotnet CLI). Use VS 2022+ Build Tools or full VS.
+- Known issue: `dotnet msbuild` (Core runtime) triggers WMC9999 due to a resource name mismatch in `XamlCompiler.exe`. Full Visual Studio is unaffected.
 
 ### Task runner (just)
 - `just build` — build debug workspace
@@ -54,9 +58,12 @@ Two GUI implementations exist side-by-side for comparison:
 
 ## Interop: WinUI 3 ↔ Rust
 
-The WinUI 3 app calls the Rust scanner as a subprocess:
+The WinUI 3 app calls the Rust scanner as a subprocess using subcommands:
 ```
 space-analyzer-pro scan --path "C:\Users" --format json
+space-analyzer-pro disk-info --path "C:\Users" --format json
+space-analyzer-pro history --limit 50 --format json
+space-analyzer-pro dedup --path "C:\Users" --format json
 ```
 JSON output is deserialized into C# models in `gui-winui/SpaceAnalyzer/Services/ScannerService.cs`.
 
@@ -71,7 +78,7 @@ JSON output is deserialized into C# models in `gui-winui/SpaceAnalyzer/Services/
 - This project intentionally does NOT use GitHub Actions for CI/CD. All verification is done via `just verify` locally.
 
 ## File Conventions
-- `src/` — Core library (database, ollama, system_monitor, CLI, etc.)
+- `src/cli/` — CLI module with clap subcommands (scan, disk-info, history, dedup)
 - `gui-egui/src/gui/` — eframe GUI modules (dashboard, scan, settings, AI chat, etc.)
 - `gui-winui/SpaceAnalyzer/Views/` — WinUI 3 XAML pages
 - `gui-winui/SpaceAnalyzer/Services/` — Rust CLI interop, data services

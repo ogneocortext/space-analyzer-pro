@@ -55,8 +55,10 @@ just run-gui
 
 ```bash
 # Requires Visual Studio 2022+ or VS Build Tools with .NET desktop workload
+# Use VS MSBuild to avoid WMC9999 XAML compiler error on non-English Windows:
 cd gui-winui
-dotnet build -c Debug
+"D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
+# Or run with VS Build Tools:
 dotnet run --project SpaceAnalyzer
 ```
 
@@ -71,18 +73,31 @@ dotnet run --project SpaceAnalyzer
 
 ### Command Line Interface
 
+The CLI uses subcommands for structured JSON output (used by the WinUI 3 GUI):
+
 ```bash
 # Basic scan
-cargo run --bin space-analyzer-pro -- --path . --verbose
+cargo run --bin space-analyzer-pro -- scan --path . --verbose
 
 # Export results to JSON
-cargo run --bin space-analyzer-pro -- --path . --export results.json
+cargo run --bin space-analyzer-pro -- scan --path . --export results.json
 
 # Deep scan with extended metadata
-cargo run --bin space-analyzer-pro -- --path . --deep
+cargo run --bin space-analyzer-pro -- scan --path . --deep
 
-# Filter by file type
-cargo run --bin space-analyzer-pro -- --path . --type "Documents" "Images"
+# Show disk space info for all volumes
+cargo run --bin space-analyzer-pro -- disk-info --path C:\
+
+# Show scan history
+cargo run --bin space-analyzer-pro -- history --limit 10
+
+# Run duplicate-file analysis
+cargo run --bin space-analyzer-pro -- dedup --path .
+
+# Global flags (apply to all subcommands)
+--format {text,json,csv,jsonl,md}  Output format (default: text)
+--top N                            Number of top items (default: 20)
+--no-animation                     Suppress animations
 ```
 
 ---
@@ -160,7 +175,7 @@ The core Rust library (`src/`) provides the database, Ollama integration, system
 | Component | Implementation | Notes |
 |---|---|---|
 | **GUI (egui)** | eframe 0.34 (native Rust) | Single window, 8 tabs |
-| **GUI (WinUI 3)** | Windows App SDK 1.6 (C#/.NET 8) | Fluent Design, Mica backdrop, 9 pages |
+| **GUI (WinUI 3)** | Windows App SDK 2.2 (C#/.NET 8) | Fluent Design, Mica backdrop, 9 pages |
 | **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
 | **File Scanner** | `shared-scanner` (rayon-parallel) | CPU mode default |
 | **GPU Acceleration** | `gpu-compute` crate (optional) | Auto-detects NVIDIA, falls back to CPU |
@@ -202,11 +217,17 @@ just help          # Show all commands
 ### Project Structure
 
 ```
-src/                       # Core Rust library (no GUI)
-  main.rs                  # CLI entry point
-  lib.rs                   # Library exports
-  cli/                     # CLI module (args, scan, output, recommendations, report, dedup)
-  ollama/                  # Ollama LLM client (chat, embeddings, streaming, tool calls)
+  src/                       # Core Rust library (no GUI)
+   main.rs                  # CLI entry point
+   lib.rs                   # Library exports
+   cli/                     # CLI module (subcommands: scan, disk-info, history, dedup)
+     args.rs                # Clap subcommand definitions
+     mod.rs                 # Subcommand dispatch
+     scan.rs                # Directory scanning logic
+     dedup.rs               # Duplicate analysis logic
+     helpers.rs             # Shared helpers (get_disk_info, parse_size)
+     types.rs               # Shared types (DiskInfo)
+   ollama/                  # Ollama LLM client (chat, embeddings, streaming, tool calls)
   database/                # SQLite layer (scans, embeddings, settings, workflows)
   workflows/               # Analysis workflow engine (5 categories, 7 actions, 4 triggers)
   tool_registry/           # 12+ tools exposed to the LLM

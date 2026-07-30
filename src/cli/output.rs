@@ -1,9 +1,9 @@
 use shared_scanner::format_bytes;
 
-use crate::animation;
 use super::helpers;
 use super::recommendations;
 use super::types::ScanResult;
+use crate::animation;
 
 pub fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool, no_animation: bool) {
     println!();
@@ -110,10 +110,9 @@ pub fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool, no_a
         };
         println!();
         animation::print_section_header_animated("⚡", "SCAN PERFORMANCE", no_animation);
-        println!("   Scanned {} files in {:.2}s ({:.0} files/sec)",
-            result.total_files,
-            result.duration_secs,
-            scan_speed
+        println!(
+            "   Scanned {} files in {:.2}s ({:.0} files/sec)",
+            result.total_files, result.duration_secs, scan_speed
         );
         println!();
     }
@@ -283,7 +282,10 @@ pub fn print_csv(result: &ScanResult) {
     for dir in &result.top_directories {
         println!(
             "\"{}\",{},{},{}",
-            dir.path.replace('"', "\"\""), dir.total_size, dir.file_count, dir.dir_count
+            dir.path.replace('"', "\"\""),
+            dir.total_size,
+            dir.file_count,
+            dir.dir_count
         );
     }
     println!();

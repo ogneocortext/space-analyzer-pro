@@ -2,16 +2,115 @@
     x:Class="SpaceAnalyzer.Views.DuplicatesPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:SpaceAnalyzer.Views"
+    xmlns:vm="using:SpaceAnalyzer.ViewModels"
+    xmlns:models="using:SpaceAnalyzer.Services"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
+    <Page.DataContext>
+        <vm:DuplicatesViewModel x:Name="VM"/>
+    </Page.DataContext>
+
     <Grid Padding="24">
-        <StackPanel Spacing="16">
-            <TextBlock Text="Duplicates" FontSize="32" FontWeight="Bold"/>
-            <TextBlock Text="Find and remove duplicate files to reclaim disk space." FontSize="16" Opacity="0.7"/>
-        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16" MaxWidth="1000" HorizontalAlignment="Center">
+
+                <!-- Header -->
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Duplicate Files" FontSize="24" FontWeight="Bold"/>
+                    <TextBlock Text="Find and remove duplicate files to reclaim disk space." FontSize="14" Opacity="0.6"/>
+                </StackPanel>
+
+                <!-- Path Selection -->
+                <Border Style="{StaticResource DashboardCardBorder}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Directory" FontSize="14" FontWeight="SemiBold"/>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{x:Bind VM.ScanPath, Mode=TwoWay}" PlaceholderText="Select a directory to analyze..."/>
+                            <Button Grid.Column="1" Content="Browse" Click="Browse_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Analyze Button -->
+                <Button Content="Analyze Duplicates" Click="Analyze_Click"
+                        HorizontalAlignment="Stretch" Padding="16"
+                        IsEnabled="{x:Bind VM.IsNotScanning, Mode=OneWay}">
+                </Button>
+
+                <!-- Status -->
+                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.7"/>
+
+                <!-- Results -->
+                <Border Style="{StaticResource DashboardCardBorder}" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Analysis Results" FontSize="18" FontWeight="SemiBold"/>
+
+                        <!-- Summary Stats -->
+                        <Grid ColumnSpacing="24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="{x:Bind VM.LastResult.DuplicateGroups.Count, Mode=OneWay}" FontSize="28" FontWeight="Bold"/>
+                                <TextBlock Text="Groups" FontSize="12" Opacity="0.6"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="4">
+                                <TextBlock Text="{x:Bind VM.LastResult.TotalDuplicateFiles, Mode=OneWay}" FontSize="28" FontWeight="Bold"/>
+                                <TextBlock Text="Files" FontSize="12" Opacity="0.6"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Spacing="4">
+                                <TextBlock Text="{x:Bind VM.LastResult.PotentialSavingsDisplay, Mode=OneWay}" FontSize="28" FontWeight="Bold"/>
+                                <TextBlock Text="Reclaimable" FontSize="12" Opacity="0.6"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Duplicate Groups List -->
+                        <TextBlock Text="Duplicate Groups" FontSize="14" FontWeight="SemiBold" Margin="0,12,0,0"/>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.LastResult.DuplicateGroups, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="8"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:DuplicateGroup">
+                                    <Border Padding="12" CornerRadius="6" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                        <StackPanel Spacing="6">
+                                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                                <TextBlock FontSize="14" FontWeight="SemiBold" Text="{x:Bind Hash, Mode=OneWay}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock FontSize="12" Opacity="0.6" Text="{x:Bind SizeDisplay, Mode=OneWay}"/>
+                                            </StackPanel>
+                                            <TextBlock FontSize="13" Opacity="0.8">
+                                                <Run Text="{x:Bind FileCount, Mode=OneWay}"/>
+                                                <Run Text=" copies"/>
+                                                <Run Text=" · "/>
+                                                <Run Text="{x:Bind WastedDisplay, Mode=OneWay}"/>
+                                                <Run Text=" wasted"/>
+                                            </TextBlock>
+                                            <ItemsRepeater ItemsSource="{x:Bind Files, Mode=OneWay}">
+                                                <ItemsRepeater.ItemTemplate>
+                                                    <DataTemplate x:DataType="x:String">
+                                                        <TextBlock FontSize="12" Opacity="0.6" Text="{x:Bind}" TextTrimming="CharacterEllipsis" Margin="0,2"/>
+                                                    </DataTemplate>
+                                                </ItemsRepeater.ItemTemplate>
+                                            </ItemsRepeater>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Page>
