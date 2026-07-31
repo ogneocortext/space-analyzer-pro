@@ -14,8 +14,11 @@ Thank you for your interest in contributing to Space Analyzer Pro! This document
 
 ## Prerequisites
 
-- **Rust 1.70+** - Required for the desktop application
+- **Rust 1.95+** - Required for the core library, CLI, and native modules
 - **Git** - Version control
+- **Windows 10/11 x64** - Required for WinUI 3 GUI
+- **.NET 10 SDK** - Required for WinUI 3 GUI
+- **Visual Studio 2022 17.8+ with MSBuild** - Required for WinUI 3 XAML compilation
 - **NVIDIA GPU** (optional) - For GPU acceleration
 - **Ollama** (optional) - For AI chat features
 
@@ -25,50 +28,65 @@ Thank you for your interest in contributing to Space Analyzer Pro! This document
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/space-analyzer-pro.git
+git clone https://github.com/ogneocortext/space-analyzer-pro.git
 cd space-analyzer-pro
 
 # Install Rust toolchain components
 rustup component add rustfmt clippy
 
-# Build the workspace
+# Build the Rust workspace
 cargo build --workspace
+
+# Run verification (format + lint + tests)
+just verify
 ```
 
 ### 2. Start Development
 
 ```bash
-# Run the GUI
-cargo run --bin space-analyzer-gui
+# Run the Rust CLI
+cargo run --bin space-analyzer-pro -- scan --path . --format json
 
-# Run the CLI
-cargo run --bin space-analyzer -- --path . --verbose
+# Run the egui GUI (legacy)
+cargo run -p space-analyzer-gui-egui
 
-# Run tests
-cargo test --workspace
-
-# Verify everything (format + lint + tests)
-just verify
+# Run the WinUI 3 GUI (active — requires Visual Studio MSBuild)
+& "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
+dotnet run --project gui-winui/SpaceAnalyzer
 ```
 
 ## Project Structure
 
 ```
 space-analyzer-pro/
-├── src/                    # Rust application source
-│   ├── gui/               # egui desktop GUI
-│   ├── ollama/            # Ollama LLM client
-│   ├── database/          # SQLite database layer
-│   └── workflows/         # Analysis workflow engine
-├── native/                # Rust native modules
-│   ├── scanner/           # File system scanner
-│   ├── file_deduplicator/ # Duplicate file finder
-│   └── node_modules_cleaner/ # Node.js cleanup tool
-├── shared-scanner/        # Shared scanning logic crate
-├── gpu-compute/           # GPU-accelerated compute crate
-├── tests/unit/            # Rust unit tests
-├── docs/                  # Documentation
-└── scripts/               # Development scripts
+├── src/                        # Rust core library
+│   ├── main.rs                 # CLI binary (space-analyzer-pro)
+│   ├── ollama/                 # Ollama LLM client
+│   ├── database/               # SQLite database layer
+│   ├── workflows/              # Analysis workflow engine
+│   ├── system_monitor.rs       # Disk/CPU/memory/GPU monitoring
+│   └── ...
+├── gui-egui/                   # egui GUI crate (legacy, preserved for comparison)
+│   └── src/gui/
+│       ├── mod.rs              # Binary entry
+│       └── ...
+├── gui-winui/                  # WinUI 3 GUI (ACTIVE)
+│   └── SpaceAnalyzer/
+│       ├── SpaceAnalyzer.csproj
+│       ├── Helpers/
+│       ├── Views/
+│       ├── ViewModels/
+│       ├── Services/
+│       └── Models/
+├── native/                     # Rust native modules
+│   ├── scanner/                # File system scanner
+│   ├── file_deduplicator/      # Duplicate file finder
+│   └── node_modules_cleaner/   # Node.js cleanup tool
+├── shared-scanner/             # Shared scanning logic crate
+├── gpu-compute/                # GPU-accelerated compute crate
+├── tests/unit/                 # Rust unit tests
+├── docs/                       # Documentation
+└── scripts/                    # Development scripts
 ```
 
 ## How to Contribute
