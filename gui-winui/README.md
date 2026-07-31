@@ -102,8 +102,9 @@ Each page follows the MVVM pattern with `Page.DataContext` bound to a ViewModel 
 
 ## Known Issues
 
-- **Theme runtime switching is not applied** due to `Window.RequestedTheme` being unavailable in WinAppSDK 2.3. Theme preference is persisted but not applied until app restart.
-- **WMC9999 XAML compiler error** occurs with `dotnet build` on non-English Windows. Use Visual Studio MSBuild instead.
+- **Theme runtime switching is not applied** due to `Window.RequestedTheme` being unavailable in WinAppSDK 2.3. Theme preference is persisted in settings but applied on app restart.
+- **WMC9999 XAML compiler error** occurs with `dotnet build` on non-English Windows. Use Visual Studio MSBuild instead: `D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64`.
+- **WinUI MSBuild is required in-place**, not from a copy. Compiling `SpaceAnalyzer/` from a symlink or outside directory can produce unrelated source-not-found/XAML build errors; use the repo root as the working directory.
 
 ## Contributing
 

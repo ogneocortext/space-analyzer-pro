@@ -274,6 +274,7 @@ impl FileScanner {
         let use_gpu = options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
         let processor = gpu_compute::scan::GpuScanProcessor::new()
             .with_gpu(use_gpu)
+            .with_scan_root(path)
             .with_top_n(100);
 
         let gpu_result = processor.process(&raw_entries);
@@ -309,7 +310,7 @@ impl FileScanner {
         options: &ScanOptions,
     ) -> bool {
         // Check hidden files
-        if !options.include_hidden {
+        if !options.include_hidden && Self::is_hidden(path, metadata) {
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                 if name.starts_with('.') {
                     return false;
@@ -334,6 +335,29 @@ impl FileScanner {
         }
 
         true
+    }
+
+    fn is_hidden(path: &Path, metadata: &std::fs::Metadata) -> bool {
+        if path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with('.'))
+        {
+            return true;
+        }
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
+            metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0
+        }
+
+        #[cfg(not(windows))]
+        {
+            let _ = metadata;
+            false
+        }
     }
 
     fn compute_true_empty_dirs(walk_entries: &[walkdir::DirEntry]) -> Vec<String> {
@@ -402,7 +426,13 @@ impl FileScanner {
             walker = walker.follow_links(false);
         }
 
-        let walk_entries: Vec<walkdir::DirEntry> = walker.into_iter().filter_map(|e| e.ok()).collect();
+        let mut walk_entries = Vec::new();
+        for entry in walker {
+            match entry {
+                Ok(entry) => walk_entries.push(entry),
+                Err(error) => result.errors.push(format!("Traversal error: {error}")),
+            }
+        }
         let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
 
         for entry_result in walk_entries {
@@ -442,6 +472,7 @@ impl FileScanner {
         let use_gpu = options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
         let processor = gpu_compute::scan::GpuScanProcessor::new()
             .with_gpu(use_gpu)
+            .with_scan_root(path)
             .with_top_n(100);
 
         let gpu_result = processor.process(&raw_entries);
@@ -529,11 +560,12 @@ impl FileScanner {
 
         // Avoid a second full directory walk just to estimate progress. The
         // estimate is deliberately conservative and grows as entries arrive.
-        let mut total_estimate = 1000u64;
+        let total_estimate = 1000u64;
 
         let mut entries_processed: u64 = 0;
 
-        let walk_entries: Vec<walkdir::DirEntry> = walker.into_iter().filter_map(|e| e.ok()).collect();
+        let walk_entries: Vec<walkdir::DirEntry> =
+            walker.into_iter().filter_map(|e| e.ok()).collect();
         let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
 
         for entry_result in walk_entries {
@@ -712,6 +744,7 @@ impl FileScanner {
         let use_gpu = options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
         let processor = gpu_compute::scan::GpuScanProcessor::new()
             .with_gpu(use_gpu)
+            .with_scan_root(path)
             .with_top_n(100);
 
         let gpu_result = processor.process(&raw_entries);
@@ -822,7 +855,8 @@ impl FileScanner {
             walker = walker.follow_links(false);
         }
 
-        let walk_entries: Vec<walkdir::DirEntry> = walker.into_iter().filter_map(|e| e.ok()).collect();
+        let walk_entries: Vec<walkdir::DirEntry> =
+            walker.into_iter().filter_map(|e| e.ok()).collect();
         let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
 
         for entry_result in walk_entries {
