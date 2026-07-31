@@ -1,22 +1,69 @@
+// Licensed under the MIT License.
+
 using System.Diagnostics;
 using System.Text.Json;
-using Microsoft.UI;
-using Microsoft.UI.Xaml.Media;
+using SpaceAnalyzer.Models;
 
 namespace SpaceAnalyzer.Services;
 
 /// <summary>
 /// Calls the Rust scanner CLI (space-analyzer-pro) and parses JSON output.
+/// Data models now live in <see cref="SpaceAnalyzer.Models"/> for reuse
+/// across ViewModels and Views.
 /// </summary>
 public class ScannerService
 {
     private readonly string _scannerPath;
 
+    /// <summary>
+    /// Maps the Rust scanner's snake_case JSON (e.g. "total_files") to the PascalCase
+    /// C# models (e.g. <see cref="ScanResult.TotalFiles"/>). Case-insensitivity alone is
+    /// insufficient � it ignores case but not the snake_case underscores, which left every
+    /// field unmapped and caused results to deserialize to all-zeros.
+    /// </summary>
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
+
     public ScannerService(string? scannerPath = null)
     {
-        // Default: look for the binary in the same directory as the app
-        _scannerPath = scannerPath
-            ?? Path.Combine(AppContext.BaseDirectory, "space-analyzer-pro.exe");
+        _scannerPath = ResolveScannerPath(scannerPath);
+    }
+
+    /// <summary>
+    /// Locate the Rust scanner binary. Priority: explicit path > SPACE_ANALYZER_SCANNER env var
+    /// &gt; beside the app &gt; target/{release,debug} found by walking up from the app directory.
+    /// </summary>
+    private static string ResolveScannerPath(string? explicitPath)
+    {
+        if (!string.IsNullOrWhiteSpace(explicitPath) && File.Exists(explicitPath))
+            return explicitPath;
+
+        var envPath = Environment.GetEnvironmentVariable("SPACE_ANALYZER_SCANNER");
+        if (!string.IsNullOrWhiteSpace(envPath) && File.Exists(envPath))
+            return envPath;
+
+        var beside = Path.Combine(AppContext.BaseDirectory, "space-analyzer-pro.exe");
+        if (File.Exists(beside))
+            return beside;
+
+        // Walk up from the app directory to locate the Rust target output.
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 8 && dir != null; i++)
+        {
+            foreach (var cfg in new[] { "release", "debug" })
+            {
+                var candidate = Path.Combine(dir.FullName, "target", cfg, "space-analyzer-pro.exe");
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+            dir = dir.Parent;
+        }
+
+        // Fall back to the default location (IsAvailable will report false if missing).
+        return beside;
     }
 
     /// <summary>
@@ -30,6 +77,7 @@ public class ScannerService
     public async Task<ScanResult?> ScanDirectoryAsync(
         string path,
         bool deep = false,
+        bool includeHidden = false,
         IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
@@ -40,32 +88,10 @@ public class ScannerService
 
         var args = $"scan --path \"{path}\" --format json";
         if (deep) args += " --deep";
+        if (includeHidden) args += " --include-hidden";
 
-        var psi = new ProcessStartInfo
-        {
-            FileName = _scannerPath,
-            Arguments = args,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        using var process = new Process { StartInfo = psi };
-        process.Start();
-
-        var stdout = await process.StandardOutput.ReadToEndAsync(ct);
-        var stderr = await process.StandardError.ReadToEndAsync(ct);
-
-        await process.WaitForExitAsync(ct);
-
-        if (process.ExitCode != 0)
-            throw new Exception($"Scanner failed (exit {process.ExitCode}): {stderr}");
-
-        return JsonSerializer.Deserialize<ScanResult>(stdout, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-        });
+        var output = await RunScannerAsync(args, ct);
+        return JsonSerializer.Deserialize<ScanResult>(output, s_jsonOptions);
     }
 
     /// <summary>
@@ -76,24 +102,8 @@ public class ScannerService
         if (!IsAvailable)
             return GetFallbackVolumes();
 
-        var psi = new ProcessStartInfo
-        {
-            FileName = _scannerPath,
-            Arguments = "disk-info --format json",
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        using var process = new Process { StartInfo = psi };
-        process.Start();
-        var stdout = await process.StandardOutput.ReadToEndAsync(ct);
-        await process.WaitForExitAsync(ct);
-
-        return JsonSerializer.Deserialize<List<DiskVolume>>(stdout, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-        }) ?? GetFallbackVolumes();
+        var output = await RunScannerAsync("disk-info --format json", ct);
+        return JsonSerializer.Deserialize<List<DiskVolume>>(output, s_jsonOptions) ?? GetFallbackVolumes();
     }
 
     /// <summary>
@@ -105,28 +115,8 @@ public class ScannerService
             return new List<ScanHistoryRecord>();
 
         var args = $"history --limit {limit} --format json";
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = _scannerPath,
-            Arguments = args,
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        using var process = new Process { StartInfo = psi };
-        process.Start();
-        var stdout = await process.StandardOutput.ReadToEndAsync(ct);
-        await process.WaitForExitAsync(ct);
-
-        if (process.ExitCode != 0)
-            return new List<ScanHistoryRecord>();
-
-        return JsonSerializer.Deserialize<List<ScanHistoryRecord>>(stdout, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-        }) ?? new List<ScanHistoryRecord>();
+        var output = await RunScannerAsync(args, ct);
+        return JsonSerializer.Deserialize<List<ScanHistoryRecord>>(output, s_jsonOptions) ?? new();
     }
 
     /// <summary>
@@ -138,28 +128,8 @@ public class ScannerService
             return null;
 
         var args = $"history --id {id} --format json";
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = _scannerPath,
-            Arguments = args,
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        using var process = new Process { StartInfo = psi };
-        process.Start();
-        var stdout = await process.StandardOutput.ReadToEndAsync(ct);
-        await process.WaitForExitAsync(ct);
-
-        if (process.ExitCode != 0)
-            return null;
-
-        return JsonSerializer.Deserialize<ScanHistoryRecord>(stdout, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-        });
+        var output = await RunScannerAsync(args, ct);
+        return JsonSerializer.Deserialize<ScanHistoryRecord>(output, s_jsonOptions);
     }
 
     /// <summary>
@@ -171,7 +141,76 @@ public class ScannerService
             return null;
 
         var args = $"dedup --path \"{path}\" --format json";
+        var output = await RunScannerAsync(args, ct);
+        return JsonSerializer.Deserialize<DedupResult>(output, s_jsonOptions);
+    }
 
+    /// <summary>
+    /// Run node_modules cleanup analysis via the native cleaner binary.
+    /// </summary>
+    public async Task<CleanupAnalysis?> RunCleanupAnalysisAsync(
+        string path,
+        bool cleanup = false,
+        ulong minSizeMb = 100,
+        ulong unusedDays = 30,
+        CancellationToken ct = default)
+    {
+        var cleanerPath = Path.Combine(AppContext.BaseDirectory, "node_modules_cleaner.exe");
+        if (!File.Exists(cleanerPath))
+            cleanerPath = "node_modules_cleaner";
+
+        var tempOutput = Path.Combine(Path.GetTempPath(), $"nm_clean_{Guid.NewGuid():N}.json");
+        try
+        {
+            var args = $"\"{path}\" --output \"{tempOutput}\" --dry-run";
+            if (cleanup) args = $"\"{path}\" --output \"{tempOutput}\" --cleanup";
+            args += $" --min-size {minSizeMb} --unused-days {unusedDays}";
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = cleanerPath,
+                Arguments = args,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            using var process = new Process { StartInfo = psi };
+            process.Start();
+            var stdout = await process.StandardOutput.ReadToEndAsync(ct);
+            var stderr = await process.StandardError.ReadToEndAsync(ct);
+            await process.WaitForExitAsync(ct);
+
+            if (process.ExitCode != 0)
+            {
+                if (!File.Exists(tempOutput))
+                    throw new Exception($"Cleaner failed (exit {process.ExitCode}): {stderr}");
+            }
+
+            if (!File.Exists(tempOutput))
+                return null;
+
+            var json = await File.ReadAllTextAsync(tempOutput, ct);
+            return JsonSerializer.Deserialize<CleanupAnalysis>(json, s_jsonOptions);
+        }
+        finally
+        {
+            if (File.Exists(tempOutput))
+            {
+                try { File.Delete(tempOutput); } catch { }
+            }
+        }
+    }
+
+    // -- Internal helpers --
+
+    /// <summary>
+    /// Run the scanner with the given arguments and return stdout text.
+    /// Throws on non-zero exit codes.
+    /// </summary>
+    private async Task<string> RunScannerAsync(string args, CancellationToken ct)
+    {
         var psi = new ProcessStartInfo
         {
             FileName = _scannerPath,
@@ -184,23 +223,19 @@ public class ScannerService
 
         using var process = new Process { StartInfo = psi };
         process.Start();
-
         var stdout = await process.StandardOutput.ReadToEndAsync(ct);
         var stderr = await process.StandardError.ReadToEndAsync(ct);
         await process.WaitForExitAsync(ct);
 
         if (process.ExitCode != 0)
-            throw new Exception($"Dedup failed (exit {process.ExitCode}): {stderr}");
+            throw new Exception($"Scanner failed (exit {process.ExitCode}): {stderr}");
 
-        return JsonSerializer.Deserialize<DedupResult>(stdout, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-        });
+        return stdout;
     }
 
     private static List<DiskVolume> GetFallbackVolumes()
     {
-        return DriveInfo.GetDrives()
+        return System.IO.DriveInfo.GetDrives()
             .Where(d => d.IsReady)
             .Select(d => new DiskVolume
             {
@@ -211,151 +246,5 @@ public class ScannerService
                 FileSystem = d.DriveFormat,
             })
             .ToList();
-    }
-}
-
-// ── Data models matching Rust CLI JSON output ──
-
-public class ScanHistoryRecord
-{
-    public long Id { get; set; }
-    public string Path { get; set; } = "";
-    public int TotalFiles { get; set; }
-    public ulong TotalSizeBytes { get; set; }
-    public double TotalSizeMb { get; set; }
-    public double DurationSecs { get; set; }
-    public string FileTypesJson { get; set; } = "";
-    public string ExtensionSizesJson { get; set; } = "";
-    public string TopDirectoriesJson { get; set; } = "";
-    public string LargestFilesJson { get; set; } = "";
-    public bool DeepScan { get; set; }
-    public ulong PotentialCleanupBytes { get; set; }
-    public string Timestamp { get; set; } = "";
-
-    public DateTime ScanDate => DateTime.Parse(Timestamp).ToLocalTime();
-    public string DateDisplay => ScanDate.ToString("yyyy-MM-dd HH:mm");
-    public string TotalSizeDisplay => FormatBytes(TotalSizeBytes);
-    public string DurationDisplay => $"{(int)DurationSecs / 60}m {(int)DurationSecs % 60}s";
-    public string FilesDisplay => $"{TotalFiles:N0} files";
-
-    private static string FormatBytes(ulong bytes)
-    {
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        double size = bytes;
-        int unit = 0;
-        while (size >= 1024 && unit < units.Length - 1)
-        {
-            size /= 1024;
-            unit++;
-        }
-        return $"{size:F1} {units[unit]}";
-    }
-}
-
-public class DuplicateGroup
-{
-    public string Hash { get; set; } = "";
-    public ulong Size { get; set; }
-    public int FileCount { get; set; }
-    public List<string> Files { get; set; } = new();
-    public ulong WastedBytes { get; set; }
-    public string WastedDisplay => ByteFormatter.FormatBytes(WastedBytes);
-    public string SizeDisplay => ByteFormatter.FormatBytes(Size);
-}
-
-public class DedupResult
-{
-    public List<DuplicateGroup> DuplicateGroups { get; set; } = new();
-    public int TotalDuplicateFiles { get; set; }
-    public ulong PotentialSavingsBytes { get; set; }
-    public string PotentialSavingsDisplay => ByteFormatter.FormatBytes(PotentialSavingsBytes);
-}
-
-public static class ByteFormatter
-{
-    public static string FormatBytes(ulong bytes)
-    {
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        double size = bytes;
-        int unit = 0;
-        while (size >= 1024 && unit < units.Length - 1)
-        {
-            size /= 1024;
-            unit++;
-        }
-        return $"{size:F1} {units[unit]}";
-    }
-}
-
-public class ScanResult
-{
-    public int TotalFiles { get; set; }
-    public ulong TotalSizeBytes { get; set; }
-    public double TotalSizeMb { get; set; }
-    public double DurationSecs { get; set; }
-    public Dictionary<string, int> FileTypes { get; set; } = new();
-    public Dictionary<string, ulong> ExtensionSizes { get; set; } = new();
-    public List<FileEntry> LargestFiles { get; set; } = new();
-    public List<string> Errors { get; set; } = new();
-    public string Path { get; set; } = "";
-    public ulong TotalDirs { get; set; }
-    public List<DirEntry> TopDirectories { get; set; } = new();
-    public List<string> EmptyDirs { get; set; } = new();
-}
-
-public class FileEntry
-{
-    public string Path { get; set; } = "";
-    public ulong Size { get; set; }
-}
-
-public class DirEntry
-{
-    public string Path { get; set; } = "";
-    public string Name { get; set; } = "";
-    public ulong TotalSize { get; set; }
-    public ulong FileCount { get; set; }
-    public ulong DirCount { get; set; }
-}
-
-public class DiskVolume
-{
-    public string MountPoint { get; set; } = "";
-    public string Label { get; set; } = "";
-    public ulong TotalBytes { get; set; }
-    public ulong AvailableBytes { get; set; }
-    public string FileSystem { get; set; } = "";
-
-    public ulong UsedBytes => TotalBytes - AvailableBytes;
-    public double UsagePercent => TotalBytes > 0
-        ? (double)UsedBytes / TotalBytes * 100.0
-        : 0;
-    public string TotalFormatted => FormatBytes(TotalBytes);
-    public string UsedFormatted => FormatBytes(UsedBytes);
-    public string AvailableFormatted => FormatBytes(AvailableBytes);
-    public string UsagePercentFormatted => $"{UsagePercent:F1}%";
-    public string UsedDisplay => UsedFormatted;
-    public string TotalDisplay => TotalFormatted;
-    public string AvailableDisplay => AvailableFormatted;
-    public string UsagePercentDisplay => UsagePercentFormatted;
-
-    public SolidColorBrush UsageBrush => new(UsagePercent switch
-    {
-        >= 90 => Colors.Red,
-        >= 70 => Colors.Gold,
-        _ => Colors.Green,
-    });
-
-    private static string FormatBytes(ulong bytes)
-    {
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        double size = bytes;
-        int unit = 0;
-        while (size >= 1024 && unit < units.Length - 1)
-        {
-            size /= 1024;
-            unit++;
-        }
-        return $"{size:F1} {units[unit]}";
     }
 }

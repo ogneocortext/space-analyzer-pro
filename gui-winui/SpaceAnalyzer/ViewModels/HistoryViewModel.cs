@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
 
 namespace SpaceAnalyzer.ViewModels;
@@ -57,6 +58,7 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] LoadHistory failed: {ex}");
             StatusMessage = $"Failed to load history: {ex.Message}";
             History = new List<ScanHistoryRecord>();
         }
@@ -78,6 +80,7 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] LoadDetails failed: {ex}");
             StatusMessage = $"Failed to load details: {ex.Message}";
         }
         finally

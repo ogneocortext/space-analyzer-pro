@@ -1,17 +1,99 @@
-<Page
+﻿<Page
     x:Class="SpaceAnalyzer.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:SpaceAnalyzer.Views"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:SpaceAnalyzer.ViewModels"
     mc:Ignorable="d"
+    NavigationCacheMode="Required"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
+    <Page.DataContext>
+        <vm:SettingsViewModel x:Name="VM"/>
+    </Page.DataContext>
+
     <Grid Padding="24">
-        <StackPanel Spacing="16">
-            <TextBlock Text="Settings" FontSize="32" FontWeight="Bold"/>
-            <TextBlock Text="Configure application preferences and integrations." FontSize="16" Opacity="0.7"/>
-        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="24" MaxWidth="800" HorizontalAlignment="Center">
+
+                <!-- Header -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Settings" FontSize="28" FontWeight="Bold"/>
+                    <TextBlock Text="Configure application preferences and integrations."
+                               FontSize="14" Opacity="0.8"/>
+                </StackPanel>
+
+                <!-- Appearance -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Appearance" FontSize="18" FontWeight="SemiBold"/>
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Theme" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                            <ComboBox Header="Theme"
+                                      SelectedItem="{x:Bind VM.Theme, Mode=TwoWay}"
+                                      HorizontalAlignment="Stretch"
+                                      AutomationProperties.Name="Theme">
+                                <x:String>Dark</x:String>
+                                <x:String>Light</x:String>
+                                <x:String>System</x:String>
+                            </ComboBox>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Scanner -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Scanner" FontSize="18" FontWeight="SemiBold"/>
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Scanner binary path" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0"
+                                         Text="{x:Bind VM.ScannerPath, Mode=TwoWay}"
+                                         PlaceholderText="Select scanner binary..."
+                                         AutomationProperties.Name="Scanner binary path"/>
+                                <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Padding="12,8"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Ollama -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Ollama AI" FontSize="18" FontWeight="SemiBold"/>
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Server URL" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                            <TextBox Text="{x:Bind VM.OllamaUrl, Mode=TwoWay}"
+                                     PlaceholderText="http://localhost:11434"
+                                     AutomationProperties.Name="Ollama server URL"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Model" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                            <TextBox Text="{x:Bind VM.OllamaModel, Mode=TwoWay}"
+                                     PlaceholderText="gemma3:1b (or model name)"
+                                     AutomationProperties.Name="Ollama model name"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Actions -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Actions" FontSize="18" FontWeight="SemiBold"/>
+                        <StackPanel Spacing="12">
+                            <Button Content="Save Settings" Click="Save_Click"
+                                    HorizontalAlignment="Stretch" Padding="12"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Page>

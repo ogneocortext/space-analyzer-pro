@@ -1,0 +1,178 @@
+<Page
+    x:Class="SpaceAnalyzer.Views.CleanupPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:SpaceAnalyzer.ViewModels"
+        xmlns:models="using:SpaceAnalyzer.Models"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    NavigationCacheMode="Required"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.DataContext>
+        <vm:CleanupViewModel x:Name="VM"/>
+    </Page.DataContext>
+
+    <Grid Padding="24">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="24" MaxWidth="1000" HorizontalAlignment="Center">
+
+                <!-- Header -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="node_modules Cleaner" FontSize="24" FontWeight="Bold"/>
+                    <TextBlock Text="Analyze and clean node_modules directories to reclaim disk space." FontSize="14" Opacity="0.8"/>
+                </StackPanel>
+
+                <!-- Target Path -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Target Directory" FontSize="14" FontWeight="SemiBold"/>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{x:Bind VM.TargetPath, Mode=TwoWay}" PlaceholderText="Select a directory to analyze..." AutomationProperties.Name="Target directory"/>
+                            <Button Grid.Column="1" Content="Browse" Click="Browse_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Options -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Options" FontSize="14" FontWeight="SemiBold"/>
+                        <Grid ColumnSpacing="24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Min size (MB)" FontSize="12" Opacity="0.8"/>
+                                <TextBox Text="{x:Bind VM.MinSizeMb, Mode=TwoWay}" AutomationProperties.Name="Minimum size in megabytes">
+                                    <TextBox.InputScope>
+                                        <InputScope>
+                                            <InputScope.Names>
+                                                <InputScopeName NameValue="Number"/>
+                                            </InputScope.Names>
+                                        </InputScope>
+                                    </TextBox.InputScope>
+                                </TextBox>
+                            </StackPanel>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Unused days" FontSize="12" Opacity="0.8"/>
+                                <TextBox Text="{x:Bind VM.UnusedDays, Mode=TwoWay}" AutomationProperties.Name="Unused days threshold">
+                                    <TextBox.InputScope>
+                                        <InputScope>
+                                            <InputScope.Names>
+                                                <InputScopeName NameValue="Number"/>
+                                            </InputScope.Names>
+                                        </InputScope>
+                                    </TextBox.InputScope>
+                                </TextBox>
+                            </StackPanel>
+                        </Grid>
+                        <CheckBox Content="Perform cleanup (delete files)" IsChecked="{x:Bind VM.PerformCleanup, Mode=TwoWay}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Action Button -->
+                <Button Content="Analyze node_modules" Click="Analyze_Click"
+                        HorizontalAlignment="Stretch" Padding="16"
+                        IsEnabled="{x:Bind VM.IsNotAnalyzing, Mode=OneWay}"/>
+
+                <!-- Status -->
+                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"/>
+
+                <!-- Results -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Analysis Results" FontSize="18" FontWeight="SemiBold"/>
+
+                        <!-- Summary Stats -->
+                        <Grid ColumnSpacing="24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Spacing="6">
+                                <TextBlock Text="{x:Bind VM.TotalSizeDisplay, Mode=OneTime}" FontSize="28" FontWeight="Bold"/>
+                                <TextBlock Text="Total" FontSize="12" Opacity="0.8"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="6">
+                                <TextBlock Text="{x:Bind VM.TotalFiles, Mode=OneWay}" FontSize="28" FontWeight="Bold"/>
+                                <TextBlock Text="Files" FontSize="12" Opacity="0.8"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Spacing="6">
+                                <TextBlock Text="{x:Bind VM.NodeModulesCount, Mode=OneWay}" FontSize="28" FontWeight="Bold"/>
+                                <TextBlock Text="node_modules" FontSize="12" Opacity="0.8"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="3" Spacing="6">
+                                <TextBlock Text="{x:Bind VM.TotalCleanupSizeDisplay, Mode=OneTime}" FontSize="28" FontWeight="Bold"/>
+                                <TextBlock Text="Cleanable" FontSize="12" Opacity="0.8"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Cleanup Candidates -->
+                        <TextBlock Text="Cleanup Candidates" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0"/>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.CleanupCandidates, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="12"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:CleanupCandidate">
+                                    <Border Padding="16" CornerRadius="6"
+                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                        <StackPanel Spacing="8">
+                                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                                <TextBlock FontSize="14" FontWeight="SemiBold"
+                                                           Text="{x:Bind Path, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock FontSize="13" Opacity="0.8"
+                                                           Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
+                                            </StackPanel>
+                                            <TextBlock FontSize="13" Opacity="0.8"
+                                                       Text="{x:Bind Reason, Mode=OneTime}"/>
+                                            <TextBlock FontSize="13" Opacity="0.7"
+                                                       Text="{x:Bind RiskLevelDisplay, Mode=OneTime}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+
+                        <!-- Duplicate Packages -->
+                        <TextBlock Text="Duplicate Packages" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0"/>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.DuplicatePackages, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="12"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:DuplicatePackage">
+                                    <Border Padding="16" CornerRadius="6"
+                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock FontSize="14" FontWeight="SemiBold"
+                                                       Text="{x:Bind Name, Mode=OneTime}"/>
+                                            <TextBlock FontSize="13" Opacity="0.8">
+                                                <Run Text="{x:Bind Versions.Count, Mode=OneTime}"/>
+                                                <Run Text=" versions, "/>
+                                                <Run Text="{x:Bind TotalSizeDisplay, Mode=OneTime}"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

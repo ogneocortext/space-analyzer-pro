@@ -7,7 +7,6 @@
 
     <NavigationView x:Name="NavView"
                     PaneDisplayMode="Top"
-                    IsSettingsVisible="True"
                     Loaded="NavView_Loaded"
                     SelectionChanged="NavView_SelectionChanged">
 
@@ -52,12 +51,22 @@
                     <FontIcon Glyph="&#xE770;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
+            <NavigationViewItem Content="Cleanup" Tag="Cleanup">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE73D;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
         </NavigationView.MenuItems>
 
         <NavigationView.FooterMenuItems>
             <NavigationViewItem Content="Settings" Tag="Settings">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE713;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem Content="About" Tag="About">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE946;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.FooterMenuItems>

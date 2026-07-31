@@ -1,12 +1,10 @@
-﻿// Licensed under the MIT License.
-
 using Microsoft.UI.Xaml.Controls;
 
 namespace SpaceAnalyzer.Views;
 
-public sealed partial class WorkflowsPage : Page
+public sealed partial class AboutPage : Page
 {
-    public WorkflowsPage()
+    public AboutPage()
     {
         this.InitializeComponent();
     }

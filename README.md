@@ -53,14 +53,22 @@ just run-gui
 
 ### WinUI 3 GUI (C#/.NET)
 
-```bash
-# Requires Visual Studio 2022+ or VS Build Tools with .NET desktop workload
-# Use VS MSBuild to avoid WMC9999 XAML compiler error on non-English Windows:
-cd gui-winui
-"D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
-# Or run with VS Build Tools:
-dotnet run --project SpaceAnalyzer
+> **Note:** The WinUI 3 GUI requires Visual Studio 2022 MSBuild. `dotnet build` fails with WMC9999 on non-English Windows.
+
+```powershell
+# Build using Visual Studio MSBuild
+& "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
+
+# Run
+dotnet run --project gui-winui/SpaceAnalyzer
 ```
+
+**WinUI 3 state (v3.7.0+):**
+- **Stable build** against Windows App SDK 2.3 / .NET 10
+- **All pages implemented:** Dashboard, Scan, History, Smart Search, Workflows (stub), AI Assistant, Duplicates, System, Cleanup, Settings, About
+- **Dashboard stat cards** populated from scan history with 3-second live system resource refresh
+- **MVVM pattern** with `Helpers/`, `ViewModels/`, `Models/`, `Services/` separation
+- **Ollama integration** via `OllamaClient.cs` for local AI chat
 
 ### Prerequisites
 
@@ -168,6 +176,8 @@ The core Rust library (`src/`) provides the database, Ollama integration, system
 | **AI Assistant** | Chat with local LLM; the LLM can call tools to scan, analyze, and act on your behalf |
 | **Duplicates** | Find and remove duplicate files with parallel hashing |
 | **System** | CPU/RAM/GPU/disk monitor with real-time gauges |
+| **Cleanup** | Analyze and clean node_modules directories to reclaim disk space |
+| **About** | Version, license, and core technologies |
 | **Settings** | Configure Ollama endpoint, default scan paths, theme, GPU toggle |
 
 ### Stack
@@ -175,7 +185,7 @@ The core Rust library (`src/`) provides the database, Ollama integration, system
 | Component | Implementation | Notes |
 |---|---|---|
 | **GUI (egui)** | eframe 0.34 (native Rust) | Single window, 8 tabs |
-| **GUI (WinUI 3)** | Windows App SDK 2.2 (C#/.NET 8) | Fluent Design, Mica backdrop, 9 pages |
+| **GUI (WinUI 3)** | Windows App SDK 2.2 (C#/.NET 8) | Fluent Design, Mica backdrop, 11 pages |
 | **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
 | **File Scanner** | `shared-scanner` (rayon-parallel) | CPU mode default |
 | **GPU Acceleration** | `gpu-compute` crate (optional) | Auto-detects NVIDIA, falls back to CPU |

@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### WinUI 3 — Bug Fixes & Page Completion (July 2026)
+
+- **Fixed build against Windows App SDK 2.3 / .NET 10** — resolved API compatibility issues:
+  - Removed `Window.RequestedTheme` / `ApplicationTheme.Unspecified` usage (not supported in WinAppSDK 2.3); theme persistence remains in `SettingsViewModel` but no longer applies at runtime.
+  - Fixed `Colors` class references (`Microsoft.UI.Colors`) and `SolidColorBrush` construction in `UiHelper.GetUsageBrush()`.
+  - Added missing `Windows.Storage` and `Windows.Storage.Pickers` usings for `ApplicationData` in ViewModels.
+  - Fixed `Application.Current.GetWindow()` → `Microsoft.UI.Xaml.Window.Current` (correct WinUI 3 API).
+  - Fixed folder picker hwnd resolution to use `WindowNative.GetWindowHandle(window)`.
+- **Fixed SettingsPage.xaml.cs duplicate `VM` property** — removed the code-behind `VM` field that conflicted with the XAML `Page.DataContext` named `VM`.
+- **Fixed AIAssistantPage.xaml** — removed invalid `VerticalScrollBarVisibility` on `TextBox`; simplified message list layout to a single `Border` per message.
+- **Fixed SmartSearchPage.xaml** — removed `Style="{StaticResource DashboardCardBorder}"` from inner `Border` elements to eliminate "duplicate Child property" compiler error; removed unsupported `Opacity` attribute on `Run` elements; added `HasResults` ViewModel property for visibility binding.
+- **Refactored converters** — split `BoolToVisibilityConverter` into separate `BoolToVisibilityConverter` and `InverseBoolToVisibilityConverter` classes (WinUI XAML compiler does not support `ConverterParameter` on value converters).
+
+### WinUI 3 — New Pages
+
+- **Implemented `SmartSearchPage`** — full UI for searching files by name and size with path picker, size filter, exact/hidden options, and results list.
+- **Implemented `WorkflowsPage`** — stub page with workflow creation form (name, type selector, auto-run checkbox) and saved workflows section.
+
+### WinUI 3 — Code Cleanup
+
+- **Moved `SmartSearchResult` model** from `SmartSearchViewModel.cs` to `Models/SmartSearchResult.cs` for proper XAML `x:DataType` resolution.
+- **Added `HasResults` computed property** to `SmartSearchViewModel` for clean visibility binding on the results container.
+- **Created `Helpers/Converters.cs`** with reusable visibility converters.
+- **Simplified `App.xaml.cs`** — removed broken `ApplySavedTheme()` method that used non-existent WinUI 3 APIs.
+
 ### GUI — Complete Visual Redesign
 
 - **New unified design system** across all 8 GUI tabs (Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, System, Settings): layered near-black navy/slate surfaces, blue primary accent, green/amber/coral semantic colors, rounded cards with subtle borders, and an 8 px spacing system.
@@ -15,6 +40,14 @@
 - **Smart Search (`embeddings.rs`)** — disabled state warning when semantic indexing is off with action to open settings, disabled search field with explanatory text, search input with keyboard Enter support, indexing progress display, indexed files counter with limit info, results grid, rebuild index button.
 - **Workflows (`workflow_render.rs`)** — active workflow execution status card, responsive workflow cards with category badge, enabled/disabled status badge, action count, last run, enable-workflow action for disabled workflows, run/edit/delete actions, execution history, workflow editor modal with trigger configuration (Manual, Scheduled with presets, Low Disk Space, On Startup) and action management.
 - **Notifications** — new notification system component for contextual app messages.
+
+### WinUI 3 — Bug Fixes (June 2026)
+
+- **Removed duplicate Settings nav item** — `IsSettingsVisible="True"` on `NavigationView` was showing a built-in Settings item alongside the explicit footer Settings item; removed the XAML attribute.
+- **Fixed Results section null-reference crashes** — `ScanPage`, `DuplicatesPage`, and `CleanupPage` bound directly to `VM.LastResult.xxx` before any scan ran. Replaced with null-safe ViewModel properties (`TopDirectories`, `DuplicateGroups`, `CleanupCandidates`, etc.) so pages load cleanly.
+- **Fixed Cleanup numeric TwoWay bindings** — `MinSizeMb`/`UnusedDays` were `ulong`; WinUI `x:Bind TwoWay` on `TextBox` requires `int`/`double`. Changed ViewModel types to `int` and cast to `ulong` only when calling the scanner.
+- **Reused `PerformanceCounter` instances** — `DashboardViewModel` and `SystemViewModel` were allocating a new counter every 2–3 seconds. Now reused and disposed properly.
+- **Fixed redundant Frame navigation** — Dashboard Quick Action buttons set `NavigationView.SelectedItem`, which fired `SelectionChanged` and caused a second navigation. Added a guard so `MainWindow` skips `Navigate` when the target page is already active.
 
 ### GUI — Phosphor Icon Migration
 

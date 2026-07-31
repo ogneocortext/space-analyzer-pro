@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI;
 using Microsoft.UI.Xaml.Media;
+using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
 
 namespace SpaceAnalyzer.ViewModels;
@@ -68,9 +69,11 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     public string ResultDurationDisplay => LastResult != null ? $"{LastResult.DurationSecs:F1}s" : "";
     public string ResultDirsDisplay => LastResult != null ? $"{LastResult.TopDirectories.Count}" : "";
 
+    public List<DirEntry> TopDirectories => LastResult?.TopDirectories ?? new();
+
     // ── Methods ──
 
-    public async Task ScanAsync()
+    public async Task ScanAsync(CancellationToken ct = default)
     {
         if (IsScanning || string.IsNullOrWhiteSpace(ScanPath))
             return;
@@ -84,14 +87,23 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             var result = await _scanner.ScanDirectoryAsync(
                 ScanPath,
                 deep: DeepScan,
+                includeHidden: IncludeHidden,
                 progress: null,
-                CancellationToken.None);
+                ct);
 
             LastResult = result;
-            StatusMessage = $"Scan complete: {result.TotalFiles:N0} files, {result.TotalSizeMb:F1} MB in {result.DurationSecs:F1}s";
+            if (result != null)
+            {
+                StatusMessage = $"Scan complete: {result.TotalFiles:N0} files, {result.TotalSizeMb:F1} MB in {result.DurationSecs:F1}s";
+            }
+            else
+            {
+                StatusMessage = "Scan completed with no result.";
+            }
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[ScanViewModel] Scan failed: {ex}");
             StatusMessage = $"Scan failed: {ex.Message}";
         }
         finally

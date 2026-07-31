@@ -1,18 +1,28 @@
+﻿// Licensed under the MIT License.
+
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using SpaceAnalyzer.Helpers;
+using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
-using Windows.UI;
 
 namespace SpaceAnalyzer.ViewModels;
 
+/// <summary>
+/// ViewModel for the dashboard page: hero stat cards, disk volumes,
+/// and live system-resource monitors (CPU, memory, disk).
+/// </summary>
 public class DashboardViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private readonly DispatcherTimer _refreshTimer;
+    private PerformanceCounter? _cpuCounter;
     private bool _disposed;
 
     public DashboardViewModel()
@@ -20,11 +30,9 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _refreshTimer.Tick += (_, _) => RefreshSystemResources();
         _refreshTimer.Start();
-
-        LoadDiskVolumesAsync().ConfigureAwait(false);
     }
 
-    // ── Stat card properties ──
+    // ── Hero Stat Cards ──
 
     private int _totalFiles;
     public int TotalFiles
@@ -40,14 +48,7 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
         get => _totalSizeBytes;
         set { _totalSizeBytes = value; OnPropertyChanged(); OnPropertyChanged(nameof(TotalSizeDisplay)); }
     }
-    public string TotalSizeDisplay
-    {
-        get
-        {
-            double gb = TotalSizeBytes / (1024.0 * 1024.0 * 1024.0);
-            return gb >= 1024 ? $"{gb / 1024.0:F2} TB" : $"{gb:F1} GB";
-        }
-    }
+    public string TotalSizeDisplay => ByteFormatter.FormatBytes(_totalSizeBytes);
 
     private int _scanCount;
     public int ScanCount
@@ -83,7 +84,7 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
         set { _cpuUsage = value; OnPropertyChanged(); OnPropertyChanged(nameof(CpuUsageDisplay)); OnPropertyChanged(nameof(CpuBrush)); }
     }
     public string CpuUsageDisplay => $"{CpuUsage:F0}%";
-    public SolidColorBrush CpuBrush => new(GetBarColor(CpuUsage));
+    public SolidColorBrush CpuBrush => UiHelper.GetUsageBrush(CpuUsage);
 
     private double _memoryUsage;
     public double MemoryUsage
@@ -92,7 +93,7 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
         set { _memoryUsage = value; OnPropertyChanged(); OnPropertyChanged(nameof(MemoryUsageDisplay)); OnPropertyChanged(nameof(MemoryBrush)); }
     }
     public string MemoryUsageDisplay => $"{MemoryUsage:F0}%";
-    public SolidColorBrush MemoryBrush => new(GetBarColor(MemoryUsage));
+    public SolidColorBrush MemoryBrush => UiHelper.GetUsageBrush(MemoryUsage);
 
     private double _gpuUsage;
     public double GpuUsage
@@ -101,7 +102,18 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
         set { _gpuUsage = value; OnPropertyChanged(); OnPropertyChanged(nameof(GpuUsageDisplay)); OnPropertyChanged(nameof(GpuBrush)); }
     }
     public string GpuUsageDisplay => $"{GpuUsage:F0}%";
-    public SolidColorBrush GpuBrush => new(GetBarColor(GpuUsage));
+    public SolidColorBrush GpuBrush => UiHelper.GetUsageBrush(GpuUsage);
+
+    // ── Disk (aggregated storage usage across all ready drives) ──
+
+    private double _diskUsage;
+    public double DiskUsage
+    {
+        get => _diskUsage;
+        set { _diskUsage = value; OnPropertyChanged(); OnPropertyChanged(nameof(DiskUsageDisplay)); OnPropertyChanged(nameof(DiskBrush)); }
+    }
+    public string DiskUsageDisplay => $"{DiskUsage:F0}%";
+    public SolidColorBrush DiskBrush => UiHelper.GetUsageBrush(DiskUsage);
 
     // ── Loading state ──
 
@@ -114,12 +126,19 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
 
     // ── Methods ──
 
-    public async Task LoadDiskVolumesAsync()
+    /// <summary>
+    /// Load disk volumes and populate hero stat cards from scan history.
+    /// </summary>
+    public async Task LoadDashboardAsync()
     {
+        IsLoading = true;
         try
         {
-            IsLoading = true;
+            // Disk volumes
             DiskVolumes = await _scanner.GetDiskVolumesAsync();
+
+            // Hero cards from scan history
+            await LoadHeroStatsAsync();
         }
         catch
         {
@@ -131,60 +150,90 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MEMORYSTATUSEX
+    /// <summary>
+    /// Populate the four hero stat cards:
+    /// TotalFiles / TotalSize from the most recent scan, ScanCount from history length,
+    /// and DuplicateCount from the most recent dedup run (0 if unavailable).
+    /// </summary>
+    private async Task LoadHeroStatsAsync()
     {
-        public uint dwLength;
-        public uint dwMemoryLoad;
-        public ulong ullTotalPhys;
-        public ulong ullAvailPhys;
-        public ulong ullTotalPageFile;
-        public ulong ullAvailPageFile;
-        public ulong ullTotalVirtual;
-        public ulong ullAvailVirtual;
-        public ulong ullAvailExtendedVirtual;
+        try
+        {
+            var history = await _scanner.GetScanHistoryAsync(50);
+            ScanCount = history.Count;
+
+            var latest = history.FirstOrDefault();
+            if (latest != null)
+            {
+                TotalFiles = latest.TotalFiles;
+                TotalSizeBytes = latest.TotalSizeBytes;
+            }
+            else
+            {
+                TotalFiles = 0;
+                TotalSizeBytes = 0;
+            }
+
+            // Best-effort dedup count from the last scan directory
+            DuplicateCount = 0;
+            if (latest != null && !string.IsNullOrEmpty(latest.Path) && _scanner.IsAvailable)
+            {
+                try
+                {
+                    var dedup = await _scanner.RunDedupAnalysisAsync(latest.Path);
+                    DuplicateCount = dedup?.TotalDuplicateFiles ?? 0;
+                }
+                catch
+                {
+                    DuplicateCount = 0;
+                }
+            }
+        }
+        catch
+        {
+            // Non-fatal: hero cards stay at zero until history is available.
+        }
     }
 
     private void RefreshSystemResources()
     {
         try
         {
-            var cpuCounter = new System.Diagnostics.PerformanceCounter(
-                "Processor", "% Processor Time", "_Total", true);
-            CpuUsage = Math.Min(100, cpuCounter.NextValue());
+            _cpuCounter ??= new PerformanceCounter("Processor", "% Processor Time", "_Total", true);
+            CpuUsage = Math.Min(100, _cpuCounter.NextValue());
 
-            var memStatus = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
-            if (GlobalMemoryStatusEx(ref memStatus))
+            if (UiHelper.GetMemoryStatus(out var memStatus))
             {
                 MemoryUsage = Math.Min(100, memStatus.dwMemoryLoad);
             }
+
+            // Aggregated storage usage across all ready drives (replaces the GPU placeholder)
+            var readyDrives = System.IO.DriveInfo.GetDrives().Where(d => d.IsReady).ToArray();
+            long totalSpace = readyDrives.Sum(d => d.TotalSize);
+            long freeSpace = readyDrives.Sum(d => d.AvailableFreeSpace);
+            DiskUsage = totalSpace > 0
+                ? Math.Min(100, (double)(totalSpace - freeSpace) / totalSpace * 100.0)
+                : 0;
 
             GpuUsage = 0;
         }
         catch
         {
+            _cpuCounter?.Dispose();
+            _cpuCounter = null;
             CpuUsage = 0;
             MemoryUsage = 0;
             GpuUsage = 0;
+            DiskUsage = 0;
         }
     }
-
-    private static Windows.UI.Color GetBarColor(double percent) => percent switch
-    {
-        >= 90 => Colors.Red,
-        >= 70 => Colors.Gold,
-        _ => Colors.Green,
-    };
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         _refreshTimer.Stop();
+        _cpuCounter?.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -195,3 +244,4 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
+

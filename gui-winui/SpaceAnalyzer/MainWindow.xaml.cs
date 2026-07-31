@@ -23,7 +23,14 @@ public sealed partial class MainWindow : Window
 
     private void NavView_Loaded(object sender, RoutedEventArgs e)
     {
-        ContentFrame.Navigate(typeof(Views.DashboardPage));
+        try
+        {
+            ContentFrame.Navigate(typeof(Views.DashboardPage));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Nav] Dashboard load failed: {ex}");
+        }
     }
 
     private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -46,10 +53,22 @@ public sealed partial class MainWindow : Window
             "AIChat" => typeof(Views.AIAssistantPage),
             "Dedup" => typeof(Views.DuplicatesPage),
             "System" => typeof(Views.SystemPage),
+            "Cleanup" => typeof(Views.CleanupPage),
             "Settings" => typeof(Views.SettingsPage),
+            "About" => typeof(Views.AboutPage),
             _ => typeof(Views.DashboardPage)
         };
 
-        ContentFrame.Navigate(pageType);
+        if (pageType != null && ContentFrame.Content?.GetType() != pageType)
+        {
+            try
+            {
+                ContentFrame.Navigate(pageType);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Nav] {tag} navigation failed: {ex}");
+            }
+        }
     }
 }

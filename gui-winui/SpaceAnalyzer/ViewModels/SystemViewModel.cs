@@ -1,17 +1,27 @@
+﻿// Licensed under the MIT License.
+
+using System;
+using System.Collections.Generic;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using SpaceAnalyzer.Helpers;
+using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
-using Colors = Microsoft.UI.Colors;
 
 namespace SpaceAnalyzer.ViewModels;
 
+/// <summary>
+/// ViewModel for the System Resources page: CPU usage, memory breakdown,
+/// disk volumes, and top processes by memory.
+/// </summary>
 public class SystemViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly DispatcherTimer _refreshTimer;
+    private PerformanceCounter? _cpuCounter;
     private bool _disposed;
 
     public SystemViewModel()
@@ -32,7 +42,7 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
         set { _cpuUsage = value; OnPropertyChanged(); OnPropertyChanged(nameof(CpuUsageDisplay)); OnPropertyChanged(nameof(CpuBrush)); }
     }
     public string CpuUsageDisplay => $"{CpuUsage:F1}%";
-    public SolidColorBrush CpuBrush => new(GetBarColor(CpuUsage));
+    public SolidColorBrush CpuBrush => UiHelper.GetUsageBrush(CpuUsage);
 
     // ── Memory ──
 
@@ -43,7 +53,7 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
         set { _memoryUsage = value; OnPropertyChanged(); OnPropertyChanged(nameof(MemoryUsageDisplay)); OnPropertyChanged(nameof(MemoryBrush)); }
     }
     public string MemoryUsageDisplay => $"{MemoryUsage:F1}%";
-    public SolidColorBrush MemoryBrush => new(GetBarColor(MemoryUsage));
+    public SolidColorBrush MemoryBrush => UiHelper.GetUsageBrush(MemoryUsage);
 
     private ulong _totalMemory;
     public ulong TotalMemory
@@ -51,7 +61,7 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
         get => _totalMemory;
         set { _totalMemory = value; OnPropertyChanged(); OnPropertyChanged(nameof(TotalMemoryDisplay)); }
     }
-    public string TotalMemoryDisplay => FormatBytes(TotalMemory);
+    public string TotalMemoryDisplay => ByteFormatter.FormatBytes(TotalMemory);
 
     private ulong _availableMemory;
     public ulong AvailableMemory
@@ -59,7 +69,7 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
         get => _availableMemory;
         set { _availableMemory = value; OnPropertyChanged(); OnPropertyChanged(nameof(AvailableMemoryDisplay)); }
     }
-    public string AvailableMemoryDisplay => FormatBytes(AvailableMemory);
+    public string AvailableMemoryDisplay => ByteFormatter.FormatBytes(AvailableMemory);
 
     private ulong _usedMemory;
     public ulong UsedMemory
@@ -67,7 +77,7 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
         get => _usedMemory;
         set { _usedMemory = value; OnPropertyChanged(); OnPropertyChanged(nameof(UsedMemoryDisplay)); }
     }
-    public string UsedMemoryDisplay => FormatBytes(UsedMemory);
+    public string UsedMemoryDisplay => ByteFormatter.FormatBytes(UsedMemory);
 
     // ── Disk ──
 
@@ -93,17 +103,16 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
     {
         try
         {
-            var cpuCounter = new System.Diagnostics.PerformanceCounter(
+            _cpuCounter ??= new PerformanceCounter(
                 "Processor", "% Processor Time", "_Total", true);
-            CpuUsage = Math.Min(100, cpuCounter.NextValue());
+            CpuUsage = Math.Min(100, _cpuCounter.NextValue());
 
-            var memStatus = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
-            if (GlobalMemoryStatusEx(ref memStatus))
+            if (UiHelper.GetMemoryStatus(out var memStatus))
             {
                 MemoryUsage = memStatus.dwMemoryLoad;
                 TotalMemory = memStatus.ullTotalPhys;
                 AvailableMemory = memStatus.ullAvailPhys;
-                UsedMemory = TotalMemory - AvailableMemory;
+                UsedMemory = memStatus.ullTotalPhys - memStatus.ullAvailPhys;
             }
 
             LoadDiskVolumes();
@@ -111,6 +120,8 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
         }
         catch
         {
+            _cpuCounter?.Dispose();
+            _cpuCounter = null;
             CpuUsage = 0;
             MemoryUsage = 0;
         }
@@ -118,7 +129,7 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
 
     private void LoadDiskVolumes()
     {
-        DiskVolumes = DriveInfo.GetDrives()
+        DiskVolumes = System.IO.DriveInfo.GetDrives()
             .Where(d => d.IsReady)
             .Select(d => new DiskVolume
             {
@@ -143,7 +154,6 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
                 {
                     Name = p.ProcessName,
                     MemoryBytes = (ulong)p.WorkingSet64,
-                    MemoryDisplay = FormatBytes((ulong)p.WorkingSet64),
                     Id = p.Id,
                 })
                 .ToList();
@@ -155,49 +165,12 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    private static Windows.UI.Color GetBarColor(double percent) => percent switch
-    {
-        >= 90 => Colors.Red,
-        >= 70 => Colors.Gold,
-        _ => Colors.Green,
-    };
-
-    private static string FormatBytes(ulong bytes)
-    {
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        double size = bytes;
-        int unit = 0;
-        while (size >= 1024 && unit < units.Length - 1)
-        {
-            size /= 1024;
-            unit++;
-        }
-        return $"{size:F1} {units[unit]}";
-    }
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MEMORYSTATUSEX
-    {
-        public uint dwLength;
-        public uint dwMemoryLoad;
-        public ulong ullTotalPhys;
-        public ulong ullAvailPhys;
-        public ulong ullTotalPageFile;
-        public ulong ullAvailPageFile;
-        public ulong ullTotalVirtual;
-        public ulong ullAvailVirtual;
-        public ulong ullAvailExtendedVirtual;
-    }
-
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         _refreshTimer.Stop();
+        _cpuCounter?.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -205,13 +178,4 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-}
-
-public class ProcessInfo
-{
-    public string Name { get; set; } = "";
-    public int Id { get; set; }
-    public ulong MemoryBytes { get; set; }
-    public string MemoryDisplay { get; set; } = "";
-    public string PidDisplay => $"PID: {Id}";
 }

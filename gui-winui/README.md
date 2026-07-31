@@ -4,9 +4,9 @@ A modern Windows desktop app built with WinUI 3 (Windows App SDK) and Fluent Des
 
 ## Prerequisites
 
-- .NET 8.0 SDK
-- Windows App SDK 1.7+
-- Visual Studio 2022 17.8+ (or `dotnet` CLI)
+- .NET 10.0 SDK
+- Windows App SDK 2.3+
+- Visual Studio 2022 17.8+ (or MSBuild CLI) — **VS MSBuild is required**; `dotnet build` fails with WMC9999 on non-English Windows.
 - Rust toolchain (for the scanner backend)
 
 ## Quick Start
@@ -21,13 +21,21 @@ Copy `target/release/space-analyzer-pro.exe` to the app's output directory, or s
 
 ### 2. Build and run the WinUI 3 app
 
-```bash
-cd gui-winui
-dotnet build -c Debug
+```powershell
+# Use Visual Studio MSBuild (required for XAML compilation)
+& "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
+
+# Run
 dotnet run --project SpaceAnalyzer
 ```
 
-Or open `SpaceAnalyzer.sln` in Visual Studio and press F5.
+Or open `SpaceAnalyzer.sln` in Visual Studio and press **F5**.
+
+### 3. Run tests (Rust workspace)
+
+```bash
+cargo test --workspace
+```
 
 ## Architecture
 
@@ -35,38 +43,68 @@ Or open `SpaceAnalyzer.sln` in Visual Studio and press F5.
 gui-winui/
 ├── SpaceAnalyzer.sln
 ├── SpaceAnalyzer/
-│   ├── App.xaml(.cs)           — Application entry
-│   ├── MainWindow.xaml(.cs)    — NavigationView shell
-│   ├── Views/                  — Page XAML + code-behind
+│   ├── SpaceAnalyzer.csproj   # .NET 10 + Windows App SDK 2.3
+│   ├── App.xaml(.cs)          # Application entry
+│   ├── MainWindow.xaml(.cs)   # NavigationView shell
+│   ├── Helpers/
+│   │   ├── ByteFormatter.cs   # Byte size formatting
+│   │   ├── UiHelper.cs        # Folder picker, colors, MemoryStatusEx P/Invoke
+│   │   └── Converters.cs      # BoolToVisibility / InverseBoolToVisibility
+│   ├── Views/                 # Page XAML + code-behind
 │   │   ├── DashboardPage
 │   │   ├── ScanPage
 │   │   ├── HistoryPage
-│   │   ├── SmartSearchPage
-│   │   ├── WorkflowsPage
-│   │   ├── AIAssistantPage
+│   │   ├── SmartSearchPage    # File/folder search by name + size
+│   │   ├── WorkflowsPage      # Multi-step automation workflows (stub)
+│   │   ├── AIAssistantPage    # Ollama chat interface
 │   │   ├── DuplicatesPage
 │   │   ├── SystemPage
-│   │   └── SettingsPage
-│   ├── ViewModels/             — MVVM view models
+│   │   ├── CleanupPage
+│   │   ├── SettingsPage       # Theme, scanner path, Ollama config
+│   │   └── AboutPage
+│   ├── ViewModels/            # MVVM view models
 │   ├── Services/
-│   │   └── ScannerService.cs   — Rust CLI interop
-│   ├── Models/                 — Data models
-│   └── Assets/                 — Icons, images
+│   │   ├── ScannerService.cs  # Rust CLI interop (subprocess + JSON)
+│   │   └── OllamaClient.cs    # Ollama REST API client
+│   ├── Models/                # Data models
+│   └── Assets/                # Icons, images
 ```
 
 ## Interop with Rust
 
-The WinUI 3 app calls the Rust scanner as a subprocess:
+The WinUI 3 app calls the Rust scanner as a subprocess using subcommands:
 
 ```
 space-analyzer-pro scan --path "C:\Users" --format json
+space-analyzer-pro disk-info --path "C:\Users" --format json
+space-analyzer-pro history --limit 50 --format json
+space-analyzer-pro dedup --path "C:\Users" --format json
 ```
 
 JSON output is deserialized into C# models in `Services/ScannerService.cs`.
+
+## MVVM Pattern
+
+Each page follows the MVVM pattern with `Page.DataContext` bound to a ViewModel instance named `VM`:
+
+- **ViewModels** — expose `INotifyPropertyChanged` properties and async commands
+- **Views** — XAML bindings via `x:Bind` (compiled bindings) where possible, `Binding` for runtime scenarios
+- **Converter usage** — registered in `App.xaml` resources as `<helpers:BoolToVisibilityConverter x:Key="BoolToVisibility"/>`
 
 ## Design Language
 
 - **Mica backdrop** on Windows 11, solid fallback on older Windows
 - **Fluent Design** controls (NavigationView, InfoBar, CommandBar)
-- **Dark/light theme** support via `RequestedTheme`
+- **Dark/light theme** support (theme persistence is stored in Settings but requires manual application due to WinAppSDK limitations)
 - **Responsive layout** with AdaptiveTrigger
+- **Dashboard stat cards** — four hero cards (Total Files, Total Size, Scan Count, Duplicate Count) populated from scan history via `DashboardViewModel.LoadHeroStatsAsync()`
+- **System monitors** — CPU, Memory, and Storage bars refresh every 3 seconds via `DispatcherTimer`
+
+## Known Issues
+
+- **Theme runtime switching is not applied** due to `Window.RequestedTheme` being unavailable in WinAppSDK 2.3. Theme preference is persisted but not applied until app restart.
+- **WMC9999 XAML compiler error** occurs with `dotnet build` on non-English Windows. Use Visual Studio MSBuild instead.
+
+## Contributing
+
+See the main project [README.md](https://github.com/ogneocortext/space-analyzer-pro/blob/main/README.md) and [AGENTS.md](AGENTS.md) for development conventions.

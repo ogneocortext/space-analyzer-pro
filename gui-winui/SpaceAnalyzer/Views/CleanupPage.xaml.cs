@@ -5,9 +5,9 @@ using SpaceAnalyzer.ViewModels;
 
 namespace SpaceAnalyzer.Views;
 
-public sealed partial class DuplicatesPage : Page
+public sealed partial class CleanupPage : Page
 {
-    public DuplicatesPage()
+    public CleanupPage()
     {
         this.InitializeComponent();
     }
@@ -24,12 +24,12 @@ public sealed partial class DuplicatesPage : Page
             var path = await UiHelper.PickFolderAsync();
             if (path != null)
             {
-                VM.ScanPath = path;
+                VM.TargetPath = path;
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[DuplicatesPage] Browse failed: {ex}");
+            System.Diagnostics.Debug.WriteLine($"[CleanupPage] Browse failed: {ex}");
         }
     }
 }

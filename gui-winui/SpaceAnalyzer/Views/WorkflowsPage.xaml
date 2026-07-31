@@ -1,17 +1,49 @@
-<Page
+﻿<Page
     x:Class="SpaceAnalyzer.Views.WorkflowsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:SpaceAnalyzer.Views"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
+    NavigationCacheMode="Required"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid Padding="24">
-        <StackPanel Spacing="16">
-            <TextBlock Text="Workflows" FontSize="32" FontWeight="Bold"/>
-            <TextBlock Text="Automate file organization and maintenance tasks." FontSize="16" Opacity="0.7"/>
+        <StackPanel Spacing="24" MaxWidth="1000" HorizontalAlignment="Center">
+
+            <!-- Header -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Workflows" FontSize="28" FontWeight="Bold"/>
+                <TextBlock Text="Create and run multi-step automation workflows."
+                           FontSize="14" Opacity="0.8"/>
+            </StackPanel>
+
+            <!-- New Workflow -->
+            <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Create Workflow" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBox PlaceholderText="Workflow name..."
+                             AutomationProperties.Name="Workflow name"/>
+                    <ComboBox PlaceholderText="Select a workflow type..."
+                              AutomationProperties.Name="Workflow type">
+                        <ComboBoxItem Content="Scan and analyze"/>
+                        <ComboBoxItem Content="Cleanup node_modules"/>
+                        <ComboBoxItem Content="Find duplicates"/>
+                    </ComboBox>
+                    <CheckBox Content="Run automatically when created"/>
+                    <Button Content="Create Workflow" Padding="12,8"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Saved Workflows -->
+            <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Saved Workflows" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="No workflows saved yet. Create your first workflow above."
+                               FontSize="14" Opacity="0.8"/>
+                </StackPanel>
+            </Border>
+
         </StackPanel>
     </Grid>
 </Page>

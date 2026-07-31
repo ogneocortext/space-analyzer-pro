@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
 
 namespace SpaceAnalyzer.ViewModels;
@@ -44,6 +45,11 @@ public class DuplicatesViewModel : INotifyPropertyChanged, IDisposable
     public bool HasResult => _lastResult != null;
     public Microsoft.UI.Xaml.Visibility HasResultVisibility => HasResult ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
 
+    public int DuplicateGroupCount => _lastResult?.DuplicateGroups.Count ?? 0;
+    public int TotalDuplicateFiles => _lastResult?.TotalDuplicateFiles ?? 0;
+    public string PotentialSavingsDisplay => _lastResult?.PotentialSavingsDisplay ?? "";
+    public List<DuplicateGroup> DuplicateGroups => _lastResult?.DuplicateGroups ?? new();
+
     public async Task AnalyzeAsync()
     {
         if (IsScanning || string.IsNullOrWhiteSpace(ScanPath))
@@ -69,6 +75,7 @@ public class DuplicatesViewModel : INotifyPropertyChanged, IDisposable
         }
         catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[DuplicatesViewModel] Analysis failed: {ex}");
             StatusMessage = $"Analysis failed: {ex.Message}";
         }
         finally
