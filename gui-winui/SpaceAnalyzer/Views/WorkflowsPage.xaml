@@ -4,46 +4,122 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:SpaceAnalyzer.ViewModels"
+    xmlns:models="using:SpaceAnalyzer.Models"
     mc:Ignorable="d"
     NavigationCacheMode="Required"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
+    <Page.DataContext>
+        <vm:WorkflowsViewModel x:Name="VM"/>
+    </Page.DataContext>
+
     <Grid Padding="24">
-        <StackPanel Spacing="24" MaxWidth="1000" HorizontalAlignment="Center">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="24" MaxWidth="1000" HorizontalAlignment="Center">
 
-            <!-- Header -->
-            <StackPanel Spacing="6">
-                <TextBlock Text="Workflows" FontSize="28" FontWeight="Bold"/>
-                <TextBlock Text="Create and run multi-step automation workflows."
-                           FontSize="14" Opacity="0.8"/>
-            </StackPanel>
-
-            <!-- New Workflow -->
-            <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Create Workflow" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBox PlaceholderText="Workflow name..."
-                             AutomationProperties.Name="Workflow name"/>
-                    <ComboBox PlaceholderText="Select a workflow type..."
-                              AutomationProperties.Name="Workflow type">
-                        <ComboBoxItem Content="Scan and analyze"/>
-                        <ComboBoxItem Content="Cleanup node_modules"/>
-                        <ComboBoxItem Content="Find duplicates"/>
-                    </ComboBox>
-                    <CheckBox Content="Run automatically when created"/>
-                    <Button Content="Create Workflow" Padding="12,8"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Saved Workflows -->
-            <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Saved Workflows" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="No workflows saved yet. Create your first workflow above."
+                <!-- Header -->
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Workflows" FontSize="28" FontWeight="Bold"/>
+                    <TextBlock Text="Run predefined disk-analysis workflows."
                                FontSize="14" Opacity="0.8"/>
                 </StackPanel>
-            </Border>
 
-        </StackPanel>
+                <!-- Workflow Controls -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Workflow Settings" FontSize="16" FontWeight="SemiBold"/>
+
+                        <ComboBox Header="Workflow"
+                                  ItemsSource="{x:Bind VM.Templates, Mode=OneWay}"
+                                  SelectedItem="{x:Bind VM.SelectedTemplate, Mode=TwoWay}"
+                                  AutomationProperties.Name="Workflow type"/>
+
+                        <TextBlock Text="Target Directory" FontSize="14" FontWeight="SemiBold"/>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     Text="{x:Bind VM.TargetPath, Mode=TwoWay}"
+                                     PlaceholderText="Select a directory..."
+                                     AutomationProperties.Name="Target directory"/>
+                            <Button Grid.Column="1"
+                                    Content="Browse"
+                                    Click="Browse_Click"
+                                    Padding="12,8"
+                                    AutomationProperties.Name="Browse"/>
+                        </Grid>
+
+                        <Grid ColumnSpacing="24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Min Size (MB)" FontSize="12" Opacity="0.8"/>
+                                <TextBox Text="{x:Bind VM.MinSizeMb, Mode=TwoWay}"
+                                         AutomationProperties.Name="Minimum size in megabytes">
+                                    <TextBox.InputScope>
+                                        <InputScope>
+                                            <InputScope.Names>
+                                                <InputScopeName NameValue="Number"/>
+                                            </InputScope.Names>
+                                        </InputScope>
+                                    </TextBox.InputScope>
+                                </TextBox>
+                            </StackPanel>
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Status" FontSize="12" Opacity="0.8"/>
+                                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}"
+                                           FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Button Content="Run Workflow"
+                                Click="Run_Click"
+                                HorizontalAlignment="Stretch"
+                                Padding="16"
+                                IsEnabled="{x:Bind VM.IsNotRunning, Mode=OneWay}"
+                                AutomationProperties.Name="Run workflow"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Results -->
+                <Border Style="{StaticResource DashboardCardBorder}"
+                        Padding="16"
+                        Visibility="{x:Bind VM.HasResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Results" FontSize="18" FontWeight="SemiBold"/>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.Results, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="8"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:SmartSearchResult">
+                                    <Border Padding="12" CornerRadius="6"
+                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                            BorderThickness="1">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock FontSize="13" FontWeight="SemiBold"
+                                                       Text="{x:Bind Name, Mode=OneTime}"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock FontSize="12" Opacity="0.8">
+                                                <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
+                                                <Run Text=" · "/>
+                                                <Run Text="{x:Bind Path, Mode=OneTime}" FontStyle="Italic"/>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Page>

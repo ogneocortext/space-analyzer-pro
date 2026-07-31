@@ -78,8 +78,9 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
     public int ResultCount
     {
         get => _resultCount;
-        set { _resultCount = value; OnPropertyChanged(); }
+        set { _resultCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasResults)); }
     }
+    public bool HasResults => _resultCount > 0;
 
     public WorkflowsViewModel()
     {
@@ -122,21 +123,30 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
         ResultCount = 0;
         StatusMessage = $"Running: {SelectedTemplate.Name}...";
 
-        if (SelectedTemplate.Name == "Find Large Files")
+        try
         {
-            await RunFindLargeFilesAsync();
+            if (SelectedTemplate.Name == "Find Large Files")
+            {
+                await RunFindLargeFilesAsync();
+            }
+            else if (SelectedTemplate.Name == "Find Empty Directories")
+            {
+                await RunFindEmptyDirsAsync();
+            }
+            else if (SelectedTemplate.Name == "Find Duplicate Files")
+            {
+                await RunFindDuplicatesAsync();
+            }
+            StatusMessage = $"Completed. Found {ResultCount} result(s).";
         }
-        else if (SelectedTemplate.Name == "Find Empty Directories")
+        catch (Exception ex)
         {
-            await RunFindEmptyDirsAsync();
+            StatusMessage = $"Error: {ex.Message}";
         }
-        else if (SelectedTemplate.Name == "Find Duplicate Files")
+        finally
         {
-            await RunFindDuplicatesAsync();
+            IsRunning = false;
         }
-
-        IsRunning = false;
-        StatusMessage = $"Completed. Found {ResultCount} result(s).";
     }
 
     private async Task RunFindLargeFilesAsync()
