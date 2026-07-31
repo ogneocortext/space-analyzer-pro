@@ -86,13 +86,13 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
     {
         Templates.Add(new WorkflowTemplate("Find Large Files",
             "Locate files larger than a specified size threshold.",
-            "\uE7C3"));
+            "\uE7C3", "large-files"));
         Templates.Add(new WorkflowTemplate("Find Empty Directories",
             "Find directories that contain no files (recursively).",
-            "\uE7F6"));
+            "\uE7F6", "empty-dirs"));
         Templates.Add(new WorkflowTemplate("Find Duplicate Files",
             "Scan for duplicate files by content hash.",
-            "\uE8ED"));
+            "\uE8ED", "duplicate-files"));
 
         SelectedTemplate = Templates[0];
     }
@@ -125,15 +125,15 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
 
         try
         {
-            if (SelectedTemplate.Name == "Find Large Files")
+            if (SelectedTemplate.Id == "large-files")
             {
                 await RunFindLargeFilesAsync();
             }
-            else if (SelectedTemplate.Name == "Find Empty Directories")
+            else if (SelectedTemplate.Id == "empty-dirs")
             {
                 await RunFindEmptyDirsAsync();
             }
-            else if (SelectedTemplate.Name == "Find Duplicate Files")
+            else if (SelectedTemplate.Id == "duplicate-files")
             {
                 await RunFindDuplicatesAsync();
             }
@@ -375,11 +375,13 @@ public class WorkflowTemplate
     public string Name { get; }
     public string Description { get; }
     public string IconGlyph { get; }
+    public string Id { get; }
 
-    public WorkflowTemplate(string name, string description, string iconGlyph)
+    public WorkflowTemplate(string name, string description, string iconGlyph, string id)
     {
         Name = name;
         Description = description;
         IconGlyph = iconGlyph;
+        Id = id;
     }
 }
