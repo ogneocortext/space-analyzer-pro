@@ -36,13 +36,17 @@ pub enum Commands {
         #[arg(short, long)]
         verbose: bool,
 
-        /// Maximum scan depth (default: 5; unlimited when unset or with --deep)
+        /// Maximum scan depth (default: 5; unlimited with --deep, root-only with --shallow)
         #[arg(long)]
         max_depth: Option<usize>,
 
         /// Perform deeper scanning heuristics (unlimited depth)
         #[arg(long)]
         deep: bool,
+
+        /// Shallow scan: root directory only (depth = 1)
+        #[arg(long)]
+        shallow: bool,
 
         /// Minimum file size to include (e.g. 1M, 500K, 1G)
         #[arg(long)]
@@ -55,6 +59,10 @@ pub enum Commands {
         /// Include hidden files and directories
         #[arg(long)]
         include_hidden: bool,
+
+        /// Number of parallel threads for directory traversal (0 = auto)
+        #[arg(long)]
+        threads: usize,
 
         /// Export results to a file
         #[arg(long)]
@@ -101,6 +109,10 @@ pub enum Commands {
         /// Show full details for one scan by ID
         #[arg(long)]
         id: Option<i64>,
+
+        /// Delete a scan record by ID
+        #[arg(long)]
+        delete: Option<i64>,
     },
 
     /// Run duplicate-file analysis on a directory and output JSON

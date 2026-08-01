@@ -12,17 +12,20 @@ pub fn scan_directory(
     verbose: bool,
     max_depth: Option<usize>,
     deep: bool,
+    shallow: bool,
     min_size: Option<u64>,
     max_size: Option<u64>,
     include_hidden: bool,
     _no_animation: bool,
+    threads: usize,
 ) -> AppResult<ScanResult> {
     let spinner = if verbose {
         let pb = animation::create_scan_spinner(&path.display().to_string());
         if deep {
             pb.set_message(format!("Scanning {} (deep mode)", path.display()));
-        }
-        if let Some(ms) = min_size {
+        } else if shallow {
+            pb.set_message(format!("Scanning {} (shallow mode)", path.display()));
+        } else if let Some(ms) = min_size {
             pb.set_message(format!(
                 "Scanning {} (min: {})",
                 path.display(),
@@ -38,6 +41,8 @@ pub fn scan_directory(
     let scanner = FileScanner::new();
     let depth_mode = if deep {
         ScanOptions::deep()
+    } else if shallow || max_depth == Some(1) {
+        ScanOptions::shallow()
     } else if let Some(d) = max_depth {
         ScanOptions {
             max_depth: Some(d),
@@ -49,10 +54,11 @@ pub fn scan_directory(
             ..ScanOptions::default()
         }
     };
-    let options = ScanOptions {
+let options = ScanOptions {
         min_size,
         max_size,
         include_hidden,
+        num_threads: threads,
         ..depth_mode
     };
 

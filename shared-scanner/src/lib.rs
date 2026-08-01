@@ -7,7 +7,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use chrono::DateTime;
 use serde::{Deserialize, Serialize};
@@ -76,6 +76,8 @@ pub struct ScanOptions {
     pub gpu_acceleration: bool,
     /// Enable CUDA-specific kernels (requires cudarc at compile time)
     pub cuda_enabled: bool,
+    /// Number of threads for parallel post-processing (0 = auto-detect)
+    pub num_threads: usize,
 }
 
 impl Default for ScanOptions {
@@ -89,6 +91,7 @@ impl Default for ScanOptions {
             size_buckets: true,
             gpu_acceleration: true,
             cuda_enabled: false,
+            num_threads: 0,
         }
     }
 }
@@ -234,8 +237,13 @@ impl FileScanner {
             subdirectories: Vec::new(),
         };
 
-        // Use physical cores for I/O-bound parallelism (hyperthreads add overhead)
-        let num_threads = num_cpus::get_physical().max(2);
+        // Use physical cores for I/O-bound parallelism (hyperthreads add overhead).
+        // Respect options.num_threads if explicitly set.
+        let num_threads = if options.num_threads > 0 {
+            options.num_threads
+        } else {
+            num_cpus::get_physical().max(2)
+        };
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads)
             .build()
@@ -813,7 +821,7 @@ impl FileScanner {
     where
         F: Fn(ScanProgress) + Send + 'static + Clone,
     {
-        let result = Arc::new(Mutex::new(ScanResult {
+        let mut result = ScanResult {
             total_files: 0,
             total_directories: 0,
             total_size: 0,
@@ -824,9 +832,8 @@ impl FileScanner {
             empty_directories: Vec::new(),
             errors: Vec::new(),
             subdirectories: Vec::new(),
-        }));
+        };
 
-        let result_clone = result.clone();
         let callback = progress_callback.clone();
         let cancel = cancel_flag;
 
@@ -868,9 +875,11 @@ impl FileScanner {
             let metadata = match entry_result.metadata() {
                 Ok(m) => m,
                 Err(e) => {
-                    let mut r = result_clone.lock().unwrap();
-                    r.errors
-                        .push(format!("Metadata error: {}: {}", path.to_string_lossy(), e));
+                    result.errors.push(format!(
+                        "Metadata error: {}: {}",
+                        path.to_string_lossy(),
+                        e
+                    ));
                     continue;
                 }
             };
@@ -891,24 +900,23 @@ impl FileScanner {
                     let files_count = current_files_clone.fetch_add(1, Ordering::Relaxed) + 1;
                     let size_count = current_size_clone.fetch_add(size, Ordering::Relaxed) + size;
 
-                    let mut r = result_clone.lock().unwrap();
-                    r.total_files = files_count;
-                    r.total_size = size_count;
+                    result.total_files = files_count;
+                    result.total_size = size_count;
 
                     let ext = path
                         .extension()
                         .and_then(|e| e.to_str())
                         .unwrap_or("")
                         .to_lowercase();
-                    *r.file_types.entry(ext.clone()).or_insert(0) += 1;
+                    *result.file_types.entry(ext.clone()).or_insert(0) += 1;
 
                     if options.size_buckets {
                         let bucket = size_bucket(size);
-                        *r.size_distribution.entry(bucket.to_string()).or_insert(0) += 1;
+                        *result.size_distribution.entry(bucket.to_string()).or_insert(0) += 1;
                     }
 
-                    if r.largest_files.len() < 100
-                        || size > r.largest_files.last().map(|f| f.size).unwrap_or(0)
+                    if result.largest_files.len() < 100
+                        || size > result.largest_files.last().map(|f| f.size).unwrap_or(0)
                     {
                         let file_info = FileInfo {
                             path: current_file_path.clone(),
@@ -927,14 +935,13 @@ impl FileScanner {
                             file_type: "file".to_string(),
                             extension: ext,
                         };
-                        r.largest_files.push(file_info);
-                        r.largest_files.sort_by_key(|b| std::cmp::Reverse(b.size));
-                        r.largest_files.truncate(100);
+                        result.largest_files.push(file_info);
+                        result.largest_files.sort_by_key(|b| std::cmp::Reverse(b.size));
+                        result.largest_files.truncate(100);
                     }
                 } else if is_dir {
                     let dirs_count = current_directories_clone.fetch_add(1, Ordering::Relaxed) + 1;
-                    let mut r = result_clone.lock().unwrap();
-                    r.total_directories = dirs_count;
+                    result.total_directories = dirs_count;
                 }
             }
 
@@ -975,11 +982,10 @@ impl FileScanner {
 
         // Final progress update
         {
-            let r = result.lock().unwrap();
             let final_progress = ScanProgress {
-                files_scanned: r.total_files,
-                directories_scanned: r.total_directories,
-                total_size: r.total_size,
+                files_scanned: result.total_files,
+                directories_scanned: result.total_directories,
+                total_size: result.total_size,
                 current_file: "Complete".to_string(),
                 percentage: 100.0,
                 completed: true,
@@ -991,9 +997,8 @@ impl FileScanner {
             }));
         }
 
-        let mut r = Arc::try_unwrap(result).unwrap().into_inner().unwrap();
-        r.empty_directories = true_empty_dirs;
-        Ok(r)
+        result.empty_directories = true_empty_dirs;
+        Ok(result)
     }
 }
 

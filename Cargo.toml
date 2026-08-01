@@ -30,6 +30,7 @@ rayon = "1.12"
 regex = "1.12"
 blake3 = "1.8"
 walkdir = "2.5"
+crossbeam-channel = "0.5"
 
 [lib]
 name = "space_analyzer_pro_desktop"
