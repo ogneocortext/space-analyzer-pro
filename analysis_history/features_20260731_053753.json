@@ -1,0 +1,72 @@
+{
+  "01_launched": {
+    "quality_score": 30,
+    "bright": 34.2,
+    "edge_pct": 2.3,
+    "dark_pct": 96.4,
+    "center_colors": 16
+  },
+  "01_tab_dashboard": {
+    "quality_score": 30,
+    "bright": 34.2,
+    "edge_pct": 2.3,
+    "dark_pct": 96.4,
+    "center_colors": 16
+  },
+  "02_tab_scan": {
+    "quality_score": 31,
+    "bright": 35.0,
+    "edge_pct": 2.3,
+    "dark_pct": 95.5,
+    "center_colors": 16
+  },
+  "03_tab_history": {
+    "quality_score": 29,
+    "bright": 32.7,
+    "edge_pct": 2.2,
+    "dark_pct": 96.8,
+    "center_colors": 16
+  },
+  "04_tab_smart_search": {
+    "quality_score": 29,
+    "bright": 32.7,
+    "edge_pct": 2.2,
+    "dark_pct": 96.8,
+    "center_colors": 16
+  },
+  "05_tab_workflows": {
+    "quality_score": 29,
+    "bright": 32.7,
+    "edge_pct": 2.2,
+    "dark_pct": 96.8,
+    "center_colors": 16
+  },
+  "06_tab_ai_chat": {
+    "quality_score": 29,
+    "bright": 32.3,
+    "edge_pct": 2.2,
+    "dark_pct": 96.8,
+    "center_colors": 16
+  },
+  "07_tab_dedup": {
+    "quality_score": 28,
+    "bright": 31.8,
+    "edge_pct": 2.2,
+    "dark_pct": 96.8,
+    "center_colors": 16
+  },
+  "08_tab_system": {
+    "quality_score": 28,
+    "bright": 31.2,
+    "edge_pct": 2.2,
+    "dark_pct": 96.8,
+    "center_colors": 16
+  },
+  "09_tab_settings": {
+    "quality_score": 29,
+    "bright": 32.2,
+    "edge_pct": 2.2,
+    "dark_pct": 95.8,
+    "center_colors": 16
+  }
+}

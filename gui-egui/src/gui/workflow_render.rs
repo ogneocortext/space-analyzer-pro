@@ -25,7 +25,7 @@ impl SpaceAnalyzerApp {
                 if self.ollama_client.is_some() && self.scan_result.is_some() =>
             {
                 if self.settings.auto_model_selection {
-                    self.select_model_for_task("Complex Analysis");
+                    let _ = self.select_model_for_task("Complex Analysis");
                 }
                 let old_input = self.chat_input.clone();
                 self.chat_input = prompt.clone();
@@ -147,8 +147,8 @@ impl SpaceAnalyzerApp {
                 }
                 workflows::ExportFormat::Csv => {
                     let mut csv = String::from("path,size_bytes\n");
-                    for (p, s) in &result.largest_files {
-                        csv.push_str(&format!("{},{}\n", p, s));
+                    for file in &result.largest_files {
+                        csv.push_str(&format!("{},{}\n", file.path, file.size));
                     }
                     csv
                 }
@@ -177,11 +177,11 @@ impl SpaceAnalyzerApp {
                     html.push_str(
                         "</table><h2>Largest Files</h2><table><tr><th>Path</th><th>Size</th></tr>",
                     );
-                    for (p, s) in &result.largest_files {
+                    for file in &result.largest_files {
                         html.push_str(&format!(
                             "<tr><td>{}</td><td>{:.2} MB</td></tr>",
-                            escape_html(p),
-                            *s as f64 / (1024.0 * 1024.0)
+                            escape_html(&file.path),
+                            file.size as f64 / (1024.0 * 1024.0)
                         ));
                     }
                     html.push_str("</table></body></html>");
@@ -1034,11 +1034,11 @@ async fn generate_ai_recommendations_async(
         .largest_files
         .iter()
         .take(10)
-        .map(|(path, size)| {
+        .map(|file| {
             format!(
                 "  {} ({})",
-                path,
-                space_analyzer_pro_desktop::gui_common::formatting::format_bytes(*size)
+                file.path,
+                space_analyzer_pro_desktop::gui_common::formatting::format_bytes(file.size)
             )
         })
         .collect::<Vec<_>>()

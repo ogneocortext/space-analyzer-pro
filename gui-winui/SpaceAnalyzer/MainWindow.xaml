@@ -7,6 +7,7 @@
 
     <NavigationView x:Name="NavView"
                     PaneDisplayMode="Top"
+                    IsBackEnabled="False"
                     Loaded="NavView_Loaded"
                     SelectionChanged="NavView_SelectionChanged">
 
@@ -23,15 +24,15 @@
             </NavigationViewItem>
             <NavigationViewItem Content="History" Tag="History">
                 <NavigationViewItem.Icon>
-                    <FontIcon Glyph="&#xE81C;"/>
+                    <FontIcon Glyph="&#xE9D9;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="Smart Search" Tag="SmartSearch">
+            <NavigationViewItem Content="Advanced Search" Tag="AdvancedSearch">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE721;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="Workflows" Tag="Workflows">
+            <NavigationViewItem Content="Automation Workflows" Tag="AutomationWorkflows">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE74C;"/>
                 </NavigationViewItem.Icon>

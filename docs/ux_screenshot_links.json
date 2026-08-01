@@ -1,0 +1,205 @@
+{
+  "color:5c380b3727d0": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "04_tab_smart_search.png"
+    ]
+  },
+  "color:912f0f982ac4": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "01_tab_dashboard.png"
+    ]
+  },
+  "color:d0866d059634": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "06_tab_ai_chat.png"
+    ]
+  },
+  "color:d1ed6548c6e0": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "08_tab_settings.png"
+    ]
+  },
+  "color:f1dfb2f9f40f": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "02_tab_scan.png"
+    ]
+  },
+  "layout:049bf6ce172c": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "01_launched.png"
+    ]
+  },
+  "layout:0b30f859658f": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "04_tab_smart_search.png"
+    ]
+  },
+  "layout:138246211758": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "07_tab_system.png"
+    ]
+  },
+  "layout:199a11a8dc3a": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "05_tab_workflows.png"
+    ]
+  },
+  "layout:253b7c3a04ee": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "06_tab_ai_chat.png"
+    ]
+  },
+  "layout:30bfffafd3be": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "02_tab_scan.png"
+    ]
+  },
+  "layout:6558b221d0b5": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "01_tab_dashboard.png"
+    ]
+  },
+  "layout:a42580bb934a": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "03_tab_history.png"
+    ]
+  },
+  "layout:acaa5056d0fa": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "01_launched.png"
+    ]
+  },
+  "layout:c9c4db083c27": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "08_tab_settings.png"
+    ]
+  },
+  "layout:f61513eb9bb7": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "02_tab_scan.png"
+    ]
+  },
+  "ui:0429840e8c06": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "05_tab_workflows.png"
+    ]
+  },
+  "ui:70c1064bb6aa": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "04_tab_smart_search.png"
+    ]
+  },
+  "ui:9863b713e30a": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "01_tab_dashboard.png"
+    ]
+  },
+  "ui:c051e3b48b7e": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "03_tab_history.png"
+    ]
+  },
+  "ui:c0e255eb4c03": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "07_tab_system.png"
+    ]
+  },
+  "ui:c5d43648f0d0": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "05_tab_workflows.png"
+    ]
+  },
+  "ui:c95924f6fe69": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "02_tab_scan.png"
+    ]
+  },
+  "ui:c9bfbc371e21": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "08_tab_settings.png"
+    ]
+  },
+  "ui:e294483b57dd": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "08_tab_settings.png"
+    ]
+  },
+  "ui:eef156ec3a30": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "01_launched.png"
+    ]
+  },
+  "ui:f05cb1b864fd": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "03_tab_history.png"
+    ]
+  },
+  "ux:343d151ef7f3": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "07_tab_system.png"
+    ]
+  },
+  "ux:a8644ff3bd29": {
+    "first_linked": "2026-07-30T09:38:41+00:00",
+    "last_linked": "2026-07-30T09:38:41+00:00",
+    "screenshots": [
+      "01_launched.png"
+    ]
+  }
+}

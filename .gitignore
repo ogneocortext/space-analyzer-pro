@@ -28,6 +28,10 @@ test_results_*.json
 test_report_*.txt
 test-results/
 test-screenshot*.png
+screenshot*.png
+screenshot*.jpg
+screenshot*_b64.txt
+screenshot_resized.png
 
 # Build artifacts
 build-artifacts/
@@ -36,6 +40,9 @@ macro_logs/
 
 # .NET WinUI 3 build outputs
 gui-winui/**/obj/
+scripts/csharp-analyzer/
+tools/csharp-analyzer/bin/
+tools/csharp-analyzer/obj/
 
 # User-specific configuration
 .env
@@ -84,12 +91,11 @@ nul
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# Backup files
-*.bak
-*.backup
-*.old
-*.orig
+# Temporary files and directories
 *.tmp
+tmp/
+tools/csharp-analyzer/bin/
+tools/csharp-analyzer/obj/
 
 # Archive files
 *.7z
@@ -118,6 +124,7 @@ scripts/temporary/
 
 # Runtime data
 loop_feedback/
+ux-pipeline/analysis_history/
 scripts/loop/
 
 # Docs runtime/generated files

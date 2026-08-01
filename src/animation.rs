@@ -51,6 +51,7 @@ pub fn create_scan_spinner(path: &str) -> ProgressBar {
 }
 
 /// Update the scan spinner with current progress stats.
+#[allow(dead_code)]
 pub fn update_scan_spinner(pb: &ProgressBar, file_count: usize, bytes_scanned: u64) {
     let size_str = shared_scanner::format_bytes(bytes_scanned);
     pb.set_message(format!(
@@ -80,7 +81,12 @@ pub fn print_section_header_animated(icon: &str, title: &str, no_animation: bool
         // Instant output — no delays
         let left_line = "═".repeat(line_width);
         let right_line = "═".repeat(line_right);
-        println!("  {}{}{}", left_line.dimmed(), title_part.white().bold(), right_line.dimmed());
+        println!(
+            "  {}{}{}",
+            left_line.dimmed(),
+            title_part.white().bold(),
+            right_line.dimmed()
+        );
         return;
     }
 
@@ -114,14 +120,26 @@ pub fn print_section_header_animated(icon: &str, title: &str, no_animation: bool
 }
 
 /// Print a disk usage bar, optionally animated.
-pub fn print_animated_bar_mode(label: &str, percent: f32, total_str: &str, width: usize, no_animation: bool) {
+pub fn print_animated_bar_mode(
+    label: &str,
+    percent: f32,
+    total_str: &str,
+    width: usize,
+    no_animation: bool,
+) {
     let target_filled = (percent / 100.0 * width as f32).round() as usize;
 
     if no_animation {
         // Instant output
         let filled = "█".repeat(target_filled);
         let empty = "░".repeat(width.saturating_sub(target_filled));
-        println!("  {} [{}{} ] {:.1}%", label.bold(), filled.green(), empty.dimmed(), percent);
+        println!(
+            "  {} [{}{} ] {:.1}%",
+            label.bold(),
+            filled.green(),
+            empty.dimmed(),
+            percent
+        );
         if !total_str.is_empty() {
             println!("    {}", total_str.dimmed());
         }
@@ -139,7 +157,9 @@ pub fn print_animated_bar_mode(label: &str, percent: f32, total_str: &str, width
         if current >= target_filled {
             break;
         }
-        let advance = ((target_filled - current) / 3).max(1).min(target_filled - current);
+        let advance = ((target_filled - current) / 3)
+            .max(1)
+            .min(target_filled - current);
         let prev = current;
         current += advance;
         if current > target_filled {

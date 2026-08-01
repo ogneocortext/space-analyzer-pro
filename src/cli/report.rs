@@ -45,8 +45,12 @@ pub fn export_results(result: &ScanResult, export_path: &str, format: &str) {
             csv.push('\n');
 
             csv.push_str("file_path,size_bytes\n");
-            for (path, size) in &result.largest_files {
-                csv.push_str(&format!("\"{}\",{}\n", path.replace('"', "\"\""), size));
+            for file in &result.largest_files {
+                csv.push_str(&format!(
+                    "\"{}\",{}\n",
+                    file.path.replace('"', "\"\""),
+                    file.size
+                ));
             }
             csv
         }
@@ -160,18 +164,18 @@ pub fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String 
         ));
         report.push_str("| # | Size | % | Path |\n");
         report.push_str("|---|------|---|------|\n");
-        for (i, (path, size)) in result.largest_files.iter().take(top_n).enumerate() {
+        for (i, file) in result.largest_files.iter().take(top_n).enumerate() {
             let pct = if result.total_size_bytes > 0 {
-                (*size as f64 / result.total_size_bytes as f64) * 100.0
+                (file.size as f64 / result.total_size_bytes as f64) * 100.0
             } else {
                 0.0
             };
             report.push_str(&format!(
                 "| {} | {} | {:.1}% | `{}` |\n",
                 i + 1,
-                format_bytes(*size),
+                format_bytes(file.size),
                 pct,
-                path
+                file.path
             ));
         }
         report.push('\n');
@@ -180,8 +184,8 @@ pub fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String 
     let mut installers: Vec<(&str, u64)> = result
         .largest_files
         .iter()
-        .filter(|(p, _)| {
-            let lower = p.to_lowercase();
+        .filter(|f| {
+            let lower = f.path.to_lowercase();
             lower.ends_with(".exe")
                 || lower.ends_with(".msi")
                 || lower.ends_with(".rar")
@@ -191,7 +195,7 @@ pub fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String 
                 || lower.ends_with(".rpm")
                 || lower.ends_with(".pkg")
         })
-        .map(|(p, s)| (p.as_str(), *s))
+        .map(|f| (f.path.as_str(), f.size))
         .collect();
     installers.sort_by_key(|b| std::cmp::Reverse(b.1));
 
@@ -279,8 +283,8 @@ pub fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String 
     let ollama_size: u64 = result
         .largest_files
         .iter()
-        .filter(|(p, _)| p.contains(".ollama") || p.contains("ollama"))
-        .map(|(_, s)| s)
+        .filter(|file| file.path.contains(".ollama") || file.path.contains("ollama"))
+        .map(|file| file.size)
         .sum();
     if ollama_size > 1024 * 1024 * 1024 {
         recommendations.push((

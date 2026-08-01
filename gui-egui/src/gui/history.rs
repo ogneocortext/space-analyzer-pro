@@ -1,3 +1,4 @@
+use super::gui_common::LargestFileEntry;
 use super::*;
 
 impl SpaceAnalyzerApp {
@@ -72,10 +73,11 @@ impl SpaceAnalyzerApp {
                 csv.push_str(&format!("file_type_.{},{}\n", ext, count));
             }
         }
-        if let Ok(largest) = serde_json::from_str::<Vec<(String, u64)>>(&record.largest_files_json)
+        if let Ok(largest) =
+            serde_json::from_str::<Vec<LargestFileEntry>>(&record.largest_files_json)
         {
-            for (path, size) in largest {
-                csv.push_str(&format!("largest_file,\"{}\",{}\n", path, size));
+            for file in largest {
+                csv.push_str(&format!("largest_file,\"{}\",{}\n", file.path, file.size));
             }
         }
         if let Some(path) = rfd::FileDialog::new()
@@ -334,9 +336,9 @@ impl SpaceAnalyzerApp {
                     }
                 }
 
-                if let Ok(largest) =
-                    serde_json::from_str::<Vec<(String, u64)>>(&record.largest_files_json)
-                {
+                if let Ok(largest) = serde_json::from_str::<Vec<gui_common::LargestFileEntry>>(
+                    &record.largest_files_json,
+                ) {
                     if !largest.is_empty() {
                         section_header(ui, Some(icons::PACKAGE), "Largest files");
                         app_card(ui, |ui| {
@@ -344,12 +346,14 @@ impl SpaceAnalyzerApp {
                                 .num_columns(2)
                                 .spacing([16.0, 4.0])
                                 .show(ui, |ui| {
-                                    for (path, size) in largest.iter().take(50) {
+                                    for file in largest.iter().take(50) {
                                         ui.label(
-                                            egui::RichText::new(formatting::format_bytes(*size))
-                                                .color(colors::WARNING),
+                                            egui::RichText::new(formatting::format_bytes(
+                                                file.size,
+                                            ))
+                                            .color(colors::WARNING),
                                         );
-                                        ui.label(path);
+                                        ui.label(&file.path);
                                         ui.end_row();
                                     }
                                 });

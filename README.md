@@ -69,6 +69,7 @@ dotnet run --project gui-winui/SpaceAnalyzer
 - **Dashboard stat cards** populated from scan history with 3-second live system resource refresh
 - **MVVM pattern** with `Helpers/`, `ViewModels/`, `Models/`, `Services/` separation
 - **Ollama integration** via `OllamaClient.cs` for local AI chat
+- **Scan page:** Stop scan button, path validation, scan errors display, file type distribution chart, largest files with filter, export results, deep/shallow/custom depth modes, scan speed metrics
 
 ### Prerequisites
 
@@ -93,8 +94,11 @@ cargo run --bin space-analyzer-pro -- scan --path . --export results.json
 # Deep scan with extended metadata
 cargo run --bin space-analyzer-pro -- scan --path . --deep
 
-# Show disk space info for all volumes
-cargo run --bin space-analyzer-pro -- disk-info --path C:\
+# Show disk space info — prints a JSON array of every mounted volume
+# (the --path arg is accepted but ignored in JSON output)
+cargo run --bin space-analyzer-pro -- disk-info --format json
+# Example: [{"mount_point":"C:\\","label":"SSD","file_system":"NTFS",
+#   "total_bytes":...,"used_bytes":...,"available_bytes":...,"usage_percent":64.6}]
 
 # Show scan history
 cargo run --bin space-analyzer-pro -- history --limit 10
@@ -118,6 +122,13 @@ cargo run --bin space-analyzer-pro -- dedup --path .
 - **NTFS USN Journal scanner** for incremental change tracking
 - **Hard-link detection** via MFT parsing
 - **Scan history** with comparison, filtering, and SQLite-backed persistence
+- **Path validation** before scan starts — invalid paths are rejected with a clear message
+- **Scan cancellation** — Stop button kills the scanner process tree immediately
+- **Scan errors** — per-scan error list displayed in the results panel
+- **File type distribution** — top 10 extensions with percentage breakdown
+- **Largest files** with live filter by filename substring
+- **Export results** to JSON file from the scan page
+- **Deep/shallow/custom depth** scan modes
 
 ### Analysis
 - **File categorization** into 12 human-readable groups (Documents, Images, Videos, Audio, Archives, Code, Development, Config, Logs, Backups, Database, Other) — [`src/category.rs`](src/category.rs)
@@ -135,7 +146,9 @@ cargo run --bin space-analyzer-pro -- dedup --path .
 ### AI Integration (Optional)
 - **Ollama-powered AI Assistant** with chat, streaming, and tool-calling
 - **Smart Search** using semantic embeddings for natural-language file queries
-- **12+ tool registry** exposing scan/history/volumes/resources/storage_trend/workflows/file_type_breakdown/predict/patterns/search/largest_files/dependencies to the LLM
+- **14+ tool registry** exposing scan/history/volumes/resources/storage_trend/workflows/file_type_breakdown/predict/patterns/search/largest_files/dependencies/stop_scan/export_results to the LLM
+- **Dynamic tool choice** — the assistant resolves which tools to call based on the user's message content, mirroring the Rust backend's `resolve_tool_choice` logic
+- **Enriched ChatRequest** — `Options`, `Think`, and `KeepAlive` fields supported for fine-grained model control
 - **100% local** — no cloud APIs, no telemetry
 
 ### Workflow Automation
@@ -323,6 +336,10 @@ config/                    # Tool configuration (non-secret)
 ---
 
 ## Versioning
+
+**v3.8.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
+- Scan page hardening (Stop, path validation, errors, file type distribution, largest files filter, export, depth modes, speed metrics).
+- AI Assistant expansion (14 tools, dynamic tool choice, enriched ChatRequest).
 
 **v3.7.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
 

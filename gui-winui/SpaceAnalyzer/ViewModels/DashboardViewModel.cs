@@ -23,19 +23,20 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
     private readonly ScannerService _scanner = new();
     private readonly DispatcherTimer _refreshTimer;
     private PerformanceCounter? _cpuCounter;
+    private bool _cpuCounterInitialized;
+    private bool _dedupLoaded;
     private bool _disposed;
 
     public DashboardViewModel()
     {
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _refreshTimer.Tick += (_, _) => RefreshSystemResources();
-        _refreshTimer.Start();
     }
 
     // ── Hero Stat Cards ──
 
-    private int _totalFiles;
-    public int TotalFiles
+    private long _totalFiles;
+    public long TotalFiles
     {
         get => _totalFiles;
         set { _totalFiles = value; OnPropertyChanged(); OnPropertyChanged(nameof(TotalFilesDisplay)); }
@@ -72,8 +73,10 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
     public List<DiskVolume> DiskVolumes
     {
         get => _diskVolumes;
-        set { _diskVolumes = value; OnPropertyChanged(); }
+        set { _diskVolumes = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasDiskVolumes)); OnPropertyChanged(nameof(HasDiskVolumesVisibility)); }
     }
+    public bool HasDiskVolumes => _diskVolumes.Any();
+    public Microsoft.UI.Xaml.Visibility HasDiskVolumesVisibility => HasDiskVolumes ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
 
     // ── System resources ──
 
@@ -134,14 +137,12 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
         IsLoading = true;
         try
         {
-            // Disk volumes
             DiskVolumes = await _scanner.GetDiskVolumesAsync();
-
-            // Hero cards from scan history
             await LoadHeroStatsAsync();
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[DashboardViewModel] LoadDashboard failed: {ex}");
             DiskVolumes = new List<DiskVolume>();
         }
         finally
@@ -151,9 +152,8 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
-    /// Populate the four hero stat cards:
-    /// TotalFiles / TotalSize from the most recent scan, ScanCount from history length,
-    /// and DuplicateCount from the most recent dedup run (0 if unavailable).
+    /// Populate the four hero stat cards.
+    /// Dedup count is loaded only once per session to avoid expensive repeated analysis.
     /// </summary>
     private async Task LoadHeroStatsAsync()
     {
@@ -174,24 +174,24 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
                 TotalSizeBytes = 0;
             }
 
-            // Best-effort dedup count from the last scan directory
             DuplicateCount = 0;
-            if (latest != null && !string.IsNullOrEmpty(latest.Path) && _scanner.IsAvailable)
+            if (!_dedupLoaded && latest != null && !string.IsNullOrEmpty(latest.Path) && _scanner.IsAvailable)
             {
                 try
                 {
                     var dedup = await _scanner.RunDedupAnalysisAsync(latest.Path);
-                    DuplicateCount = dedup?.TotalDuplicateFiles ?? 0;
+                    DuplicateCount = (int)(dedup?.TotalDuplicateFiles ?? 0);
+                    _dedupLoaded = true;
                 }
                 catch
                 {
                     DuplicateCount = 0;
+                    _dedupLoaded = true;
                 }
             }
         }
         catch
         {
-            // Non-fatal: hero cards stay at zero until history is available.
         }
     }
 
@@ -200,6 +200,13 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             _cpuCounter ??= new PerformanceCounter("Processor", "% Processor Time", "_Total", true);
+            if (!_cpuCounterInitialized)
+            {
+                _cpuCounterInitialized = true;
+                _cpuCounter.NextValue();
+                return;
+            }
+
             CpuUsage = Math.Min(100, _cpuCounter.NextValue());
 
             if (UiHelper.GetMemoryStatus(out var memStatus))
@@ -219,6 +226,7 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
         }
         catch
         {
+            _cpuCounterInitialized = false;
             _cpuCounter?.Dispose();
             _cpuCounter = null;
             CpuUsage = 0;
@@ -236,6 +244,8 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
         _cpuCounter?.Dispose();
         GC.SuppressFinalize(this);
     }
+
+    public DispatcherTimer DispatcherTimer => _refreshTimer;
 
     // ── INotifyPropertyChanged ──
 

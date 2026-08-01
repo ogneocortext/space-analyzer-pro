@@ -52,7 +52,7 @@ struct Cli {
     jobs: Option<usize>,
 
     /// Dry run (don't actually deduplicate)
-    #[arg(long)]
+    #[arg(long, default_value_t = true)]
     dry_run: bool,
 
     /// Create hard links for deduplication
@@ -122,17 +122,11 @@ fn main() -> Result<()> {
             print_results(&duplicate_groups, &cli.output, cli.dry_run);
         }
         Commands::Deduplicate => {
-            if cli.dry_run {
-                println!(
-                    "🔍 {}",
-                    "Dry run mode - no files will be modified".bold().yellow()
-                );
-            }
-
             println!("🔗 {}", "Deduplicating files...".bold().green());
             let files = deduplicator.scan_directory(&cli.directory)?;
+            let total_scanned = files.len();
             let duplicate_groups = deduplicator.find_duplicates(files);
-            let result = deduplicator.deduplicate(&duplicate_groups)?;
+            let result = deduplicator.deduplicate(&duplicate_groups, total_scanned)?;
 
             print_deduplication_result(&result, &cli.output);
         }

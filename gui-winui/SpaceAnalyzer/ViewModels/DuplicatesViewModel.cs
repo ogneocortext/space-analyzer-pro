@@ -1,3 +1,5 @@
+// Licensed under the MIT License.
+
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using SpaceAnalyzer.Models;
@@ -40,13 +42,14 @@ public class DuplicatesViewModel : INotifyPropertyChanged, IDisposable
     public DedupResult? LastResult
     {
         get => _lastResult;
-        set { _lastResult = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasResult)); OnPropertyChanged(nameof(HasResultVisibility)); }
+        set { _lastResult = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasResult)); OnPropertyChanged(nameof(HasResultVisibility)); OnPropertyChanged(nameof(DuplicateGroupCount)); OnPropertyChanged(nameof(TotalDuplicateFiles)); OnPropertyChanged(nameof(PotentialSavingsDisplay)); OnPropertyChanged(nameof(DuplicateGroups)); }
     }
     public bool HasResult => _lastResult != null;
     public Microsoft.UI.Xaml.Visibility HasResultVisibility => HasResult ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
 
     public int DuplicateGroupCount => _lastResult?.DuplicateGroups.Count ?? 0;
-    public int TotalDuplicateFiles => _lastResult?.TotalDuplicateFiles ?? 0;
+    // DedupResult.TotalDuplicateFiles is long (Rust usize); narrow to int for display.
+    public int TotalDuplicateFiles => (int)(_lastResult?.TotalDuplicateFiles ?? 0);
     public string PotentialSavingsDisplay => _lastResult?.PotentialSavingsDisplay ?? "";
     public List<DuplicateGroup> DuplicateGroups => _lastResult?.DuplicateGroups ?? new();
 

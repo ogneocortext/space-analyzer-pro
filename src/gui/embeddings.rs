@@ -379,7 +379,9 @@ impl SpaceAnalyzerApp {
 
         let mut matches: Vec<crate::embedding_service::SearchResult> = Vec::new();
         if let Some(ref result) = self.scan_result {
-            for (path, size) in &result.largest_files {
+            for file in &result.largest_files {
+                let path = &file.path;
+                let size = file.size;
                 let path_lower = path.to_lowercase();
                 let score = keywords
                     .iter()
@@ -389,15 +391,16 @@ impl SpaceAnalyzerApp {
                 if score > 0.0 {
                     matches.push(crate::embedding_service::SearchResult {
                         file_path: path.clone(),
-                        file_size: *size,
+                        file_size: size,
                         file_extension: std::path::Path::new(path)
                             .extension()
                             .and_then(|e| e.to_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        similarity: score,
+                            .map(|s| s.to_lowercase())
+                            .unwrap_or_default(),
+                        score,
                     });
                 }
+            }
             }
             matches.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
             matches.truncate(20);

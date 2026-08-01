@@ -356,21 +356,21 @@ impl SpaceAnalyzerApp {
                 || msg_lower.contains("recommend")
                 || msg_lower.contains("report")
             {
-                "Analysis"
+                crate::gui::ai::model_discovery::TASK_ANALYSIS
             } else if msg_lower.contains("run")
                 || msg_lower.contains("execute")
                 || msg_lower.contains("clean")
                 || msg_lower.contains("delete")
             {
-                "Tool Calling"
+                crate::gui::ai::model_discovery::TASK_TOOL_CALLING
             } else if msg_lower.contains("search")
                 || msg_lower.contains("find")
                 || msg_lower.contains("file")
                 || msg_lower.contains("scan")
             {
-                "Semantic Search"
+                crate::gui::ai::model_discovery::TASK_SEMANTIC_SEARCH
             } else {
-                "General Chat"
+                crate::gui::ai::model_discovery::TASK_GENERAL_CHAT
             };
             self.select_model_for_task(task_type);
         }
@@ -420,13 +420,13 @@ impl SpaceAnalyzerApp {
                 .map(|(ext, count)| format!("  .{}: {} files", ext, count))
                 .collect::<Vec<_>>()
                 .join("\n");
-            let large_files_summary: String = result
-                .largest_files
-                .iter()
-                .take(5)
-                .map(|(path, size)| format!("  {} ({})", path, formatting::format_bytes(*size)))
-                .collect::<Vec<_>>()
-                .join("\n");
+             let large_files_summary: String = result
+                 .largest_files
+                 .iter()
+                 .take(5)
+                 .map(|file| format!("  {} ({})", file.path, formatting::format_bytes(file.size)))
+                 .collect::<Vec<_>>()
+                 .join("\n");
             format!(
                 "Current scan results:\n\
                  Path: {}\n\

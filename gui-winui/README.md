@@ -48,11 +48,11 @@ gui-winui/
 │   ├── MainWindow.xaml(.cs)   # NavigationView shell
 │   ├── Helpers/
 │   │   ├── ByteFormatter.cs   # Byte size formatting
-│   │   ├── UiHelper.cs        # Folder picker, colors, MemoryStatusEx P/Invoke
-│   │   └── Converters.cs      # BoolToVisibility / InverseBoolToVisibility
+│   │   ├── UiHelper.cs        # Folder picker, colors, MemoryStatusEx P/Invoke, OpenPath
+│   │   └── Converters.cs      # BoolToVisibility / InverseBoolToVisibility / BoolToErrorBrush / BoolToScanButtonText
 │   ├── Views/                 # Page XAML + code-behind
 │   │   ├── DashboardPage
-│   │   ├── ScanPage
+│   │   ├── ScanPage           # Stop button, path validation, errors, file type distribution, largest files with filter, export, deep/shallow/custom depth
 │   │   ├── HistoryPage
 │   │   ├── SmartSearchPage    # File/folder search by name + size
 │   │   ├── WorkflowsPage      # Multi-step automation workflows (stub)
@@ -64,9 +64,11 @@ gui-winui/
 │   │   └── AboutPage
 │   ├── ViewModels/            # MVVM view models
 │   ├── Services/
-│   │   ├── ScannerService.cs  # Rust CLI interop (subprocess + JSON)
+│   │   ├── ScannerService.cs  # Rust CLI interop (subprocess + JSON), StopScan, ExportScanResultAsync, process tracking
 │   │   └── OllamaClient.cs    # Ollama REST API client
 │   ├── Models/                # Data models
+│   │   ├── FileTypeDistribution.cs  # Top-10 file type chart model
+│   │   └── ...
 │   └── Assets/                # Icons, images
 ```
 
@@ -81,7 +83,15 @@ space-analyzer-pro history --limit 50 --format json
 space-analyzer-pro dedup --path "C:\Users" --format json
 ```
 
-JSON output is deserialized into C# models in `Services/ScannerService.cs`.
+JSON output is deserialized into C# models in `Services/ScannerService.cs` using
+`JsonNamingPolicy.SnakeCaseLower` + `JsonStringEnumConverter` (the Rust CLI and
+`node_modules_cleaner` emit snake_case keys and string enums like `risk_level`).
+
+> **`disk-info`** returns a **JSON array** of every mounted volume (the `--path` arg is
+> accepted but ignored in JSON output), deserialized directly into `List<DiskVolume>`.
+> Each entry has `mount_point`, `label`, `file_system`, `total_bytes`, `used_bytes`,
+> `available_bytes`, `usage_percent` (empty `[]` when no volumes are detected; the C#
+> model recomputes `UsedBytes`/`UsagePercent` from total/available).
 
 ## MVVM Pattern
 

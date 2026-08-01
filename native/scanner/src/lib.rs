@@ -1,5 +1,4 @@
 use crossbeam::channel::bounded;
-use napi_derive::napi;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -7,6 +6,9 @@ use std::fs;
 use std::path::Path;
 use std::time::SystemTime;
 use walkdir::WalkDir;
+
+#[cfg(feature = "napi")]
+use napi_derive::napi;
 
 // Include the new scanner modules
 #[cfg(windows)]
@@ -23,7 +25,7 @@ pub mod usn_journal_scanner;
 
 // Re-use existing structures from main.rs
 #[derive(Debug, Serialize, Deserialize)]
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 pub struct FileInfo {
     pub name: String,
     pub path: String,
@@ -39,7 +41,7 @@ pub struct FileInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 pub struct FileSize {
     pub bytes: i64,
     pub formatted: String,
@@ -47,7 +49,7 @@ pub struct FileSize {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 pub struct FileTimestamps {
     pub created: Option<String>,
     pub modified: String,
@@ -55,7 +57,7 @@ pub struct FileTimestamps {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 pub struct FileAttributes {
     pub is_readonly: bool,
     pub is_hidden: bool,
@@ -72,21 +74,21 @@ pub struct FileAttributes {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 pub struct CategoryStats {
     pub count: i64,
     pub size: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 pub struct ExtensionStats {
     pub count: i64,
     pub size: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
 pub struct AnalysisResult {
     pub total_files: i64,
     pub total_size: i64,
@@ -97,8 +99,8 @@ pub struct AnalysisResult {
     pub directory_path: String,
 }
 
-// Enhanced analyzer with NAPI bindings
-#[napi]
+// Enhanced analyzer
+#[cfg_attr(feature = "napi", napi)]
 pub struct SpaceAnalyzer {
     exclude_dirs: Vec<String>,
 }
@@ -527,6 +529,7 @@ impl SpaceAnalyzer {
 }
 
 // NAPI bindings
+#[cfg(feature = "napi")]
 #[napi]
 impl SpaceAnalyzer {
     #[napi(constructor)]
@@ -545,6 +548,7 @@ impl SpaceAnalyzer {
     }
 }
 
+#[cfg(feature = "napi")]
 #[napi]
 pub fn get_system_info() -> String {
     let info = serde_json::json!({

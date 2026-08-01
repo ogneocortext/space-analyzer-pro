@@ -155,7 +155,7 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
         {
             try
             {
-                var result = await _scanner.ScanDirectoryAsync(TargetPath, deep: true, ct: _cts.Token);
+                var result = await _scanner.ScanDirectoryAsync(TargetPath, depthMode: ScannerService.DepthMode.Deep, ct: _cts.Token);
                 if (result is not null)
                 {
                     var minBytes = MinSizeMb * 1024 * 1024;
@@ -200,13 +200,18 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
             WalkLargeFiles(new DirectoryInfo(TargetPath), minBytes, collected);
         }, _cts.Token);
 
-        foreach (var r in collected) Results.Add(r);
-        ResultCount = collected.Count;
+        var ui = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        ui.TryEnqueue(() =>
+        {
+            foreach (var r in collected) Results.Add(r);
+            ResultCount = collected.Count;
+        });
     }
 
     private void WalkLargeFiles(DirectoryInfo dir, long minBytes, List<SmartSearchResult> collected)
     {
-        if (!_isRunningFlag) return;
+        if (!_isRunningFlag || _cts.IsCancellationRequested)
+            return;
 
         try
         {
@@ -232,8 +237,9 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[WorkflowsViewModel] WalkLargeFiles error: {ex}");
             // Skip inaccessible directories
         }
     }
@@ -244,7 +250,7 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
         {
             try
             {
-                var result = await _scanner.ScanDirectoryAsync(TargetPath, deep: true, ct: _cts.Token);
+                var result = await _scanner.ScanDirectoryAsync(TargetPath, depthMode: ScannerService.DepthMode.Deep, ct: _cts.Token);
                 if (result is not null)
                 {
                     var collected = new List<SmartSearchResult>();
@@ -277,13 +283,18 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
             WalkEmptyDirs(new DirectoryInfo(TargetPath), collected2);
         }, _cts.Token);
 
-        foreach (var r in collected2) Results.Add(r);
-        ResultCount = collected2.Count;
+        var ui2 = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+        ui2.TryEnqueue(() =>
+        {
+            foreach (var r in collected2) Results.Add(r);
+            ResultCount = collected2.Count;
+        });
     }
 
     private void WalkEmptyDirs(DirectoryInfo dir, List<SmartSearchResult> collected)
     {
-        if (!_isRunningFlag) return;
+        if (!_isRunningFlag || _cts.IsCancellationRequested)
+            return;
 
         try
         {
@@ -297,17 +308,18 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
 
             if (files.Length == 0 && subdirs.Length == 0)
             {
-                collected.Add(new SmartSearchResult
-                {
-                    Path = dir.FullName,
-                    Name = dir.Name,
-                    SizeBytes = 0,
-                    SizeDisplay = "Empty"
-                });
+                    collected.Add(new SmartSearchResult
+                    {
+                        Path = dir.FullName,
+                        Name = dir.Name,
+                        SizeBytes = 0,
+                        SizeDisplay = "Empty"
+                    });
             }
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[WorkflowsViewModel] WalkEmptyDirs error: {ex}");
             // Skip inaccessible directories
         }
     }

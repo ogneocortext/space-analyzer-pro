@@ -96,6 +96,8 @@ pub fn get_disk_info(path: &str) -> Option<DiskInfo> {
             };
             return Some(DiskInfo {
                 mount_point: mount,
+                label: disk.name().to_string_lossy().to_string(),
+                file_system: disk.file_system().to_string_lossy().to_string(),
                 total_bytes: total,
                 used_bytes: used,
                 available_bytes: available,
@@ -104,4 +106,38 @@ pub fn get_disk_info(path: &str) -> Option<DiskInfo> {
         }
     }
     None
+}
+
+/// Return disk-space info for every mounted volume, sorted by mount point.
+///
+/// Used by the `disk-info` CLI subcommand so the WinUI 3 frontend can
+/// deserialize a `List<DiskVolume>` directly. Always emits a JSON array
+/// (empty `[]` when no volumes are present), matching the plural semantics
+/// of the frontend's `GetDiskVolumesAsync` call.
+pub fn get_all_disks() -> Vec<DiskInfo> {
+    let disks = sysinfo::Disks::new_with_refreshed_list();
+    let mut infos: Vec<DiskInfo> = disks
+        .iter()
+        .map(|disk| {
+            let total = disk.total_space();
+            let available = disk.available_space();
+            let used = total.saturating_sub(available);
+            let usage = if total > 0 {
+                (used as f32 / total as f32) * 100.0
+            } else {
+                0.0
+            };
+            DiskInfo {
+                mount_point: disk.mount_point().to_string_lossy().to_string(),
+                label: disk.name().to_string_lossy().to_string(),
+                file_system: disk.file_system().to_string_lossy().to_string(),
+                total_bytes: total,
+                used_bytes: used,
+                available_bytes: available,
+                usage_percent: usage,
+            }
+        })
+        .collect();
+    infos.sort_by(|a, b| a.mount_point.cmp(&b.mount_point));
+    infos
 }

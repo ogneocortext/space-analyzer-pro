@@ -39,6 +39,7 @@ impl ToolRegistry {
 mod tests {
     use super::super::ollama::ToolCallFunction;
     use super::*;
+    use crate::gui_common::LargestFileEntry;
 
     /// Create a tool call struct for testing
     fn make_tool_call(name: &str, args: serde_json::Value) -> ToolCall {
@@ -75,11 +76,26 @@ mod tests {
             duration_secs: 12.5,
             path: "C:\\Users\\test".to_string(),
             largest_files: vec![
-                ("C:\\big_file.zip".to_string(), 500_000_000),
-                ("C:\\large_video.mp4".to_string(), 350_000_000),
-                ("C:\\dataset.tar.gz".to_string(), 200_000_000),
-                ("C:\\documents\\report.pdf".to_string(), 15_000_000),
-                ("C:\\images\\photo.jpg".to_string(), 5_000_000),
+                LargestFileEntry {
+                    path: "C:\\big_file.zip".to_string(),
+                    size: 500_000_000,
+                },
+                LargestFileEntry {
+                    path: "C:\\large_video.mp4".to_string(),
+                    size: 350_000_000,
+                },
+                LargestFileEntry {
+                    path: "C:\\dataset.tar.gz".to_string(),
+                    size: 200_000_000,
+                },
+                LargestFileEntry {
+                    path: "C:\\documents\\report.pdf".to_string(),
+                    size: 15_000_000,
+                },
+                LargestFileEntry {
+                    path: "C:\\images\\photo.jpg".to_string(),
+                    size: 5_000_000,
+                },
             ],
             file_types,
             extension_sizes,
@@ -87,6 +103,7 @@ mod tests {
             total_dirs: 0,
             top_directories: Vec::new(),
             empty_dirs: Vec::new(),
+            scanned_files: std::collections::HashMap::new(),
         }
     }
 
@@ -171,7 +188,11 @@ mod tests {
         let v = parse_result(&result);
         assert_eq!(v["path"], "C:\\Users\\test");
         assert_eq!(v["total_files"], 595);
-        assert!(v["largest_files"].as_array().unwrap().iter().any(|f| f["path"].as_str().unwrap().contains("big_file.zip")));
+        assert!(v["largest_files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["path"].as_str().unwrap().contains("big_file.zip")));
     }
 
     #[test]
@@ -180,7 +201,10 @@ mod tests {
         let call = make_tool_call("get_scan_summary", serde_json::json!({}));
         let result = registry.execute_tool(&call, None, None).unwrap();
         let v = parse_result(&result);
-        assert_eq!(v["error"], "No scan results available. Please run a scan first.");
+        assert_eq!(
+            v["error"],
+            "No scan results available. Please run a scan first."
+        );
     }
 
     #[test]
@@ -218,7 +242,7 @@ mod tests {
         let call = make_tool_call("list_workflows", serde_json::json!({}));
         let result = registry.execute_tool(&call, None, None).unwrap();
         let v = parse_result(&result);
-        assert!(v["workflows"].as_array().unwrap().len() > 0);
+        assert!(!v["workflows"].as_array().unwrap().is_empty());
     }
 
     #[test]
@@ -229,7 +253,11 @@ mod tests {
         let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         let v = parse_result(&result);
         assert_eq!(v["total_files"], 595);
-        assert!(v["types"].as_array().unwrap().iter().any(|t| t["extension"] == "pdf" && t["count"] == 150));
+        assert!(v["types"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|t| t["extension"] == "pdf" && t["count"] == 150));
     }
 
     #[test]
@@ -259,7 +287,10 @@ mod tests {
         let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         let v = parse_result(&result);
         assert_eq!(v["count"], 1);
-        assert!(v["results"][0]["path"].as_str().unwrap().contains("report.pdf"));
+        assert!(v["results"][0]["path"]
+            .as_str()
+            .unwrap()
+            .contains("report.pdf"));
     }
 
     #[test]
@@ -278,7 +309,10 @@ mod tests {
         let call = make_tool_call("search_files", serde_json::json!({"extension": "pdf"}));
         let result = registry.execute_tool(&call, None, None).unwrap();
         let v = parse_result(&result);
-        assert_eq!(v["error"], "No scan results available. Please run a scan first.");
+        assert_eq!(
+            v["error"],
+            "No scan results available. Please run a scan first."
+        );
     }
 
     #[test]
@@ -289,7 +323,11 @@ mod tests {
         let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         let v = parse_result(&result);
         assert!(v.get("files").is_some());
-        assert!(v["files"].as_array().unwrap().iter().any(|f| f["path"].as_str().unwrap().contains("big_file.zip")));
+        assert!(v["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["path"].as_str().unwrap().contains("big_file.zip")));
     }
 
     #[test]
@@ -310,10 +348,26 @@ mod tests {
         let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         let v = parse_result(&result);
         assert_eq!(v["count"], 3);
-        assert!(v["files"].as_array().unwrap().iter().any(|f| f["path"].as_str().unwrap().contains("big_file.zip")));
-        assert!(v["files"].as_array().unwrap().iter().any(|f| f["path"].as_str().unwrap().contains("large_video.mp4")));
-        assert!(v["files"].as_array().unwrap().iter().any(|f| f["path"].as_str().unwrap().contains("dataset.tar.gz")));
-        assert!(!v["files"].as_array().unwrap().iter().any(|f| f["path"].as_str().unwrap().contains("report.pdf")));
+        assert!(v["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["path"].as_str().unwrap().contains("big_file.zip")));
+        assert!(v["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["path"].as_str().unwrap().contains("large_video.mp4")));
+        assert!(v["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["path"].as_str().unwrap().contains("dataset.tar.gz")));
+        assert!(!v["files"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["path"].as_str().unwrap().contains("report.pdf")));
     }
 
     #[test]
@@ -322,7 +376,10 @@ mod tests {
         let call = make_tool_call("get_largest_files", serde_json::json!({}));
         let result = registry.execute_tool(&call, None, None).unwrap();
         let v = parse_result(&result);
-        assert_eq!(v["error"], "No scan results available. Please run a scan first.");
+        assert_eq!(
+            v["error"],
+            "No scan results available. Please run a scan first."
+        );
     }
 
     #[test]
@@ -340,7 +397,10 @@ mod tests {
         let call = make_tool_call("predict_storage", serde_json::json!({"days_ahead": 30}));
         let result = registry.execute_tool(&call, None, None).unwrap();
         let v = parse_result(&result);
-        assert_eq!(v["error"], "Database not available. Cannot make predictions without historical data.");
+        assert_eq!(
+            v["error"],
+            "Database not available. Cannot make predictions without historical data."
+        );
     }
 
     #[test]

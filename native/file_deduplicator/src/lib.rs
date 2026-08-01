@@ -6,6 +6,7 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use gpu_compute::hash::BatchHasher;
+use same_file::is_same_file;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -24,6 +25,10 @@ pub struct FileInfo {
     pub modified: DateTime<Utc>,
     pub hash: String,
     pub is_hard_link: bool,
+    #[serde(default)]
+    pub dev: u64,
+    #[serde(default)]
+    pub ino: u64,
 }
 
 /// Deduplication result
@@ -118,6 +123,7 @@ impl FileDeduplicator {
         let mut files = Vec::new();
         let mut errors = Vec::new();
         let mut file_paths = Vec::new();
+        let mut scanned = 0usize;
 
         // Walk directory tree to collect files
         let walker = WalkDir::new(path)
@@ -167,17 +173,20 @@ impl FileDeduplicator {
             }
 
             #[cfg(unix)]
-            {
-                if metadata.nlink() > 1 {
-                    continue;
-                }
-            }
+            let (dev, ino) = (metadata.dev(), metadata.ino());
+            #[cfg(not(unix))]
+            let (dev, ino) = (0u64, 0u64);
 
-            file_paths.push((file_path.to_path_buf(), metadata));
+            file_paths.push((file_path.to_path_buf(), metadata, dev, ino));
+            scanned += 1;
+
+            if let Some(ref cb) = *self.progress.lock().unwrap() {
+                cb(scanned);
+            }
         }
 
         // Batch hash all files using GPU-accelerated hasher
-        let paths: Vec<_> = file_paths.iter().map(|(p, _)| p.clone()).collect();
+        let paths: Vec<_> = file_paths.iter().map(|(p, _, _, _)| p.clone()).collect();
         let hash_results = self.batch_hasher.hash_files(&paths);
 
         // Build FileInfo list
@@ -191,7 +200,7 @@ impl FileDeduplicator {
                 continue;
             }
 
-            let metadata = &file_paths[i].1;
+            let (_, metadata, dev, ino) = &file_paths[i];
             let modified = metadata
                 .modified()
                 .map(DateTime::from)
@@ -203,6 +212,8 @@ impl FileDeduplicator {
                 modified,
                 hash: hash_result.hash,
                 is_hard_link: false,
+                dev: *dev,
+                ino: *ino,
             };
 
             files.push(file_info);
@@ -230,26 +241,61 @@ impl FileDeduplicator {
         // Filter for duplicates (groups with 2+ files)
         hash_map
             .into_iter()
-            .filter_map(|(hash, files)| {
-                if files.len() > 1 {
-                    let size = files[0].size;
-                    Some(DuplicateGroup {
-                        hash,
-                        size,
-                        files,
-                        can_deduplicate: true,
-                    })
-                } else {
-                    None
+            .filter_map(|(hash, mut files)| {
+                if files.len() <= 1 {
+                    return None;
                 }
+
+                // Detect existing hard-link sets within this hash group
+                let mut linked: Vec<Vec<usize>> = Vec::new();
+                for (i, file) in files.iter().enumerate() {
+                    if file.is_hard_link {
+                        continue;
+                    }
+                    let mut placed = false;
+                    for set in &mut linked {
+                        if let Some(&first) = set.first() {
+                            if is_same_file(&files[first].path, &file.path).unwrap_or(false) {
+                                set.push(i);
+                                placed = true;
+                                break;
+                            }
+                        }
+                    }
+                    if !placed {
+                        linked.push(vec![i]);
+                    }
+                }
+
+                // Mark files that are already hard-linked to another file in the group
+                for set in &linked {
+                    if set.len() > 1 {
+                        for &idx in set {
+                            files[idx].is_hard_link = true;
+                        }
+                    }
+                }
+
+                let size = files[0].size;
+                let can_deduplicate = files.iter().any(|f| !f.is_hard_link);
+                Some(DuplicateGroup {
+                    hash,
+                    size,
+                    files,
+                    can_deduplicate,
+                })
             })
             .collect()
     }
 
     /// Deduplicate files by creating hard links
-    pub fn deduplicate(&self, duplicate_groups: &[DuplicateGroup]) -> Result<DeduplicationResult> {
+    pub fn deduplicate(
+        &self,
+        duplicate_groups: &[DuplicateGroup],
+        total_files_scanned: usize,
+    ) -> Result<DeduplicationResult> {
         let mut result = DeduplicationResult {
-            total_files_scanned: 0,
+            total_files_scanned,
             duplicate_groups: duplicate_groups.to_vec(),
             space_saved: 0,
             files_processed: 0,
@@ -270,6 +316,10 @@ impl FileDeduplicator {
             let duplicate_files = &files[1..];
 
             for duplicate_file in duplicate_files {
+                if duplicate_file.is_hard_link {
+                    continue;
+                }
+
                 if self.config.dry_run {
                     // In dry run mode, just calculate potential space savings
                     result.space_saved += duplicate_file.size;
@@ -295,34 +345,6 @@ impl FileDeduplicator {
         Ok(result)
     }
 
-    /// Compute BLAKE3 hash of a file
-    #[cfg(test)]
-    fn compute_file_hash(&self, path: &Path) -> Result<String> {
-        use blake3::Hasher;
-        use std::fs::File;
-        use std::io::{BufReader, Read};
-        let file =
-            File::open(path).with_context(|| format!("Failed to open file: {}", path.display()))?;
-
-        let mut hasher = Hasher::new();
-        let mut reader = BufReader::new(file);
-        let mut buffer = vec![0u8; 8192]; // 8KB buffer
-
-        loop {
-            let bytes_read = reader
-                .read(&mut buffer)
-                .with_context(|| format!("Failed to read file: {}", path.display()))?;
-
-            if bytes_read == 0 {
-                break;
-            }
-
-            hasher.update(&buffer[..bytes_read]);
-        }
-
-        Ok(hasher.finalize().to_hex().to_string())
-    }
-
     /// Check if file should be processed based on patterns
     fn should_process_file(&self, path: &Path) -> bool {
         let path_str = path.to_string_lossy();
@@ -332,24 +354,26 @@ impl FileDeduplicator {
             .map(|e| e.to_string_lossy().to_lowercase())
             .unwrap_or_default();
 
+        // Normalize path separators for matching
+        let path_normalized = path_lower.replace('\\', "/");
+
         // Check exclude patterns (support glob-like matching)
         for pattern in &self.config.exclude_patterns {
             let pat_lower = pattern.to_lowercase();
-            if pat_lower.starts_with("*.") {
+            if let Some(pat_ext) = pat_lower.strip_prefix("*.") {
                 // Extension match: "*.tmp" matches files ending in .tmp
-                let pat_ext = &pat_lower[2..];
                 if ext == pat_ext {
                     return false;
                 }
-            } else if pat_lower.ends_with("/*") {
-                // Directory name match: "node_modules/" matches any path containing node_modules
-                let dir_name = &pat_lower[..pat_lower.len() - 2];
-                if path_lower.contains(dir_name) {
+            } else if pat_lower.ends_with("/*") || pat_lower.ends_with('/') {
+                // Directory name match: matches any path component
+                let dir_name = pat_lower.trim_end_matches("/*").trim_end_matches('/');
+                if !dir_name.is_empty() && path_normalized.split('/').any(|part| part == dir_name) {
                     return false;
                 }
             } else {
                 // Substring match for anything else
-                if path_lower.contains(&pat_lower) {
+                if path_normalized.contains(&pat_lower) {
                     return false;
                 }
             }
@@ -359,12 +383,18 @@ impl FileDeduplicator {
         if !self.config.include_patterns.is_empty() {
             for pattern in &self.config.include_patterns {
                 let pat_lower = pattern.to_lowercase();
-                if pat_lower.starts_with("*.") {
-                    let pat_ext = &pat_lower[2..];
+                if let Some(pat_ext) = pat_lower.strip_prefix("*.") {
                     if ext == pat_ext {
                         return true;
                     }
-                } else if path_lower.contains(&pat_lower) {
+                } else if pat_lower.ends_with("/*") || pat_lower.ends_with('/') {
+                    let dir_name = pat_lower.trim_end_matches("/*").trim_end_matches('/');
+                    if !dir_name.is_empty()
+                        && path_normalized.split('/').any(|part| part == dir_name)
+                    {
+                        return true;
+                    }
+                } else if path_normalized.contains(&pat_lower) {
                     return true;
                 }
             }
@@ -376,17 +406,20 @@ impl FileDeduplicator {
 
     /// Create hard link from source to duplicate
     fn create_hard_link(&self, source: &FileInfo, duplicate: &FileInfo) -> Result<()> {
-        // Remove the duplicate file first
-        fs::remove_file(&duplicate.path)?;
+        let tmp_path = duplicate.path.with_extension("dedup_tmp");
 
-        // Create hard link
-        fs::hard_link(&source.path, &duplicate.path).with_context(|| {
+        // Create hard link at a temporary path first
+        fs::hard_link(&source.path, &tmp_path).with_context(|| {
             format!(
                 "Failed to create hard link from {} to {}",
                 source.path.display(),
-                duplicate.path.display()
+                tmp_path.display()
             )
         })?;
+
+        // Remove the original duplicate and atomically move the temp link into place
+        fs::remove_file(&duplicate.path)?;
+        fs::rename(&tmp_path, &duplicate.path)?;
 
         Ok(())
     }
@@ -397,7 +430,8 @@ impl FileDeduplicator {
 
         // Scan files
         let files = self.scan_directory(path)?;
-        println!("📁 Found {} files to analyze", files.len());
+        let total_files_scanned = files.len();
+        println!("📁 Found {} files to analyze", total_files_scanned);
 
         // Find duplicates
         let duplicate_groups = self.find_duplicates(files);
@@ -408,29 +442,12 @@ impl FileDeduplicator {
         println!("📊 Total duplicate files: {}", total_duplicates);
 
         // Deduplicate
-        let result = self.deduplicate(&duplicate_groups)?;
+        let result = self.deduplicate(&duplicate_groups, total_files_scanned)?;
 
         println!("✅ Deduplication complete!");
-        println!(
-            "💾 Space saved: {} bytes",
-            self.format_bytes(result.space_saved)
-        );
+        println!("💾 Space saved: {} bytes", result.space_saved);
 
         Ok(result)
-    }
-
-    /// Format bytes to human readable string
-    fn format_bytes(&self, bytes: u64) -> String {
-        const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
-        let mut size = bytes as f64;
-        let mut unit_index = 0;
-
-        while size >= 1024.0 && unit_index < UNITS.len() - 1 {
-            size /= 1024.0;
-            unit_index += 1;
-        }
-
-        format!("{:.2} {}", size, UNITS[unit_index])
     }
 }
 
@@ -445,19 +462,6 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::TempDir;
-
-    #[test]
-    fn test_file_hash_computation() {
-        let deduplicator = FileDeduplicator::new();
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
-        fs::write(&file_path, "Hello, World!").unwrap();
-
-        let hash = deduplicator.compute_file_hash(&file_path).unwrap();
-        assert!(!hash.is_empty());
-        assert_eq!(hash.len(), 64); // BLAKE3 hex string length
-    }
 
     #[test]
     fn test_duplicate_detection() {
@@ -480,5 +484,41 @@ mod tests {
 
         assert_eq!(duplicate_groups.len(), 1);
         assert_eq!(duplicate_groups[0].files.len(), 2);
+    }
+
+    #[test]
+    fn test_existing_hard_link_detection() {
+        let deduplicator = FileDeduplicator::with_config(DeduplicationConfig {
+            min_file_size: 0,
+            ..Default::default()
+        });
+        let temp_dir = TempDir::new().unwrap();
+
+        let file1_path = temp_dir.path().join("file1.txt");
+        let file2_path = temp_dir.path().join("file2.txt");
+
+        fs::write(&file1_path, "duplicate content").unwrap();
+        fs::hard_link(&file1_path, &file2_path).unwrap();
+
+        let files = deduplicator.scan_directory(temp_dir.path()).unwrap();
+        let duplicate_groups = deduplicator.find_duplicates(files);
+
+        assert_eq!(duplicate_groups.len(), 1);
+        assert_eq!(duplicate_groups[0].files.len(), 2);
+        assert!(duplicate_groups[0]
+            .files
+            .iter()
+            .all(|f| f.is_hard_link || duplicate_groups[0].files.len() == 1));
+        assert!(!duplicate_groups[0].can_deduplicate);
+    }
+
+    #[test]
+    fn test_should_process_file_patterns() {
+        let deduplicator = FileDeduplicator::new();
+
+        assert!(!deduplicator.should_process_file(Path::new("test.tmp")));
+        assert!(!deduplicator.should_process_file(Path::new("node_modules/pkg")));
+        assert!(!deduplicator.should_process_file(Path::new(".git/config")));
+        assert!(deduplicator.should_process_file(Path::new("readme.md")));
     }
 }

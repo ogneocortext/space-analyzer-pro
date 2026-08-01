@@ -328,7 +328,13 @@ fn scan_result_with_many_files() -> ScanResult {
         total_size_mb: 500.0,
         duration_secs: 12.5,
         file_types: HashMap::from([("log".to_string(), 15000), ("tmp".to_string(), 5000)]),
+        extension_sizes: HashMap::new(),
         largest_files: vec![("/tmp/big.bin".to_string(), 200 * 1024 * 1024)],
+        errors: Vec::new(),
         path: ".".to_string(),
+        total_dirs: 0,
+        top_directories: Vec::new(),
+        empty_dirs: Vec::new(),
+        scanned_files: HashMap::new(),
     }
 }

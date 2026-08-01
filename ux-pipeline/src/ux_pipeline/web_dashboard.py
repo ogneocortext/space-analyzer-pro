@@ -409,7 +409,7 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: var
       <div id="loop-config" class="loop-config">
         <div class="loop-cfg-row">
           <label>Model</label>
-          <select id="loop-model"><option value="qwen3:8b">qwen3:8b</option><option value="qwen3:4b">qwen3:4b</option><option value="qwen3:1.7b">qwen3:1.7b</option><option value="llama3.2:3b">llama3.2:3b</option><option value="codellama:7b">codellama:7b</option></select>
+          <select id="loop-model"><option value="qwen3-vl:4b">qwen3-vl:4b</option><option value="qwen3-vl:2b">qwen3-vl:2b</option><option value="qwen3.5:4b">qwen3.5:4b</option><option value="gemma4:e2b-it-qat">gemma4:e2b-it-qat</option></select>
         </div>
         <div class="loop-cfg-row">
           <label>Max Iters</label>
@@ -2455,7 +2455,7 @@ def _make_handler(state: _DashboardState) -> type[BaseHTTPRequestHandler]:
                     data = json.loads(body) if body else {}
                 except (json.JSONDecodeError, ValueError):
                     data = {}
-                model = (data.get("model") or "qwen3:8b").strip()
+                model = (data.get("model") or "qwen3-vl:4b").strip()
                 result = state.resolve_issue(issue_id, model)
                 if "error" in result:
                     self._write_json(HTTPStatus.BAD_REQUEST, result)

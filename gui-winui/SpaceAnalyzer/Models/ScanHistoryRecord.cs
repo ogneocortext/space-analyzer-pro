@@ -1,6 +1,8 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Text.Json;
 using SpaceAnalyzer.Helpers;
 
 namespace SpaceAnalyzer.Models;
@@ -12,7 +14,7 @@ public class ScanHistoryRecord
 {
     public long Id { get; set; }
     public string Path { get; set; } = string.Empty;
-    public int TotalFiles { get; set; }
+    public long TotalFiles { get; set; }
     public ulong TotalSizeBytes { get; set; }
     public double TotalSizeMb { get; set; }
     public double DurationSecs { get; set; }
@@ -21,8 +23,39 @@ public class ScanHistoryRecord
     public string TopDirectoriesJson { get; set; } = string.Empty;
     public string LargestFilesJson { get; set; } = string.Empty;
     public bool DeepScan { get; set; }
+    public bool ShallowScan { get; set; }
+    public int MaxScanDepth { get; set; } = 5;
     public ulong PotentialCleanupBytes { get; set; }
     public string Timestamp { get; set; } = string.Empty;
+
+    private Dictionary<string, long>? _fileTypes;
+    public Dictionary<string, long> FileTypes => _fileTypes ??= JsonSerializer.Deserialize<Dictionary<string, long>>(FileTypesJson, ScannerJsonOptions) ?? new();
+
+    private Dictionary<string, ulong>? _extensionSizes;
+    public Dictionary<string, ulong> ExtensionSizes => _extensionSizes ??= JsonSerializer.Deserialize<Dictionary<string, ulong>>(ExtensionSizesJson, ScannerJsonOptions) ?? new();
+
+    private List<DirEntry>? _topDirectories;
+    public List<DirEntry> TopDirectories => _topDirectories ??= JsonSerializer.Deserialize<List<DirEntry>>(TopDirectoriesJson, ScannerJsonOptions) ?? new();
+
+    private List<FileSizeEntry>? _largestFiles;
+    public List<FileSizeEntry> LargestFiles => _largestFiles ??= JsonSerializer.Deserialize<List<FileSizeEntry>>(LargestFilesJson, ScannerJsonOptions) ?? new();
+
+    private static readonly JsonSerializerOptions ScannerJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
+
+    public string DepthDisplay
+    {
+        get
+        {
+            if (DeepScan) return "Deep (unlimited)";
+            if (ShallowScan) return "Shallow (depth 1)";
+            if (MaxScanDepth != 5) return $"Custom (depth {MaxScanDepth})";
+            return "Default (depth 5)";
+        }
+    }
 
     public DateTime ScanDate
     {

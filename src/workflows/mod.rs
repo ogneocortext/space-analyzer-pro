@@ -504,6 +504,7 @@ impl WorkflowTemplates {
             "Scan and duplicate analysis finished. Check the results.",
         )
         .with_trigger(WorkflowTrigger::Scheduled("0 0 * * 1".to_string()))
+        .set_enabled(false)
     }
 
     /// Large file finder workflow
@@ -529,6 +530,7 @@ impl WorkflowTemplates {
             threshold_percent: 90,
         })
         .with_notification("Low Disk Space Alert", "Available disk space is below 10%.")
+        .set_enabled(false)
     }
 
     /// Development environment cleanup
@@ -564,6 +566,7 @@ impl WorkflowTemplates {
             .with_scan(".", false)
             .with_trigger(WorkflowTrigger::OnStartup)
             .with_description("Quick scan on application startup to show recent changes.")
+            .set_enabled(false)
     }
 
     /// AI-powered analysis workflow
@@ -661,15 +664,17 @@ impl StorageInsights {
         }
 
         // Check for large files
-        if let Some((path, size)) = scan_result.largest_files.first() {
-            if *size > 100 * 1024 * 1024 {
+        if let Some(file) = scan_result.largest_files.first() {
+            let path = &file.path;
+            let size = file.size;
+            if size > 100 * 1024 * 1024 {
                 recommendations.push(AIRecommendation {
                     priority: RecommendationPriority::High,
                     category: RecommendationCategory::Storage,
                     title: "Very Large File Found".to_string(),
                     description: format!(
                         "File '{}' is {} in size. Consider moving to external storage or archiving.",
-                        path, shared_scanner::format_bytes(*size)
+                        path, shared_scanner::format_bytes(size)
                     ),
                     action: RecommendationAction::Archive,
                 });

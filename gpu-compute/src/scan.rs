@@ -59,6 +59,7 @@ pub struct DirInfo {
 pub struct GpuScanProcessor {
     use_gpu: bool,
     top_n: usize,
+    scan_root: Option<String>,
 }
 
 impl GpuScanProcessor {
@@ -66,6 +67,7 @@ impl GpuScanProcessor {
         Self {
             use_gpu: false,
             top_n: 100,
+            scan_root: None,
         }
     }
 
@@ -76,6 +78,11 @@ impl GpuScanProcessor {
 
     pub fn with_top_n(mut self, n: usize) -> Self {
         self.top_n = n;
+        self
+    }
+
+    pub fn with_scan_root(mut self, root: impl Into<String>) -> Self {
+        self.scan_root = Some(root.into());
         self
     }
 
@@ -151,7 +158,8 @@ impl GpuScanProcessor {
         }
 
         // Compute per-directory aggregates
-        let subdirectories = compute_subdirectories(entries);
+        let subdirectories =
+            compute_subdirectories(entries, self.scan_root.as_deref().map(Path::new));
 
         GpuScanResult {
             total_files,
@@ -225,6 +233,13 @@ fn size_bucket(size: u64) -> String {
     }
 }
 
+/// Count entries per parent directory from the filtered entry list.
+///
+/// Note: this operates on the filtered `entries` slice, so directories
+/// that contain only excluded files (e.g. hidden files with
+/// `include_hidden: false`) will appear to have zero children.
+/// True empty-directory detection should be computed from the raw
+/// walk results before filtering.
 fn count_dir_entries(entries: &[RawFileEntry]) -> HashMap<String, u64> {
     let mut counts: HashMap<String, u64> = HashMap::new();
 
@@ -247,7 +262,7 @@ fn count_dir_entries(entries: &[RawFileEntry]) -> HashMap<String, u64> {
 }
 
 /// Compute per-directory aggregate information for immediate subdirectories
-fn compute_subdirectories(entries: &[RawFileEntry]) -> Vec<DirInfo> {
+fn compute_subdirectories(entries: &[RawFileEntry], scan_root: Option<&Path>) -> Vec<DirInfo> {
     let mut dir_sizes: HashMap<String, u64> = HashMap::new();
     let mut dir_file_counts: HashMap<String, u64> = HashMap::new();
     let mut dir_dir_counts: HashMap<String, u64> = HashMap::new();
@@ -255,9 +270,16 @@ fn compute_subdirectories(entries: &[RawFileEntry]) -> Vec<DirInfo> {
 
     for entry in entries {
         let path = Path::new(&entry.path);
-        let mut components = path.components().skip(1);
-        if let Some(first) = components.next() {
-            let sub_name = first.as_os_str().to_string_lossy().to_string();
+        let first = scan_root
+            .and_then(|root| path.strip_prefix(root).ok())
+            .and_then(|relative| relative.components().next())
+            .or_else(|| path.components().nth(2));
+        if let Some(first) = first {
+            let sub_name = if let Some(root) = scan_root {
+                root.join(first.as_os_str()).to_string_lossy().to_string()
+            } else {
+                first.as_os_str().to_string_lossy().to_string()
+            };
             if entry.is_dir {
                 *dir_dir_counts.entry(sub_name.clone()).or_insert(0) += 1;
             } else {

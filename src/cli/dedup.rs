@@ -1,6 +1,6 @@
 use file_deduplicator::{DeduplicationConfig, FileDeduplicator};
-use shared_scanner::format_bytes;
 use serde::Serialize;
+use shared_scanner::format_bytes;
 
 #[derive(Debug, Serialize)]
 pub struct DuplicateGroup {
@@ -42,15 +42,17 @@ pub fn run_clean_analysis(path: &str, output_format: &str) {
                         total_duplicate_files: 0,
                         potential_savings_bytes: 0,
                     };
-                    println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&result).unwrap_or_default()
+                    );
                 } else {
                     println!("   ✅ No duplicate files found!");
                 }
                 return;
             }
 
-            let total_duplicates: usize =
-                duplicate_groups.iter().map(|g| g.files.len() - 1).sum();
+            let total_duplicates: usize = duplicate_groups.iter().map(|g| g.files.len() - 1).sum();
             let dup_savings: u64 = duplicate_groups
                 .iter()
                 .map(|g| g.size * (g.files.len() as u64 - 1))
@@ -72,7 +74,11 @@ pub fn run_clean_analysis(path: &str, output_format: &str) {
                             hash: g.hash.clone(),
                             size: g.size,
                             file_count: g.files.len(),
-                            files: g.files.iter().map(|f| f.path.display().to_string()).collect(),
+                            files: g
+                                .files
+                                .iter()
+                                .map(|f| f.path.display().to_string())
+                                .collect(),
                             wasted_bytes: waste,
                         }
                     })
@@ -83,7 +89,10 @@ pub fn run_clean_analysis(path: &str, output_format: &str) {
                     total_duplicate_files: total_duplicates,
                     potential_savings_bytes: dup_savings,
                 };
-                println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&result).unwrap_or_default()
+                );
             } else {
                 println!(
                     "   Found {} duplicate groups ({} duplicate files)",
@@ -134,7 +143,10 @@ pub fn run_clean_analysis(path: &str, output_format: &str) {
                     total_duplicate_files: 0,
                     potential_savings_bytes: 0,
                 };
-                println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&result).unwrap_or_default()
+                );
             } else {
                 eprintln!("   ❌ Error scanning for duplicates: {}", e);
             }

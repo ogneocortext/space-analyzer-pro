@@ -11,6 +11,11 @@ use std::sync::mpsc;
 
 use super::super::SpaceAnalyzerApp;
 
+pub const TASK_ANALYSIS: &str = "Analysis";
+pub const TASK_TOOL_CALLING: &str = "Tool Calling";
+pub const TASK_SEMANTIC_SEARCH: &str = "Semantic Search";
+pub const TASK_GENERAL_CHAT: &str = "General Chat";
+
 impl SpaceAnalyzerApp {
     /// Discover available Ollama models, server version, and currently-running
     /// models. Uses the typed `OllamaClient` API (not bare `reqwest::get`) so
@@ -210,7 +215,7 @@ impl SpaceAnalyzerApp {
         // ── Model list ──────────────────────────────────────────────────
         // Clone data we need to avoid borrowing self in closures.
         let models = self.discovered_models.clone();
-        let current_active = self.model_selection_state.current_active_model.clone();
+        let current_active = self.active_model_selector.current_active_model.clone();
         let chat_model = self.settings.ollama_model.clone();
         let tool_model = self.settings.tool_calling_model.clone();
         let agentic_enabled = self.settings.agentic_tools_enabled;
@@ -358,6 +363,14 @@ impl SpaceAnalyzerApp {
                     version,
                     error,
                 }) => {
+                    let local_names: Vec<String> = models.iter().map(|m| m.name.clone()).collect();
+
+                    // Rebuild fallback chain from the *local* installed set so
+                    // failover never reaches out to a remote/unavailable model.
+                    if let Some(ref client) = self.ollama_client {
+                        client.set_fallback_from_local(&self.settings.ollama_model, &local_names);
+                    }
+
                     self.discovered_models = models;
                     self.running_models = running;
                     if version.is_some() {
@@ -371,6 +384,13 @@ impl SpaceAnalyzerApp {
                         self.last_ollama_error = None;
                     }
                     self.models_discovering = false;
+
+                    // Auto-select models for known task types when enabled,
+                    // but do NOT persist to DB here — only update in-memory
+                    // settings so the next message uses the best local model.
+                    if self.settings.auto_model_selection {
+                        let _ = self.select_model_for_task("General Chat");
+                    }
                 }
                 Ok(_) => {
                     // Spurious message on this channel — put the receiver back.
@@ -391,10 +411,15 @@ impl SpaceAnalyzerApp {
         }
     }
 
-    /// Automatically select the best model for the current task
-    pub fn select_model_for_task(&mut self, task_type: &str) {
+    /// Automatically select the best model for the current task.
+    ///
+    /// For local-only deployments this only picks from `discovered_models`
+    /// (which are already filtered to local installs in `discover_ollama_models`).
+    /// It updates in-memory settings but does NOT persist to the database;
+    /// persistence happens explicitly on Settings save.
+    pub fn select_model_for_task(&mut self, task_type: &str) -> bool {
         if !self.settings.auto_model_selection || self.discovered_models.is_empty() {
-            return;
+            return false;
         }
 
         let task_lower = task_type.to_lowercase();
@@ -462,32 +487,28 @@ impl SpaceAnalyzerApp {
 
         if let Some(model) = best_model {
             let model_name = model.name.clone();
-            let old_active = self.model_selection_state.current_active_model.clone();
-            self.model_selection_state.current_active_model = Some(model_name.clone());
-            self.model_selection_state.current_model_task = Some(task_type.to_string());
+            let old_active = self.active_model_selector.current_active_model.clone();
+            self.active_model_selector.current_active_model = Some(model_name.clone());
+            self.active_model_selector.current_model_task = Some(task_type.to_string());
 
+            // Always update the chat model so auto-selection is respected
+            // even when agentic tool calling is disabled.
+            if self.settings.ollama_model != model_name {
+                self.settings.ollama_model = model_name.clone();
+            }
+            // Additionally update the tool-calling model for tool-heavy tasks
+            // so follow-up requests use the right model when agentic tools are enabled.
             if task_lower.contains("tool")
                 || task_lower.contains("agentic")
                 || task_lower.contains("workflow")
             {
                 if self.settings.tool_calling_model != model_name {
                     self.settings.tool_calling_model = model_name.clone();
-                    self.status_message = Some(format!(
-                        "Auto-switched to {} for: {}",
-                        model_name, task_type
-                    ));
-                    self.save_settings();
                 }
-            } else if old_active.as_ref() != Some(&model_name) {
-                if self.settings.ollama_model != model_name {
-                    self.settings.ollama_model = model_name.clone();
-                    self.save_settings();
-                }
-                self.status_message = Some(format!(
-                    "Auto-switched to {} for: {}",
-                    model_name, task_type
-                ));
             }
+            true
+        } else {
+            false
         }
     }
 }

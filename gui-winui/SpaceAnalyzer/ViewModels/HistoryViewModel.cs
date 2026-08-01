@@ -1,3 +1,5 @@
+// Licensed under the MIT License.
+
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using SpaceAnalyzer.Models;
@@ -23,6 +25,8 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
     public bool HasHistory => _history.Any();
     public Microsoft.UI.Xaml.Visibility HasHistoryVisibility => HasHistory ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public Microsoft.UI.Xaml.Visibility HasNoHistoryVisibility => HasHistory ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+    public bool HasSelectedRecord => _selectedRecord != null;
+    public Microsoft.UI.Xaml.Visibility HasSelectedRecordVisibility => HasSelectedRecord ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
 
     private ScanHistoryRecord? _selectedRecord;
     public ScanHistoryRecord? SelectedRecord
@@ -30,7 +34,6 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
         get => _selectedRecord;
         set { _selectedRecord = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasSelectedRecord)); }
     }
-    public bool HasSelectedRecord => _selectedRecord != null;
 
     private bool _isLoading;
     public bool IsLoading
@@ -82,6 +85,36 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
         {
             System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] LoadDetails failed: {ex}");
             StatusMessage = $"Failed to load details: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task DeleteHistoryAsync(long id)
+    {
+        try
+        {
+            IsLoading = true;
+            StatusMessage = "Deleting...";
+            var success = await _scanner.DeleteScanAsync(id);
+            if (success)
+            {
+                History = History.Where(r => r.Id != id).ToList();
+                if (_selectedRecord?.Id == id)
+                    SelectedRecord = null;
+                StatusMessage = "Deleted";
+            }
+            else
+            {
+                StatusMessage = "Delete failed — scanner unavailable";
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Delete failed: {ex}");
+            StatusMessage = $"Delete failed: {ex.Message}";
         }
         finally
         {

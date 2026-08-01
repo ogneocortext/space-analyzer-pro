@@ -30,6 +30,7 @@ fn scan_result_defaults_are_zeroed() {
         empty_directories: Vec::new(),
         errors: Vec::new(),
         subdirectories: Vec::new(),
+        scanned_files: std::collections::HashMap::new(),
     };
     assert_eq!(r.total_files, 0);
     assert_eq!(r.total_directories, 0);
@@ -103,6 +104,36 @@ fn scan_empty_dir_returns_zero_files() {
         .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::default())
         .expect("empty-dir scan must succeed");
     assert_eq!(result.total_files, 0);
+}
+
+#[test]
+fn scan_dir_with_only_hidden_files_is_not_empty() {
+    let tmp = tempfile::TempDir::new().expect("can create TempDir");
+    std::fs::write(tmp.path().join(".hidden"), b"secret").unwrap();
+
+    let scanner = FileScanner::new();
+
+    let result = scanner
+        .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::default())
+        .expect("scan must succeed");
+    assert!(
+        result.empty_directories.is_empty(),
+        "dir with only dotfiles must not be reported empty when hidden files are excluded"
+    );
+
+    let result_include_hidden = scanner
+        .scan_directory_sync(
+            tmp.path().to_str().unwrap(),
+            ScanOptions {
+                include_hidden: true,
+                ..Default::default()
+            },
+        )
+        .expect("scan must succeed");
+    assert!(
+        result_include_hidden.empty_directories.is_empty(),
+        "dir with only dotfiles must not be reported empty when hidden files are included"
+    );
 }
 
 #[test]

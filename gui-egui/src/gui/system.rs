@@ -38,11 +38,11 @@ impl SpaceAnalyzerApp {
                     for (ext, count) in &result.file_types {
                         csv.push_str(&format!("file_type_.{},{}\n", ext, count));
                     }
-                    for (path, size) in &result.largest_files {
+                    for file in &result.largest_files {
                         csv.push_str(&format!(
                             "largest_file,\"{}|{}\"\n",
-                            path.replace('"', "\"\""),
-                            size
+                            file.path.replace('"', "\"\""),
+                            file.size
                         ));
                     }
                     csv

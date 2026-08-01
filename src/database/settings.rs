@@ -88,6 +88,9 @@ impl Default for AppSettings {
 }
 
 impl AppSettings {
+    pub const SETTINGS_VERSION_KEY: &'static str = "settings_version";
+    pub const CURRENT_SETTINGS_VERSION: u32 = 1;
+
     pub fn to_prompt_cache_config(&self) -> super::super::ollama::PromptCacheConfig {
         super::super::ollama::PromptCacheConfig {
             enabled: self.prompt_cache_enabled,
@@ -97,11 +100,19 @@ impl AppSettings {
             estimate_tokens_per_char: 0.25,
         }
     }
+
+    /// Obsolete keys from older versions. Removed on migration to keep the
+    /// key-value store compact and avoid stale entries confusing future readers.
+    pub fn obsolete_keys() -> &'static [&'static str] {
+        &[]
+    }
 }
 
 impl super::Database {
     pub fn load_settings(&self) -> AppSettings {
         let mut settings = AppSettings::default();
+        let mut loaded_version: u32 = 0;
+
         let tx_result = self.conn.unchecked_transaction();
         if let Ok(tx) = tx_result {
             if let Ok(mut stmt) = tx.prepare("SELECT key, value FROM settings") {
@@ -167,6 +178,9 @@ impl super::Database {
                                 "ai_features_panel_visible" => {
                                     settings.ai_features_panel_visible = value == "true"
                                 }
+                                AppSettings::SETTINGS_VERSION_KEY => {
+                                    loaded_version = value.parse().unwrap_or(0)
+                                }
                                 _ => {}
                             }
                         }
@@ -179,6 +193,10 @@ impl super::Database {
         } else {
             eprintln!("Warning: Failed to create read transaction for settings (DB busy?)");
         }
+
+        // Apply versioned migrations before returning
+        settings = self.migrate_settings(settings, loaded_version);
+
         if let Ok(env_url) = std::env::var("OLLAMA_HOST") {
             let env_url = env_url.trim();
             if !env_url.is_empty() {
@@ -188,8 +206,28 @@ impl super::Database {
         settings
     }
 
+    /// Apply versioned migrations to an already-loaded settings struct.
+    /// Returns the migrated settings. Each migration step should be idempotent.
+    fn migrate_settings(&self, settings: AppSettings, from_version: u32) -> AppSettings {
+        let _current = AppSettings::CURRENT_SETTINGS_VERSION;
+
+        // Migration 1 -> 2: example placeholder for future schema changes.
+        // Add real migrations here as settings evolve.
+        if from_version < 2 {
+            // No-op for now; structure preserved for forward compatibility.
+        }
+
+        // Always refresh the version marker so subsequent loads see current.
+        let _ = self.save_all_settings(&settings);
+        settings
+    }
+
     pub fn save_all_settings(&self, settings: &AppSettings) -> rusqlite::Result<()> {
-        let pairs: &[(&str, String)] = &[
+        let pairs: Vec<(&str, String)> = vec![
+            (
+                AppSettings::SETTINGS_VERSION_KEY,
+                AppSettings::CURRENT_SETTINGS_VERSION.to_string(),
+            ),
             ("default_scan_path", settings.default_scan_path.clone()),
             ("default_deep_scan", settings.default_deep_scan.to_string()),
             ("max_scan_depth", settings.max_scan_depth.to_string()),
@@ -256,7 +294,7 @@ impl super::Database {
             ),
         ];
         let tx = self.conn.unchecked_transaction()?;
-        for (key, value) in pairs {
+        for (key, value) in &pairs {
             tx.execute(
                 "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
                 params![key, value],
@@ -264,5 +302,21 @@ impl super::Database {
         }
         tx.commit()?;
         Ok(())
+    }
+
+    /// Remove stale settings keys that are no longer recognized.
+    /// Call after `save_all_settings` during an upgrade path.
+    pub fn prune_obsolete_settings(&self) -> rusqlite::Result<usize> {
+        let obsolete = AppSettings::obsolete_keys();
+        if obsolete.is_empty() {
+            return Ok(0);
+        }
+        let mut deleted = 0usize;
+        let tx = self.conn.unchecked_transaction()?;
+        for key in obsolete {
+            deleted += tx.execute("DELETE FROM settings WHERE key = ?1", params![key])?;
+        }
+        tx.commit()?;
+        Ok(deleted)
     }
 }

@@ -30,8 +30,8 @@ pub fn print_recommendations(result: &ScanResult) {
     let ollama_size: u64 = result
         .largest_files
         .iter()
-        .filter(|(p, _)| p.contains(".ollama") || p.contains("ollama"))
-        .map(|(_, s)| s)
+        .filter(|file| file.path.contains(".ollama") || file.path.contains("ollama"))
+        .map(|file| file.size)
         .sum();
     if ollama_size > 1024 * 1024 * 1024 {
         recommendations.push((2, format!(
@@ -62,16 +62,18 @@ pub fn print_recommendations(result: &ScanResult) {
         potential_savings = potential_savings.saturating_add(exe_size);
     }
 
-    for (path, size) in &result.largest_files {
+    for file in &result.largest_files {
+        let path = &file.path;
+        let size = file.size;
         if (path.contains(".vhdx") || path.contains("ext4.vhdx") || path.contains("WSL"))
-            && *size > 1024 * 1024 * 1024
+            && size > 1024 * 1024 * 1024
         {
             recommendations.push((2, format!(
                 "🖥️  WSL/VM disk image found: {} ({}) — Consider compacting or removing unused distributions.",
                 Path::new(path).file_name().unwrap_or_default().to_string_lossy(),
-                format_bytes(*size)
+                format_bytes(size)
             )));
-            potential_savings = potential_savings.saturating_add(*size);
+            potential_savings = potential_savings.saturating_add(size);
         }
     }
 
@@ -244,11 +246,11 @@ pub fn print_cleanup_recommendations(result: &ScanResult) {
     let installer_size: u64 = result
         .largest_files
         .iter()
-        .filter(|(p, _)| {
-            let lower = p.to_lowercase();
+        .filter(|file| {
+            let lower = file.path.to_lowercase();
             lower.ends_with(".exe") || lower.ends_with(".msi") || lower.ends_with(".zip")
         })
-        .map(|(_, s)| *s)
+        .map(|file| file.size)
         .sum();
     if installer_size > 100 * 1024 * 1024 {
         actions.push((3, format!(
@@ -257,16 +259,18 @@ pub fn print_cleanup_recommendations(result: &ScanResult) {
         )));
     }
 
-    for (path, size) in &result.largest_files {
+    for file in &result.largest_files {
+        let path = &file.path;
+        let size = file.size;
         let lower = path.to_lowercase();
-        if *size > 100 * 1024 * 1024 {
+        if size > 100 * 1024 * 1024 {
             if lower.contains("ollama") || lower.contains("models") || lower.contains("blobs") {
                 actions.push((
                     2,
                     format!(
-                    "🤖 AI Model: `{}` ({}) — Consider `ollama prune` or removing unused models",
-                    path, format_bytes(*size)
-                ),
+                        "🤖 AI Model: `{}` ({}) — Consider `ollama prune` or removing unused models",
+                        path, format_bytes(size)
+                    ),
                 ));
             } else if lower.contains(".cache") || lower.contains("pip") {
                 actions.push((
@@ -274,7 +278,7 @@ pub fn print_cleanup_recommendations(result: &ScanResult) {
                     format!(
                         "🐍 Cache: `{}` ({}) — Consider `pip cache purge` or manual cleanup",
                         path,
-                        format_bytes(*size)
+                        format_bytes(size)
                     ),
                 ));
             }
@@ -284,11 +288,11 @@ pub fn print_cleanup_recommendations(result: &ScanResult) {
     let node_modules_size: u64 = result
         .largest_files
         .iter()
-        .filter(|(p, _)| {
-            let lower = p.to_lowercase();
+        .filter(|file| {
+            let lower = file.path.to_lowercase();
             lower.contains("node_modules")
         })
-        .map(|(_, s)| *s)
+        .map(|file| file.size)
         .sum();
     if node_modules_size > 100 * 1024 * 1024 {
         actions.push((

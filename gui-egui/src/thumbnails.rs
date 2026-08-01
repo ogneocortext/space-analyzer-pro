@@ -123,14 +123,16 @@ pub fn find_image_files(
     result: &space_analyzer_pro_desktop::gui_common::ScanResult,
 ) -> Vec<(String, u64, String)> {
     let mut images = Vec::new();
-    for (path, size) in &result.largest_files {
+    for file in &result.largest_files {
+        let path = &file.path;
+        let size = file.size;
         let ext = std::path::Path::new(path)
             .extension()
             .and_then(|e| e.to_str())
             .map(|s| s.to_lowercase())
             .unwrap_or_default();
         if ThumbnailCache::is_image_extension(&ext) {
-            images.push((path.clone(), *size, ext));
+            images.push((path.clone(), size, ext));
         }
     }
     images

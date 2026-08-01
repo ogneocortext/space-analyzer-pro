@@ -432,7 +432,7 @@ impl SpaceAnalyzerApp {
                 .largest_files
                 .iter()
                 .take(5)
-                .map(|(path, size)| format!("  {} ({})", path, formatting::format_bytes(*size)))
+                .map(|file| format!("  {} ({})", file.path, formatting::format_bytes(file.size)))
                 .collect::<Vec<_>>()
                 .join("\n");
             format!(

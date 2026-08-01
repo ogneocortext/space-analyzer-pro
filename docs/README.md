@@ -16,12 +16,13 @@ A powerful, self-contained disk space analysis tool with embedded database, GPU 
 dotnet run --project gui-winui/SpaceAnalyzer
 ```
 
-**WinUI 3 state (v3.7.0):**
+**WinUI 3 state (v3.7.0+):**
 - **Stable build** against Windows App SDK 2.3 / .NET 10
 - **All pages implemented:** Dashboard, Scan, History, Smart Search, Workflows (stub), AI Assistant, Duplicates, System, Cleanup, Settings, About
 - **Dashboard stat cards** populated from scan history with 3-second live system resource refresh
 - **MVVM pattern** with `Helpers/`, `ViewModels/`, `Models/`, `Services/` separation
 - **Ollama integration** via `OllamaClient.cs` for local AI chat
+- **Scan page:** Stop scan button, path validation, scan errors display, file type distribution chart, largest files with filter, export results, deep/shallow/custom depth modes, scan speed metrics
 
 ### Rust egui GUI (Legacy — Kept for Comparison)
 
@@ -39,8 +40,11 @@ The CLI uses subcommands for structured JSON output (primarily used by the WinUI
 # Basic scan
 cargo run --bin space-analyzer-pro -- scan --path . --format json
 
-# Disk info
+# Disk info — prints a JSON array of every mounted volume
+# (the --path arg is accepted but ignored in JSON output)
 space-analyzer-pro disk-info --path "C:\Users" --format json
+# Example: [{"mount_point":"C:\\","label":"SSD","file_system":"NTFS",
+#   "total_bytes":...,"used_bytes":...,"available_bytes":...,"usage_percent":64.6}]
 
 # Scan history
 space-analyzer-pro history --limit 50 --format json
@@ -217,6 +221,14 @@ curl http://localhost:11434/api/tags
 ```
 
 ## Version History
+
+### [3.8.0] - 2026-08-01 - Scan Page Hardening & AI Assistant Expansion
+- **Scan page enhancements** — Stop scan button, path validation, scan errors display, file type distribution chart, largest files with live filter, JSON export, deep/shallow/custom depth modes, scan speed metrics.
+- **ScannerService** — added `StopScan()`, `ExportScanResultAsync()`, and process tracking (`_currentScannerProcess`) for cancellation support.
+- **AI Assistant** — expanded tool registry from 3 to 14 tools, dynamic `ResolveToolChoice()`, enriched `ChatRequest` with `Options`/`Think`/`KeepAlive` fields.
+- **Converters** — added `BoolToErrorBrushConverter` and `BoolToScanButtonTextConverter`.
+- **New model** — `FileTypeDistribution` for the scan page file type chart.
+- **New helper** — `UiHelper.OpenPath()` for opening files/folders in Explorer.
 
 ### [3.7.0] - 2026-07-31 - WinUI 3 Stabilization & Page Completion
 - **Fixed build against Windows App SDK 2.3 / .NET 10**

@@ -157,7 +157,7 @@ impl SpaceAnalyzerApp {
                 let large_count = result
                     .largest_files
                     .iter()
-                    .filter(|(_, size)| *size > threshold)
+                    .filter(|file| file.size > threshold)
                     .count();
                 if large_count > 0 {
                     stat_card(
@@ -751,7 +751,17 @@ impl SpaceAnalyzerApp {
 
     // ── Live Disk Space Monitor ────────────────────────────────────────
     fn render_disk_space_live(&self, ui: &mut egui::Ui) {
-        section_heading(ui, Some(icons::DISK), "Disk C: Live Monitor");
+        let mount_point = self
+            .disk_monitor
+            .snapshots
+            .first()
+            .map(|s| s.mount_point.clone())
+            .unwrap_or_else(|| "Disk".to_string());
+        section_heading(
+            ui,
+            Some(icons::DISK),
+            &format!("{} Live Monitor", mount_point),
+        );
         card_frame(ui.style()).show(ui, |ui| {
             let snapshots = &self.disk_monitor.snapshots;
 

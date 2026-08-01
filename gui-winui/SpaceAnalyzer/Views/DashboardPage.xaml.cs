@@ -18,39 +18,50 @@ public sealed partial class DashboardPage : Page
         this.Loaded += OnPageLoaded;
     }
 
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        VM.DispatcherTimer.Start();
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        VM.DispatcherTimer.Stop();
+        base.OnNavigatedFrom(e);
+    }
+
     private async void OnPageLoaded(object sender, RoutedEventArgs e)
     {
         await VM.LoadDashboardAsync();
     }
 
-    private void NavigateToTag(string tag)
+    private async void Refresh_Click(object sender, RoutedEventArgs e)
     {
-        var navView = UiHelper.FindNavigationView(this);
-        if (navView != null)
-        {
-            foreach (var item in navView.MenuItems)
-            {
-                if (item is NavigationViewItem navItem && navItem.Tag?.ToString() == tag)
-                {
-                    navView.SelectedItem = navItem;
-                    return;
-                }
-            }
-            foreach (var item in navView.FooterMenuItems)
-            {
-                if (item is NavigationViewItem navItem && navItem.Tag?.ToString() == tag)
-                {
-                    navView.SelectedItem = navItem;
-                    return;
-                }
-            }
-        }
+        await VM.LoadDashboardAsync();
     }
 
-    private void BtnNewScan_Click(object sender, RoutedEventArgs e) => NavigateToTag("Scan");
-    private void BtnViewHistory_Click(object sender, RoutedEventArgs e) => NavigateToTag("History");
-    private void BtnFindDuplicates_Click(object sender, RoutedEventArgs e) => NavigateToTag("Dedup");
-    private void BtnAIAssistant_Click(object sender, RoutedEventArgs e) => NavigateToTag("AIChat");
-    private void BtnCleanup_Click(object sender, RoutedEventArgs e) => NavigateToTag("Cleanup");
-    private void BtnSystem_Click(object sender, RoutedEventArgs e) => NavigateToTag("System");
+    private void BtnNewScan_Click(object sender, RoutedEventArgs e)
+    {
+        if (Window.Current is MainWindow mw) mw.NavigateToPage("Scan");
+    }
+    private void BtnViewHistory_Click(object sender, RoutedEventArgs e)
+    {
+        if (Window.Current is MainWindow mw) mw.NavigateToPage("History");
+    }
+    private void BtnFindDuplicates_Click(object sender, RoutedEventArgs e)
+    {
+        if (Window.Current is MainWindow mw) mw.NavigateToPage("Dedup");
+    }
+    private void BtnAIAssistant_Click(object sender, RoutedEventArgs e)
+    {
+        if (Window.Current is MainWindow mw) mw.NavigateToPage("AIChat");
+    }
+    private void BtnCleanup_Click(object sender, RoutedEventArgs e)
+    {
+        if (Window.Current is MainWindow mw) mw.NavigateToPage("Cleanup");
+    }
+    private void BtnSystem_Click(object sender, RoutedEventArgs e)
+    {
+        if (Window.Current is MainWindow mw) mw.NavigateToPage("System");
+    }
 }

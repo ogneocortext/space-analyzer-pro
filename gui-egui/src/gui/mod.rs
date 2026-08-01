@@ -142,6 +142,7 @@ pub struct SystemState {
 pub struct SpaceAnalyzerApp {
     // Navigation
     pub active_tab: AppTab,
+    pub previous_tab: AppTab,
 
     // Scanning
     pub current_path: PathBuf,
@@ -274,6 +275,7 @@ impl Default for SpaceAnalyzerApp {
 
         let mut app = Self {
             active_tab: AppTab::Dashboard,
+            previous_tab: AppTab::Dashboard,
             current_path: PathBuf::from(&settings.default_scan_path),
             scan_result: None,
             is_scanning: false,
@@ -459,6 +461,9 @@ impl Default for SpaceAnalyzerApp {
 }
 
 impl eframe::App for SpaceAnalyzerApp {
+    fn on_exit(&mut self) {
+        self.save_settings();
+    }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.process_scan_messages_safe();
         self.process_ollama_messages();
@@ -711,6 +716,10 @@ impl eframe::App for SpaceAnalyzerApp {
                             .min_size(egui::vec2(0.0, 30.0));
 
                             if ui.add(btn).clicked() {
+                                if self.active_tab == AppTab::Settings && tab != AppTab::Settings {
+                                    self.save_settings();
+                                }
+                                self.previous_tab = self.active_tab;
                                 self.active_tab = tab;
                             }
                         }
@@ -858,7 +867,7 @@ impl SpaceAnalyzerApp {
         for msg in messages {
             match msg {
                 space_analyzer_pro_desktop::disk_monitor::DiskMonitorMessage::SnapshotRecorded {
-                    mount_point: _,
+                    mount_point,
                     available_bytes,
                     used_bytes,
                     usage_percent,
@@ -866,6 +875,7 @@ impl SpaceAnalyzerApp {
                     self.disk_monitor
                         .snapshots
                         .push(space_analyzer_pro_desktop::disk_monitor::SnapshotEntry {
+                            mount_point,
                             timestamp: chrono::Utc::now().to_rfc3339(),
                             available_bytes,
                             used_bytes,

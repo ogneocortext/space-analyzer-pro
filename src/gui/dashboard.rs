@@ -157,7 +157,7 @@ impl SpaceAnalyzerApp {
                 let large_count = result
                     .largest_files
                     .iter()
-                    .filter(|(_, size)| *size > threshold)
+                    .filter(|file| file.size > threshold)
                     .count();
                 if large_count > 0 {
                     stat_card(

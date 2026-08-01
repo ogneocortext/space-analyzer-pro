@@ -16,7 +16,6 @@ use std::fs;
 use std::path::Path;
 
 use crate::animation;
-use crate::cli::helpers::get_disk_info;
 
 pub fn main() -> AppResult<()> {
     let cli = Cli::parse();
@@ -31,24 +30,25 @@ pub fn main() -> AppResult<()> {
         .map(|db| db.load_settings());
 
     match cli.command {
-            Commands::Scan {
-                path,
-                verbose,
-                max_depth,
-                deep,
-                ref min_size,
-                ref max_size,
-                include_hidden,
-                ref export,
-                report,
-                clean,
-                cleanup_recommendations,
-                trace_origins,
-                ref channel,
-                ref ask,
-                shallow,
-                threads,
-            } => {
+        Commands::Scan {
+            path,
+            verbose,
+            max_depth,
+            deep,
+            ref min_size,
+            ref max_size,
+            include_hidden,
+            ref export,
+            report,
+            clean,
+            cleanup_recommendations,
+            trace_origins,
+            ref channel,
+            ref ask,
+            shallow,
+            threads,
+            cache,
+        } => {
             let scan_path = Path::new(&path);
             helpers::validate_input(&path, &output_format)?;
 
@@ -68,10 +68,18 @@ pub fn main() -> AppResult<()> {
             // CLI flags take precedence; fall back to DB settings only when flag not provided
             let effective_max_depth = max_depth.or_else(|| {
                 db_settings.as_ref().and_then(|s| {
-                    if s.max_scan_depth == 5 { None } else { Some(s.max_scan_depth as usize) }
+                    if s.max_scan_depth == 5 {
+                        None
+                    } else {
+                        Some(s.max_scan_depth as usize)
+                    }
                 })
             });
-            let effective_deep = deep || db_settings.as_ref().map(|s| s.default_deep_scan).unwrap_or(false);
+            let effective_deep = deep
+                || db_settings
+                    .as_ref()
+                    .map(|s| s.default_deep_scan)
+                    .unwrap_or(false);
             let effective_shallow = shallow;
 
             let result = scan::scan_directory(
@@ -85,13 +93,21 @@ pub fn main() -> AppResult<()> {
                 include_hidden,
                 no_anim,
                 threads,
+                cache,
             )?;
 
             if output_format == "text" && !no_anim {
                 animation::print_completion_animation(result.duration_secs);
             }
 
-            output_results(&output_format, &result, &path, top_n, no_anim, depth_label(effective_deep, effective_shallow, effective_max_depth))?;
+            output_results(
+                &output_format,
+                &result,
+                &path,
+                top_n,
+                no_anim,
+                depth_label(effective_deep, effective_shallow, effective_max_depth),
+            )?;
 
             if let Some(channel_dir) = channel {
                 let payload = serde_json::json!({
@@ -144,7 +160,12 @@ pub fn main() -> AppResult<()> {
             }
 
             if let Ok(db) = space_analyzer_pro_desktop::database::Database::default_open() {
-                let _ = db.save_scan(&result, effective_deep, effective_shallow, effective_max_depth.unwrap_or(5) as u32);
+                let _ = db.save_scan(
+                    &result,
+                    effective_deep,
+                    effective_shallow,
+                    effective_max_depth.unwrap_or(5) as u32,
+                );
             }
 
             if clean {
@@ -169,18 +190,17 @@ pub fn main() -> AppResult<()> {
             }
         }
 
-        Commands::DiskInfo { path } => {
-            if let Some(disk) = get_disk_info(&path) {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&disk).unwrap_or_default()
-                );
-            } else {
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&Vec::<()>::new()).unwrap_or_default()
-                );
-            }
+        Commands::DiskInfo { path: _path } => {
+            // Always emit a JSON array of every mounted volume so the WinUI 3
+            // frontend can deserialize `List<DiskVolume>` directly. Previously this
+            // returned a single object for the matching volume (or `[]` when none
+            // matched), which made System.Text.Json throw when deserializing a
+            // single object into a List.
+            let disks = helpers::get_all_disks();
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&disks).unwrap_or_default()
+            );
         }
 
         Commands::History { limit, id, delete } => {
@@ -244,7 +264,7 @@ fn depth_label(deep: bool, shallow: bool, max_depth: Option<usize>) -> &'static 
     } else if shallow || max_depth == Some(1) {
         "shallow (depth 1)"
     } else if let Some(d) = max_depth {
-        return Box::leak(format!("depth {}", d).into_boxed_str());
+        Box::leak(format!("depth {}", d).into_boxed_str())
     } else {
         "depth 5"
     }

@@ -36,6 +36,8 @@ impl SpaceAnalyzerApp {
             "top_directories": record.top_directories_json,
             "largest_files": record.largest_files_json,
             "deep_scan": record.deep_scan,
+            "shallow_scan": record.shallow_scan,
+            "max_scan_depth": record.max_scan_depth,
             "potential_cleanup_bytes": record.potential_cleanup_bytes,
             "timestamp": record.timestamp,
         });
@@ -60,6 +62,8 @@ impl SpaceAnalyzerApp {
         csv.push_str(&format!("total_size_mb,{}\n", record.total_size_mb));
         csv.push_str(&format!("duration_secs,{}\n", record.duration_secs));
         csv.push_str(&format!("deep_scan,{}\n", record.deep_scan));
+        csv.push_str(&format!("shallow_scan,{}\n", record.shallow_scan));
+        csv.push_str(&format!("max_scan_depth,{}\n", record.max_scan_depth));
         csv.push_str(&format!(
             "potential_cleanup_bytes,{}\n",
             record.potential_cleanup_bytes
@@ -72,10 +76,10 @@ impl SpaceAnalyzerApp {
                 csv.push_str(&format!("file_type_.{},{}\n", ext, count));
             }
         }
-        if let Ok(largest) = serde_json::from_str::<Vec<(String, u64)>>(&record.largest_files_json)
+        if let Ok(largest) = serde_json::from_str::<Vec<gui_common::LargestFileEntry>>(&record.largest_files_json)
         {
-            for (path, size) in largest {
-                csv.push_str(&format!("largest_file,\"{}\",{}\n", path, size));
+            for file in largest {
+                csv.push_str(&format!("largest_file,\"{}\",{}\n", file.path, file.size));
             }
         }
         if let Some(path) = rfd::FileDialog::new()
@@ -244,8 +248,12 @@ impl SpaceAnalyzerApp {
                         ui,
                         if record.deep_scan {
                             "Deep Scan"
+                        } else if record.shallow_scan {
+                            "Shallow Scan"
+                        } else if record.max_scan_depth != 5 {
+                            &format!("Depth {}", record.max_scan_depth)
                         } else {
-                            "Quick Scan"
+                            "Default Scan"
                         },
                         if record.deep_scan {
                             colors::WARNING
@@ -335,7 +343,7 @@ impl SpaceAnalyzerApp {
                 }
 
                 if let Ok(largest) =
-                    serde_json::from_str::<Vec<(String, u64)>>(&record.largest_files_json)
+                    serde_json::from_str::<Vec<gui_common::LargestFileEntry>>(&record.largest_files_json)
                 {
                     if !largest.is_empty() {
                         section_header(ui, Some(icons::PACKAGE), "Largest files");
@@ -344,12 +352,12 @@ impl SpaceAnalyzerApp {
                                 .num_columns(2)
                                 .spacing([16.0, 4.0])
                                 .show(ui, |ui| {
-                                    for (path, size) in largest.iter().take(50) {
+                                    for file in largest.iter().take(50) {
                                         ui.label(
-                                            egui::RichText::new(formatting::format_bytes(*size))
+                                            egui::RichText::new(formatting::format_bytes(file.size))
                                                 .color(colors::WARNING),
                                         );
-                                        ui.label(path);
+                                        ui.label(&file.path);
                                         ui.end_row();
                                     }
                                 });

@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [lib]
 name = "file_deduplicator"
-crate-type = ["cdylib", "lib"]
+crate-type = ["lib"]
 path = "src/lib.rs"
 
 [dependencies]
@@ -27,10 +27,8 @@ chrono = { version = "0.4", features = ["serde"] }
 # File system and hashing
 walkdir = "2.5"
 blake3 = "1.8"
-tokio = { version = "1", features = ["full"] }
-rayon = "1.12"
-crossbeam = "0.8"
 num_cpus = "1.17"
+same-file = "1.0"
 
 # GPU acceleration
 gpu-compute = { path = "../../gpu-compute" }
@@ -39,26 +37,6 @@ gpu-compute = { path = "../../gpu-compute" }
 indicatif = "0.18"
 console = "0.16"
 colored = "3.1"
-
-# Configuration
-config = "0.15"
-dirs = "6.0"
-
-# Windows-specific dependencies for hard links
-[target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = [
-    "Win32_Storage_FileSystem",
-    "Win32_Foundation",
-    "Win32_System_SystemServices",
-] }
-
-# Unix-specific dependencies for hard links
-[target.'cfg(unix)'.dependencies]
-libc = "0.2"
-nix = "0.31"
-
-[build-dependencies]
-napi-build = "2"
 
 [dev-dependencies]
 tempfile = "3"

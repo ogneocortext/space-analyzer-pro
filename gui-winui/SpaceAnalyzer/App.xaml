@@ -12,6 +12,8 @@
 
             <helpers:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
             <helpers:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
+            <helpers:BoolToErrorBrushConverter x:Key="BoolToErrorBrush"/>
+            <helpers:BoolToScanButtonTextConverter x:Key="BoolToScanButtonText"/>
 
             <Style x:Key="DashboardCardBorder" TargetType="Border">
                 <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>

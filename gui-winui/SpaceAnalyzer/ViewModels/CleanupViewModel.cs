@@ -1,3 +1,5 @@
+// Licensed under the MIT License.
+
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using SpaceAnalyzer.Models;
@@ -41,7 +43,7 @@ public class CleanupViewModel : INotifyPropertyChanged, IDisposable
     public CleanupAnalysis? LastResult
     {
         get => _lastResult;
-        set { _lastResult = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasResultVisibility)); }
+        set { _lastResult = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasResultVisibility)); OnPropertyChanged(nameof(TotalSizeDisplay)); OnPropertyChanged(nameof(TotalFiles)); OnPropertyChanged(nameof(NodeModulesCount)); OnPropertyChanged(nameof(TotalCleanupSizeDisplay)); OnPropertyChanged(nameof(CleanupCandidates)); OnPropertyChanged(nameof(DuplicatePackages)); }
     }
     public Microsoft.UI.Xaml.Visibility HasResultVisibility =>
         _lastResult != null ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;

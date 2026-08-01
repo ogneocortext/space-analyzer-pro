@@ -57,8 +57,26 @@
                                          Text="{x:Bind VM.ScannerPath, Mode=TwoWay}"
                                          PlaceholderText="Select scanner binary..."
                                          AutomationProperties.Name="Scanner binary path"/>
-                                <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Padding="12,8"/>
+                                <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Padding="12,8" AutomationProperties.Name="Browse"/>
                             </Grid>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Default scan depth" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                            <Slider Minimum="1"
+                                    Maximum="20"
+                                    Value="{x:Bind VM.ScanDepth, Mode=TwoWay}"
+                                    TickFrequency="4"
+                                    Width="300"/>
+                            <TextBlock Text="{x:Bind VM.ScanDepth, Mode=OneWay}"
+                                       FontSize="12" Opacity="0.8"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <CheckBox Content="Include hidden files and folders by default"
+                                      IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <CheckBox Content="GPU acceleration"
+                                      IsChecked="{x:Bind VM.GpuAcceleration, Mode=TwoWay}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -79,6 +97,63 @@
                                      PlaceholderText="gemma3:1b (or model name)"
                                      AutomationProperties.Name="Ollama model name"/>
                         </StackPanel>
+                        <StackPanel Spacing="12">
+                            <CheckBox Content="Enable Ollama AI"
+                                      IsChecked="{x:Bind VM.OllamaEnabled, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <CheckBox Content="Enable deep thinking / reasoning (Ollama 0.30+)"
+                                      IsChecked="{x:Bind VM.OllamaThink, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <CheckBox Content="Auto-start Ollama when needed"
+                                      IsChecked="{x:Bind VM.AutoStartOllama, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <CheckBox Content="Enable agentic tool calling"
+                                      IsChecked="{x:Bind VM.AgenticToolsEnabled, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <CheckBox Content="Auto-select model based on task"
+                                      IsChecked="{x:Bind VM.AutoModelSelection, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Tool calling model" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                            <TextBox Text="{x:Bind VM.ToolCallingModel, Mode=TwoWay}"
+                                     PlaceholderText="qwen2.5-coder:7b (or model name)"
+                                     AutomationProperties.Name="Tool calling model name"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Tool choice" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                            <ComboBox SelectedItem="{x:Bind VM.ToolChoice, Mode=TwoWay}"
+                                      HorizontalAlignment="Stretch"
+                                      AutomationProperties.Name="Tool choice">
+                                <x:String>auto</x:String>
+                                <x:String>none</x:String>
+                                <x:String>required</x:String>
+                            </ComboBox>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <CheckBox Content="Show AI Tools panel in AI Assistant tab"
+                                      IsChecked="{x:Bind VM.AiFeaturesPanelVisible, Mode=TwoWay}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Smart Search -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Smart Search (Semantic Indexing)" FontSize="18" FontWeight="SemiBold"/>
+                        <StackPanel Spacing="12">
+                            <CheckBox Content="Enable semantic indexing"
+                                      IsChecked="{x:Bind VM.EmbeddingEnabled, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Embedding model" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                            <TextBox Text="{x:Bind VM.EmbeddingModel, Mode=TwoWay}"
+                                     PlaceholderText="nomic-embed-text:latest"
+                                     AutomationProperties.Name="Embedding model name"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 
@@ -88,6 +163,8 @@
                         <TextBlock Text="Actions" FontSize="18" FontWeight="SemiBold"/>
                         <StackPanel Spacing="12">
                             <Button Content="Save Settings" Click="Save_Click"
+                                    HorizontalAlignment="Stretch" Padding="12"/>
+                            <Button Content="Reset to Defaults" Click="Reset_Click"
                                     HorizontalAlignment="Stretch" Padding="12"/>
                         </StackPanel>
                     </StackPanel>

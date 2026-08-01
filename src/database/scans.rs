@@ -3,7 +3,13 @@ use super::*;
 
 impl super::Database {
     /// Save a scan result to history with extended data
-    pub fn save_scan(&self, result: &ScanResult, deep_scan: bool) -> rusqlite::Result<i64> {
+    pub fn save_scan(
+        &self,
+        result: &ScanResult,
+        deep_scan: bool,
+        shallow_scan: bool,
+        max_scan_depth: u32,
+    ) -> rusqlite::Result<i64> {
         let file_types_json = serde_json::to_string(&result.file_types)
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
         let extension_sizes_json = serde_json::to_string(&result.extension_sizes)
@@ -17,13 +23,14 @@ impl super::Database {
 
         let timestamp = chrono::Utc::now().to_rfc3339();
         self.conn.execute(
-            "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, potential_cleanup_bytes, timestamp)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 result.path, result.total_files as i64, result.total_size_bytes as i64,
                 result.total_size_mb, result.duration_secs,
                 file_types_json, extension_sizes_json, top_directories_json, largest_files_json,
-                deep_scan, potential_cleanup as i64, timestamp,
+                deep_scan, shallow_scan, max_scan_depth as i64,
+                potential_cleanup as i64, timestamp,
             ],
         )?;
         Ok(self.conn.last_insert_rowid())
@@ -42,15 +49,15 @@ impl super::Database {
         }
 
         // Add sizes for large installer files
-        for (path, size) in &result.largest_files {
-            let lower = path.to_lowercase();
+        for file in &result.largest_files {
+            let lower = file.path.to_lowercase();
             if (lower.ends_with(".exe")
                 || lower.ends_with(".msi")
                 || lower.ends_with(".zip")
                 || lower.ends_with(".rar"))
                 && (lower.contains("installer") || lower.contains("setup"))
             {
-                total += size;
+                total += file.size;
             }
         }
 
@@ -76,7 +83,7 @@ impl super::Database {
     /// Get scan history, most recent first
     pub fn get_scan_history(&self, limit: usize) -> rusqlite::Result<Vec<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, potential_cleanup_bytes, timestamp
+            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp
              FROM scan_history ORDER BY timestamp DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], |row| {
@@ -92,8 +99,10 @@ impl super::Database {
                 top_directories_json: row.get(8)?,
                 largest_files_json: row.get(9)?,
                 deep_scan: row.get(10)?,
-                potential_cleanup_bytes: row.get::<_, i64>(11)? as u64,
-                timestamp: row.get(12)?,
+                shallow_scan: row.get(11)?,
+                max_scan_depth: row.get::<_, i64>(12)? as u32,
+                potential_cleanup_bytes: row.get::<_, i64>(13)? as u64,
+                timestamp: row.get(14)?,
             })
         })?;
         rows.collect()
@@ -102,7 +111,7 @@ impl super::Database {
     /// Get a specific scan by ID
     pub fn get_scan_by_id(&self, id: i64) -> rusqlite::Result<Option<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, potential_cleanup_bytes, timestamp
+            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp
              FROM scan_history WHERE id = ?1",
         )?;
         let row = stmt.query_row(params![id], |row| {
@@ -118,8 +127,10 @@ impl super::Database {
                 top_directories_json: row.get(8)?,
                 largest_files_json: row.get(9)?,
                 deep_scan: row.get(10)?,
-                potential_cleanup_bytes: row.get::<_, i64>(11)? as u64,
-                timestamp: row.get(12)?,
+                shallow_scan: row.get(11)?,
+                max_scan_depth: row.get::<_, i64>(12)? as u32,
+                potential_cleanup_bytes: row.get::<_, i64>(13)? as u64,
+                timestamp: row.get(14)?,
             })
         });
         match row {

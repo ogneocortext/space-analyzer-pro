@@ -103,7 +103,7 @@ pub struct WorkflowEditorState {
 }
 
 #[derive(Clone)]
-pub struct ModelSelectionState {
+pub struct ActiveModelSelector {
     pub current_active_model: Option<String>,
     pub current_model_task: Option<String>,
 }
@@ -201,7 +201,7 @@ pub struct SpaceAnalyzerApp {
     /// Used by the System tab to show real (not estimated) VRAM usage.
     pub running_models: Vec<ollama::RunningModel>,
 
-    pub model_selection_state: ModelSelectionState,
+    pub active_model_selector: ActiveModelSelector,
 
     // Smart Search (Embeddings)
     pub search_query: String,
@@ -327,7 +327,7 @@ impl Default for SpaceAnalyzerApp {
             ollama_version: None,
             last_ollama_error: None,
             running_models: Vec::new(),
-            model_selection_state: ModelSelectionState {
+            active_model_selector: ActiveModelSelector {
                 current_active_model: None,
                 current_model_task: None,
             },
@@ -616,11 +616,11 @@ impl eframe::App for SpaceAnalyzerApp {
                                         .color(colors::TEXT_MUTED),
                                 );
                                 if let Some(ref model) =
-                                    self.model_selection_state.current_active_model
+                                    self.active_model_selector.current_active_model
                                 {
                                     badge(ui, model, colors::SUCCESS);
                                     if let Some(ref task) =
-                                        self.model_selection_state.current_model_task
+                                        self.active_model_selector.current_model_task
                                     {
                                         ui.label(
                                             egui::RichText::new(format!("for {}", task))
@@ -711,6 +711,9 @@ impl eframe::App for SpaceAnalyzerApp {
                             .min_size(egui::vec2(0.0, 30.0));
 
                             if ui.add(btn).clicked() {
+                                if self.active_tab == AppTab::Settings {
+                                    let _ = self.save_settings();
+                                }
                                 self.active_tab = tab;
                             }
                         }
@@ -833,6 +836,10 @@ impl eframe::App for SpaceAnalyzerApp {
         );
         notifications::render_notifications(ui, &self.notification_state.notifications);
     }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        let _ = self.save_settings();
+    }
 }
 
 impl SpaceAnalyzerApp {
@@ -858,7 +865,7 @@ impl SpaceAnalyzerApp {
         for msg in messages {
             match msg {
                 crate::disk_monitor::DiskMonitorMessage::SnapshotRecorded {
-                    mount_point: _,
+                    mount_point,
                     available_bytes,
                     used_bytes,
                     usage_percent,
@@ -866,6 +873,7 @@ impl SpaceAnalyzerApp {
                     self.disk_monitor
                         .snapshots
                         .push(crate::disk_monitor::SnapshotEntry {
+                            mount_point,
                             timestamp: chrono::Utc::now().to_rfc3339(),
                             available_bytes,
                             used_bytes,

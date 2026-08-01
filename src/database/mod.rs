@@ -5,7 +5,21 @@
 
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
+
+/// Disk space snapshot recorded by the background monitor
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiskSpaceSnapshot {
+    pub id: i64,
+    pub mount_point: String,
+    pub total_bytes: u64,
+    pub available_bytes: u64,
+    pub used_bytes: u64,
+    pub usage_percent: f32,
+    pub top_process_json: String,
+    pub timestamp: String,
+}
 
 /// Database manager for persistent storage
 pub struct Database {
@@ -26,8 +40,24 @@ pub struct ScanHistoryRecord {
     pub top_directories_json: String,
     pub largest_files_json: String,
     pub deep_scan: bool,
+    pub shallow_scan: bool,
+    pub max_scan_depth: u32,
     pub potential_cleanup_bytes: u64,
     pub timestamp: String,
+}
+
+impl ScanHistoryRecord {
+    pub fn depth_display(&self) -> &'static str {
+        if self.deep_scan {
+            "Deep Scan"
+        } else if self.shallow_scan {
+            "Shallow Scan"
+        } else if self.max_scan_depth != 5 {
+            "Custom Depth"
+        } else {
+            "Default Scan"
+        }
+    }
 }
 
 /// File embedding record for semantic search
@@ -82,27 +112,191 @@ impl Database {
             .conn
             .query_row("PRAGMA user_version", [], |row| row.get(0))
             .unwrap_or(0);
-        if user_version < 1 {
-            // Columns are now part of CREATE TABLE IF NOT EXISTS, but older
-            // databases may still need them. Keep schema and user_version in
-            // sync by running both ALTERs and the version bump atomically.
+
+        // Check if workflow_executions table exists before attempting migration
+        let table_exists: bool = self
+            .conn
+            .query_row(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='workflow_executions'",
+                [],
+                |_| Ok(true),
+            )
+            .unwrap_or(false);
+
+        if user_version < 1 && table_exists {
             self.conn.execute_batch("BEGIN IMMEDIATE")?;
             let migration_result = (|| -> rusqlite::Result<()> {
-                self.conn.execute_batch(
-                    "ALTER TABLE workflow_executions ADD COLUMN actions_completed INTEGER NOT NULL DEFAULT 0;",
-                )?;
-                self.conn.execute_batch(
-                    "ALTER TABLE workflow_executions ADD COLUMN total_actions INTEGER NOT NULL DEFAULT 0;",
-                )?;
+                // Check if columns already exist to avoid errors
+                let columns: Vec<String> = self.conn.prepare(
+                    "SELECT name FROM pragma_table_info('workflow_executions') WHERE name IN ('actions_completed', 'total_actions')"
+                )?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+
+                if !columns.contains(&"actions_completed".to_string()) {
+                    self.conn.execute_batch(
+                        "ALTER TABLE workflow_executions ADD COLUMN actions_completed INTEGER NOT NULL DEFAULT 0;",
+                    )?;
+                }
+                if !columns.contains(&"total_actions".to_string()) {
+                    self.conn.execute_batch(
+                        "ALTER TABLE workflow_executions ADD COLUMN total_actions INTEGER NOT NULL DEFAULT 0;",
+                    )?;
+                }
                 self.conn.execute("PRAGMA user_version = 1", [])?;
                 Ok(())
             })();
             if migration_result.is_err() {
                 let _ = self.conn.execute_batch("ROLLBACK");
+                migration_result?;
             } else {
                 self.conn.execute_batch("COMMIT")?;
             }
-            migration_result?;
+        }
+        if user_version < 2 {
+            self.conn.execute_batch("BEGIN IMMEDIATE")?;
+            let migration_result = (|| -> rusqlite::Result<()> {
+                self.conn
+                    .execute_batch("DROP TABLE IF EXISTS workflow_executions;")?;
+                self.conn.execute_batch(
+                    "CREATE TABLE workflow_executions (
+                        id TEXT PRIMARY KEY,
+                        workflow_id TEXT NOT NULL,
+                        workflow_name TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        started_at TEXT NOT NULL,
+                        completed_at TEXT,
+                        error_message TEXT,
+                        actions_completed INTEGER NOT NULL DEFAULT 0,
+                        total_actions INTEGER NOT NULL DEFAULT 0
+                    );",
+                )?;
+                self.conn.execute_batch(
+                    "CREATE INDEX IF NOT EXISTS idx_workflow_executions_status ON workflow_executions(status);",
+                )?;
+                self.conn.execute_batch(
+                    "CREATE INDEX IF NOT EXISTS idx_workflow_executions_workflow_id ON workflow_executions(workflow_id);",
+                )?;
+                self.conn.execute("PRAGMA user_version = 2", [])?;
+                Ok(())
+            })();
+            if migration_result.is_err() {
+                let _ = self.conn.execute_batch("ROLLBACK");
+                migration_result?;
+            } else {
+                self.conn.execute_batch("COMMIT")?;
+            }
+        }
+        if user_version < 3 {
+            let table_exists: bool = self
+                .conn
+                .query_row(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='scan_history'",
+                    [],
+                    |_| Ok(true),
+                )
+                .unwrap_or(false);
+
+            if table_exists {
+                self.conn.execute_batch("BEGIN IMMEDIATE")?;
+                let migration_result = (|| -> rusqlite::Result<()> {
+                    let columns: Vec<String> = self.conn.prepare(
+                        "SELECT name FROM pragma_table_info('scan_history') WHERE name IN ('extension_sizes_json', 'top_directories_json', 'largest_files_json', 'potential_cleanup_bytes')"
+                    )?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+
+                    if !columns.contains(&"extension_sizes_json".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN extension_sizes_json TEXT NOT NULL DEFAULT '[]';",
+                        )?;
+                    }
+                    if !columns.contains(&"top_directories_json".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN top_directories_json TEXT NOT NULL DEFAULT '[]';",
+                        )?;
+                    }
+                    if !columns.contains(&"largest_files_json".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN largest_files_json TEXT NOT NULL DEFAULT '[]';",
+                        )?;
+                    }
+                    if !columns.contains(&"potential_cleanup_bytes".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN potential_cleanup_bytes INTEGER NOT NULL DEFAULT 0;",
+                        )?;
+                    }
+                    self.conn.execute("PRAGMA user_version = 3", [])?;
+                    Ok(())
+                })();
+                if migration_result.is_err() {
+                    let _ = self.conn.execute_batch("ROLLBACK");
+                    migration_result?;
+                } else {
+                    self.conn.execute_batch("COMMIT")?;
+                }
+            }
+        }
+        if user_version < 4 {
+            let table_exists: bool = self
+                .conn
+                .query_row(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='scan_history'",
+                    [],
+                    |_| Ok(true),
+                )
+                .unwrap_or(false);
+
+            if table_exists {
+                self.conn.execute_batch("BEGIN IMMEDIATE")?;
+                let migration_result = (|| -> rusqlite::Result<()> {
+                    let columns: Vec<String> = self.conn.prepare(
+                        "SELECT name FROM pragma_table_info('scan_history') WHERE name IN ('shallow_scan', 'max_scan_depth')"
+                    )?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+
+                    if !columns.contains(&"shallow_scan".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN shallow_scan BOOLEAN NOT NULL DEFAULT 0;",
+                        )?;
+                    }
+                    if !columns.contains(&"max_scan_depth".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN max_scan_depth INTEGER NOT NULL DEFAULT 5;",
+                        )?;
+                    }
+                    self.conn.execute("PRAGMA user_version = 4", [])?;
+                    Ok(())
+                })();
+                if migration_result.is_err() {
+                    let _ = self.conn.execute_batch("ROLLBACK");
+                    migration_result?;
+                } else {
+                    self.conn.execute_batch("COMMIT")?;
+                }
+            }
+        }
+        if user_version < 5 {
+            self.conn.execute_batch("BEGIN IMMEDIATE")?;
+            let migration_result = (|| -> rusqlite::Result<()> {
+                self.conn.execute_batch(
+                    "CREATE TABLE IF NOT EXISTS file_cache (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        scan_path TEXT NOT NULL,
+                        file_path TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        mtime_unix INTEGER NOT NULL,
+                        extension TEXT NOT NULL,
+                        updated_at TEXT NOT NULL,
+                        UNIQUE(scan_path, file_path)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_file_cache_scan_path ON file_cache(scan_path);
+                    CREATE INDEX IF NOT EXISTS idx_file_cache_file_path ON file_cache(file_path);",
+                )?;
+                self.conn.execute("PRAGMA user_version = 5", [])?;
+                Ok(())
+            })();
+            if migration_result.is_err() {
+                let _ = self.conn.execute_batch("ROLLBACK");
+                migration_result?;
+            } else {
+                self.conn.execute_batch("COMMIT")?;
+            }
         }
         Ok(())
     }
@@ -165,6 +359,30 @@ impl Database {
             );
             CREATE INDEX IF NOT EXISTS idx_file_embeddings_scan_id ON file_embeddings(scan_id);
             CREATE INDEX IF NOT EXISTS idx_file_embeddings_path ON file_embeddings(file_path);
+            CREATE TABLE IF NOT EXISTS disk_space_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                mount_point TEXT NOT NULL,
+                total_bytes INTEGER NOT NULL,
+                available_bytes INTEGER NOT NULL,
+                used_bytes INTEGER NOT NULL,
+                usage_percent REAL NOT NULL,
+                top_process_json TEXT NOT NULL DEFAULT '[]',
+                timestamp TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_disk_space_history_mount ON disk_space_history(mount_point);
+            CREATE INDEX IF NOT EXISTS idx_disk_space_history_timestamp ON disk_space_history(timestamp);
+            CREATE TABLE IF NOT EXISTS file_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                scan_path TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                mtime_unix INTEGER NOT NULL,
+                extension TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(scan_path, file_path)
+            );
+            CREATE INDEX IF NOT EXISTS idx_file_cache_scan_path ON file_cache(scan_path);
+            CREATE INDEX IF NOT EXISTS idx_file_cache_file_path ON file_cache(file_path);
         ")?;
         Ok(())
     }
@@ -174,7 +392,9 @@ impl Database {
         let mut stmt = self.conn.prepare(
             "SELECT timestamp, total_size_bytes FROM scan_history ORDER BY timestamp ASC LIMIT ?1",
         )?;
-        let rows = stmt.query_map(params![limit as i64], |row| Ok((row.get(0)?, row.get::<_, i64>(1)? as u64)))?;
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            Ok((row.get(0)?, row.get::<_, i64>(1)? as u64))
+        })?;
         rows.collect()
     }
 
@@ -189,5 +409,116 @@ impl Database {
         } else {
             Ok(None)
         }
+    }
+
+    /// Record a disk space snapshot
+    pub fn record_disk_snapshot(
+        &self,
+        mount_point: &str,
+        total_bytes: u64,
+        available_bytes: u64,
+        used_bytes: u64,
+        usage_percent: f32,
+        top_process_json: &str,
+    ) -> rusqlite::Result<i64> {
+        self.conn.execute(
+            "INSERT INTO disk_space_history (mount_point, total_bytes, available_bytes, used_bytes, usage_percent, top_process_json, timestamp)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime('now'))",
+            params![mount_point, total_bytes as i64, available_bytes as i64, used_bytes as i64, usage_percent, top_process_json],
+        )?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Get disk space history for a mount point (most recent N entries)
+    pub fn get_disk_space_history(
+        &self,
+        mount_point: &str,
+        limit: usize,
+    ) -> rusqlite::Result<Vec<DiskSpaceSnapshot>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, mount_point, total_bytes, available_bytes, used_bytes, usage_percent, top_process_json, timestamp
+             FROM disk_space_history WHERE mount_point = ?1 ORDER BY timestamp DESC LIMIT ?2",
+        )?;
+        let rows = stmt.query_map(params![mount_point, limit as i64], |row| {
+            Ok(DiskSpaceSnapshot {
+                id: row.get(0)?,
+                mount_point: row.get(1)?,
+                total_bytes: row.get::<_, i64>(2)? as u64,
+                available_bytes: row.get::<_, i64>(3)? as u64,
+                used_bytes: row.get::<_, i64>(4)? as u64,
+                usage_percent: row.get(5)?,
+                top_process_json: row.get(6)?,
+                timestamp: row.get(7)?,
+            })
+        })?;
+        rows.collect()
+    }
+
+    /// Prune old disk space history (keep last N hours)
+    pub fn prune_disk_space_history(&self, keep_hours: u32) -> rusqlite::Result<usize> {
+        let deleted = self.conn.execute(
+            "DELETE FROM disk_space_history WHERE timestamp < datetime('now', '-' || ?1 || ' hours')",
+            params![keep_hours],
+        )?;
+        Ok(deleted)
+    }
+
+    /// Save file cache entries for a scan path
+    pub fn save_file_cache(
+        &self,
+        scan_path: &str,
+        entries: &[(String, u64, i64, String)],
+    ) -> rusqlite::Result<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        {
+            tx.execute(
+                "DELETE FROM file_cache WHERE scan_path = ?1",
+                params![scan_path],
+            )?;
+            let mut stmt = tx.prepare(
+                "INSERT INTO file_cache (scan_path, file_path, size_bytes, mtime_unix, extension, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'))"
+            )?;
+            let now = chrono::Utc::now().to_rfc3339();
+            for (file_path, size, mtime, ext) in entries {
+                stmt.execute(params![scan_path, file_path, *size as i64, mtime, ext, now])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Load file cache entries for a scan path
+    pub fn load_file_cache(
+        &self,
+        scan_path: &str,
+    ) -> rusqlite::Result<HashMap<String, (u64, i64, String)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT file_path, size_bytes, mtime_unix, extension FROM file_cache WHERE scan_path = ?1"
+        )?;
+        let rows = stmt.query_map(params![scan_path], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                (
+                    row.get::<_, i64>(1)? as u64,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, String>(3)?,
+                ),
+            ))
+        })?;
+        let mut map = HashMap::new();
+        for row in rows {
+            let (path, data) = row?;
+            map.insert(path, data);
+        }
+        Ok(map)
+    }
+
+    /// Delete file cache entries for a scan path
+    pub fn delete_file_cache(&self, scan_path: &str) -> rusqlite::Result<usize> {
+        self.conn.execute(
+            "DELETE FROM file_cache WHERE scan_path = ?1",
+            params![scan_path],
+        )
     }
 }

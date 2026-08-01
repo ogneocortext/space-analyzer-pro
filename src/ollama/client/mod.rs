@@ -165,9 +165,7 @@ impl OllamaClientBuilder {
             .map(PromptCache::new)
             .or_else(|| Some(PromptCache::new(PromptCacheConfig::default())));
 
-        let fallback_config = self
-            .fallback_config
-            .unwrap_or_else(|| ModelFallbackConfig::with_common_fallbacks(&self.model));
+        let fallback_config = self.fallback_config.unwrap_or_default();
 
         Ok(OllamaClient {
             base_url,
@@ -205,6 +203,16 @@ impl OllamaClient {
         client.metrics = self.metrics.clone();
         client.operation_timeouts = operation_timeouts;
         Ok(client)
+    }
+
+    /// Replace the fallback chain in-place. Intended to be called after
+    /// model discovery so fallbacks are drawn from the *local* installed
+    /// model set rather than hardcoded names.
+    pub fn set_fallback_from_local(&self, primary_model: &str, local_model_names: &[String]) {
+        let new_config = ModelFallbackConfig::from_local_models(primary_model, local_model_names);
+        if let Ok(mut guard) = self.fallback_config.lock() {
+            *guard = new_config;
+        }
     }
 
     /// Configure extended thinking for requests

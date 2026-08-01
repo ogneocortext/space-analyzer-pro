@@ -13,10 +13,11 @@
         <vm:AIAssistantViewModel x:Name="VM"/>
     </Page.DataContext>
 
-    <Grid Padding="24">
+    <Grid Padding="24" MaxWidth="900">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -28,7 +29,7 @@
         </StackPanel>
 
         <!-- Message list -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer x:Name="MessageScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <ItemsControl ItemsSource="{x:Bind VM.Messages, Mode=OneWay}">
                 <ItemsControl.ItemsPanel>
@@ -60,6 +61,7 @@
                      Text="{x:Bind VM.InputText, Mode=TwoWay}"
                      PlaceholderText="Ask about your disk usage..."
                      AcceptsReturn="True"
+                     KeyDown="Input_KeyDown"
                      AutomationProperties.Name="Chat message input"/>
             <Button Grid.Column="1"
                     Content="Send"
@@ -71,8 +73,8 @@
         </Grid>
 
         <!-- Status -->
-        <TextBlock Grid.Row="2" Text="{x:Bind VM.StatusText, Mode=OneWay}"
+        <TextBlock Grid.Row="3" Text="{x:Bind VM.StatusText, Mode=OneWay}"
                    FontSize="12" Opacity="0.6"
-                   Margin="0,52,0,0"/>
+                   Margin="0,4,0,0"/>
     </Grid>
 </Page>

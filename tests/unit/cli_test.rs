@@ -60,7 +60,7 @@ fn cli_version_matches_crate_version() {
 
 #[test]
 fn cli_no_args_produces_output() {
-    cli().assert().stdout(predicate::str::is_empty().not());
+    cli().assert().stderr(predicate::str::is_empty().not());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -103,6 +103,7 @@ fn cli_scan_real_isolated_dir_completes() {
     std::fs::write(tmp.path().join("sub/deep.txt"), b"deep").unwrap();
 
     let out = cli()
+        .arg("scan")
         .arg("-p")
         .arg(tmp.path().to_string_lossy().into_owned())
         .output()
@@ -131,6 +132,7 @@ fn cli_scan_unicode_path_completes_without_panic() {
     std::fs::write(&unicode_file, b"unicode content").unwrap();
 
     let out = cli()
+        .arg("scan")
         .arg("-p")
         .arg(tmp.path().to_string_lossy().into_owned())
         .output()

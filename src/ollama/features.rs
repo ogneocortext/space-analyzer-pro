@@ -31,6 +31,7 @@ use super::types::{
     ChatMessage, ChatRequest, ChatResponse, OllamaOptions, ToolCall, ToolDefinition, TopLevelThink,
 };
 use crate::embedding_service::{self, SearchResult};
+use crate::gui_common;
 
 // ΓöÇΓöÇΓöÇ Shared helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
@@ -154,8 +155,8 @@ pub async fn semantic_search(
 pub struct ScanSummaryInput {
     pub total_files: usize,
     pub total_size_bytes: u64,
-    pub top_files: Vec<(String, u64)>, // path, size (capped to 10)
-    pub file_types: Vec<(String, usize)>, // extension, count
+    pub top_files: Vec<gui_common::LargestFileEntry>, // path, size (capped to 10)
+    pub file_types: Vec<(String, usize)>,             // extension, count
 }
 
 #[derive(Debug, Clone)]
@@ -182,9 +183,14 @@ pub async fn summarize_scan(
         .top_files
         .iter()
         .take(10)
-        .map(|(p, s)| {
-            let name = p.rsplit(['\\', '/']).next().unwrap_or(p).to_string();
-            (name, format!("{:.1} MB", *s as f64 / 1_048_576.0))
+        .map(|file| {
+            let name = file
+                .path
+                .rsplit(['\\', '/'])
+                .next()
+                .unwrap_or(&file.path)
+                .to_string();
+            (name, format!("{:.1} MB", file.size as f64 / 1_048_576.0))
         })
         .collect();
     if top_files.is_empty() {
@@ -1051,13 +1057,17 @@ mod tests {
     async fn live_summarize_scan_returns_non_empty_summary() {
         use crate::ollama::OllamaClient;
 
-        let model = std::env::var("OLLAMA_SUMMARIZE_MODEL").unwrap_or_else(|_| "llama3.2:3b".into());
-        let client = OllamaClient::new("http://127.0.0.1:11434", &model)
-            .expect("client builder failed");
+        let model =
+            std::env::var("OLLAMA_SUMMARIZE_MODEL").unwrap_or_else(|_| "llama3.2:3b".into());
+        let client =
+            OllamaClient::new("http://127.0.0.1:11434", &model).expect("client builder failed");
         let input = ScanSummaryInput {
             total_files: 100,
             total_size_bytes: 1_000_000_000,
-            top_files: vec![("C:/big.bin".to_string(), 500_000_000)],
+            top_files: vec![gui_common::LargestFileEntry {
+                path: "C:/big.bin".to_string(),
+                size: 500_000_000,
+            }],
             file_types: vec![("bin".to_string(), 50)],
         };
         let out = summarize_scan(&client, &model, input)

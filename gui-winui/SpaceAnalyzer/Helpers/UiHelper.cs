@@ -1,6 +1,7 @@
 ﻿// Licensed under the MIT License.
 
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.UI;
@@ -60,11 +61,15 @@ public static class UiHelper
     /// Maps a percentage (0-100) to a semantic color brush:
     /// <c>>= 90</c> = Red, <c>>= 70</c> = Gold, otherwise Green.
     /// </summary>
+    private static readonly SolidColorBrush BrushRed = new(Colors.Red);
+    private static readonly SolidColorBrush BrushGold = new(Colors.Gold);
+    private static readonly SolidColorBrush BrushGreen = new(Colors.Green);
+
     public static SolidColorBrush GetUsageBrush(double percent) => percent switch
     {
-        >= 90 => new SolidColorBrush(Colors.Red),
-        >= 70 => new SolidColorBrush(Colors.Gold),
-        _ => new SolidColorBrush(Colors.Green),
+        >= 90 => BrushRed,
+        >= 70 => BrushGold,
+        _ => BrushGreen,
     };
 
     // ── System memory ───────────────────────────────────────────────
@@ -94,4 +99,26 @@ public static class UiHelper
 
     [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern bool GlobalMemoryStatusEx([In, Out] ref MemoryStatusEx lpBuffer);
+
+    // ── Open path ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Opens a file or folder path using the default system handler.
+    /// </summary>
+    public static void OpenPath(string path)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+            };
+            Process.Start(psi);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[UiHelper] OpenPath failed: {ex}");
+        }
+    }
 }

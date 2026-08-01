@@ -28,7 +28,7 @@ from ._quality_history import QualityHistory, QualityRecord
 from ._screenshot_links import ScreenshotLinkStore
 logger = logging.getLogger("ux_pipeline.pipeline")
 
-DEFAULT_VISION_MODEL: str = "phi4-mini:latest"
+DEFAULT_VISION_MODEL: str = "qwen3-vl:4b"
 GENERATION_OPTIONS: dict[str, Any] = {"temperature": 0.2, "num_predict": 384}
 
 
@@ -63,14 +63,14 @@ def _extract(path: Path) -> dict[str, Any] | None:
         return None
     try:
         gray = img.convert("L")
-        pixels = list(gray.getdata())
+        pixels = list(gray.get_flattened_data())
         total = len(pixels)
         if total == 0:
             return None
         avg_bright = sum(pixels) / total
         dark_pct = sum(1 for p in pixels if p < 64) / total * 100
         edges = gray.filter(ImageFilter.FIND_EDGES)
-        edge_pct = sum(1 for p in list(edges.getdata()) if p > 128) / total * 100
+        edge_pct = sum(1 for p in list(edges.get_flattened_data()) if p > 128) / total * 100
         center = img.crop(
             (img.size[0] // 4, img.size[1] // 4, 3 * img.size[0] // 4, 3 * img.size[1] // 4)
         ).quantize(16)
@@ -79,11 +79,21 @@ def _extract(path: Path) -> dict[str, Any] | None:
             "bright": round(avg_bright, 1),
             "dark_pct": round(dark_pct, 1),
             "edge_pct": round(edge_pct, 1),
-            "center_colors": len(set(center.getdata())),
+            "center_colors": len(set(center.get_flattened_data())),
         }
     except (OSError, ValueError) as exc:
         logger.debug("Feature extraction failed for %s: %s", path, exc)
         return None
+
+
+def _latest_screenshots_dir(shots_root: Path) -> Path | None:
+    """Return the most recently modified ``screenshots_*`` directory, or ``None``."""
+    candidates = sorted(
+        [p for p in shots_root.iterdir() if p.is_dir() and p.name.startswith("screenshots_")],
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return candidates[0] if candidates else None
 
 
 # ---------------------------------------------------------------------- #
@@ -310,7 +320,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--shots-root", default=None, help="Directory containing screenshots_* subdirs")
     parser.add_argument("--tracker", default=None, help="Path to the issue tracker JSON")
     parser.add_argument("--history", default=None, help="Path to the quality history JSONL")
-    parser.add_argument("--model", default=None, help="Ollama model name (default phi4-mini:latest)")
+    parser.add_argument("--model", default=None, help="Ollama model name (default qwen3-vl:4b)")
     parser.add_argument("--output", default="ux_report.md", help="Output path for --report")
     parser.add_argument("--status", default=None, help="Filter --list by status")
     parser.add_argument("--category", default=None, help="Filter --list by category")

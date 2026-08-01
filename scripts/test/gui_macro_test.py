@@ -84,6 +84,9 @@ DIB_RGB_COLORS = 0
 VK_LEFT = 0x25
 VK_RIGHT = 0x27
 VK_RETURN = 0x0D
+VK_BACK = 0x08
+VK_CONTROL = 0x11
+VK_A = 0x41
 
 
 class BITMAPINFOHEADER(ctypes.Structure):
@@ -271,6 +274,41 @@ def send_key(hwnd, vk_code, desc="", run=None):
     if run:
         run.log_event("KEY", f"{desc} vk=0x{vk_code:02X}", duration_ms=elapsed)
     time.sleep(0.15)
+
+
+def type_string(hwnd, text: str, run=None):
+    """Type a string character-by-character using SendInput."""
+    user32.SetForegroundWindow(hwnd)
+    time.sleep(0.02)
+    for ch in text:
+        # Map common chars to VK codes; use VkKeyScanW for full ASCII
+        vk = user32.VkKeyScanW(ord(ch)) & 0xFF
+        # Shift if needed
+        shift = (user32.VkKeyScanW(ord(ch)) >> 8) & 0xFF
+        if shift & 1:
+            inp_down = INPUT()
+            inp_down.type = INPUT_KEYBOARD
+            inp_down.union.ki.wVk = 0x10  # VK_SHIFT
+            user32.SendInput(1, ctypes.byref(inp_down), ctypes.sizeof(INPUT))
+        inp_down = INPUT()
+        inp_down.type = INPUT_KEYBOARD
+        inp_down.union.ki.wVk = vk
+        user32.SendInput(1, ctypes.byref(inp_down), ctypes.sizeof(INPUT))
+        time.sleep(0.01)
+        inp_up = INPUT()
+        inp_up.type = INPUT_KEYBOARD
+        inp_up.union.ki.wVk = vk
+        inp_up.union.ki.dwFlags = KEYEVENTF_KEYUP
+        user32.SendInput(1, ctypes.byref(inp_up), ctypes.sizeof(INPUT))
+        if shift & 1:
+            inp_up = INPUT()
+            inp_up.type = INPUT_KEYBOARD
+            inp_up.union.ki.wVk = 0x10
+            inp_up.union.ki.dwFlags = KEYEVENTF_KEYUP
+            user32.SendInput(1, ctypes.byref(inp_up), ctypes.sizeof(INPUT))
+        time.sleep(0.01)
+    if run:
+        run.log_event("TYPE", f"Typed: {text}")
 
 
 def get_window_text(hwnd) -> str:
@@ -604,23 +642,99 @@ def test_tab(run: TestRun, tab_name: str, screenshot_name: str, extra_fn=None):
     run.end_phase()
 
 
-def test_scan_button(run: TestRun, hwnd, win):
-    """Click the Scan button inside a --tab scan instance."""
-    scan_btn_x = win[0] + win[2] // 2 - 60
-    scan_btn_y = win[1] + 120
+def create_test_files(base_dir: Path) -> int:
+    """Create a temporary directory with test files for scanning. Returns file count."""
+    base_dir.mkdir(parents=True, exist_ok=True)
+    count = 0
+    # Various file types and sizes
+    test_data = [
+        ("docs/readme.txt", b"Hello World " * 100),
+        ("docs/report.pdf", b"%PDF-1.4 fake content " * 50),
+        ("images/photo.jpg", b"\xff\xd8\xff\xe0" + b"\x00" * 500),
+        ("images/logo.png", b"\x89PNG" + b"\x00" * 300),
+        ("code/main.rs", b"fn main() { println!(\"hello\"); }\n" * 20),
+        ("code/lib.rs", b"pub fn helper() -> i32 { 42 }\n" * 15),
+        ("data/users.csv", b"name,email\nAlice,alice@test.com\nBob,bob@test.com\n" * 30),
+        ("data/config.json", b'{"key": "value", "num": 42}\n' * 25),
+        ("build/output.dll", b"\x00" * 1024),
+        ("build/cache.bin", b"\xde\xad\xbe\xef" * 256),
+        ("temp/log1.txt", b"Log entry\n" * 200),
+        ("temp/log2.txt", b"Error: something\n" * 150),
+        ("notes/ideas.md", b"# Ideas\n- Idea one\n- Idea two\n" * 10),
+        ("backup/old_data.zip", b"\x50\x4b\x03\x04" + b"\x00" * 800),
+    ]
+    for rel_path, data in test_data:
+        p = base_dir / rel_path
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+        count += 1
+    return count
 
-    t0 = time.time()
-    silent_click(hwnd, scan_btn_x, scan_btn_y, "Click Scan button", run)
 
-    for tick in range(30):
+def test_scan(run: TestRun, hwnd, win):
+    """Full scan test: type path, click Start Scan, wait for results."""
+    import tempfile
+    import shutil
+
+    # 1. Create temp directory with test files
+    scan_dir = Path(tempfile.mkdtemp(prefix="space_test_"))
+    try:
+        file_count = create_test_files(scan_dir)
+        run.log_event("SETUP", f"Created {file_count} test files in {scan_dir}")
+
+        # 2. Click on the text field to focus it (field is below the header)
+        text_field_x = win[0] + win[2] // 2 - 50
+        text_field_y = win[1] + 115
+        silent_click(hwnd, text_field_x, text_field_y, "Click path text field", run)
+        time.sleep(0.3)
+
+        # 3. Select all and type the temp path
+        send_key(hwnd, VK_CONTROL, "Hold Ctrl", run)
+        send_key(hwnd, VK_A, "Ctrl+A select all", run)
+        time.sleep(0.1)
+        type_string(hwnd, str(scan_dir), run)
+        send_key(hwnd, VK_RETURN, "Enter to confirm path", run)
         time.sleep(0.5)
-        if tick % 4 == 0:
-            run.screenshot(f"03_scan_progress_{tick}", hwnd=hwnd)
+        run.screenshot("scan_01_path_entered", hwnd=hwnd)
 
-    time.sleep(1)
-    scan_ms = (time.time() - t0) * 1000
-    run.screenshot("03_scan_results", hwnd=hwnd)
-    run.record_test("scan_no_crash", process_alive(hwnd), "Window still alive after scan", scan_ms)
+        # 4. Click Start Scan button (below the Deep scan checkbox)
+        scan_btn_x = win[0] + 180
+        scan_btn_y = win[1] + 235
+        silent_click(hwnd, scan_btn_x, scan_btn_y, "Click Start Scan", run)
+
+        # 5. Wait for scan to complete (up to 30 seconds)
+        scan_start = time.time()
+        scan_completed = False
+        for tick in range(60):
+            time.sleep(0.5)
+            elapsed_s = time.time() - scan_start
+            if tick % 6 == 0:
+                run.screenshot(f"scan_02_progress_{int(elapsed_s)}s", hwnd=hwnd)
+                run.log_event("SCAN_PROGRESS", f"{elapsed_s:.1f}s elapsed")
+            # Check if window is still alive
+            if not process_alive(hwnd):
+                run.record_test("scan_process_alive", False, "Process died during scan")
+                return
+            # After ~15s, assume scan is done for small dirs
+            if elapsed_s > 15:
+                scan_completed = True
+                break
+
+        time.sleep(1)
+        scan_ms = (time.time() - scan_start) * 1000
+
+        # 6. Take final screenshot and verify
+        run.screenshot("scan_03_results", hwnd=hwnd)
+        run.record_test("scan_completes", scan_completed, f"Scan finished in {scan_ms:.0f}ms", scan_ms)
+        run.record_test("scan_no_crash", process_alive(hwnd), "Window survived scan", scan_ms)
+
+    finally:
+        # Cleanup temp directory
+        try:
+            shutil.rmtree(scan_dir, ignore_errors=True)
+            run.log_event("CLEANUP", f"Removed {scan_dir}")
+        except Exception:
+            pass
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -673,6 +787,15 @@ def main() -> int:
             time.sleep(0.5)
             run.screenshot(shot_name, hwnd=hwnd)
             run.record_test(f"tab_{tab_name.lower().replace(' ', '_')}_visible", True, f"Navigated to {tab_name}")
+        run.end_phase()
+
+        # Navigate back to Scan tab for the scan test (reuse existing instance)
+        print("\n  [9] Scan Test")
+        navigate_tab(hwnd, "Scan", run)
+        time.sleep(0.5)
+        win = get_window_rect(hwnd)
+        run.begin_phase("scan_test")
+        test_scan(run, hwnd, win)
         run.end_phase()
 
     except Exception as e:

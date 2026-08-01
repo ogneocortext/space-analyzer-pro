@@ -5,14 +5,21 @@ impl SpaceAnalyzerApp {
         if self.is_scanning {
             return;
         }
+        let path = PathBuf::from(&self.settings.default_scan_path);
+        if path.as_os_str().is_empty() {
+            self.status_message = Some("Select a folder to enable scanning.".to_string());
+            return;
+        }
+        if !path.exists() {
+            self.status_message = Some(format!("Path does not exist: {}", path.display()));
+            return;
+        }
         self.is_scanning = true;
         self.scan_progress = 0.0;
         self.scan_result = None;
         self.status_message = None;
         self.scan_performance.start();
-
-        // Sync current_path from the text field so typed paths are scanned
-        self.current_path = PathBuf::from(&self.settings.default_scan_path);
+        self.current_path = path.clone();
 
         let path = self.current_path.clone();
         let deep = self.settings.default_deep_scan;
@@ -115,9 +122,12 @@ impl SpaceAnalyzerApp {
                         }
                         ScanMessage::Complete(result) => {
                             if let Some(ref db) = self.db {
-                                if let Err(e) =
-                                    db.save_scan(&result, self.settings.default_deep_scan)
-                                {
+                                if let Err(e) = db.save_scan(
+                                    &result,
+                                    self.settings.default_deep_scan,
+                                    false,
+                                    self.settings.max_scan_depth,
+                                ) {
                                     self.status_message = Some(format!(
                                         "Failed to save scan: {}",
                                         sanitize_error_message(&e.to_string())
@@ -590,8 +600,8 @@ impl SpaceAnalyzerApp {
         let filtered_files: Vec<_> = result
             .largest_files
             .iter()
-            .filter(|(path, _)| {
-                filter_lower.is_empty() || path.to_lowercase().contains(&filter_lower)
+            .filter(|file| {
+                filter_lower.is_empty() || file.path.to_lowercase().contains(&filter_lower)
             })
             .collect();
 
@@ -624,16 +634,17 @@ impl SpaceAnalyzerApp {
                         .color(colors::TEXT_SECONDARY),
                 );
                 ui.end_row();
-                for (path, size) in filtered_files {
+                for file in filtered_files {
                     ui.label(
-                        egui::RichText::new(formatting::format_bytes(*size)).color(colors::WARNING),
+                        egui::RichText::new(formatting::format_bytes(file.size))
+                            .color(colors::WARNING),
                     );
-                    ui.label(path);
+                    ui.label(&file.path);
                     ui.horizontal(|ui| {
-                        let file_path = std::path::Path::new(path);
+                        let file_path = std::path::Path::new(&file.path);
                         if file_path.exists() {
                             if tiny_button(ui, "Open").clicked() {
-                                let _ = open::that(path);
+                                let _ = open::that(&file.path);
                             }
                             if tiny_button(ui, "Folder").clicked() {
                                 if let Some(parent) = file_path.parent() {
@@ -642,7 +653,7 @@ impl SpaceAnalyzerApp {
                             }
                         }
                         if tiny_button(ui, "Preview").clicked() {
-                            self.impact_preview_input = path.clone();
+                            self.impact_preview_input = file.path.clone();
                             self.impact_preview_open = true;
                             self.current_impact_report = None;
                         }

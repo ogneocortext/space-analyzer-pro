@@ -1,0 +1,22 @@
+{
+  "issues": [
+    {
+      "category": "ui",
+      "extra": {},
+      "first_seen": "2026-07-29T13:52:56+00:00",
+      "issue_id": "ui:3526eb7257da",
+      "last_seen": "2026-07-29T13:52:56+00:00",
+      "notes": "",
+      "occurrences": 1,
+      "priority_note": "",
+      "priority_rank": 0,
+      "screenshot": "screenshot_01.png",
+      "severity": "medium",
+      "status": "open",
+      "tags": [],
+      "title": "[]"
+    }
+  ],
+  "schema_version": 1,
+  "updated_at": "2026-07-29T13:52:56+00:00"
+}

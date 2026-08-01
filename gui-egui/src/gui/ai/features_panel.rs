@@ -79,13 +79,13 @@ impl SpaceAnalyzerApp {
             .largest_files
             .iter()
             .take(50)
-            .map(|(p, s)| {
-                let ext = std::path::Path::new(p)
+            .map(|file| {
+                let ext = std::path::Path::new(&file.path)
                     .extension()
                     .and_then(|e| e.to_str())
                     .unwrap_or("")
                     .to_lowercase();
-                (p.clone(), *s, ext)
+                (file.path.clone(), file.size, ext)
             })
             .collect();
 
@@ -260,7 +260,7 @@ impl SpaceAnalyzerApp {
                 formatting::format_bytes(s.total_size_bytes),
                 s.largest_files
                     .first()
-                    .map(|(p, sz)| format!("{} ({})", p, formatting::format_bytes(*sz)))
+                    .map(|file| format!("{} ({})", file.path, formatting::format_bytes(file.size)))
                     .unwrap_or_else(|| "(no files)".to_string()),
             )
         });

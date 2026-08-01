@@ -5,7 +5,13 @@ use super::recommendations;
 use super::types::ScanResult;
 use crate::animation;
 
-pub fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool, no_animation: bool) {
+pub fn print_text_results(
+    result: &ScanResult,
+    top_n: usize,
+    verbose: bool,
+    no_animation: bool,
+    depth_label: &str,
+) {
     println!();
     println!("╔══════════════════════════════════════════════════════════════╗");
     println!("║           Space Analyzer Pro — Disk Space Report            ║");
@@ -32,6 +38,7 @@ pub fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool, no_a
 
     animation::print_section_header_animated("📊", "SCAN SUMMARY", no_animation);
     println!("   Path:     {}", result.path);
+    println!("   Depth:    {}", depth_label);
     println!(
         "   Files:    {} files in {} directories",
         result.total_files, result.total_dirs
@@ -228,18 +235,18 @@ pub fn print_text_results(result: &ScanResult, top_n: usize, verbose: bool, no_a
             ),
             no_animation,
         );
-        for (i, (path, size)) in result.largest_files.iter().take(top_n).enumerate() {
+        for (i, file) in result.largest_files.iter().take(top_n).enumerate() {
             let pct = if result.total_size_bytes > 0 {
-                (*size as f64 / result.total_size_bytes as f64) * 100.0
+                (file.size as f64 / result.total_size_bytes as f64) * 100.0
             } else {
                 0.0
             };
             println!(
                 "   {:>3}. {:>10} ({:5.1}%)  {}",
                 i + 1,
-                format_bytes(*size),
+                format_bytes(file.size),
                 pct,
-                path
+                file.path
             );
         }
         println!();
@@ -290,8 +297,8 @@ pub fn print_csv(result: &ScanResult) {
     }
     println!();
     println!("file_path,size_bytes");
-    for (path, size) in &result.largest_files {
-        println!("\"{}\",{}", path.replace('"', "\"\""), size);
+    for file in &result.largest_files {
+        println!("\"{}\",{}", file.path.replace('"', "\"\""), file.size);
     }
 }
 
@@ -299,8 +306,8 @@ fn print_installer_inventory(result: &ScanResult, no_animation: bool) {
     let mut installers: Vec<(&str, u64)> = result
         .largest_files
         .iter()
-        .filter(|(p, _)| {
-            let lower = p.to_lowercase();
+        .filter(|f| {
+            let lower = f.path.to_lowercase();
             lower.ends_with(".exe")
                 || lower.ends_with(".msi")
                 || lower.ends_with(".rar")
@@ -310,7 +317,7 @@ fn print_installer_inventory(result: &ScanResult, no_animation: bool) {
                 || lower.ends_with(".rpm")
                 || lower.ends_with(".pkg")
         })
-        .map(|(p, s)| (p.as_str(), *s))
+        .map(|f| (f.path.as_str(), f.size))
         .collect();
     installers.sort_by_key(|b| std::cmp::Reverse(b.1));
 

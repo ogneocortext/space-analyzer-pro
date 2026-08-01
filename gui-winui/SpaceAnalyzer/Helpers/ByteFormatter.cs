@@ -1,7 +1,5 @@
 // Licensed under the MIT License.
 
-using System;
-
 namespace SpaceAnalyzer.Helpers;
 
 /// <summary>

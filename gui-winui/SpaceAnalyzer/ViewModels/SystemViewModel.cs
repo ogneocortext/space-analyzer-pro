@@ -22,6 +22,7 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly DispatcherTimer _refreshTimer;
     private PerformanceCounter? _cpuCounter;
+    private bool _cpuCounterInitialized;
     private bool _disposed;
 
     public SystemViewModel()
@@ -105,6 +106,13 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
         {
             _cpuCounter ??= new PerformanceCounter(
                 "Processor", "% Processor Time", "_Total", true);
+            if (!_cpuCounterInitialized)
+            {
+                _cpuCounterInitialized = true;
+                _cpuCounter.NextValue();
+                return;
+            }
+
             CpuUsage = Math.Min(100, _cpuCounter.NextValue());
 
             if (UiHelper.GetMemoryStatus(out var memStatus))
@@ -120,6 +128,7 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
         }
         catch
         {
+            _cpuCounterInitialized = false;
             _cpuCounter?.Dispose();
             _cpuCounter = null;
             CpuUsage = 0;
@@ -173,6 +182,8 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
         _cpuCounter?.Dispose();
         GC.SuppressFinalize(this);
     }
+
+    public DispatcherTimer DispatcherTimer => _refreshTimer;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

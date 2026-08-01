@@ -107,24 +107,33 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
         Results.Clear();
         ResultCount = 0;
 
-        if (_scanner.IsAvailable)
+        try
         {
-            await SearchWithScannerAsync();
+            if (_scanner.IsAvailable)
+            {
+                await SearchWithScannerAsync();
+            }
+            else
+            {
+                await SearchWithManagedWalkAsync();
+            }
+            StatusMessage = $"Found {ResultCount} match(es).";
         }
-        else
+        catch (Exception ex)
         {
-            await SearchWithManagedWalkAsync();
+            StatusMessage = $"Search error: {ex.Message}";
         }
-
-        IsSearching = false;
-        StatusMessage = $"Found {ResultCount} match(es).";
+        finally
+        {
+            IsSearching = false;
+        }
     }
 
     private async Task SearchWithScannerAsync()
     {
         try
         {
-            var result = await _scanner.ScanDirectoryAsync(SearchPath, deep: true, ct: _cts.Token);
+            var result = await _scanner.ScanDirectoryAsync(SearchPath, depthMode: ScannerService.DepthMode.Deep, ct: _cts.Token);
             if (result is null)
                 return;
 
@@ -169,9 +178,12 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
                 WalkDirectory(new DirectoryInfo(SearchPath), query, minSizeBytes, collected);
             }, _cts.Token);
 
-            // Continuation runs on the UI thread
-            foreach (var r in collected) Results.Add(r);
-            ResultCount = Results.Count;
+            var ui = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            ui.TryEnqueue(() =>
+            {
+                foreach (var r in collected) Results.Add(r);
+                ResultCount = Results.Count;
+            });
         }
         catch (Exception ex)
         {
@@ -181,7 +193,8 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
 
     private void WalkDirectory(DirectoryInfo dir, string query, ulong minSizeBytes, List<SmartSearchResult> collected)
     {
-        if (!_isSearchingFlag) return;
+        if (!_isSearchingFlag || _cts.IsCancellationRequested)
+            return;
 
         try
         {
@@ -210,8 +223,9 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[SmartSearchViewModel] WalkDirectory error: {ex}");
             // Skip inaccessible directories
         }
     }
@@ -247,16 +261,7 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
-/// <summary>
-/// A single search result for the Smart Search page.
-/// </summary>
-public class SmartSearchResult
-{
-    public string Path { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public ulong SizeBytes { get; set; }
-    public string SizeDisplay { get; set; } = string.Empty;
-}
+
 
 
 

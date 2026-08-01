@@ -27,5 +27,10 @@ public sealed partial class SettingsPage : Page
     {
         ((ViewModels.SettingsViewModel)DataContext).Save();
     }
+
+    private void Reset_Click(object sender, RoutedEventArgs e)
+    {
+        ((ViewModels.SettingsViewModel)DataContext).ResetToDefaults();
+    }
 }
 

@@ -15,6 +15,8 @@ namespace SpaceAnalyzer.Services;
 public class ScannerService
 {
     private readonly string _scannerPath;
+    private Process? _currentScannerProcess;
+    private readonly object _processLock = new();
 
     /// <summary>
     /// Maps the Rust scanner's snake_case JSON (e.g. "total_files") to the PascalCase
@@ -114,6 +116,9 @@ public class ScannerService
                 $"Scanner binary not found at {_scannerPath}. " +
                 "Build it with: cargo build --release --bin space-analyzer-pro");
 
+        if (!Directory.Exists(path))
+            throw new DirectoryNotFoundException($"Scan path does not exist: {path}");
+
         var args = $"scan --path \"{path}\" --format json";
         if (depthMode == DepthMode.Deep)
             args += " --deep";
@@ -134,6 +139,35 @@ public class ScannerService
         {
             throw new Exception($"Failed to parse scan result: {jex.Message}. Output: {Truncate(output)}", jex);
         }
+    }
+
+    /// <summary>
+    /// Cancel the currently running scan by killing the scanner process tree.
+    /// </summary>
+    public void StopScan()
+    {
+        lock (_processLock)
+        {
+            if (_currentScannerProcess is not null && !_currentScannerProcess.HasExited)
+            {
+                try
+                {
+                    _currentScannerProcess.Kill(entireProcessTree: true);
+                }
+                catch { }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Export a scan result to a JSON file.
+    /// </summary>
+    public async Task<string> ExportScanResultAsync(ScanResult result, string outputPath, CancellationToken ct = default)
+    {
+        var options = new JsonSerializerOptions { WriteIndented = true };
+        var json = JsonSerializer.Serialize(result, options);
+        await File.WriteAllTextAsync(outputPath, json, ct);
+        return outputPath;
     }
 
     /// <summary>
@@ -344,7 +378,12 @@ public class ScannerService
             CreateNoWindow = true,
         };
 
-        using var process = new Process { StartInfo = psi };
+        lock (_processLock)
+        {
+            _currentScannerProcess = new Process { StartInfo = psi };
+        }
+
+        var process = _currentScannerProcess;
         process.Start();
         var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
         var stderrTask = process.StandardError.ReadToEndAsync(ct);
@@ -359,6 +398,14 @@ public class ScannerService
         {
             try { process.Kill(entireProcessTree: true); } catch { }
             throw new TimeoutException($"Scanner timed out after {s_scannerTimeout.TotalMinutes} minutes");
+        }
+        finally
+        {
+            lock (_processLock)
+            {
+                if (_currentScannerProcess == process)
+                    _currentScannerProcess = null;
+            }
         }
 
         var stdout = await stdoutTask;

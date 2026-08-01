@@ -1,5 +1,6 @@
 use super::*;
 use crate::error::AppError;
+use crate::gui_common;
 
 impl ToolRegistry {
     /// Execute a tool call using the current application state
@@ -27,7 +28,10 @@ impl ToolRegistry {
             "preview_impact" => Ok(self.preview_impact(args)),
             "move_to_trash" => Ok(self.move_to_trash_preview(args)),
             "hardlink_duplicates" => Ok(self.hardlink_duplicates_preview(args)),
-            _ => Ok(serde_json::json!({"error": format!("Unknown tool: {}", function_name)}).to_string()),
+            _ => Ok(
+                serde_json::json!({"error": format!("Unknown tool: {}", function_name)})
+                    .to_string(),
+            ),
         }
     }
 
@@ -77,11 +81,16 @@ impl ToolRegistry {
 
     fn get_scan_summary(&self, scan_result: Option<&ScanResult>) -> String {
         if let Some(result) = scan_result {
-            let file_types: Vec<serde_json::Value> = result.file_types.iter()
+            let file_types: Vec<serde_json::Value> = result
+                .file_types
+                .iter()
                 .map(|(ext, count)| serde_json::json!({"extension": ext, "count": count}))
                 .collect();
-            let largest_files: Vec<serde_json::Value> = result.largest_files.iter().take(10)
-                .map(|(path, size)| serde_json::json!({"path": path, "size_bytes": size}))
+            let largest_files: Vec<serde_json::Value> = result
+                .largest_files
+                .iter()
+                .take(10)
+                .map(|file| serde_json::json!({"path": file.path, "size_bytes": file.size}))
                 .collect();
             serde_json::json!({
                 "path": result.path,
@@ -91,9 +100,11 @@ impl ToolRegistry {
                 "duration_secs": result.duration_secs,
                 "file_types": file_types,
                 "largest_files": largest_files
-            }).to_string()
+            })
+            .to_string()
         } else {
-            serde_json::json!({"error": "No scan results available. Please run a scan first."}).to_string()
+            serde_json::json!({"error": "No scan results available. Please run a scan first."})
+                .to_string()
         }
     }
 
@@ -110,15 +121,21 @@ impl ToolRegistry {
                     if records.is_empty() {
                         Ok(serde_json::json!({"status": "empty", "message": "No scan history available."}).to_string())
                     } else {
-                        let entries: Vec<serde_json::Value> = records.iter().map(|r| {
-                            serde_json::json!({
-                                "timestamp": r.timestamp,
-                                "path": r.path,
-                                "total_files": r.total_files,
-                                "total_size_mb": r.total_size_mb
+                        let entries: Vec<serde_json::Value> = records
+                            .iter()
+                            .map(|r| {
+                                serde_json::json!({
+                                    "timestamp": r.timestamp,
+                                    "path": r.path,
+                                    "total_files": r.total_files,
+                                    "total_size_mb": r.total_size_mb
+                                })
                             })
-                        }).collect();
-                        Ok(serde_json::json!({"scans": entries, "count": entries.len()}).to_string())
+                            .collect();
+                        Ok(
+                            serde_json::json!({"scans": entries, "count": entries.len()})
+                                .to_string(),
+                        )
                     }
                 }
                 Err(e) => Err(AppError::Scanner(e.into())),
@@ -133,21 +150,24 @@ impl ToolRegistry {
         if volumes.is_empty() {
             serde_json::json!({"status": "empty", "message": "No disk volumes found."}).to_string()
         } else {
-            let entries: Vec<serde_json::Value> = volumes.iter().map(|vol| {
-                let usage_pct = if vol.total_bytes > 0 {
-                    (vol.used_bytes as f64 / vol.total_bytes as f64) * 100.0
-                } else {
-                    0.0
-                };
-                serde_json::json!({
-                    "mount_point": vol.mount_point,
-                    "name": vol.name,
-                    "total_bytes": vol.total_bytes,
-                    "used_bytes": vol.used_bytes,
-                    "available_bytes": vol.available_bytes,
-                    "used_percent": (usage_pct * 100.0).round() / 100.0
+            let entries: Vec<serde_json::Value> = volumes
+                .iter()
+                .map(|vol| {
+                    let usage_pct = if vol.total_bytes > 0 {
+                        (vol.used_bytes as f64 / vol.total_bytes as f64) * 100.0
+                    } else {
+                        0.0
+                    };
+                    serde_json::json!({
+                        "mount_point": vol.mount_point,
+                        "name": vol.name,
+                        "total_bytes": vol.total_bytes,
+                        "used_bytes": vol.used_bytes,
+                        "available_bytes": vol.available_bytes,
+                        "used_percent": (usage_pct * 100.0).round() / 100.0
+                    })
                 })
-            }).collect();
+                .collect();
             serde_json::json!({"volumes": entries}).to_string()
         }
     }
@@ -167,7 +187,8 @@ impl ToolRegistry {
             "swap_used_bytes": resources.swap_used_bytes,
             "swap_total_bytes": resources.swap_total_bytes,
             "swap_percent": (swap_pct * 100.0).round() / 100.0
-        }).to_string()
+        })
+        .to_string()
     }
 
     fn get_storage_trend(
@@ -185,7 +206,10 @@ impl ToolRegistry {
                         let entries: Vec<serde_json::Value> = trend.iter().map(|(ts, size)| {
                             serde_json::json!({"timestamp": ts, "size_bytes": size})
                         }).collect();
-                        Ok(serde_json::json!({"trend": entries, "count": entries.len()}).to_string())
+                        Ok(
+                            serde_json::json!({"trend": entries, "count": entries.len()})
+                                .to_string(),
+                        )
                     }
                 }
                 Err(e) => Err(AppError::Scanner(e.into())),
@@ -197,9 +221,10 @@ impl ToolRegistry {
 
     fn list_workflows(&self) -> String {
         let templates = WorkflowTemplates::all_templates();
-        let entries: Vec<serde_json::Value> = templates.iter().map(|wf| {
-            serde_json::json!({"name": wf.name, "description": wf.description})
-        }).collect();
+        let entries: Vec<serde_json::Value> = templates
+            .iter()
+            .map(|wf| serde_json::json!({"name": wf.name, "description": wf.description}))
+            .collect();
         serde_json::json!({"workflows": entries}).to_string()
     }
 
@@ -208,18 +233,21 @@ impl ToolRegistry {
             let total: usize = result.file_types.values().sum();
             let mut types_vec: Vec<_> = result.file_types.iter().collect();
             types_vec.sort_by(|a, b| b.1.cmp(a.1));
-            let entries: Vec<serde_json::Value> = types_vec.iter().map(|(ext, count)| {
-                let pct = if total > 0 {
-                    (**count as f64 / total as f64) * 100.0
-                } else {
-                    0.0
-                };
-                serde_json::json!({
-                    "extension": ext,
-                    "count": count,
-                    "percent": (pct * 100.0).round() / 100.0
+            let entries: Vec<serde_json::Value> = types_vec
+                .iter()
+                .map(|(ext, count)| {
+                    let pct = if total > 0 {
+                        (**count as f64 / total as f64) * 100.0
+                    } else {
+                        0.0
+                    };
+                    serde_json::json!({
+                        "extension": ext,
+                        "count": count,
+                        "percent": (pct * 100.0).round() / 100.0
+                    })
                 })
-            }).collect();
+                .collect();
             serde_json::json!({"total_files": total, "types": entries}).to_string()
         } else {
             serde_json::json!({"error": "No scan results available."}).to_string()
@@ -299,7 +327,8 @@ impl ToolRegistry {
                         "predicted_size_bytes": predicted_size as u64,
                         "growth_trend": growth_trend,
                         "disk_full_estimates": disk_full_estimates
-                    }).to_string())
+                    })
+                    .to_string())
                 }
                 Err(e) => Err(AppError::Scanner(e.into())),
             }
@@ -331,7 +360,7 @@ impl ToolRegistry {
             }
 
             let top_files_concentration = if !result.largest_files.is_empty() {
-                let total_large_size: u64 = result.largest_files.iter().map(|(_, s)| *s).sum();
+                let total_large_size: u64 = result.largest_files.iter().map(|f| f.size).sum();
                 let large_pct = if result.total_size_bytes > 0 {
                     (total_large_size as f64 / result.total_size_bytes as f64) * 100.0
                 } else {
@@ -349,8 +378,8 @@ impl ToolRegistry {
             let mut large_by_ext = Vec::new();
             if !result.largest_files.is_empty() {
                 let mut ext_counts = std::collections::HashMap::new();
-                for (path, _) in &result.largest_files {
-                    if let Some(ext) = path.rsplit('.').next() {
+                for file in &result.largest_files {
+                    if let Some(ext) = file.path.rsplit('.').next() {
                         *ext_counts.entry(ext.to_lowercase()).or_insert(0) += 1;
                     }
                 }
@@ -359,7 +388,7 @@ impl ToolRegistry {
                 }
             }
 
-            let total_large: u64 = result.largest_files.iter().map(|(_, s)| *s).sum();
+            let total_large: u64 = result.largest_files.iter().map(|f| f.size).sum();
             let total_counted_files: usize = result.file_types.values().sum();
             let mut notes = Vec::new();
             if total_counted_files > 0 && total_large == 0 {
@@ -371,9 +400,11 @@ impl ToolRegistry {
                 "top_files_concentration": top_files_concentration,
                 "large_files_by_extension": large_by_ext,
                 "notes": notes
-            }).to_string()
+            })
+            .to_string()
         } else {
-            serde_json::json!({"error": "No scan results available for pattern analysis."}).to_string()
+            serde_json::json!({"error": "No scan results available for pattern analysis."})
+                .to_string()
         }
     }
 
@@ -399,27 +430,27 @@ impl ToolRegistry {
             .and_then(|v| v.as_u64())
             .map(|mb| mb * 1024 * 1024);
 
-        let mut matches: Vec<&(String, u64)> = result
+        let mut matches: Vec<&gui_common::LargestFileEntry> = result
             .largest_files
             .iter()
-            .filter(|(path, size)| {
+            .filter(|file| {
                 if let Some(ref ext) = ext_filter {
-                    if !path.to_lowercase().ends_with(&format!(".{}", ext)) {
+                    if !file.path.to_lowercase().ends_with(&format!(".{}", ext)) {
                         return false;
                     }
                 }
                 if let Some(ref kw) = keyword {
-                    if !path.to_lowercase().contains(kw) {
+                    if !file.path.to_lowercase().contains(kw) {
                         return false;
                     }
                 }
                 if let Some(min) = min_size {
-                    if *size < min {
+                    if file.size < min {
                         return false;
                     }
                 }
                 if let Some(max) = max_size {
-                    if *size > max {
+                    if file.size > max {
                         return false;
                     }
                 }
@@ -432,10 +463,11 @@ impl ToolRegistry {
             return serde_json::json!({"status": "empty", "message": "No files match the search criteria."}).to_string();
         }
 
-        matches.sort_by_key(|b| std::cmp::Reverse(b.1));
-        let entries: Vec<serde_json::Value> = matches.iter().map(|(path, size)| {
-            serde_json::json!({"path": path, "size_bytes": size})
-        }).collect();
+        matches.sort_by_key(|b| std::cmp::Reverse(b.size));
+        let entries: Vec<serde_json::Value> = matches
+            .iter()
+            .map(|file| serde_json::json!({"path": file.path, "size_bytes": file.size}))
+            .collect();
         serde_json::json!({"results": entries, "count": entries.len()}).to_string()
     }
 
@@ -454,10 +486,10 @@ impl ToolRegistry {
             .and_then(|v| v.as_u64())
             .map(|mb| mb * 1024 * 1024);
 
-        let files: Vec<&(String, u64)> = result
+        let files: Vec<&gui_common::LargestFileEntry> = result
             .largest_files
             .iter()
-            .filter(|(_, size)| min_size.is_none_or(|min| *size >= min))
+            .filter(|file| min_size.is_none_or(|min| file.size >= min))
             .take(count)
             .collect();
 
@@ -465,9 +497,10 @@ impl ToolRegistry {
             return serde_json::json!({"status": "empty", "message": "No files found matching the criteria."}).to_string();
         }
 
-        let entries: Vec<serde_json::Value> = files.iter().map(|(path, size)| {
-            serde_json::json!({"path": path, "size_bytes": size})
-        }).collect();
+        let entries: Vec<serde_json::Value> = files
+            .iter()
+            .map(|file| serde_json::json!({"path": file.path, "size_bytes": file.size}))
+            .collect();
         serde_json::json!({"files": entries, "count": entries.len()}).to_string()
     }
 }

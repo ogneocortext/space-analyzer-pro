@@ -62,7 +62,7 @@ class PipelineConfig:
     """
 
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "phi4-mini:latest"
+    ollama_model: str = "qwen3-vl:4b"
     ollama_timeout_s: int = 120
     ollama_retries: int = 2
     tracker_path: Path = field(default_factory=lambda: _default_tracker_path())
@@ -135,7 +135,7 @@ def load_config() -> PipelineConfig:
     """
     return PipelineConfig(
         ollama_host=_env("OLLAMA_HOST", "http://localhost:11434") or "http://localhost:11434",
-        ollama_model=_env("MODEL", "phi4-mini:latest") or "phi4-mini:latest",
+        ollama_model=_env("MODEL", "qwen3-vl:4b") or "qwen3-vl:4b",
         ollama_timeout_s=_env_int("OLLAMA_TIMEOUT_S", 120),
         ollama_retries=_env_int("OLLAMA_RETRIES", 2),
         tracker_path=_env_path("TRACKER_PATH", _default_tracker_path()),

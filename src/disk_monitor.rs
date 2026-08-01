@@ -50,6 +50,7 @@ pub struct DiskMonitorState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnapshotEntry {
+    pub mount_point: String,
     pub timestamp: String,
     pub available_bytes: u64,
     pub used_bytes: u64,

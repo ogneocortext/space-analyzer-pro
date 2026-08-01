@@ -33,7 +33,16 @@ impl SpaceAnalyzerApp {
             ui.label("Default Scan Path:");
             ui.text_edit_singleline(&mut self.settings.default_scan_path);
         });
-        ui.checkbox(&mut self.settings.default_deep_scan, "Default to Deep Scan");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut self.settings.default_deep_scan, "Deep scan");
+            ui.label(
+                egui::RichText::new(
+                    "Includes nested folders and richer metadata. It may take longer.",
+                )
+                .size(12.0)
+                .color(colors::TEXT_SECONDARY),
+            );
+        });
         ui.horizontal(|ui| {
             ui.label("Max Scan Depth:");
             ui.add(egui::DragValue::new(&mut self.settings.max_scan_depth).range(1..=20));

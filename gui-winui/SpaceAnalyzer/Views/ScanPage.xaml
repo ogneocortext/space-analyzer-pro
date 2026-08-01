@@ -34,8 +34,12 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBox Grid.Column="0" Text="{x:Bind VM.ScanPath, Mode=TwoWay}" PlaceholderText="Select a directory to scan..." AutomationProperties.Name="Scan directory path"/>
-                            <Button Grid.Column="1" Content="Browse" Click="Browse_Click" AutomationProperties.Name="Browse"/>
+                            <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Padding="12,8" AutomationProperties.Name="Browse"/>
                         </Grid>
+                        <TextBlock Text="{x:Bind VM.PathValidationMessage, Mode=OneWay}"
+                                   FontSize="12"
+                                   Foreground="{x:Bind VM.PathExists, Mode=OneWay, Converter={StaticResource BoolToErrorBrush}}"
+                                   Visibility="{x:Bind VM.PathExists, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
                     </StackPanel>
                 </Border>
 
@@ -43,23 +47,73 @@
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
                     <StackPanel Spacing="12">
                         <TextBlock Text="Scan Options" FontSize="14" FontWeight="SemiBold"/>
-                        <CheckBox Content="Deep scan (unlimited depth)" IsChecked="{x:Bind VM.DeepScan, Mode=TwoWay}"/>
+                        <Slider Header="Scan depth"
+                                Minimum="1"
+                                Maximum="20"
+                                Value="{x:Bind VM.DepthValue, Mode=TwoWay}"
+                                TickFrequency="4"
+                                Width="300"/>
+                        <TextBlock Text="{x:Bind VM.ResultDepthDisplay, Mode=OneWay}"
+                                   FontSize="12" Opacity="0.8" Margin="0,4,0,0"/>
                         <CheckBox Content="Include hidden files and folders" IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"/>
                     </StackPanel>
                 </Border>
 
-                <!-- Scan Button -->
-                <Button Content="Start Scan" Click="Scan_Click"
-                        AutomationProperties.Name="Start Scan"
-                        HorizontalAlignment="Stretch" Padding="16"
-                        IsEnabled="{x:Bind VM.IsNotScanning, Mode=OneWay}">
-                    <Button.Resources>
-                        <SolidColorBrush x:Key="ButtonBackground" Color="{ThemeResource AccentTextFillColorPrimaryBrush.Color}"/>
-                    </Button.Resources>
-                </Button>
+                <!-- Scan Controls -->
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0"
+                            Content="{x:Bind VM.IsScanning, Mode=OneWay, Converter={StaticResource BoolToScanButtonText}}"
+                            Click="Scan_Click"
+                            AutomationProperties.Name="Start Scan"
+                            HorizontalAlignment="Stretch" Padding="16"
+                            IsEnabled="{x:Bind VM.IsNotScanning, Mode=OneWay}">
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackground" Color="{ThemeResource AccentTextFillColorPrimaryBrush.Color}"/>
+                        </Button.Resources>
+                    </Button>
+                    <Button Grid.Column="1"
+                            Content="Stop"
+                            Click="Stop_Click"
+                            AutomationProperties.Name="Stop Scan"
+                            Padding="12,8"
+                            IsEnabled="{x:Bind VM.CanStopScan, Mode=OneWay}"
+                            Background="{ThemeResource SystemControlErrorTextBrush}"/>
+                    <Button Grid.Column="2"
+                            Content="Export"
+                            Click="Export_Click"
+                            AutomationProperties.Name="Export Results"
+                            Padding="12,8"
+                            IsEnabled="{x:Bind VM.HasResult, Mode=OneWay}"/>
+                </Grid>
 
-                <!-- Status -->
-                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"/>
+                <!-- Status + Progress -->
+                <StackPanel Spacing="8" Visibility="{x:Bind VM.IsScanningVisibility, Mode=OneWay}">
+                    <ProgressBar IsIndeterminate="True" Height="4"/>
+                    <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"/>
+                </StackPanel>
+                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"
+                           Visibility="{x:Bind VM.IsNotScanningVisibility, Mode=OneWay}"/>
+
+                <!-- Scan Errors -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasScanErrors, Mode=OneWay}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Scan Errors" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlErrorTextBrush}"/>
+                        <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+                            <ItemsRepeater ItemsSource="{x:Bind VM.ScanErrors, Mode=OneWay}">
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" FontSize="12" Foreground="{ThemeResource SystemControlErrorTextBrush}" TextWrapping="WrapWholeWords"/>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
 
                 <!-- Results -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
@@ -68,6 +122,7 @@
 
                         <Grid ColumnSpacing="24">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
@@ -90,7 +145,80 @@
                                 <TextBlock Text="{x:Bind VM.ResultDirsDisplay, Mode=OneWay}" FontSize="28" FontWeight="Bold"/>
                                 <TextBlock Text="Top Dirs" FontSize="12" Opacity="0.8"/>
                             </StackPanel>
+                            <StackPanel Grid.Column="4" Spacing="6">
+                                <TextBlock Text="{x:Bind VM.ResultDepthDisplay, Mode=OneWay}" FontSize="20" FontWeight="Bold"/>
+                                <TextBlock Text="Depth" FontSize="12" Opacity="0.8"/>
+                            </StackPanel>
                         </Grid>
+
+                        <!-- Speed & Errors summary -->
+                        <Grid ColumnSpacing="24" Visibility="{x:Bind VM.HasResult, Mode=OneWay}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="4" Orientation="Horizontal">
+                                <TextBlock Text="Speed: " FontSize="12" Opacity="0.8"/>
+                                <TextBlock Text="{x:Bind VM.ResultSpeedDisplay, Mode=OneWay}" FontSize="12" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="4" Orientation="Horizontal">
+                                <TextBlock Text="Errors: " FontSize="12" Opacity="0.8"/>
+                                <TextBlock Text="{x:Bind VM.ResultErrorsDisplay, Mode=OneWay}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlErrorTextBrush}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- File Type Distribution -->
+                        <TextBlock Text="File Type Distribution" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0"/>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.FileTypes, Mode=OneWay}">
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:FileTypeDistribution">
+                                    <StackPanel Spacing="4" Margin="0,4">
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" FontSize="12" FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                            <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Height="4" Margin="8,0"/>
+                                            <TextBlock Grid.Column="2" Text="{x:Bind CountDisplay, Mode=OneTime}" FontSize="12" Opacity="0.8"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+
+                        <!-- Largest Files -->
+                        <TextBlock Text="Largest Files" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0"/>
+                        <Grid ColumnSpacing="8" Margin="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{x:Bind VM.LargestFilesFilter, Mode=TwoWay}" PlaceholderText="Filter by filename or path..." FontSize="12"/>
+                            <Button Grid.Column="1" Content="Clear" Click="ClearFilter_Click" Padding="8,4" FontSize="12" Visibility="{x:Bind VM.HasLargestFilesFilter, Mode=OneWay}"/>
+                        </Grid>
+                        <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
+                            <ItemsRepeater ItemsSource="{x:Bind VM.FilteredLargestFiles, Mode=OneWay}">
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="models:FileSizeEntry">
+                                        <Grid ColumnSpacing="8" Margin="0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{x:Bind SizeDisplay, Mode=OneTime}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Path, Mode=OneTime}" FontSize="12" TextTrimming="CharacterEllipsis" Opacity="0.8"/>
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                                                <Button Content="Open" Click="OpenFile_Click" Padding="4,2" FontSize="11" Tag="{x:Bind Path}"/>
+                                                <Button Content="Folder" Click="OpenFolder_Click" Padding="4,2" FontSize="11" Tag="{x:Bind Path}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </ScrollViewer>
 
                         <!-- Top Directories -->
                         <TextBlock Text="Largest Directories" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0"/>
@@ -103,8 +231,7 @@
                                     <StackPanel Spacing="8" Margin="0,8">
                                         <TextBlock FontSize="13" Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
                                         <TextBlock FontSize="12" Opacity="0.8">
-                                            <Run Text="{x:Bind TotalSize, Mode=OneTime}"/>
-                                            <Run Text=" bytes"/>
+                                            <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
                                             <Run Text=" · "/>
                                             <Run Text="{x:Bind FileCount, Mode=OneTime}"/>
                                             <Run Text=" files"/>

@@ -32,6 +32,8 @@ DEFAULT_PROMPT: str = (
     "empty JSON array. Do not include any other prose."
 )
 
+DEFAULT_VISION_MODEL: str = "qwen3-vl:4b"
+
 
 def _read_image(path: Path) -> bytes:
     """Read the bytes of an image file (assumed to be small enough to fit in memory)."""
@@ -42,16 +44,20 @@ def enrich_screenshot(
     screenshot: Path | str,
     *,
     client: OllamaClient | None = None,
-    model: str = "phi4-mini:latest",
+    model: str = DEFAULT_VISION_MODEL,
     prompt: str = DEFAULT_PROMPT,
 ) -> list[VisionFinding]:
     """Send ``screenshot`` to Ollama and parse the response into findings.
+
+    Uses the Ollama ``/api/chat`` endpoint with multimodal message format,
+    which is the current standard for vision-capable models (qwen3-vl,
+    gemma4, etc.).
 
     Args:
         screenshot: Path to a PNG/JPG screenshot.
         client: Optional pre-built :class:`OllamaClient`. When ``None`` one
             is constructed with default settings (host from ``OLLAMA_HOST``).
-        model: Ollama model name. Defaults to ``phi4-mini:latest``.
+        model: Ollama vision model name. Defaults to ``qwen3-vl:2b``.
         prompt: Prompt text sent alongside the image.
 
     Returns:
@@ -70,15 +76,18 @@ def enrich_screenshot(
         logger.debug("Could not read screenshot %s: %s", path, exc)
         return []
     try:
-        response = client.generate(
+        image_b64 = base64.b64encode(image_bytes).decode("ascii")
+        messages = [
+            {"role": "user", "content": prompt, "images": [image_b64]}
+        ]
+        response = client.chat(
             model=model,
-            prompt=prompt,
+            messages=messages,
             stream=False,
             think=False,
-            images=[image_bytes],
         )
     except OllamaError as exc:
-        logger.debug("Ollama generate failed: %s", exc)
+        logger.debug("Ollama chat failed: %s", exc)
         return []
     return parse_model_findings(response, screenshot=path.name)
 
@@ -87,9 +96,9 @@ def enrich_text(
     prompt: str,
     *,
     client: OllamaClient | None = None,
-    model: str = "phi4-mini:latest",
+    model: str = DEFAULT_VISION_MODEL,
 ) -> str:
-    """Convenience wrapper for text-only Ollama calls.
+    """Convenience wrapper for text-only Ollama calls via ``/api/chat``.
 
     Returns:
         The model's response text, or an empty string on error.
@@ -97,9 +106,14 @@ def enrich_text(
     if client is None:
         client = OllamaClient()
     try:
-        return client.generate(model=model, prompt=prompt, stream=False, think=False)
+        return client.chat(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            stream=False,
+            think=False,
+        )
     except OllamaError as exc:
-        logger.debug("Ollama generate failed: %s", exc)
+        logger.debug("Ollama chat failed: %s", exc)
         return ""
 
 

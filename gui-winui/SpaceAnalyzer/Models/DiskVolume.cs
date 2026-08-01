@@ -1,6 +1,5 @@
 // Licensed under the MIT License.
 
-using Microsoft.UI;
 using Microsoft.UI.Xaml.Media;
 using SpaceAnalyzer.Helpers;
 

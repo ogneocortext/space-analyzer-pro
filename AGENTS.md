@@ -67,6 +67,31 @@ space-analyzer-pro dedup --path "C:\Users" --format json
 ```
 JSON output is deserialized into C# models in `gui-winui/SpaceAnalyzer/Services/ScannerService.cs`.
 
+> **`disk-info` output shape:** prints a **JSON array** of every mounted volume (the
+> `--path` argument is accepted for positional consistency but ignored in JSON output).
+> The WinUI 3 frontend deserializes this directly into `List<DiskVolume>`. Each entry:
+> ```json
+> [
+>   {
+>     "mount_point": "C:\\",
+>     "label": "SSD",
+>     "file_system": "NTFS",
+>     "total_bytes": 511016669184,
+>     "used_bytes": 330000000000,
+>     "available_bytes": 181016669184,
+>     "usage_percent": 64.6
+>   }
+> ]
+> ```
+> (empty `[]` when no volumes are detected; `used_bytes`/`usage_percent` are provided by
+> the backend — the C# `DiskVolume` model recomputes them from total/available.)
+
+The WinUI 3 `ScannerService` also supports scan cancellation via `StopScan()` (kills the scanner process tree) and result export via `ExportScanResultAsync()`. Path validation is performed before launching the scanner subprocess.
+
+## Scripting rules
+- Prefer Python over PowerShell for HTTP, JSON, and subprocess work. PowerShell here frequently mangles JSON and here-strings, causing silent failures and unnecessary retries.
+- When using Ollama for local model review: release the current model from VRAM first, load one coding model at a time, collect its perspective, release it, then load the next. Avoid loading multiple large models simultaneously; VRAM is shared and models stay resident until explicitly released.
+
 ## Rules
 - Edit files directly in this repo. Do not ask to clone, copy, or map drives.
 - Do not claim sandboxing prevents access. It does not.
@@ -79,10 +104,11 @@ JSON output is deserialized into C# models in `gui-winui/SpaceAnalyzer/Services/
 
 ## File Conventions
 - `src/cli/` — CLI module with clap subcommands (scan, disk-info, history, dedup)
-- `gui-egui/src/gui/` — eframe GUI modules (dashboard, scan, settings, AI chat, etc.)
+- `gui-egui/src/gui/` — eframe GUI modules (dashboard, system, scan, etc.)
 - `gui-winui/SpaceAnalyzer/Views/` — WinUI 3 XAML pages
 - `gui-winui/SpaceAnalyzer/Services/` — Rust CLI interop, data services
 - `gui-winui/SpaceAnalyzer/ViewModels/` — MVVM view models
+- `gui-winui/SpaceAnalyzer/Models/` — Data models (ScanResult, DiskVolume, FileTypeDistribution, etc.)
 - `src/ollama/` — Ollama REST API client and feature detection
 - `src/database/` — SQLite schema and queries
 - `ux-pipeline/src/ux_pipeline/` — Python pipeline modules

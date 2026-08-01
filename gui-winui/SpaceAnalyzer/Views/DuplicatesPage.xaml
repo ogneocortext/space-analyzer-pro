@@ -34,7 +34,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBox Grid.Column="0" Text="{x:Bind VM.ScanPath, Mode=TwoWay}" PlaceholderText="Select a directory to analyze..." AutomationProperties.Name="Scan directory path"/>
-                            <Button Grid.Column="1" Content="Browse" Click="Browse_Click"/>
+                            <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Padding="12,8" AutomationProperties.Name="Browse"/>
                         </Grid>
                     </StackPanel>
                 </Border>

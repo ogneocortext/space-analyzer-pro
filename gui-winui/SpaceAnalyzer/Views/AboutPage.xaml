@@ -12,7 +12,7 @@
         <StackPanel Spacing="16" MaxWidth="800" HorizontalAlignment="Center">
             <TextBlock Text="About" FontSize="32" FontWeight="Bold"/>
             <TextBlock Text="Space Analyzer Pro" FontSize="20" Opacity="0.8"/>
-            <TextBlock Text="Version 3.7.0" FontSize="14" Opacity="0.6"/>
+            <TextBlock Text="Version 4.0.0" FontSize="14" Opacity="0.6"/>
 
             <TextBlock Text="Space Analyzer Pro helps you find and reclaim disk space on Windows."
                        FontSize="14" Opacity="0.7" TextWrapping="Wrap"/>

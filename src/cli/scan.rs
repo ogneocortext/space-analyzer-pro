@@ -1,5 +1,8 @@
 use shared_scanner::{FileScanner, ScanOptions};
+use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::error::AppResult;
+use space_analyzer_pro_desktop::gui_common::LargestFileEntry;
+use std::collections::HashMap;
 use std::path::Path;
 use std::time::Instant;
 
@@ -18,6 +21,7 @@ pub fn scan_directory(
     include_hidden: bool,
     _no_animation: bool,
     threads: usize,
+    cache: bool,
 ) -> AppResult<ScanResult> {
     let spinner = if verbose {
         let pb = animation::create_scan_spinner(&path.display().to_string());
@@ -54,15 +58,50 @@ pub fn scan_directory(
             ..ScanOptions::default()
         }
     };
-let options = ScanOptions {
+
+    let file_cache: Option<HashMap<String, (u64, i64)>> = if cache {
+        Database::default_open().ok().and_then(|db| {
+            db.load_file_cache(path.to_str().unwrap_or("."))
+                .ok()
+                .map(|entries| {
+                    entries
+                        .into_iter()
+                        .map(|(k, (s, m, _))| (k, (s, m)))
+                        .collect()
+                })
+        })
+    } else {
+        None
+    };
+
+    let options = ScanOptions {
         min_size,
         max_size,
         include_hidden,
         num_threads: threads,
+        file_cache,
         ..depth_mode
     };
 
     let shared_result = scanner.scan_directory_sync(path.to_str().unwrap_or("."), options)?;
+
+    if cache {
+        if let Ok(db) = Database::default_open() {
+            let entries: Vec<(String, u64, i64, String)> = shared_result
+                .scanned_files
+                .iter()
+                .map(|(path, &(size, mtime))| {
+                    let ext = std::path::Path::new(path)
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("")
+                        .to_lowercase();
+                    (path.clone(), size, mtime, ext)
+                })
+                .collect();
+            let _ = db.save_file_cache(path.to_str().unwrap_or("."), &entries);
+        }
+    }
 
     let duration = start_time.elapsed().as_secs_f64();
     if let Some(ref pb) = spinner {
@@ -101,7 +140,10 @@ let options = ScanOptions {
     result.top_directories = top_dirs;
 
     for file in shared_result.largest_files.into_iter().take(50) {
-        result.largest_files.push((file.path, file.size));
+        result.largest_files.push(LargestFileEntry {
+            path: file.path,
+            size: file.size,
+        });
     }
 
     result.empty_dirs = shared_result.empty_directories;

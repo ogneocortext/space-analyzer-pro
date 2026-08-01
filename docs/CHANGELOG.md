@@ -2,7 +2,34 @@
 
 ## [Unreleased]
 
-### WinUI 3 — Bug Fixes & Page Completion (July 2026)
+### WinUI 3 — Scan Page Enhancements
+
+- **Stop Scan button** — cancels the running scanner process tree via `ScannerService.StopScan()`.
+- **Path validation** — invalid or non-existent scan paths are rejected before the scanner is launched, with a clear error message displayed inline.
+- **Scan errors display** — per-scan error list shown in the results panel when the Rust scanner reports errors.
+- **File type distribution** — top 10 extensions with percentage breakdown rendered as a chart (`FileTypeDistribution` model).
+- **Largest files with filter** — file list with live substring filter by filename.
+- **Export results** — JSON export button on the scan page via `ScannerService.ExportScanResultAsync()`.
+- **Deep/shallow/custom depth modes** — scan depth selector with preset and custom options.
+- **Scan speed metrics** — files/second display in the results panel.
+- **Scanner process tracking** — `ScannerService` now tracks `_currentScannerProcess` for cancellation support.
+
+### WinUI 3 — AI Assistant Enhancements
+
+- **Expanded tool registry** — `GetToolDefinitions()` grew from 3 tools to 14, mirroring the Rust backend's full tool set with safety gates.
+- **Dynamic tool choice** — `ResolveToolChoice()` uses domain-keyword heuristic matching the Rust `resolve_tool_choice` logic.
+- **Enriched ChatRequest** — `Options`, `Think`, and `KeepAlive` fields now populated in `OllamaClient.SendChatRequestAsync()`.
+
+### WinUI 3 — Converters & Helpers
+
+- **New converters** — `BoolToErrorBrushConverter` (red brush for error states) and `BoolToScanButtonTextConverter` ("Stop Scan" / "Start Scan").
+- **`UiHelper.OpenPath()`** — helper to open a file or folder in Windows Explorer.
+- **`FileTypeDistribution` model** — new data model for the file type chart on the scan page.
+
+### Rust — Scan Page Improvements
+
+- **Path validation** added to `gui-egui/src/gui/scan.rs` `start_scan()` — invalid paths are rejected before scanning starts.
+- **Removed unsafe Copy button** from egui scan page (no clipboard crate available in egui dependencies).
 
 - **Fixed build against Windows App SDK 2.3 / .NET 10** — resolved API compatibility issues:
   - Removed `Window.RequestedTheme` / `ApplicationTheme.Unspecified` usage (not supported in WinAppSDK 2.3); theme persistence remains in `SettingsViewModel` but no longer applies at runtime.

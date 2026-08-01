@@ -17,7 +17,10 @@ pub fn path_based_category(path: &str) -> &'static str {
     }
 
     // User profile top-level
-    if lower.contains("\\downloads\\") || lower.contains("/downloads/") || lower.ends_with("\\downloads") {
+    if lower.contains("\\downloads\\")
+        || lower.contains("/downloads/")
+        || lower.ends_with("\\downloads")
+    {
         return "Downloads";
     }
     if lower.contains("\\documents\\") || lower.contains("/documents/") {
@@ -71,7 +74,12 @@ pub fn path_based_category(path: &str) -> &'static str {
         if lower.contains("perplexity") || lower.contains("comet") {
             return "AI Tools";
         }
-        if lower.contains("anythingllm") || lower.contains("continue") || lower.contains("lm-studio") || lower.contains("eigent") || lower.contains("aetheride") {
+        if lower.contains("anythingllm")
+            || lower.contains("continue")
+            || lower.contains("lm-studio")
+            || lower.contains("eigent")
+            || lower.contains("aetheride")
+        {
             return "AI Tools";
         }
         // Generic AppData\Local fallback
@@ -254,40 +262,40 @@ pub fn categorize_files(file_types: &HashMap<String, usize>) -> HashMap<String, 
 /// Get category color for ui display.
 pub fn category_color(category: &str) -> (u8, u8, u8) {
     match category {
-        "Documents" => (100, 180, 255),    // Blue
-        "Images" => (255, 180, 100),       // Orange
-        "Videos" => (231, 76, 60),         // Red
-        "Audio" => (155, 89, 182),         // Purple
-        "Archives" => (46, 204, 113),      // Green
-        "Code" => (255, 200, 80),          // Yellow
-        "Databases" => (142, 68, 173),     // Deep Purple
-        "Executables" => (255, 100, 100),  // Light Red
-        "System" => (150, 150, 150),       // Gray
-        "Development" => (200, 100, 255),  // Pink
-        "Games" => (255, 150, 200),        // Light Pink
-        "Games/Dev" => (255, 170, 120),    // Peach
-        "GPU/Cache" => (100, 200, 255),    // Cyan
-        "Virtualization" => (180, 130, 255),// Purple-blue
-        "Browser" => (255, 220, 100),      // Yellow
-        "Gaming" => (255, 150, 200),       // Light Pink
-        "UWP Apps" => (200, 200, 200),     // Light Gray
-        "ML/AI" => (200, 100, 255),        // Violet
-        "AI Tools" => (180, 80, 220),      // Deep Violet
-        "Downloads" => (255, 180, 100),    // Orange
-        "Media" => (255, 100, 150),        // Pink-red
-        "Windows" => (80, 120, 200),       // Muted Blue
-        "Program Files" => (90, 140, 180), // Steel Blue
-        "AppData Local" => (200, 200, 150),// Tan
-        "AppData Roaming" => (180, 200, 180),// Light green
-        "Temp/Cache" => (200, 160, 80),    // Gold
-        "Updater Cache" => (220, 180, 100), // Brown-gold
-        "AI Models" => (180, 80, 200),     // Violet
-        "Build Output" => (255, 140, 60),  // Orange
-        "VCS" => (100, 200, 100),          // Green
-        "Cache" => (200, 180, 80),         // Yellow-gold
-        "Test Fixtures" => (160, 160, 255),// Light Purple
-        "App Data" => (200, 200, 200),     // Gray
-        "Media Tools" => (255, 140, 100),  // Coral
-        _ => (180, 180, 180),              // Light Gray
+        "Documents" => (100, 180, 255),       // Blue
+        "Images" => (255, 180, 100),          // Orange
+        "Videos" => (231, 76, 60),            // Red
+        "Audio" => (155, 89, 182),            // Purple
+        "Archives" => (46, 204, 113),         // Green
+        "Code" => (255, 200, 80),             // Yellow
+        "Databases" => (142, 68, 173),        // Deep Purple
+        "Executables" => (255, 100, 100),     // Light Red
+        "System" => (150, 150, 150),          // Gray
+        "Development" => (200, 100, 255),     // Pink
+        "Games" => (255, 150, 200),           // Light Pink
+        "Games/Dev" => (255, 170, 120),       // Peach
+        "GPU/Cache" => (100, 200, 255),       // Cyan
+        "Virtualization" => (180, 130, 255),  // Purple-blue
+        "Browser" => (255, 220, 100),         // Yellow
+        "Gaming" => (255, 150, 200),          // Light Pink
+        "UWP Apps" => (200, 200, 200),        // Light Gray
+        "ML/AI" => (200, 100, 255),           // Violet
+        "AI Tools" => (180, 80, 220),         // Deep Violet
+        "Downloads" => (255, 180, 100),       // Orange
+        "Media" => (255, 100, 150),           // Pink-red
+        "Windows" => (80, 120, 200),          // Muted Blue
+        "Program Files" => (90, 140, 180),    // Steel Blue
+        "AppData Local" => (200, 200, 150),   // Tan
+        "AppData Roaming" => (180, 200, 180), // Light green
+        "Temp/Cache" => (200, 160, 80),       // Gold
+        "Updater Cache" => (220, 180, 100),   // Brown-gold
+        "AI Models" => (180, 80, 200),        // Violet
+        "Build Output" => (255, 140, 60),     // Orange
+        "VCS" => (100, 200, 100),             // Green
+        "Cache" => (200, 180, 80),            // Yellow-gold
+        "Test Fixtures" => (160, 160, 255),   // Light Purple
+        "App Data" => (200, 200, 200),        // Gray
+        "Media Tools" => (255, 140, 100),     // Coral
+        _ => (180, 180, 180),                 // Light Gray
     }
 }

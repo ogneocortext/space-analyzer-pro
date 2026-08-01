@@ -19,6 +19,13 @@ pub struct GuiCli {
     pub help_only: bool,
 }
 
+/// A single entry from the largest-files list.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LargestFileEntry {
+    pub path: String,
+    pub size: u64,
+}
+
 /// Common scan result structure used across all GUI implementations
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ScanResult {
@@ -28,7 +35,7 @@ pub struct ScanResult {
     pub duration_secs: f64,
     pub file_types: HashMap<String, usize>,
     pub extension_sizes: HashMap<String, u64>,
-    pub largest_files: Vec<(String, u64)>,
+    pub largest_files: Vec<LargestFileEntry>,
     pub errors: Vec<String>,
     pub path: String,
     #[serde(default)]
@@ -37,6 +44,8 @@ pub struct ScanResult {
     pub top_directories: Vec<DirEntry>,
     #[serde(default)]
     pub empty_dirs: Vec<String>,
+    #[serde(default)]
+    pub scanned_files: HashMap<String, (u64, i64)>,
 }
 
 /// Directory entry used in scan results
@@ -70,6 +79,7 @@ impl ScanResult {
             total_dirs: 0,
             top_directories: Vec::new(),
             empty_dirs: Vec::new(),
+            scanned_files: HashMap::new(),
         }
     }
 
@@ -95,13 +105,15 @@ impl ScanResult {
         }
 
         for file in &result.largest_files {
-            scan_result
-                .largest_files
-                .push((file.path.clone(), file.size));
+            scan_result.largest_files.push(LargestFileEntry {
+                path: file.path.clone(),
+                size: file.size,
+            });
         }
         scan_result.errors = result.errors.clone();
         scan_result.total_dirs = result.total_directories;
         scan_result.empty_dirs = result.empty_directories.clone();
+        scan_result.scanned_files = result.scanned_files.clone();
 
         scan_result
     }

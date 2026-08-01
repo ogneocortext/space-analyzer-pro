@@ -230,9 +230,9 @@ impl SpaceAnalyzerApp {
             let mut files: Vec<(String, u64, String)> = scan_result
                 .largest_files
                 .iter()
-                .map(|(path, size)| {
-                    let ext = path.rsplit('.').next().unwrap_or("").to_string();
-                    (path.clone(), *size, ext)
+                .map(|file| {
+                    let ext = file.path.rsplit('.').next().unwrap_or("").to_string();
+                    (file.path.clone(), file.size, ext)
                 })
                 .collect();
 
@@ -380,7 +380,9 @@ impl SpaceAnalyzerApp {
         let mut matches: Vec<space_analyzer_pro_desktop::embedding_service::SearchResult> =
             Vec::new();
         if let Some(ref result) = self.scan_result {
-            for (path, size) in &result.largest_files {
+            for file in &result.largest_files {
+                let path = &file.path;
+                let size = file.size;
                 let path_lower = path.to_lowercase();
                 let score = keywords
                     .iter()
@@ -391,7 +393,7 @@ impl SpaceAnalyzerApp {
                     matches.push(
                         space_analyzer_pro_desktop::embedding_service::SearchResult {
                             file_path: path.clone(),
-                            file_size: *size,
+                            file_size: size,
                             file_extension: std::path::Path::new(path)
                                 .extension()
                                 .and_then(|e| e.to_str())

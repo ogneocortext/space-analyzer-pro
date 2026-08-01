@@ -88,7 +88,11 @@ impl SystemMonitor {
 
         SystemResources {
             cpu_percent: cpu_usage,
-            cpu_model: system.cpus().first().map(|c| c.brand().to_string()).unwrap_or_default(),
+            cpu_model: system
+                .cpus()
+                .first()
+                .map(|c| c.brand().to_string())
+                .unwrap_or_default(),
             cpu_cores: system.cpus().len(),
             cpu_physical_cores: sysinfo::System::physical_core_count().unwrap_or(0),
             memory_total_bytes: memory,
@@ -163,7 +167,7 @@ impl SystemMonitor {
         ));
         summary.push_str(&format!(
             "Memory: {} / {} ({:.1}%)\n",
-shared_scanner::format_bytes(resources.memory_used_bytes),
+            shared_scanner::format_bytes(resources.memory_used_bytes),
             shared_scanner::format_bytes(resources.memory_total_bytes),
             resources.memory_percent
         ));
@@ -192,4 +196,3 @@ shared_scanner::format_bytes(resources.memory_used_bytes),
         summary
     }
 }
-

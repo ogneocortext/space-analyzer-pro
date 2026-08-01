@@ -48,7 +48,12 @@ class OllamaClient:
         timeout: float = DEFAULT_TIMEOUT_S,
         retries: int = DEFAULT_RETRIES,
     ) -> None:
-        self.host: str = (host or os.getenv("OLLAMA_HOST") or DEFAULT_HOST).rstrip("/")
+        raw_host = host or os.getenv("OLLAMA_HOST") or DEFAULT_HOST
+        if not raw_host.startswith(("http://", "https://")):
+            raw_host = "http://" + raw_host
+        if "://" in raw_host and not raw_host.split("://", 1)[1].split("/")[0].count(":"):
+            raw_host = raw_host.rstrip("/") + ":11434"
+        self.host: str = raw_host.rstrip("/")
         self.timeout: float = float(timeout)
         self.retries: int = max(0, int(retries))
 
@@ -88,7 +93,7 @@ class OllamaClient:
         """Call ``/api/generate`` and return the concatenated response text.
 
         Args:
-            model: Ollama model name (e.g. ``phi4-mini:latest``).
+            model: Ollama model name (e.g. ``qwen3-vl:2b``).
             prompt: Prompt text.
             stream: When ``True``, the server streams NDJSON chunks. We always
                 aggregate them and return a single string.
@@ -127,6 +132,105 @@ class OllamaClient:
             payload = self._request_json("POST", "/api/generate", json_body=body)
         except OllamaError as exc:
             raise OllamaError(f"generate({model!r}) failed: {exc}") from exc
+        response = str(payload.get("response", ""))
+        if not response:
+            response = str(payload.get("thinking", ""))
+        return response
+
+    def generate_json(
+        self,
+        model: str,
+        prompt: str,
+        schema: dict[str, Any],
+        *,
+        stream: bool = False,
+        think: bool | None = False,
+        options: dict[str, Any] | None = None,
+        images: Iterable[bytes] | None = None,
+    ) -> str:
+        """Call ``/api/generate`` with a JSON schema constraint.
+
+        Returns the model's response text, which should be valid JSON
+        conforming to ``schema``.
+        """
+        body: dict[str, Any] = {
+            "model": model,
+            "prompt": prompt,
+            "stream": bool(stream),
+            "format": schema,
+        }
+        if think is not None:
+            body["think"] = bool(think)
+        if options:
+            body["options"] = dict(options)
+        if images:
+            import base64
+
+            body["images"] = [base64.b64encode(img).decode("ascii") for img in images]
+
+        try:
+            payload = self._request_json("POST", "/api/generate", json_body=body)
+        except OllamaError as exc:
+            raise OllamaError(f"generate_json({model!r}) failed: {exc}") from exc
+        response = str(payload.get("response", ""))
+        if not response:
+            response = str(payload.get("thinking", ""))
+        return response
+
+    def chat(
+        self,
+        model: str,
+        messages: list[dict[str, Any]],
+        *,
+        stream: bool = False,
+        think: bool | None = None,
+        format: str | dict[str, Any] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> str:
+        """Call ``/api/chat`` and return the assistant's response text.
+
+        Args:
+            model: Ollama model name (e.g. ``qwen3-vl:2b``).
+            messages: Chat history. Each dict must have ``role`` and
+                ``content``. For multimodal models, add an ``images`` key
+                with a list of base64-encoded image strings.
+            stream: When ``True``, the server streams NDJSON chunks; we
+                aggregate them and return a single string.
+            think: Set to ``False`` to disable thinking/reasoning mode
+                for models that support it (e.g. Qwen3, DeepSeek-R1).
+            format: Response format constraint, e.g. ``"json"`` to force
+                valid JSON output.
+            options: Generation options (temperature, num_predict, ...).
+
+        Returns:
+            The assistant's response text.
+
+        Raises:
+            OllamaError: If the request fails after all retries.
+        """
+        body: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "stream": bool(stream),
+        }
+        if think is not None:
+            body["think"] = bool(think)
+        if format is not None:
+            body["format"] = format
+        if options:
+            body["options"] = dict(options)
+
+        try:
+            payload = self._request_json("POST", "/api/chat", json_body=body)
+        except OllamaError as exc:
+            raise OllamaError(f"chat({model!r}) failed: {exc}") from exc
+        msg = payload.get("message", {})
+        if isinstance(msg, dict):
+            text = msg.get("content", "")
+            if not text:
+                text = str(msg.get("thinking", ""))
+            if text:
+                return str(text)
         return str(payload.get("response", ""))
 
     def pull(self, model: str) -> bool:

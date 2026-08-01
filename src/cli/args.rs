@@ -61,8 +61,12 @@ pub enum Commands {
         include_hidden: bool,
 
         /// Number of parallel threads for directory traversal (0 = auto)
-        #[arg(long)]
+        #[arg(long, default_value = "0")]
         threads: usize,
+
+        /// Enable file cache (skip unchanged files from previous scan)
+        #[arg(long)]
+        cache: bool,
 
         /// Export results to a file
         #[arg(long)]

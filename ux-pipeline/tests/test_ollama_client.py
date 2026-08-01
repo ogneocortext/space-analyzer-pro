@@ -106,11 +106,11 @@ def fake_server() -> Any:
 def test_list_models_unwraps_response(fake_server: Any) -> None:
     rec, base = fake_server
     rec.response_body = json.dumps(
-        {"models": [{"name": "phi4-mini:latest", "size": 1024}]}
+        {"models": [{"name": "gemma4:e2b-it-qat", "size": 1024}]}
     ).encode("utf-8")
     client = OllamaClient(host=base, timeout=2.0, retries=0)
     models = client.list_models()
-    assert models == [{"name": "phi4-mini:latest", "size": 1024}]
+    assert models == [{"name": "gemma4:e2b-it-qat", "size": 1024}]
     assert rec.requests and rec.requests[0][0] == "GET"
     assert rec.requests[0][1] == "/api/tags"
 
@@ -119,12 +119,12 @@ def test_generate_posts_payload_and_returns_response(fake_server: Any) -> None:
     rec, base = fake_server
     rec.response_body = json.dumps({"response": "hello"}).encode("utf-8")
     client = OllamaClient(host=base, timeout=2.0, retries=0)
-    out = client.generate("phi4-mini:latest", "ping", stream=False)
+    out = client.generate("gemma4:e2b-it-qat", "ping", stream=False)
     assert out == "hello"
     method, path, body = rec.requests[0]
     assert method == "POST"
     assert path == "/api/generate"
-    assert body == {"model": "phi4-mini:latest", "prompt": "ping", "stream": False}
+    assert body == {"model": "gemma4:e2b-it-qat", "prompt": "ping", "stream": False}
 
 
 def test_generate_with_options_and_images(fake_server: Any) -> None:
@@ -132,7 +132,7 @@ def test_generate_with_options_and_images(fake_server: Any) -> None:
     rec.response_body = json.dumps({"response": "ok"}).encode("utf-8")
     client = OllamaClient(host=base, timeout=2.0, retries=0)
     client.generate(
-        "phi4-mini:latest",
+        "gemma4:e2b-it-qat",
         "x",
         options={"temperature": 0.1},
         images=[b"\x89PNG\r\n\x1a\nfake"],
@@ -146,12 +146,58 @@ def test_generate_with_options_and_images(fake_server: Any) -> None:
     assert base64.b64decode(body["images"][0]) == b"\x89PNG\r\n\x1a\nfake"
 
 
+def test_chat_returns_assistant_content(fake_server: Any) -> None:
+    rec, base = fake_server
+    rec.response_body = json.dumps({
+        "model": "gemma4:e2b-it-qat",
+        "message": {"role": "assistant", "content": "hello from chat"},
+        "done": True,
+    }).encode("utf-8")
+    client = OllamaClient(host=base, timeout=2.0, retries=0)
+    out = client.chat("gemma4:e2b-it-qat", [{"role": "user", "content": "hi"}], stream=False)
+    assert out == "hello from chat"
+    method, path, body = rec.requests[0]
+    assert method == "POST"
+    assert path == "/api/chat"
+    assert body["model"] == "gemma4:e2b-it-qat"
+    assert body["messages"] == [{"role": "user", "content": "hi"}]
+    assert body["stream"] is False
+
+
+def test_chat_with_images(fake_server: Any) -> None:
+    rec, base = fake_server
+    rec.response_body = json.dumps({
+        "message": {"role": "assistant", "content": "seen"},
+    }).encode("utf-8")
+    client = OllamaClient(host=base, timeout=2.0, retries=0)
+    client.chat(
+        "qwen3-vl:2b",
+        [{"role": "user", "content": "what is this?", "images": ["iVB=="]}],
+        stream=False,
+        think=False,
+    )
+    _, _, body = rec.requests[0]
+    assert body["messages"][0]["images"] == ["iVB=="]
+    assert body["think"] is False
+
+
+def test_chat_falls_back_to_response_field(fake_server: Any) -> None:
+    rec, base = fake_server
+    rec.response_body = json.dumps({
+        "response": "fallback text",
+        "done": True,
+    }).encode("utf-8")
+    client = OllamaClient(host=base, timeout=2.0, retries=0)
+    out = client.chat("m", [{"role": "user", "content": "p"}], stream=False)
+    assert out == "fallback text"
+
+
 def test_retries_transient_failures_then_succeeds(fake_server: Any) -> None:
     rec, base = fake_server
     rec.fail_n_times = 2
     rec.response_body = json.dumps({"response": "yay"}).encode("utf-8")
     client = OllamaClient(host=base, timeout=2.0, retries=3)
-    assert client.generate("m", "p") == "yay"
+    assert client.generate("gemma4:e2b-it-qat", "ping", stream=False) == "yay"
     assert len(rec.requests) == 3
 
 
@@ -163,7 +209,7 @@ def test_gives_up_after_retries(fake_server: Any) -> None:
     # ``list_models`` swallows errors and returns []; ``generate`` raises.
     assert client.list_models() == []
     with pytest.raises(OllamaError):
-        client.generate("phi4-mini:latest", "ping")
+        client.generate("gemma4:e2b-it-qat", "ping", stream=False)
     # list_models retries 2 times (3 total GETs) + generate retries 2 times (3 total POSTs) = 6
     assert len(rec.requests) == 6
 

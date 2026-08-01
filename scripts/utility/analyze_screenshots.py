@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Analyze macro screenshots using PIL feature extraction + Ollama phi4-mini.
+Analyze macro screenshots using PIL feature extraction + Ollama vision models.
 With iterative feedback loop: tracks improvements across runs.
+Sends actual screenshots to local vision models (qwen3-vl:2b, etc.)
+for real visual analysis, not just text-only feature descriptions.
 """
 
 from __future__ import annotations
@@ -9,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import platform
 import sys
 from collections import Counter
@@ -21,32 +24,70 @@ from PIL import Image, ImageFilter, UnidentifiedImageError
 sys.path.insert(0, str(Path(__file__).parent))
 from _ollama_client import OllamaClient
 
-MODEL: str = "phi4-mini:latest"
+MODEL: str = os.getenv("VISION_MODEL", "qwen3-vl:4b")
 ANALYSIS_HISTORY_DIR: Path = Path("analysis_history")
 DEFAULT_SHOTS_ROOT: Path = Path("macro_logs")
 MAX_FEEDBACK_CHARS: int = 2000
-OLLAMA_TIMEOUT_S: int = 120
-GENERATION_OPTIONS: dict[str, Any] = {"temperature": 0.2, "num_predict": 384}
-QUALITY_IMPROVEMENT_THRESHOLD: int = 1
+OLLAMA_TIMEOUT_S: int = 180
+# num_ctx must be large enough for the combined analysis prompt (10 screenshot
+# vision descriptions + schema ≈ 9k tokens). 8192 caused HTTP 400
+# "exceeds_context_size_error". qwen3-vl models support up to 32k.
+GENERATION_OPTIONS: dict[str, Any] = {"temperature": 0.1, "num_ctx": 16384, "num_predict": 2048}
 
-# Quality scoring weights
-BRIGHTNESS_TARGET: float = 50.0
-EDGE_LOW: float = 5.0
-EDGE_HIGH: float = 15.0
-EDGE_TARGET: float = 10.0
-COLOR_SCORE_SCALE: float = 2.0
-DARK_PENALTY_WEIGHT: float = 0.3
+# Resize cap for vision payloads (matches app's resizeBase64Image behavior)
+VISION_IMG_MAX: int = 300
 
-# Color thresholds for description
-DARK_THRESHOLD_PCT: float = 50.0
-EDGE_SPARSE_PCT: float = 5.0
-EDGE_DENSE_PCT: float = 15.0
+ANALYSIS_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "app_title": {"type": "string"},
+        "visible_navigation": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "main_content": {"type": "string"},
+        "issues": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "severity": {"type": "string", "enum": ["high", "medium", "low"]},
+                    "finding": {"type": "string"},
+                    "location": {"type": "string"},
+                },
+                "required": ["severity", "finding"],
+            },
+        },
+        "quick_wins": {"type": "array", "items": {"type": "string"}},
+        "evidence_confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+    },
+    "required": ["app_title", "visible_navigation", "main_content", "issues", "quick_wins", "evidence_confidence"],
+}
+
+CODE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "changes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string"},
+                    "change": {"type": "string"},
+                    "why": {"type": "string"},
+                },
+                "required": ["file", "change", "why"],
+            },
+        },
+    },
+    "required": ["changes"],
+}
 
 logger = logging.getLogger("analyze_screenshots")
+VISION_MODEL_HINTS = ("qwen3-vl", "qwen3.5", "gemma4", "llava", "moondream", "idefics2", "paligemma")
 
 
 def _configure_console() -> None:
-    """Reconfigure stdout for UTF-8 on Windows consoles."""
     if platform.system() == "Windows":
         try:
             stdout = sys.stdout
@@ -58,93 +99,149 @@ def _configure_console() -> None:
 
 
 def _find_latest_screenshots_dir(shots_root: Path) -> Path | None:
-    """Return the most recent screenshots_ directory under shots_root.
-
-    Args:
-        shots_root: Directory containing timestamped screenshot folders.
-
-    Returns:
-        Latest directory or None if no matches.
-    """
     if not shots_root.is_dir():
         return None
-    candidates = sorted(
-        (d for d in shots_root.iterdir() if d.is_dir() and d.name.startswith("screenshots_")),
-        reverse=True,
-    )
-    return candidates[0] if candidates else None
+    candidates = [
+        d for d in shots_root.iterdir() if d.is_dir() and d.name.startswith("screenshots_")
+    ]
+    if not candidates:
+        return None
+    # Sort by modification time (most recent first), NOT by name. A stale
+    # "screenshots_verify" dir otherwise sorts after timestamped dirs alphabetically
+    # (because 'v' > '2') and shadows the newest capture.
+    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return candidates[0]
+
+
+def _detect_local_vision_models(client: OllamaClient) -> list[str]:
+    try:
+        models = client.list_models()
+        names = [m.get("name", "") for m in models if isinstance(m, dict)]
+        hits = [n for n in names if any(n.lower().startswith(h) for h in VISION_MODEL_HINTS)]
+        return hits or names[:3]
+    except Exception as exc:
+        logger.debug("Vision model detection failed: %s", exc)
+        return []
+
+
+def _pick_vision_model(client: OllamaClient) -> str:
+    available = _detect_local_vision_models(client)
+    if MODEL in available:
+        return MODEL
+    for candidate in available:
+        if candidate.startswith(VISION_MODEL_HINTS):
+            return candidate
+    return MODEL
+
+
+def encode_image_for_vision(path: Path) -> bytes | None:
+    """Resize an image for Ollama vision models and return raw bytes."""
+    try:
+        with Image.open(path) as img:
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            w, h = img.size
+            scale = VISION_IMG_MAX / max(w, h)
+            if scale < 1.0:
+                img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+            import io
+            buf = io.BytesIO()
+            img.save(buf, format="PNG", optimize=True)
+            return buf.getvalue()
+    except Exception as exc:
+        logger.warning("Could not encode %s: %s", path, exc)
+        return None
+
+
+def _parse_model_text(text: str) -> str:
+    """Strip thinking traces and convert to plain text."""
+    import re
+    text = re.sub(r"<think>.*?<\|channel\|>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<think>.*?(?:\n|$)", "", text, flags=re.DOTALL | re.IGNORECASE)
+    return text.strip()
 
 
 def ask_ollama(
     prompt: str,
     model: str = MODEL,
-    ollama_url: str | None = None,
-    timeout: int = OLLAMA_TIMEOUT_S,
-    retries: int = 3,
+    client: OllamaClient | None = None,
+    image_path: Path | None = None,
+    *,
+    json_schema: dict[str, Any] | None = None,
 ) -> str:
-    """Send a prompt to Ollama with retry/backoff.
+    client = client or OllamaClient()
+    effective_model = _pick_vision_model(client) if not client else model
+    image_b64 = encode_image_for_vision(image_path) if image_path else None
 
-    Args:
-        prompt: The prompt text.
-        model: Ollama model name.
-        ollama_url: Ignored (host is resolved from OLLAMA_HOST); kept for CLI compat.
-        timeout: HTTP timeout in seconds.
-        retries: Number of attempts before giving up.
+    if image_b64:
+        vision_prompt = (
+            "Analyze this desktop app screenshot. "
+            "Only use visible evidence. No invented UI.\n"
+            f"{prompt}"
+        )
+        try:
+            response = client.generate(
+                model=effective_model,
+                prompt=vision_prompt,
+                stream=False,
+                options=GENERATION_OPTIONS,
+                images=[image_b64],
+                think=False,
+                format=json_schema,
+            )
+            return _parse_model_text(response)
+        except Exception as exc:
+            logger.error("Vision Ollama call failed: %s", exc)
+            return f"ERROR: {exc}"
 
-    Returns:
-        Response text, or an "ERROR: ..." string on failure.
-    """
-    del ollama_url
-    client = OllamaClient(timeout=timeout, retries=retries)
+    strict_prompt = (
+        "You are a structured analysis API. Return ONLY a single JSON object. "
+        "No markdown, no prose, no explanations.\n"
+        "App context: WinUI 3 desktop disk space analyzer.\n"
+        f"Screenshot features:\n{prompt}\n"
+        '{"app_title":"","visible_navigation":[""],"main_content":"",'
+        '"issues":[{"severity":"high|medium|low","finding":""}],'
+        '"quick_wins":[""],"evidence_confidence":"high|medium|low"}'
+    )
     try:
-        result: str = client.generate(
-            model=model,
-            prompt=prompt,
+        response = client.generate(
+            model=effective_model,
+            prompt=strict_prompt,
             stream=False,
             options=GENERATION_OPTIONS,
+            think=False,
+            format=json_schema,
         )
-        return result
-    except Exception as e:
-        logger.error("All retries failed: %s", e)
-        return f"ERROR: {e}"
+        return _parse_model_text(response)
+    except Exception as exc:
+        logger.error("Ollama call failed: %s", exc)
+        return f"ERROR: {exc}"
 
 
 def extract_features(path: Path) -> dict[str, Any]:
-    """Extract visual features from a screenshot using PIL.
-
-    Args:
-        path: Path to the screenshot.
-
-    Returns:
-        Dict of brightness, edge density, palette, etc.
-
-    Raises:
-        FileNotFoundError: If path does not exist.
-        UnidentifiedImageError: If the file is not a valid image.
-    """
     img = Image.open(path)
     w, h = img.size
     gray = img.convert("L")
 
-    pixels = list(gray.getdata())
+    pixels = list(gray.get_flattened_data())
     total = len(pixels)
     avg_bright = sum(pixels) / total
     dark_pct = sum(1 for p in pixels if p < 64) / total * 100
     light_pct = sum(1 for p in pixels if p > 192) / total * 100
 
     edges = gray.filter(ImageFilter.FIND_EDGES)
-    edge_pct = sum(1 for p in list(edges.getdata()) if p > 128) / total * 100
+    edge_pct = sum(1 for p in list(edges.get_flattened_data()) if p > 128) / total * 100
 
     reduced = img.quantize(32)
     palette = reduced.getpalette() or []
-    counts = Counter(reduced.getdata())
+    counts = Counter(reduced.get_flattened_data())
     top_colors = []
     for idx, _ in counts.most_common(5):
         r, g, b = palette[idx * 3 : idx * 3 + 3]
         top_colors.append(f"rgb({r},{g},{b})")
 
     center = img.crop((w // 4, h // 4, 3 * w // 4, 3 * h // 4)).quantize(16)
-    center_variety = len(set(center.getdata()))
+    center_variety = len(set(center.get_flattened_data()))
 
     return {
         "dim": f"{w}x{h}",
@@ -158,73 +255,83 @@ def extract_features(path: Path) -> dict[str, Any]:
 
 
 def describe(features: dict[str, Any]) -> str:
-    """Generate a brief description of visual features.
-
-    Args:
-        features: Output from ``extract_features``.
-
-    Returns:
-        Human-readable description string.
-    """
     parts: list[str] = []
-    parts.append("dark" if features["dark_pct"] > DARK_THRESHOLD_PCT else "light")
-    if features["edge_pct"] < EDGE_SPARSE_PCT:
+    parts.append("dark" if features["dark_pct"] > 50.0 else "light")
+    if features["edge_pct"] < 5.0:
         parts.append("sparse")
-    elif features["edge_pct"] > EDGE_DENSE_PCT:
+    elif features["edge_pct"] > 15.0:
         parts.append("dense")
     else:
         parts.append("moderate")
     parts.append(f"{features['center_colors']} tones in content")
-    parts.append(" ".join(features["palette"][:3]))
-    return "; ".join(parts)
+    desc = "; ".join(parts)
+    return desc
 
 
 KEY_SHOTS: dict[str, str] = {
-    "02_dashboard_initial": "Dashboard with system info overview",
-    "04_files_summary": "Scan results summary with stats grid",
-    "05_files_file_types_report": "File types grouped by category",
-    "06_files_size_audit": "Largest files ranking",
-    "07_files_organization_planner": "Organization view with file actions",
-    "08_files_cleanup_review": "Cleanup review with delete buttons",
-    "10_charts": "Charts/visualizations tab",
-    "11_history": "Scan history list",
-    "13_settings": "Settings page",
+    "01_launched": "App initial launch screen",
+    "01_tab_dashboard": "Dashboard system overview",
+    "02_tab_scan": "Scan page with directory input, depth slider, hidden-files checkbox, and scan results",
+    "03_tab_history": "History and past scans list",
+    "04_tab_smart_search": "Advanced Search view with query and size filters",
+    "05_tab_workflows": "Automation Workflows view",
+    "06_tab_ai_chat": "AI Assistant chat view",
+    "07_tab_dedup": "Duplicates analysis view",
+    "08_tab_system": "System resources info view",
+    "09_tab_settings": "Settings page",
+}
+
+ALIASES: dict[str, str] = {
 }
 
 
+def _resolve_screenshots_dir(shots_root: Path) -> Path | None:
+    if not shots_root.is_dir():
+        return None
+    if shots_root.name.startswith("screenshots_"):
+        return shots_root
+    candidates = [
+        d for d in shots_root.iterdir() if d.is_dir() and d.name.startswith("screenshots_")
+    ]
+    if not candidates:
+        return None
+    # Most-recently-modified first (see _find_latest_screenshots_dir for rationale).
+    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return candidates[0]
+
+
+def _matching_screenshots(screenshots_dir: Path) -> dict[str, Path]:
+    candidates = {s.stem: s for s in screenshots_dir.glob("*.png")}
+    matches: dict[str, Path] = {}
+    for key, label in KEY_SHOTS.items():
+        alias = ALIASES.get(key, key)
+        path = candidates.get(alias)
+        if path is not None:
+            matches[key] = path
+    return matches
+
+
 def compute_quality_score(features: dict[str, Any]) -> int:
-    """Compute a unified quality score (0-100) from visual features.
+    BRIGHTNESS_TARGET = 50.0
+    EDGE_LOW = 5.0
+    EDGE_HIGH = 15.0
+    EDGE_TARGET = 10.0
+    COLOR_SCORE_SCALE = 2.0
+    DARK_PENALTY_WEIGHT = 0.3
 
-    Args:
-        features: Output from ``extract_features``.
-
-    Returns:
-        Score clamped to [0, 100].
-    """
     bright_score = max(0.0, 100.0 - abs(features["bright"] - BRIGHTNESS_TARGET) * 2.0)
     edge = features["edge_pct"]
-    edge_score = (100.0 if EDGE_LOW <= edge <= EDGE_HIGH
-                  else max(0.0, 100.0 - abs(edge - EDGE_TARGET) * 3.0))
+    edge_score = (100.0 if EDGE_LOW <= edge <= EDGE_HIGH else max(0.0, 100.0 - abs(edge - EDGE_TARGET) * 3.0))
     color_score = min(100.0, float(features["center_colors"]) * COLOR_SCORE_SCALE)
     dark_penalty = float(features["dark_pct"]) * DARK_PENALTY_WEIGHT
     raw = (bright_score + edge_score + color_score) / 3.0 - dark_penalty
-    clamped: int = round(max(0.0, min(100.0, raw)))
-    return clamped
+    return round(max(0.0, min(100.0, raw)))
 
 
 def compare_with_history(
     current_extracted: dict[str, dict[str, Any]],
     ts: str,
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
-    """Compare extracted features with the previous run history.
-
-    Args:
-        current_extracted: Mapping of screenshot key to features.
-        ts: Timestamp string used to locate the history file.
-
-    Returns:
-        Tuple of (comparison dict, previous features dict or None).
-    """
     history_file = ANALYSIS_HISTORY_DIR / f"features_{ts}.json"
     comparison: dict[str, Any] = {"improvements": [], "regressions": [], "scores": {}}
 
@@ -234,8 +341,8 @@ def compare_with_history(
     try:
         with history_file.open(encoding="utf-8") as f:
             previous = json.load(f)
-    except (OSError, json.JSONDecodeError) as e:
-        logger.warning("Could not read history %s: %s", history_file, e)
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Could not read history %s: %s", history_file, exc)
         return comparison, None
 
     for key, curr_data in current_extracted.items():
@@ -248,69 +355,50 @@ def compare_with_history(
             "current": curr_score,
             "change": curr_score - prev_score,
         }
-        if curr_score > prev_score + QUALITY_IMPROVEMENT_THRESHOLD:
-            comparison["improvements"].append({
-                "screenshot": key,
-                "from": prev_score,
-                "to": curr_score,
-            })
-        elif curr_score < prev_score - QUALITY_IMPROVEMENT_THRESHOLD:
-            comparison["regressions"].append({
-                "screenshot": key,
-                "from": prev_score,
-                "to": curr_score,
-            })
+        if curr_score > prev_score + 1:
+            comparison["improvements"].append({"screenshot": key, "from": prev_score, "to": curr_score})
+        elif curr_score < prev_score - 1:
+            comparison["regressions"].append({"screenshot": key, "from": prev_score, "to": curr_score})
 
     return comparison, previous
 
 
 def _build_analysis_prompt(context: str) -> str:
-    """Build the UX analysis prompt for the LLM.
-
-    Args:
-        context: Multi-line screenshot context string.
-
-    Returns:
-        Full prompt text.
-    """
+    schema_hint = (
+        '{"app_title":"","visible_navigation":[""],"main_content":"",'
+        '"issues":[{"severity":"high|medium|low","finding":"","location":""}],'
+        '"quick_wins":[""],"evidence_confidence":"high|medium|low"}'
+    )
     return (
-        "You are a UI/UX expert. Evaluate this dark-theme desktop app based on "
-        f"extracted visual data:\n\n{context}\n\n"
-        "The app is a Rust/egui disk space analyzer with Tabs: "
-        "Dashboard, Files (5 sub-views), Charts, History, Settings.\n\n"
-        "Provide:\n"
-        "1. VISUAL STYLE (1 line)\n"
-        "2. TOP 3 ISSUES (specific)\n"
-        "3. TOP 3 QUICK WINS (actionable code changes)\n"
-        "Format as plain text bullet points."
+        "You are a UX analysis engine for WinUI 3 desktop screenshots.\n"
+        "For each screenshot, extract:\n"
+        '1. app_title: exact visible window/title text\n'
+        '2. visible_navigation: every visible tab label, sidebar entry, menu item (read the actual text)\n'
+        '3. main_content: what is rendered in the main panel (charts, tables, lists, empty states, cards)\n'
+        '4. issues: high=usability blockers, medium=friction/confusion, low=polish — cite the specific location if visible\n'
+        '5. quick_wins: concrete, actionable UI improvements (no vague advice)\n'
+        '6. evidence_confidence: high if text and structure are clear, medium if partially visible, low if ambiguous\n'
+        "App context: Space Analyzer Pro.\n"
+        f"{context}\n"
+        f"{schema_hint}"
     )
 
 
 def _build_code_prompt(analysis: str) -> str:
-    """Build the code-recommendation prompt for the LLM.
-
-    Args:
-        analysis: Previous UX analysis text.
-
-    Returns:
-        Full prompt text.
-    """
     feedback = analysis[:MAX_FEEDBACK_CHARS] if analysis else "No analysis available"
+    schema_hint = (
+        '{"changes":[{"file":"gui-egui/...","change":"...","why":"..."}]}'
+    )
     return (
-        "Based on this UX feedback, suggest 3 specific egui 0.34 code changes:\n\n"
-        f"FEEDBACK:\n{feedback}\n\n"
-        "Give concrete Rust/egui API calls (Visuals, Frame, Style, Layout). "
-        "Format as short code snippets with explanation."
+        "Based on this UX feedback, suggest exactly 3 specific egui code changes.\n"
+        "Return ONLY a compact JSON object with no prose.\n"
+        "Each change targets one of: Visuals, Frame, Style, Layout.\n"
+        f"FEEDBACK:\n{feedback}\n"
+        f"{schema_hint}"
     )
 
 
 def _print_summary(extracted: dict[str, dict[str, Any]], comparison: dict[str, Any]) -> None:
-    """Print the human-readable analysis summary to stdout.
-
-    Args:
-        extracted: Extracted features per screenshot.
-        comparison: Output of ``compare_with_history``.
-    """
     print("\nUX ANALYSIS RESULTS")
     print("=" * 60)
     print("\nScreenshots analyzed:")
@@ -330,15 +418,6 @@ def _print_summary(extracted: dict[str, dict[str, Any]], comparison: dict[str, A
 
 
 def _save_features_history(extracted: dict[str, dict[str, Any]], ts: str) -> Path:
-    """Persist current features to the analysis history directory.
-
-    Args:
-        extracted: Extracted features per screenshot.
-        ts: Timestamp string.
-
-    Returns:
-        Path to the saved history file.
-    """
     ANALYSIS_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
     payload = {
         k: {
@@ -362,63 +441,89 @@ def run_analysis(
     ts: str,
     ollama_url: str | None = None,
 ) -> int:
-    """Run the full analysis pipeline on a screenshots directory.
-
-    Args:
-        screenshots_dir: Directory containing screenshot PNGs.
-        report_path: Output path for the JSON report.
-        ts: Timestamp string used to name the history file.
-        ollama_url: Optional Ollama URL override.
-
-    Returns:
-        Process exit code.
-    """
     print("Extracting visual features...")
-    screenshots = {s.stem: s for s in screenshots_dir.glob("*.png") if s.stem in KEY_SHOTS}
+    screenshots = _matching_screenshots(screenshots_dir)
 
     extracted: dict[str, dict[str, Any]] = {}
-    for key, label in KEY_SHOTS.items():
-        path = screenshots.get(key)
-        if path is None:
-            print(f"  Skipping {key} (not found)")
-            continue
+    client = OllamaClient()
+    picked_model = _pick_vision_model(client)
+    print(f"  Using vision model: {picked_model}")
+
+    if not screenshots:
+        logger.error("No matching screenshots found in %s (have: %s)", screenshots_dir,
+                     ", ".join(sorted(s.stem for s in screenshots_dir.glob("*.png"))[:10]) or "none")
+        return 1
+
+    for key, path in screenshots.items():
+        label = KEY_SHOTS[key]
+        print(f"  analyzing {path.stem}...", end=" ", flush=True)
         try:
             features = extract_features(path)
-        except (FileNotFoundError, UnidentifiedImageError, OSError) as e:
-            logger.error("Could not extract features for %s: %s", key, e)
+        except (FileNotFoundError, UnidentifiedImageError, OSError) as exc:
+            logger.error("Could not extract features for %s: %s", key, exc)
             continue
         features["quality_score"] = compute_quality_score(features)
         desc = describe(features)
         extracted[key] = {"label": label, "desc": desc, **features}
-        print(f"  [{key}] quality={features['quality_score']}/100  {desc[:90]}...")
+        print(f"ok quality={features['quality_score']}/100")
 
     if not extracted:
         logger.error("No key screenshots found in %s", screenshots_dir)
         return 1
 
+    # Per-screenshot vision pass: send each screenshot's ACTUAL image to the vision
+    # model so it can read visible UI text/labels/controls. PIL features alone ("dark;
+    # sparse; 16 tones") cannot report what's really displayed on each tab, so without
+    # this the "vision" analysis is text-only inference on feature stats.
+    print("\nRunning per-screenshot vision analysis...")
+    vision_results: dict[str, str] = {}
+    for key, path in screenshots.items():
+        if key not in extracted:
+            continue
+        print(f"  vision {path.stem}...", end=" ", flush=True)
+        shot_prompt = (
+            f"This is the '{KEY_SHOTS[key]}' tab of Space Analyzer Pro (a WinUI 3 "
+            "desktop disk-space analyzer). Describe EXACTLY what is visible: "
+            "headings, button labels, input fields, slider values, checkboxes, "
+            "stat cards and their numbers, list/table contents, and empty states. "
+            "Read visible text literally. Note layout structure. One concise paragraph."
+        )
+        vision_results[key] = ask_ollama(
+            shot_prompt, model=picked_model, client=client, image_path=path
+        )
+        extracted[key]["vision_description"] = vision_results[key]
+        print("ok")
+
     context_lines = [
-        f"[{k}] {v['label']}: {v['desc']} (quality: {v.get('quality_score', '?')}/100)"
+        f"[{k}] {v['label']}: {v['desc']} (quality: {v.get('quality_score', '?')}/100)\n"
+        f"  vision: {vision_results.get(k, 'n/a')}"
         for k, v in extracted.items()
     ]
     context = "\n".join(context_lines)
 
+    # Ground the combined UX analysis in a real screenshot (the Scan page shows the
+    # scanning parameters the user wants to verify) by passing it as the image.
+    scan_image = screenshots.get("02_tab_scan")
     analysis_prompt = _build_analysis_prompt(context)
-    print("\nAnalyzing with LLM...", end=" ", flush=True)
-    analysis = ask_ollama(analysis_prompt, ollama_url=ollama_url)
+    print("\nAnalyzing with LLM (JSON schema)...", end=" ", flush=True)
+    analysis = ask_ollama(
+        analysis_prompt, client=client, json_schema=ANALYSIS_SCHEMA, image_path=scan_image
+    )
     print("OK")
 
     code_prompt = _build_code_prompt(analysis)
-    print("Generating code recommendations...", end=" ", flush=True)
-    code_recs = ask_ollama(code_prompt, ollama_url=ollama_url)
+    print("\nGenerating code recommendations...", end=" ", flush=True)
+    code_recs = ask_ollama(code_prompt, client=client, json_schema=CODE_SCHEMA)
     print("OK")
 
     comparison, _ = compare_with_history(extracted, ts)
 
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report = {
-        "model": MODEL,
+        "model": picked_model,
         "timestamp": datetime.now().isoformat(),
         "screenshots": extracted,
+        "vision_analysis": vision_results,
         "ux_recommendations": analysis,
         "code_recommendations": code_recs,
         "quality_comparison": comparison,
@@ -438,30 +543,15 @@ def run_analysis(
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse command-line arguments.
-
-    Args:
-        argv: Optional argument list.
-
-    Returns:
-        Parsed argument namespace.
-    """
     parser = argparse.ArgumentParser(description="Analyze macro screenshots via PIL + Ollama")
     parser.add_argument("--shots-root", default=str(DEFAULT_SHOTS_ROOT), help="Directory containing screenshots_* subdirs")
+    parser.add_argument("--shots-dir", default=None, help="Direct path to a screenshots directory (named or unnamed)")
     parser.add_argument("--ollama-url", default=None, help="Full URL to Ollama /api/generate")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable debug logging")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Entry point for the CLI.
-
-    Args:
-        argv: Optional argument list.
-
-    Returns:
-        Process exit code.
-    """
     args = _parse_args(argv)
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -471,13 +561,17 @@ def main(argv: list[str] | None = None) -> int:
     _configure_console()
 
     shots_root = Path(args.shots_root)
-    latest = _find_latest_screenshots_dir(shots_root)
+    latest = _resolve_screenshots_dir(shots_root)
+    if latest is None and args.shots_dir:
+        latest = _resolve_screenshots_dir(Path(args.shots_dir))
     if latest is None:
         logger.error("No screenshot directories found in %s/", shots_root)
         return 1
 
-    ts = latest.name.replace("screenshots_", "")
+    ts = latest.name.replace("screenshots_", "") if latest.name.startswith("screenshots_") else latest.name
     report_path = shots_root / f"ux_analysis_{ts}.json"
+    if not report_path.parent.exists():
+        report_path = latest.parent / f"ux_analysis_{ts}.json"
     return run_analysis(latest, report_path, ts, ollama_url=args.ollama_url)
 
 

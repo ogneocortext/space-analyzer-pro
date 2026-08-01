@@ -35,7 +35,7 @@ impl SpaceAnalyzerApp {
                 result.total_size_mb,
                 result.duration_secs,
                 result.file_types.iter().map(|(ext, count)| format!("  .{}: {} files", ext, count)).collect::<Vec<_>>().join("\n"),
-                result.largest_files.iter().take(10).map(|(path, size)| format!("  {} ({})", path, formatting::format_bytes(*size))).collect::<Vec<_>>().join("\n"),
+                result.largest_files.iter().take(10).map(|file| format!("  {} ({})", file.path, formatting::format_bytes(file.size))).collect::<Vec<_>>().join("\n"),
             );
             format!("{}\n\n{}", scan_summary, prompt)
         } else {

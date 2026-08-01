@@ -8,6 +8,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     NavigationCacheMode="Required"
+    Loaded="HistoryPage_Loaded"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Page.DataContext>
@@ -30,7 +31,7 @@
                 <!-- Status -->
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"/>
 
-                <!-- History List -->
+                 <!-- History List -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}">
                     <StackPanel Spacing="12">
                         <TextBlock Text="Recent Scans" FontSize="16" FontWeight="SemiBold"/>
@@ -49,11 +50,30 @@
                                                 <TextBlock FontSize="12" Text="{x:Bind DurationDisplay, Mode=OneTime}"/>
                                                 <TextBlock FontSize="12" Text="{x:Bind DateDisplay, Mode=OneTime}"/>
                                             </StackPanel>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                                                <Button Content="View Details" Click="ViewDetails_Click" Tag="{x:Bind Id}" Padding="8,4" FontSize="12"/>
+                                                <Button Content="Delete" Click="Delete_Click" Tag="{x:Bind Id}" Padding="8,4" FontSize="12"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
                             </ItemsRepeater.ItemTemplate>
                         </ItemsRepeater>
+                    </StackPanel>
+                </Border>
+
+                <!-- Detail View -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasSelectedRecordVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Scan Details" FontSize="16" FontWeight="SemiBold"/>
+                         <TextBlock Text="{x:Bind VM.SelectedRecord.Path, Mode=OneWay}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                         <StackPanel Orientation="Horizontal" Spacing="24" Opacity="0.8">
+                             <TextBlock FontSize="12" Text="{x:Bind VM.SelectedRecord.FilesDisplay, Mode=OneWay}"/>
+                             <TextBlock FontSize="12" Text="{x:Bind VM.SelectedRecord.TotalSizeDisplay, Mode=OneWay}"/>
+                             <TextBlock FontSize="12" Text="{x:Bind VM.SelectedRecord.DurationDisplay, Mode=OneWay}"/>
+                             <TextBlock FontSize="12" Text="{x:Bind VM.SelectedRecord.DateDisplay, Mode=OneWay}"/>
+                        </StackPanel>
+                        <Button Content="Back to list" Click="BackToList_Click" Padding="8,4" FontSize="12"/>
                     </StackPanel>
                 </Border>
 

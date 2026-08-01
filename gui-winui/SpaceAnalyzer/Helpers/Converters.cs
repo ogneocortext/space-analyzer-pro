@@ -3,6 +3,7 @@
 using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Media;
 
 namespace SpaceAnalyzer.Helpers;
 
@@ -48,6 +49,44 @@ public sealed class InverseBoolToVisibilityConverter : IValueConverter
             return v != Visibility.Visible;
         }
 
+        return false;
+    }
+}
+
+/// <summary>
+/// Converts a <see cref="bool"/> to a <see cref="SolidColorBrush"/>.
+/// <c>true</c> returns the error brush; <c>false</c> returns transparent.
+/// </summary>
+public sealed class BoolToErrorBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool isError = value is bool b && b;
+        return isError
+            ? new SolidColorBrush(Microsoft.UI.Colors.Red)
+            : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+    {
+        return false;
+    }
+}
+
+/// <summary>
+/// Converts a <see cref="bool"/> to the appropriate scan button text.
+/// <c>true</c> returns "Stop"; <c>false</c> returns "Start Scan".
+/// </summary>
+public sealed class BoolToScanButtonTextConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool isScanning = value is bool b && b;
+        return isScanning ? "Stop" : "Start Scan";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+    {
         return false;
     }
 }

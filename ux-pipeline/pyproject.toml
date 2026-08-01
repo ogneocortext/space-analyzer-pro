@@ -28,7 +28,7 @@ classifiers = [
 # ``analyze_screenshots`` feature extraction path. PyTorch / CUDA is optional
 # and only consulted by ``gpu_vision_analyzer`` at runtime.
 dependencies = [
-    "Pillow>=9.0",
+    "Pillow>=12.1.0",
 ]
 
 [project.optional-dependencies]
@@ -36,6 +36,13 @@ dependencies = [
 # degrades to a CPU-only stub and the rest of the package keeps working.
 gpu = [
     "torch>=2.0",
+]
+# Desktop vision stack: OpenCV for feature/template matching, RapidOCR for
+# cross-platform OCR, and pyauto-desktop for DPI-aware desktop automation.
+desktop = [
+    "opencv-python-headless>=4.9.0",
+    "rapidocr-onnxruntime>=2.0.0",
+    "pyauto-desktop>=0.5.0",
 ]
 # Convenience meta-target used in ``just verify``.
 test = [

@@ -50,6 +50,8 @@ pub struct ScanResult {
     pub empty_directories: Vec<String>,
     pub errors: Vec<String>,
     pub subdirectories: Vec<DirInfo>,
+    /// Map of scanned file paths to (size, mtime_unix) for incremental caching
+    pub scanned_files: HashMap<String, (u64, i64)>,
 }
 
 /// Per-directory aggregate information
@@ -78,6 +80,8 @@ pub struct ScanOptions {
     pub cuda_enabled: bool,
     /// Number of threads for parallel post-processing (0 = auto-detect)
     pub num_threads: usize,
+    /// Optional file cache (path -> (size, mtime_unix)) for skipping unchanged files
+    pub file_cache: Option<HashMap<String, (u64, i64)>>,
 }
 
 impl Default for ScanOptions {
@@ -92,6 +96,7 @@ impl Default for ScanOptions {
             gpu_acceleration: true,
             cuda_enabled: false,
             num_threads: 0,
+            file_cache: None,
         }
     }
 }
@@ -235,6 +240,7 @@ impl FileScanner {
             empty_directories: Vec::new(),
             errors: Vec::new(),
             subdirectories: Vec::new(),
+            scanned_files: HashMap::new(),
         };
 
         // Use physical cores for I/O-bound parallelism (hyperthreads add overhead).
@@ -257,27 +263,59 @@ impl FileScanner {
 
         let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
 
-        let raw_entries: Vec<gpu_compute::scan::RawFileEntry> = thread_pool.install(|| {
+        type RawEntry = (String, u64, bool, Option<(u64, i64)>);
+        let raw_entries_data: Vec<RawEntry> = thread_pool.install(|| {
             walk_entries
                 .into_par_iter()
                 .filter_map(|entry| {
                     let entry_path = entry.path();
-                    let metadata = entry.metadata().ok()?;
+                    let path_str = entry_path.to_string_lossy().to_string();
+                    let metadata = match entry.metadata() {
+                        Ok(m) => m,
+                        Err(_) => return None,
+                    };
                     let is_dir = metadata.is_dir();
                     let size = metadata.len();
+                    let mtime = Self::get_mtime_unix(&metadata);
+
+                    if !is_dir {
+                        if let Some(cache_map) = options.file_cache.as_ref() {
+                            if let Some(&(cached_size, cached_mtime)) = cache_map.get(&path_str) {
+                                if cached_size == size && cached_mtime == mtime {
+                                    return Some((
+                                        path_str,
+                                        cached_size,
+                                        is_dir,
+                                        Some((cached_size, cached_mtime)),
+                                    ));
+                                }
+                            }
+                        }
+                    }
 
                     if !is_dir && !self.should_include_file(&metadata, entry_path, &options) {
                         return None;
                     }
 
-                    Some(gpu_compute::scan::RawFileEntry {
-                        path: entry_path.to_string_lossy().to_string(),
-                        size,
-                        is_dir,
-                    })
+                    Some((path_str, size, is_dir, Some((size, mtime))))
                 })
                 .collect()
         });
+
+        let mut scanned_files = HashMap::new();
+        let raw_entries: Vec<gpu_compute::scan::RawFileEntry> = raw_entries_data
+            .into_iter()
+            .map(|(path_str, size, is_dir, cache_info)| {
+                if let Some((size, mtime)) = cache_info {
+                    scanned_files.insert(path_str.clone(), (size, mtime));
+                }
+                gpu_compute::scan::RawFileEntry {
+                    path: path_str,
+                    size,
+                    is_dir,
+                }
+            })
+            .collect();
 
         let use_gpu = options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
         let processor = gpu_compute::scan::GpuScanProcessor::new()
@@ -307,6 +345,8 @@ impl FileScanner {
             .collect();
 
         result.total_directories = raw_entries.iter().filter(|e| e.is_dir).count() as u64;
+
+        result.scanned_files = scanned_files;
 
         Ok(result)
     }
@@ -401,6 +441,15 @@ impl FileScanner {
             .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
     }
 
+    fn get_mtime_unix(metadata: &std::fs::Metadata) -> i64 {
+        metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0)
+    }
+
     /// Synchronous directory scan with GPU-accelerated post-processing
     ///
     /// Phase 1 (CPU): I/O-bound directory traversal and metadata collection
@@ -421,6 +470,7 @@ impl FileScanner {
             empty_directories: Vec::new(),
             errors: Vec::new(),
             subdirectories: Vec::new(),
+            scanned_files: HashMap::new(),
         };
 
         // ── Phase 1: I/O-bound directory traversal (CPU only) ──
@@ -443,12 +493,13 @@ impl FileScanner {
         }
         let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
 
+        let mut scanned_files = HashMap::new();
         for entry_result in walk_entries {
             let entry_path = entry_result.path();
+            let path_str = entry_path.to_string_lossy().to_string();
             let metadata = match entry_result.metadata() {
                 Ok(m) => m,
                 Err(e) => {
-                    let path_str = entry_path.to_string_lossy().to_string();
                     let error_msg = if e.io_error().map(|io_err| io_err.kind())
                         == Some(std::io::ErrorKind::PermissionDenied)
                     {
@@ -463,14 +514,32 @@ impl FileScanner {
 
             let is_dir = metadata.is_dir();
             let size = metadata.len();
+            let mtime = Self::get_mtime_unix(&metadata);
+
+            if !is_dir {
+                if let Some(cache_map) = options.file_cache.as_ref() {
+                    if let Some(&(cached_size, cached_mtime)) = cache_map.get(&path_str) {
+                        if cached_size == size && cached_mtime == mtime {
+                            scanned_files.insert(path_str.clone(), (cached_size, cached_mtime));
+                            raw_entries.push(gpu_compute::scan::RawFileEntry {
+                                path: path_str,
+                                size: cached_size,
+                                is_dir,
+                            });
+                            continue;
+                        }
+                    }
+                }
+            }
 
             // Apply filters during I/O phase (early rejection saves GPU transfer)
             if !is_dir && !self.should_include_file(&metadata, entry_path, &options) {
                 continue;
             }
 
+            scanned_files.insert(path_str.clone(), (size, mtime));
             raw_entries.push(gpu_compute::scan::RawFileEntry {
-                path: entry_path.to_string_lossy().to_string(),
+                path: path_str,
                 size,
                 is_dir,
             });
@@ -525,6 +594,8 @@ impl FileScanner {
         // Count directories from raw entries
         result.total_directories = raw_entries.iter().filter(|e| e.is_dir).count() as u64;
 
+        result.scanned_files = scanned_files;
+
         Ok(result)
     }
 
@@ -551,12 +622,14 @@ impl FileScanner {
             empty_directories: Vec::new(),
             errors: Vec::new(),
             subdirectories: Vec::new(),
+            scanned_files: HashMap::new(),
         };
 
         let mut raw_entries: Vec<gpu_compute::scan::RawFileEntry> = Vec::new();
         let mut live_files: Vec<FileInfo> = Vec::new();
         let mut files_scanned: u64 = 0;
         let mut dirs_scanned: u64 = 0;
+        let mut scanned_files = HashMap::new();
 
         let mut walker = WalkDir::new(path);
         if let Some(depth) = options.max_depth {
@@ -630,6 +703,7 @@ impl FileScanner {
                     }
                 }
                 result.total_directories = dirs_scanned;
+                result.scanned_files = scanned_files;
 
                 let pct = if total_estimate > 0 {
                     ((entries_processed as f32 / total_estimate as f32) * 100.0).min(99.0)
@@ -652,10 +726,10 @@ impl FileScanner {
             }
 
             let entry_path = entry_result.path();
+            let path_str = entry_path.to_string_lossy().to_string();
             let metadata = match entry_result.metadata() {
                 Ok(m) => m,
                 Err(e) => {
-                    let path_str = entry_path.to_string_lossy().to_string();
                     let error_msg = if e.io_error().map(|io_err| io_err.kind())
                         == Some(std::io::ErrorKind::PermissionDenied)
                     {
@@ -671,6 +745,115 @@ impl FileScanner {
 
             let is_dir = metadata.is_dir();
             let size = metadata.len();
+            let mtime = Self::get_mtime_unix(&metadata);
+
+            if !is_dir {
+                if let Some(cache_map) = options.file_cache.as_ref() {
+                    if let Some(&(cached_size, cached_mtime)) = cache_map.get(&path_str) {
+                        if cached_size == size && cached_mtime == mtime {
+                            scanned_files.insert(path_str.clone(), (cached_size, cached_mtime));
+                            raw_entries.push(gpu_compute::scan::RawFileEntry {
+                                path: path_str.clone(),
+                                size: cached_size,
+                                is_dir,
+                            });
+                            if is_dir {
+                                dirs_scanned += 1;
+                            } else {
+                                files_scanned += 1;
+                                let p = Path::new(&path_str);
+                                let ext = p
+                                    .extension()
+                                    .and_then(|e| e.to_str())
+                                    .unwrap_or("")
+                                    .to_lowercase();
+                                *result.file_types.entry(ext.clone()).or_insert(0) += 1;
+                                *result.extension_sizes.entry(ext.clone()).or_insert(0) +=
+                                    cached_size;
+                                if options.size_buckets {
+                                    *result
+                                        .size_distribution
+                                        .entry(size_bucket(cached_size).to_string())
+                                        .or_insert(0) += 1;
+                                }
+                                result.total_size += cached_size;
+                                result.total_files += 1;
+
+                                let file_info = FileInfo {
+                                    path: path_str.clone(),
+                                    name: p
+                                        .file_name()
+                                        .and_then(|n| n.to_str())
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    size: cached_size,
+                                    modified: std::fs::metadata(&path_str)
+                                        .ok()
+                                        .and_then(|m| m.modified().ok())
+                                        .and_then(Self::format_timestamp),
+                                    file_type: "file".to_string(),
+                                    extension: ext.clone(),
+                                };
+                                live_files.push(file_info.clone());
+
+                                if live_files.len() > 200 {
+                                    live_files.sort_by_key(|b| std::cmp::Reverse(b.size));
+                                    live_files.truncate(100);
+                                }
+
+                                if result.largest_files.len() < 100
+                                    || cached_size
+                                        > result.largest_files.last().map(|f| f.size).unwrap_or(0)
+                                {
+                                    result.largest_files.push(FileInfo {
+                                        path: path_str.clone(),
+                                        name: p
+                                            .file_name()
+                                            .and_then(|n| n.to_str())
+                                            .unwrap_or("")
+                                            .to_string(),
+                                        size: cached_size,
+                                        modified: std::fs::metadata(&path_str)
+                                            .ok()
+                                            .and_then(|m| m.modified().ok())
+                                            .and_then(Self::format_timestamp),
+                                        file_type: "file".to_string(),
+                                        extension: ext,
+                                    });
+                                    result
+                                        .largest_files
+                                        .sort_by_key(|b| std::cmp::Reverse(b.size));
+                                    result.largest_files.truncate(100);
+                                }
+                            }
+                            entries_processed += 1;
+
+                            if entries_processed.is_multiple_of(50) {
+                                let pct = if total_estimate > 0 {
+                                    ((entries_processed as f32 / total_estimate as f32) * 100.0)
+                                        .min(99.0)
+                                } else {
+                                    0.0
+                                };
+                                let _ =
+                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                        progress_callback(ScanProgress {
+                                            files_scanned,
+                                            directories_scanned: dirs_scanned,
+                                            total_size: result.total_size,
+                                            current_file: path_str.clone(),
+                                            percentage: pct,
+                                            completed: false,
+                                            live_files: live_files.clone(),
+                                        });
+                                    }));
+                            }
+
+                            continue;
+                        }
+                    }
+                }
+            }
 
             if !is_dir && !self.should_include_file(&metadata, entry_path, &options) {
                 entries_processed += 1;
@@ -682,7 +865,7 @@ impl FileScanner {
             }
 
             raw_entries.push(gpu_compute::scan::RawFileEntry {
-                path: entry_path.to_string_lossy().to_string(),
+                path: path_str.clone(),
                 size,
                 is_dir,
             });
@@ -690,7 +873,7 @@ impl FileScanner {
             // Live file updates for real-time visibility
             if !is_dir {
                 let file_info = FileInfo {
-                    path: entry_path.to_string_lossy().to_string(),
+                    path: path_str.clone(),
                     name: entry_path
                         .file_name()
                         .and_then(|n| n.to_str())
@@ -739,7 +922,7 @@ impl FileScanner {
                             .filter(|e| !e.is_dir)
                             .map(|e| e.size)
                             .sum(),
-                        current_file: entry_path.to_string_lossy().to_string(),
+                        current_file: path_str.clone(),
                         percentage: pct,
                         completed: false,
                         live_files: live_files.clone(),
@@ -793,6 +976,7 @@ impl FileScanner {
         }
 
         result.total_directories = raw_entries.iter().filter(|e| e.is_dir).count() as u64;
+        result.scanned_files = scanned_files;
 
         // Final progress update
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -832,6 +1016,7 @@ impl FileScanner {
             empty_directories: Vec::new(),
             errors: Vec::new(),
             subdirectories: Vec::new(),
+            scanned_files: HashMap::new(),
         };
 
         let callback = progress_callback.clone();
@@ -847,6 +1032,8 @@ impl FileScanner {
         let current_files_clone = current_files.clone();
         let current_directories_clone = current_directories.clone();
         let current_size_clone = current_size.clone();
+
+        let mut scanned_files = HashMap::new();
 
         // Do not pre-walk the directory tree for progress estimation. That
         // doubled startup I/O on large profiles; grow the estimate online.
@@ -872,22 +1059,113 @@ impl FileScanner {
             }
 
             let path = entry_result.path();
+            let path_str = path.to_string_lossy().to_string();
             let metadata = match entry_result.metadata() {
                 Ok(m) => m,
                 Err(e) => {
-                    result.errors.push(format!(
-                        "Metadata error: {}: {}",
-                        path.to_string_lossy(),
-                        e
-                    ));
+                    result
+                        .errors
+                        .push(format!("Metadata error: {}: {}", path_str, e));
                     continue;
                 }
             };
 
-            let current_file_path = path.to_string_lossy().to_string();
             let is_file = metadata.is_file();
             let is_dir = metadata.is_dir();
             let size = metadata.len();
+            let mtime = Self::get_mtime_unix(&metadata);
+
+            if !is_dir {
+                if let Some(cache_map) = options.file_cache.as_ref() {
+                    if let Some(&(cached_size, cached_mtime)) = cache_map.get(&path_str) {
+                        if cached_size == size && cached_mtime == mtime {
+                            scanned_files.insert(path_str.clone(), (cached_size, cached_mtime));
+                            let files_count =
+                                current_files_clone.fetch_add(1, Ordering::Relaxed) + 1;
+                            let size_count = current_size_clone
+                                .fetch_add(cached_size, Ordering::Relaxed)
+                                + cached_size;
+
+                            result.total_files = files_count;
+                            result.total_size = size_count;
+
+                            let ext = path_str
+                                .rsplit('.')
+                                .next()
+                                .filter(|s| !s.is_empty())
+                                .map(|s| s.to_lowercase())
+                                .unwrap_or_default();
+                            *result.file_types.entry(ext.clone()).or_insert(0) += 1;
+
+                            if options.size_buckets {
+                                let bucket = size_bucket(cached_size);
+                                *result
+                                    .size_distribution
+                                    .entry(bucket.to_string())
+                                    .or_insert(0) += 1;
+                            }
+
+                            if result.largest_files.len() < 100
+                                || cached_size
+                                    > result.largest_files.last().map(|f| f.size).unwrap_or(0)
+                            {
+                                let file_info = FileInfo {
+                                    path: path_str.clone(),
+                                    name: path_str
+                                        .rsplit(std::path::MAIN_SEPARATOR)
+                                        .next()
+                                        .unwrap_or("")
+                                        .to_string(),
+                                    size: cached_size,
+                                    modified: std::fs::metadata(&path_str)
+                                        .ok()
+                                        .and_then(|m| m.modified().ok())
+                                        .and_then(Self::format_timestamp),
+                                    file_type: "file".to_string(),
+                                    extension: ext,
+                                };
+                                result.largest_files.push(file_info);
+                                result
+                                    .largest_files
+                                    .sort_by_key(|b| std::cmp::Reverse(b.size));
+                                result.largest_files.truncate(100);
+                            }
+
+                            let processed =
+                                processed_entries_clone.fetch_add(1, Ordering::Relaxed) + 1;
+                            let total = total_estimate_clone.load(Ordering::Relaxed);
+                            if processed > total {
+                                total_estimate_clone.store(processed + 1000, Ordering::Relaxed);
+                            }
+
+                            let files_scanned = current_files_clone.load(Ordering::Relaxed);
+                            let directories_scanned =
+                                current_directories_clone.load(Ordering::Relaxed);
+                            let total_size = current_size_clone.load(Ordering::Relaxed);
+                            let current_total = total_estimate_clone.load(Ordering::Relaxed);
+
+                            let progress = ScanProgress {
+                                files_scanned,
+                                directories_scanned,
+                                total_size,
+                                current_file: path_str.clone(),
+                                percentage: if current_total > 0 {
+                                    ((processed as f32 / current_total as f32) * 100.0).min(99.0)
+                                } else {
+                                    0.0
+                                },
+                                completed: false,
+                                live_files: Vec::new(),
+                            };
+
+                            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                callback(progress);
+                            }));
+                            continue;
+                        }
+                    }
+                }
+            }
 
             let should_process = if is_file {
                 self.should_include_file(&metadata, path, &options)
@@ -912,14 +1190,17 @@ impl FileScanner {
 
                     if options.size_buckets {
                         let bucket = size_bucket(size);
-                        *result.size_distribution.entry(bucket.to_string()).or_insert(0) += 1;
+                        *result
+                            .size_distribution
+                            .entry(bucket.to_string())
+                            .or_insert(0) += 1;
                     }
 
                     if result.largest_files.len() < 100
                         || size > result.largest_files.last().map(|f| f.size).unwrap_or(0)
                     {
                         let file_info = FileInfo {
-                            path: current_file_path.clone(),
+                            path: path_str.clone(),
                             name: path
                                 .file_name()
                                 .and_then(|n| n.to_str())
@@ -936,7 +1217,9 @@ impl FileScanner {
                             extension: ext,
                         };
                         result.largest_files.push(file_info);
-                        result.largest_files.sort_by_key(|b| std::cmp::Reverse(b.size));
+                        result
+                            .largest_files
+                            .sort_by_key(|b| std::cmp::Reverse(b.size));
                         result.largest_files.truncate(100);
                     }
                 } else if is_dir {
@@ -962,7 +1245,7 @@ impl FileScanner {
                 directories_scanned,
                 total_size,
                 current_file: if should_process {
-                    current_file_path
+                    path_str
                 } else {
                     "Skipping".to_string()
                 },
@@ -998,6 +1281,8 @@ impl FileScanner {
         }
 
         result.empty_directories = true_empty_dirs;
+        result.scanned_files = scanned_files;
+
         Ok(result)
     }
 }

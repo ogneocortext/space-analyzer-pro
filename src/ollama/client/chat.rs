@@ -58,37 +58,53 @@ impl OllamaClient {
         tool_choice: Option<String>,
         format: Option<serde_json::Value>,
     ) -> OllamaResult<(String, Option<String>, Option<Vec<ToolCall>>, TokenUsage)> {
-        let request = ChatRequest {
-            model: model.to_string(),
-            messages,
-            stream: Some(false),
-            options: Some(self.default_options.clone()),
-            keep_alive: Some(self.keep_alive.clone()),
-            format,
-            think: self.think.clone(),
-            tools,
-            tool_choice,
-        };
+        let mut candidates = vec![model.to_string()];
+        let fallback_config = self.fallback_config.lock().unwrap().clone();
+        if fallback_config.enabled {
+            candidates.extend(fallback_config.fallback_models.clone());
+        }
+
         let mut last_err = None;
-        for attempt in 0..CHAT_RETRIES {
-            let tag = if attempt == 0 { "chat" } else { "chat_retry" };
-            match self
-                .post_chat_and_parse(&request, self.operation_timeouts.chat, tag)
-                .await
-            {
-                Ok((chat_response, usage, _elapsed)) => {
-                    let tool_calls = chat_response.message.tool_calls;
-                    let thinking = chat_response.message.thinking.clone();
-                    return Ok((chat_response.message.content, thinking, tool_calls, usage));
-                }
-                Err(err) => {
-                    if !is_transient_chat_error(&err) || attempt + 1 >= CHAT_RETRIES {
-                        last_err = Some(err);
-                        break;
+        for (idx, candidate) in candidates.iter().enumerate() {
+            let request = ChatRequest {
+                model: candidate.clone(),
+                messages: messages.clone(),
+                stream: Some(false),
+                options: Some(self.default_options.clone()),
+                keep_alive: Some(self.keep_alive.clone()),
+                format: format.clone(),
+                think: self.think.clone(),
+                tools: tools.clone(),
+                tool_choice: tool_choice.clone(),
+            };
+
+            let retries = if idx == 0 { CHAT_RETRIES } else { 1 };
+            for attempt in 0..retries {
+                let tag = if idx == 0 && attempt == 0 {
+                    "chat"
+                } else if idx == 0 {
+                    "chat_retry"
+                } else {
+                    "chat_fallback"
+                };
+                match self
+                    .post_chat_and_parse(&request, self.operation_timeouts.chat, tag)
+                    .await
+                {
+                    Ok((chat_response, usage, _elapsed)) => {
+                        let tool_calls = chat_response.message.tool_calls;
+                        let thinking = chat_response.message.thinking.clone();
+                        return Ok((chat_response.message.content, thinking, tool_calls, usage));
                     }
-                    let backoff = CHAT_RETRY_BASE_MS * 2u64.pow(attempt);
-                    tokio::time::sleep(std::time::Duration::from_millis(backoff)).await;
-                    last_err = Some(err);
+                    Err(err) => {
+                        if !is_transient_chat_error(&err) || attempt + 1 >= retries {
+                            last_err = Some(err);
+                            break;
+                        }
+                        let backoff = CHAT_RETRY_BASE_MS * 2u64.pow(attempt);
+                        tokio::time::sleep(std::time::Duration::from_millis(backoff)).await;
+                        last_err = Some(err);
+                    }
                 }
             }
         }
