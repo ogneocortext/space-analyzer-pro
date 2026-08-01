@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using SpaceAnalyzer.Models;
 
 namespace SpaceAnalyzer.Services;
@@ -18,14 +19,22 @@ public class ScannerService
     /// <summary>
     /// Maps the Rust scanner's snake_case JSON (e.g. "total_files") to the PascalCase
     /// C# models (e.g. <see cref="ScanResult.TotalFiles"/>). Case-insensitivity alone is
-    /// insufficient — it ignores case but not the snake_case underscores, which left every
+    /// insufficient ï¿½ it ignores case but not the snake_case underscores, which left every
     /// field unmapped and caused results to deserialize to all-zeros.
     /// </summary>
     private static readonly JsonSerializerOptions s_jsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        // The node_modules_cleaner serializes RiskLevel as strings ("Low"/"Medium"/"High").
+        // Without a string enum converter, System.Text.Json expects numbers and throws
+        // when deserializing cleanup candidates. allowIntegerValues stays true so any
+        // numeric enum values elsewhere still parse.
+        Converters = { new JsonStringEnumConverter() },
     };
+
+    private static readonly TimeSpan s_scannerTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan s_cleanerTimeout = TimeSpan.FromMinutes(10);
 
     public ScannerService(string? scannerPath = null)
     {
@@ -33,19 +42,29 @@ public class ScannerService
     }
 
     /// <summary>
-    /// Locate the Rust scanner binary. Priority: explicit path > SPACE_ANALYZER_SCANNER env var
-    /// &gt; beside the app &gt; target/{release,debug} found by walking up from the app directory.
+    /// Locate the Rust scanner binary. Priority: explicit path &gt; SPACE_ANALYZER_SCANNER
+    /// env var &gt; beside the app &gt; target/{debug,release} found by walking up from the
+    /// app directory. See <see cref="ResolveToolPath"/> for the shared resolution logic.
     /// </summary>
     private static string ResolveScannerPath(string? explicitPath)
+        => ResolveToolPath("space-analyzer-pro.exe", "SPACE_ANALYZER_SCANNER", explicitPath);
+
+    /// <summary>
+    /// Locate a native tool binary by name. Priority: explicit path &gt; env var
+    /// &gt; beside the app &gt; target/{debug,release} found by walking up from the app
+    /// directory. Returns the best candidate path (which may not exist; callers should
+    /// check <see cref="File.Exists"/> before launching).
+    /// </summary>
+    private static string ResolveToolPath(string exeName, string envVar, string? explicitPath)
     {
         if (!string.IsNullOrWhiteSpace(explicitPath) && File.Exists(explicitPath))
             return explicitPath;
 
-        var envPath = Environment.GetEnvironmentVariable("SPACE_ANALYZER_SCANNER");
+        var envPath = Environment.GetEnvironmentVariable(envVar);
         if (!string.IsNullOrWhiteSpace(envPath) && File.Exists(envPath))
             return envPath;
 
-        var beside = Path.Combine(AppContext.BaseDirectory, "space-analyzer-pro.exe");
+        var beside = Path.Combine(AppContext.BaseDirectory, exeName);
         if (File.Exists(beside))
             return beside;
 
@@ -53,16 +72,16 @@ public class ScannerService
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         for (int i = 0; i < 8 && dir != null; i++)
         {
-            foreach (var cfg in new[] { "release", "debug" })
+            foreach (var cfg in new[] { "debug", "release" })
             {
-                var candidate = Path.Combine(dir.FullName, "target", cfg, "space-analyzer-pro.exe");
+                var candidate = Path.Combine(dir.FullName, "target", cfg, exeName);
                 if (File.Exists(candidate))
                     return candidate;
             }
             dir = dir.Parent;
         }
 
-        // Fall back to the default location (IsAvailable will report false if missing).
+        // Fall back to the beside-app location (callers can check File.Exists).
         return beside;
     }
 
@@ -74,9 +93,18 @@ public class ScannerService
     /// <summary>
     /// Run a directory scan and return structured results.
     /// </summary>
+    public enum DepthMode
+    {
+        Default,
+        Shallow,
+        Custom,
+        Deep
+    }
+
     public async Task<ScanResult?> ScanDirectoryAsync(
         string path,
-        bool deep = false,
+        DepthMode depthMode = DepthMode.Default,
+        int maxDepth = 5,
         bool includeHidden = false,
         IProgress<double>? progress = null,
         CancellationToken ct = default)
@@ -87,11 +115,25 @@ public class ScannerService
                 "Build it with: cargo build --release --bin space-analyzer-pro");
 
         var args = $"scan --path \"{path}\" --format json";
-        if (deep) args += " --deep";
-        if (includeHidden) args += " --include-hidden";
+        if (depthMode == DepthMode.Deep)
+            args += " --deep";
+        else if (depthMode == DepthMode.Shallow)
+            args += " --shallow";
+        else if (depthMode == DepthMode.Custom)
+            args += $" --max-depth {maxDepth}";
+        if (includeHidden)
+            args += " --include-hidden";
 
         var output = await RunScannerAsync(args, ct);
-        return JsonSerializer.Deserialize<ScanResult>(output, s_jsonOptions);
+        try
+        {
+            return JsonSerializer.Deserialize<ScanResult>(output, s_jsonOptions)
+                ?? throw new JsonException("Scanner returned empty result");
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse scan result: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
     }
 
     /// <summary>
@@ -103,7 +145,17 @@ public class ScannerService
             return GetFallbackVolumes();
 
         var output = await RunScannerAsync("disk-info --format json", ct);
-        return JsonSerializer.Deserialize<List<DiskVolume>>(output, s_jsonOptions) ?? GetFallbackVolumes();
+        try
+        {
+            var volumes = JsonSerializer.Deserialize<List<DiskVolume>>(output, s_jsonOptions);
+            // If the scanner reported no volumes (e.g. sysinfo found none), fall back to
+            // the local DriveInfo view so the dashboard still shows mounted drives.
+            return volumes is { Count: > 0 } ? volumes : GetFallbackVolumes();
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse disk info: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
     }
 
     /// <summary>
@@ -116,7 +168,18 @@ public class ScannerService
 
         var args = $"history --limit {limit} --format json";
         var output = await RunScannerAsync(args, ct);
-        return JsonSerializer.Deserialize<List<ScanHistoryRecord>>(output, s_jsonOptions) ?? new();
+        // The history subcommand prints nothing to stdout (and an error to stderr) when
+        // the embedded database can't be opened; treat empty output as "no history".
+        if (string.IsNullOrWhiteSpace(output))
+            return new();
+        try
+        {
+            return JsonSerializer.Deserialize<List<ScanHistoryRecord>>(output, s_jsonOptions) ?? new();
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse scan history: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
     }
 
     /// <summary>
@@ -129,12 +192,39 @@ public class ScannerService
 
         var args = $"history --id {id} --format json";
         var output = await RunScannerAsync(args, ct);
-        return JsonSerializer.Deserialize<ScanHistoryRecord>(output, s_jsonOptions);
+        // "No scan found with id X" is printed to stderr with empty stdout; treat that as
+        // a missing record rather than a parse error.
+        if (string.IsNullOrWhiteSpace(output))
+            return null;
+        try
+        {
+            return JsonSerializer.Deserialize<ScanHistoryRecord>(output, s_jsonOptions);
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse scan details: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
     }
 
     /// <summary>
-    /// Run duplicate-file analysis on a directory.
+    /// Delete a scan record by ID.
     /// </summary>
+    public async Task<bool> DeleteScanAsync(long id, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return false;
+
+        try
+        {
+            var args = $"history --delete {id} --format json";
+            var output = await RunScannerAsync(args, ct);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
     public async Task<DedupResult?> RunDedupAnalysisAsync(string path, CancellationToken ct = default)
     {
         if (!IsAvailable)
@@ -142,7 +232,14 @@ public class ScannerService
 
         var args = $"dedup --path \"{path}\" --format json";
         var output = await RunScannerAsync(args, ct);
-        return JsonSerializer.Deserialize<DedupResult>(output, s_jsonOptions);
+        try
+        {
+            return JsonSerializer.Deserialize<DedupResult>(output, s_jsonOptions);
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse dedup result: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
     }
 
     /// <summary>
@@ -155,9 +252,12 @@ public class ScannerService
         ulong unusedDays = 30,
         CancellationToken ct = default)
     {
-        var cleanerPath = Path.Combine(AppContext.BaseDirectory, "node_modules_cleaner.exe");
+        // Resolve the cleaner the same way as the scanner (env var > beside app >
+        // target/{release,debug} walked up from the app dir), so cleanup analysis works
+        // in dev builds without copying the binary next to the app.
+        var cleanerPath = ResolveToolPath("node_modules_cleaner.exe", "SPACE_ANALYZER_CLEANER", null);
         if (!File.Exists(cleanerPath))
-            cleanerPath = "node_modules_cleaner";
+            return null;
 
         var tempOutput = Path.Combine(Path.GetTempPath(), $"nm_clean_{Guid.NewGuid():N}.json");
         try
@@ -178,9 +278,25 @@ public class ScannerService
 
             using var process = new Process { StartInfo = psi };
             process.Start();
-            var stdout = await process.StandardOutput.ReadToEndAsync(ct);
-            var stderr = await process.StandardError.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct);
+            // Read stdout/stderr concurrently to avoid deadlocks when the cleaner writes
+            // enough to either pipe to fill its OS buffer.
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+            var stderrTask = process.StandardError.ReadToEndAsync(ct);
+
+            using var timeoutCts = new CancellationTokenSource(s_cleanerTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+            try
+            {
+                await process.WaitForExitAsync(linkedCts.Token);
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+            {
+                try { process.Kill(entireProcessTree: true); } catch { }
+                throw new TimeoutException($"node_modules_cleaner timed out after {s_cleanerTimeout.TotalMinutes} minutes");
+            }
+
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
 
             if (process.ExitCode != 0)
             {
@@ -192,7 +308,14 @@ public class ScannerService
                 return null;
 
             var json = await File.ReadAllTextAsync(tempOutput, ct);
-            return JsonSerializer.Deserialize<CleanupAnalysis>(json, s_jsonOptions);
+            try
+            {
+                return JsonSerializer.Deserialize<CleanupAnalysis>(json, s_jsonOptions);
+            }
+            catch (JsonException jex)
+            {
+                throw new Exception($"Failed to parse cleanup analysis: {jex.Message}. Output: {Truncate(json)}", jex);
+            }
         }
         finally
         {
@@ -223,15 +346,31 @@ public class ScannerService
 
         using var process = new Process { StartInfo = psi };
         process.Start();
-        var stdout = await process.StandardOutput.ReadToEndAsync(ct);
-        var stderr = await process.StandardError.ReadToEndAsync(ct);
-        await process.WaitForExitAsync(ct);
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+        var stderrTask = process.StandardError.ReadToEndAsync(ct);
+
+        using var timeoutCts = new CancellationTokenSource(s_scannerTimeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+        try
+        {
+            await process.WaitForExitAsync(linkedCts.Token);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+        {
+            try { process.Kill(entireProcessTree: true); } catch { }
+            throw new TimeoutException($"Scanner timed out after {s_scannerTimeout.TotalMinutes} minutes");
+        }
+
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
 
         if (process.ExitCode != 0)
             throw new Exception($"Scanner failed (exit {process.ExitCode}): {stderr}");
 
         return stdout;
     }
+
+    private static string Truncate(string s) => s.Length <= 500 ? s : s[..500] + "...(truncated)";
 
     private static List<DiskVolume> GetFallbackVolumes()
     {
