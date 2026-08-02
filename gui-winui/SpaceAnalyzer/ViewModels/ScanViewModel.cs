@@ -7,6 +7,9 @@ using System.Collections.ObjectModel;
 using Windows.Storage;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
+using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace SpaceAnalyzer.ViewModels;
 
@@ -19,6 +22,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     public ScanViewModel()
     {
         Load();
+        InitializeQuickScanTargets();
     }
 
     // ── Scan options ──
@@ -28,6 +32,21 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     {
         get => _scanPath;
         set { _scanPath = value; OnPropertyChanged(); OnPropertyChanged(nameof(PathExists)); OnPropertyChanged(nameof(PathValidationMessage)); }
+    }
+
+    public ObservableCollection<QuickScanTarget> QuickScanTargets { get; } = new();
+
+    private QuickScanTarget? _selectedQuickScanTarget;
+    public QuickScanTarget? SelectedQuickScanTarget
+    {
+        get => _selectedQuickScanTarget;
+        set
+        {
+            _selectedQuickScanTarget = value;
+            OnPropertyChanged();
+            if (value != null)
+                ScanPath = value.Path;
+        }
     }
 
     public bool PathExists => !string.IsNullOrWhiteSpace(ScanPath) && Directory.Exists(ScanPath);
@@ -368,6 +387,23 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         {
             System.Diagnostics.Debug.WriteLine($"[ScanViewModel] Save failed: {ex}");
         }
+    }
+
+    private void InitializeQuickScanTargets()
+    {
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+        QuickScanTargets.Add(new QuickScanTarget { Name = "User Profile", Path = userProfile });
+        QuickScanTargets.Add(new QuickScanTarget { Name = "Desktop", Path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) });
+        QuickScanTargets.Add(new QuickScanTarget { Name = "Documents", Path = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) });
+        QuickScanTargets.Add(new QuickScanTarget { Name = "Downloads", Path = Path.Combine(userProfile, "Downloads") });
+        QuickScanTargets.Add(new QuickScanTarget { Name = "Pictures", Path = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures) });
+        QuickScanTargets.Add(new QuickScanTarget { Name = "Local AppData", Path = localAppData });
+        QuickScanTargets.Add(new QuickScanTarget { Name = "Temp", Path = Path.GetTempPath() });
+
+        _selectedQuickScanTarget = QuickScanTargets[0];
+        ScanPath = userProfile;
     }
 
     // ── Methods ──

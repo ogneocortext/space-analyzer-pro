@@ -10,6 +10,7 @@
 - **Storage by Category panel** — new ItemsRepeater on `ScanPage.xaml` showing real-time category sizes with progress bars and formatted size labels, driven by the `CategoryDistributions` property on `ScanViewModel`.
 - **Pre-existing ScannerService fixes** — fixed `StreamReader` wrapping (`process.StandardOutput` is already a `StreamReader`), `Dictionary<string,int>` → `long` cast for `FileTypes` in `StreamComplete` → `ScanResult` mapping, and `timeoutCts` variable scoping (moved outside `try` block for `catch` accessibility).
 - **Category accumulator** — `extension_to_category()` helper in `shared-scanner` maps file extensions to high-level categories (Documents, Images, Videos, Audio, Archives, Code, Databases, Executables, System, Development, Games, Other).
+- **Quick scan targets** — `ScanPage.xaml` now has a "Quick Targets" section with a ComboBox of preset directories (User Profile, Desktop, Documents, Downloads, Pictures, Local AppData, Temp). Selecting a target auto-fills the path textbox; the standalone "Scan" button triggers the scan — no manual address entry needed for testing.
 
 ### WinUI 3 — Scan Page Enhancements
 

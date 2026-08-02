@@ -36,12 +36,39 @@
                             <TextBox Grid.Column="0" Text="{x:Bind VM.ScanPath, Mode=TwoWay}" PlaceholderText="Select a directory to scan..." AutomationProperties.Name="Scan directory path"/>
                             <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Padding="12,8" AutomationProperties.Name="Browse"/>
                         </Grid>
-                        <TextBlock Text="{x:Bind VM.PathValidationMessage, Mode=OneWay}"
+                         <TextBlock Text="{x:Bind VM.PathValidationMessage, Mode=OneWay}"
                                    FontSize="12"
                                    Foreground="{x:Bind VM.PathExists, Mode=OneWay, Converter={StaticResource BoolToErrorBrush}}"
                                    Visibility="{x:Bind VM.PathExists, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
-                    </StackPanel>
-                </Border>
+                     </StackPanel>
+                 </Border>
+
+                 <!-- Quick Scan Targets -->
+                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
+                     <StackPanel Spacing="12">
+                         <TextBlock Text="Quick Targets" FontSize="14" FontWeight="SemiBold"/>
+                         <ComboBox Header="Recent folders"
+                                   ItemsSource="{x:Bind VM.QuickScanTargets, Mode=OneWay}"
+                                   SelectedItem="{x:Bind VM.SelectedQuickScanTarget, Mode=TwoWay}"
+                                   Width="300"
+                                   IsEnabled="{x:Bind VM.IsNotScanning, Mode=OneWay}"
+                                   AutomationProperties.Name="Quick scan target">
+                             <ComboBox.ItemTemplate>
+                                 <DataTemplate>
+                                     <TextBlock Text="{Binding Name}" FontSize="12"/>
+                                 </DataTemplate>
+                             </ComboBox.ItemTemplate>
+                         </ComboBox>
+                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                             <Button Content="Scan"
+                                     Click="Scan_Click"
+                                     Padding="8,4"
+                                     FontSize="12"
+                                     IsEnabled="{x:Bind VM.IsNotScanning, Mode=OneWay}"
+                                     AutomationProperties.Name="Scan selected target"/>
+                         </StackPanel>
+                     </StackPanel>
+                 </Border>
 
                 <!-- Options -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16">

@@ -37,6 +37,18 @@ public class ScanResult
 }
 
 /// <summary>
+/// A preset directory target for quick scanning from the ScanPage UI.
+/// </summary>
+public class QuickScanTarget
+{
+    public string Name { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
+    public string? Icon { get; set; }
+
+    public override string ToString() => Name;
+}
+
+/// <summary>
 /// A single file with its size, from the largest-files list.
 /// </summary>
 public class FileSizeEntry
