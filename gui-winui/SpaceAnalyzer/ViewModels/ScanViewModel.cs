@@ -71,6 +71,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(DeepScan));
             OnPropertyChanged(nameof(ShallowScan));
             OnPropertyChanged(nameof(DepthInt));
+            OnPropertyChanged(nameof(ShowCustomDepthSlider));
             Save();
         }
     }
@@ -80,6 +81,10 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     public bool DeepScan => SelectedDepthMode == ScannerService.DepthMode.Deep;
 
     public bool ShallowScan => SelectedDepthMode == ScannerService.DepthMode.Shallow;
+
+    public bool DefaultScan => SelectedDepthMode == ScannerService.DepthMode.Default;
+
+    public bool ShowCustomDepthSlider => SelectedDepthMode == ScannerService.DepthMode.Custom;
 
     public ScannerService.DepthMode SelectedDepthMode
     {
@@ -101,10 +106,9 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
                 _ => 5
             };
             DepthValue = _customMaxDepth;
+            OnPropertyChanged(nameof(ShowCustomDepthSlider));
         }
     }
-
-    public int MaxDepth => (int)Math.Round(_customMaxDepth);
 
     private bool _includeHidden;
     public bool IncludeHidden
@@ -119,7 +123,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     public bool IsScanning
     {
         get => _isScanning;
-        set { _isScanning = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotScanning)); OnPropertyChanged(nameof(CanStopScan)); }
+        set { _isScanning = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotScanning)); OnPropertyChanged(nameof(CanStopScan)); OnPropertyChanged(nameof(IsScanningVisibility)); OnPropertyChanged(nameof(IsNotScanningVisibility)); }
     }
     public bool IsNotScanning => !_isScanning;
     public bool CanStopScan => _isScanning;
@@ -149,6 +153,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     }
 
     private ScanResult? _partialResult;
+    private string _currentFile = string.Empty;
 
     private void UpdatePartialResult(StreamProgress progress)
     {
@@ -156,6 +161,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             return;
 
         ScanProgress = progress.Percentage;
+        _currentFile = progress.CurrentFile;
 
         var partial = new ScanResult
         {
@@ -180,6 +186,8 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         _partialResult = partial;
 
         OnPropertyChanged(nameof(ActiveResult));
+        OnPropertyChanged(nameof(HasActiveResult));
+        OnPropertyChanged(nameof(HasActiveResultVisibility));
         OnPropertyChanged(nameof(LiveFilesDisplay));
         OnPropertyChanged(nameof(LiveSizeDisplay));
         OnPropertyChanged(nameof(ResultFilesDisplay));
@@ -256,7 +264,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     public bool IsNotStreaming => !_isStreaming;
 
     public string LiveFilesDisplay => IsStreaming && _partialResult != null
-        ? $"{_partialResult.TotalFiles:N0} / {_partialResult.Path}"
+        ? $"Scanning: {_currentFile}"
         : "";
 
     public string LiveSizeDisplay => IsStreaming && _partialResult != null
@@ -273,12 +281,12 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     {
         ScannerService.DepthMode.Deep => "Deep (unlimited)",
         ScannerService.DepthMode.Shallow => "Shallow (depth 1)",
-        ScannerService.DepthMode.Custom => $"Custom (depth {MaxDepth})",
+        ScannerService.DepthMode.Custom => $"Custom (depth {DepthInt})",
         _ => "Default (depth 5)"
     };
     public string ResultSpeedDisplay => ActiveResult != null && ActiveResult.DurationSecs > 0
         ? $"{ActiveResult.TotalFiles / ActiveResult.DurationSecs:F0} files/s"
-        : "";
+        : "—";
     public string ResultErrorsDisplay => ActiveResult != null && ActiveResult.Errors.Count > 0
         ? $"{ActiveResult.Errors.Count} error(s)"
         : "";
@@ -304,7 +312,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         .Select(kv => new FileTypeDistribution
         {
             Extension = kv.Key,
-            Count = ActiveResult?.FileTypes.Count ?? 0,
+            Count = 0,
             TotalSize = kv.Value,
             Percentage = ActiveResult?.TotalSizeBytes > 0
                 ? (kv.Value * 100.0) / ActiveResult.TotalSizeBytes
@@ -357,13 +365,27 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
                 .CreateContainer(LocalSettingsKey, ApplicationDataCreateDisposition.Always);
 
             if (container.Values.TryGetValue("DepthValue", out var v) && v is double d)
-                DepthValue = d;
+                _depthValue = d;
             if (container.Values.TryGetValue("CustomMaxDepth", out v) && v is double cmd)
                 _customMaxDepth = cmd;
             if (container.Values.TryGetValue("IncludeHidden", out v) && v is bool h)
-                IncludeHidden = h;
+                _includeHidden = h;
             if (container.Values.TryGetValue("ScanPath", out v))
-                ScanPath = v?.ToString() ?? ScanPath;
+                _scanPath = v?.ToString() ?? _scanPath;
+
+            // Fire change notifications so the UI reflects loaded values
+            // without triggering Save() from each property setter.
+            OnPropertyChanged(nameof(DepthValue));
+            OnPropertyChanged(nameof(SelectedDepthMode));
+            OnPropertyChanged(nameof(ResultDepthDisplay));
+            OnPropertyChanged(nameof(DeepScan));
+            OnPropertyChanged(nameof(ShallowScan));
+            OnPropertyChanged(nameof(DepthInt));
+            OnPropertyChanged(nameof(ShowCustomDepthSlider));
+            OnPropertyChanged(nameof(IncludeHidden));
+            OnPropertyChanged(nameof(ScanPath));
+            OnPropertyChanged(nameof(PathExists));
+            OnPropertyChanged(nameof(PathValidationMessage));
         }
         catch (Exception ex)
         {
@@ -410,8 +432,17 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task ScanAsync(CancellationToken ct = default)
     {
-        if (IsScanning || string.IsNullOrWhiteSpace(ScanPath))
+        if (IsScanning)
+        {
+            StatusMessage = "Scan already in progress";
             return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ScanPath))
+        {
+            StatusMessage = "No path specified";
+            return;
+        }
 
         if (!Directory.Exists(ScanPath))
         {
@@ -433,7 +464,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             var result = await _scanner.ScanDirectoryStreamingAsync(
                 ScanPath,
                 depthMode: SelectedDepthMode,
-                maxDepth: MaxDepth,
+                maxDepth: DepthInt,
                 includeHidden: IncludeHidden,
                 onProgress: progress,
                 ct);
@@ -464,7 +495,10 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             IsStreaming = false;
             ScanProgress = 0;
             _partialResult = null;
+            _currentFile = string.Empty;
             OnPropertyChanged(nameof(ActiveResult));
+            OnPropertyChanged(nameof(HasActiveResult));
+            OnPropertyChanged(nameof(HasActiveResultVisibility));
             OnPropertyChanged(nameof(LiveFilesDisplay));
             OnPropertyChanged(nameof(LiveSizeDisplay));
             OnPropertyChanged(nameof(ResultFilesDisplay));

@@ -21,7 +21,7 @@ namespace SpaceAnalyzer.ViewModels;
 public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ScannerService _scanner = new();
-    private readonly CancellationTokenSource _cts = new();
+    private CancellationTokenSource _cts = new();
     private bool _disposed;
     private volatile bool _isSearchingFlag;
 
@@ -102,6 +102,11 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
         if (IsSearching || string.IsNullOrWhiteSpace(SearchPath) || string.IsNullOrWhiteSpace(SearchQuery))
             return;
 
+        _cts.Dispose();
+        var newCts = new CancellationTokenSource();
+        _cts = newCts;
+
+        var ct = _cts.Token;
         IsSearching = true;
         StatusMessage = "Searching...";
         Results.Clear();
@@ -137,13 +142,16 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
             if (result is null)
                 return;
 
-            var query = MatchExact ? SearchQuery : SearchQuery.ToLowerInvariant();
+            var query = SearchQuery.ToLowerInvariant();
+            var match = MatchExact
+                ? new Func<string, bool>(name => name.Equals(query, StringComparison.OrdinalIgnoreCase))
+                : new Func<string, bool>(name => name.Contains(query, StringComparison.OrdinalIgnoreCase));
             var minSizeBytes = MinSizeMb * 1024 * 1024;
             var collected = new List<SmartSearchResult>();
 
             foreach (var dir in result.TopDirectories)
             {
-                if (dir.Name.Contains(query, StringComparison.OrdinalIgnoreCase) && dir.TotalSize >= minSizeBytes)
+                if (match(dir.Name) && dir.TotalSize >= minSizeBytes)
                 {
                     collected.Add(new SmartSearchResult
                     {
@@ -170,7 +178,7 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
         try
         {
             var minSizeBytes = MinSizeMb * 1024 * 1024;
-            var query = MatchExact ? SearchQuery : SearchQuery.ToLowerInvariant();
+            var query = SearchQuery.ToLowerInvariant();
             var collected = new List<SmartSearchResult>();
 
             await Task.Run(() =>
@@ -202,15 +210,20 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
             {
                 if (IncludeHidden || (file.Attributes & FileAttributes.Hidden) == 0)
                 {
-                    if (file.Name.Contains(query, StringComparison.OrdinalIgnoreCase) && file.Length >= (long)minSizeBytes)
+                    if (MatchExact
+                        ? string.Equals(file.Name, query, StringComparison.OrdinalIgnoreCase)
+                        : file.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
                     {
-                        collected.Add(new SmartSearchResult
+                        if (file.Length >= (long)minSizeBytes)
                         {
-                            Path = file.FullName,
-                            Name = file.Name,
-                            SizeBytes = (ulong)file.Length,
-                            SizeDisplay = ByteFormatter.FormatBytes((ulong)file.Length)
-                        });
+                            collected.Add(new SmartSearchResult
+                            {
+                                Path = file.FullName,
+                                Name = file.Name,
+                                SizeBytes = (ulong)file.Length,
+                                SizeDisplay = ByteFormatter.FormatBytes((ulong)file.Length)
+                            });
+                        }
                     }
                 }
             }

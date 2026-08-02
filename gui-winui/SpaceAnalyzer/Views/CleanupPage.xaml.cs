@@ -9,9 +9,14 @@ namespace SpaceAnalyzer.Views;
 
 public sealed partial class CleanupPage : Page
 {
+    public CleanupViewModel VM { get; }
+
     public CleanupPage()
     {
-        this.InitializeComponent();
+        InitializeComponent();
+        VM = new CleanupViewModel();
+        DataContext = VM;
+        AppLog.Page("CleanupPage ctor end");
     }
 
     private async void Analyze_Click(object sender, RoutedEventArgs e)
@@ -48,6 +53,14 @@ public sealed partial class CleanupPage : Page
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[CleanupPage] Browse failed: {ex}");
+        }
+    }
+
+    private void OpenCandidateFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string path && !string.IsNullOrEmpty(path))
+        {
+            UiHelper.OpenPath(path);
         }
     }
 }

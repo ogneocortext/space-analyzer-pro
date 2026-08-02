@@ -249,41 +249,62 @@ public class SettingsViewModel : INotifyPropertyChanged
                 .CreateContainer(LocalSettingsKey, ApplicationDataCreateDisposition.Always);
 
             if (container.Values.TryGetValue("Theme", out var v))
-                Theme = (string)v;
+                _theme = (string)v;
             if (container.Values.TryGetValue("ScannerPath", out v))
-                ScannerPath = (string)v;
-            if (string.IsNullOrWhiteSpace(ScannerPath))
-                ScannerPath = _scanner.ScannerPath;
+                _scannerPath = (string)v;
+            if (string.IsNullOrWhiteSpace(_scannerPath))
+                _scannerPath = _scanner.ScannerPath;
             if (container.Values.TryGetValue("ScanDepth", out v) && v is double d)
-                ScanDepth = d;
+                _scanDepth = d;
             if (container.Values.TryGetValue("IncludeHidden", out v) && v is bool h)
-                IncludeHidden = h;
+                _includeHidden = h;
             if (container.Values.TryGetValue("GpuAcceleration", out v) && v is bool g)
-                GpuAcceleration = g;
+                _gpuAcceleration = g;
             if (container.Values.TryGetValue("OllamaUrl", out v))
-                OllamaUrl = (string)v;
+                _ollamaUrl = (string)v;
             if (container.Values.TryGetValue("OllamaModel", out v))
-                OllamaModel = (string)v;
+                _ollamaModel = (string)v;
             if (container.Values.TryGetValue("OllamaEnabled", out v) && v is bool oe)
-                OllamaEnabled = oe;
+                _ollamaEnabled = oe;
             if (container.Values.TryGetValue("OllamaThink", out v) && v is bool ot)
-                OllamaThink = ot;
+                _ollamaThink = ot;
             if (container.Values.TryGetValue("AgenticToolsEnabled", out v) && v is bool at)
-                AgenticToolsEnabled = at;
+                _agenticToolsEnabled = at;
             if (container.Values.TryGetValue("AutoModelSelection", out v) && v is bool am)
-                AutoModelSelection = am;
+                _autoModelSelection = am;
             if (container.Values.TryGetValue("ToolCallingModel", out v))
-                ToolCallingModel = (string)v;
+                _toolCallingModel = (string)v;
             if (container.Values.TryGetValue("ToolChoice", out v))
-                ToolChoice = (string)v;
+                _toolChoice = (string)v;
             if (container.Values.TryGetValue("AutoStartOllama", out v) && v is bool aso)
-                AutoStartOllama = aso;
+                _autoStartOllama = aso;
             if (container.Values.TryGetValue("AiFeaturesPanelVisible", out v) && v is bool af)
-                AiFeaturesPanelVisible = af;
+                _aiFeaturesPanelVisible = af;
             if (container.Values.TryGetValue("EmbeddingEnabled", out v) && v is bool ee)
-                EmbeddingEnabled = ee;
+                _embeddingEnabled = ee;
             if (container.Values.TryGetValue("EmbeddingModel", out v))
-                EmbeddingModel = (string)v;
+                _embeddingModel = (string)v;
+
+            // Fire change notifications for all properties so the UI reflects loaded values
+            OnPropertyChanged(nameof(Theme));
+            OnPropertyChanged(nameof(ScannerPath));
+            OnPropertyChanged(nameof(IsScannerPathValid));
+            OnPropertyChanged(nameof(ScannerPathStatus));
+            OnPropertyChanged(nameof(ScanDepth));
+            OnPropertyChanged(nameof(IncludeHidden));
+            OnPropertyChanged(nameof(GpuAcceleration));
+            OnPropertyChanged(nameof(OllamaUrl));
+            OnPropertyChanged(nameof(OllamaModel));
+            OnPropertyChanged(nameof(OllamaEnabled));
+            OnPropertyChanged(nameof(OllamaThink));
+            OnPropertyChanged(nameof(AgenticToolsEnabled));
+            OnPropertyChanged(nameof(AutoModelSelection));
+            OnPropertyChanged(nameof(ToolCallingModel));
+            OnPropertyChanged(nameof(ToolChoice));
+            OnPropertyChanged(nameof(AutoStartOllama));
+            OnPropertyChanged(nameof(AiFeaturesPanelVisible));
+            OnPropertyChanged(nameof(EmbeddingEnabled));
+            OnPropertyChanged(nameof(EmbeddingModel));
         }
         catch (Exception ex)
         {

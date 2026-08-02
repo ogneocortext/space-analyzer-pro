@@ -21,7 +21,7 @@ namespace SpaceAnalyzer.ViewModels;
 public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ScannerService _scanner = new();
-    private readonly CancellationTokenSource _cts = new();
+    private CancellationTokenSource _cts = new();
     private bool _disposed;
     private volatile bool _isRunningFlag;
 
@@ -119,6 +119,8 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
             return;
 
         IsRunning = true;
+        _cts.Dispose();
+        _cts = new CancellationTokenSource();
         Results.Clear();
         ResultCount = 0;
         StatusMessage = $"Running: {SelectedTemplate.Name}...";

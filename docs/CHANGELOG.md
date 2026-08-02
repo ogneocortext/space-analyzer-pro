@@ -127,6 +127,63 @@
 - Removed the duplicate pre-scan used only to estimate progress. Progress now adapts while the active traversal runs, avoiding a second directory walk and reducing startup I/O on large profiles.
 
 
+## [4.0.0] - 2026-08-02
+
+### WinUI 3 Design System
+
+- **Token-based design system** in `App.xaml` — introduced spacing tokens (`Space.XXL`…`Space.XS`), typography styles (`Type.PageTitle`, `Type.SectionTitle`, `Type.CardTitle`, `Type.SubTitle`, `Type.Body`, `Type.Caption`, `Type.Hint`, `Type.Dim`, `Type.Tiny`, `Type.StatValue`, `Type.StatLabel`), icon-size tokens (`Icon.Hero`, `Icon.Button`, `Icon.Card`, `Icon.Small`, `Icon.Tiny`, `Icon.EmptyState`), and card/button/progress-bar styles (`ItemCard`, `CompactItemCard`, `EmptyStateCard`, `PrimaryButton`, `SecondaryButton`, `SmallButton`, `TinyButton`, `StandardProgressBar`, `CompactProgressBar`, `MinimalProgressBar`). All XAML pages refactored to consume these resources.
+- **New converter**: `BoolToHorizontalAlignmentConverter` — maps `bool` → `HorizontalAlignment.Right/Left`.
+- **Null-safe converters**: `BoolToVisibilityConverter` and `InverseBoolToVisibilityConverter` now return `Collapsed`/`Visible` respectively when the input is `null`, preventing binding crashes on uninitialized properties.
+- **`ErrorTextBrush`** resource for consistent error-color text across the UI.
+
+### WinUI 3 — Bug Fixes
+
+- **Settings-loss on startup (SettingsViewModel)** — `Load()` called property setters that triggered `Save()`, overwriting not-yet-loaded settings with defaults on every app launch. Fixed by setting backing fields directly and firing `OnPropertyChanged` for all properties at the end of `Load()`.
+- **Same cascade bug in ScanViewModel** — `DepthValue`, `IncludeHidden`, and `ScanPath` setters all called `Save()`, overwriting `CustomMaxDepth` with the default. Fixed by setting backing fields directly in `Load()`.
+- **Duplicate catch block** in `SettingsViewModel.cs` — removed.
+- **Cancellation token never cancelled** — `CancellationTokenSource` instances in `AIAssistantViewModel`, `CleanupViewModel`, `SmartSearchViewModel`, and `WorkflowsViewModel` were `readonly` and never disposed between operations, causing stale tokens. Made non-readonly; each async entry point now disposes and recreates the CTS.
+- **ScannerService CTS not cancelling** — `ScanDirectoryStreamingAsync` and `CleanupAsync` disposed the stop token without calling `Cancel()` first, leaving orphaned scanner processes. Added `_cts?.Cancel()` before `Dispose()`.
+- **ScannerService stderr deadlock** — async stderr reading used `while (!stderr.EndOfStream) await stderr.ReadLineAsync()` but discarded the result; replaced with `while (await stderr.ReadLineAsync(ct) is not null)`.
+- **MainWindow navigation double-fire** — `SelectionChanged` caused a redundant second `Navigate`; switched to `ItemInvoked` with a `_isNavigating` guard. Added `NavigationFailed` and `Navigated` diagnostics.
+- **MainWindow resource leak** — none of the 8 page ViewModels were disposed on close. `OnWindowClosed` now disposes `DashboardViewModel`, `SmartSearchViewModel`, `WorkflowsViewModel`, `AIAssistantViewModel`, `CleanupViewModel`, `DuplicatesViewModel`, `HistoryViewModel`, and `SystemViewModel`.
+- **MainWindow `Window.Current` usage** — page code-behind used `Window.Current` to access the window; replaced with a static `MainWindow.Current` property set in the constructor.
+- **SystemPage namespace syntax** — malformed `namespace` declaration caused a compilation error; fixed to proper `namespace SpaceAnalyzer.Views;` form.
+- **SystemPage `OnNavigatedFrom`** — timer `Stop()` was called after `base.OnNavigatedFrom(e)` (which can dispose the page); reordered to stop timer first.
+- **DashboardViewModel self-notify** — `QuickScanPath` and `IsQuickScanning` setters called `OnPropertyChanged(nameof(IsQuickScanning))` on themselves (self-referencing); removed redundant self-notification.
+- **DashboardViewModel.IsLoading** — wasn't notifying `IsNotLoading` or `IsLoadingVisibility`; added those notifications plus `IsNotLoading` and `IsLoadingVisibility` computed properties.
+- **DashboardViewModel history lists** — changed from `List<double>` to `IReadOnlyList<double>` to prevent external mutation of internal history buffers.
+- **SmartSearchViewModel MatchExact** — exact-match searches used `Contains()` with a lowercased query (case-correct but semantically wrong); now uses `string.Equals(..., OrdinalIgnoreCase)`.
+- **UiHelper.GetUsageBrush** — `double.IsNaN`/`Infinity` from unavailable disk metrics crashed the brush; added guard returning `BrushGreen` for non-finite values.
+- **ScanViewModel LiveFilesDisplay** — showed file count + path; now shows the current filename being scanned for better UX during live streaming.
+- **ScanViewModel FileTypeDistribution Count** — was `ActiveResult?.FileTypes.Count ?? 0` (count of distinct extensions, not file count); now correctly shows `0` (count per-extension is not tracked in streaming).
+- **ScanViewModel ResultSpeedDisplay** — shows `"—"` instead of empty string when no active result; **ResultDepthDisplay** uses `DepthInt` instead of removed `MaxDepth`.
+- **AIAssistantViewModel constructor client leak** — `LoadSettings()` triggered `OllamaUrl` setter → `RefreshOllamaClient()` creating a client, then the constructor created a second client. Fixed by using the `_ollamaUrl` backing field directly in both places.
+
+### WinUI 3 — New Features
+
+- **v4.0.0 release** — app window title updated to reflect the design-system overhaul.
+- **AppLog diagnostic logger** (`Helpers/AppLog.cs`) — lightweight file logger writing to `%LOCALAPPDATA%/SpaceAnalyzer/ui-actions.log` with `NAV`, `PAGE`, `ACTION`, and `ERROR` categories and a monotonically incrementing sequence number.
+- **Dashboard v2** — redesigned with token-based styling, three-zone layout (stat cards → disk usage + quick actions → system resources → quick scan → resource history), 3 canvas-based resource history charts, and 3 new quick-action buttons (Smart Search, Workflows, Settings). Added `Refresh` button.
+- **ScanPage depth modes** — replaced the single depth slider with radio buttons for Quick (depth 1), Default (depth 5), and Deep (unlimited), plus a conditional custom-depth slider. Added `Open Folder` button, `x:Name` on path textbox, and navigation-parameter support for pre-filling a scan path.
+- **HistoryPage file explorer** — full redesign with column-sortable largest-files list (Name, Size, Path with sort indicators), live filter by name/path, and per-file `Open`/`Folder` buttons.
+- **WorkflowsPage** — fully implemented (was a stub): results list with `Open`/`Folder` buttons, empty state (`EmptyStateCard`), `VM` property pattern, `AppLog` tracing, and depth radio buttons matching ScanPage.
+- **SettingsPage** — added `Open Scanner Folder` button; migrated from `DataContext` casts to explicit `VM` property pattern.
+- **SmartSearchPage** — added `Open` and `Folder` buttons for search results, a Tips section, and explicit `VM` property.
+- **AboutPage** — added `View License (MIT)` and `Open Project Folder` buttons; new Build Information, Credits, and Resources sections.
+- **AIAssistantPage** — chat messages now display a timestamp (`HH:mm`); suggestions panel collapses when more than 2 messages exist; `AddMessage` made public for external injection; `_disposed` guard on `SendMessageAsync`.
+- **Model enhancements** — `FileSizeEntry.Name`, `.Extension`, `.ParentPath` convenience properties; `ScanHistoryRecord.PotentialCleanupDisplay`; `CleanupCandidate.RiskLevelBrush`.
+
+### WinUI 3 — GUI Macro Test Rewrite
+
+- **Complete rewrite of `scripts/test/gui_macro_test.py`** — migrated from `SendInput` cursor-positioning (which hijacked the system cursor) to **Windows UI Automation (UIA) `Invoke()` pattern** for all button clicks and `SetValue()` pattern for text input. Zero cursor movement, zero focus stealing.
+- **Button registry** — declarative `BUTTON_REGISTRY` mapping each of the 10 tabs to its interactive buttons; each button is found by accessible name and invoked via UIA.
+- **Expanded test phases** — added Button Functionality Tests (Phase 3) and test all 10 tabs (was 8).
+- **Path resolution** — binary path candidates updated to WinUI 3 `bin/x64/{Release|Debug}/net10.0-windows10.0.22621.0/` layout.
+
+### Documentation
+
+- **AGENTS.md** — added Testing section clarifying that Playwright/browser testing is not applicable to the native WinUI 3 GUI.
+
 ## [3.7.0] - 2026-07-28
 
 ### Architecture

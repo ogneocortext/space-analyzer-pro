@@ -63,13 +63,15 @@ just run-gui
 dotnet run --project gui-winui/SpaceAnalyzer
 ```
 
-**WinUI 3 state (v3.7.0+):**
+**WinUI 3 state (v4.0.0):**
 - **Stable build** against Windows App SDK 2.3 / .NET 10
-- **All pages implemented:** Dashboard, Scan, History, Smart Search, Workflows (stub), AI Assistant, Duplicates, System, Cleanup, Settings, About
-- **Dashboard stat cards** populated from scan history with 3-second live system resource refresh
+- **All 10 pages implemented and fully functional:** Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, Duplicates, System, Cleanup, Settings, About
+- **Token-based design system** in `App.xaml` — spacing, typography, icon-size, card, button, and progress-bar resource dictionaries
+- **Dashboard stat cards** with live system resource refresh and resource-history canvas charts
 - **MVVM pattern** with `Helpers/`, `ViewModels/`, `Models/`, `Services/` separation
-- **Ollama integration** via `OllamaClient.cs` for local AI chat
-- **Scan page:** Stop scan button, path validation, scan errors display, file type distribution chart, largest files with filter, export results, deep/shallow/custom depth modes, scan speed metrics
+- **Ollama integration** via `OllamaClient.cs` with `JsonStringEnumConverter` for correct `ChatRole` serialization
+- **Scan page:** Quick/Default/Deep radio depth modes, custom-depth slider, live filename streaming, Stop scan, path validation, scan errors display, file type distribution chart, largest files with filter, export results
+- **AppLog diagnostics** — file logger at `%LOCALAPPDATA%/SpaceAnalyzer/ui-actions.log` with NAV/PAGE/ACTION/ERROR categories
 
 ### Prerequisites
 
@@ -198,7 +200,7 @@ The core Rust library (`src/`) provides the database, Ollama integration, system
 | Component | Implementation | Notes |
 |---|---|---|
 | **GUI (egui)** | eframe 0.34 (native Rust) | Single window, 8 tabs |
-| **GUI (WinUI 3)** | Windows App SDK 2.2 (C#/.NET 8) | Fluent Design, Mica backdrop, 11 pages |
+| **GUI (WinUI 3)** | Windows App SDK 2.3 (C#/.NET 10) | Fluent Design, Mica backdrop, 10 pages |
 | **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
 | **File Scanner** | `shared-scanner` (rayon-parallel) | CPU mode default |
 | **GPU Acceleration** | `gpu-compute` crate (optional) | Auto-detects NVIDIA, falls back to CPU |
@@ -337,9 +339,13 @@ config/                    # Tool configuration (non-secret)
 
 ## Versioning
 
-**v3.8.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
-- Scan page hardening (Stop, path validation, errors, file type distribution, largest files filter, export, depth modes, speed metrics).
-- AI Assistant expansion (14 tools, dynamic tool choice, enriched ChatRequest).
+**v4.0.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
+- Token-based WinUI 3 design system (App.xaml resource dictionary).
+- Critical bug fixes: settings-loss cascade in Load(), cancellation token leaks in all async ViewModels, ScannerService no-cancel-before-dispose, MainWindow ViewModel disposal, null-safe converters.
+- Dashboard v2 with 3 canvas resource-history charts and 9 quick-action buttons.
+- Full file explorer in History page with sortable, filterable largest-files list.
+- GUI macro test rewritten to UIA Invoke() pattern (zero cursor movement).
+- AppLog diagnostic logger for navigation/action/error tracing.
 
 **v3.7.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
 

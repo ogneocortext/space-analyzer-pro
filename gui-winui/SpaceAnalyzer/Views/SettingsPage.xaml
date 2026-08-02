@@ -9,27 +9,23 @@
     NavigationCacheMode="Required"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Page.DataContext>
-        <vm:SettingsViewModel x:Name="VM"/>
-    </Page.DataContext>
-
-    <Grid Padding="24">
+    <Grid Padding="{StaticResource Thickness.XL}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="24" MaxWidth="800" HorizontalAlignment="Center">
+            <StackPanel Spacing="{StaticResource Space.XL}" MaxWidth="800" HorizontalAlignment="Center">
 
                 <!-- Header -->
-                <StackPanel Spacing="6">
-                    <TextBlock Text="Settings" FontSize="28" FontWeight="Bold"/>
+                <StackPanel Spacing="{StaticResource Space.XS}">
+                    <TextBlock Text="Settings" Style="{StaticResource Type.PageTitle}"/>
                     <TextBlock Text="Configure application preferences and integrations."
-                               FontSize="14" Opacity="0.8"/>
+                               Style="{StaticResource Type.Body}"/>
                 </StackPanel>
 
                 <!-- Appearance -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="Appearance" FontSize="18" FontWeight="SemiBold"/>
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Theme" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
+                    <StackPanel Spacing="{StaticResource Space.LG}">
+                        <TextBlock Text="Appearance" Style="{StaticResource Type.SectionTitle}"/>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Theme" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
                             <ComboBox Header="Theme"
                                       SelectedItem="{x:Bind VM.Theme, Mode=TwoWay}"
                                       HorizontalAlignment="Stretch"
@@ -38,47 +34,51 @@
                                 <x:String>Light</x:String>
                                 <x:String>System</x:String>
                             </ComboBox>
+                            <TextBlock Text="Theme changes take effect immediately. Some elements may refresh on next navigation."
+                                       Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
                 <!-- Scanner -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="Scanner" FontSize="18" FontWeight="SemiBold"/>
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Scanner binary path" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
-                            <Grid ColumnSpacing="8">
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
+                    <StackPanel Spacing="{StaticResource Space.LG}">
+                        <TextBlock Text="Scanner" Style="{StaticResource Type.SectionTitle}"/>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Scanner binary path" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <Grid ColumnSpacing="{StaticResource Space.SM}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBox Grid.Column="0"
                                          Text="{x:Bind VM.ScannerPath, Mode=TwoWay}"
                                          PlaceholderText="Select scanner binary..."
                                          AutomationProperties.Name="Scanner binary path"/>
-                                <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Padding="12,8" AutomationProperties.Name="Browse"/>
+                                <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Browse"/>
+                                <Button Grid.Column="2" Content="Open Folder" Click="OpenScannerFolder_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Open scanner folder"/>
                             </Grid>
                             <TextBlock Text="{x:Bind VM.ScannerPathStatus, Mode=OneWay}"
-                                       FontSize="12"
+                                       Style="{StaticResource Type.Caption}"
                                        Foreground="{x:Bind VM.IsScannerPathValid, Mode=OneWay, Converter={StaticResource BoolToErrorBrush}}"
                                        Opacity="0.9"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Default scan depth" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Default scan depth" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
                             <Slider Minimum="1"
                                     Maximum="20"
                                     Value="{x:Bind VM.ScanDepth, Mode=TwoWay}"
                                     TickFrequency="4"
                                     Width="300"/>
                             <TextBlock Text="{x:Bind VM.ScanDepth, Mode=OneWay}"
-                                       FontSize="12" Opacity="0.8"/>
+                                       Style="{StaticResource Type.Caption}" Opacity="0.8"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
+                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="Include hidden files and folders by default"
                                       IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
+                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="GPU acceleration"
                                       IsChecked="{x:Bind VM.GpuAcceleration, Mode=TwoWay}"/>
                         </StackPanel>
@@ -86,49 +86,49 @@
                 </Border>
 
                 <!-- Ollama -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="Ollama AI" FontSize="18" FontWeight="SemiBold"/>
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Server URL" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
+                    <StackPanel Spacing="{StaticResource Space.LG}">
+                        <TextBlock Text="Ollama AI" Style="{StaticResource Type.SectionTitle}"/>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Server URL" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
                             <TextBox Text="{x:Bind VM.OllamaUrl, Mode=TwoWay}"
                                      PlaceholderText="http://localhost:11434"
                                      AutomationProperties.Name="Ollama server URL"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Model" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Model" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
                             <TextBox Text="{x:Bind VM.OllamaModel, Mode=TwoWay}"
                                      PlaceholderText="gemma3:1b (or model name)"
                                      AutomationProperties.Name="Ollama model name"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
+                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="Enable Ollama AI"
                                       IsChecked="{x:Bind VM.OllamaEnabled, Mode=TwoWay}"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
+                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="Enable deep thinking / reasoning (Ollama 0.30+)"
                                       IsChecked="{x:Bind VM.OllamaThink, Mode=TwoWay}"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
+                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="Auto-start Ollama when needed"
                                       IsChecked="{x:Bind VM.AutoStartOllama, Mode=TwoWay}"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
+                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="Enable agentic tool calling"
                                       IsChecked="{x:Bind VM.AgenticToolsEnabled, Mode=TwoWay}"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
+                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="Auto-select model based on task"
                                       IsChecked="{x:Bind VM.AutoModelSelection, Mode=TwoWay}"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Tool calling model" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Tool calling model" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
                             <TextBox Text="{x:Bind VM.ToolCallingModel, Mode=TwoWay}"
                                      PlaceholderText="qwen2.5-coder:7b (or model name)"
                                      AutomationProperties.Name="Tool calling model name"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Tool choice" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Tool choice" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
                             <ComboBox SelectedItem="{x:Bind VM.ToolChoice, Mode=TwoWay}"
                                       HorizontalAlignment="Stretch"
                                       AutomationProperties.Name="Tool choice">
@@ -137,42 +137,43 @@
                                 <x:String>required</x:String>
                             </ComboBox>
                         </StackPanel>
-                        <StackPanel Spacing="12">
+                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="Show AI Tools panel in AI Assistant tab"
                                       IsChecked="{x:Bind VM.AiFeaturesPanelVisible, Mode=TwoWay}"/>
                         </StackPanel>
                         <!-- Test connection -->
-                        <StackPanel Spacing="8">
+                        <StackPanel Spacing="{StaticResource Space.SM}">
                             <Button Content="Test Connection" Click="TestOllama_Click"
-                                    HorizontalAlignment="Stretch" Padding="12"/>
-                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                                    HorizontalAlignment="Stretch" Style="{StaticResource SecondaryButton}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center"
                                         Visibility="{x:Bind VM.OllamaTesting, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                                 <ProgressRing IsActive="True" Width="16" Height="16"/>
-                                <TextBlock Text="Testing..." FontSize="12" Opacity="0.8"/>
+                                <TextBlock Text="Testing..." Style="{StaticResource Type.Caption}" Opacity="0.8"/>
                             </StackPanel>
-                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
-                                         Visibility="{x:Bind VM.OllamaTesting, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"> <FontIcon Glyph="&#xE73E;"
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center"
+                                        Visibility="{x:Bind VM.OllamaTesting, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
+                                <FontIcon Glyph="&#xE73E;"
+                                          Foreground="{x:Bind VM.OllamaTestBrush, Mode=OneWay}"
+                                          FontSize="{StaticResource Icon.Tiny}"/>
+                                <TextBlock Text="{x:Bind VM.OllamaTestResult, Mode=OneWay}"
+                                           Style="{StaticResource Type.Caption}"
                                            Foreground="{x:Bind VM.OllamaTestBrush, Mode=OneWay}"
-                                           FontSize="14"/>
-                                 <TextBlock Text="{x:Bind VM.OllamaTestResult, Mode=OneWay}"
-                                            FontSize="12"
-                                            Foreground="{x:Bind VM.OllamaTestBrush, Mode=OneWay}"
-                                            Opacity="0.9"/>
-                             </StackPanel>
+                                           Opacity="0.9"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
                 <!-- Smart Search -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="Smart Search (Semantic Indexing)" FontSize="18" FontWeight="SemiBold"/>
-                        <StackPanel Spacing="12">
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
+                    <StackPanel Spacing="{StaticResource Space.LG}">
+                        <TextBlock Text="Smart Search (Semantic Indexing)" Style="{StaticResource Type.SectionTitle}"/>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="Enable semantic indexing"
                                       IsChecked="{x:Bind VM.EmbeddingEnabled, Mode=TwoWay}"/>
                         </StackPanel>
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="Embedding model" FontSize="14" FontWeight="SemiBold" Opacity="0.9"/>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Embedding model" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
                             <TextBox Text="{x:Bind VM.EmbeddingModel, Mode=TwoWay}"
                                      PlaceholderText="nomic-embed-text:latest"
                                      AutomationProperties.Name="Embedding model name"/>
@@ -181,14 +182,14 @@
                 </Border>
 
                 <!-- Actions -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="Actions" FontSize="18" FontWeight="SemiBold"/>
-                        <StackPanel Spacing="12">
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
+                    <StackPanel Spacing="{StaticResource Space.LG}">
+                        <TextBlock Text="Actions" Style="{StaticResource Type.SectionTitle}"/>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <Button Content="Save Settings" Click="Save_Click"
-                                    HorizontalAlignment="Stretch" Padding="12"/>
+                                    HorizontalAlignment="Stretch" Style="{StaticResource SecondaryButton}"/>
                             <Button Content="Reset to Defaults" Click="Reset_Click"
-                                    HorizontalAlignment="Stretch" Padding="12"/>
+                                    HorizontalAlignment="Stretch" Style="{StaticResource SecondaryButton}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -197,3 +198,4 @@
         </ScrollViewer>
     </Grid>
 </Page>
+

@@ -1,4 +1,4 @@
-﻿<Page
+<Page
     x:Class="SpaceAnalyzer.Views.AIAssistantPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -9,11 +9,7 @@
     NavigationCacheMode="Required"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Page.DataContext>
-        <vm:AIAssistantViewModel x:Name="VM"/>
-    </Page.DataContext>
-
-    <Grid Padding="24" MaxWidth="900">
+    <Grid Padding="{StaticResource Thickness.XL}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -22,39 +18,59 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
-            <TextBlock Text="AI Assistant" FontSize="28" FontWeight="Bold"/>
+        <StackPanel Grid.Row="0" Spacing="{StaticResource Space.SM}" Margin="0,0,0,16">
+            <TextBlock Text="AI Assistant" Style="{StaticResource Type.PageTitle}"/>
             <TextBlock Text="Chat with your local Ollama AI to analyze disk usage."
-                       FontSize="14" Opacity="0.8"/>
+                       Style="{StaticResource Type.Body}"/>
         </StackPanel>
 
-        <!-- Message list -->
+        <!-- Message list + suggestions -->
         <ScrollViewer x:Name="MessageScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
-            <ItemsControl ItemsSource="{x:Bind VM.Messages, Mode=OneWay}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Spacing="8"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:AIChatMessage">
-                        <Border Padding="12" CornerRadius="12" MaxWidth="70%"
-                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                BorderThickness="1">
-                            <TextBlock Text="{x:Bind Content, Mode=OneWay}"
-                                       TextWrapping="Wrap" FontSize="14"/>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <StackPanel x:Name="MessageContainer" Spacing="{StaticResource Space.MD}">
+                <ItemsControl ItemsSource="{x:Bind VM.Messages, Mode=OneWay}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="{StaticResource Space.MD}"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:AIChatMessage">
+                            <Border Padding="16" CornerRadius="16" MaxWidth="70%"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    HorizontalAlignment="{x:Bind IsUser, Mode=OneWay, Converter={StaticResource BoolToHorizontalAlignment}}">
+                                <StackPanel Spacing="{StaticResource Space.XS}">
+                                    <TextBlock Text="{x:Bind Content, Mode=OneWay}"
+                                               TextWrapping="Wrap" Style="{StaticResource Type.Body}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" HorizontalAlignment="Right">
+                                        <TextBlock Text="{x:Bind Timestamp, Mode=OneWay}" Style="{StaticResource Type.Tiny}" Opacity="0.5"/>
+                                        <Button Content="Copy" Click="CopyMessage_Click" Style="{StaticResource TinyButton}" Tag="{x:Bind Content}" Visibility="{x:Bind IsUser, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Suggested prompts (shown when few messages) -->
+                <StackPanel Spacing="{StaticResource Space.SM}" Margin="0,0,0,12" Visibility="{x:Bind VM.ShowSuggestions, Mode=OneWay}">
+                    <TextBlock Text="Try asking:" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
+                        <Button Content="What takes up the most space?" Click="SuggestedPrompt_Click" Style="{StaticResource SmallButton}" Tag="What takes up the most space?"/>
+                        <Button Content="Summarize my disk usage" Click="SuggestedPrompt_Click" Style="{StaticResource SmallButton}" Tag="Summarize my disk usage"/>
+                        <Button Content="Find cleanup opportunities" Click="SuggestedPrompt_Click" Style="{StaticResource SmallButton}" Tag="Find cleanup opportunities"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
         </ScrollViewer>
 
         <!-- Input area -->
         <Grid Grid.Row="2" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <TextBox Grid.Column="0"
@@ -67,14 +83,22 @@
                     Content="Send"
                     Click="Send_Click"
                     IsEnabled="{x:Bind VM.IsNotBusy, Mode=OneWay}"
-                    Padding="16,10"
+                    Style="{StaticResource PrimaryButton}"
                     Margin="8,0,0,0"
                     AutomationProperties.Name="Send message"/>
+            <Button Grid.Column="2"
+                    Content="Clear"
+                    Click="ClearChat_Click"
+                    Style="{StaticResource SecondaryButton}"
+                    Margin="4,0,0,0"
+                    AutomationProperties.Name="Clear chat"/>
         </Grid>
 
         <!-- Status -->
         <TextBlock Grid.Row="3" Text="{x:Bind VM.StatusText, Mode=OneWay}"
-                   FontSize="12" Opacity="0.6"
+                   Style="{StaticResource Type.Caption}"
+                   Opacity="0.6"
                    Margin="0,4,0,0"/>
     </Grid>
 </Page>
+

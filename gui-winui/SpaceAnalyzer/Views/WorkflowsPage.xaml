@@ -10,35 +10,64 @@
     NavigationCacheMode="Required"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Page.DataContext>
-        <vm:WorkflowsViewModel x:Name="VM"/>
-    </Page.DataContext>
-
-    <Grid Padding="24">
+    <Grid Padding="{StaticResource Thickness.XL}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="24" MaxWidth="1000" HorizontalAlignment="Center">
+            <StackPanel Spacing="{StaticResource Space.XL}" MaxWidth="1000" HorizontalAlignment="Center">
 
                 <!-- Header -->
-                <StackPanel Spacing="6">
-                    <TextBlock Text="Workflows" FontSize="28" FontWeight="Bold"/>
+                <StackPanel Spacing="{StaticResource Space.XS}">
+                    <TextBlock Text="Workflows" Style="{StaticResource Type.PageTitle}"/>
                     <TextBlock Text="Run predefined disk-analysis workflows."
-                               FontSize="14" Opacity="0.8"/>
+                               Style="{StaticResource Type.Body}"/>
                 </StackPanel>
 
-                <!-- Workflow Controls -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="Workflow Settings" FontSize="16" FontWeight="SemiBold"/>
+                <!-- Workflow Selection -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="Select a Workflow" Style="{StaticResource Type.SubTitle}"/>
+                        <TextBlock Text="{x:Bind VM.SelectedTemplate.Description, Mode=OneWay}" Style="{StaticResource Type.Body}" Opacity="0.8" TextWrapping="Wrap"/>
+
+                        <Grid ColumnSpacing="{StaticResource Space.MD}" RowSpacing="{StaticResource Space.MD}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Style="{StaticResource CompactItemCard}">
+                                <StackPanel Spacing="{StaticResource Space.XS}">
+                                    <FontIcon Glyph="&#xE7C3;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                    <TextBlock Text="Find Large Files" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Locate files larger than a threshold" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource CompactItemCard}">
+                                <StackPanel Spacing="{StaticResource Space.XS}">
+                                    <FontIcon Glyph="&#xE7F6;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                    <TextBlock Text="Find Empty Dirs" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Locate directories with no files" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource CompactItemCard}">
+                                <StackPanel Spacing="{StaticResource Space.XS}">
+                                    <FontIcon Glyph="&#xE8ED;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                    <TextBlock Text="Find Duplicates" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Scan for duplicate files by hash" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
 
                         <ComboBox Header="Workflow"
                                   ItemsSource="{x:Bind VM.Templates, Mode=OneWay}"
                                   SelectedItem="{x:Bind VM.SelectedTemplate, Mode=TwoWay}"
+                                  DisplayMemberPath="Name"
                                   AutomationProperties.Name="Workflow type"/>
 
-                        <TextBlock Text="Target Directory" FontSize="14" FontWeight="SemiBold"/>
-                        <Grid ColumnSpacing="8">
+                        <TextBlock Text="Target Directory" Style="{StaticResource Type.SubTitle}"/>
+                        <Grid ColumnSpacing="{StaticResource Space.SM}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBox Grid.Column="0"
@@ -48,17 +77,22 @@
                             <Button Grid.Column="1"
                                     Content="Browse"
                                     Click="Browse_Click"
-                                    Padding="12,8"
+                                    Style="{StaticResource SecondaryButton}"
                                     AutomationProperties.Name="Browse"/>
+                            <Button Grid.Column="2"
+                                    Content="Open"
+                                    Click="OpenTargetPath_Click"
+                                    Style="{StaticResource SecondaryButton}"
+                                    AutomationProperties.Name="Open target path"/>
                         </Grid>
 
-                        <Grid ColumnSpacing="24">
+                        <Grid ColumnSpacing="{StaticResource Space.XXL}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="Min Size (MB)" FontSize="12" Opacity="0.8"/>
+                            <StackPanel Spacing="{StaticResource Space.SM}">
+                                <TextBlock Text="Min Size (MB)" Style="{StaticResource Type.Caption}" Opacity="0.8"/>
                                 <TextBox Text="{x:Bind VM.MinSizeMb, Mode=TwoWay}"
                                          AutomationProperties.Name="Minimum size in megabytes">
                                     <TextBox.InputScope>
@@ -70,17 +104,17 @@
                                     </TextBox.InputScope>
                                 </TextBox>
                             </StackPanel>
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="Status" FontSize="12" Opacity="0.8"/>
+                            <StackPanel Spacing="{StaticResource Space.SM}">
+                                <TextBlock Text="Status" Style="{StaticResource Type.Caption}" Opacity="0.8"/>
                                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}"
-                                           FontSize="14" VerticalAlignment="Center"/>
+                                           Style="{StaticResource Type.Body}" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Grid>
 
                         <Button Content="Run Workflow"
                                 Click="Run_Click"
                                 HorizontalAlignment="Stretch"
-                                Padding="16"
+                                Style="{StaticResource PrimaryButton}"
                                 IsEnabled="{x:Bind VM.IsNotRunning, Mode=OneWay}"
                                 AutomationProperties.Name="Run workflow"/>
                     </StackPanel>
@@ -88,29 +122,32 @@
 
                 <!-- Results -->
                 <Border Style="{StaticResource DashboardCardBorder}"
-                        Padding="16"
+                        Padding="{StaticResource Thickness.LG}"
                         Visibility="{x:Bind VM.HasResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="Results" FontSize="18" FontWeight="SemiBold"/>
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="Results" Style="{StaticResource Type.CardTitle}"/>
+                        <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" Style="{StaticResource Type.Body}" Opacity="0.8"/>
+
                         <ItemsRepeater ItemsSource="{x:Bind VM.Results, Mode=OneWay}">
                             <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="8"/>
+                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.SM}"/>
                             </ItemsRepeater.Layout>
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="models:SmartSearchResult">
-                                    <Border Padding="12" CornerRadius="6"
-                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                            BorderThickness="1">
-                                        <StackPanel Spacing="4">
-                                            <TextBlock FontSize="13" FontWeight="SemiBold"
+                                    <Border Style="{StaticResource CompactItemCard}">
+                                        <StackPanel Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Style="{StaticResource Type.SubTitle}"
                                                        Text="{x:Bind Name, Mode=OneTime}"
                                                        TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock FontSize="12" Opacity="0.8">
+                                            <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8">
                                                 <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
                                                 <Run Text=" · "/>
                                                 <Run Text="{x:Bind Path, Mode=OneTime}" FontStyle="Italic"/>
                                             </TextBlock>
+                                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Margin="0,4,0,0">
+                                                <Button Content="Open" Click="OpenResultFile_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
+                                                <Button Content="Folder" Click="OpenResultFolder_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
@@ -119,7 +156,17 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Empty State -->
+                <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.HasResults, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
+                    <StackPanel Spacing="{StaticResource Space.MD}" HorizontalAlignment="Center">
+                        <FontIcon Glyph="&#xE74C;" FontSize="{StaticResource Icon.EmptyState}" Opacity="{StaticResource Icon.EmptyStateOpacity}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="No workflow results yet" Style="{StaticResource Type.CardTitle}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Select a workflow, choose a target directory, and click Run." Style="{StaticResource Type.Body}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
     </Grid>
 </Page>
+

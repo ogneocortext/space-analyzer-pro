@@ -15,6 +15,7 @@ public sealed class BoolToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
+        if (value == null) return Visibility.Collapsed;
         bool visible = value is bool b && b;
         return visible ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -38,6 +39,7 @@ public sealed class InverseBoolToVisibilityConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
+        if (value == null) return Visibility.Visible;
         bool visible = value is bool b && b;
         return !visible ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -83,6 +85,24 @@ public sealed class BoolToScanButtonTextConverter : IValueConverter
     {
         bool isScanning = value is bool b && b;
         return isScanning ? "Stop" : "Start Scan";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+    {
+        return false;
+    }
+}
+
+/// <summary>
+/// Converts a <see cref="bool"/> to a <see cref="HorizontalAlignment"/>.
+/// <c>true</c> returns <see cref="HorizontalAlignment.Right"/>; <c>false</c> returns <see cref="HorizontalAlignment.Left"/>.
+/// </summary>
+public sealed class BoolToHorizontalAlignmentConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool alignRight = value is bool b && b;
+        return alignRight ? HorizontalAlignment.Right : HorizontalAlignment.Left;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)

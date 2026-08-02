@@ -1,343 +1,329 @@
-<Page x:Class="SpaceAnalyzer.Views.DashboardPage" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:vm="using:SpaceAnalyzer.ViewModels" xmlns:models="using:SpaceAnalyzer.Models" mc:Ignorable="d" NavigationCacheMode="Required" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-  <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24">
-    <StackPanel Spacing="24" MaxWidth="1200" HorizontalAlignment="Center">
-      <!-- Header -->
-      <Grid ColumnSpacing="16">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
-        <StackPanel Grid.Column="0" Spacing="6">
-          <TextBlock Text="Dashboard" FontSize="28" FontWeight="Bold" />
-          <TextBlock Text="Overview of your disk usage, system resources, and quick actions." FontSize="14" Opacity="0.8" />
-        </StackPanel>
-        <Button Grid.Column="1" Content="Refresh" Click="Refresh_Click" Padding="12,6" VerticalAlignment="Top" />
-      </Grid>
-      <!-- Hero Stat Cards (4�2 grid) -->
-      <Grid ColumnSpacing="16" RowSpacing="16">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-          <RowDefinition Height="Auto" />
-          <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <!-- Total Files -->
-        <Border x:Name="StatCardTotalFiles" Grid.Row="0" Grid.Column="0" Style="{StaticResource DashboardCardBorder}">
-          <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Height="72">
-            <FontIcon Glyph="" FontSize="28" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-            <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="{x:Bind VM.TotalFilesDisplay, Mode=OneWay}" FontSize="28" FontWeight="Bold" />
-              <TextBlock Text="Total Files" FontSize="12" Opacity="0.8" />
-            </StackPanel>
-          </StackPanel>
-        </Border>
-        <!-- Total Size -->
-        <Border x:Name="StatCardTotalSize" Grid.Row="0" Grid.Column="1" Style="{StaticResource DashboardCardBorder}">
-          <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Height="72">
-            <FontIcon Glyph="" FontSize="28" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-            <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="{x:Bind VM.TotalSizeDisplay, Mode=OneWay}" FontSize="28" FontWeight="Bold" />
-              <TextBlock Text="Total Size" FontSize="12" Opacity="0.8" />
-            </StackPanel>
-          </StackPanel>
-        </Border>
-        <!-- Scan Count -->
-        <Border x:Name="StatCardScanCount" Grid.Row="1" Grid.Column="0" Style="{StaticResource DashboardCardBorder}">
-          <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Height="72">
-            <FontIcon Glyph="" FontSize="28" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-            <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="{x:Bind VM.ScanCountDisplay, Mode=OneWay}" FontSize="28" FontWeight="Bold" />
-              <TextBlock Text="Scans" FontSize="12" Opacity="0.8" />
-            </StackPanel>
-          </StackPanel>
-        </Border>
-        <!-- Duplicate Count -->
-        <Border x:Name="StatCardDuplicateCount" Grid.Row="1" Grid.Column="1" Style="{StaticResource DashboardCardBorder}">
-          <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center" Height="72">
-            <FontIcon Glyph="" FontSize="28" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
-            <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="{x:Bind VM.DuplicateCountDisplay, Mode=OneWay}" FontSize="28" FontWeight="Bold" />
-              <TextBlock Text="Duplicates" FontSize="12" Opacity="0.8" />
-            </StackPanel>
-          </StackPanel>
-        </Border>
-      </Grid>
-      <!-- Two-column layout: Disk Usage + Quick Actions -->
-      <Grid ColumnSpacing="16" RowSpacing="16">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="2*" />
-          <ColumnDefinition Width="1*" />
-        </Grid.ColumnDefinitions>
-        <!-- Disk Usage Section -->
-        <StackPanel Grid.Column="0" Spacing="12">
-          <TextBlock Text="Disk Usage" FontSize="18" FontWeight="SemiBold" Opacity="0.9" />
-          <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
-            <Border.Transitions>
-              <TransitionCollection>
-                <EntranceThemeTransition />
-              </TransitionCollection>
-            </Border.Transitions>
-            <StackPanel Spacing="16">
-              <ItemsRepeater x:Name="DiskVolumesList" ItemsSource="{x:Bind VM.DiskVolumes, Mode=OneWay}">
-                <ItemsRepeater.Layout>
-                  <StackLayout Orientation="Vertical" Spacing="12" />
-                </ItemsRepeater.Layout>
-                <ItemsRepeater.ItemTemplate>
-                  <DataTemplate x:DataType="models:DiskVolume">
-                    <StackPanel Spacing="8" Margin="0,6">
-                      <StackPanel Orientation="Horizontal">
-                        <TextBlock FontSize="14" FontWeight="SemiBold">
-                          <Run Text="{x:Bind MountPoint, Mode=OneTime}" />
-                          <Run Text=" � " />
-                          <Run Text="{x:Bind Label, Mode=OneTime}" />
-                        </TextBlock>
-                      </StackPanel>
-                      <ProgressBar Value="{x:Bind UsagePercent, Mode=OneTime}" Maximum="100" Height="8" CornerRadius="4" Foreground="{x:Bind UsageBrush, Mode=OneTime}" />
-                      <TextBlock FontSize="13" Opacity="0.8">
-                        <Run Text="{x:Bind UsedDisplay, Mode=OneTime}" />
-                        <Run Text=" used of " />
-                        <Run Text="{x:Bind TotalDisplay, Mode=OneTime}" />
-                        <Run Text=" � " />
-                        <Run Text="{x:Bind UsagePercentDisplay, Mode=OneTime}" FontWeight="SemiBold" />
-                        <Run Text=" � Free: " />
-                        <Run Text="{x:Bind AvailableDisplay, Mode=OneTime}" />
-                      </TextBlock>
+<Page x:Class="SpaceAnalyzer.Views.DashboardPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:vm="using:SpaceAnalyzer.ViewModels"
+      xmlns:models="using:SpaceAnalyzer.Models"
+      mc:Ignorable="d"
+      NavigationCacheMode="Required"
+      Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="{StaticResource Thickness.XL}">
+        <StackPanel Spacing="{StaticResource Space.XL}" MaxWidth="1200" HorizontalAlignment="Center">
+
+            <!-- Header -->
+            <Grid ColumnSpacing="{StaticResource Space.LG}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                    <TextBlock Text="Dashboard" Style="{StaticResource Type.PageTitle}" />
+                    <TextBlock Text="Overview of your disk usage, system resources, and quick actions." Style="{StaticResource Type.Body}" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="Refresh" Click="Refresh_Click" Style="{StaticResource SmallButton}" VerticalAlignment="Top" />
+            </Grid>
+
+            <!-- Hero Stat Cards -->
+            <Grid ColumnSpacing="{StaticResource Space.LG}" RowSpacing="{StaticResource Space.LG}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Border x:Name="StatCardTotalFiles" Grid.Row="0" Grid.Column="0" Style="{StaticResource DashboardCardBorder}">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center" Height="72">
+                        <FontIcon Glyph="&#xEB2F7;" FontSize="{StaticResource Icon.Hero}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind VM.TotalFilesDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" />
+                            <TextBlock Text="Total Files" Style="{StaticResource Type.StatLabel}" />
+                        </StackPanel>
                     </StackPanel>
-                  </DataTemplate>
-                </ItemsRepeater.ItemTemplate>
-              </ItemsRepeater>
-              <TextBlock x:Name="LoadingText" Text="Loading disk volumes..." Opacity="0.5" FontSize="12" Visibility="Collapsed" />
-              <TextBlock Text="No disk volumes detected." FontSize="14" Opacity="0.7" Visibility="{x:Bind VM.HasDiskVolumesVisibility, Mode=OneWay}" />
-            </StackPanel>
-          </Border>
+                </Border>
+                <Border x:Name="StatCardTotalSize" Grid.Row="0" Grid.Column="1" Style="{StaticResource DashboardCardBorder}">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center" Height="72">
+                        <FontIcon Glyph="&#xE9F3;" FontSize="{StaticResource Icon.Hero}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind VM.TotalSizeDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" />
+                            <TextBlock Text="Total Size" Style="{StaticResource Type.StatLabel}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="StatCardScanCount" Grid.Row="1" Grid.Column="0" Style="{StaticResource DashboardCardBorder}">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center" Height="72">
+                        <FontIcon Glyph="&#xEB39;" FontSize="{StaticResource Icon.Hero}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind VM.ScanCountDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" />
+                            <TextBlock Text="Scans" Style="{StaticResource Type.StatLabel}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="StatCardDuplicateCount" Grid.Row="1" Grid.Column="1" Style="{StaticResource DashboardCardBorder}">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center" Height="72">
+                        <FontIcon Glyph="&#xEB9F;" FontSize="{StaticResource Icon.Hero}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind VM.DuplicateCountDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" />
+                            <TextBlock Text="Duplicates" Style="{StaticResource Type.StatLabel}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Two-column layout: Disk Usage + Quick Actions -->
+            <Grid ColumnSpacing="{StaticResource Space.LG}" RowSpacing="{StaticResource Space.LG}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="1*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Disk Usage Section -->
+                <StackPanel Grid.Column="0" Spacing="{StaticResource Space.MD}">
+                    <TextBlock Text="Disk Usage" Style="{StaticResource Type.SectionTitle}" />
+                    <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
+                        <Border.Transitions>
+                            <TransitionCollection>
+                                <EntranceThemeTransition />
+                            </TransitionCollection>
+                        </Border.Transitions>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <ItemsRepeater x:Name="DiskVolumesList" ItemsSource="{x:Bind VM.DiskVolumes, Mode=OneWay}">
+                                <ItemsRepeater.Layout>
+                                    <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.MD}" />
+                                </ItemsRepeater.Layout>
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="models:DiskVolume">
+                                        <StackPanel Spacing="{StaticResource Space.SM}">
+                                            <TextBlock Text="{x:Bind MountPoint, Mode=OneTime}" Style="{StaticResource Type.SubTitle}" />
+                                            <ProgressBar Value="{x:Bind UsagePercent, Mode=OneTime}" Maximum="100" Style="{StaticResource StandardProgressBar}" Foreground="{x:Bind UsageBrush, Mode=OneTime}" />
+                                            <TextBlock Style="{StaticResource Type.Body}">
+                                                <Run Text="{x:Bind UsedDisplay, Mode=OneTime}" />
+                                                <Run Text=" used of " />
+                                                <Run Text="{x:Bind TotalDisplay, Mode=OneTime}" />
+                                                <Run Text=" · " />
+                                                <Run Text="{x:Bind UsagePercentDisplay, Mode=OneTime}" FontWeight="SemiBold" />
+                                                <Run Text=" · Free: " />
+                                                <Run Text="{x:Bind AvailableDisplay, Mode=OneTime}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                            <TextBlock Text="Loading disk volumes..." Style="{StaticResource Type.Dim}" Visibility="{x:Bind VM.IsLoadingVisibility, Mode=OneWay}" />
+                            <TextBlock Text="No disk volumes detected." Style="{StaticResource Type.Body}" Visibility="{x:Bind VM.HasDiskVolumesVisibility, Mode=OneWay}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Quick Actions Section -->
+                <StackPanel Grid.Column="1" Spacing="{StaticResource Space.MD}">
+                    <TextBlock Text="Quick Actions" Style="{StaticResource Type.SectionTitle}" />
+                    <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
+                        <Grid RowSpacing="{StaticResource Space.MD}" ColumnSpacing="{StaticResource Space.MD}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button Grid.Row="0" Grid.Column="0" x:Name="BtnNewScan" Click="BtnNewScan_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
+                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
+                                    <FontIcon Glyph="&#xEB39;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="New Scan" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Row="0" Grid.Column="1" x:Name="BtnViewHistory" Click="BtnViewHistory_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
+                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
+                                    <FontIcon Glyph="&#xE944;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="History" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Row="0" Grid.Column="2" x:Name="BtnFindDuplicates" Click="BtnFindDuplicates_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
+                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
+                                    <FontIcon Glyph="&#xEB9F;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="Duplicates" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Row="1" Grid.Column="0" x:Name="BtnAIAssistant" Click="BtnAIAssistant_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
+                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
+                                    <FontIcon Glyph="&#xE99A;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="AI Chat" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Row="1" Grid.Column="1" x:Name="BtnCleanup" Click="BtnCleanup_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
+                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
+                                    <FontIcon Glyph="&#xEB54;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="Cleanup" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Row="1" Grid.Column="2" x:Name="BtnSystem" Click="BtnSystem_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
+                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
+                                    <FontIcon Glyph="&#xE770;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="System" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Row="2" Grid.Column="0" x:Name="BtnSmartSearch" Click="BtnSmartSearch_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
+                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
+                                    <FontIcon Glyph="&#xE721;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="Search" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Row="2" Grid.Column="1" x:Name="BtnWorkflows" Click="BtnWorkflows_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
+                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
+                                    <FontIcon Glyph="&#xE74C;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="Workflows" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Row="2" Grid.Column="2" x:Name="BtnSettings" Click="BtnSettings_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
+                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
+                                    <FontIcon Glyph="&#xE713;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="Settings" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <!-- System Resources Section -->
+            <TextBlock Text="System Resources" Style="{StaticResource Type.SectionTitle}" />
+            <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
+                <Border.Transitions>
+                    <TransitionCollection>
+                        <EntranceThemeTransition />
+                    </TransitionCollection>
+                </Border.Transitions>
+                <Grid ColumnSpacing="{StaticResource Space.XXL}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="{StaticResource Space.SM}">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
+                            <FontIcon Glyph="&#xE964;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            <TextBlock Text="CPU" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <ProgressBar x:Name="CpuBar" Value="{x:Bind VM.CpuUsage, Mode=OneWay}" Maximum="100" Style="{StaticResource StandardProgressBar}" Foreground="{x:Bind VM.CpuBrush, Mode=OneWay}" />
+                        <TextBlock Text="{x:Bind VM.CpuUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Current usage" Style="{StaticResource Type.Tiny}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="{StaticResource Space.SM}">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
+                            <FontIcon Glyph="&#xE9F9;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            <TextBlock Text="Memory" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <ProgressBar x:Name="MemBar" Value="{x:Bind VM.MemoryUsage, Mode=OneWay}" Maximum="100" Style="{StaticResource StandardProgressBar}" Foreground="{x:Bind VM.MemoryBrush, Mode=OneWay}" />
+                        <TextBlock Text="{x:Bind VM.MemoryUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Current usage" Style="{StaticResource Type.Tiny}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="{StaticResource Space.SM}">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
+                            <FontIcon Glyph="&#xE950;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            <TextBlock Text="Storage" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <ProgressBar x:Name="DiskBar" Value="{x:Bind VM.DiskUsage, Mode=OneWay}" Maximum="100" Style="{StaticResource StandardProgressBar}" Foreground="{x:Bind VM.DiskBrush, Mode=OneWay}" />
+                        <TextBlock Text="{x:Bind VM.DiskUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Across all drives" Style="{StaticResource Type.Tiny}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Quick Scan -->
+            <TextBlock Text="Quick Scan" Style="{StaticResource Type.SectionTitle}" />
+            <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
+                <Border.Transitions>
+                    <TransitionCollection>
+                        <EntranceThemeTransition />
+                    </TransitionCollection>
+                </Border.Transitions>
+                <StackPanel Spacing="{StaticResource Space.MD}">
+                    <Grid ColumnSpacing="{StaticResource Space.SM}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Text="{x:Bind VM.QuickScanPath, Mode=TwoWay}" PlaceholderText="Select a folder to scan..." AutomationProperties.Name="Quick scan path" />
+                        <Button Grid.Column="1" Content="Browse" Click="QuickScanBrowse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Quick scan browse" />
+                        <Button Grid.Column="2" Content="Scan Now" Click="QuickScan_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Quick scan now" />
+                    </Grid>
+                    <TextBlock Text="Tip: Run a scan to populate the dashboard stats and history." Style="{StaticResource Type.Hint}" />
+                    <TextBlock Text="{x:Bind VM.QuickScanStatus, Mode=OneWay}" Style="{StaticResource Type.Body}" />
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center" Visibility="{x:Bind VM.IsQuickScanning, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                        <ProgressRing IsActive="True" Width="16" Height="16" />
+                        <TextBlock Text="Scanning..." Style="{StaticResource Type.Caption}" />
+                    </StackPanel>
+                    <StackPanel x:Name="QuickScanResult" Visibility="{x:Bind VM.QuickScanResultVisibility, Mode=OneWay}" Spacing="{StaticResource Space.SM}">
+                        <TextBlock Text="{x:Bind VM.QuickScanResultText, Mode=OneWay}" Style="{StaticResource Type.Body}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Resource History Charts -->
+            <TextBlock Text="Resource History" Style="{StaticResource Type.SectionTitle}" />
+            <Grid ColumnSpacing="{StaticResource Space.LG}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
+                    <Border.Transitions>
+                        <TransitionCollection>
+                            <EntranceThemeTransition />
+                        </TransitionCollection>
+                    </Border.Transitions>
+                    <StackPanel Spacing="{StaticResource Space.XS}">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
+                            <FontIcon Glyph="&#xE964;" FontSize="{StaticResource Icon.Small}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            <TextBlock Text="CPU" Style="{StaticResource Type.SubTitle}" />
+                        </StackPanel>
+                        <Canvas x:Name="CpuChart" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <TextBlock Text="{x:Bind VM.CpuUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
+                    <Border.Transitions>
+                        <TransitionCollection>
+                            <EntranceThemeTransition />
+                        </TransitionCollection>
+                    </Border.Transitions>
+                    <StackPanel Spacing="{StaticResource Space.XS}">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
+                            <FontIcon Glyph="&#xE9F9;" FontSize="{StaticResource Icon.Small}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            <TextBlock Text="Memory" Style="{StaticResource Type.SubTitle}" />
+                        </StackPanel>
+                        <Canvas x:Name="MemChart" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <TextBlock Text="{x:Bind VM.MemoryUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="2" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
+                    <Border.Transitions>
+                        <TransitionCollection>
+                            <EntranceThemeTransition />
+                        </TransitionCollection>
+                    </Border.Transitions>
+                    <StackPanel Spacing="{StaticResource Space.XS}">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
+                            <FontIcon Glyph="&#xE950;" FontSize="{StaticResource Icon.Small}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            <TextBlock Text="Disk" Style="{StaticResource Type.SubTitle}" />
+                        </StackPanel>
+                        <Canvas x:Name="DiskChart" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <TextBlock Text="{x:Bind VM.DiskUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
         </StackPanel>
-        <!-- Quick Actions Section (symmetric 3�2 grid) -->
-        <StackPanel Grid.Column="1" Spacing="12">
-          <TextBlock Text="Quick Actions" FontSize="18" FontWeight="SemiBold" Opacity="0.9" />
-          <Grid RowSpacing="12" ColumnSpacing="12">
-            <Grid.RowDefinitions>
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="Auto" />
-              <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <!-- New Scan -->
-            <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource DashboardCardBorder}" Padding="0">
-              <Border.Transitions>
-                <TransitionCollection>
-                  <EntranceThemeTransition /></TransitionCollection>
-              </Border.Transitions>
-              <Button x:Name="BtnNewScan" Click="BtnNewScan_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="16" CornerRadius="8" Background="Transparent">
-                <StackPanel Spacing="8">
-                  <FontIcon Glyph="" FontSize="24" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                  <TextBlock Text="New Scan" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                </StackPanel>
-              </Button>
-            </Border>
-            <!-- View History -->
-            <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource DashboardCardBorder}" Padding="0">
-              <Border.Transitions>
-                <TransitionCollection>
-                  <EntranceThemeTransition /></TransitionCollection>
-              </Border.Transitions>
-              <Button x:Name="BtnViewHistory" Click="BtnViewHistory_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="16" CornerRadius="8" Background="Transparent">
-                <StackPanel Spacing="8">
-                  <FontIcon Glyph="" FontSize="24" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                  <TextBlock Text="View History" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                </StackPanel>
-              </Button>
-            </Border>
-            <!-- Find Duplicates -->
-            <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource DashboardCardBorder}" Padding="0">
-              <Border.Transitions>
-                <TransitionCollection>
-                  <EntranceThemeTransition /></TransitionCollection>
-              </Border.Transitions>
-              <Button x:Name="BtnFindDuplicates" Click="BtnFindDuplicates_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="16" CornerRadius="8" Background="Transparent">
-                <StackPanel Spacing="8">
-                  <FontIcon Glyph="" FontSize="24" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                  <TextBlock Text="Find Duplicates" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                </StackPanel>
-              </Button>
-            </Border>
-            <!-- AI Assistant -->
-            <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource DashboardCardBorder}" Padding="0">
-              <Border.Transitions>
-                <TransitionCollection>
-                  <EntranceThemeTransition /></TransitionCollection>
-              </Border.Transitions>
-              <Button x:Name="BtnAIAssistant" Click="BtnAIAssistant_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="16" CornerRadius="8" Background="Transparent">
-                <StackPanel Spacing="8">
-                  <FontIcon Glyph="" FontSize="24" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                  <TextBlock Text="AI Assistant" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                </StackPanel>
-              </Button>
-            </Border>
-            <!-- Cleanup -->
-            <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource DashboardCardBorder}" Padding="0">
-              <Border.Transitions>
-                <TransitionCollection>
-                  <EntranceThemeTransition /></TransitionCollection>
-              </Border.Transitions>
-              <Button x:Name="BtnCleanup" Click="BtnCleanup_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="16" CornerRadius="8" Background="Transparent">
-                <StackPanel Spacing="8">
-                  <FontIcon Glyph="" FontSize="24" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                  <TextBlock Text="Cleanup" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                </StackPanel>
-              </Button>
-            </Border>
-            <!-- System -->
-            <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource DashboardCardBorder}" Padding="0">
-              <Border.Transitions>
-                <TransitionCollection>
-                  <EntranceThemeTransition /></TransitionCollection>
-              </Border.Transitions>
-              <Button x:Name="BtnSystem" Click="BtnSystem_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="16" CornerRadius="8" Background="Transparent">
-                <StackPanel Spacing="8">
-                  <FontIcon Glyph="" FontSize="24" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                  <TextBlock Text="System" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                </StackPanel>
-              </Button>
-            </Border>
-          </Grid>
-        </StackPanel>
-      </Grid>
-      <!-- System Resources Section -->
-      <TextBlock Text="System Resources" FontSize="18" FontWeight="SemiBold" Opacity="0.9" />
-      <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
-        <Border.Transitions>
-          <TransitionCollection>
-            <EntranceThemeTransition />
-          </TransitionCollection>
-        </Border.Transitions>
-        <Grid ColumnSpacing="32">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="*" />
-          </Grid.ColumnDefinitions>
-          <!-- CPU -->
-          <StackPanel Grid.Column="0" Spacing="8">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-              <TextBlock Text="CPU" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
-            </StackPanel>
-            <ProgressBar x:Name="CpuBar" Value="{x:Bind VM.CpuUsage, Mode=OneWay}" Maximum="100" Height="8" CornerRadius="4" Foreground="{x:Bind VM.CpuBrush, Mode=OneWay}" />
-            <TextBlock Text="{x:Bind VM.CpuUsageDisplay, Mode=OneWay}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
-            <TextBlock Text="Current usage" FontSize="12" Opacity="0.7" HorizontalAlignment="Center" />
-          </StackPanel>
-          <!-- Memory -->
-          <StackPanel Grid.Column="1" Spacing="10">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-              <TextBlock Text="Memory" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
-            </StackPanel>
-            <ProgressBar x:Name="MemBar" Value="{x:Bind VM.MemoryUsage, Mode=OneWay}" Maximum="100" Height="8" CornerRadius="4" Foreground="{x:Bind VM.MemoryBrush, Mode=OneWay}" />
-            <TextBlock Text="{x:Bind VM.MemoryUsageDisplay, Mode=OneWay}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
-            <TextBlock Text="Current usage" FontSize="12" Opacity="0.7" HorizontalAlignment="Center" />
-          </StackPanel>
-          <!-- Storage (aggregated disk usage) -->
-          <StackPanel Grid.Column="2" Spacing="10">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <FontIcon Glyph="" FontSize="16" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-              <TextBlock Text="Storage" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" />
-            </StackPanel>
-            <ProgressBar x:Name="DiskBar" Value="{x:Bind VM.DiskUsage, Mode=OneWay}" Maximum="100" Height="8" CornerRadius="4" Foreground="{x:Bind VM.DiskBrush, Mode=OneWay}" />
-            <TextBlock Text="{x:Bind VM.DiskUsageDisplay, Mode=OneWay}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
-            <TextBlock Text="Across all drives" FontSize="12" Opacity="0.7" HorizontalAlignment="Center" />
-          </StackPanel>
-        </Grid>
-      </Border>
-      <!-- Quick Scan -->
-      <TextBlock Text="Quick Scan" FontSize="18" FontWeight="SemiBold" Opacity="0.9" />
-      <Border Style="{StaticResource DashboardCardBorder}" Padding="20">
-        <Border.Transitions>
-          <TransitionCollection>
-            <EntranceThemeTransition />
-          </TransitionCollection>
-        </Border.Transitions>
-        <StackPanel Spacing="12">
-          <Grid ColumnSpacing="8">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBox Grid.Column="0" Text="{x:Bind VM.QuickScanPath, Mode=TwoWay}" PlaceholderText="Select a folder to scan..." AutomationProperties.Name="Quick scan path" />
-            <Button Grid.Column="1" Content="Browse" Click="QuickScanBrowse_Click" Padding="12,8" AutomationProperties.Name="Quick scan browse" />
-            <Button Grid.Column="2" Content="Scan Now" Click="QuickScan_Click" Padding="12,8" AutomationProperties.Name="Quick scan now" />
-          </Grid>
-          <TextBlock Text="{x:Bind VM.QuickScanStatus, Mode=OneWay}" FontSize="12" Opacity="0.9" />
-          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"                                Visibility="{x:Bind VM.IsQuickScanning, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"> <ProgressRing IsActive="True" Width="16" Height="16" />
-            <TextBlock Text="Scanning..." FontSize="12" Opacity="0.8" />
-          </StackPanel>
-          <StackPanel x:Name="QuickScanResult" Visibility="{x:Bind VM.QuickScanResultVisibility, Mode=OneWay}" Spacing="8"> <TextBlock Text="{x:Bind VM.QuickScanResultText, Mode=OneWay}" FontSize="13" />
-          </StackPanel>
-        </StackPanel>
-      </Border>
-      <!-- Resource History Charts -->
-      <TextBlock Text="Resource History" FontSize="18" FontWeight="SemiBold" Opacity="0.9" />
-      <Grid ColumnSpacing="16">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-        <!-- CPU Chart -->
-        <Border Grid.Column="0" Style="{StaticResource DashboardCardBorder}" Padding="12">
-          <Border.Transitions>
-            <TransitionCollection>
-              <EntranceThemeTransition />
-            </TransitionCollection>
-          </Border.Transitions>
-          <StackPanel Spacing="6">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <FontIcon Glyph="" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-              <TextBlock Text="CPU" FontSize="13" FontWeight="SemiBold" />
-            </StackPanel>
-            <Canvas x:Name="CpuChart" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-            <TextBlock Text="{x:Bind VM.CpuUsageDisplay, Mode=OneWay}" FontSize="12" Opacity="0.7" HorizontalAlignment="Center" />
-          </StackPanel>
-        </Border>
-        <!-- Memory Chart -->
-        <Border Grid.Column="1" Style="{StaticResource DashboardCardBorder}" Padding="12">
-          <Border.Transitions>
-            <TransitionCollection>
-              <EntranceThemeTransition />
-            </TransitionCollection>
-          </Border.Transitions>
-          <StackPanel Spacing="6">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <FontIcon Glyph="" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-              <TextBlock Text="Memory" FontSize="13" FontWeight="SemiBold" />
-            </StackPanel>
-            <Canvas x:Name="MemChart" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-            <TextBlock Text="{x:Bind VM.MemoryUsageDisplay, Mode=OneWay}" FontSize="12" Opacity="0.7" HorizontalAlignment="Center" />
-          </StackPanel>
-        </Border>
-        <!-- Disk Chart -->
-        <Border Grid.Column="2" Style="{StaticResource DashboardCardBorder}" Padding="12">
-          <Border.Transitions>
-            <TransitionCollection>
-              <EntranceThemeTransition />
-            </TransitionCollection>
-          </Border.Transitions>
-          <StackPanel Spacing="6">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <FontIcon Glyph="" FontSize="14" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-              <TextBlock Text="Disk" FontSize="13" FontWeight="SemiBold" />
-            </StackPanel>
-            <Canvas x:Name="DiskChart" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-            <TextBlock Text="{x:Bind VM.DiskUsageDisplay, Mode=OneWay}" FontSize="12" Opacity="0.7" HorizontalAlignment="Center" />
-          </StackPanel>
-        </Border>
-      </Grid>
-    </StackPanel>
-  </ScrollViewer>
+    </ScrollViewer>
 </Page>
+

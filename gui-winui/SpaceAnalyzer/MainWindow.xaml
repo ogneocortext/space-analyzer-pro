@@ -8,8 +8,8 @@
     <NavigationView x:Name="NavView"
                     PaneDisplayMode="Top"
                     IsBackEnabled="False"
-                    Loaded="NavView_Loaded"
-                    SelectionChanged="NavView_SelectionChanged">
+                    ItemInvoked="NavView_ItemInvoked"
+                    Loaded="NavView_Loaded">
 
         <NavigationView.MenuItems>
             <NavigationViewItem Content="Dashboard" Tag="Dashboard">
@@ -24,7 +24,7 @@
             </NavigationViewItem>
             <NavigationViewItem Content="History" Tag="History">
                 <NavigationViewItem.Icon>
-                    <FontIcon Glyph="&#xE9D9;"/>
+                    <FontIcon Glyph="&#xE8F5;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem Content="Advanced Search" Tag="AdvancedSearch">
@@ -72,15 +72,17 @@
             </NavigationViewItem>
         </NavigationView.FooterMenuItems>
 
-<Grid>
-             <Frame x:Name="ContentFrame">
-                 <Frame.ContentTransitions>
-                     <TransitionCollection>
-                         <NavigationThemeTransition/>
-                     </TransitionCollection>
-                 </Frame.ContentTransitions>
-             </Frame>
-         </Grid>
+        <Frame x:Name="ContentFrame"
+               HorizontalAlignment="Stretch"
+               VerticalAlignment="Stretch"
+               NavigationFailed="ContentFrame_NavigationFailed"
+               Navigated="ContentFrame_Navigated">
+            <Frame.ContentTransitions>
+                <TransitionCollection>
+                    <NavigationThemeTransition/>
+                </TransitionCollection>
+            </Frame.ContentTransitions>
+        </Frame>
 
     </NavigationView>
 </Window>

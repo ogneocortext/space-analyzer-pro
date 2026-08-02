@@ -70,4 +70,5 @@ public class ScanHistoryRecord
     public string TotalSizeDisplay => ByteFormatter.FormatBytes(TotalSizeBytes);
     public string DurationDisplay => $"{(int)DurationSecs / 60}m {(int)DurationSecs % 60}s";
     public string FilesDisplay => $"{TotalFiles:N0} files";
+    public string PotentialCleanupDisplay => ByteFormatter.FormatBytes(PotentialCleanupBytes);
 }

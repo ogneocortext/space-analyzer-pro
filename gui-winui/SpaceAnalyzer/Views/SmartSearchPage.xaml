@@ -10,54 +10,50 @@
     NavigationCacheMode="Required"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Page.DataContext>
-        <vm:SmartSearchViewModel x:Name="VM"/>
-    </Page.DataContext>
-
-    <Grid Padding="24">
+    <Grid Padding="{StaticResource Thickness.XL}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="24" MaxWidth="1000" HorizontalAlignment="Center">
+            <StackPanel Spacing="{StaticResource Space.XL}" MaxWidth="1000" HorizontalAlignment="Center">
 
                 <!-- Header -->
-                <StackPanel Spacing="6">
-                    <TextBlock Text="Smart Search" FontSize="28" FontWeight="Bold"/>
+                <StackPanel Spacing="{StaticResource Space.XS}">
+                    <TextBlock Text="Smart Search" Style="{StaticResource Type.PageTitle}"/>
                     <TextBlock Text="Search for files and folders by name and size."
-                               FontSize="14" Opacity="0.8"/>
+                               Style="{StaticResource Type.Body}"/>
                 </StackPanel>
 
                 <!-- Search Criteria -->
-                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1" CornerRadius="8" Padding="20">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="Search Path" FontSize="14" FontWeight="SemiBold"/>
-                        <Grid ColumnSpacing="8">
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="Search Path" Style="{StaticResource Type.SubTitle}"/>
+                        <Grid ColumnSpacing="{StaticResource Space.SM}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBox Grid.Column="0"
                                      Text="{x:Bind VM.SearchPath, Mode=TwoWay}"
                                      PlaceholderText="Select a directory to search..."
                                      AutomationProperties.Name="Search path"/>
-                            <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Padding="12,8" AutomationProperties.Name="Browse"/>
+                            <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Browse"/>
+                            <Button Grid.Column="2" Content="Open" Click="OpenSearchPath_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Open search path"/>
                         </Grid>
 
-                        <StackPanel Spacing="8" Margin="0,8,0,0">
-                            <TextBlock Text="Search Query" FontSize="14" FontWeight="SemiBold"/>
+                        <StackPanel Spacing="{StaticResource Space.SM}" Margin="0,8,0,0">
+                            <TextBlock Text="Search Query" Style="{StaticResource Type.SubTitle}"/>
                             <TextBox Text="{x:Bind VM.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      PlaceholderText="Enter file/folder name to search for..."
                                      AutomationProperties.Name="Search query"/>
                         </StackPanel>
 
-                        <Grid Margin="0,8,0,0" ColumnSpacing="24">
+                        <Grid Margin="0,8,0,0" ColumnSpacing="{StaticResource Space.XXL}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0" Spacing="8">
-                                <TextBlock Text="Min Size (MB)" FontSize="12" Opacity="0.8"/>
+                            <StackPanel Grid.Column="0" Spacing="{StaticResource Space.SM}">
+                                <TextBlock Text="Min Size (MB)" Style="{StaticResource Type.Caption}" Opacity="0.8"/>
                                 <TextBox Text="{x:Bind VM.MinSizeMb, Mode=TwoWay}"
                                          AutomationProperties.Name="Minimum file size in MB">
                                     <TextBox.InputScope>
@@ -70,7 +66,7 @@
                                 </TextBox>
                             </StackPanel>
 
-                            <StackPanel Grid.Column="1" Spacing="8">
+                            <StackPanel Grid.Column="1" Spacing="{StaticResource Space.SM}">
                                 <CheckBox Content="Match exact name"
                                           IsChecked="{x:Bind VM.MatchExact, Mode=TwoWay}"
                                           FontSize="12"/>
@@ -82,42 +78,50 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Tips -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Spacing="{StaticResource Space.XS}">
+                        <TextBlock Text="Tips" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                        <TextBlock Text="Use * as a wildcard (e.g. *.log). Leave Min Size at 0 to find all matches." Style="{StaticResource Type.Hint}"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- Search Button -->
                 <Button Content="Start Search" Click="Search_Click"
                         AutomationProperties.Name="Start Search"
-                        HorizontalAlignment="Stretch" Padding="16"
+                        HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButton}"
                         IsEnabled="{x:Bind VM.IsNotSearching, Mode=OneWay}"/>
 
                 <!-- Status -->
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}"
-                           FontSize="14" Opacity="0.8"/>
+                           Style="{StaticResource Type.Body}"/>
 
                 <!-- Results -->
-                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                        BorderThickness="1" CornerRadius="8" Padding="20"
-                        Visibility="{x:Bind VM.HasResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}"> <StackPanel Spacing="12">
-                         <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" FontSize="16" FontWeight="SemiBold"/>
-                        <TextBlock Text="results found" FontSize="14" Opacity="0.8"/>
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}"
+                        Visibility="{x:Bind VM.HasResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" Style="{StaticResource Type.CardTitle}"/>
+                        <TextBlock Text="results found" Style="{StaticResource Type.Body}" Opacity="0.8"/>
 
                         <ItemsRepeater ItemsSource="{x:Bind VM.Results, Mode=OneWay}">
                             <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="8"/>
+                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.SM}"/>
                             </ItemsRepeater.Layout>
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="models:SmartSearchResult">
-                                    <Border Padding="12" CornerRadius="6"
-                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                            BorderThickness="1">
-                                        <StackPanel Spacing="4">
-                                            <TextBlock FontSize="13" FontWeight="SemiBold"
+                                    <Border Style="{StaticResource CompactItemCard}">
+                                        <StackPanel Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Style="{StaticResource Type.SubTitle}"
                                                        Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock FontSize="12" Opacity="0.8">
+                                            <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8">
                                                 <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
                                                 <Run Text=" · "/>
                                                 <Run Text="{x:Bind Path, Mode=OneTime}" FontStyle="Italic"/>
                                             </TextBlock>
+                                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Margin="0,4,0,0">
+                                                <Button Content="Open" Click="OpenResultFile_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
+                                                <Button Content="Folder" Click="OpenResultFolder_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
+                                            </StackPanel>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
@@ -126,7 +130,17 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Empty State -->
+                <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.HasResults, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
+                    <StackPanel Spacing="{StaticResource Space.MD}" HorizontalAlignment="Center">
+                        <FontIcon Glyph="&#xE721;" FontSize="{StaticResource Icon.EmptyState}" Opacity="{StaticResource Icon.EmptyStateOpacity}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="No results yet" Style="{StaticResource Type.CardTitle}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Enter a search query and click Start Search." Style="{StaticResource Type.Body}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
     </Grid>
 </Page>
+

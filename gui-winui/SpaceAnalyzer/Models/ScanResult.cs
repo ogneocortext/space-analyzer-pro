@@ -57,6 +57,12 @@ public class FileSizeEntry
     public ulong Size { get; set; }
     [JsonIgnore]
     public string SizeDisplay => ByteFormatter.FormatBytes(Size);
+    [JsonIgnore]
+    public string Name => System.IO.Path.GetFileName(Path);
+    [JsonIgnore]
+    public string Extension => System.IO.Path.GetExtension(Path);
+    [JsonIgnore]
+    public string ParentPath => System.IO.Path.GetDirectoryName(Path) ?? string.Empty;
 }
 
 /// <summary>

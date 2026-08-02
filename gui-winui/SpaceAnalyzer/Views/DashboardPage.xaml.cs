@@ -1,7 +1,5 @@
 ﻿// Licensed under the MIT License.
 
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -14,12 +12,15 @@ namespace SpaceAnalyzer.Views;
 
 public sealed partial class DashboardPage : Page
 {
-    public DashboardViewModel VM { get; } = new();
+    public DashboardViewModel VM { get; }
 
     public DashboardPage()
     {
-        this.InitializeComponent();
-        this.Loaded += OnPageLoaded;
+        InitializeComponent();
+        VM = new DashboardViewModel();
+        DataContext = VM;
+        AppLog.Page("DashboardPage ctor end");
+        Loaded += OnPageLoaded;
         VM.PropertyChanged += OnVmPropertyChanged;
         SetupHoverEffects();
     }
@@ -28,6 +29,7 @@ public sealed partial class DashboardPage : Page
     {
         base.OnNavigatedTo(e);
         VM.DispatcherTimer.Start();
+        VM.PropertyChanged += OnVmPropertyChanged;
         DrawAllCharts();
     }
 
@@ -40,6 +42,7 @@ public sealed partial class DashboardPage : Page
 
     private async void OnPageLoaded(object sender, RoutedEventArgs e)
     {
+        AppLog.Page("DashboardPage Loaded");
         await VM.LoadDashboardAsync();
         DrawAllCharts();
         await AnimateStatCards();
@@ -62,7 +65,7 @@ public sealed partial class DashboardPage : Page
         DrawChart(DiskChart, VM.DiskHistory, VM.DiskBrush);
     }
 
-    private static void DrawChart(Canvas canvas, System.Collections.Generic.List<double> values, SolidColorBrush brush)
+    private static void DrawChart(Canvas canvas, System.Collections.Generic.IReadOnlyList<double> values, SolidColorBrush brush)
     {
         canvas.Children.Clear();
         if (values.Count < 2 || canvas.ActualWidth <= 0 || canvas.ActualHeight <= 0)
@@ -100,7 +103,8 @@ public sealed partial class DashboardPage : Page
     {
         var hoverElements = new List<FrameworkElement>
         {
-            BtnNewScan, BtnViewHistory, BtnFindDuplicates, BtnAIAssistant, BtnCleanup, BtnSystem
+            BtnNewScan, BtnViewHistory, BtnFindDuplicates, BtnAIAssistant, BtnCleanup, BtnSystem,
+            BtnSmartSearch, BtnWorkflows, BtnSettings
         };
         foreach (var el in hoverElements)
             CompositionHelpers.AddHoverFade(el, hoverOpacity: 0.90f, durationMs: 100);
@@ -121,27 +125,48 @@ public sealed partial class DashboardPage : Page
 
     private void BtnNewScan_Click(object sender, RoutedEventArgs e)
     {
-        if (Window.Current is MainWindow mw) mw.NavigateToPage("Scan");
+        AppLog.Action("Dashboard BtnNewScan_Click");
+        if (MainWindow.Current is not null) MainWindow.Current.NavigateToPage("Scan");
     }
     private void BtnViewHistory_Click(object sender, RoutedEventArgs e)
     {
-        if (Window.Current is MainWindow mw) mw.NavigateToPage("History");
+        AppLog.Action("Dashboard BtnViewHistory_Click");
+        if (MainWindow.Current is not null) MainWindow.Current.NavigateToPage("History");
     }
     private void BtnFindDuplicates_Click(object sender, RoutedEventArgs e)
     {
-        if (Window.Current is MainWindow mw) mw.NavigateToPage("Dedup");
+        AppLog.Action("Dashboard BtnFindDuplicates_Click");
+        if (MainWindow.Current is not null) MainWindow.Current.NavigateToPage("Dedup");
     }
     private void BtnAIAssistant_Click(object sender, RoutedEventArgs e)
     {
-        if (Window.Current is MainWindow mw) mw.NavigateToPage("AIChat");
+        AppLog.Action("Dashboard BtnAIAssistant_Click");
+        if (MainWindow.Current is not null) MainWindow.Current.NavigateToPage("AIChat");
     }
     private void BtnCleanup_Click(object sender, RoutedEventArgs e)
     {
-        if (Window.Current is MainWindow mw) mw.NavigateToPage("Cleanup");
+        AppLog.Action("Dashboard BtnCleanup_Click");
+        if (MainWindow.Current is not null) MainWindow.Current.NavigateToPage("Cleanup");
     }
     private void BtnSystem_Click(object sender, RoutedEventArgs e)
     {
-        if (Window.Current is MainWindow mw) mw.NavigateToPage("System");
+        AppLog.Action("Dashboard BtnSystem_Click");
+        if (MainWindow.Current is not null) MainWindow.Current.NavigateToPage("System");
+    }
+    private void BtnSmartSearch_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("Dashboard BtnSmartSearch_Click");
+        if (MainWindow.Current is not null) MainWindow.Current.NavigateToPage("SmartSearch");
+    }
+    private void BtnWorkflows_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("Dashboard BtnWorkflows_Click");
+        if (MainWindow.Current is not null) MainWindow.Current.NavigateToPage("Workflows");
+    }
+    private void BtnSettings_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("Dashboard BtnSettings_Click");
+        if (MainWindow.Current is not null) MainWindow.Current.NavigateToPage("Settings");
     }
 
     private async void QuickScanBrowse_Click(object sender, RoutedEventArgs e)

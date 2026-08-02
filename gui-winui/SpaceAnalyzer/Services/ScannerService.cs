@@ -191,6 +191,7 @@ public class ScannerService
             CreateNoWindow = true,
         };
 
+        _stopCts?.Cancel();
         _stopCts?.Dispose();
         using var stopCts = new CancellationTokenSource();
         _stopCts = stopCts;
@@ -316,9 +317,8 @@ public class ScannerService
     {
         try
         {
-            while (!stderr.EndOfStream)
+            while (await stderr.ReadLineAsync(ct) is not null)
             {
-                await stderr.ReadLineAsync();
                 if (ct.IsCancellationRequested)
                     break;
             }
@@ -504,6 +504,7 @@ public class ScannerService
                 CreateNoWindow = true,
             };
 
+            _cleanerStopCts?.Cancel();
             _cleanerStopCts?.Dispose();
             using var stopCts = new CancellationTokenSource();
             _cleanerStopCts = stopCts;
@@ -585,6 +586,7 @@ public class ScannerService
             CreateNoWindow = true,
         };
 
+        _stopCts?.Cancel();
         _stopCts?.Dispose();
         using var stopCts = new CancellationTokenSource();
         _stopCts = stopCts;

@@ -65,12 +65,18 @@ public static class UiHelper
     private static readonly SolidColorBrush BrushGold = new(Colors.Gold);
     private static readonly SolidColorBrush BrushGreen = new(Colors.Green);
 
-    public static SolidColorBrush GetUsageBrush(double percent) => percent switch
+    public static SolidColorBrush GetUsageBrush(double percent)
     {
-        >= 90 => BrushRed,
-        >= 70 => BrushGold,
-        _ => BrushGreen,
-    };
+        if (double.IsNaN(percent) || double.IsInfinity(percent))
+            return BrushGreen;
+
+        return percent switch
+        {
+            >= 90 => BrushRed,
+            >= 70 => BrushGold,
+            _ => BrushGreen,
+        };
+    }
 
     // ── System memory ───────────────────────────────────────────────
 

@@ -4,6 +4,8 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
+using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.ViewModels;
 using System.Linq;
 using Windows.Graphics;
@@ -12,12 +14,16 @@ namespace SpaceAnalyzer;
 
 public sealed partial class MainWindow : Window
 {
+    public static new MainWindow? Current { get; private set; }
     private bool _isNavigating;
 
     public MainWindow()
     {
-        this.InitializeComponent();
+        InitializeComponent();
         this.Closed += OnWindowClosed;
+        Current = this;
+
+        AppLog.Nav("MainWindow ctor start");
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
@@ -25,6 +31,7 @@ public sealed partial class MainWindow : Window
         appWindow.Resize(new SizeInt32 { Width = 1400, Height = 900 });
 
         Title = "Space Analyzer Pro v4.0.0";
+        AppLog.Nav($"MainWindow ctor end, Title={Title}");
     }
 
     private void OnWindowClosed(object sender, WindowEventArgs args)
@@ -39,32 +46,83 @@ public sealed partial class MainWindow : Window
             {
                 (scanPage.DataContext as ScanViewModel)?.Save();
             }
+            // Dispose ViewModels that implement IDisposable to release timers and counters
+            if (ContentFrame.Content is Views.DashboardPage dashboardPage)
+            {
+                (dashboardPage.DataContext as DashboardViewModel)?.Dispose();
+            }
+            if (ContentFrame.Content is Views.SmartSearchPage smartSearchPage)
+            {
+                (smartSearchPage.DataContext as SmartSearchViewModel)?.Dispose();
+            }
+            if (ContentFrame.Content is Views.WorkflowsPage workflowsPage)
+            {
+                (workflowsPage.DataContext as WorkflowsViewModel)?.Dispose();
+            }
+            if (ContentFrame.Content is Views.AIAssistantPage aiAssistantPage)
+            {
+                (aiAssistantPage.DataContext as AIAssistantViewModel)?.Dispose();
+            }
+            if (ContentFrame.Content is Views.CleanupPage cleanupPage)
+            {
+                (cleanupPage.DataContext as CleanupViewModel)?.Dispose();
+            }
+            if (ContentFrame.Content is Views.DuplicatesPage duplicatesPage)
+            {
+                (duplicatesPage.DataContext as DuplicatesViewModel)?.Dispose();
+            }
+            if (ContentFrame.Content is Views.HistoryPage historyPage)
+            {
+                (historyPage.DataContext as HistoryViewModel)?.Dispose();
+            }
+            if (ContentFrame.Content is Views.SystemPage systemPage)
+            {
+                (systemPage.DataContext as SystemViewModel)?.Dispose();
+            }
         }
         catch { /* swallow */ }
+        AppLog.Nav("MainWindow closed");
     }
 
     private void NavView_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
+            AppLog.Nav("NavView_Loaded start");
+            NavView.SelectedItem = NavView.MenuItems.OfType<NavigationViewItem>().First();
             NavigateToPage("Dashboard");
+            AppLog.Nav("NavView_Loaded end");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Nav] Dashboard load failed: {ex}");
+            AppLog.Error("NavView_Loaded failed", ex);
         }
     }
 
-    private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
         if (_isNavigating) return;
-        if (args.SelectedItem is NavigationViewItem item)
-        {
-            NavigateToPage(item.Tag?.ToString());
-        }
+        if (args.InvokedItemContainer is not NavigationViewItem item) return;
+
+        var tag = item.Tag?.ToString();
+        if (string.IsNullOrEmpty(tag)) return;
+
+        AppLog.Nav($"ItemInvoked tag={tag}");
+        NavigateToPage(tag);
     }
 
-    public void NavigateToPage(string? tag)
+    private void ContentFrame_NavigationFailed(object sender, NavigationFailedEventArgs e)
+    {
+        AppLog.Error($"Navigation failed: {e.SourcePageType.FullName}", e.Exception);
+        e.Handled = true;
+    }
+
+    private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
+    {
+        AppLog.Nav($"Navigated to {e.SourcePageType.FullName}, Content={ContentFrame.Content?.GetType().FullName ?? "null"}");
+    }
+
+    public void NavigateToPage(string? tag, object? parameter = null)
     {
         if (_isNavigating || string.IsNullOrEmpty(tag)) return;
         _isNavigating = true;
@@ -90,12 +148,13 @@ public sealed partial class MainWindow : Window
             };
 
             SelectNavItem(tag);
-            ContentFrame.Navigate(pageType);
+            var success = ContentFrame.Navigate(pageType, parameter);
+            AppLog.Nav($"NavigateToPage({tag}, param={parameter}) -> {pageType.Name}, success={success}");
             UpdateTitle(tag);
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Nav] {tag} navigation failed: {ex}");
+            AppLog.Error($"NavigateToPage({tag}) failed", ex);
         }
         finally
         {

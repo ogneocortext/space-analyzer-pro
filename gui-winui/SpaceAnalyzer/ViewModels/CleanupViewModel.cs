@@ -11,7 +11,7 @@ public class CleanupViewModel : INotifyPropertyChanged, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private bool _disposed;
-    private readonly CancellationTokenSource _cts = new();
+    private CancellationTokenSource _cts = new();
 
     public CleanupViewModel()
     {
@@ -78,8 +78,11 @@ public class CleanupViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task AnalyzeAsync()
     {
-        if (IsAnalyzing || string.IsNullOrWhiteSpace(TargetPath))
+        if (_disposed || IsAnalyzing || string.IsNullOrWhiteSpace(TargetPath))
             return;
+
+        _cts.Dispose();
+        _cts = new CancellationTokenSource();
 
         try
         {

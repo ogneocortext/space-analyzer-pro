@@ -32,8 +32,140 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
     public ScanHistoryRecord? SelectedRecord
     {
         get => _selectedRecord;
-        set { _selectedRecord = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasSelectedRecord)); }
+        set
+        {
+            _selectedRecord = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasSelectedRecord));
+            OnPropertyChanged(nameof(HasSelectedRecordVisibility));
+            ResetFileExplorer();
+            RefreshFilteredFiles();
+        }
     }
+
+    // ── File Explorer ──
+
+    private string _fileExplorerFilter = string.Empty;
+    public string FileExplorerFilter
+    {
+        get => _fileExplorerFilter;
+        set { _fileExplorerFilter = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasFileExplorerFilter)); RefreshFilteredFiles(); }
+    }
+
+    public string FileExplorerFilterPlaceholder => "Filter by name or path...";
+
+    private List<FileSizeEntry> _filteredLargestFiles = new();
+    public List<FileSizeEntry> FilteredLargestFiles
+    {
+        get => _filteredLargestFiles;
+        private set
+        {
+            _filteredLargestFiles = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasLargestFiles));
+            OnPropertyChanged(nameof(HasLargestFilesVisibility));
+            OnPropertyChanged(nameof(HasNoLargestFilesVisibility));
+            OnPropertyChanged(nameof(LargestFilesCountDisplay));
+        }
+    }
+
+    public bool HasLargestFiles => _filteredLargestFiles.Count > 0;
+    public Microsoft.UI.Xaml.Visibility HasLargestFilesVisibility => HasLargestFiles ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+    public Microsoft.UI.Xaml.Visibility HasNoLargestFilesVisibility => HasLargestFiles ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+    public string LargestFilesCountDisplay => HasLargestFiles ? $"{_filteredLargestFiles.Count} file(s)" : "No files in this scan";
+    public bool HasFileExplorerFilter => !string.IsNullOrWhiteSpace(_fileExplorerFilter);
+
+    private int _sortColumn;
+    public int SortColumn
+    {
+        get => _sortColumn;
+        set { _sortColumn = value; RefreshFilteredFiles(); }
+    }
+
+    private bool _sortAscending;
+    public bool SortAscending
+    {
+        get => _sortAscending;
+        set { _sortAscending = value; RefreshFilteredFiles(); }
+    }
+
+    public string SizeSortIndicator => _sortColumn == 1
+        ? (_sortAscending ? "\u25B2" : "\u25BC")
+        : "";
+
+    public string NameSortIndicator => _sortColumn == 2
+        ? (_sortAscending ? "\u25B2" : "\u25BC")
+        : "";
+
+    public string PathSortIndicator => _sortColumn == 3
+        ? (_sortAscending ? "\u25B2" : "\u25BC")
+        : "";
+
+    public void ToggleSort(int column)
+    {
+        if (_sortColumn == column)
+            _sortAscending = !_sortAscending;
+        else
+        {
+            _sortColumn = column;
+            _sortAscending = column == 2;
+        }
+        OnPropertyChanged(nameof(SortAscending));
+        OnPropertyChanged(nameof(SizeSortIndicator));
+        OnPropertyChanged(nameof(NameSortIndicator));
+        OnPropertyChanged(nameof(PathSortIndicator));
+        RefreshFilteredFiles();
+    }
+
+    private void ResetFileExplorer()
+    {
+        _fileExplorerFilter = string.Empty;
+        _sortColumn = 0;
+        _sortAscending = false;
+        OnPropertyChanged(nameof(FileExplorerFilter));
+        OnPropertyChanged(nameof(HasFileExplorerFilter));
+        OnPropertyChanged(nameof(SizeSortIndicator));
+        OnPropertyChanged(nameof(NameSortIndicator));
+    }
+
+    private void RefreshFilteredFiles()
+    {
+        if (_selectedRecord == null)
+        {
+            _filteredLargestFiles = new();
+            OnPropertyChanged(nameof(FilteredLargestFiles));
+            OnPropertyChanged(nameof(HasLargestFiles));
+            OnPropertyChanged(nameof(HasLargestFilesVisibility));
+            OnPropertyChanged(nameof(HasNoLargestFilesVisibility));
+            OnPropertyChanged(nameof(LargestFilesCountDisplay));
+            return;
+        }
+
+        IEnumerable<FileSizeEntry> query = _selectedRecord.LargestFiles;
+
+        if (!string.IsNullOrWhiteSpace(_fileExplorerFilter))
+        {
+            var filter = _fileExplorerFilter.ToLowerInvariant();
+            query = query.Where(f => f.Path.ToLowerInvariant().Contains(filter) || f.Name.ToLowerInvariant().Contains(filter));
+        }
+
+        query = _sortColumn switch
+        {
+             1 => _sortAscending ? query.OrderBy(f => f.Size) : query.OrderByDescending(f => f.Size),
+             2 => _sortAscending ? query.OrderBy(f => f.Name) : query.OrderByDescending(f => f.Name),
+             3 => _sortAscending ? query.OrderBy(f => f.Path) : query.OrderByDescending(f => f.Path),
+             _ => query.OrderByDescending(f => f.Size),
+        };
+
+        _filteredLargestFiles = query.ToList();
+        OnPropertyChanged(nameof(FilteredLargestFiles));
+        OnPropertyChanged(nameof(HasLargestFiles));
+        OnPropertyChanged(nameof(HasLargestFilesVisibility));
+        OnPropertyChanged(nameof(HasNoLargestFilesVisibility));
+        OnPropertyChanged(nameof(LargestFilesCountDisplay));
+    }
+
+    // ── Load state ──
 
     private bool _isLoading;
     public bool IsLoading

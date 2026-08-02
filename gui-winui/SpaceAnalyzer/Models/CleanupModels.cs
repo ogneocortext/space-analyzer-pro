@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.UI.Xaml.Media;
 using SpaceAnalyzer.Helpers;
 
 namespace SpaceAnalyzer.Models;
@@ -22,6 +23,13 @@ public class CleanupCandidate
     public RiskLevel RiskLevel { get; set; }
     public string RiskLevelDisplay => RiskLevel.ToString();
     public string SizeDisplay => ByteFormatter.FormatBytes(Size);
+    public SolidColorBrush RiskLevelBrush => RiskLevel switch
+    {
+        RiskLevel.Low => new SolidColorBrush(Microsoft.UI.Colors.Green),
+        RiskLevel.Medium => new SolidColorBrush(Microsoft.UI.Colors.Gold),
+        RiskLevel.High => new SolidColorBrush(Microsoft.UI.Colors.Red),
+        _ => new SolidColorBrush(Microsoft.UI.Colors.Gray),
+    };
 }
 
 /// <summary>

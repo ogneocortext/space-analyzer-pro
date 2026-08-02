@@ -114,9 +114,9 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
     private readonly List<double> _memoryHistory = new();
     private readonly List<double> _diskHistory = new();
 
-    public List<double> CpuHistory => _cpuHistory;
-    public List<double> MemoryHistory => _memoryHistory;
-    public List<double> DiskHistory => _diskHistory;
+    public IReadOnlyList<double> CpuHistory => _cpuHistory;
+    public IReadOnlyList<double> MemoryHistory => _memoryHistory;
+    public IReadOnlyList<double> DiskHistory => _diskHistory;
 
     // ── Disk (aggregated storage usage across all ready drives) ──
 
@@ -135,14 +135,14 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
     public string QuickScanPath
     {
         get => _quickScanPath;
-        set { _quickScanPath = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsQuickScanning)); }
+        set { _quickScanPath = value; OnPropertyChanged(); }
     }
 
     private bool _isQuickScanning;
     public bool IsQuickScanning
     {
         get => _isQuickScanning;
-        set { _isQuickScanning = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsQuickScanning)); }
+        set { _isQuickScanning = value; OnPropertyChanged(); }
     }
 
     private string _quickScanStatus = "Ready";
@@ -211,8 +211,10 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
     public bool IsLoading
     {
         get => _isLoading;
-        set { _isLoading = value; OnPropertyChanged(); }
+        set { _isLoading = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotLoading)); }
     }
+    public bool IsNotLoading => !_isLoading;
+    public Visibility IsLoadingVisibility => _isLoading ? Visibility.Visible : Visibility.Collapsed;
 
     // ── Methods ──
 

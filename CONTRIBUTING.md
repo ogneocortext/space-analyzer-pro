@@ -159,6 +159,27 @@ cargo test test_name
 just verify
 ```
 
+### WinUI 3 GUI Testing
+
+The WinUI 3 GUI (`gui-winui/`) is a native desktop app — browser-based testing (Playwright) does not apply.
+
+```bash
+# GUI functional test: launches the app, navigates all tabs, clicks every button,
+# runs a scan, and captures screenshots. Uses Windows UI Automation (UIA) for
+# cursor-free input — no cursor hijacking or focus stealing.
+python scripts/test/gui_macro_test.py
+
+# Find the binary to test against:
+#   gui-winui/SpaceAnalyzer/bin/x64/{Debug|Release}/net10.0-windows10.0.22621.0/SpaceAnalyzer.exe
+```
+
+**Requirements** (Windows only):
+- `pip install uiautomation pygetwindow pillow`
+- Build the WinUI 3 app first:
+  ```powershell
+  & "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
+  ```
+
 ### Writing Tests
 
 - Add tests in `tests/unit/` for new functionality

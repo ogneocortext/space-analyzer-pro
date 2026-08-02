@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -49,6 +50,12 @@ public class OllamaClient : IDisposable
         string? toolChoice = null,
         CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(model))
+            throw new ArgumentException("Model name cannot be empty", nameof(model));
+
+        if (messages == null || messages.Count == 0)
+            throw new ArgumentException("Messages list cannot be null or empty", nameof(messages));
+
         var candidates = new List<string> { model };
         if (_fallback.Enabled)
         {
@@ -130,7 +137,8 @@ public class OllamaClient : IDisposable
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        WriteIndented = false
+        WriteIndented = false,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
     public void Dispose()

@@ -16,13 +16,15 @@ A powerful, self-contained disk space analysis tool with embedded database, GPU 
 dotnet run --project gui-winui/SpaceAnalyzer
 ```
 
-**WinUI 3 state (v3.7.0+):**
+**WinUI 3 state (v4.0.0):**
 - **Stable build** against Windows App SDK 2.3 / .NET 10
-- **All pages implemented:** Dashboard, Scan, History, Smart Search, Workflows (stub), AI Assistant, Duplicates, System, Cleanup, Settings, About
-- **Dashboard stat cards** populated from scan history with 3-second live system resource refresh
+- **All 10 pages implemented and fully functional:** Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, Duplicates, System, Cleanup, Settings, About
+- **Token-based design system** in `App.xaml` — spacing, typography, icon-size, card, button, and progress-bar resource dictionaries
+- **Dashboard stat cards** with live system resource refresh and resource-history canvas charts
 - **MVVM pattern** with `Helpers/`, `ViewModels/`, `Models/`, `Services/` separation
-- **Ollama integration** via `OllamaClient.cs` for local AI chat
-- **Scan page:** Stop scan button, path validation, scan errors display, file type distribution chart, largest files with filter, export results, deep/shallow/custom depth modes, scan speed metrics
+- **Ollama integration** via `OllamaClient.cs` with `JsonStringEnumConverter` for correct `ChatRole` serialization
+- **Scan page:** Quick/Default/Deep radio depth modes, custom-depth slider, live filename streaming, Stop scan, path validation, scan errors display, file type distribution chart, largest files with filter, export results
+- **AppLog diagnostics** — file logger with NAV/PAGE/ACTION/ERROR categories
 
 ### Rust egui GUI (Legacy — Kept for Comparison)
 
@@ -222,6 +224,18 @@ curl http://localhost:11434/api/tags
 
 ## Version History
 
+### [4.0.0] - 2026-08-02 - WinUI 3 Design System & Critical Bug Fixes
+- **Token-based design system** — spacing, typography, icon-size, card, button, and progress-bar resource dictionaries in `App.xaml`. All XAML pages refactored to use shared styles.
+- **Settings-loss on startup** — `SettingsViewModel.Load()` and `ScanViewModel.Load()` called property setters that triggered `Save()`, overwriting not-yet-loaded settings with defaults. Fixed by setting backing fields directly.
+- **Cancellation token leaks** — `AIAssistantViewModel`, `CleanupViewModel`, `SmartSearchViewModel`, and `WorkflowsViewModel` had `readonly` CTS instances that were never disposed/recreated between operations.
+- **ScannerService** — added `Cancel()` before `Dispose()` for stop tokens; fixed async stderr reading.
+- **MainWindow resource leak** — all 8 page ViewModels now disposed on window close. Added static `MainWindow.Current` property.
+- **Null-safe converters** — `BoolToVisibilityConverter`/`InverseBoolToVisibilityConverter` handle null inputs.
+- **Dashboard v2** — 3 canvas resource-history charts, 9 quick-action buttons.
+- **History page** — sortable, filterable file explorer with per-file Open/Folder actions.
+- **GUI macro test** — rewritten to UIA Invoke() pattern (zero cursor movement).
+- **AppLog diagnostics** — file logger at `%LOCALAPPDATA%/SpaceAnalyzer/ui-actions.log`.
+
 ### [3.8.0] - 2026-08-01 - Scan Page Hardening & AI Assistant Expansion
 - **Scan page enhancements** — Stop scan button, path validation, scan errors display, file type distribution chart, largest files with live filter, JSON export, deep/shallow/custom depth modes, scan speed metrics.
 - **ScannerService** — added `StopScan()`, `ExportScanResultAsync()`, and process tracking (`_currentScannerProcess`) for cancellation support.
@@ -263,7 +277,7 @@ curl http://localhost:11434/api/tags
 
 ---
 
-**Space Analyzer Pro v3.7.0** — Native Windows desktop app with dual GUI frontends (WinUI 3 active, egui preserved for comparison)
+**Space Analyzer Pro v4.0.0** — Native Windows desktop app with dual GUI frontends (WinUI 3 active, egui preserved for comparison)
 
 └── tools/                        # Development tools
 ```
@@ -318,7 +332,10 @@ curl http://localhost:11434/api/tags
 ## Development
 
 ### Prerequisites
-- **Rust 1.70+** (required)
+- **Rust 1.95+** (required)
+- **Windows 10/11 x64** (required for WinUI 3 GUI)
+- **.NET 10 SDK** (required for WinUI 3 GUI)
+- **Visual Studio 2022 17.8+** with MSBuild (required for WinUI 3 XAML compilation)
 - **NVIDIA GPU** (optional, for GPU acceleration)
 - **Ollama** (optional, for AI chat features)
 
@@ -326,7 +343,23 @@ curl http://localhost:11434/api/tags
 ```bash
 git clone <repository-url>
 cd Space-Analyzer
+
+# Build Rust workspace (CLI + core library)
 cargo build
+cargo test --workspace
+
+# Build WinUI 3 GUI (requires Visual Studio MSBuild)
+& "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
+```
+
+### GUI Testing (WinUI 3)
+The WinUI 3 GUI is a native desktop app — Playwright/browser testing does not apply.
+```bash
+# GUI functional test: launches the app, navigates all tabs, clicks every button,
+# runs a scan, and captures screenshots. Uses Windows UI Automation (UIA) for
+# cursor-free input — no cursor hijacking or focus stealing.
+pip install uiautomation pygetwindow pillow
+python scripts/test/gui_macro_test.py
 ```
 
 ### Development Commands

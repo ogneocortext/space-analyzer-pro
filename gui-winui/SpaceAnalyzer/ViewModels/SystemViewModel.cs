@@ -185,6 +185,11 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
 
     public DispatcherTimer DispatcherTimer => _refreshTimer;
 
+    public void Refresh()
+    {
+        RefreshResources();
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null)

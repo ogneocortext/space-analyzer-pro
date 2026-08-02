@@ -21,7 +21,7 @@ namespace SpaceAnalyzer.ViewModels;
 public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
 {
     private OllamaClient? _client;
-    private readonly CancellationTokenSource _cts = new();
+    private CancellationTokenSource _cts = new();
     private bool _disposed;
 
     // ── Display ──
@@ -57,6 +57,8 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
         get => _statusText;
         set { _statusText = value; OnPropertyChanged(); }
     }
+
+    public bool ShowSuggestions => _messages.Count <= 2;
 
     // ── Settings (from local settings) ──
 
@@ -110,7 +112,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
     public AIAssistantViewModel()
     {
         LoadSettings();
-        _client = new OllamaClient(OllamaUrl);
+        _client = new OllamaClient(_ollamaUrl);
         AddMessage(ChatRole.Assistant,
             "Hello! I am your AI assistant for Space Analyzer Pro. " +
             "I can help you understand your disk usage and find space-saving opportunities. " +
@@ -131,18 +133,28 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             var container = Windows.Storage.ApplicationData.Current.LocalSettings
                 .CreateContainer("SpaceAnalyzer.Settings", Windows.Storage.ApplicationDataCreateDisposition.Always);
 
+            // Set backing fields directly to avoid triggering property setter side effects
+            // (e.g. OllamaUrl setter calls RefreshOllamaClient()) before all values load.
             if (container.Values.TryGetValue("OllamaUrl", out var v))
-                OllamaUrl = (string)v;
+                _ollamaUrl = (string)v;
             if (container.Values.TryGetValue("OllamaModel", out v))
-                OllamaModel = (string)v;
+                _ollamaModel = (string)v;
             if (container.Values.TryGetValue("ToolCallingModel", out v))
-                ToolCallingModel = (string)v;
+                _toolCallingModel = (string)v;
             if (container.Values.TryGetValue("AgenticToolsEnabled", out v) && v is bool b)
-                AgenticToolsEnabled = b;
+                _agenticToolsEnabled = b;
             if (container.Values.TryGetValue("AutoModelSelection", out v) && v is bool b2)
-                AutoModelSelection = b2;
+                _autoModelSelection = b2;
             if (container.Values.TryGetValue("ToolChoice", out v))
-                ToolChoice = (string)v;
+                _toolChoice = (string)v;
+
+            // Fire change notifications for loaded properties
+            OnPropertyChanged(nameof(OllamaUrl));
+            OnPropertyChanged(nameof(OllamaModel));
+            OnPropertyChanged(nameof(ToolCallingModel));
+            OnPropertyChanged(nameof(AgenticToolsEnabled));
+            OnPropertyChanged(nameof(AutoModelSelection));
+            OnPropertyChanged(nameof(ToolChoice));
         }
         catch (Exception ex)
         {
@@ -153,11 +165,12 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
 
     private const int MaxMessages = 50;
 
-    private void AddMessage(ChatRole role, string content)
+    public void AddMessage(ChatRole role, string content)
     {
         _messages.Add(new AIChatMessage(role, content));
         while (_messages.Count > MaxMessages)
             _messages.RemoveAt(0);
+        OnPropertyChanged(nameof(ShowSuggestions));
     }
 
     private string ClassifyTask(string userMessage)
@@ -424,8 +437,12 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task SendMessageAsync()
     {
+        if (_disposed) return;
         if (IsBusy || string.IsNullOrWhiteSpace(InputText))
             return;
+
+        _cts.Dispose();
+        _cts = new CancellationTokenSource();
 
         var userMessage = InputText.Trim();
         AddMessage(ChatRole.User, userMessage);
@@ -523,6 +540,7 @@ public class AIChatMessage : INotifyPropertyChanged
     }
     public DateTime Timestamp { get; }
     public bool IsUser => _role == ChatRole.User;
+    public string TimestampDisplay => Timestamp.ToString("HH:mm");
 
     public AIChatMessage(ChatRole role, string content)
     {

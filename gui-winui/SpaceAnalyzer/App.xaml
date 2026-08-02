@@ -14,14 +14,162 @@
             <helpers:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
             <helpers:BoolToErrorBrushConverter x:Key="BoolToErrorBrush"/>
             <helpers:BoolToScanButtonTextConverter x:Key="BoolToScanButtonText"/>
+            <helpers:BoolToHorizontalAlignmentConverter x:Key="BoolToHorizontalAlignment"/>
 
+            <!-- Spacing Tokens (Double) -->
+            <x:Double x:Key="Space.XXL">32</x:Double>
+            <x:Double x:Key="Space.XL">24</x:Double>
+            <x:Double x:Key="Space.LG">16</x:Double>
+            <x:Double x:Key="Space.MD">12</x:Double>
+            <x:Double x:Key="Space.SM">8</x:Double>
+            <x:Double x:Key="Space.XS">4</x:Double>
+
+            <!-- Padding Tokens (Thickness) -->
+            <Thickness x:Key="Thickness.XXL">32</Thickness>
+            <Thickness x:Key="Thickness.XL">24</Thickness>
+            <Thickness x:Key="Thickness.LG">16</Thickness>
+            <Thickness x:Key="Thickness.MD">12</Thickness>
+            <Thickness x:Key="Thickness.SM">8</Thickness>
+            <Thickness x:Key="Thickness.XS">4</Thickness>
+
+            <!-- Typography Styles -->
+            <Style x:Key="Type.PageTitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="28"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+            </Style>
+            <Style x:Key="Type.SectionTitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="18"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Opacity" Value="0.9"/>
+            </Style>
+            <Style x:Key="Type.CardTitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="16"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Style>
+            <Style x:Key="Type.SubTitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Opacity" Value="0.9"/>
+            </Style>
+            <Style x:Key="Type.Body" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="Opacity" Value="0.8"/>
+            </Style>
+            <Style x:Key="Type.Caption" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Opacity" Value="0.8"/>
+            </Style>
+            <Style x:Key="Type.Hint" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Opacity" Value="0.6"/>
+            </Style>
+            <Style x:Key="Type.Dim" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Opacity" Value="0.5"/>
+            </Style>
+            <Style x:Key="Type.Tiny" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11"/>
+                <Setter Property="Opacity" Value="0.7"/>
+            </Style>
+            <Style x:Key="Type.StatValue" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="28"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+            </Style>
+             <Style x:Key="Type.StatLabel" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Opacity" Value="0.8"/>
+            </Style>
+
+            <!-- TextBox Typography Styles (Control targetType) -->
+            <Style x:Key="Type.Caption.TextBox" TargetType="TextBox">
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="Opacity" Value="0.8"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource SystemControlDisabledBaseLowBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="CornerRadius" Value="4"/>
+            </Style>
+
+            <!-- Icon Tokens -->
+            <x:Double x:Key="Icon.Hero">28</x:Double>
+            <x:Double x:Key="Icon.Button">24</x:Double>
+            <x:Double x:Key="Icon.Card">20</x:Double>
+            <x:Double x:Key="Icon.Small">16</x:Double>
+            <x:Double x:Key="Icon.Tiny">14</x:Double>
+            <x:Double x:Key="Icon.EmptyState">40</x:Double>
+            <x:Double x:Key="Icon.EmptyStateOpacity">0.4</x:Double>
+
+            <!-- Card Styles -->
             <Style x:Key="DashboardCardBorder" TargetType="Border">
                 <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
                 <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="CornerRadius" Value="8"/>
-                <Setter Property="Padding" Value="20"/>
+                <Setter Property="Padding" Value="{StaticResource Thickness.LG}"/>
             </Style>
+            <Style x:Key="ItemCard" TargetType="Border" BasedOn="{StaticResource DashboardCardBorder}">
+                <Setter Property="Padding" Value="{StaticResource Thickness.MD}"/>
+                <Setter Property="CornerRadius" Value="6"/>
+            </Style>
+            <Style x:Key="CompactItemCard" TargetType="Border" BasedOn="{StaticResource DashboardCardBorder}">
+                <Setter Property="Padding" Value="{StaticResource Thickness.SM}"/>
+                <Setter Property="CornerRadius" Value="6"/>
+            </Style>
+            <Style x:Key="EmptyStateCard" TargetType="Border" BasedOn="{StaticResource DashboardCardBorder}">
+                <Setter Property="Padding" Value="{StaticResource Thickness.XL}"/>
+            </Style>
+
+            <!-- Button Styles -->
+            <Style x:Key="DashboardCardButton" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Padding" Value="16"/>
+            </Style>
+            <Style x:Key="PrimaryButton" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource AccentButtonBackground}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource AccentButtonBorderBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource AccentButtonForeground}"/>
+                <Setter Property="Padding" Value="16,10"/>
+                <Setter Property="MinWidth" Value="140"/>
+            </Style>
+            <Style x:Key="SecondaryButton" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource ButtonBackground}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource ButtonBorderBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource ButtonForeground}"/>
+                <Setter Property="Padding" Value="12,8"/>
+            </Style>
+            <Style x:Key="SmallButton" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource ButtonBackground}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource ButtonBorderBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource ButtonForeground}"/>
+                <Setter Property="Padding" Value="8,4"/>
+                <Setter Property="FontSize" Value="12"/>
+            </Style>
+            <Style x:Key="TinyButton" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource ButtonBackground}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource ButtonBorderBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource ButtonForeground}"/>
+                <Setter Property="Padding" Value="4,2"/>
+                <Setter Property="FontSize" Value="11"/>
+            </Style>
+
+            <!-- Progress Bar Styles -->
+            <Style x:Key="StandardProgressBar" TargetType="ProgressBar">
+                <Setter Property="Height" Value="8"/>
+                <Setter Property="CornerRadius" Value="4"/>
+            </Style>
+            <Style x:Key="CompactProgressBar" TargetType="ProgressBar">
+                <Setter Property="Height" Value="6"/>
+                <Setter Property="CornerRadius" Value="3"/>
+            </Style>
+            <Style x:Key="MinimalProgressBar" TargetType="ProgressBar">
+                <Setter Property="Height" Value="4"/>
+                <Setter Property="CornerRadius" Value="2"/>
+            </Style>
+
+            <SolidColorBrush x:Key="ErrorTextBrush" Color="#FF0000"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

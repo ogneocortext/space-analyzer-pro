@@ -1,19 +1,30 @@
 #!/usr/bin/env python3
 """
-Space Analyzer Pro — GUI Functional Test Suite
-================================================
-Tests the GUI binary for functional correctness, not just visibility.
-Uses Win32 PrintWindow for capture and PostMessage for input (zero screen disruption).
+Space Analyzer Pro — GUI Functional Test Suite (WinUI 3)
+========================================================
+Tests the WinUI 3 GUI binary for functional correctness.
+
+INPUT MODEL: Zero cursor hijacking.
+  • All button/tab actions use Windows UI Automation (UIA) Invoke() pattern.
+    This sends WM_COMMAND to the button’s HWND directly — no cursor movement,
+    no focus stealing on any monitor.
+  • Text input uses PostMessage(WM_SETTEXT) to the target Edit control, then
+    PostMessage(WM_COMMAND) to trigger "Scan Now". No SendInput, no SendKeys.
+  • If UIA cannot find a control (rare with WinUI 3 / XAML Island), the test
+    reports it as FAIL rather than falling back to cursor manipulation.
+
+Screenshots use PrintWindow with PW_RENDERFULLCONTENT (no cursor disruption).
 
 Test categories:
   1. Launch & startup state
-  2. Tab navigation (all 8 tabs)
-  3. Scan execution (start, progress, results, cancel)
-  4. Settings persistence (change, save, restart, verify)
-  5. Export functionality (text, JSON, CSV, Markdown)
-  6. AI chat (graceful handling when Ollama unavailable)
-  7. History (scan records saved and displayed)
-  8. Error states (invalid paths, empty results)
+  2. Tab navigation (all tabs)
+  3. Button click verification (every interactive button per tab)
+  4. Scan execution (start, progress, results, cancel)
+  5. Settings persistence (change, save, restart, verify)
+  6. Export functionality (text, JSON, CSV, Markdown)
+  7. AI chat (graceful handling when Ollama unavailable)
+  8. History (scan records saved and displayed)
+  9. Error states (invalid paths, empty results)
 
 Output (all in macro_logs/<run_id>/):
   report.json        — consolidated test report (one file for analysis)
@@ -43,50 +54,20 @@ user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32
 kernel32 = ctypes.windll.kernel32
 
-# SendInput structures
-class MOUSEINPUT(ctypes.Structure):
-    _fields_ = [
-        ("dx", ctypes.c_long),
-        ("dy", ctypes.c_long),
-        ("mouseData", ctypes.c_ulong),
-        ("dwFlags", ctypes.c_ulong),
-        ("time", ctypes.c_ulong),
-        ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong)),
-    ]
+# ═══════════════════════════════════════════════════════════════
+# Win32 / PrintWindow helpers
+# ═══════════════════════════════════════════════════════════════
 
-class KEYBDINPUT(ctypes.Structure):
-    _fields_ = [
-        ("wVk", ctypes.c_ushort),
-        ("wScan", ctypes.c_ushort),
-        ("dwFlags", ctypes.c_ulong),
-        ("time", ctypes.c_ulong),
-        ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong)),
-    ]
-
-class INPUT_UNION(ctypes.Union):
-    _fields_ = [("mi", MOUSEINPUT), ("ki", KEYBDINPUT)]
-
-class INPUT(ctypes.Structure):
-    _fields_ = [("type", ctypes.c_ulong), ("union", INPUT_UNION)]
-
-INPUT_MOUSE = 0
-INPUT_KEYBOARD = 1
-MOUSEEVENTF_MOVE = 0x0001
-MOUSEEVENTF_LEFTDOWN = 0x0002
-MOUSEEVENTF_LEFTUP = 0x0004
-MOUSEEVENTF_ABSOLUTE = 0x8000
-MOUSEEVENTF_VIRTUALDESK = 0x4000
-KEYEVENTF_KEYUP = 0x0002
-SW_SHOWMINIMIZED = 2
 SW_RESTORE = 9
 PW_RENDERFULLCONTENT = 2
 DIB_RGB_COLORS = 0
-VK_LEFT = 0x25
-VK_RIGHT = 0x27
-VK_RETURN = 0x0D
-VK_BACK = 0x08
-VK_CONTROL = 0x11
-VK_A = 0x41
+
+WM_SETTEXT = 0x0030
+WM_COMMAND = 0x0111
+WM_SYSCHAR = 0x0106
+
+# Command IDs (guessing — these are typical for WinUI 3 buttons)
+# If unknown, we rely on UIA Invoke() which doesn't need command IDs.
 
 
 class BITMAPINFOHEADER(ctypes.Structure):
@@ -112,92 +93,62 @@ class BITMAPINFO(ctypes.Structure):
     ]
 
 
-def screen_to_client(hwnd, sx, sy):
-    pt = ctypes.wintypes.POINT()
-    pt.x = sx
-    pt.y = sy
-    user32.ScreenToClient(hwnd, ctypes.byref(pt))
-    return pt.x, pt.y
-
-
-def get_screen_size():
-    """Get full virtual screen size (multi-monitor aware)."""
-    SM_XVIRTUALSCREEN = 76
-    SM_YVIRTUALSCREEN = 77
-    SM_CXVIRTUALSCREEN = 78
-    SM_CYVIRTUALSCREEN = 79
-    x = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
-    y = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
-    w = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
-    h = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
-    return x, y, w, h
-
-
-def sendinput_mouse_click(screen_x, screen_y):
-    """Click at absolute screen coordinates using SendInput (OS-level, reaches egui)."""
-    sx_abs, sy_abs, sw, sh = get_screen_size()
-    # Convert to 0-65535 range for MOUSEEVENTF_ABSOLUTE
-    nx = int((screen_x - sx_abs) * 65535 / max(sw - 1, 1))
-    ny = int((screen_y - sy_abs) * 65535 / max(sh - 1, 1))
-
-    # Move
-    inp = INPUT()
-    inp.type = INPUT_MOUSE
-    inp.union.mi.dx = nx
-    inp.union.mi.dy = ny
-    inp.union.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK
-    user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT))
-    time.sleep(0.01)
-
-    # Down
-    inp2 = INPUT()
-    inp2.type = INPUT_MOUSE
-    inp2.union.mi.dwFlags = MOUSEEVENTF_LEFTDOWN
-    user32.SendInput(1, ctypes.byref(inp2), ctypes.sizeof(INPUT))
-    time.sleep(0.01)
-
-    # Up
-    inp3 = INPUT()
-    inp3.type = INPUT_MOUSE
-    inp3.union.mi.dwFlags = MOUSEEVENTF_LEFTUP
-    user32.SendInput(1, ctypes.byref(inp3), ctypes.sizeof(INPUT))
-
-
-def sendinput_key(vk_code):
-    """Press and release a key using SendInput."""
-    inp_down = INPUT()
-    inp_down.type = INPUT_KEYBOARD
-    inp_down.union.ki.wVk = vk_code
-    user32.SendInput(1, ctypes.byref(inp_down), ctypes.sizeof(INPUT))
-    time.sleep(0.02)
-
-    inp_up = INPUT()
-    inp_up.type = INPUT_KEYBOARD
-    inp_up.union.ki.wVk = vk_code
-    inp_up.union.ki.dwFlags = KEYEVENTF_KEYUP
-    user32.SendInput(1, ctypes.byref(inp_up), ctypes.sizeof(INPUT))
-
-
 def find_hwnd(title="Space Analyzer"):
-    class EnumData(ctypes.Structure):
-        _fields_ = [("target", ctypes.c_wchar_p), ("hwnd", ctypes.c_long)]
-    result = EnumData()
-    result.target = title
+    """Find window handle by title substring (no focus stealing)."""
+    found = []
 
-    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.POINTER(EnumData))
+    @ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.POINTER(ctypes.c_wchar_p))
     def enum_proc(hwnd, lparam):
         buf = ctypes.create_unicode_buffer(256)
         user32.GetWindowTextW(hwnd, buf, 256)
-        if title.lower() in buf.value.lower():
-            lparam.contents.hwnd = hwnd
-            return False
+        if buf.value and title.lower() in buf.value.lower():
+            found.append(hwnd)
         return True
 
-    user32.EnumWindows(enum_proc, ctypes.byref(result))
-    return result.hwnd if result.hwnd else None
+    user32.EnumWindows(enum_proc, 0)
+    return found[0] if found else None
+
+
+def get_window_rect(hwnd) -> tuple[int, int, int, int]:
+    rect = ctypes.wintypes.RECT()
+    user32.GetWindowRect(hwnd, ctypes.byref(rect))
+    return (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
+
+
+def get_window_text(hwnd) -> str:
+    buf = ctypes.create_unicode_buffer(1024)
+    user32.GetWindowTextW(hwnd, buf, 1024)
+    return buf.value
+
+
+def get_client_rect(hwnd) -> tuple[int, int, int, int]:
+    rect = ctypes.wintypes.RECT()
+    user32.GetClientRect(hwnd, ctypes.byref(rect))
+    return (rect.left, rect.top, rect.right, rect.bottom)
+
+
+def get_window_rect_ui(hwnd) -> tuple[int, int]:
+    """Get client-area width and height for a window."""
+    rect = ctypes.wintypes.RECT()
+    user32.GetClientRect(hwnd, ctypes.byref(rect))
+    return rect.right, rect.bottom
+
+
+def process_alive(hwnd) -> bool:
+    pid = ctypes.wintypes.DWORD()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    handle = kernel32.OpenProcess(0x1000, False, pid.value)
+    if handle:
+        exit_code = ctypes.wintypes.DWORD()
+        success = kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+        kernel32.CloseHandle(handle)
+        if success:
+            return exit_code.value == 259
+    return True
 
 
 def capture_app_window(hwnd) -> tuple[bytes, int, int] | None:
+    """Capture window content using PrintWindow (no cursor movement)."""
     rect = ctypes.wintypes.RECT()
     user32.GetClientRect(hwnd, ctypes.byref(rect))
     w, h = rect.right, rect.bottom
@@ -209,8 +160,6 @@ def capture_app_window(hwnd) -> tuple[bytes, int, int] | None:
     hbitmap = gdi32.CreateCompatibleBitmap(hwnd_dc, w, h)
     gdi32.SelectObject(mem_dc, hbitmap)
 
-    # PW_RENDERFULLCONTENT forces the window to render its content into the DC.
-    # Required for egui/eframe which uses hardware-accelerated wgpu rendering.
     result = user32.PrintWindow(hwnd, mem_dc, PW_RENDERFULLCONTENT)
 
     if result:
@@ -250,125 +199,191 @@ def save_printwindow_screenshot(hwnd, path: str) -> bool:
     return True
 
 
-def silent_click(hwnd, screen_x, screen_y, desc="", run=None):
-    """Click via SendInput — OS-level, reaches egui's input handler."""
-    t0 = time.time()
-    user32.SetForegroundWindow(hwnd)
-    time.sleep(0.02)
-    sendinput_mouse_click(screen_x, screen_y)
-    elapsed = (time.time() - t0) * 1000
-
-    cx, cy = screen_to_client(hwnd, screen_x, screen_y)
-    if run:
-        run.log_event("CLICK", f"{desc} at ({screen_x},{screen_y}) client({cx},{cy})", duration_ms=elapsed)
-    time.sleep(0.25)
-
-
-def send_key(hwnd, vk_code, desc="", run=None):
-    """Press a key via SendInput (window must be foreground)."""
-    t0 = time.time()
-    user32.SetForegroundWindow(hwnd)
-    time.sleep(0.02)
-    sendinput_key(vk_code)
-    elapsed = (time.time() - t0) * 1000
-    if run:
-        run.log_event("KEY", f"{desc} vk=0x{vk_code:02X}", duration_ms=elapsed)
-    time.sleep(0.15)
-
-
-def type_string(hwnd, text: str, run=None):
-    """Type a string character-by-character using SendInput."""
-    user32.SetForegroundWindow(hwnd)
-    time.sleep(0.02)
-    for ch in text:
-        # Map common chars to VK codes; use VkKeyScanW for full ASCII
-        vk = user32.VkKeyScanW(ord(ch)) & 0xFF
-        # Shift if needed
-        shift = (user32.VkKeyScanW(ord(ch)) >> 8) & 0xFF
-        if shift & 1:
-            inp_down = INPUT()
-            inp_down.type = INPUT_KEYBOARD
-            inp_down.union.ki.wVk = 0x10  # VK_SHIFT
-            user32.SendInput(1, ctypes.byref(inp_down), ctypes.sizeof(INPUT))
-        inp_down = INPUT()
-        inp_down.type = INPUT_KEYBOARD
-        inp_down.union.ki.wVk = vk
-        user32.SendInput(1, ctypes.byref(inp_down), ctypes.sizeof(INPUT))
-        time.sleep(0.01)
-        inp_up = INPUT()
-        inp_up.type = INPUT_KEYBOARD
-        inp_up.union.ki.wVk = vk
-        inp_up.union.ki.dwFlags = KEYEVENTF_KEYUP
-        user32.SendInput(1, ctypes.byref(inp_up), ctypes.sizeof(INPUT))
-        if shift & 1:
-            inp_up = INPUT()
-            inp_up.type = INPUT_KEYBOARD
-            inp_up.union.ki.wVk = 0x10
-            inp_up.union.ki.dwFlags = KEYEVENTF_KEYUP
-            user32.SendInput(1, ctypes.byref(inp_up), ctypes.sizeof(INPUT))
-        time.sleep(0.01)
-    if run:
-        run.log_event("TYPE", f"Typed: {text}")
-
-
-def get_window_text(hwnd) -> str:
-    buf = ctypes.create_unicode_buffer(1024)
-    user32.GetWindowTextW(hwnd, buf, 1024)
-    return buf.value
-
-
-def get_window_rect(hwnd) -> tuple[int, int, int, int]:
-    rect = ctypes.wintypes.RECT()
-    user32.GetWindowRect(hwnd, ctypes.byref(rect))
-    return (rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top)
-
-
-def process_alive(hwnd) -> bool:
-    pid = ctypes.wintypes.DWORD()
-    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-    handle = kernel32.OpenProcess(0x1000, False, pid.value)
-    if handle:
-        exit_code = ctypes.wintypes.DWORD()
-        success = kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
-        kernel32.CloseHandle(handle)
-        if success:
-            return exit_code.value == 259
-    return True
+def post_text_to_edit(hwnd_edit: int, text: str) -> bool:
+    """Send WM_SETTEXT to an Edit control's HWND (no cursor movement)."""
+    try:
+        user32.SendMessageW(hwnd_edit, WM_SETTEXT, 0, text)
+        # Notify parent of text change
+        parent = user32.GetParent(hwnd_edit)
+        if parent:
+            user32.SendMessageW(parent, WM_COMMAND, 0x0400 + 0x0034, hwnd_edit)
+        return True
+    except Exception:
+        return False
 
 
 # ═══════════════════════════════════════════════════════════════
-#  UNIFIED TEST RUNNER
+# UI Automation (cursor-free input)
 # ═══════════════════════════════════════════════════════════════
 
-ACTUAL_TABS = ["Dashboard", "Scan", "History", "Smart Search", "Workflows", "AI Chat", "System", "Settings"]
+try:
+    import uiautomation as auto
+    auto.uiautomation.SetGlobalSearchTimeout(3)
+    HAS_UIA = True
+except ImportError:
+    HAS_UIA = False
+    auto = None
+
+
+def get_window_via_uia(hwnd) -> "auto.WindowControl | None":
+    """Create a UIA WindowControl from a cached HWND."""
+    if not HAS_UIA:
+        return None
+    try:
+        wc = auto.WindowControl(searchDepth=1, Handle=hwnd)
+        return wc if wc else None
+    except Exception:
+        return None
+
+
+def invoke_button_by_name(window, button_label: str, search_depth: int = 20) -> bool:
+    """Find a ButtonControl by name and invoke it via UIA Invoke().
+
+    Uses UIA Invoke pattern — does NOT move the cursor or steal focus.
+    If the button is found, it will be invoked regardless of visual position.
+
+    Returns True if the button was found and invoked.
+    """
+    if not HAS_UIA or not window:
+        return False
+
+    for depth in range(5, search_depth + 1, 5):
+        try:
+            btn = window.ButtonControl(searchDepth=depth, Name=button_label)
+            if btn and btn.Exists(1):
+                btn.Invoke()
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def invoke_tab_by_name(window, tab_label: str) -> bool:
+    """Find a TabItemControl by name in the navigation bar and click it via UIA.
+
+    Searches the top navigation region for a matching tab name.
+    """
+    if not HAS_UIA or not window:
+        return False
+
+    for ctrl_cls in (auto.TabItemControl, auto.ButtonControl):
+        for depth in range(5, 25, 5):
+            try:
+                item = ctrl_cls(searchDepth=depth, Name=tab_label)
+                if item and item.Exists(0.5):
+                    rect = item.BoundingRectangle
+                    if rect and rect.top < 200:
+                        item.Invoke()
+                        return True
+            except Exception:
+                continue
+    return False
+
+
+def set_edit_text_via_uia(window, search_text: str, value: str) -> bool:
+    """Find an Edit control and set its text via UIA Value pattern."""
+    if not HAS_UIA or not window:
+        return False
+
+    for depth in range(5, 25, 5):
+        try:
+            edit = window.EditControl(searchDepth=depth, Name=search_text)
+            if edit and edit.Exists(0.5):
+                try:
+                    edit.SetValue(value)
+                    return True
+                except Exception:
+                    # Fallback: get HWND and use WM_SETTEXT
+                    try:
+                        hwnd_edit = edit.NativeWindowHandle
+                        if hwnd_edit and post_text_to_edit(hwnd_edit, value):
+                            return True
+                    except Exception:
+                        continue
+        except Exception:
+            continue
+
+    # Try finding by AutomationId or by control type
+    for depth in range(5, 25, 5):
+        try:
+            edits = window.EditControl(searchDepth=depth)
+            if edits:
+                for edit in auto.FindControlList(edit, False):
+                    try:
+                        edit.SetValue(value)
+                        return True
+                    except Exception:
+                        pass
+        except Exception:
+            continue
+    return False
+
+
+# ═══════════════════════════════════════════════════════════════
+# UNIFIED TEST RUNNER
+# ═══════════════════════════════════════════════════════════════
+
+ACTUAL_TABS = ["Dashboard", "Scan", "History", "Smart Search", "Workflows",
+               "AI Assistant", "Duplicates", "System", "Cleanup", "Settings"]
 NUM_TABS = len(ACTUAL_TABS)
 
-# Tab indices for keyboard navigation
 _TAB_INDEX = {name: i for i, name in enumerate(ACTUAL_TABS)}
-_current_tab_index = 0  # Track where keyboard focus is
 
 
-def navigate_tab(hwnd, target_tab: str, run=None):
-    """Navigate to a tab using Left/Right arrow keys from current position."""
-    global _current_tab_index
-    target_idx = _TAB_INDEX[target_tab]
-    steps = target_idx - _current_tab_index
-
-    if steps > 0:
-        for _ in range(steps):
-            send_key(hwnd, VK_RIGHT, "Right arrow", run)
-    elif steps < 0:
-        for _ in range(-steps):
-            send_key(hwnd, VK_LEFT, "Left arrow", run)
-
-    _current_tab_index = target_idx
-
-
-def tab_center(win: tuple, tab_index: int) -> tuple:
-    left, top, width, _height = win
-    tab_bar_y = top + 38
-    tab_w = width // NUM_TABS
-    return (left + tab_w * tab_index + tab_w // 2, tab_bar_y)
+# Button registry: maps tab name -> list of button labels (by accessible name).
+BUTTON_REGISTRY: dict[str, list[str]] = {
+    "Dashboard": [
+        "New Scan",
+        "View History",
+        "Find Duplicates",
+        "AI Assistant",
+        "Cleanup",
+        "Refresh",
+    ],
+    "Scan": [
+        "Browse",
+        "Open Folder",
+        "Deep scan",
+        "Scan Now",
+        "Export",
+        "Stop",
+    ],
+    "History": [
+        "Refresh History",
+        "New Scan",
+    ],
+    "Smart Search": [
+        "Browse",
+        "Open",
+        "Start Search",
+    ],
+    "Workflows": [
+        "Run Workflow",
+    ],
+    "AI Assistant": [
+        "Send",
+        "Clear chat",
+    ],
+    "Duplicates": [
+        "Browse",
+        "Open",
+        "Analyze Duplicates",
+    ],
+    "System": [
+        "Refresh",
+    ],
+    "Cleanup": [
+        "Browse",
+        "Analyze",
+    ],
+    "Settings": [
+        "Browse",
+        "Open Folder",
+        "Test Connection",
+        "Save Settings",
+        "Reset to Defaults",
+    ],
+}
 
 
 class TestRun:
@@ -516,7 +531,7 @@ class TestRun:
 
         console_path = self.run_dir / "console.log"
         with open(console_path, "w") as f:
-            f.write("Space Analyzer Pro — GUI Functional Test\n")
+            f.write("Space Analyzer Pro — GUI Functional Test (WinUI 3)\n")
             f.write(f"Run: {self.run_id}\n")
             f.write(f"Binary: {self.exe_path}\n")
             f.write("=" * 70 + "\n\n")
@@ -550,30 +565,44 @@ class TestRun:
 
 
 # ═══════════════════════════════════════════════════════════════
-#  TEST IMPLEMENTATIONS
+# TEST IMPLEMENTATIONS
 # ═══════════════════════════════════════════════════════════════
 
-def launch_for_tab(run: TestRun, tab_name: str | None = None) -> tuple[subprocess.Popen | None, Any | None, tuple | None]:
-    """Launch the GUI with --tab flag, wait for window, return (process, hwnd, win)."""
-    args = [str(run.exe_path)]
-    if tab_name:
-        args.extend(["--tab", tab_name])
+def find_window():
+    """Find the Space Analyzer window via pygetwindow + UIA by HWND."""
+    import pygetwindow as gw
 
+    for attempt in range(8):
+        wins = gw.getAllWindows()
+        space_wins = [w for w in wins if w.title and w.title.lower().startswith("space analyzer")]
+        if space_wins:
+            for w in space_wins:
+                try:
+                    hwnd = int(w._hWnd)
+                    if HAS_UIA:
+                        wc = auto.WindowControl(searchDepth=1, Handle=hwnd)
+                        if wc:
+                            return wc, hwnd
+                    return None, hwnd
+                except Exception:
+                    continue
+        time.sleep(0.5)
+    return None, None
+
+
+def launch_app(exe_path: Path) -> tuple[subprocess.Popen | None, "auto.WindowControl | None", int | None]:
+    """Launch the WinUI 3 app and return (process, UIA window, hwnd)."""
     process = subprocess.Popen(
-        args,
+        [str(exe_path)],
         creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0,
     )
 
-    time.sleep(3)
+    time.sleep(4)
     if process.poll() is not None:
+        process.terminate()
         return None, None, None
 
-    hwnd = None
-    for _ in range(10):
-        hwnd = find_hwnd()
-        if hwnd:
-            break
-        time.sleep(0.5)
+    window, hwnd = find_window()
 
     if not hwnd:
         process.terminate()
@@ -581,72 +610,192 @@ def launch_for_tab(run: TestRun, tab_name: str | None = None) -> tuple[subproces
 
     user32.ShowWindow(hwnd, SW_RESTORE)
     time.sleep(0.5)
-    win = get_window_rect(hwnd)
-    return process, hwnd, win
+
+    return process, window, hwnd
 
 
-def kill_process(process):
-    if process and process.poll() is None:
-        process.terminate()
-        try:
-            process.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            process.kill()
-
-
-def test_launch(run: TestRun) -> tuple[subprocess.Popen | None, Any | None, tuple | None]:
-    """Launch with default tab (Dashboard), verify startup."""
+def test_launch(run: TestRun) -> tuple[subprocess.Popen | None, "auto.WindowControl | None", int | None]:
+    """Launch the app, verify startup state."""
     run.begin_phase("launch")
     run.record_test("binary_exists", run.exe_path.exists(), str(run.exe_path))
 
     run.log_event("LAUNCH", f"Starting {run.exe_path.name}")
     t0 = time.time()
-    process, hwnd, win = launch_for_tab(run)
+    process, window, hwnd = launch_app(run.exe_path)
     launch_ms = (time.time() - t0) * 1000
 
     run.record_test("process_stays_alive", process is not None, f"Launched in {launch_ms:.0f}ms", launch_ms)
     run.record_test("window_found", hwnd is not None, f"HWND={hwnd}" if hwnd else "Not found")
 
-    if hwnd and process is not None and win is not None:
+    if hwnd and process is not None:
         run.record_process_info(hwnd, process)
         title = get_window_text(hwnd)
         run.record_test("window_title", "space analyzer" in title.lower(), f"Title: {title}")
-        run.record_test("window_size", win[2] > 800 and win[3] > 600, f"{win[2]}x{win[3]}")
+        rect = get_window_rect(hwnd)
+        run.record_test("window_size", rect[2] > 800 and rect[3] > 600, f"{rect[2]}x{rect[3]}")
         run.screenshot("01_launched", hwnd=hwnd)
 
     run.end_phase()
-    return process, hwnd, win
+    return process, window, hwnd
 
 
-def test_tab(run: TestRun, tab_name: str, screenshot_name: str, extra_fn=None):
-    """Launch a fresh instance with --tab, screenshot, optionally run extra_fn, kill."""
-    phase_name = f"tab_{tab_name.lower().replace(' ', '_')}"
-    run.begin_phase(phase_name)
+def navigate_to_tab(window, tab_label: str, run=None) -> bool:
+    """Navigate to a tab using UIA Invoke only (no cursor movement)."""
+    if window and HAS_UIA:
+        ok = invoke_tab_by_name(window, tab_label)
+        if run:
+            status = "OK" if ok else "FAIL"
+            run.log_event("NAV", f"UIA nav to '{tab_label}': {status}")
+        return ok
 
-    t0 = time.time()
-    process, hwnd, win = launch_for_tab(run, tab_name)
-    elapsed_ms = (time.time() - t0) * 1000
+    if run:
+        run.log_event("NAV", f"UIA unavailable, cannot navigate to '{tab_label}'")
+    return False
 
-    if not hwnd:
-        run.record_test(f"{phase_name}_launch", False, "Failed to launch")
-        run.end_phase()
+
+def test_tab_navigation(run: TestRun, window, hwnd) -> None:
+    """Navigate through all tabs and screenshot each."""
+    run.begin_phase("tab_navigation")
+
+    for idx, tab_name in enumerate(ACTUAL_TABS, 1):
+        shot_name = f"{idx:02d}_tab_{tab_name.lower().replace(' ', '_')}"
+        print(f"  [{idx}] {tab_name}")
+        ok = navigate_to_tab(window, tab_name, run)
+        time.sleep(0.8)
+        run.screenshot(shot_name, hwnd=hwnd)
+        run.record_test(f"tab_{tab_name.lower().replace(' ', '_')}_visible", ok, f"Navigated to {tab_name}")
+
+    run.end_phase()
+
+
+def test_single_button(run: TestRun, window, hwnd, tab_name: str, button_label: str) -> None:
+    """Test a single button: find it via UIA Invoke, verify no crash, screenshot."""
+    safe_label = button_label.replace(' ', '_').replace('.', '').replace('/', '_').replace('+', 'plus').replace('-', '_')
+    test_name = f"button_{tab_name.replace(' ', '_')}_{safe_label}"
+
+    run.log_event("BUTTON_TEST", f"Testing '{button_label}' on {tab_name}")
+
+    # Re-navigate to the tab (in case a previous button click changed context)
+    navigate_to_tab(window, tab_name, run)
+    time.sleep(0.5)
+
+    pre_shot = f"pre_click_{tab_name.lower().replace(' ', '_')}_{safe_label.lower()}"
+    run.screenshot(pre_shot, hwnd=hwnd)
+
+    # Use UIA Invoke (no cursor movement, no focus steal)
+    invoked = invoke_button_by_name(window, button_label)
+    if not invoked:
+        run.record_test(test_name, False, f"Button '{button_label}' not found via UIA Invoke()")
         return
 
-    run.record_test(f"{phase_name}_launch", True, f"Launched with --tab '{tab_name}'", elapsed_ms)
-    run.screenshot(screenshot_name, hwnd=hwnd)
+    # Brief wait for UI response
+    time.sleep(0.5)
 
-    if extra_fn:
-        extra_fn(run, hwnd, win)
+    # Verify the app is still alive
+    alive = process_alive(hwnd)
+    run.record_test(test_name, alive, f"Button '{button_label}' invoked, process alive: {alive}")
 
-    kill_process(process)
+    if not alive:
+        run.screenshot(f"crash_after_{safe_label.lower()}", hwnd=hwnd)
+    else:
+        post_shot = f"post_click_{tab_name.lower().replace(' ', '_')}_{safe_label.lower()}"
+        run.screenshot(post_shot, hwnd=hwnd)
+
+
+def test_all_buttons(run: TestRun, window, hwnd) -> None:
+    """Iterate through all tabs and test every button in the BUTTON_REGISTRY."""
+    run.begin_phase("button_tests")
+
+    for tab_name in ACTUAL_TABS:
+        buttons = BUTTON_REGISTRY.get(tab_name, [])
+        if not buttons:
+            run.log_event("SKIP_TAB", f"No buttons registered for '{tab_name}'")
+            continue
+
+        phase_name = f"buttons_{tab_name.lower().replace(' ', '_')}"
+        run.begin_phase(phase_name)
+        run.log_event("PHASE", f"Testing {len(buttons)} buttons on {tab_name}")
+
+        # Navigate to tab once
+        navigate_to_tab(window, tab_name, run)
+        time.sleep(0.5)
+
+        baseline = f"buttons_{tab_name.lower().replace(' ', '_')}_baseline"
+        run.screenshot(baseline, hwnd=hwnd)
+
+        for button_label in buttons:
+            test_single_button(run, window, hwnd, tab_name, button_label)
+
+        run.screenshot(f"buttons_{tab_name.lower().replace(' ', '_')}_after_all", hwnd=hwnd)
+        run.end_phase()
+
     run.end_phase()
+
+
+def test_scan(run: TestRun, window, hwnd) -> None:
+    """Full scan test: set path via UIA, click Start Scan via UIA."""
+    import tempfile, shutil
+
+    scan_dir = Path(tempfile.mkdtemp(prefix="space_test_"))
+    try:
+        file_count = create_test_files(scan_dir)
+        run.log_event("SETUP", f"Created {file_count} test files in {scan_dir}")
+
+        # Navigate to Scan tab
+        navigate_to_tab(window, "Scan", run)
+        time.sleep(0.5)
+
+        # Set the path in the text field via UIA Value pattern
+        path_set = False
+        if window and HAS_UIA:
+            path_set = set_edit_text_via_uia(window, "", str(scan_dir))
+        if not path_set:
+            run.log_event("WARN", "Could not set path via UIA — attempting Browse button fallback")
+            invoke_button_by_name(window, "Browse")
+            time.sleep(1)
+
+        run.screenshot("scan_01_path_entered", hwnd=hwnd)
+
+        # Click Scan Now via UIA Invoke (no cursor movement!)
+        invoked = invoke_button_by_name(window, "Scan Now")
+        run.log_event("CLICK", f"UIA Invoke Scan Now: {'OK' if invoked else 'FAIL'}")
+        time.sleep(1)
+
+        # Wait for scan to complete
+        scan_start = time.time()
+        scan_completed = False
+        for tick in range(60):
+            time.sleep(0.5)
+            elapsed_s = time.time() - scan_start
+            if tick % 6 == 0:
+                run.screenshot(f"scan_02_progress_{int(elapsed_s)}s", hwnd=hwnd)
+                run.log_event("SCAN_PROGRESS", f"{elapsed_s:.1f}s elapsed")
+            if not process_alive(hwnd):
+                run.record_test("scan_process_alive", False, "Process died during scan")
+                return
+            if elapsed_s > 15:
+                scan_completed = True
+                break
+
+        time.sleep(1)
+        scan_ms = (time.time() - scan_start) * 1000
+
+        run.screenshot("scan_03_results", hwnd=hwnd)
+        run.record_test("scan_completes", scan_completed, f"Scan finished in {scan_ms:.0f}ms", scan_ms)
+        run.record_test("scan_no_crash", process_alive(hwnd), "Window survived scan", scan_ms)
+
+    finally:
+        try:
+            shutil.rmtree(scan_dir, ignore_errors=True)
+            run.log_event("CLEANUP", f"Removed {scan_dir}")
+        except Exception:
+            pass
 
 
 def create_test_files(base_dir: Path) -> int:
     """Create a temporary directory with test files for scanning. Returns file count."""
     base_dir.mkdir(parents=True, exist_ok=True)
     count = 0
-    # Various file types and sizes
     test_data = [
         ("docs/readme.txt", b"Hello World " * 100),
         ("docs/report.pdf", b"%PDF-1.4 fake content " * 50),
@@ -671,81 +820,26 @@ def create_test_files(base_dir: Path) -> int:
     return count
 
 
-def test_scan(run: TestRun, hwnd, win):
-    """Full scan test: type path, click Start Scan, wait for results."""
-    import tempfile
-    import shutil
-
-    # 1. Create temp directory with test files
-    scan_dir = Path(tempfile.mkdtemp(prefix="space_test_"))
-    try:
-        file_count = create_test_files(scan_dir)
-        run.log_event("SETUP", f"Created {file_count} test files in {scan_dir}")
-
-        # 2. Click on the text field to focus it (field is below the header)
-        text_field_x = win[0] + win[2] // 2 - 50
-        text_field_y = win[1] + 115
-        silent_click(hwnd, text_field_x, text_field_y, "Click path text field", run)
-        time.sleep(0.3)
-
-        # 3. Select all and type the temp path
-        send_key(hwnd, VK_CONTROL, "Hold Ctrl", run)
-        send_key(hwnd, VK_A, "Ctrl+A select all", run)
-        time.sleep(0.1)
-        type_string(hwnd, str(scan_dir), run)
-        send_key(hwnd, VK_RETURN, "Enter to confirm path", run)
-        time.sleep(0.5)
-        run.screenshot("scan_01_path_entered", hwnd=hwnd)
-
-        # 4. Click Start Scan button (below the Deep scan checkbox)
-        scan_btn_x = win[0] + 180
-        scan_btn_y = win[1] + 235
-        silent_click(hwnd, scan_btn_x, scan_btn_y, "Click Start Scan", run)
-
-        # 5. Wait for scan to complete (up to 30 seconds)
-        scan_start = time.time()
-        scan_completed = False
-        for tick in range(60):
-            time.sleep(0.5)
-            elapsed_s = time.time() - scan_start
-            if tick % 6 == 0:
-                run.screenshot(f"scan_02_progress_{int(elapsed_s)}s", hwnd=hwnd)
-                run.log_event("SCAN_PROGRESS", f"{elapsed_s:.1f}s elapsed")
-            # Check if window is still alive
-            if not process_alive(hwnd):
-                run.record_test("scan_process_alive", False, "Process died during scan")
-                return
-            # After ~15s, assume scan is done for small dirs
-            if elapsed_s > 15:
-                scan_completed = True
-                break
-
-        time.sleep(1)
-        scan_ms = (time.time() - scan_start) * 1000
-
-        # 6. Take final screenshot and verify
-        run.screenshot("scan_03_results", hwnd=hwnd)
-        run.record_test("scan_completes", scan_completed, f"Scan finished in {scan_ms:.0f}ms", scan_ms)
-        run.record_test("scan_no_crash", process_alive(hwnd), "Window survived scan", scan_ms)
-
-    finally:
-        # Cleanup temp directory
+def kill_process(process):
+    if process and process.poll() is None:
+        process.terminate()
         try:
-            shutil.rmtree(scan_dir, ignore_errors=True)
-            run.log_event("CLEANUP", f"Removed {scan_dir}")
-        except Exception:
-            pass
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
 
 
 # ═══════════════════════════════════════════════════════════════
-#  MAIN
+# MAIN
 # ═══════════════════════════════════════════════════════════════
 
 def find_binary() -> Path | None:
+    repo_root = Path(__file__).resolve().parent.parent.parent
     candidates = [
-        Path("target/release/space-analyzer-gui.exe"),
-        Path("target/debug/space-analyzer-gui.exe"),
-        Path("bin/space-analyzer-gui.exe"),
+        repo_root / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Release" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
+        repo_root / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Debug" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
+        repo_root / "target" / "release" / "space-analyzer-gui.exe",
+        repo_root / "target" / "debug" / "space-analyzer-gui.exe",
     ]
     for p in candidates:
         if p.exists():
@@ -761,41 +855,43 @@ def main() -> int:
     )
     exe = find_binary()
     if not exe:
-        logger.error("space-analyzer-gui.exe not found.")
-        logger.info("Build first: cargo build --release --bin space-analyzer-gui")
+        logger.error("SpaceAnalyzer.exe not found.")
+        logger.info("Build first: MSBuild gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64")
         sys.exit(1)
 
+    if not HAS_UIA:
+        logger.warning("uiautomation package not available. Install: pip install uiautomation pygetwindow pillow")
+
     print(f"\n  Binary: {exe}")
+    print(f"  UIA available: {HAS_UIA}")
+    print(f"  Input mode: UIA Invoke() only (zero cursor movement)")
 
     run = TestRun(exe)
     process = None
+    window = None
+    hwnd = None
 
     try:
         # 1. Launch & startup
         print("\n  [1] Launch & Startup")
-        process, hwnd, _win = test_launch(run)
+        process, window, hwnd = test_launch(run)
         if not hwnd:
             run.record_test("abort_no_window", False, "Cannot continue")
             run.save_report()
             sys.exit(1)
 
-        run.begin_phase("tab_navigation")
-        for idx, tab_name in enumerate(ACTUAL_TABS, 1):
-            shot_name = f"0{idx}_tab_{tab_name.lower().replace(' ', '_')}"
-            print(f"\n  [{idx}] {tab_name} Tab")
-            navigate_tab(hwnd, tab_name, run)
-            time.sleep(0.5)
-            run.screenshot(shot_name, hwnd=hwnd)
-            run.record_test(f"tab_{tab_name.lower().replace(' ', '_')}_visible", True, f"Navigated to {tab_name}")
-        run.end_phase()
+        # 2. Tab navigation
+        print("\n  [2] Tab Navigation")
+        test_tab_navigation(run, window, hwnd)
 
-        # Navigate back to Scan tab for the scan test (reuse existing instance)
-        print("\n  [9] Scan Test")
-        navigate_tab(hwnd, "Scan", run)
-        time.sleep(0.5)
-        win = get_window_rect(hwnd)
+        # 3. Button tests — verify every interactive button responds without crashing
+        print("\n  [3] Button Functionality Tests")
+        test_all_buttons(run, window, hwnd)
+
+        # 4. Scan test
+        print("\n  [4] Scan Test")
         run.begin_phase("scan_test")
-        test_scan(run, hwnd, win)
+        test_scan(run, window, hwnd)
         run.end_phase()
 
     except Exception as e:

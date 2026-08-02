@@ -99,6 +99,10 @@ The WinUI 3 `ScannerService` also supports scan cancellation via `StopScan()` (k
 - Do NOT create `fix_*.py`, `patch_*.py`, or other one-off scripts at the repo root. Make changes directly to source files.
 - Do NOT create files under `scripts/temporary/`. If a temporary fix is needed, apply it inline to the target file.
 
+## Testing
+- **WinUI 3 app** (`gui-winui/`): Playwright/browser-based testing is **not applicable** — this is a native desktop app, not a web app. No automated browser tests should be invoked for this GUI.
+- **Web version**: If a web version exists in a different directory/repo, Playwright testing is applicable there only.
+
 ## CI/CD
 - This project intentionally does NOT use GitHub Actions for CI/CD. All verification is done via `just verify` locally.
 

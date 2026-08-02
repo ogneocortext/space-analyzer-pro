@@ -1,9 +1,10 @@
 <Page
     x:Class="SpaceAnalyzer.Views.HistoryPage"
+    x:Name="PageRoot"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:SpaceAnalyzer.ViewModels"
-        xmlns:models="using:SpaceAnalyzer.Models"
+    xmlns:models="using:SpaceAnalyzer.Models"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -11,47 +12,83 @@
     Loaded="HistoryPage_Loaded"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Page.DataContext>
-        <vm:HistoryViewModel x:Name="VM"/>
-    </Page.DataContext>
-
-<Grid Padding="24">
+    <Grid Padding="{StaticResource Thickness.XL}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="24" MaxWidth="1000" HorizontalAlignment="Center">
+            <StackPanel Spacing="{StaticResource Space.LG}" MaxWidth="1000" HorizontalAlignment="Center">
 
-                <!-- Header -->
-                <StackPanel Spacing="8">
-                    <TextBlock Text="Scan History" FontSize="24" FontWeight="Bold"/>
-                    <TextBlock Text="View and compare previous scan results." FontSize="14" Opacity="0.8"/>
-                </StackPanel>
-
-                <!-- Refresh Button -->
-                <Button Content="Refresh History" Click="Refresh_Click" HorizontalAlignment="Stretch" Padding="12"/>
+                <!-- Header + Actions -->
+                <Grid ColumnSpacing="{StaticResource Space.LG}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                        <TextBlock Text="Scan History" Style="{StaticResource Type.PageTitle}"/>
+                        <TextBlock Text="View and compare previous scan results." Style="{StaticResource Type.Body}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Top">
+                        <Button Content="Refresh" Click="Refresh_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Refresh history"/>
+                        <Button Content="New Scan" Click="NewScan_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="New scan"/>
+                    </StackPanel>
+                </Grid>
 
                 <!-- Status -->
-                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"/>
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}" Visibility="{x:Bind VM.HasHistory, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
+                    <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" Style="{StaticResource Type.Caption}"/>
+                </Border>
 
-                 <!-- History List -->
-                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}"> <StackPanel Spacing="12">
-                         <TextBlock Text="Recent Scans" FontSize="16" FontWeight="SemiBold"/>
-                         <ItemsRepeater ItemsSource="{x:Bind VM.History, Mode=OneWay}">
-                             <ItemsRepeater.Layout>
-                                 <StackLayout Orientation="Vertical" Spacing="12"/>
-                             </ItemsRepeater.Layout>
-                             <ItemsRepeater.ItemTemplate>
-                                 <DataTemplate x:DataType="models:ScanHistoryRecord">
-                                     <Border Padding="16" CornerRadius="6" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-                                        <StackPanel Spacing="8">
-                                            <TextBlock FontSize="14" FontWeight="SemiBold" Text="{x:Bind Path, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="24" Opacity="0.8">
-                                                <TextBlock FontSize="12" Text="{x:Bind FilesDisplay, Mode=OneTime}"/>
-                                                <TextBlock FontSize="12" Text="{x:Bind TotalSizeDisplay, Mode=OneTime}"/>
-                                                <TextBlock FontSize="12" Text="{x:Bind DurationDisplay, Mode=OneTime}"/>
-                                                <TextBlock FontSize="12" Text="{x:Bind DateDisplay, Mode=OneTime}"/>
+                <!-- History List -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="Recent Scans" Style="{StaticResource Type.CardTitle}"/>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.History, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.MD}"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:ScanHistoryRecord">
+                                    <Border Style="{StaticResource ItemCard}" Tag="{x:Bind Id}" Tapped="ScanCard_Tapped">
+                                        <StackPanel Spacing="{StaticResource Space.MD}">
+                                            <!-- Header row: icon + path + date -->
+                                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xEB39;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                                                <StackPanel Spacing="{StaticResource Space.XS}">
+                                                    <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind Path, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Style="{StaticResource Type.Caption}" Text="{x:Bind DateDisplay, Mode=OneTime}" Opacity="0.8"/>
+                                                </StackPanel>
                                             </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-                                                <Button Content="View Details" Click="ViewDetails_Click" Tag="{x:Bind Id}" Padding="8,4" FontSize="12"/>
-                                                <Button Content="Delete" Click="Delete_Click" Tag="{x:Bind Id}" Padding="8,4" FontSize="12"/>
+
+                                            <!-- Stats row: Files · Size · Duration · Depth -->
+                                            <Grid ColumnSpacing="{StaticResource Space.XXL}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                                                    <TextBlock Text="{x:Bind FilesDisplay, Mode=OneTime}" Style="{StaticResource Type.StatValue}"/>
+                                                    <TextBlock Text="Files" Style="{StaticResource Type.Tiny}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
+                                                    <TextBlock Text="{x:Bind TotalSizeDisplay, Mode=OneTime}" Style="{StaticResource Type.StatValue}"/>
+                                                    <TextBlock Text="Size" Style="{StaticResource Type.Tiny}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Spacing="{StaticResource Space.XS}">
+                                                    <TextBlock Text="{x:Bind DurationDisplay, Mode=OneTime}" Style="{StaticResource Type.StatValue}"/>
+                                                    <TextBlock Text="Duration" Style="{StaticResource Type.Tiny}"/>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="3" Spacing="{StaticResource Space.XS}">
+                                                    <TextBlock Text="{x:Bind DepthDisplay, Mode=OneTime}" Style="{StaticResource Type.StatValue}"/>
+                                                    <TextBlock Text="Depth" Style="{StaticResource Type.Tiny}"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- Actions -->
+                                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
+                                                <Button Content="View Details" Click="ViewDetails_Click" Tag="{x:Bind Id}" Style="{StaticResource SmallButton}"/>
+                                                <Button Content="Re-scan" Click="Rescan_Click" Tag="{x:Bind Path}" Style="{StaticResource SmallButton}"/>
+                                                <Button Content="Delete" Click="Delete_Click" Tag="{x:Bind Id}" Style="{StaticResource SmallButton}"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
@@ -61,28 +98,121 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Detail View -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasSelectedRecordVisibility, Mode=OneWay}">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="Scan Details" FontSize="16" FontWeight="SemiBold"/>
-                         <TextBlock Text="{x:Bind VM.SelectedRecord.Path, Mode=OneWay}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                         <StackPanel Orientation="Horizontal" Spacing="24" Opacity="0.8">
-                             <TextBlock FontSize="12" Text="{x:Bind VM.SelectedRecord.FilesDisplay, Mode=OneWay}"/>
-                             <TextBlock FontSize="12" Text="{x:Bind VM.SelectedRecord.TotalSizeDisplay, Mode=OneWay}"/>
-                             <TextBlock FontSize="12" Text="{x:Bind VM.SelectedRecord.DurationDisplay, Mode=OneWay}"/>
-                             <TextBlock FontSize="12" Text="{x:Bind VM.SelectedRecord.DateDisplay, Mode=OneWay}"/>
+                <!-- File Explorer / Scan Details -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasSelectedRecordVisibility, Mode=OneWay}">
+                    <Border.Transitions>
+                        <TransitionCollection>
+                            <EntranceThemeTransition/>
+                        </TransitionCollection>
+                    </Border.Transitions>
+                    <StackPanel Spacing="{StaticResource Space.LG}">
+                        <TextBlock Text="Scan Details" Style="{StaticResource Type.CardTitle}" />
+
+                        <!-- Scan Summary -->
+                        <StackPanel Spacing="{StaticResource Space.SM}">
+                            <TextBlock Text="{x:Bind VM.SelectedRecord.Path, Mode=OneWay}" Style="{StaticResource Type.SubTitle}" TextTrimming="CharacterEllipsis"/>
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XXL}" Opacity="0.8">
+                                <TextBlock Style="{StaticResource Type.Caption}" Text="{x:Bind VM.SelectedRecord.FilesDisplay, Mode=OneWay}"/>
+                                <TextBlock Style="{StaticResource Type.Caption}" Text="{x:Bind VM.SelectedRecord.TotalSizeDisplay, Mode=OneWay}"/>
+                                <TextBlock Style="{StaticResource Type.Caption}" Text="{x:Bind VM.SelectedRecord.DurationDisplay, Mode=OneWay}"/>
+                                <TextBlock Style="{StaticResource Type.Caption}" Text="{x:Bind VM.SelectedRecord.DateDisplay, Mode=OneWay}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
+                                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="{x:Bind VM.SelectedRecord.DepthDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.8"/>
+                                </Border>
+                                <TextBlock Text="{x:Bind VM.SelectedRecord.PotentialCleanupDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.6"/>
+                            </StackPanel>
                         </StackPanel>
-                        <Button Content="Back to list" Click="BackToList_Click" Padding="8,4" FontSize="12"/>
+
+                        <!-- File Explorer -->
+                        <StackPanel Spacing="{StaticResource Space.SM}">
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
+                                <TextBlock Text="Largest Files" Style="{StaticResource Type.CardTitle}"/>
+                                <TextBlock Text="{x:Bind VM.LargestFilesCountDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                            </StackPanel>
+
+                            <!-- Filter -->
+                            <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{x:Bind VM.FileExplorerFilter, Mode=TwoWay}" PlaceholderText="{x:Bind VM.FileExplorerFilterPlaceholder, Mode=OneWay}" Style="{StaticResource Type.Caption.TextBox}"/>
+                                <Button Grid.Column="1" Content="Clear" Click="ClearFileExplorerFilter_Click" Style="{StaticResource SmallButton}" Visibility="{x:Bind VM.HasFileExplorerFilter, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+                            </Grid>
+
+                            <!-- Sortable Column Headers -->
+                            <Grid ColumnSpacing="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="44"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
+                                    <Button Content="Size" Click="FileSizeHeader_Click" Tag="1" Style="{StaticResource TinyButton}" MinWidth="40" MinHeight="20" HorizontalContentAlignment="Left"/>
+                                    <TextBlock Text="{x:Bind VM.SizeSortIndicator, Mode=OneWay}" Style="{StaticResource Type.Tiny}" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
+                                    <TextBlock Text="Ext" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Opacity="0.7" VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
+                                    <Button Content="Name" Click="FileNameHeader_Click" Tag="2" Style="{StaticResource TinyButton}" MinWidth="40" MinHeight="20" HorizontalContentAlignment="Left"/>
+                                    <TextBlock Text="{x:Bind VM.NameSortIndicator, Mode=OneWay}" Style="{StaticResource Type.Tiny}" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- File List -->
+                            <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
+                                <ItemsRepeater ItemsSource="{x:Bind VM.FilteredLargestFiles, Mode=OneWay}">
+                                    <ItemsRepeater.Layout>
+                                        <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.XS}"/>
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="models:FileSizeEntry">
+                                            <Grid ColumnSpacing="{StaticResource Space.SM}" Margin="0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="90"/>
+                                                    <ColumnDefinition Width="44"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold" TextAlignment="Right" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{x:Bind Extension, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="{x:Bind Path, Mode=OneTime}" Style="{StaticResource Type.Caption}" TextTrimming="CharacterEllipsis" Opacity="0.8" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="3" Content="Open" Click="OpenFile_Click" Style="{StaticResource TinyButton}" Tag="{x:Bind Path}" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="4" Content="Folder" Click="OpenFolder_Click" Style="{StaticResource TinyButton}" Tag="{x:Bind ParentPath}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                            </ScrollViewer>
+
+                            <!-- Empty state for file explorer -->
+                            <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" CornerRadius="6" Padding="16" Visibility="{x:Bind VM.HasNoLargestFilesVisibility, Mode=OneWay}">
+                                <TextBlock Text="No files found. Try adjusting your filter." Style="{StaticResource Type.Caption}" Opacity="0.6" TextAlignment="Center"/>
+                            </Border>
+                        </StackPanel>
+
+                        <Button Content="Back to list" Click="BackToList_Click" Style="{StaticResource SmallButton}"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Empty State -->
-                <TextBlock Text="No scan history found. Run a scan to get started."
-                           FontSize="14" Opacity="0.7"
-                           Visibility="{x:Bind VM.HasNoHistoryVisibility, Mode=OneWay}"
-                           HorizontalAlignment="Center" Margin="0,40,0,0"/>
+                <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.HasNoHistoryVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.MD}" HorizontalAlignment="Center">
+                        <FontIcon Glyph="&#xE944;" FontSize="{StaticResource Icon.EmptyState}" Opacity="{StaticResource Icon.EmptyStateOpacity}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="No scan history found" Style="{StaticResource Type.CardTitle}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Run a scan from the Scan page to get started." Style="{StaticResource Type.Body}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                        <Button Content="Go to Scan" Click="NewScan_Click" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
 
             </StackPanel>
         </ScrollViewer>
     </Grid>
 </Page>
+
