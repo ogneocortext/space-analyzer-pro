@@ -104,6 +104,7 @@ mod tests {
             top_directories: Vec::new(),
             empty_dirs: Vec::new(),
             scanned_files: std::collections::HashMap::new(),
+            category_sizes: std::collections::HashMap::new(),
         }
     }
 

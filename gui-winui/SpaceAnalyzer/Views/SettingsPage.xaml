@@ -1,4 +1,4 @@
-﻿<Page
+<Page
     x:Class="SpaceAnalyzer.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -150,21 +150,15 @@
                                 <ProgressRing IsActive="True" Width="16" Height="16"/>
                                 <TextBlock Text="Testing..." FontSize="12" Opacity="0.8"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
-                                        Visibility="{x:Bind VM.OllamaTesting, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
-                                <StackPanel.Transitions>
-                                    <TransitionCollection>
-                                        <EntranceThemeTransition/>
-                                    </TransitionCollection>
-                                </StackPanel.Transitions>
-                                <FontIcon Glyph="&#xE73E;"
-                                          Foreground="{x:Bind VM.OllamaTestBrush, Mode=OneWay}"
-                                          FontSize="14"/>
-                                <TextBlock Text="{x:Bind VM.OllamaTestResult, Mode=OneWay}"
-                                           FontSize="12"
+                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                                         Visibility="{x:Bind VM.OllamaTesting, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"> <FontIcon Glyph="&#xE73E;"
                                            Foreground="{x:Bind VM.OllamaTestBrush, Mode=OneWay}"
-                                           Opacity="0.9"/>
-                            </StackPanel>
+                                           FontSize="14"/>
+                                 <TextBlock Text="{x:Bind VM.OllamaTestResult, Mode=OneWay}"
+                                            FontSize="12"
+                                            Foreground="{x:Bind VM.OllamaTestBrush, Mode=OneWay}"
+                                            Opacity="0.9"/>
+                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>

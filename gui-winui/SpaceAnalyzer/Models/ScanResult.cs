@@ -24,6 +24,8 @@ public class ScanResult
     public ulong TotalDirs { get; set; }
     public List<DirEntry> TopDirectories { get; set; } = new();
     public List<string> EmptyDirs { get; set; } = new();
+    [JsonPropertyName("category_sizes")]
+    public Dictionary<string, ulong> CategorySizes { get; set; } = new();
     /// <summary>
     /// Per-file size and modification time. The Rust backend emits each entry as a
     /// JSON array <c>[size, mtime]</c>; <see cref="ScannedFileConverter"/> reads that

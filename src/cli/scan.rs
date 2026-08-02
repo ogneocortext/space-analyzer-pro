@@ -8,7 +8,7 @@ use std::path::Path;
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
-use super::types::{DirEntry, ScanResult};
+use super::types::{DirEntry, FileInfoStreaming, ScanResult, StreamEvent};
 use crate::animation;
 
 #[allow(clippy::too_many_arguments)]
@@ -23,6 +23,7 @@ pub fn scan_directory(
     include_hidden: bool,
     threads: usize,
     cache: bool,
+    stream: bool,
 ) -> AppResult<ScanResult> {
     let spinner = if verbose {
         let pb = animation::create_scan_spinner(&path.display().to_string());
@@ -88,9 +89,35 @@ pub fn scan_directory(
         path.to_str().unwrap_or("."),
         options,
         move |progress: ScanProgress| {
-            let json = serde_json::to_string(&progress).unwrap_or_default();
-            eprintln!("__PROGRESS__{json}");
-            let _ = std::io::stderr().flush();
+            if stream {
+                let event = StreamEvent::Progress {
+                    files_scanned: progress.files_scanned,
+                    directories_scanned: progress.directories_scanned,
+                    total_size: progress.total_size,
+                    percentage: progress.percentage,
+                    current_file: progress.current_file,
+                    live_files: progress
+                        .live_files
+                        .into_iter()
+                        .map(|f| FileInfoStreaming {
+                            path: f.path,
+                            name: f.name,
+                            size: f.size,
+                            extension: f.extension,
+                        })
+                        .collect(),
+                    file_types: progress.file_type_counts,
+                    extension_sizes: progress.extension_sizes,
+                    category_sizes: progress.category_sizes,
+                };
+                let line = serde_json::to_string(&event).unwrap_or_default();
+                println!("{}", line);
+                let _ = std::io::stdout().flush();
+            } else {
+                let json = serde_json::to_string(&progress).unwrap_or_default();
+                eprintln!("__PROGRESS__{json}");
+                let _ = std::io::stderr().flush();
+            }
         },
         &AtomicBool::new(false),
     )?;
@@ -132,6 +159,7 @@ pub fn scan_directory(
     }
 
     result.extension_sizes = shared_result.extension_sizes;
+    result.category_sizes = shared_result.category_sizes.clone();
 
     let scan_path_str = path.to_string_lossy().to_string();
     let mut top_dirs: Vec<DirEntry> = shared_result
@@ -157,6 +185,27 @@ pub fn scan_directory(
     }
 
     result.empty_dirs = shared_result.empty_directories;
+
+    if stream {
+        let complete = StreamEvent::Complete {
+            total_files: result.total_files,
+            total_size_bytes: result.total_size_bytes,
+            total_size_mb: result.total_size_mb,
+            duration_secs: result.duration_secs,
+            file_types: result.file_types.clone(),
+            extension_sizes: result.extension_sizes.clone(),
+            largest_files: result.largest_files.clone(),
+            errors: result.errors.clone(),
+            path: result.path.clone(),
+            total_dirs: result.total_dirs,
+            top_directories: result.top_directories.clone(),
+            empty_dirs: result.empty_dirs.clone(),
+            category_sizes: result.category_sizes.clone(),
+        };
+        let line = serde_json::to_string(&complete).unwrap_or_default();
+        println!("{}", line);
+        let _ = std::io::stdout().flush();
+    }
 
     Ok(result)
 }

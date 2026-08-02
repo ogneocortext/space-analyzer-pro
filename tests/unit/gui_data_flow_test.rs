@@ -127,6 +127,7 @@ fn scan_result_with_many_files_populates_types() {
         top_directories: Vec::new(),
         empty_dirs: Vec::new(),
         scanned_files: HashMap::new(),
+        category_sizes: HashMap::new(),
     };
     say!("   Files: {} | Types: {:?}", result.total_files, result.file_types);
     assert_eq!(result.total_files, 20_000);

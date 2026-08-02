@@ -1,6 +1,7 @@
 // Licensed under the MIT License.
 
 using System.Diagnostics;
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SpaceAnalyzer.Models;
@@ -145,6 +146,186 @@ public class ScannerService
         catch (JsonException jex)
         {
             throw new Exception($"Failed to parse scan result: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Run a directory scan in streaming mode. The CLI emits JSONL lines to stdout,
+    /// each prefixed with {"type":"progress",...} or {"type":"complete",...}.
+    /// The <paramref name="onProgress"/> callback is invoked for every progress line,
+    /// and the final ScanResult is returned when the "complete" line is received.
+    /// </summary>
+    public async Task<ScanResult?> ScanDirectoryStreamingAsync(
+        string path,
+        DepthMode depthMode = DepthMode.Default,
+        int maxDepth = 5,
+        bool includeHidden = false,
+        IProgress<StreamProgress>? onProgress = null,
+        CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            throw new FileNotFoundException(
+                $"Scanner binary not found at {_scannerPath}. " +
+                "Build it with: cargo build --release --bin space-analyzer-cli");
+
+        if (!Directory.Exists(path))
+            throw new DirectoryNotFoundException($"Scan path does not exist: {path}");
+
+        var args = $"scan --path \"{path}\" --format json --stream";
+        if (depthMode == DepthMode.Deep)
+            args += " --deep";
+        else if (depthMode == DepthMode.Shallow)
+            args += " --shallow";
+        else if (depthMode == DepthMode.Custom)
+            args += $" --max-depth {maxDepth}";
+        if (includeHidden)
+            args += " --include-hidden";
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = _scannerPath,
+            Arguments = args,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        _stopCts?.Dispose();
+        using var stopCts = new CancellationTokenSource();
+        _stopCts = stopCts;
+
+        lock (_processLock)
+        {
+            _currentScannerProcess = new Process { StartInfo = psi };
+        }
+
+        using var process = _currentScannerProcess;
+        try
+        {
+            process.Start();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to start scanner: {ex.Message}", ex);
+        }
+
+        _ = ReadStderrAsync(process.StandardError, ct);
+
+        var stdoutReader = process.StandardOutput;
+        var finalResult = (ScanResult?)null;
+
+        using var timeoutCts = new CancellationTokenSource(s_scannerTimeout);
+        try
+        {
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, stopCts.Token, timeoutCts.Token);
+
+            string? line;
+            while ((line = await stdoutReader.ReadLineAsync()) is not null)
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                try
+                {
+                    using var doc = JsonDocument.Parse(line);
+                    var root = doc.RootElement;
+
+                    if (root.TryGetProperty("type", out var typeProp))
+                    {
+                        var eventType = typeProp.GetString();
+                        if (eventType == "progress")
+                        {
+                            var progress = JsonSerializer.Deserialize<StreamProgress>(line, s_jsonOptions);
+                            if (progress != null)
+                                onProgress?.Report(progress);
+                        }
+                        else if (eventType == "complete")
+                        {
+                            var complete = JsonSerializer.Deserialize<StreamComplete>(line, s_jsonOptions);
+                            if (complete != null)
+                            {
+                                finalResult = new ScanResult
+                                {
+                                    TotalFiles = complete.TotalFiles,
+                                    TotalSizeBytes = complete.TotalSizeBytes,
+                                    TotalSizeMb = complete.TotalSizeMb,
+                                    DurationSecs = complete.DurationSecs,
+                                    FileTypes = complete.FileTypes.ToDictionary(kvp => kvp.Key, kvp => (long)kvp.Value),
+                                    ExtensionSizes = complete.ExtensionSizes,
+                                    CategorySizes = complete.CategorySizes,
+                                    LargestFiles = complete.LargestFiles,
+                                    Errors = complete.Errors,
+                                    Path = complete.Path,
+                                    TotalDirs = complete.TotalDirs,
+                                    TopDirectories = complete.TopDirectories,
+                                    EmptyDirs = complete.EmptyDirs,
+                                };
+                            }
+                        }
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Skip non-JSON lines
+                }
+
+                // Check for cancellation
+                if (stopCts.Token.IsCancellationRequested || ct.IsCancellationRequested)
+                {
+                    if (!process.HasExited)
+                        process.Kill(entireProcessTree: true);
+                    throw new OperationCanceledException("Scan was cancelled.");
+                }
+            }
+
+            await process.WaitForExitAsync(linkedCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            if (timeoutCts.IsCancellationRequested)
+            {
+                try { process.Kill(entireProcessTree: true); } catch { }
+                throw new TimeoutException($"Scanner timed out after {s_scannerTimeout.TotalMinutes} minutes");
+            }
+            try { process.Kill(entireProcessTree: true); } catch { }
+            throw;
+        }
+        finally
+        {
+            lock (_processLock)
+            {
+                if (_currentScannerProcess == process)
+                    _currentScannerProcess = null;
+            }
+            _stopCts = null;
+        }
+
+        if (process.ExitCode != 0)
+        {
+            var stderr = await process.StandardError.ReadToEndAsync(ct);
+            throw new Exception($"Scanner failed (exit {process.ExitCode}): {stderr}");
+        }
+
+        return finalResult;
+    }
+
+    private static async Task ReadStderrAsync(
+        System.IO.StreamReader stderr,
+        CancellationToken ct)
+    {
+        try
+        {
+            while (!stderr.EndOfStream)
+            {
+                await stderr.ReadLineAsync();
+                if (ct.IsCancellationRequested)
+                    break;
+            }
+        }
+        catch
+        {
+            // Ignore - stderr is not parsed in streaming mode
         }
     }
 

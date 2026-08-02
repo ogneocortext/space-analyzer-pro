@@ -86,9 +86,8 @@
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"/>
 
                 <!-- Results -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="Analysis Results" FontSize="18" FontWeight="SemiBold"/>
+                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}"> <StackPanel Spacing="16">
+                         <TextBlock Text="Analysis Results" FontSize="18" FontWeight="SemiBold"/>
 
                         <!-- Summary Stats -->
                         <Grid ColumnSpacing="24">
@@ -119,16 +118,16 @@
 
                         <!-- Cleanup Candidates -->
                         <TextBlock Text="Cleanup Candidates" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0"/>
-                        <ItemsRepeater ItemsSource="{x:Bind VM.CleanupCandidates, Mode=OneWay}">
-                            <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="12"/>
-                            </ItemsRepeater.Layout>
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="models:CleanupCandidate">
-                                    <Border Padding="16" CornerRadius="6"
-                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-                                        <StackPanel Spacing="8">
+                         <ItemsRepeater ItemsSource="{x:Bind VM.CleanupCandidates, Mode=OneWay}">
+                             <ItemsRepeater.Layout>
+                                 <StackLayout Orientation="Vertical" Spacing="12"/>
+                             </ItemsRepeater.Layout>
+                             <ItemsRepeater.ItemTemplate>
+                                 <DataTemplate x:DataType="models:CleanupCandidate">
+                                     <Border Padding="16" CornerRadius="6"
+                                             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                                         <StackPanel Spacing="8">
                                             <StackPanel Orientation="Horizontal" Spacing="12">
                                                 <TextBlock FontSize="14" FontWeight="SemiBold"
                                                            Text="{x:Bind Path, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
@@ -147,11 +146,11 @@
 
                         <!-- Duplicate Packages -->
                         <TextBlock Text="Duplicate Packages" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0"/>
-                        <ItemsRepeater ItemsSource="{x:Bind VM.DuplicatePackages, Mode=OneWay}">
-                            <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="12"/>
-                            </ItemsRepeater.Layout>
-                            <ItemsRepeater.ItemTemplate>
+                         <ItemsRepeater ItemsSource="{x:Bind VM.DuplicatePackages, Mode=OneWay}">
+                             <ItemsRepeater.Layout>
+                                 <StackLayout Orientation="Vertical" Spacing="12"/>
+                             </ItemsRepeater.Layout>
+                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="models:DuplicatePackage">
                                     <Border Padding="16" CornerRadius="6"
                                             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

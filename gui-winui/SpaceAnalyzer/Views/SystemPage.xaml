@@ -94,13 +94,13 @@
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
                     <StackPanel Spacing="16">
                         <TextBlock Text="Disk Volumes" FontSize="16" FontWeight="SemiBold"/>
-                        <ItemsRepeater ItemsSource="{x:Bind VM.DiskVolumes, Mode=OneWay}">
-                            <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="12"/>
-                            </ItemsRepeater.Layout>
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="models:DiskVolume">
-                                    <StackPanel Spacing="8" Margin="0,6">
+                         <ItemsRepeater ItemsSource="{x:Bind VM.DiskVolumes, Mode=OneWay}">
+                             <ItemsRepeater.Layout>
+                                 <StackLayout Orientation="Vertical" Spacing="12"/>
+                             </ItemsRepeater.Layout>
+                             <ItemsRepeater.ItemTemplate>
+                                 <DataTemplate x:DataType="models:DiskVolume">
+                                     <StackPanel Spacing="8" Margin="0,6">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock FontSize="14" FontWeight="SemiBold">
                                                 <Run Text="{x:Bind MountPoint, Mode=OneTime}"/>
@@ -132,11 +132,11 @@
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16">
                     <StackPanel Spacing="16">
                         <TextBlock Text="Top Processes by Memory" FontSize="16" FontWeight="SemiBold"/>
-                        <ItemsRepeater ItemsSource="{x:Bind VM.TopProcesses, Mode=OneWay}">
-                            <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="10"/>
-                            </ItemsRepeater.Layout>
-                            <ItemsRepeater.ItemTemplate>
+                         <ItemsRepeater ItemsSource="{x:Bind VM.TopProcesses, Mode=OneWay}">
+                             <ItemsRepeater.Layout>
+                                 <StackLayout Orientation="Vertical" Spacing="10"/>
+                             </ItemsRepeater.Layout>
+                             <ItemsRepeater.ItemTemplate>
                                                                     <DataTemplate x:DataType="models:ProcessInfo">
                                     <StackPanel Orientation="Horizontal" Spacing="16" Padding="0,6">
                                         <TextBlock FontSize="13" FontWeight="SemiBold" Text="{x:Bind Name, Mode=OneTime}" Width="200"/>

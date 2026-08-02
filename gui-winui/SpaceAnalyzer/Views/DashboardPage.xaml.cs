@@ -1,5 +1,7 @@
 ﻿// Licensed under the MIT License.
 
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -19,6 +21,7 @@ public sealed partial class DashboardPage : Page
         this.InitializeComponent();
         this.Loaded += OnPageLoaded;
         VM.PropertyChanged += OnVmPropertyChanged;
+        SetupHoverEffects();
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -39,6 +42,7 @@ public sealed partial class DashboardPage : Page
     {
         await VM.LoadDashboardAsync();
         DrawAllCharts();
+        await AnimateStatCards();
     }
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -92,10 +96,27 @@ public sealed partial class DashboardPage : Page
         }
     }
 
+    private void SetupHoverEffects()
+    {
+        var hoverElements = new List<FrameworkElement>
+        {
+            BtnNewScan, BtnViewHistory, BtnFindDuplicates, BtnAIAssistant, BtnCleanup, BtnSystem
+        };
+        foreach (var el in hoverElements)
+            CompositionHelpers.AddHoverFade(el, hoverOpacity: 0.90f, durationMs: 100);
+    }
+
+    private async Task AnimateStatCards()
+    {
+        var statCards = new[] { StatCardTotalFiles, StatCardTotalSize, StatCardScanCount, StatCardDuplicateCount };
+        await CompositionHelpers.StaggeredFadeInAsync(statCards, durationMs: 200, staggerMs: 40);
+    }
+
     private async void Refresh_Click(object sender, RoutedEventArgs e)
     {
         await VM.LoadDashboardAsync();
         DrawAllCharts();
+        await AnimateStatCards();
     }
 
     private void BtnNewScan_Click(object sender, RoutedEventArgs e)

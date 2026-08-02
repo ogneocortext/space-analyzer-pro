@@ -46,6 +46,8 @@ pub struct ScanResult {
     pub empty_dirs: Vec<String>,
     #[serde(default)]
     pub scanned_files: HashMap<String, (u64, i64)>,
+    #[serde(default)]
+    pub category_sizes: HashMap<String, u64>,
 }
 
 /// Directory entry used in scan results
@@ -80,6 +82,7 @@ impl ScanResult {
             top_directories: Vec::new(),
             empty_dirs: Vec::new(),
             scanned_files: HashMap::new(),
+            category_sizes: HashMap::new(),
         }
     }
 
@@ -114,6 +117,7 @@ impl ScanResult {
         scan_result.total_dirs = result.total_directories;
         scan_result.empty_dirs = result.empty_directories.clone();
         scan_result.scanned_files = result.scanned_files.clone();
+        scan_result.category_sizes = result.category_sizes.clone();
 
         scan_result
     }

@@ -95,6 +95,11 @@ pub enum Commands {
         /// Ask an AI question about the scan results
         #[arg(long)]
         ask: Option<String>,
+
+        /// Stream results as JSONL to stdout (one JSON object per line) instead of
+        /// a single JSON document at the end. Enables real-time UI updates.
+        #[arg(long)]
+        stream: bool,
     },
 
     /// Show disk space info for all volumes as JSON

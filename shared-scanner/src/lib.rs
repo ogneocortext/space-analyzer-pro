@@ -35,6 +35,43 @@ pub struct ScanProgress {
     pub completed: bool,
     /// Live list of files found so far (updated during scan for real-time visibility)
     pub live_files: Vec<FileInfo>,
+    /// Cumulative file-type counts discovered so far (extension -> file count)
+    pub file_type_counts: HashMap<String, u64>,
+    /// Cumulative extension sizes discovered so far (extension -> total bytes)
+    pub extension_sizes: HashMap<String, u64>,
+    /// Cumulative category sizes discovered so far (category name -> total bytes)
+    pub category_sizes: HashMap<String, u64>,
+}
+
+/// Map a file extension to a high-level storage category.
+/// This mirrors the FILE_CATEGORIES mapping in space_analyzer_pro_desktop::category
+/// but is kept here so shared-scanner can compute categories without depending
+/// on the main crate.
+fn extension_to_category(ext: &str) -> &'static str {
+    match ext {
+        "txt" | "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "odt" | "ods"
+        | "odp" | "rtf" | "md" | "csv" => "Documents",
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "svg" | "webp" | "ico" | "tiff" | "tif" => {
+            "Images"
+        }
+        "mp4" | "avi" | "mkv" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpeg" | "mpg" => {
+            "Videos"
+        }
+        "mp3" | "wav" | "flac" | "aac" | "ogg" | "wma" | "m4a" => "Audio",
+        "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "iso" | "cab" => "Archives",
+        "js" | "ts" | "py" | "java" | "c" | "cpp" | "h" | "hpp" | "cs" | "go" | "rs" | "php" | "rb"
+        | "swift" | "kt" | "scala" | "html" | "css" | "scss" | "sass" | "less" | "json" | "xml"
+        | "yaml" | "yml" => "Code",
+        "db" | "sqlite" | "sql" | "mdb" | "accdb" => "Databases",
+        "exe" | "msi" | "bat" | "cmd" | "sh" | "ps1" | "app" | "dmg" | "deb" | "rpm" => {
+            "Executables"
+        }
+        "dll" | "sys" | "drv" | "fon" | "ttf" | "otf" | "log" | "tmp" => "System",
+        "gradle" | "maven" | "node_modules" | "venv" | "env" | "dist" | "build" => "Development",
+        "sav" | "save" | "game" => "Games",
+        "" => "Other",
+        _ => "Other",
+    }
 }
 
 /// Scan result structure
@@ -52,6 +89,9 @@ pub struct ScanResult {
     pub subdirectories: Vec<DirInfo>,
     /// Map of scanned file paths to (size, mtime_unix) for incremental caching
     pub scanned_files: HashMap<String, (u64, i64)>,
+    /// Storage usage by high-level category (populated alongside file_types during scan)
+    #[serde(default)]
+    pub category_sizes: HashMap<String, u64>,
 }
 
 /// Per-directory aggregate information
@@ -241,6 +281,7 @@ impl FileScanner {
             errors: Vec::new(),
             subdirectories: Vec::new(),
             scanned_files: HashMap::new(),
+            category_sizes: HashMap::new(),
         };
 
         // Use physical cores for I/O-bound parallelism (hyperthreads add overhead).
@@ -471,6 +512,7 @@ impl FileScanner {
             errors: Vec::new(),
             subdirectories: Vec::new(),
             scanned_files: HashMap::new(),
+            category_sizes: HashMap::new(),
         };
 
         // ── Phase 1: I/O-bound directory traversal (CPU only) ──
@@ -639,6 +681,7 @@ impl FileScanner {
             errors: Vec::new(),
             subdirectories: Vec::new(),
             scanned_files: HashMap::new(),
+            category_sizes: HashMap::new(),
         };
 
         let mut raw_entries: Vec<gpu_compute::scan::RawFileEntry> = Vec::new();
@@ -647,6 +690,9 @@ impl FileScanner {
         let mut dirs_scanned: u64 = 0;
         let mut current_size: u64 = 0;
         let mut scanned_files = HashMap::new();
+        let mut file_type_counts: HashMap<String, u64> = HashMap::new();
+        let mut extension_sizes_acc: HashMap<String, u64> = HashMap::new();
+        let mut category_sizes_acc: HashMap<String, u64> = HashMap::new();
 
         let mut walker = WalkDir::new(path);
         if let Some(depth) = options.max_depth {
@@ -714,6 +760,7 @@ impl FileScanner {
                 result.total_directories =
                     raw_entries.iter().filter(|e| e.is_dir).count() as u64;
                 result.scanned_files = scanned_files;
+                result.category_sizes = category_sizes_acc.clone();
 
                 let pct = if total_estimate > 0 {
                     ((entries_processed as f32 / total_estimate as f32) * 100.0).min(99.0)
@@ -729,6 +776,9 @@ impl FileScanner {
                         percentage: pct,
                         completed: true,
                         live_files: live_files.clone(),
+                        file_type_counts: file_type_counts.clone(),
+                        extension_sizes: extension_sizes_acc.clone(),
+                        category_sizes: category_sizes_acc.clone(),
                     });
                 }));
 
@@ -780,6 +830,11 @@ impl FileScanner {
                                     .unwrap_or("")
                                     .to_lowercase();
 
+                                *file_type_counts.entry(ext.clone()).or_insert(0) += 1;
+                                *extension_sizes_acc.entry(ext.clone()).or_insert(0) += cached_size;
+                                let cat = extension_to_category(&ext);
+                                *category_sizes_acc.entry(cat.to_string()).or_insert(0) += cached_size;
+
                                 let file_info = FileInfo {
                                     path: path_str.clone(),
                                     name: p
@@ -823,6 +878,9 @@ impl FileScanner {
                                             percentage: pct,
                                             completed: false,
                                             live_files: live_files.clone(),
+                                            file_type_counts: file_type_counts.clone(),
+                                            extension_sizes: extension_sizes_acc.clone(),
+                                            category_sizes: category_sizes_acc.clone(),
                                         });
                                     }));
                             }
@@ -850,6 +908,17 @@ impl FileScanner {
 
             // Live file updates for real-time visibility
             if !is_dir {
+                let ext = entry_path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+
+                *file_type_counts.entry(ext.clone()).or_insert(0) += 1;
+                *extension_sizes_acc.entry(ext.clone()).or_insert(0) += size;
+                let cat = extension_to_category(&ext);
+                *category_sizes_acc.entry(cat.to_string()).or_insert(0) += size;
+
                 let file_info = FileInfo {
                     path: path_str.clone(),
                     name: entry_path
@@ -865,11 +934,7 @@ impl FileScanner {
                             .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
                     ),
                     file_type: "file".to_string(),
-                    extension: entry_path
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .unwrap_or("")
-                        .to_lowercase(),
+                    extension: ext,
                 };
                 live_files.push(file_info.clone());
 
@@ -901,6 +966,9 @@ impl FileScanner {
                         percentage: pct,
                         completed: false,
                         live_files: live_files.clone(),
+                        file_type_counts: file_type_counts.clone(),
+                        extension_sizes: extension_sizes_acc.clone(),
+                        category_sizes: category_sizes_acc.clone(),
                     });
                 }));
             }
@@ -923,6 +991,10 @@ impl FileScanner {
             scanned_files,
         );
 
+        // Copy CPU accumulators into the result so callers (e.g. the CLI
+        // --stream path) can serialize category_sizes in the complete event.
+        result.category_sizes = category_sizes_acc.clone();
+
         // Final progress update
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             progress_callback(ScanProgress {
@@ -933,6 +1005,9 @@ impl FileScanner {
                 percentage: 100.0,
                 completed: true,
                 live_files,
+                file_type_counts,
+                extension_sizes: extension_sizes_acc,
+                category_sizes: category_sizes_acc,
             });
         }));
 
@@ -965,6 +1040,7 @@ impl FileScanner {
             errors: Vec::new(),
             subdirectories: Vec::new(),
             scanned_files: HashMap::new(),
+            category_sizes: HashMap::new(),
         };
 
         let callback = progress_callback.clone();
@@ -1092,19 +1168,22 @@ impl FileScanner {
                             let total_size = current_size_clone.load(Ordering::Relaxed);
                             let current_total = total_estimate_clone.load(Ordering::Relaxed);
 
-                            let progress = ScanProgress {
-                                files_scanned,
-                                directories_scanned,
-                                total_size,
-                                current_file: path_str.clone(),
-                                percentage: if current_total > 0 {
-                                    ((processed as f32 / current_total as f32) * 100.0).min(99.0)
-                                } else {
-                                    0.0
-                                },
-                                completed: false,
-                                live_files: Vec::new(),
-                            };
+            let progress = ScanProgress {
+                files_scanned,
+                directories_scanned,
+                total_size,
+                current_file: path_str.clone(),
+                percentage: if current_total > 0 {
+                    ((processed as f32 / current_total as f32) * 100.0).min(99.0)
+                } else {
+                    0.0
+                },
+                completed: false,
+                live_files: Vec::new(),
+                file_type_counts: HashMap::new(),
+                extension_sizes: HashMap::new(),
+                category_sizes: HashMap::new(),
+            };
 
                             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                                 callback(progress);
@@ -1204,6 +1283,9 @@ impl FileScanner {
                 },
                 completed: false,
                 live_files: Vec::new(),
+                file_type_counts: HashMap::new(),
+                extension_sizes: HashMap::new(),
+                category_sizes: HashMap::new(),
             };
 
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -1221,6 +1303,9 @@ impl FileScanner {
                 percentage: 100.0,
                 completed: true,
                 live_files: Vec::new(),
+                file_type_counts: HashMap::new(),
+                extension_sizes: HashMap::new(),
+                category_sizes: HashMap::new(),
             };
 
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

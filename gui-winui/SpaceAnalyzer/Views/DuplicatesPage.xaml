@@ -48,9 +48,8 @@
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"/>
 
                 <!-- Results -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="Analysis Results" FontSize="18" FontWeight="SemiBold"/>
+                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}"> <StackPanel Spacing="16">
+                         <TextBlock Text="Analysis Results" FontSize="18" FontWeight="SemiBold"/>
 
                         <!-- Summary Stats -->
                         <Grid ColumnSpacing="24">
@@ -95,10 +94,10 @@
                                                 <Run Text="{x:Bind WastedDisplay, Mode=OneTime}"/>
                                                 <Run Text=" wasted"/>
                                             </TextBlock>
-                                            <ItemsRepeater ItemsSource="{x:Bind Files, Mode=OneTime}">
-                                                <ItemsRepeater.ItemTemplate>
-                                                    <DataTemplate x:DataType="x:String">
-                                                        <TextBlock FontSize="13" Opacity="0.7" Text="{x:Bind}" TextTrimming="CharacterEllipsis" Margin="0,4"/>
+                                             <ItemsRepeater ItemsSource="{x:Bind Files, Mode=OneTime}">
+                                                 <ItemsRepeater.ItemTemplate>
+                                                     <DataTemplate x:DataType="x:String">
+                                                         <TextBlock FontSize="13" Opacity="0.7" Text="{x:Bind}" TextTrimming="CharacterEllipsis" Margin="0,4"/>
                                                     </DataTemplate>
                                                 </ItemsRepeater.ItemTemplate>
                                             </ItemsRepeater>

@@ -40,6 +40,7 @@ fn scan_result_defaults_are_zeroed() {
         errors: Vec::new(),
         subdirectories: Vec::new(),
         scanned_files: std::collections::HashMap::new(),
+        category_sizes: std::collections::HashMap::new(),
     };
     say!("   Files: {} | Dirs: {} | Size: {} bytes", r.total_files, r.total_directories, r.total_size);
     say!("   Maps empty: file_types={}, extension_sizes={}, size_distribution={}",

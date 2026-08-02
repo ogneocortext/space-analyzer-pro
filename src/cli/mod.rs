@@ -37,12 +37,13 @@ pub fn main() -> AppResult<()> {
             report,
             clean,
             cleanup_recommendations,
-            trace_origins,
+             trace_origins,
             ref channel,
             ref ask,
             shallow,
             threads,
             cache,
+            stream,
         } => handle_scan(
             path,
             verbose,
@@ -61,6 +62,7 @@ pub fn main() -> AppResult<()> {
             shallow,
             threads,
             cache,
+            stream,
             output_format,
             top_n,
             no_anim,
@@ -92,6 +94,7 @@ fn handle_scan(
     shallow: bool,
     threads: usize,
     cache: bool,
+    stream: bool,
     output_format: String,
     top_n: usize,
     no_anim: bool,
@@ -144,20 +147,23 @@ fn handle_scan(
         include_hidden,
         threads,
         cache,
+        stream,
     )?;
 
-    if output_format == "text" && !no_anim {
+    if output_format == "text" && !no_anim && !stream {
         animation::print_completion_animation(result.duration_secs);
     }
 
-    output_results(
-        &output_format,
-        &result,
-        &path,
-        top_n,
-        no_anim,
-        depth_label(effective_deep, effective_shallow, effective_max_depth),
-    )?;
+    if !stream {
+        output_results(
+            &output_format,
+            &result,
+            &path,
+            top_n,
+            no_anim,
+            depth_label(effective_deep, effective_shallow, effective_max_depth),
+        )?;
+    }
 
     if let Some(channel_dir) = channel {
         let payload = serde_json::json!({

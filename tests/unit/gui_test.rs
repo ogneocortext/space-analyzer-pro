@@ -83,6 +83,7 @@ fn scan_result_from_shared_converts_fields() {
         errors: vec![],
         subdirectories: vec![],
         scanned_files: HashMap::new(),
+        category_sizes: HashMap::new(),
     };
     say!("   Input: {} files, {} dirs, {} bytes", shared.total_files, shared.total_directories, shared.total_size);
     let result = ScanResult::from_shared(&shared, "/tmp".into(), 1.0);

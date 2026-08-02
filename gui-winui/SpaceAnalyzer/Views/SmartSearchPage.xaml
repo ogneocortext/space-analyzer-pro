@@ -1,4 +1,4 @@
-﻿<Page
+<Page
     x:Class="SpaceAnalyzer.Views.SmartSearchPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -96,9 +96,8 @@
                 <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1" CornerRadius="8" Padding="20"
-                        Visibility="{x:Bind VM.HasResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" FontSize="16" FontWeight="SemiBold"/>
+                        Visibility="{x:Bind VM.HasResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}"> <StackPanel Spacing="12">
+                         <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" FontSize="16" FontWeight="SemiBold"/>
                         <TextBlock Text="results found" FontSize="14" Opacity="0.8"/>
 
                         <ItemsRepeater ItemsSource="{x:Bind VM.Results, Mode=OneWay}">

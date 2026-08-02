@@ -1,6 +1,58 @@
 use space_analyzer_pro_desktop::gui_common;
 pub use gui_common::{DirEntry, ScanResult};
 
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// A single file info entry for streaming.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileInfoStreaming {
+    pub path: String,
+    pub name: String,
+    pub size: u64,
+    pub extension: String,
+}
+
+/// Event emitted on stdout when --stream is active.
+///
+/// - "progress" lines carry cumulative scan stats and a batch of live files.
+/// - "complete" lines carry the final [ScanResult] fields (minus scanned_files
+///   which are not needed on the frontend).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum StreamEvent {
+    Progress {
+        files_scanned: u64,
+        directories_scanned: u64,
+        total_size: u64,
+        percentage: f32,
+        current_file: String,
+        live_files: Vec<FileInfoStreaming>,
+        /// Cumulative file-type counts (extension -> file count), updated in real time
+        file_types: HashMap<String, u64>,
+        /// Cumulative extension sizes (extension -> total bytes), updated in real time
+        extension_sizes: HashMap<String, u64>,
+        /// Cumulative category sizes (category name -> total bytes), updated in real time
+        category_sizes: HashMap<String, u64>,
+    },
+    Complete {
+        total_files: usize,
+        total_size_bytes: u64,
+        total_size_mb: f64,
+        duration_secs: f64,
+        file_types: std::collections::HashMap<String, usize>,
+        extension_sizes: std::collections::HashMap<String, u64>,
+        largest_files: Vec<gui_common::LargestFileEntry>,
+        errors: Vec<String>,
+        path: String,
+        total_dirs: u64,
+        top_directories: Vec<DirEntry>,
+        empty_dirs: Vec<String>,
+        /// Storage usage by high-level category (name -> total bytes)
+        category_sizes: std::collections::HashMap<String, u64>,
+    },
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DiskInfo {
     pub mount_point: String,

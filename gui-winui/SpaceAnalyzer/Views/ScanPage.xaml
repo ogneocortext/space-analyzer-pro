@@ -91,45 +91,44 @@
                             IsEnabled="{x:Bind VM.HasResult, Mode=OneWay}"/>
                 </Grid>
 
-                <!-- Status + Progress -->
-                <StackPanel Spacing="8" Visibility="{x:Bind VM.IsScanningVisibility, Mode=OneWay}">
-                    <ProgressBar Value="{x:Bind VM.ScanProgress, Mode=OneWay}" Maximum="100" Height="4">
-                        <ProgressBar.Transitions>
-                            <TransitionCollection>
-                                <EntranceThemeTransition/>
-                            </TransitionCollection>
-                        </ProgressBar.Transitions>
-                    </ProgressBar>
-                    <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"/>
-                </StackPanel>
-                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"
-                           Visibility="{x:Bind VM.IsNotScanningVisibility, Mode=OneWay}"/>
+                 <!-- Status + Progress -->
+                 <StackPanel Spacing="8" Visibility="{x:Bind VM.IsScanningVisibility, Mode=OneWay}">
+                     <ProgressBar Value="{x:Bind VM.ScanProgress, Mode=OneWay}" Maximum="100" Height="4"> </ProgressBar>
+                     <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"/>
+                 </StackPanel>
+                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"
+                            Visibility="{x:Bind VM.IsNotScanningVisibility, Mode=OneWay}"/>
 
-                <!-- Scan Errors -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasScanErrors, Mode=OneWay}">
-                    <StackPanel Spacing="8">
-                        <TextBlock Text="Scan Errors" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlErrorTextBrush}"/>
-                        <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
-                            <ItemsRepeater ItemsSource="{x:Bind VM.ScanErrors, Mode=OneWay}">
-                                <ItemsRepeater.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}" FontSize="12" Foreground="{ThemeResource SystemControlErrorTextBrush}" TextWrapping="WrapWholeWords"/>
-                                    </DataTemplate>
-                                </ItemsRepeater.ItemTemplate>
-                            </ItemsRepeater>
-                        </ScrollViewer>
-                    </StackPanel>
-                </Border>
+                 <!-- Scan Errors -->
+                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasScanErrors, Mode=OneWay}"> <StackPanel Spacing="8">
+                         <TextBlock Text="Scan Errors" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlErrorTextBrush}"/>
+                         <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+                             <ItemsRepeater ItemsSource="{x:Bind VM.ScanErrors, Mode=OneWay}">
+                                 <ItemsRepeater.ItemTemplate>
+                                     <DataTemplate>
+                                         <TextBlock Text="{Binding}" FontSize="12" Foreground="{ThemeResource SystemControlErrorTextBrush}" TextWrapping="WrapWholeWords"/>
+                                     </DataTemplate>
+                                 </ItemsRepeater.ItemTemplate>
+                             </ItemsRepeater>
+                         </ScrollViewer>
+                     </StackPanel>
+                 </Border>
 
-                <!-- Results -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
-                    <Border.Transitions>
-                        <TransitionCollection>
-                            <EntranceThemeTransition/>
-                        </TransitionCollection>
-                    </Border.Transitions>
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="Scan Results" FontSize="18" FontWeight="SemiBold"/>
+                <!-- Results (visible during streaming and after completion) -->
+                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasActiveResultVisibility, Mode=OneWay}">
+                     <Border.Transitions>
+                         <TransitionCollection>
+                             <EntranceThemeTransition/>
+                         </TransitionCollection>
+                     </Border.Transitions>
+                     <StackPanel Spacing="16">
+                         <TextBlock Text="Scan Results" FontSize="18" FontWeight="SemiBold"/>
+
+                         <!-- Show "Live streaming" label when active -->
+                         <TextBlock Text="{x:Bind VM.LiveFilesDisplay, Mode=OneWay}"
+                                    FontSize="12"
+                                    Opacity="0.6"
+                                    Visibility="{x:Bind VM.IsStreaming, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
 
                         <Grid ColumnSpacing="24">
                             <Grid.ColumnDefinitions>
@@ -180,26 +179,47 @@
 
                         <!-- File Type Distribution -->
                         <TextBlock Text="File Type Distribution" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0"/>
-                        <ItemsRepeater ItemsSource="{x:Bind VM.FileTypes, Mode=OneWay}">
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="models:FileTypeDistribution">
-                                    <StackPanel Spacing="4" Margin="0,4">
-                                        <Grid ColumnSpacing="8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" FontSize="12" FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                            <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Height="4" Margin="8,0"/>
-                                            <TextBlock Grid.Column="2" Text="{x:Bind CountDisplay, Mode=OneTime}" FontSize="12" Opacity="0.8"/>
-                                        </Grid>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsRepeater.ItemTemplate>
-                        </ItemsRepeater>
+                         <ItemsRepeater ItemsSource="{x:Bind VM.FileTypes, Mode=OneWay}">
+                             <ItemsRepeater.ItemTemplate>
+                                 <DataTemplate x:DataType="models:FileTypeDistribution">
+                                     <StackPanel Spacing="4" Margin="0,4">
+                                         <Grid ColumnSpacing="8">
+                                             <Grid.ColumnDefinitions>
+                                                 <ColumnDefinition Width="Auto"/>
+                                                 <ColumnDefinition Width="*"/>
+                                                 <ColumnDefinition Width="Auto"/>
+                                             </Grid.ColumnDefinitions>
+                                             <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" FontSize="12" FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                             <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Height="4" Margin="8,0"/>
+                                             <TextBlock Grid.Column="2" Text="{x:Bind CountDisplay, Mode=OneTime}" FontSize="12" Opacity="0.8"/>
+                                         </Grid>
+                                     </StackPanel>
+                                 </DataTemplate>
+                             </ItemsRepeater.ItemTemplate>
+                     </ItemsRepeater>
 
-                        <!-- Largest Files -->
+                         <!-- Category Distribution -->
+                         <TextBlock Text="Storage by Category" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0"/>
+                          <ItemsRepeater ItemsSource="{x:Bind VM.CategoryDistributions, Mode=OneWay}">
+                              <ItemsRepeater.ItemTemplate>
+                                  <DataTemplate x:DataType="models:FileTypeDistribution">
+                                      <StackPanel Spacing="4" Margin="0,4">
+                                          <Grid ColumnSpacing="8">
+                                              <Grid.ColumnDefinitions>
+                                                  <ColumnDefinition Width="Auto"/>
+                                                  <ColumnDefinition Width="*"/>
+                                                  <ColumnDefinition Width="Auto"/>
+                                              </Grid.ColumnDefinitions>
+                                              <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" FontSize="12" FontWeight="SemiBold"/>
+                                              <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Height="4" Margin="8,0"/>
+                                              <TextBlock Grid.Column="2" Text="{x:Bind SizeDisplay, Mode=OneTime}" FontSize="12" Opacity="0.8"/>
+                                          </Grid>
+                                      </StackPanel>
+                                  </DataTemplate>
+                              </ItemsRepeater.ItemTemplate>
+                          </ItemsRepeater>
+
+                         <!-- Largest Files -->
                         <TextBlock Text="Largest Files" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0"/>
                         <Grid ColumnSpacing="8" Margin="0,4">
                             <Grid.ColumnDefinitions>
@@ -209,37 +229,37 @@
                             <TextBox Grid.Column="0" Text="{x:Bind VM.LargestFilesFilter, Mode=TwoWay}" PlaceholderText="Filter by filename or path..." FontSize="12"/>
                             <Button Grid.Column="1" Content="Clear" Click="ClearFilter_Click" Padding="8,4" FontSize="12" Visibility="{x:Bind VM.HasLargestFilesFilter, Mode=OneWay}"/>
                         </Grid>
-                        <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
-                            <ItemsRepeater ItemsSource="{x:Bind VM.FilteredLargestFiles, Mode=OneWay}">
-                                <ItemsRepeater.ItemTemplate>
-                                    <DataTemplate x:DataType="models:FileSizeEntry">
-                                        <Grid ColumnSpacing="8" Margin="0,4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{x:Bind SizeDisplay, Mode=OneTime}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
-                                            <TextBlock Grid.Column="1" Text="{x:Bind Path, Mode=OneTime}" FontSize="12" TextTrimming="CharacterEllipsis" Opacity="0.8"/>
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
-                                                <Button Content="Open" Click="OpenFile_Click" Padding="4,2" FontSize="11" Tag="{x:Bind Path}"/>
-                                                <Button Content="Folder" Click="OpenFolder_Click" Padding="4,2" FontSize="11" Tag="{x:Bind Path}"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsRepeater.ItemTemplate>
-                            </ItemsRepeater>
-                        </ScrollViewer>
+                         <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
+                             <ItemsRepeater ItemsSource="{x:Bind VM.FilteredLargestFiles, Mode=OneWay}">
+                                 <ItemsRepeater.ItemTemplate>
+                                     <DataTemplate x:DataType="models:FileSizeEntry">
+                                         <Grid ColumnSpacing="8" Margin="0,4">
+                                             <Grid.ColumnDefinitions>
+                                                 <ColumnDefinition Width="Auto"/>
+                                                 <ColumnDefinition Width="*"/>
+                                                 <ColumnDefinition Width="Auto"/>
+                                             </Grid.ColumnDefinitions>
+                                             <TextBlock Grid.Column="0" Text="{x:Bind SizeDisplay, Mode=OneTime}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+                                             <TextBlock Grid.Column="1" Text="{x:Bind Path, Mode=OneTime}" FontSize="12" TextTrimming="CharacterEllipsis" Opacity="0.8"/>
+                                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                                                 <Button Content="Open" Click="OpenFile_Click" Padding="4,2" FontSize="11" Tag="{x:Bind Path}"/>
+                                                 <Button Content="Folder" Click="OpenFolder_Click" Padding="4,2" FontSize="11" Tag="{x:Bind Path}"/>
+                                             </StackPanel>
+                                         </Grid>
+                                     </DataTemplate>
+                                 </ItemsRepeater.ItemTemplate>
+                             </ItemsRepeater>
+                         </ScrollViewer>
 
                         <!-- Top Directories -->
                         <TextBlock Text="Largest Directories" FontSize="14" FontWeight="SemiBold" Margin="0,16,0,0"/>
-                        <ItemsRepeater ItemsSource="{x:Bind VM.TopDirectories, Mode=OneWay}">
-                            <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="12"/>
-                            </ItemsRepeater.Layout>
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="models:DirEntry">
-                                    <StackPanel Spacing="8" Margin="0,8">
+                         <ItemsRepeater ItemsSource="{x:Bind VM.TopDirectories, Mode=OneWay}">
+                             <ItemsRepeater.Layout>
+                                 <StackLayout Orientation="Vertical" Spacing="12"/>
+                             </ItemsRepeater.Layout>
+                             <ItemsRepeater.ItemTemplate>
+                                 <DataTemplate x:DataType="models:DirEntry">
+                                     <StackPanel Spacing="8" Margin="0,8">
                                         <TextBlock FontSize="13" Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
                                         <TextBlock FontSize="12" Opacity="0.8">
                                             <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>

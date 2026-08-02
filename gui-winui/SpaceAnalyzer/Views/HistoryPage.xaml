@@ -32,16 +32,15 @@
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"/>
 
                  <!-- History List -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}">
-                    <StackPanel Spacing="12">
-                        <TextBlock Text="Recent Scans" FontSize="16" FontWeight="SemiBold"/>
-                        <ItemsRepeater ItemsSource="{x:Bind VM.History, Mode=OneWay}">
-                            <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="12"/>
-                            </ItemsRepeater.Layout>
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="models:ScanHistoryRecord">
-                                    <Border Padding="16" CornerRadius="6" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}"> <StackPanel Spacing="12">
+                         <TextBlock Text="Recent Scans" FontSize="16" FontWeight="SemiBold"/>
+                         <ItemsRepeater ItemsSource="{x:Bind VM.History, Mode=OneWay}">
+                             <ItemsRepeater.Layout>
+                                 <StackLayout Orientation="Vertical" Spacing="12"/>
+                             </ItemsRepeater.Layout>
+                             <ItemsRepeater.ItemTemplate>
+                                 <DataTemplate x:DataType="models:ScanHistoryRecord">
+                                     <Border Padding="16" CornerRadius="6" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                                         <StackPanel Spacing="8">
                                             <TextBlock FontSize="14" FontWeight="SemiBold" Text="{x:Bind Path, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
                                             <StackPanel Orientation="Horizontal" Spacing="24" Opacity="0.8">
