@@ -86,25 +86,25 @@ The CLI uses subcommands for structured JSON output (used by the WinUI 3 GUI):
 
 ```bash
 # Basic scan
-cargo run --bin space-analyzer-pro -- scan --path . --verbose
+cargo run --bin space-analyzer-cli -- scan --path . --verbose
 
 # Export results to JSON
-cargo run --bin space-analyzer-pro -- scan --path . --export results.json
+cargo run --bin space-analyzer-cli -- scan --path . --export results.json
 
 # Deep scan with extended metadata
-cargo run --bin space-analyzer-pro -- scan --path . --deep
+cargo run --bin space-analyzer-cli -- scan --path . --deep
 
 # Show disk space info — prints a JSON array of every mounted volume
 # (the --path arg is accepted but ignored in JSON output)
-cargo run --bin space-analyzer-pro -- disk-info --format json
+cargo run --bin space-analyzer-cli -- disk-info --format json
 # Example: [{"mount_point":"C:\\","label":"SSD","file_system":"NTFS",
 #   "total_bytes":...,"used_bytes":...,"available_bytes":...,"usage_percent":64.6}]
 
 # Show scan history
-cargo run --bin space-analyzer-pro -- history --limit 10
+cargo run --bin space-analyzer-cli -- history --limit 10
 
 # Run duplicate-file analysis
-cargo run --bin space-analyzer-pro -- dedup --path .
+cargo run --bin space-analyzer-cli -- dedup --path .
 
 # Global flags (apply to all subcommands)
 --format {text,json,csv,jsonl,md}  Output format (default: text)

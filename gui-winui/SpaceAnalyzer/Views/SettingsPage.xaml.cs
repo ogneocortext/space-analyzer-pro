@@ -28,6 +28,11 @@ public sealed partial class SettingsPage : Page
         ((ViewModels.SettingsViewModel)DataContext).Save();
     }
 
+    private async void TestOllama_Click(object sender, RoutedEventArgs e)
+    {
+        await ((ViewModels.SettingsViewModel)DataContext).TestOllamaConnectionAsync();
+    }
+
     private void Reset_Click(object sender, RoutedEventArgs e)
     {
         ((ViewModels.SettingsViewModel)DataContext).ResetToDefaults();

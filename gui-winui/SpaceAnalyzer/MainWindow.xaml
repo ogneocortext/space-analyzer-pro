@@ -72,9 +72,15 @@
             </NavigationViewItem>
         </NavigationView.FooterMenuItems>
 
-        <Grid>
-            <Frame x:Name="ContentFrame" />
-        </Grid>
+<Grid>
+             <Frame x:Name="ContentFrame">
+                 <Frame.ContentTransitions>
+                     <TransitionCollection>
+                         <NavigationThemeTransition/>
+                     </TransitionCollection>
+                 </Frame.ContentTransitions>
+             </Frame>
+         </Grid>
 
     </NavigationView>
 </Window>

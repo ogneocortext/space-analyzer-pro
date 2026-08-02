@@ -83,7 +83,7 @@ build-gui:
 
 # Build CLI binary only
 build-cli:
-    cargo build --bin space-analyzer-pro
+    cargo build --bin space-analyzer-cli
 
 # ──────────────────────────────────────────────────────────────
 #  Test
@@ -165,11 +165,11 @@ run-gui:
 
 # Run the CLI scanner
 run-cli:
-    cargo run --bin space-analyzer-pro
+    cargo run --bin space-analyzer-cli
 
 # Scan a directory (headless CLI mode)
 run-cli-scan PATH:
-    cargo run --bin space-analyzer-pro -- --scan {{PATH}}
+    cargo run --bin space-analyzer-cli -- --scan {{PATH}}
 
 # ──────────────────────────────────────────────────────────────
 #  Release
@@ -180,7 +180,7 @@ package:
     @echo "Building release..."
     cargo build --workspace --release
     @echo "Creating package..."
-    @powershell -Command "$v = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version; $z = \"space-analyzer-pro-$v-windows-x64.zip\"; if (Test-Path $z) { Remove-Item $z }; 	Compress-Archive -Path 'gui-egui/target/release/space-analyzer-gui.exe','target/release/space-analyzer-pro.exe' -DestinationPath $z; echo \"Package: $z\""
+    @powershell -Command "$v = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version; $z = \"space-analyzer-cli-$v-windows-x64.zip\"; if (Test-Path $z) { Remove-Item $z }; 	Compress-Archive -Path 'gui-egui/target/release/space-analyzer-gui.exe','target/release/space-analyzer-cli.exe' -DestinationPath $z; echo \"Package: $z\""
 
 # Run criterion benchmarks
 bench:
@@ -296,16 +296,16 @@ package-full: build-release
 	@$ErrorActionPreference='SilentlyContinue'; if (Test-Path dist) { Remove-Item dist -Recurse -Force }
 	New-Item -ItemType Directory -Path dist -Force | Out-Null
 	$v = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version
-	$out = "dist/space-analyzer-pro-$v-windows-x64"
+	$out = "dist/space-analyzer-cli-$v-windows-x64"
 	New-Item -ItemType Directory -Path "$out/bin" -Force | Out-Null
 	Copy-Item "gui-egui/target/release/space-analyzer-gui.exe" "$out/bin/"
-	Copy-Item "target/release/space-analyzer-pro.exe" "$out/bin/"
+	Copy-Item "target/release/space-analyzer-cli.exe" "$out/bin/"
 	if (Test-Path "target/release/*.dll") { Copy-Item "target/release/*.dll" "$out/bin/" }
 	New-Item -ItemType Directory -Path "$out/docs" -Force | Out-Null
 	Copy-Item docs/* "$out/docs/" -Recurse -ErrorAction SilentlyContinue
 	Set-Content -LiteralPath "$out/README.txt" -Value "Space Analyzer Pro v$v`nRun bin/space-analyzer-gui.exe`nDocs in docs/`n"
-	Compress-Archive -Path "$out/*" -DestinationPath "dist/space-analyzer-pro-$v-windows-x64.zip"
-	@echo "Package ready: dist/space-analyzer-pro-$v-windows-x64.zip"
+	Compress-Archive -Path "$out/*" -DestinationPath "dist/space-analyzer-cli-$v-windows-x64.zip"
+	@echo "Package ready: dist/space-analyzer-cli-$v-windows-x64.zip"
 
 # Disable Defender false-positive warnings on target/
 defender-exclude:

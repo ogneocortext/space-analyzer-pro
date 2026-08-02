@@ -45,7 +45,7 @@ just verify
 
 ```bash
 # Run the Rust CLI
-cargo run --bin space-analyzer-pro -- scan --path . --format json
+cargo run --bin space-analyzer-cli -- scan --path . --format json
 
 # Run the egui GUI (legacy)
 cargo run -p space-analyzer-gui-egui
@@ -60,7 +60,7 @@ dotnet run --project gui-winui/SpaceAnalyzer
 ```
 space-analyzer-pro/
 ├── src/                        # Rust core library
-│   ├── main.rs                 # CLI binary (space-analyzer-pro)
+│   ├── main.rs                 # CLI binary (space-analyzer-cli)
 │   ├── ollama/                 # Ollama LLM client
 │   ├── database/               # SQLite database layer
 │   ├── workflows/              # Analysis workflow engine

@@ -44,9 +44,12 @@ public class ModuleInfo
     public string Path { get; set; } = string.Empty;
     public ulong Size { get; set; }
     public ulong FileCount { get; set; }
+    public ulong DirectoryCount { get; set; }
     public DateTime? LastModified { get; set; }
     public string? PackageName { get; set; }
     public string? Version { get; set; }
+    public string? CleanupReason { get; set; }
+    public RiskLevel RiskLevel { get; set; }
     public string SizeDisplay => ByteFormatter.FormatBytes(Size);
     public string LastModifiedDisplay => LastModified.HasValue
         ? LastModified.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")

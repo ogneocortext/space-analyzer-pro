@@ -106,6 +106,14 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     public Microsoft.UI.Xaml.Visibility IsScanningVisibility => _isScanning ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public Microsoft.UI.Xaml.Visibility IsNotScanningVisibility => _isScanning ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
 
+    private double _scanProgress;
+    public double ScanProgress
+    {
+        get => _scanProgress;
+        set { _scanProgress = value; OnPropertyChanged(); OnPropertyChanged(nameof(ScanProgressDisplay)); }
+    }
+    public string ScanProgressDisplay => $"{ScanProgress:F0}%";
+
     private string _statusMessage = "Ready to scan";
     public string StatusMessage
     {
@@ -266,14 +274,17 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         {
             IsScanning = true;
             StatusMessage = "Scanning...";
+            ScanProgress = 0;
             LastResult = null;
+
+            var progress = new Progress<double>(pct => { ScanProgress = pct; });
 
             var result = await _scanner.ScanDirectoryAsync(
                 ScanPath,
                 depthMode: SelectedDepthMode,
                 maxDepth: MaxDepth,
                 includeHidden: IncludeHidden,
-                progress: null,
+                progress: progress,
                 ct);
 
             LastResult = result;
@@ -299,6 +310,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         finally
         {
             IsScanning = false;
+            ScanProgress = 0;
         }
     }
 
@@ -321,6 +333,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _scanner.StopScan();
         GC.SuppressFinalize(this);
     }
 

@@ -107,6 +107,17 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
     public string GpuUsageDisplay => $"{GpuUsage:F0}%";
     public SolidColorBrush GpuBrush => UiHelper.GetUsageBrush(GpuUsage);
 
+    // ── Historical data for charts ──
+
+    private const int MaxHistoryPoints = 60;
+    private readonly List<double> _cpuHistory = new();
+    private readonly List<double> _memoryHistory = new();
+    private readonly List<double> _diskHistory = new();
+
+    public List<double> CpuHistory => _cpuHistory;
+    public List<double> MemoryHistory => _memoryHistory;
+    public List<double> DiskHistory => _diskHistory;
+
     // ── Disk (aggregated storage usage across all ready drives) ──
 
     private double _diskUsage;
@@ -118,7 +129,83 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
     public string DiskUsageDisplay => $"{DiskUsage:F0}%";
     public SolidColorBrush DiskBrush => UiHelper.GetUsageBrush(DiskUsage);
 
-    // ── Loading state ──
+    // ── Quick Scan ──
+
+    private string _quickScanPath = string.Empty;
+    public string QuickScanPath
+    {
+        get => _quickScanPath;
+        set { _quickScanPath = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsQuickScanning)); }
+    }
+
+    private bool _isQuickScanning;
+    public bool IsQuickScanning
+    {
+        get => _isQuickScanning;
+        set { _isQuickScanning = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsQuickScanning)); }
+    }
+
+    private string _quickScanStatus = "Ready";
+    public string QuickScanStatus
+    {
+        get => _quickScanStatus;
+        set { _quickScanStatus = value; OnPropertyChanged(); }
+    }
+
+    private string _quickScanResultText = string.Empty;
+    public string QuickScanResultText
+    {
+        get => _quickScanResultText;
+        set { _quickScanResultText = value; OnPropertyChanged(); }
+    }
+
+    private Visibility _quickScanResultVisibility = Visibility.Collapsed;
+    public Visibility QuickScanResultVisibility
+    {
+        get => _quickScanResultVisibility;
+        set { _quickScanResultVisibility = value; OnPropertyChanged(); }
+    }
+
+    public async Task QuickScanAsync()
+    {
+        if (IsQuickScanning || string.IsNullOrWhiteSpace(QuickScanPath) || !Directory.Exists(QuickScanPath))
+        {
+            QuickScanStatus = "Invalid path";
+            return;
+        }
+
+        IsQuickScanning = true;
+        QuickScanStatus = "Scanning...";
+        QuickScanResultText = string.Empty;
+        QuickScanResultVisibility = Visibility.Collapsed;
+
+        try
+        {
+            var result = await _scanner.ScanDirectoryAsync(QuickScanPath);
+            if (result != null)
+            {
+                QuickScanResultText = $"Scan complete: {result.TotalFiles:N0} files, {result.TotalSizeMb:F1} MB in {result.DurationSecs:F1}s";
+                TotalFiles = result.TotalFiles;
+                TotalSizeBytes = result.TotalSizeBytes;
+                ScanCount++;
+            }
+            else
+            {
+                QuickScanResultText = "Scan completed with no result.";
+            }
+            QuickScanStatus = "Ready";
+        }
+        catch (Exception ex)
+        {
+            QuickScanResultText = $"Scan failed: {ex.Message}";
+            QuickScanStatus = "Error";
+        }
+        finally
+        {
+            IsQuickScanning = false;
+            QuickScanResultVisibility = Visibility.Visible;
+        }
+    }
 
     private bool _isLoading;
     public bool IsLoading
@@ -211,7 +298,14 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
 
             if (UiHelper.GetMemoryStatus(out var memStatus))
             {
-                MemoryUsage = Math.Min(100, memStatus.dwMemoryLoad);
+                // Compute memory usage from physical memory values for granular,
+                // responsive updates instead of the coarse dwMemoryLoad metric.
+                if (memStatus.ullTotalPhys > 0)
+                {
+                    MemoryUsage = Math.Min(100,
+                        (double)(memStatus.ullTotalPhys - memStatus.ullAvailPhys) * 100.0
+                        / memStatus.ullTotalPhys);
+                }
             }
 
             // Aggregated storage usage across all ready drives (replaces the GPU placeholder)
@@ -223,6 +317,18 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
                 : 0;
 
             GpuUsage = 0;
+
+            // Store historical data points for time-series charts
+            _cpuHistory.Add(CpuUsage);
+            _memoryHistory.Add(MemoryUsage);
+            _diskHistory.Add(DiskUsage);
+            if (_cpuHistory.Count > MaxHistoryPoints) _cpuHistory.RemoveAt(0);
+            if (_memoryHistory.Count > MaxHistoryPoints) _memoryHistory.RemoveAt(0);
+            if (_diskHistory.Count > MaxHistoryPoints) _diskHistory.RemoveAt(0);
+
+            OnPropertyChanged(nameof(CpuHistory));
+            OnPropertyChanged(nameof(MemoryHistory));
+            OnPropertyChanged(nameof(DiskHistory));
         }
         catch
         {

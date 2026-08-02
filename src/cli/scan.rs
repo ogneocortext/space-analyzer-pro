@@ -1,9 +1,11 @@
-use shared_scanner::{FileScanner, ScanOptions};
+use shared_scanner::{FileScanner, ScanOptions, ScanProgress};
 use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::error::AppResult;
 use space_analyzer_pro_desktop::gui_common::LargestFileEntry;
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::Path;
+use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
 use super::types::{DirEntry, ScanResult};
@@ -19,7 +21,6 @@ pub fn scan_directory(
     min_size: Option<u64>,
     max_size: Option<u64>,
     include_hidden: bool,
-    _no_animation: bool,
     threads: usize,
     cache: bool,
 ) -> AppResult<ScanResult> {
@@ -83,7 +84,16 @@ pub fn scan_directory(
         ..depth_mode
     };
 
-    let shared_result = scanner.scan_directory_sync(path.to_str().unwrap_or("."), options)?;
+    let shared_result = scanner.scan_with_progress_sync(
+        path.to_str().unwrap_or("."),
+        options,
+        move |progress: ScanProgress| {
+            let json = serde_json::to_string(&progress).unwrap_or_default();
+            eprintln!("__PROGRESS__{json}");
+            let _ = std::io::stderr().flush();
+        },
+        &AtomicBool::new(false),
+    )?;
 
     if cache {
         if let Ok(db) = Database::default_open() {

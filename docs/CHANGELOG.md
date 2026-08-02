@@ -54,7 +54,31 @@
 - **Created `Helpers/Converters.cs`** with reusable visibility converters.
 - **Simplified `App.xaml.cs`** — removed broken `ApplySavedTheme()` method that used non-existent WinUI 3 APIs.
 
-### GUI — Complete Visual Redesign
+### Rust — CLI Refactor
+
+- **New `src/cli/render.rs`** — shared formatting module with helpers: `pct_of()`, `is_installer()`, `build_csv()`, `categorize_installers()`, `build_recommendations()`, plus text/markdown render functions for recommendations and installer inventory.
+- **`src/cli/types.rs`** — added `Recommendation`, `InstallerCategory`, `InstallerGroup` structs so installer classification and recommendations are typed.
+- **`src/cli/output.rs`** — deduplicated CSV generation and installer inventory rendering; now delegates to `render.rs` helpers instead of inline logic.
+- **`src/cli/report.rs`** — removed duplicated CSV generation, installer categorization, and recommendation building; all now use shared `render.rs` helpers.
+- **`src/cli/recommendations.rs`** — unified recommendation data model through `render::build_recommendations`; `print_cleanup_recommendations` retains its distinct logic.
+- **`src/cli/mod.rs`** — broke down the ~399-line `main()` into command handlers (`handle_scan`, `handle_disk_info`, `handle_history`, `output_results`, `run_ai_question`) and utilities (`depth_label`).
+- **`src/cli/scan.rs`** — removed unused `_no_animation` parameter.
+- All workspace tests verified passing after refactor.
+
+### Rust — Shared Scanner Cleanup
+
+- **Eliminated duplicate `format_bytes`** implementations across `main.rs`, `system_monitor.rs`, and `workflows/mod.rs`; single canonical `shared_scanner::format_bytes` used everywhere.
+- **Added `total_dirs` and `top_directories`** to `gui_common::ScanResult`; removed hardcoded empty arrays in database persistence.
+- **`shared-scanner/src/lib.rs`** — removed identity multiplication dead code; added `top_directories` reporting.
+
+### Rust — Build & Dependency Updates
+
+- **Fixed `Cargo.toml`** version and metadata for workspace alignment.
+- **Updated 30+ dependencies** across all 6 workspace crates.
+- **API migration**: rusqlite u64→i64 casts, sysinfo method renames, rand 0.9 API.
+- **All tests verified** — 179+ workspace tests pass cleanly.
+
+### GUI — Visual Redesign
 
 - **New unified design system** across all 8 GUI tabs (Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, System, Settings): layered near-black navy/slate surfaces, blue primary accent, green/amber/coral semantic colors, rounded cards with subtle borders, and an 8 px spacing system.
 - **`src/gui/colors.rs`** — added `BG_APP`, `BG_HEADER`, `SURFACE_1/2/3`, refined text colors, accent colors, and semantic colors; preserved legacy aliases; converted `ACCENT_SOFT` to a function because `Color32::from_rgba_unmultiplied` is not `const` in egui 0.34.
@@ -159,7 +183,7 @@
 
 ### Code Quality
 
-- **Fixed build**: `cargo build --bin space-analyzer-pro` compiles cleanly.
+- **Fixed build**: `cargo build --bin space-analyzer-cli` compiles cleanly.
 
 ### Version
 
@@ -314,7 +338,7 @@
 - **Code quality**: Removed redundant bindings, replaced `sort_by` with `sort_by_key`, used `is_multiple_of()`, replaced redundant closures.
 - **Fixed `gpu-compute`**: Replaced manual `Default` impl with `#[derive(Default)]`; replaced `sort_by` with `sort_by_key`.
 - **Fixed `shared-scanner/src/lib.rs`**: Removed identity multiplication.
-- **Fixed `tests/cli_test.rs`**: Corrected binary name from `space-analyzer-cli` to `space-analyzer-pro`.
+- **Fixed `tests/cli_test.rs`**: Corrected binary name from `space-analyzer-pro` to `space-analyzer-cli`.
 - **Fixed `Cargo.toml`**: Added missing dev-dependencies for CLI tests.
 - **Verified all tests pass** across the workspace.
 

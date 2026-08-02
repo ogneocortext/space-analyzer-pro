@@ -1,7 +1,7 @@
 //! Space Analyzer Pro — Library root
 //!
 //! All internal modules are declared here at crate level.
-//! Binary targets (space-analyzer-pro) depend on this lib.
+//! Binary targets (space-analyzer-cli) depend on this lib.
 //! Integration tests import this lib instead of using a #[path] shim.
 
 pub mod category;

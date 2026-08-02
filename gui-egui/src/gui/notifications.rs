@@ -4,7 +4,7 @@ use super::types::{Notification, NotificationLevel};
 use super::ui_helpers;
 use space_analyzer_pro_desktop::file_relations::analyze_file_dependencies;
 
-/// Render toast notifications in the top-right corner
+/// Render toast notifications in the top-right corner with slide-in animation
 pub fn render_notifications(ui: &mut egui::Ui, notifications: &[Notification]) {
     if notifications.is_empty() {
         return;
@@ -20,6 +20,12 @@ pub fn render_notifications(ui: &mut egui::Ui, notifications: &[Notification]) {
             255
         };
 
+        // Slide-in: offset from right based on age (0→full width over ~200ms)
+        let slide_in_duration = 0.2;
+        let slide_fraction = (age / slide_in_duration).clamp(0.0, 1.0);
+        let slide_eased = 1.0 - (1.0 - slide_fraction).powf(3.0); // ease-out cubic
+        let x_offset = (20.0 * (1.0 - slide_eased)) as f32;
+
         let bg_color = egui::Color32::from_rgba_unmultiplied(40, 40, 40, alpha);
         let text_color = notif.color();
 
@@ -27,7 +33,7 @@ pub fn render_notifications(ui: &mut egui::Ui, notifications: &[Notification]) {
         let ctx = ui.ctx().clone();
 
         egui::Area::new(egui::Id::new(("notification", notif.id)))
-            .anchor(egui::Align2::RIGHT_TOP, [-10.0, y_offset])
+            .anchor(egui::Align2::RIGHT_TOP, [-10.0 - x_offset, y_offset])
             .show(&ctx, |ui| {
                 egui::Frame::NONE
                     .fill(bg_color)
@@ -40,7 +46,7 @@ pub fn render_notifications(ui: &mut egui::Ui, notifications: &[Notification]) {
                     });
             });
 
-        y_offset += 45.0;
+        y_offset += 55.0;
     }
 }
 

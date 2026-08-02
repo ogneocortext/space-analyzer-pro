@@ -8,7 +8,7 @@ using SpaceAnalyzer.Models;
 namespace SpaceAnalyzer.Services;
 
 /// <summary>
-/// Calls the Rust scanner CLI (space-analyzer-pro) and parses JSON output.
+/// Calls the Rust scanner CLI (space-analyzer-cli) and parses JSON output.
 /// Data models now live in <see cref="SpaceAnalyzer.Models"/> for reuse
 /// across ViewModels and Views.
 /// </summary>
@@ -16,6 +16,8 @@ public class ScannerService
 {
     private readonly string _scannerPath;
     private Process? _currentScannerProcess;
+    private CancellationTokenSource? _stopCts;
+    private CancellationTokenSource? _cleanerStopCts;
     private readonly object _processLock = new();
 
     /// <summary>
@@ -49,7 +51,7 @@ public class ScannerService
     /// app directory. See <see cref="ResolveToolPath"/> for the shared resolution logic.
     /// </summary>
     private static string ResolveScannerPath(string? explicitPath)
-        => ResolveToolPath("space-analyzer-pro.exe", "SPACE_ANALYZER_SCANNER", explicitPath);
+        => ResolveToolPath("space-analyzer-cli.exe", "SPACE_ANALYZER_SCANNER", explicitPath);
 
     /// <summary>
     /// Locate a native tool binary by name. Priority: explicit path &gt; env var
@@ -88,6 +90,11 @@ public class ScannerService
     }
 
     /// <summary>
+    /// Returns the resolved scanner binary path.
+    /// </summary>
+    public string ScannerPath => _scannerPath;
+
+    /// <summary>
     /// Returns true if the Rust scanner binary is available.
     /// </summary>
     public bool IsAvailable => File.Exists(_scannerPath);
@@ -114,7 +121,7 @@ public class ScannerService
         if (!IsAvailable)
             throw new FileNotFoundException(
                 $"Scanner binary not found at {_scannerPath}. " +
-                "Build it with: cargo build --release --bin space-analyzer-pro");
+                "Build it with: cargo build --release --bin space-analyzer-cli");
 
         if (!Directory.Exists(path))
             throw new DirectoryNotFoundException($"Scan path does not exist: {path}");
@@ -129,7 +136,7 @@ public class ScannerService
         if (includeHidden)
             args += " --include-hidden";
 
-        var output = await RunScannerAsync(args, ct);
+        var output = await RunScannerAsync(args, ct, progress);
         try
         {
             return JsonSerializer.Deserialize<ScanResult>(output, s_jsonOptions)
@@ -148,13 +155,17 @@ public class ScannerService
     {
         lock (_processLock)
         {
+            _stopCts?.Cancel();
             if (_currentScannerProcess is not null && !_currentScannerProcess.HasExited)
             {
                 try
                 {
                     _currentScannerProcess.Kill(entireProcessTree: true);
                 }
-                catch { }
+                catch (InvalidOperationException)
+                {
+                    // Process already exited between HasExited check and Kill.
+                }
             }
         }
     }
@@ -252,7 +263,12 @@ public class ScannerService
         {
             var args = $"history --delete {id} --format json";
             var output = await RunScannerAsync(args, ct);
-            return true;
+            if (string.IsNullOrWhiteSpace(output))
+                return false;
+            using var doc = JsonDocument.Parse(output);
+            if (doc.RootElement.TryGetProperty("deleted", out var deleted))
+                return deleted.GetBoolean();
+            return false;
         }
         catch
         {
@@ -286,9 +302,6 @@ public class ScannerService
         ulong unusedDays = 30,
         CancellationToken ct = default)
     {
-        // Resolve the cleaner the same way as the scanner (env var > beside app >
-        // target/{release,debug} walked up from the app dir), so cleanup analysis works
-        // in dev builds without copying the binary next to the app.
         var cleanerPath = ResolveToolPath("node_modules_cleaner.exe", "SPACE_ANALYZER_CLEANER", null);
         if (!File.Exists(cleanerPath))
             return null;
@@ -296,8 +309,8 @@ public class ScannerService
         var tempOutput = Path.Combine(Path.GetTempPath(), $"nm_clean_{Guid.NewGuid():N}.json");
         try
         {
-            var args = $"\"{path}\" --output \"{tempOutput}\" --dry-run";
-            if (cleanup) args = $"\"{path}\" --output \"{tempOutput}\" --cleanup";
+            var args = $"\"{path}\" --output \"{tempOutput}\"";
+            if (cleanup) args += " --cleanup";
             args += $" --min-size {minSizeMb} --unused-days {unusedDays}";
 
             var psi = new ProcessStartInfo
@@ -310,23 +323,34 @@ public class ScannerService
                 CreateNoWindow = true,
             };
 
+            _cleanerStopCts?.Dispose();
+            using var stopCts = new CancellationTokenSource();
+            _cleanerStopCts = stopCts;
+
             using var process = new Process { StartInfo = psi };
             process.Start();
-            // Read stdout/stderr concurrently to avoid deadlocks when the cleaner writes
-            // enough to either pipe to fill its OS buffer.
             var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
             var stderrTask = process.StandardError.ReadToEndAsync(ct);
 
             using var timeoutCts = new CancellationTokenSource(s_cleanerTimeout);
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, stopCts.Token, timeoutCts.Token);
             try
             {
                 await process.WaitForExitAsync(linkedCts.Token);
             }
-            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+            catch (OperationCanceledException)
             {
+                if (timeoutCts.IsCancellationRequested)
+                {
+                    try { process.Kill(entireProcessTree: true); } catch { }
+                    throw new TimeoutException($"node_modules_cleaner timed out after {s_cleanerTimeout.TotalMinutes} minutes");
+                }
                 try { process.Kill(entireProcessTree: true); } catch { }
-                throw new TimeoutException($"node_modules_cleaner timed out after {s_cleanerTimeout.TotalMinutes} minutes");
+                throw;
+            }
+            finally
+            {
+                _cleanerStopCts = null;
             }
 
             var stdout = await stdoutTask;
@@ -365,8 +389,10 @@ public class ScannerService
     /// <summary>
     /// Run the scanner with the given arguments and return stdout text.
     /// Throws on non-zero exit codes.
+    /// If progress is provided, parses __PROGRESS__ lines from stderr
+    /// and reports percentage updates.
     /// </summary>
-    private async Task<string> RunScannerAsync(string args, CancellationToken ct)
+    private async Task<string> RunScannerAsync(string args, CancellationToken ct, IProgress<double>? progress = null)
     {
         var psi = new ProcessStartInfo
         {
@@ -378,26 +404,36 @@ public class ScannerService
             CreateNoWindow = true,
         };
 
+        _stopCts?.Dispose();
+        using var stopCts = new CancellationTokenSource();
+        _stopCts = stopCts;
+
         lock (_processLock)
         {
             _currentScannerProcess = new Process { StartInfo = psi };
         }
 
-        var process = _currentScannerProcess;
+        using var process = _currentScannerProcess;
         process.Start();
+
+        var stderrTask = ReadStderrWithProgressAsync(process.StandardError, progress, ct);
         var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
-        var stderrTask = process.StandardError.ReadToEndAsync(ct);
 
         using var timeoutCts = new CancellationTokenSource(s_scannerTimeout);
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, stopCts.Token, timeoutCts.Token);
         try
         {
             await process.WaitForExitAsync(linkedCts.Token);
         }
-        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
+            if (timeoutCts.IsCancellationRequested)
+            {
+                try { process.Kill(entireProcessTree: true); } catch { }
+                throw new TimeoutException($"Scanner timed out after {s_scannerTimeout.TotalMinutes} minutes");
+            }
             try { process.Kill(entireProcessTree: true); } catch { }
-            throw new TimeoutException($"Scanner timed out after {s_scannerTimeout.TotalMinutes} minutes");
+            throw;
         }
         finally
         {
@@ -406,15 +442,61 @@ public class ScannerService
                 if (_currentScannerProcess == process)
                     _currentScannerProcess = null;
             }
+            _stopCts = null;
         }
 
-        var stdout = await stdoutTask;
         var stderr = await stderrTask;
+        var stdout = await stdoutTask;
 
         if (process.ExitCode != 0)
             throw new Exception($"Scanner failed (exit {process.ExitCode}): {stderr}");
 
         return stdout;
+    }
+
+    /// <summary>
+    /// Reads stderr line by line, parsing __PROGRESS__ prefixed lines
+    /// and reporting the percentage via IProgress.
+    /// Returns the full stderr text for error reporting.
+    /// </summary>
+    private static async Task<string> ReadStderrWithProgressAsync(
+        System.IO.StreamReader stderr,
+        IProgress<double>? progress,
+        CancellationToken ct)
+    {
+        var sb = new System.Text.StringBuilder();
+        if (progress is null)
+        {
+            // Consume stderr to prevent deadlocks even if no progress reporting
+            var content = await stderr.ReadToEndAsync(ct);
+            return content;
+        }
+
+        while (true)
+        {
+            var line = await stderr.ReadLineAsync(ct);
+            if (line is null)
+                break;
+            sb.AppendLine(line);
+            if (line.StartsWith("__PROGRESS__"))
+            {
+                var json = line["__PROGRESS__".Length..];
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("percentage", out var pct))
+                    {
+                        progress.Report(pct.GetSingle());
+                    }
+                }
+                catch
+                {
+                    // Ignore parse errors for progress lines
+                }
+            }
+        }
+        return sb.ToString();
     }
 
     private static string Truncate(string s) => s.Length <= 500 ? s : s[..500] + "...(truncated)";

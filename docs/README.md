@@ -38,19 +38,19 @@ The CLI uses subcommands for structured JSON output (primarily used by the WinUI
 
 ```bash
 # Basic scan
-cargo run --bin space-analyzer-pro -- scan --path . --format json
+cargo run --bin space-analyzer-cli -- scan --path . --format json
 
 # Disk info — prints a JSON array of every mounted volume
 # (the --path arg is accepted but ignored in JSON output)
-space-analyzer-pro disk-info --path "C:\Users" --format json
+space-analyzer-cli disk-info --path "C:\Users" --format json
 # Example: [{"mount_point":"C:\\","label":"SSD","file_system":"NTFS",
 #   "total_bytes":...,"used_bytes":...,"available_bytes":...,"usage_percent":64.6}]
 
 # Scan history
-space-analyzer-pro history --limit 50 --format json
+space-analyzer-cli history --limit 50 --format json
 
 # Duplicate detection
-space-analyzer-pro dedup --path "C:\Users" --format json
+space-analyzer-cli dedup --path "C:\Users" --format json
 ```
 
 ## Architecture
@@ -98,7 +98,7 @@ GPU detection is automatic via `nvidia-smi`. No CUDA toolkit installation requir
 ```
 Space-Analyzer/
 ├── src/                          # Rust core library
-│   ├── main.rs                   # CLI binary (space-analyzer-pro)
+│   ├── main.rs                   # CLI binary (space-analyzer-cli)
 │   ├── ollama/                   # Ollama AI client
 │   ├── database/                 # Embedded SQLite persistence
 │   ├── system_monitor.rs         # Disk/CPU/memory/GPU monitoring
@@ -192,7 +192,7 @@ cargo build --release -p space-analyzer-gui-egui
 & "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
 
 # Build Rust CLI
-cargo build --bin space-analyzer-pro
+cargo build --bin space-analyzer-cli
 
 # Enable CUDA (optional)
 cargo build --features cuda -p gpu-compute
@@ -335,7 +335,7 @@ cargo build
 cargo run --bin space-analyzer-gui
 
 # Run CLI
-cargo run --bin space-analyzer-pro -- --path . --verbose
+cargo run --bin space-analyzer-cli -- --path . --verbose
 
 # Run tests
 cargo test

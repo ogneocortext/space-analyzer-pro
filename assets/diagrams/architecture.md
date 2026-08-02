@@ -2,7 +2,7 @@
 graph TB
     subgraph Entry["Entry Points"]
         GUI["space-analyzer-gui.exe<br/>(egui/eframe)"]
-        CLI["space-analyzer-pro.exe<br/>(CLI Scanner)"]
+        CLI["space-analyzer-cli.exe<br/>(CLI Scanner)"]
         FTH["flow-test-harness.exe<br/>(Integration Tests)"]
     end
 

@@ -80,7 +80,7 @@ Space-Analyzer/
 | Binary | Entry Point | Description |
 |--------|-------------|-------------|
 | `space-analyzer-gui` | `src/bin/space-analyzer-gui.rs` (→ `gui::run_gui()`) | Desktop GUI (egui/eframe) |
-| `space-analyzer-pro` | `src/main.rs` | CLI for headless operation |
+| `space-analyzer-cli` | `src/main.rs` | CLI for headless operation |
 | `flow-test-harness` | `src/bin/flow-test-harness.rs` | Automated flow test runner |
 
 ## Development Guidelines

@@ -66,10 +66,10 @@ if %errorlevel% equ 0 (
 
 REM Try main desktop app
 echo     [+] Building main desktop application...
-cargo build --release --bin space-analyzer-pro --bin space-analyzer-gui
+cargo build --release --bin space-analyzer-cli --bin space-analyzer-gui
 if %errorlevel% equ 0 (
     echo     [OK] Main desktop app built successfully!
-    echo     [OK] Executables: target\release\space-analyzer-pro.exe, target\release\space-analyzer-gui.exe
+    echo     [OK] Executables: target\release\space-analyzer-cli.exe, target\release\space-analyzer-gui.exe
     goto :build_success
 ) else (
     echo     [X] Failed to build main desktop application

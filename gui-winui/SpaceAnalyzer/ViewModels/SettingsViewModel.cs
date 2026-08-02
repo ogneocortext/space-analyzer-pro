@@ -2,9 +2,12 @@
 
 using System;
 using System.ComponentModel;
+using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Windows.Storage;
+using SpaceAnalyzer.Services;
 
 namespace SpaceAnalyzer.ViewModels;
 
@@ -15,6 +18,7 @@ namespace SpaceAnalyzer.ViewModels;
 /// </summary>
 public class SettingsViewModel : INotifyPropertyChanged
 {
+    private readonly ScannerService _scanner = new();
     private const string LocalSettingsKey = "SpaceAnalyzer.Settings";
 
     // ── Appearance ──
@@ -50,8 +54,24 @@ public class SettingsViewModel : INotifyPropertyChanged
     public string ScannerPath
     {
         get => _scannerPath;
-        set { _scannerPath = value; OnPropertyChanged(); Save(); }
+        set
+        {
+            _scannerPath = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsScannerPathValid));
+            OnPropertyChanged(nameof(ScannerPathStatus));
+            Save();
+        }
     }
+
+    public bool IsScannerPathValid => !string.IsNullOrWhiteSpace(ScannerPath) && System.IO.File.Exists(ScannerPath);
+
+    public string ScannerPathStatus => ScannerPath switch
+    {
+        null or "" => "No path set",
+        _ when IsScannerPathValid => "Scanner found",
+        _ => "Scanner not found at this path",
+    };
 
     private double _scanDepth = 5;
     public double ScanDepth
@@ -146,7 +166,59 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { _aiFeaturesPanelVisible = value; OnPropertyChanged(); Save(); }
     }
 
-    // ── Smart Search ──
+    // ── Ollama connection test ──
+
+    private bool _ollamaTesting;
+    public bool OllamaTesting
+    {
+        get => _ollamaTesting;
+        set { _ollamaTesting = value; OnPropertyChanged(); }
+    }
+
+    private string _ollamaTestResult = string.Empty;
+    public string OllamaTestResult
+    {
+        get => _ollamaTestResult;
+        set { _ollamaTestResult = value; OnPropertyChanged(); }
+    }
+
+    private Microsoft.UI.Xaml.Media.SolidColorBrush _ollamaTestBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
+    public Microsoft.UI.Xaml.Media.SolidColorBrush OllamaTestBrush
+    {
+        get => _ollamaTestBrush;
+        set { _ollamaTestBrush = value; OnPropertyChanged(); }
+    }
+
+    public async Task TestOllamaConnectionAsync()
+    {
+        OllamaTesting = true;
+        OllamaTestResult = "Testing...";
+        OllamaTestBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var response = await client.GetAsync($"{OllamaUrl.TrimEnd('/')}/api/tags");
+            if (response.IsSuccessStatusCode)
+            {
+                OllamaTestResult = "Connected";
+                OllamaTestBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green);
+            }
+            else
+            {
+                OllamaTestResult = $"Error {(int)response.StatusCode}";
+                OllamaTestBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Orange);
+            }
+        }
+        catch (Exception ex)
+        {
+            OllamaTestResult = ex.Message.Length > 60 ? ex.Message[..60] : ex.Message;
+            OllamaTestBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Red);
+        }
+        finally
+        {
+            OllamaTesting = false;
+        }
+    }
 
     private bool _embeddingEnabled;
     public bool EmbeddingEnabled
@@ -180,6 +252,8 @@ public class SettingsViewModel : INotifyPropertyChanged
                 Theme = (string)v;
             if (container.Values.TryGetValue("ScannerPath", out v))
                 ScannerPath = (string)v;
+            if (string.IsNullOrWhiteSpace(ScannerPath))
+                ScannerPath = _scanner.ScannerPath;
             if (container.Values.TryGetValue("ScanDepth", out v) && v is double d)
                 ScanDepth = d;
             if (container.Values.TryGetValue("IncludeHidden", out v) && v is bool h)

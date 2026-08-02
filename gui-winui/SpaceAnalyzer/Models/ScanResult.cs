@@ -30,6 +30,7 @@ public class ScanResult
     /// into <see cref="ScannedFileEntry"/>. (System.Text.Json cannot deserialize JSON
     /// arrays into C# tuples, so a populated map would throw without the converter.)
     /// </summary>
+    [JsonIgnore]
     public Dictionary<string, ScannedFileEntry> ScannedFiles { get; set; } = new();
 }
 

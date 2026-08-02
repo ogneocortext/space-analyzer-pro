@@ -46,7 +46,7 @@ graph TB
 graph LR
     subgraph bins["Rust Binary Targets"]
         gui["space-analyzer-gui<br/>src/gui/mod.rs"]
-        cli["space-analyzer-pro<br/>src/main.rs"]
+        cli["space-analyzer-cli<br/>src/main.rs"]
         scanner["native/scanner<br/>space-analyzer"]
         dedup["file-deduplicator"]
         nm2["node_modules_cleaner"]

@@ -392,7 +392,7 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: var
           <label><input id="rust-report" type="checkbox" /> Markdown report</label>
         </div>
         <div class="test-btns">
-          <button class="btn btn-sm btn-primary" data-rust="cli" title="Run cargo run --bin space-analyzer-pro">&#9654; Run CLI</button>
+          <button class="btn btn-sm btn-primary" data-rust="cli" title="Run cargo run --bin space-analyzer-cli">&#9654; Run CLI</button>
           <button class="btn btn-sm btn-ok" data-rust="gui" title="Launch cargo run --bin space-analyzer-gui">&#x2197; Launch GUI</button>
         </div>
         <div class="test-output" id="rust-output">Run the CLI scan or launch the GUI from this tracker page...</div>
@@ -1848,7 +1848,7 @@ class _DashboardState:
         return Path(__file__).parent.parent.parent.parent
 
     def _run_space_analyzer_cli(self, payload: dict[str, Any]) -> dict:
-        """Run `cargo run --bin space-analyzer-pro` with a validated target path."""
+        """Run `cargo run --bin space-analyzer-cli` with a validated target path."""
         repo_root = self._project_root()
         raw_path = (payload.get("path") or ".").strip() or "."
         scan_path = Path(raw_path)
@@ -1878,7 +1878,7 @@ class _DashboardState:
             "run",
             "--quiet",
             "--bin",
-            "space-analyzer-pro",
+            "space-analyzer-cli",
             "--",
             "--path",
             str(scan_path),

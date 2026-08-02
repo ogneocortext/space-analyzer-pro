@@ -136,6 +136,9 @@ pub struct SystemState {
     pub disk_volumes: Vec<DiskVolume>,
     pub system_resources: Option<SystemResources>,
     pub gpu_info: Option<GpuInfo>,
+    pub cpu_history: Vec<f32>,
+    pub memory_history: Vec<f32>,
+    pub disk_history: Vec<f32>,
 }
 
 /// Main GUI application structure
@@ -149,6 +152,8 @@ pub struct SpaceAnalyzerApp {
     pub scan_result: Option<ScanResult>,
     pub is_scanning: bool,
     pub scan_progress: f32,
+    pub smoothed_scan_progress: f32,
+    pub scan_result_fade: f32,
     pub current_scan_file: String,
     pub scan_receiver: Option<mpsc::Receiver<ScanMessage>>,
     pub cancel_flag: Option<Arc<AtomicBool>>,
@@ -280,6 +285,8 @@ impl Default for SpaceAnalyzerApp {
             scan_result: None,
             is_scanning: false,
             scan_progress: 0.0,
+            smoothed_scan_progress: 0.0,
+            scan_result_fade: 0.0,
             current_scan_file: String::new(),
             scan_receiver: None,
             cancel_flag: None,
@@ -354,6 +361,9 @@ impl Default for SpaceAnalyzerApp {
                 disk_volumes: Vec::new(),
                 system_resources: None,
                 gpu_info: None,
+                cpu_history: Vec::new(),
+                memory_history: Vec::new(),
+                disk_history: Vec::new(),
             },
             tool_runtime_state: ToolRuntimeState {
                 tool_call_depth: 0,
@@ -477,6 +487,21 @@ impl eframe::App for SpaceAnalyzerApp {
         self.frame_counter = self.frame_counter.wrapping_add(1);
         self.update_model_resource_usage();
         self.refresh_system_info_throttled();
+
+        // Smooth scan progress interpolation
+        if self.is_scanning {
+            let target = self.scan_progress / 100.0;
+            self.smoothed_scan_progress += (target - self.smoothed_scan_progress).min(0.05).max(-0.05);
+        } else {
+            self.smoothed_scan_progress = self.scan_progress / 100.0;
+        }
+
+        // Fade-in scan results when they first appear
+        if self.scan_result.is_some() {
+            self.scan_result_fade = (self.scan_result_fade + 0.03).min(1.0);
+        } else {
+            self.scan_result_fade = 0.0;
+        }
 
         // Remove expired notifications
         self.notification_state

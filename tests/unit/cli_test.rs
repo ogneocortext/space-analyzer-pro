@@ -6,7 +6,7 @@
 //  - `--version` prints the crate version string
 //  - a real directory scan produces text output on stdout
 //!
-//! Run with: cargo nextest run cli_test
+//! Run with:  cargo nextest run cli_test
 //!
 #![cfg(test)]
 
@@ -16,11 +16,15 @@ use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
 
+macro_rules! info {
+    ($($arg:tt)*) => { eprintln!("[cli_test] {}", format!($($arg)*)) };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: path to the compiled CLI binary
 // ─────────────────────────────────────────────────────────────────────────────
 fn cli() -> Command {
-    Command::cargo_bin("space-analyzer-pro").expect("binary must exist for tests")
+    Command::cargo_bin("space-analyzer-cli").expect("binary must exist for tests")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,15 +33,18 @@ fn cli() -> Command {
 
 #[test]
 fn cli_help_exits_zero_and_mentions_app_name() {
+    info!("Verifying `space-analyzer-cli --help` exits 0 and mentions app name");
     cli()
         .arg("--help")
         .assert()
         .success()
         .stdout(predicate::str::contains("Space Analyzer Pro"));
+    info!("PASS");
 }
 
 #[test]
 fn cli_version_matches_crate_version() {
+    info!("Verifying `--version` matches Cargo.toml version");
     let manifest = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"))
         .expect("Cargo.toml of the CLI package must be readable");
     let crate_ver = manifest
@@ -47,11 +54,13 @@ fn cli_version_matches_crate_version() {
         .and_then(|v| v.trim().trim_matches('"').parse::<String>().ok())
         .expect("version field must be present in Cargo.toml");
 
+    eprintln!("  crate version from Cargo.toml='{}'", crate_ver);
     cli()
         .arg("--version")
         .assert()
         .success()
         .stdout(predicate::str::contains(crate_ver.as_str()));
+    info!("PASS");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -60,7 +69,9 @@ fn cli_version_matches_crate_version() {
 
 #[test]
 fn cli_no_args_produces_output() {
+    info!("Verifying running with no args emits stderr (not silent)");
     cli().assert().stderr(predicate::str::is_empty().not());
+    info!("PASS");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,11 +80,13 @@ fn cli_no_args_produces_output() {
 
 #[test]
 fn cli_unknown_flag_exits_nonzero() {
+    info!("Verifying unknown flag causes non-zero exit + stderr");
     cli()
         .arg("--this-flag-does-not-exist")
         .assert()
         .failure()
         .stderr(predicate::str::is_empty().not());
+    info!("PASS");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,12 +95,15 @@ fn cli_unknown_flag_exits_nonzero() {
 
 #[test]
 fn cli_nonexistent_path_does_not_silently_succeed() {
-    // Using a guaranteed-invalid path should emit stderr output or exit non-zero.
-    // The bug this catches: `src/main.rs` runs `walkdir` on any string and
-    // returns anempty result, so callers see "0 files found" and think the path
-    // is valid.
+    info!("Verifying nonexistent path is rejected");
     let bogus: PathBuf = PathBuf::from(r"C:\__space_analyzer_nonexistent_54321__");
-    let _ = cli().arg("-p").arg(bogus).assert();
+    let out = cli().arg("-p").arg(bogus).output().expect("CLI must execute");
+    eprintln!("  exit_status={:?}, stderr_len={}", out.status, out.stderr.len());
+    assert!(
+        !out.status.success() || !out.stderr.is_empty(),
+        "A nonexistent path must either exit non-zero or emit stderr"
+    );
+    info!("PASS");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -96,6 +112,7 @@ fn cli_nonexistent_path_does_not_silently_succeed() {
 
 #[test]
 fn cli_scan_real_isolated_dir_completes() {
+    info!("Verifying real scan of temp dir succeeds and produces stdout");
     let tmp = TempDir::new().expect("could not create isolated temp dir");
     std::fs::write(tmp.path().join("alpha.txt"), b"hello a").unwrap();
     std::fs::write(tmp.path().join("beta.bin"), b"hello b").unwrap();
@@ -109,6 +126,7 @@ fn cli_scan_real_isolated_dir_completes() {
         .output()
         .expect("scan command must execute without the process crashing");
 
+    eprintln!("  exit_status={:?}, stdout_len={}", out.status, out.stdout.len());
     assert!(
         out.status.success(),
         "scanning a valid directory must succeed"
@@ -119,6 +137,7 @@ fn cli_scan_real_isolated_dir_completes() {
         stdout.len() > 20,
         "scan stdout must contain more than 20 bytes of structured output"
     );
+    info!("PASS");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -127,6 +146,7 @@ fn cli_scan_real_isolated_dir_completes() {
 
 #[test]
 fn cli_scan_unicode_path_completes_without_panic() {
+    info!("Verifying scan of path with Unicode filenames does not panic");
     let tmp = TempDir::new().unwrap();
     let unicode_file = tmp.path().join("café_файл.txt");
     std::fs::write(&unicode_file, b"unicode content").unwrap();
@@ -138,7 +158,9 @@ fn cli_scan_unicode_path_completes_without_panic() {
         .output()
         .expect("CLI process must not crash when dir contains Unicode filenames");
 
+    eprintln!("  exit_status={:?}", out.status);
     // EXIT_SUCCESS is the key — cargo test through assert_cmd already decodes UTF-8
     // via Rust's default, so a non-0 exit here means the child panicked mid-scan.
     assert!(out.status.success());
+    info!("PASS");
 }

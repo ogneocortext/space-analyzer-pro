@@ -14,10 +14,10 @@ A modern Windows desktop app built with WinUI 3 (Windows App SDK) and Fluent Des
 ### 1. Build the Rust scanner
 
 ```bash
-cargo build --release --bin space-analyzer-pro
+cargo build --release --bin space-analyzer-cli
 ```
 
-Copy `target/release/space-analyzer-pro.exe` to the app's output directory, or set the path in Settings.
+Copy `target/release/space-analyzer-cli.exe` to the app's output directory, or set the path in Settings.
 
 ### 2. Build and run the WinUI 3 app
 
@@ -77,10 +77,10 @@ gui-winui/
 The WinUI 3 app calls the Rust scanner as a subprocess using subcommands:
 
 ```
-space-analyzer-pro scan --path "C:\Users" --format json
-space-analyzer-pro disk-info --path "C:\Users" --format json
-space-analyzer-pro history --limit 50 --format json
-space-analyzer-pro dedup --path "C:\Users" --format json
+space-analyzer-cli scan --path "C:\Users" --format json
+space-analyzer-cli disk-info --path "C:\Users" --format json
+space-analyzer-cli history --limit 50 --format json
+space-analyzer-cli dedup --path "C:\Users" --format json
 ```
 
 JSON output is deserialized into C# models in `Services/ScannerService.cs` using

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "e:\\Self-Built-Web-and-Mobile-Apps\\Space-Analyzer\\TestJson\\TestJson.csproj": {}
+    "E:\\Self-Built-Web-and-Mobile-Apps\\Space-Analyzer\\TestJson\\TestJson.csproj": {}
   },
   "projects": {
-    "e:\\Self-Built-Web-and-Mobile-Apps\\Space-Analyzer\\TestJson\\TestJson.csproj": {
+    "E:\\Self-Built-Web-and-Mobile-Apps\\Space-Analyzer\\TestJson\\TestJson.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "e:\\Self-Built-Web-and-Mobile-Apps\\Space-Analyzer\\TestJson\\TestJson.csproj",
+        "projectUniqueName": "E:\\Self-Built-Web-and-Mobile-Apps\\Space-Analyzer\\TestJson\\TestJson.csproj",
         "projectName": "TestJson",
-        "projectPath": "e:\\Self-Built-Web-and-Mobile-Apps\\Space-Analyzer\\TestJson\\TestJson.csproj",
+        "projectPath": "E:\\Self-Built-Web-and-Mobile-Apps\\Space-Analyzer\\TestJson\\TestJson.csproj",
         "packagesPath": "C:\\Users\\Aomega Imaging\\.nuget\\packages\\",
-        "outputPath": "e:\\Self-Built-Web-and-Mobile-Apps\\Space-Analyzer\\TestJson\\obj\\",
+        "outputPath": "E:\\Self-Built-Web-and-Mobile-Apps\\Space-Analyzer\\TestJson\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

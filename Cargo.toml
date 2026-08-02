@@ -37,15 +37,15 @@ name = "space_analyzer_pro_desktop"
 path = "src/lib.rs"
 
 [[bin]]
-name = "space-analyzer-pro"
+name = "space-analyzer-cli"
 path = "src/main.rs"
 
 [[bin]]
-name = "ollama-test"
+name = "ollama-smoke-test"
 path = "src/bin/ollama-test.rs"
 
 [[bin]]
-name = "ollama-features"
+name = "ollama-demo"
 path = "src/bin/ollama-features.rs"
 
 [dependencies]
@@ -180,3 +180,19 @@ path = "tests/unit/ollama_reliability_test.rs"
 [[test]]
 name = "ollama_function_calling_test"
 path = "tests/unit/ollama_function_calling_test.rs"
+
+[[test]]
+name = "gui_test"
+path = "tests/unit/gui_test.rs"
+
+[[test]]
+name = "gui_data_flow_test"
+path = "tests/unit/gui_data_flow_test.rs"
+
+[[test]]
+name = "native_scanner_test"
+path = "tests/unit/native_scanner_test.rs"
+
+[[test]]
+name = "documents_benchmark"
+path = "tests/unit/documents_benchmark.rs"

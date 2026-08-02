@@ -321,7 +321,7 @@ impl SpaceAnalyzerApp {
                 section_header(ui, Some(icons::HOURGLASS), "Scanning...");
                 app_card(ui, |ui| {
                     ui.add(
-                        egui::ProgressBar::new(self.scan_progress / 100.0)
+                        egui::ProgressBar::new(self.smoothed_scan_progress)
                             .text(format!("{:.0}%", self.scan_progress))
                             .desired_height(14.0)
                             .fill(colors::ACCENT),
@@ -400,39 +400,14 @@ impl SpaceAnalyzerApp {
 
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    stat_card(
-                        ui,
-                        "Files",
-                        &format!("{}", result.total_files),
-                        colors::ACCENT,
-                    );
-                    stat_card(
-                        ui,
-                        "Size",
-                        &formatting::format_bytes(result.total_size_bytes),
-                        colors::SUCCESS,
-                    );
-                    stat_card(
-                        ui,
-                        "Duration",
-                        &format!("{:.1}s", result.duration_secs),
-                        colors::INFO,
-                    );
+                    stat_card(ui, "Files", &format!("{}", result.total_files), colors::ACCENT);
+                    stat_card(ui, "Size", &formatting::format_bytes(result.total_size_bytes), colors::SUCCESS);
+                    stat_card(ui, "Duration", &format!("{:.1}s", result.duration_secs), colors::INFO);
                     if result.duration_secs > 0.0 {
-                        stat_card(
-                            ui,
-                            "Speed",
-                            &format!("{:.0}/s", result.total_files as f64 / result.duration_secs),
-                            colors::ACCENT,
-                        );
+                        stat_card(ui, "Speed", &format!("{:.0}/s", result.total_files as f64 / result.duration_secs), colors::ACCENT);
                     }
                     if !result.errors.is_empty() {
-                        stat_card(
-                            ui,
-                            "Errors",
-                            &result.errors.len().to_string(),
-                            colors::ERROR,
-                        );
+                        stat_card(ui, "Errors", &result.errors.len().to_string(), colors::ERROR);
                     }
                 });
 

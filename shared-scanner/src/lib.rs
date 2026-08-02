@@ -554,7 +554,28 @@ impl FileScanner {
 
         let gpu_result = processor.process(&raw_entries);
 
-        // Merge GPU results into ScanResult
+        Self::apply_gpu_result(
+            &mut result,
+            gpu_result,
+            &raw_entries,
+            true_empty_dirs,
+            scanned_files,
+        );
+
+        Ok(result)
+    }
+
+    /// Merge GPU post-processing results into a ScanResult.
+    ///
+    /// This is shared between `scan_directory_sync` and `scan_with_progress_sync`
+    /// to avoid duplicating the categorization / top-N / subdirectory logic.
+    fn apply_gpu_result(
+        result: &mut ScanResult,
+        gpu_result: gpu_compute::scan::GpuScanResult,
+        raw_entries: &[gpu_compute::scan::RawFileEntry],
+        true_empty_dirs: Vec<String>,
+        scanned_files: HashMap<String, (u64, i64)>,
+    ) {
         result.total_files = gpu_result.total_files;
         result.total_size = gpu_result.total_size;
         result.file_types = gpu_result.file_types;
@@ -574,7 +595,6 @@ impl FileScanner {
             })
             .collect();
 
-        // Convert GPU file info to FileInfo (add timestamp from metadata lookup)
         for info in gpu_result.largest_files {
             let modified = std::fs::metadata(&info.path)
                 .ok()
@@ -591,12 +611,8 @@ impl FileScanner {
             });
         }
 
-        // Count directories from raw entries
         result.total_directories = raw_entries.iter().filter(|e| e.is_dir).count() as u64;
-
         result.scanned_files = scanned_files;
-
-        Ok(result)
     }
 
     /// Synchronous scan with progress callbacks and cancellation support.
@@ -629,6 +645,7 @@ impl FileScanner {
         let mut live_files: Vec<FileInfo> = Vec::new();
         let mut files_scanned: u64 = 0;
         let mut dirs_scanned: u64 = 0;
+        let mut current_size: u64 = 0;
         let mut scanned_files = HashMap::new();
 
         let mut walker = WalkDir::new(path);
@@ -651,58 +668,51 @@ impl FileScanner {
 
         for entry_result in walk_entries {
             if cancel_flag.load(Ordering::Relaxed) {
-                // Build partial result from what we have so far
-                for entry in &raw_entries {
-                    if entry.is_dir {
-                        dirs_scanned += 1;
-                        continue;
-                    }
-                    let p = Path::new(&entry.path);
-                    let ext = p
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .unwrap_or("")
-                        .to_lowercase();
-                    *result.file_types.entry(ext.clone()).or_insert(0) += 1;
-                    *result.extension_sizes.entry(ext).or_insert(0) += entry.size;
-                    if options.size_buckets {
-                        *result
-                            .size_distribution
-                            .entry(size_bucket(entry.size).to_string())
-                            .or_insert(0) += 1;
-                    }
-                    result.total_size += entry.size;
-                    result.total_files += 1;
+                let use_gpu = options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
+                let processor = gpu_compute::scan::GpuScanProcessor::new()
+                    .with_gpu(use_gpu)
+                    .with_scan_root(path)
+                    .with_top_n(100);
 
-                    if result.largest_files.len() < 100
-                        || entry.size > result.largest_files.last().map(|f| f.size).unwrap_or(0)
-                    {
-                        result.largest_files.push(FileInfo {
-                            path: entry.path.clone(),
-                            name: p
-                                .file_name()
-                                .and_then(|n| n.to_str())
-                                .unwrap_or("")
-                                .to_string(),
-                            size: entry.size,
-                            modified: std::fs::metadata(&entry.path)
-                                .ok()
-                                .and_then(|m| m.modified().ok())
-                                .and_then(Self::format_timestamp),
-                            file_type: "file".to_string(),
-                            extension: p
-                                .extension()
-                                .and_then(|e| e.to_str())
-                                .unwrap_or("")
-                                .to_lowercase(),
-                        });
-                        result
-                            .largest_files
-                            .sort_by_key(|b| std::cmp::Reverse(b.size));
-                        result.largest_files.truncate(100);
-                    }
+                let gpu_result = processor.process(&raw_entries);
+
+                result.total_files = gpu_result.total_files;
+                result.total_size = gpu_result.total_size;
+                result.file_types = gpu_result.file_types;
+                result.extension_sizes = gpu_result.extension_sizes;
+                result.size_distribution = gpu_result.size_distribution;
+                result.empty_directories = true_empty_dirs;
+                result.subdirectories = gpu_result
+                    .subdirectories
+                    .into_iter()
+                    .map(|d| DirInfo {
+                        path: d.path,
+                        name: d.name,
+                        total_size: d.total_size,
+                        file_count: d.file_count,
+                        dir_count: d.dir_count,
+                        largest_file_size: d.largest_file_size,
+                    })
+                    .collect();
+
+                for info in gpu_result.largest_files {
+                    let modified = std::fs::metadata(&info.path)
+                        .ok()
+                        .and_then(|m| m.modified().ok())
+                        .and_then(Self::format_timestamp);
+
+                    result.largest_files.push(FileInfo {
+                        path: info.path,
+                        name: info.name,
+                        size: info.size,
+                        modified,
+                        file_type: "file".to_string(),
+                        extension: info.extension,
+                    });
                 }
-                result.total_directories = dirs_scanned;
+
+                result.total_directories =
+                    raw_entries.iter().filter(|e| e.is_dir).count() as u64;
                 result.scanned_files = scanned_files;
 
                 let pct = if total_estimate > 0 {
@@ -761,23 +771,14 @@ impl FileScanner {
                                 dirs_scanned += 1;
                             } else {
                                 files_scanned += 1;
+                                current_size += cached_size;
+
                                 let p = Path::new(&path_str);
                                 let ext = p
                                     .extension()
                                     .and_then(|e| e.to_str())
                                     .unwrap_or("")
                                     .to_lowercase();
-                                *result.file_types.entry(ext.clone()).or_insert(0) += 1;
-                                *result.extension_sizes.entry(ext.clone()).or_insert(0) +=
-                                    cached_size;
-                                if options.size_buckets {
-                                    *result
-                                        .size_distribution
-                                        .entry(size_bucket(cached_size).to_string())
-                                        .or_insert(0) += 1;
-                                }
-                                result.total_size += cached_size;
-                                result.total_files += 1;
 
                                 let file_info = FileInfo {
                                     path: path_str.clone(),
@@ -787,10 +788,12 @@ impl FileScanner {
                                         .unwrap_or("")
                                         .to_string(),
                                     size: cached_size,
-                                    modified: std::fs::metadata(&path_str)
-                                        .ok()
-                                        .and_then(|m| m.modified().ok())
-                                        .and_then(Self::format_timestamp),
+                                    modified: Self::format_timestamp(
+                                        metadata
+                                            .modified()
+                                            .ok()
+                                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
+                                    ),
                                     file_type: "file".to_string(),
                                     extension: ext.clone(),
                                 };
@@ -800,35 +803,10 @@ impl FileScanner {
                                     live_files.sort_by_key(|b| std::cmp::Reverse(b.size));
                                     live_files.truncate(100);
                                 }
-
-                                if result.largest_files.len() < 100
-                                    || cached_size
-                                        > result.largest_files.last().map(|f| f.size).unwrap_or(0)
-                                {
-                                    result.largest_files.push(FileInfo {
-                                        path: path_str.clone(),
-                                        name: p
-                                            .file_name()
-                                            .and_then(|n| n.to_str())
-                                            .unwrap_or("")
-                                            .to_string(),
-                                        size: cached_size,
-                                        modified: std::fs::metadata(&path_str)
-                                            .ok()
-                                            .and_then(|m| m.modified().ok())
-                                            .and_then(Self::format_timestamp),
-                                        file_type: "file".to_string(),
-                                        extension: ext,
-                                    });
-                                    result
-                                        .largest_files
-                                        .sort_by_key(|b| std::cmp::Reverse(b.size));
-                                    result.largest_files.truncate(100);
-                                }
                             }
                             entries_processed += 1;
 
-                            if entries_processed.is_multiple_of(50) {
+                            if entries_processed.is_multiple_of(200) {
                                 let pct = if total_estimate > 0 {
                                     ((entries_processed as f32 / total_estimate as f32) * 100.0)
                                         .min(99.0)
@@ -840,7 +818,7 @@ impl FileScanner {
                                         progress_callback(ScanProgress {
                                             files_scanned,
                                             directories_scanned: dirs_scanned,
-                                            total_size: result.total_size,
+                                            total_size: current_size,
                                             current_file: path_str.clone(),
                                             percentage: pct,
                                             completed: false,
@@ -902,12 +880,13 @@ impl FileScanner {
                 }
 
                 files_scanned += 1;
+                current_size += size;
             }
 
             entries_processed += 1;
 
-            // Progress update every 50 entries
-            if entries_processed.is_multiple_of(50) {
+            // Progress update every 200 entries
+            if entries_processed.is_multiple_of(200) {
                 let pct = if total_estimate > 0 {
                     ((entries_processed as f32 / total_estimate as f32) * 100.0).min(99.0)
                 } else {
@@ -917,11 +896,7 @@ impl FileScanner {
                     progress_callback(ScanProgress {
                         files_scanned,
                         directories_scanned: dirs_scanned,
-                        total_size: raw_entries
-                            .iter()
-                            .filter(|e| !e.is_dir)
-                            .map(|e| e.size)
-                            .sum(),
+                        total_size: current_size,
                         current_file: path_str.clone(),
                         percentage: pct,
                         completed: false,
@@ -940,43 +915,13 @@ impl FileScanner {
 
         let gpu_result = processor.process(&raw_entries);
 
-        result.total_files = gpu_result.total_files;
-        result.total_size = gpu_result.total_size;
-        result.file_types = gpu_result.file_types;
-        result.extension_sizes = gpu_result.extension_sizes;
-        result.size_distribution = gpu_result.size_distribution;
-        result.empty_directories = true_empty_dirs;
-        result.subdirectories = gpu_result
-            .subdirectories
-            .into_iter()
-            .map(|d| DirInfo {
-                path: d.path,
-                name: d.name,
-                total_size: d.total_size,
-                file_count: d.file_count,
-                dir_count: d.dir_count,
-                largest_file_size: d.largest_file_size,
-            })
-            .collect();
-
-        for info in gpu_result.largest_files {
-            let modified = std::fs::metadata(&info.path)
-                .ok()
-                .and_then(|m| m.modified().ok())
-                .and_then(Self::format_timestamp);
-
-            result.largest_files.push(FileInfo {
-                path: info.path,
-                name: info.name,
-                size: info.size,
-                modified,
-                file_type: "file".to_string(),
-                extension: info.extension,
-            });
-        }
-
-        result.total_directories = raw_entries.iter().filter(|e| e.is_dir).count() as u64;
-        result.scanned_files = scanned_files;
+        Self::apply_gpu_result(
+            &mut result,
+            gpu_result,
+            &raw_entries,
+            true_empty_dirs,
+            scanned_files,
+        );
 
         // Final progress update
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -994,6 +939,9 @@ impl FileScanner {
         Ok(result)
     }
 
+    #[deprecated(
+        note = "scan_with_progress has duplicated categorization work and is unused; use scan_with_progress_sync instead"
+    )]
     /// Async scan with progress callbacks
     pub async fn scan_with_progress<F>(
         &self,

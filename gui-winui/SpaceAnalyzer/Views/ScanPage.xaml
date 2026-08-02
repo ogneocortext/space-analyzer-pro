@@ -93,7 +93,13 @@
 
                 <!-- Status + Progress -->
                 <StackPanel Spacing="8" Visibility="{x:Bind VM.IsScanningVisibility, Mode=OneWay}">
-                    <ProgressBar IsIndeterminate="True" Height="4"/>
+                    <ProgressBar Value="{x:Bind VM.ScanProgress, Mode=OneWay}" Maximum="100" Height="4">
+                        <ProgressBar.Transitions>
+                            <TransitionCollection>
+                                <EntranceThemeTransition/>
+                            </TransitionCollection>
+                        </ProgressBar.Transitions>
+                    </ProgressBar>
                     <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"/>
                 </StackPanel>
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" FontSize="14" Opacity="0.8"
@@ -117,6 +123,11 @@
 
                 <!-- Results -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="16" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
+                    <Border.Transitions>
+                        <TransitionCollection>
+                            <EntranceThemeTransition/>
+                        </TransitionCollection>
+                    </Border.Transitions>
                     <StackPanel Spacing="16">
                         <TextBlock Text="Scan Results" FontSize="18" FontWeight="SemiBold"/>
 

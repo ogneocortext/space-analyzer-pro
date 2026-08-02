@@ -1,9 +1,7 @@
-use shared_scanner::format_bytes;
-
-use super::helpers;
-use super::recommendations;
-use super::types::ScanResult;
+use crate::cli::render::{self, pct_of};
+use crate::cli::types::ScanResult;
 use crate::animation;
+use shared_scanner::format_bytes;
 
 pub fn print_text_results(
     result: &ScanResult,
@@ -18,7 +16,7 @@ pub fn print_text_results(
     println!("╚══════════════════════════════════════════════════════════════╝");
     println!();
 
-    if let Some(disk) = helpers::get_disk_info(&result.path) {
+    if let Some(disk) = crate::cli::helpers::get_disk_info(&result.path) {
         let bar_width = 24;
         let total_info = format!(
             "Total: {} | Used: {} | Free: {}",
@@ -81,17 +79,12 @@ pub fn print_text_results(
         );
 
         for dir in result.top_directories.iter().take(top_n) {
-            let pct = if result.total_size_bytes > 0 {
-                (dir.total_size as f64 / result.total_size_bytes as f64) * 100.0
-            } else {
-                0.0
-            };
             println!(
                 "   {:<8} {:<8} {:>10} ({:5.1}%)  {}",
                 dir.file_count,
                 dir.dir_count,
                 format_bytes(dir.total_size),
-                pct,
+                pct_of(dir.total_size, result.total_size_bytes),
                 dir.path
             );
         }
@@ -152,18 +145,13 @@ pub fn print_text_results(
 
         for (ext, size) in ext_sizes.iter().take(top_n) {
             let count = result.file_types.get(*ext).unwrap_or(&0);
-            let pct = if result.total_size_bytes > 0 {
-                (**size as f64 / result.total_size_bytes as f64) * 100.0
-            } else {
-                0.0
-            };
             let ext_display = if ext.is_empty() { "(no ext)" } else { ext };
             println!(
                 "   .{:<11} {:>8} {:>10}  {:>5.1}%",
                 ext_display,
                 count,
                 format_bytes(**size),
-                pct
+                pct_of(**size, result.total_size_bytes)
             );
         }
         println!();
@@ -196,11 +184,6 @@ pub fn print_text_results(
             "─".repeat(6)
         );
         for (&cat, &size) in sorted.iter().take(top_n) {
-            let pct = if result.total_size_bytes > 0 {
-                (size as f64 / result.total_size_bytes as f64) * 100.0
-            } else {
-                0.0
-            };
             let emoji = match cat {
                 "Windows" => "🖥️",
                 "Program Files" => "⚙️",
@@ -220,7 +203,7 @@ pub fn print_text_results(
                 emoji,
                 cat,
                 format_bytes(size),
-                pct
+                pct_of(size, result.total_size_bytes)
             );
         }
         println!();
@@ -236,16 +219,11 @@ pub fn print_text_results(
             no_animation,
         );
         for (i, file) in result.largest_files.iter().take(top_n).enumerate() {
-            let pct = if result.total_size_bytes > 0 {
-                (file.size as f64 / result.total_size_bytes as f64) * 100.0
-            } else {
-                0.0
-            };
             println!(
                 "   {:>3}. {:>10} ({:5.1}%)  {}",
                 i + 1,
                 format_bytes(file.size),
-                pct,
+                pct_of(file.size, result.total_size_bytes),
                 file.path
             );
         }
@@ -253,7 +231,7 @@ pub fn print_text_results(
     }
 
     print_installer_inventory(result, no_animation);
-    recommendations::print_recommendations(result);
+    render::render_recommendations_text(&render::build_recommendations(result));
 
     if verbose && !result.empty_dirs.is_empty() {
         animation::print_section_header_animated(
@@ -272,184 +250,16 @@ pub fn print_text_results(
 }
 
 pub fn print_csv(result: &ScanResult) {
-    println!("section,key,value");
-    println!("summary,total_files,{}", result.total_files);
-    println!("summary,total_size_bytes,{}", result.total_size_bytes);
-    println!("summary,duration_secs,{:.3}", result.duration_secs);
-    println!();
-    println!("extension,size_bytes,file_count");
-    let mut ext_sizes: Vec<_> = result.extension_sizes.iter().collect();
-    ext_sizes.sort_by(|a, b| b.1.cmp(a.1));
-    for (ext, size) in &ext_sizes {
-        let count = result.file_types.get(*ext).unwrap_or(&0);
-        println!(".{},{},{}", ext, size, count);
-    }
-    println!();
-    println!("directory,size_bytes,file_count,dir_count");
-    for dir in &result.top_directories {
-        println!(
-            "\"{}\",{},{},{}",
-            dir.path.replace('"', "\"\""),
-            dir.total_size,
-            dir.file_count,
-            dir.dir_count
-        );
-    }
-    println!();
-    println!("file_path,size_bytes");
-    for file in &result.largest_files {
-        println!("\"{}\",{}", file.path.replace('"', "\"\""), file.size);
-    }
+    println!("{}", render::build_csv(result));
 }
 
 fn print_installer_inventory(result: &ScanResult, no_animation: bool) {
-    let mut installers: Vec<(&str, u64)> = result
-        .largest_files
-        .iter()
-        .filter(|f| {
-            let lower = f.path.to_lowercase();
-            lower.ends_with(".exe")
-                || lower.ends_with(".msi")
-                || lower.ends_with(".rar")
-                || lower.ends_with(".zip")
-                || lower.ends_with(".dmg")
-                || lower.ends_with(".deb")
-                || lower.ends_with(".rpm")
-                || lower.ends_with(".pkg")
-        })
-        .map(|f| (f.path.as_str(), f.size))
-        .collect();
-    installers.sort_by_key(|b| std::cmp::Reverse(b.1));
-
-    if installers.is_empty() {
+    let groups = render::categorize_installers(result);
+    if groups.is_empty() {
         return;
     }
-
-    let total_size: u64 = installers.iter().map(|(_, s)| *s).sum();
-    animation::print_section_header_animated(
-        "📦",
-        &format!(
-            "INSTALLER & EXECUTABLE INVENTORY ({}, {} files)",
-            format_bytes(total_size),
-            installers.len()
-        ),
-        no_animation,
-    );
+    animation::print_section_header_animated("📦", "INSTALLER & EXECUTABLE INVENTORY", no_animation);
     println!("   These are likely safe to delete after installation. Sort by size and remove oldest/unneeded.");
     println!();
-
-    let mut driver_installers = Vec::new();
-    let mut gpu_cuda_installers = Vec::new();
-    let mut app_installers = Vec::new();
-    let mut other_installers = Vec::new();
-
-    for &(path, size) in &installers {
-        let lower = path.to_lowercase();
-        if lower.contains("driver") || lower.contains("realtek") || lower.contains("mb_driver") {
-            driver_installers.push((path, size));
-        } else if lower.contains("cuda")
-            || lower.contains("nvidia")
-            || lower.contains("596.21-desktop")
-            || lower.contains("amd_ryzen")
-        {
-            gpu_cuda_installers.push((path, size));
-        } else {
-            if lower.contains("setup")
-                || lower.contains("installer")
-                || lower.contains("user")
-                || lower.ends_with(".msi")
-                || lower.contains("desktop")
-            {
-                app_installers.push((path, size));
-            } else {
-                other_installers.push((path, size));
-            }
-        }
-    }
-
-    if !gpu_cuda_installers.is_empty() {
-        let size: u64 = gpu_cuda_installers.iter().map(|(_, s)| *s).sum();
-        println!(
-            "   ┌─ 🖥️  GPU/Drivers/Chipset: {} total ──────────────┐",
-            format_bytes(size)
-        );
-        for (path, size) in gpu_cuda_installers.iter().take(10) {
-            let name = std::path::Path::new(path)
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
-            println!("   │  {:>10}  {} ", format_bytes(*size), name);
-        }
-        println!("   └────────────────────────────────────────────────────┘");
-        println!();
-    }
-
-    if !driver_installers.is_empty() {
-        let size: u64 = driver_installers.iter().map(|(_, s)| *s).sum();
-        println!(
-            "   ┌─ 🔧 Drivers: {} total ──────────────────────────┐",
-            format_bytes(size)
-        );
-        for (path, size) in driver_installers.iter().take(10) {
-            let name = std::path::Path::new(path)
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
-            println!("   │  {:>10}  {} ", format_bytes(*size), name);
-        }
-        println!("   └────────────────────────────────────────────────────┘");
-        println!();
-    }
-
-    if !app_installers.is_empty() {
-        let size: u64 = app_installers.iter().map(|(_, s)| *s).sum();
-        println!(
-            "   ┌─ 📱 Application Installers: {} total ──────────┐",
-            format_bytes(size)
-        );
-        for (path, size) in app_installers.iter().take(10) {
-            let name = std::path::Path::new(path)
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
-            println!("   │  {:>10}  {} ", format_bytes(*size), name);
-        }
-        if app_installers.len() > 10 {
-            println!(
-                "   │  ... and {} more ({})  ",
-                app_installers.len() - 10,
-                format_bytes(app_installers[10..].iter().map(|(_, s)| *s).sum::<u64>())
-            );
-        }
-        println!("   └────────────────────────────────────────────────────┘");
-        println!();
-    }
-
-    if !other_installers.is_empty() {
-        let size: u64 = other_installers.iter().map(|(_, s)| *s).sum();
-        println!(
-            "   ┌─ 📄 Archives/Other: {} total ─────────────────┐",
-            format_bytes(size)
-        );
-        for (path, size) in other_installers.iter().take(10) {
-            let name = std::path::Path::new(path)
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
-            println!("   │  {:>10}  {} ", format_bytes(*size), name);
-        }
-        if other_installers.len() > 10 {
-            println!(
-                "   │  ... and {} more ({})  ",
-                other_installers.len() - 10,
-                format_bytes(other_installers[10..].iter().map(|(_, s)| *s).sum::<u64>())
-            );
-        }
-        println!("   └────────────────────────────────────────────────────┘");
-        println!();
-    }
-
-    println!("   💡 To safely reclaim space: sort by size, delete old installers that are no longer needed.");
-    println!("      Driver/GPU installers (CUDA, NVIDIA) are safe to remove if already installed.");
-    println!();
+    render::render_installers_text(&groups);
 }

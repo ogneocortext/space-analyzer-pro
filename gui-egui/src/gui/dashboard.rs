@@ -18,6 +18,8 @@ impl SpaceAnalyzerApp {
                 ui.add_space(8.0);
                 self.render_system_resources_card(ui);
                 ui.add_space(8.0);
+                self.render_resource_history_chart(ui);
+                ui.add_space(8.0);
                 self.render_disk_space_live(ui);
                 ui.add_space(8.0);
                 self.render_file_type_chart(ui);
@@ -61,6 +63,8 @@ impl SpaceAnalyzerApp {
                 self.render_quick_actions(right);
                 right.add_space(10.0);
                 self.render_system_resources_card(right);
+                right.add_space(10.0);
+                self.render_resource_history_chart(right);
             });
         }
     }
@@ -477,6 +481,87 @@ impl SpaceAnalyzerApp {
                 );
             }
         });
+    }
+
+    // ── Resource History Chart ──────────────────────────────────────
+    fn render_resource_history_chart(&self, ui: &mut egui::Ui) {
+        section_header(ui, Some(icons::TREND), "Resource history");
+        app_card(ui, |ui| {
+            let cpu_len = self.system_state.cpu_history.len();
+            let mem_len = self.system_state.memory_history.len();
+            let disk_len = self.system_state.disk_history.len();
+            let max_len = cpu_len.max(mem_len).max(disk_len);
+
+            if max_len < 2 {
+                ui.label(
+                    egui::RichText::new("Collecting data...")
+                        .italics()
+                        .color(colors::TEXT_MUTED),
+                );
+                return;
+            }
+
+            let cpu_points: PlotPoints = self
+                .system_state
+                .cpu_history
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| [i as f64, v as f64])
+                .collect();
+
+            let mem_points: PlotPoints = self
+                .system_state
+                .memory_history
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| [i as f64, v as f64])
+                .collect();
+
+            let disk_points: PlotPoints = self
+                .system_state
+                .disk_history
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| [i as f64, v as f64])
+                .collect();
+
+            let cpu_line = Line::new("CPU %", cpu_points)
+                .color(colors::ACCENT)
+                .width(2.0);
+
+            let mem_line = Line::new("Memory %", mem_points)
+                .color(colors::SUCCESS)
+                .width(2.0);
+
+            let disk_line = Line::new("Disk %", disk_points)
+                .color(colors::WARNING)
+                .width(2.0);
+
+            let plot = Plot::new("resource_history")
+                .height(160.0)
+                .show_grid([true, true])
+                .legend(Legend::default().position(Corner::RightTop))
+                .x_axis_label("Samples ago")
+                .y_axis_label("Usage %")
+                .allow_scroll(true)
+                .allow_zoom(false);
+
+            plot.show(ui, |plot_ui| {
+                plot_ui.line(cpu_line);
+                plot_ui.line(mem_line);
+                plot_ui.line(disk_line);
+            });
+
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!("{} samples", max_len))
+                        .size(11.0)
+                        .color(colors::TEXT_MUTED),
+                );
+            });
+        });
+        ui.add_space(4.0);
     }
 
     // ── System Resources Card ─────────────────────────────────────────────

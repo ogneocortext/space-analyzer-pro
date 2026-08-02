@@ -5,6 +5,7 @@ pub mod origins;
 pub mod output;
 pub mod recommendations;
 pub mod report;
+pub mod render;
 pub mod scan;
 pub mod types;
 
@@ -22,12 +23,6 @@ pub fn main() -> AppResult<()> {
     let output_format = cli.format.clone();
     let top_n = cli.top;
     let no_anim = cli.no_animation;
-
-    // Load persisted settings from database to use as defaults
-    let db_settings = Database::default_open()
-        .ok()
-        .as_ref()
-        .map(|db| db.load_settings());
 
     match cli.command {
         Commands::Scan {
@@ -48,213 +43,284 @@ pub fn main() -> AppResult<()> {
             shallow,
             threads,
             cache,
-        } => {
-            let scan_path = Path::new(&path);
-            helpers::validate_input(&path, &output_format)?;
-
-            let min_size = min_size
-                .as_ref()
-                .map(|s| helpers::parse_size(s))
-                .transpose()?;
-            let max_size = max_size
-                .as_ref()
-                .map(|s| helpers::parse_size(s))
-                .transpose()?;
-
-            if output_format == "text" && !no_anim {
-                animation::print_animated_banner();
-            }
-
-            // CLI flags take precedence; fall back to DB settings only when flag not provided
-            let effective_max_depth = max_depth.or_else(|| {
-                db_settings.as_ref().and_then(|s| {
-                    if s.max_scan_depth == 5 {
-                        None
-                    } else {
-                        Some(s.max_scan_depth as usize)
-                    }
-                })
-            });
-            let effective_deep = deep
-                || db_settings
-                    .as_ref()
-                    .map(|s| s.default_deep_scan)
-                    .unwrap_or(false);
-            let effective_shallow = shallow;
-
-            let result = scan::scan_directory(
-                scan_path,
-                verbose && output_format != "json" && !no_anim,
-                effective_max_depth,
-                effective_deep,
-                effective_shallow,
-                min_size,
-                max_size,
-                include_hidden,
-                no_anim,
-                threads,
-                cache,
-            )?;
-
-            if output_format == "text" && !no_anim {
-                animation::print_completion_animation(result.duration_secs);
-            }
-
-            output_results(
-                &output_format,
-                &result,
-                &path,
-                top_n,
-                no_anim,
-                depth_label(effective_deep, effective_shallow, effective_max_depth),
-            )?;
-
-            if let Some(channel_dir) = channel {
-                let payload = serde_json::json!({
-                    "path": scan_path.to_string_lossy().to_string(),
-                    "total_files": result.total_files,
-                    "total_size_bytes": result.total_size_bytes,
-                    "total_size_mb": result.total_size_mb,
-                    "duration_secs": result.duration_secs,
-                    "file_types": result.file_types,
-                    "extension_sizes": result.extension_sizes,
-                    "top_directories": result.top_directories,
-                    "largest_files": result.largest_files,
-                });
-                let _ = fs::create_dir_all(channel_dir);
-                let target = std::path::Path::new(channel_dir).join("scan-channel.json");
-                let _ = fs::write(
-                    &target,
-                    serde_json::to_string_pretty(&payload).unwrap_or_default(),
-                );
-                eprintln!("[CHANNEL] Scan result dropped to: {}", target.display());
-            }
-
-            if let Some(export_path) = export {
-                report::export_results(&result, export_path, &output_format);
-            }
-
-            if report {
-                let report_content = report::generate_report(&result, &path, top_n);
-                let reports_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("reports");
-                let _ = fs::create_dir_all(&reports_dir);
-                let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-                let sanitized_path: String = path
-                    .chars()
-                    .filter(|c| !['\\', '/', ':'].contains(c))
-                    .collect();
-                let path_hash = {
-                    let mut h: u32 = 0;
-                    for b in sanitized_path.bytes() {
-                        h = h.wrapping_mul(31).wrapping_add(b as u32);
-                    }
-                    format!("{:08x}", h)
-                };
-                let report_filename = format!("{}_{}_{}.md", sanitized_path, timestamp, path_hash);
-                let report_path = reports_dir.join(&report_filename);
-                if let Err(e) = fs::write(&report_path, &report_content) {
-                    eprintln!("❌ Failed to write report: {}", e);
-                } else {
-                    eprintln!("✅ Report written to: {}", report_path.display());
-                }
-            }
-
-            if let Ok(db) = space_analyzer_pro_desktop::database::Database::default_open() {
-                let _ = db.save_scan(
-                    &result,
-                    effective_deep,
-                    effective_shallow,
-                    effective_max_depth.unwrap_or(5) as u32,
-                );
-            }
-
-            if clean {
-                dedup::run_clean_analysis(&path, &output_format);
-            }
-
-            if cleanup_recommendations {
-                recommendations::print_cleanup_recommendations(&result);
-            }
-
-            if trace_origins {
-                let max_dirs = top_n.max(60);
-                let max_files = top_n.max(40);
-                let origin_report = space_analyzer_pro_desktop::origin_tracer::build_report(
-                    &result, max_dirs, max_files,
-                );
-                origins::print_origin_report(&origin_report, no_anim);
-            }
-
-            if let Some(question) = ask {
-                run_ai_question(question, result)?;
-            }
-        }
-
-        Commands::DiskInfo { path: _path } => {
-            // Always emit a JSON array of every mounted volume so the WinUI 3
-            // frontend can deserialize `List<DiskVolume>` directly. Previously this
-            // returned a single object for the matching volume (or `[]` when none
-            // matched), which made System.Text.Json throw when deserializing a
-            // single object into a List.
-            let disks = helpers::get_all_disks();
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&disks).unwrap_or_default()
-            );
-        }
-
-        Commands::History { limit, id, delete } => {
-            if let Ok(db) = space_analyzer_pro_desktop::database::Database::default_open() {
-                if let Some(scan_id) = delete {
-                    match db.delete_scan(scan_id) {
-                        Ok(count) if count > 0 => {
-                            println!("Deleted scan record {}.", scan_id);
-                        }
-                        Ok(_) => {
-                            eprintln!("No scan found with id {}", scan_id);
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to delete scan {}: {}", scan_id, e);
-                        }
-                    }
-                } else if let Some(scan_id) = id {
-                    match db.get_scan_by_id(scan_id) {
-                        Ok(Some(record)) => {
-                            println!(
-                                "{}",
-                                serde_json::to_string_pretty(&record).unwrap_or_default()
-                            );
-                        }
-                        Ok(None) => {
-                            eprintln!("No scan found with id {}", scan_id);
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to load scan {}: {}", scan_id, e);
-                        }
-                    }
-                } else {
-                    match db.get_scan_history(limit) {
-                        Ok(records) => {
-                            println!(
-                                "{}",
-                                serde_json::to_string_pretty(&records).unwrap_or_default()
-                            );
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to load history: {}", e);
-                        }
-                    }
-                }
-            } else {
-                eprintln!("Failed to open database");
-            }
-        }
-
+        } => handle_scan(
+            path,
+            verbose,
+            max_depth,
+            deep,
+            min_size,
+            max_size,
+            include_hidden,
+            export,
+            report,
+            clean,
+            cleanup_recommendations,
+            trace_origins,
+            channel,
+            ask,
+            shallow,
+            threads,
+            cache,
+            output_format,
+            top_n,
+            no_anim,
+        ),
+        Commands::DiskInfo { .. } => handle_disk_info(),
+        Commands::History { limit, id, delete } => handle_history(limit, id, delete, output_format),
         Commands::Dedup { path } => {
             dedup::run_clean_analysis(&path, &output_format);
+            Ok(())
+        }
+    }
+}
+
+fn handle_scan(
+    path: String,
+    verbose: bool,
+    max_depth: Option<usize>,
+    deep: bool,
+    min_size: &Option<String>,
+    max_size: &Option<String>,
+    include_hidden: bool,
+    export: &Option<String>,
+    report: bool,
+    clean: bool,
+    cleanup_recommendations: bool,
+    trace_origins: bool,
+    channel: &Option<String>,
+    ask: &Option<String>,
+    shallow: bool,
+    threads: usize,
+    cache: bool,
+    output_format: String,
+    top_n: usize,
+    no_anim: bool,
+) -> AppResult<()> {
+    let scan_path = Path::new(&path);
+    helpers::validate_input(&path, &output_format)?;
+
+    let min_size = min_size
+        .as_ref()
+        .map(|s| helpers::parse_size(s))
+        .transpose()?;
+    let max_size = max_size
+        .as_ref()
+        .map(|s| helpers::parse_size(s))
+        .transpose()?;
+
+    if output_format == "text" && !no_anim {
+        animation::print_animated_banner();
+    }
+
+    let db_settings = Database::default_open()
+        .ok()
+        .as_ref()
+        .map(|db| db.load_settings());
+
+    let effective_max_depth = max_depth.or_else(|| {
+        db_settings.as_ref().and_then(|s| {
+            if s.max_scan_depth == 5 {
+                None
+            } else {
+                Some(s.max_scan_depth as usize)
+            }
+        })
+    });
+    let effective_deep = deep
+        || db_settings
+            .as_ref()
+            .map(|s| s.default_deep_scan)
+            .unwrap_or(false);
+    let effective_shallow = shallow;
+
+    let result = scan::scan_directory(
+        scan_path,
+        verbose && output_format != "json" && !no_anim,
+        effective_max_depth,
+        effective_deep,
+        effective_shallow,
+        min_size,
+        max_size,
+        include_hidden,
+        threads,
+        cache,
+    )?;
+
+    if output_format == "text" && !no_anim {
+        animation::print_completion_animation(result.duration_secs);
+    }
+
+    output_results(
+        &output_format,
+        &result,
+        &path,
+        top_n,
+        no_anim,
+        depth_label(effective_deep, effective_shallow, effective_max_depth),
+    )?;
+
+    if let Some(channel_dir) = channel {
+        let payload = serde_json::json!({
+            "path": scan_path.to_string_lossy().to_string(),
+            "total_files": result.total_files,
+            "total_size_bytes": result.total_size_bytes,
+            "total_size_mb": result.total_size_mb,
+            "duration_secs": result.duration_secs,
+            "file_types": result.file_types,
+            "extension_sizes": result.extension_sizes,
+            "top_directories": result.top_directories,
+            "largest_files": result.largest_files,
+        });
+        let _ = fs::create_dir_all(channel_dir);
+        let target = std::path::Path::new(channel_dir).join("scan-channel.json");
+        let _ = fs::write(
+            &target,
+            serde_json::to_string_pretty(&payload).unwrap_or_default(),
+        );
+        eprintln!("[CHANNEL] Scan result dropped to: {}", target.display());
+    }
+
+    if let Some(export_path) = export {
+        report::export_results(&result, export_path, &output_format);
+    }
+
+    if report {
+        let report_content = report::generate_report(&result, &path, top_n);
+        let reports_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("reports");
+        let _ = fs::create_dir_all(&reports_dir);
+        let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
+        let sanitized_path: String = path
+            .chars()
+            .filter(|c| !['\\', '/', ':'].contains(c))
+            .collect();
+        let path_hash = {
+            let mut h: u32 = 0;
+            for b in sanitized_path.bytes() {
+                h = h.wrapping_mul(31).wrapping_add(b as u32);
+            }
+            format!("{:08x}", h)
+        };
+        let report_filename = format!("{}_{}_{}.md", sanitized_path, timestamp, path_hash);
+        let report_path = reports_dir.join(&report_filename);
+        if let Err(e) = fs::write(&report_path, &report_content) {
+            eprintln!("❌ Failed to write report: {}", e);
+        } else {
+            eprintln!("✅ Report written to: {}", report_path.display());
         }
     }
 
+    if let Ok(db) = Database::default_open() {
+        let _ = db.save_scan(
+            &result,
+            effective_deep,
+            effective_shallow,
+            effective_max_depth.unwrap_or(5) as u32,
+        );
+    }
+
+    if clean {
+        dedup::run_clean_analysis(&path, &output_format);
+    }
+
+    if cleanup_recommendations {
+        recommendations::print_cleanup_recommendations(&result);
+    }
+
+    if trace_origins {
+        let max_dirs = top_n.max(60);
+        let max_files = top_n.max(40);
+        let origin_report =
+            space_analyzer_pro_desktop::origin_tracer::build_report(&result, max_dirs, max_files);
+        origins::print_origin_report(&origin_report, no_anim);
+    }
+
+    if let Some(question) = ask {
+        run_ai_question(question, result)?;
+    }
+
+    Ok(())
+}
+
+fn handle_disk_info() -> AppResult<()> {
+    let disks = helpers::get_all_disks();
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&disks).unwrap_or_default()
+    );
+    Ok(())
+}
+
+fn handle_history(
+    limit: usize,
+    id: Option<i64>,
+    delete: Option<i64>,
+    output_format: String,
+) -> AppResult<()> {
+    if let Ok(db) = Database::default_open() {
+        if let Some(scan_id) = delete {
+            match db.delete_scan(scan_id) {
+                Ok(count) if count > 0 => {
+                    if output_format == "json" {
+                        println!(
+                            "{}",
+                            serde_json::json!({"deleted": true, "id": scan_id, "count": count})
+                        );
+                    } else {
+                        println!("Deleted scan record {}.", scan_id);
+                    }
+                }
+                Ok(_) => {
+                    if output_format == "json" {
+                        println!(
+                            "{}",
+                            serde_json::json!({"deleted": false, "id": scan_id, "error": "No scan found"})
+                        );
+                    } else {
+                        eprintln!("No scan found with id {}", scan_id);
+                    }
+                }
+                Err(e) => {
+                    if output_format == "json" {
+                        println!(
+                            "{}",
+                            serde_json::json!({"deleted": false, "id": scan_id, "error": e.to_string()})
+                        );
+                    } else {
+                        eprintln!("Failed to delete scan {}: {}", scan_id, e);
+                    }
+                }
+            }
+        } else if let Some(scan_id) = id {
+            match db.get_scan_by_id(scan_id) {
+                Ok(Some(record)) => {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&record).unwrap_or_default()
+                    );
+                }
+                Ok(None) => {
+                    eprintln!("No scan found with id {}", scan_id);
+                }
+                Err(e) => {
+                    eprintln!("Failed to load scan {}: {}", scan_id, e);
+                }
+            }
+        } else {
+            match db.get_scan_history(limit) {
+                Ok(records) => {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&records).unwrap_or_default()
+                    );
+                }
+                Err(e) => {
+                    eprintln!("Failed to load history: {}", e);
+                }
+            }
+        }
+    } else {
+        eprintln!("Failed to open database");
+    }
     Ok(())
 }
 
@@ -302,7 +368,7 @@ fn run_ai_question(
     question: &str,
     result: space_analyzer_pro_desktop::gui_common::ScanResult,
 ) -> AppResult<()> {
-    let settings = space_analyzer_pro_desktop::database::Database::default_open()
+    let settings = Database::default_open()
         .ok()
         .as_ref()
         .map(|db| db.load_settings())
@@ -350,7 +416,7 @@ fn run_ai_question(
 
     let executor: space_analyzer_pro_desktop::ollama::features::ToolExecutor =
         Box::new(move |call| {
-            let local_db = space_analyzer_pro_desktop::database::Database::default_open().ok();
+            let local_db = Database::default_open().ok();
             let r = registry.execute_tool(call, Some(&result), local_db.as_ref());
             r.unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}).to_string())
         });

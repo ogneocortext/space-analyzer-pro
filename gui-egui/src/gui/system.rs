@@ -1,11 +1,33 @@
 use super::*;
 use crate::gui::icons;
 
+const MAX_HISTORY_POINTS: usize = 60;
+
 impl SpaceAnalyzerApp {
     pub fn refresh_system_info(&mut self) {
-        self.system_state.disk_volumes = SystemMonitor::get_disk_volumes();
-        self.system_state.system_resources = Some(SystemMonitor::get_system_resources());
-        self.system_state.gpu_info = Some(SystemMonitor::detect_gpu());
+        let resources = SystemMonitor::get_system_resources();
+        let disk_volumes = SystemMonitor::get_disk_volumes();
+        let gpu_info = SystemMonitor::detect_gpu();
+
+        self.system_state.cpu_history.push(resources.cpu_percent);
+        self.system_state.memory_history.push(resources.memory_percent);
+
+        let total_space: u64 = disk_volumes.iter().map(|v| v.total_bytes).sum();
+        let used_space: u64 = disk_volumes.iter().map(|v| v.used_bytes).sum();
+        let disk_pct = if total_space > 0 {
+            (used_space as f32 / total_space as f32) * 100.0
+        } else {
+            0.0
+        };
+        self.system_state.disk_history.push(disk_pct);
+
+        self.system_state.cpu_history.truncate(MAX_HISTORY_POINTS);
+        self.system_state.memory_history.truncate(MAX_HISTORY_POINTS);
+        self.system_state.disk_history.truncate(MAX_HISTORY_POINTS);
+
+        self.system_state.disk_volumes = disk_volumes;
+        self.system_state.system_resources = Some(resources);
+        self.system_state.gpu_info = Some(gpu_info);
     }
 
     pub fn refresh_system_info_throttled(&mut self) {
