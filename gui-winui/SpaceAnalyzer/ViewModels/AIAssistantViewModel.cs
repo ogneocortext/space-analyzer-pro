@@ -589,7 +589,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                         System.Diagnostics.Debug.WriteLine($"[AI] Tool call: {fnName}");
 
                         var result = await (_toolExecutor ?? throw new InvalidOperationException("ToolExecutor not initialized"))
-                            .ExecuteAsync(fnName, args, ct);
+                            .ExecuteAsync(fnName, args, ct, userMessage);
 
                         // Add tool result to API messages
                         var toolCallId = $"call_{Guid.NewGuid():N}";

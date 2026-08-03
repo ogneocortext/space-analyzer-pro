@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,6 +20,7 @@ public class ToolExecutor : IDisposable
 {
     private readonly ScannerService _scanner;
     private bool _disposed;
+    private string _userMessage = string.Empty;
 
     private static readonly JsonSerializerOptions s_json = new()
     {
@@ -35,9 +37,12 @@ public class ToolExecutor : IDisposable
 
     /// <summary>
     /// Execute a tool call from the model and return the result as a string.
+    /// <paramref name="userMessage"/> is the user's current message, used to resolve a
+    /// target directory when the model omits a required path argument.
     /// </summary>
-    public async Task<string> ExecuteAsync(string toolName, Dictionary<string, object> arguments, CancellationToken ct = default)
+    public async Task<string> ExecuteAsync(string toolName, Dictionary<string, object> arguments, CancellationToken ct = default, string? userMessage = null)
     {
+        _userMessage = userMessage ?? string.Empty;
         try
         {
             return toolName switch
@@ -328,15 +333,15 @@ public class ToolExecutor : IDisposable
 
     private async Task<string> SearchFilesAsync(Dictionary<string, object> args, CancellationToken ct)
     {
-        var (records, _) = await _scanner.GetScanHistoryPageAsync(limit: 1, ct: ct);
-        if (records.Count == 0)
+        var path = await ResolveScanPathAsync(args, ct);
+        if (string.IsNullOrWhiteSpace(path))
             return "No scan results available.";
 
         var extension = GetOptionalString(args, "extension");
         var keyword = GetOptionalString(args, "keyword");
         var limit = GetInt(args, "limit", 20);
 
-        var scanArgs = $"scan --path \"{records[0].Path}\" --format json --top {limit}";
+        var scanArgs = $"scan --path \"{path}\" --format json --top {limit}";
         var scanOutput = await RunCliAsync(scanArgs, ct);
 
         if (string.IsNullOrWhiteSpace(scanOutput))
@@ -370,12 +375,12 @@ public class ToolExecutor : IDisposable
 
     private async Task<string> GetLargestFilesAsync(Dictionary<string, object> args, CancellationToken ct)
     {
-        var (records, _) = await _scanner.GetScanHistoryPageAsync(limit: 1, ct: ct);
-        if (records.Count == 0)
+        var path = await ResolveScanPathAsync(args, ct);
+        if (string.IsNullOrWhiteSpace(path))
             return "No scan results available.";
 
         var count = GetInt(args, "count", 20);
-        var scanArgs = $"scan --path \"{records[0].Path}\" --format json";
+        var scanArgs = $"scan --path \"{path}\" --format json";
         var output = await RunCliAsync(scanArgs, ct);
         if (string.IsNullOrWhiteSpace(output))
             return "No results.";
@@ -406,16 +411,9 @@ public class ToolExecutor : IDisposable
 
     private async Task<string> RunScanAsync(Dictionary<string, object> args, CancellationToken ct)
     {
-        var path = GetString(args, "path");
+        var path = await ResolveScanPathAsync(args, ct);
         if (string.IsNullOrWhiteSpace(path))
-        {
-            // Models sometimes omit the path despite it being required; fall back to
-            // the most recently scanned directory rather than failing the tool call.
-            var (latest, _) = await _scanner.GetScanHistoryPageAsync(limit: 1, ct: ct);
-            if (latest.Count == 0)
-                return "Error: no path provided and no prior scan history to use.";
-            path = latest[0].Path;
-        }
+            return "Error: no path provided and no prior scan history to use.";
 
         if (!Directory.Exists(path))
             return $"Error: directory not found: {path}";
@@ -462,6 +460,88 @@ public class ToolExecutor : IDisposable
     }
 
     // ── Helpers ──
+
+    /// <summary>
+    /// Resolves the directory to operate on for scan-backed tools. Priority:
+    /// explicit tool argument &gt; path mentioned in the user's message &gt; the most
+    /// recently scanned directory (previous fallback).
+    /// </summary>
+    private async Task<string> ResolveScanPathAsync(Dictionary<string, object> args, CancellationToken ct)
+    {
+        var path = GetString(args, "path");
+        if (string.IsNullOrWhiteSpace(path))
+            path = ExtractDirectoryPath(_userMessage) ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            var (latest, _) = await _scanner.GetScanHistoryPageAsync(limit: 1, ct: ct);
+            if (latest.Count > 0)
+                path = latest[0].Path;
+        }
+
+        return path;
+    }
+
+    /// <summary>
+    /// Tries to find a directory the user is targeting in their message text.
+    /// Handles quoted/backticked paths first, then drive-letter paths with
+    /// spaces, validating each candidate against the filesystem. Returns an
+    /// existing directory (or the parent of an existing file), else null.
+    /// </summary>
+    private static string? ExtractDirectoryPath(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+
+        // Quoted/backticked paths first (e.g. "C:\Some Folder" or `C:\Some Folder`).
+        foreach (var quote in new[] { '"', '`' })
+        {
+            var pattern = quote + "([^\r\n" + quote + "]+)" + quote;
+            foreach (Match m in Regex.Matches(text, pattern))
+            {
+                var path = m.Groups[1].Value.Trim();
+                if (IsExistingDirectory(path))
+                    return path;
+            }
+        }
+
+        // Drive-letter anchors (C:\ ...). Starting at each anchor, grow the candidate
+        // from the end of the message inward, dropping trailing prose one word at a
+        // time until the remaining text resolves to a real directory.
+        foreach (Match anchor in Regex.Matches(text, "[A-Za-z]:\\\\"))
+        {
+            var candidate = text[anchor.Index..].Trim();
+            while (candidate.Length > 3)
+            {
+                if (IsExistingDirectory(candidate))
+                    return candidate;
+
+                var boundary = -1;
+                for (int i = candidate.Length - 1; i >= 0; i--)
+                {
+                    if (char.IsWhiteSpace(candidate[i]) || candidate[i] == ',')
+                    {
+                        boundary = i;
+                        break;
+                    }
+                }
+                if (boundary <= 0)
+                    break;
+                candidate = candidate[..boundary].TrimEnd('\\').Trim();
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsExistingDirectory(string path)
+    {
+        if (Directory.Exists(path))
+            return true;
+        if (File.Exists(path))
+            return Directory.GetParent(path)?.FullName is { } parent && Directory.Exists(parent);
+        return false;
+    }
 
     private async Task<string> RunCliAsync(string args, CancellationToken ct)
     {
