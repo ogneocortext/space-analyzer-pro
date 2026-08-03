@@ -402,9 +402,15 @@ impl SpaceAnalyzerApp {
                 ui.horizontal(|ui| {
                     stat_card(ui, "Files", &format!("{}", result.total_files), colors::ACCENT);
                     stat_card(ui, "Size", &formatting::format_bytes(result.total_size_bytes), colors::SUCCESS);
+                    stat_card(ui, "Dirs", &format!("{}", result.total_dirs), colors::INFO);
+                    if result.total_files > 0 {
+                        let avg = result.total_size_bytes / result.total_files as u64;
+                        stat_card(ui, "Avg Size", &formatting::format_bytes(avg), colors::WARNING);
+                    }
                     stat_card(ui, "Duration", &format!("{:.1}s", result.duration_secs), colors::INFO);
                     if result.duration_secs > 0.0 {
                         stat_card(ui, "Speed", &format!("{:.0}/s", result.total_files as f64 / result.duration_secs), colors::ACCENT);
+                        stat_card(ui, "Throughput", &format!("{:.1} MB/s", result.total_size_bytes as f64 / (1024.0 * 1024.0) / result.duration_secs), colors::SUCCESS);
                     }
                     if !result.errors.is_empty() {
                         stat_card(ui, "Errors", &result.errors.len().to_string(), colors::ERROR);
@@ -440,6 +446,46 @@ impl SpaceAnalyzerApp {
                         });
                 });
                 ui.add_space(6.0);
+
+                if !result.category_sizes.is_empty() {
+                    section_header(ui, Some(icons::FOLDER), "Storage by category");
+                    app_card(ui, |ui| {
+                        self.show_categories(ui, &result);
+                    });
+                    ui.add_space(6.0);
+                }
+
+                if !result.empty_dirs.is_empty() {
+                    section_header(ui, Some(icons::FOLDER), "Empty directories");
+                    app_card(ui, |ui| {
+                        egui::ScrollArea::vertical()
+                            .max_height(120.0)
+                            .show(ui, |ui| {
+                                ui.label(
+                                    egui::RichText::new(format!("{} empty directories found", result.empty_dirs.len()))
+                                        .size(12.0)
+                                        .color(colors::TEXT_SECONDARY),
+                                );
+                                ui.add_space(4.0);
+                                for dir in result.empty_dirs.iter().take(20) {
+                                    ui.label(
+                                        egui::RichText::new(dir)
+                                            .size(11.0)
+                                            .monospace()
+                                            .color(colors::TEXT_MUTED),
+                                    );
+                                }
+                                if result.empty_dirs.len() > 20 {
+                                    ui.label(
+                                        egui::RichText::new(format!("... and {} more", result.empty_dirs.len() - 20))
+                                            .size(11.0)
+                                            .color(colors::TEXT_MUTED),
+                                    );
+                                }
+                            });
+                    });
+                    ui.add_space(6.0);
+                }
 
                 section_header(ui, Some(icons::PACKAGE), "Largest files");
                 app_card(ui, |ui| {
@@ -522,7 +568,7 @@ impl SpaceAnalyzerApp {
         let mut sorted_types: Vec<_> = result.file_types.iter().collect();
         sorted_types.sort_by(|a, b| b.1.cmp(a.1));
         egui::Grid::new("file_types_grid")
-            .num_columns(2)
+            .num_columns(4)
             .spacing([20.0, 4.0])
             .show(ui, |ui| {
                 ui.label(
@@ -535,14 +581,80 @@ impl SpaceAnalyzerApp {
                         .strong()
                         .color(colors::TEXT_SECONDARY),
                 );
+                ui.label(
+                    egui::RichText::new("Size")
+                        .strong()
+                        .color(colors::TEXT_SECONDARY),
+                );
+                ui.label(
+                    egui::RichText::new("Share")
+                        .strong()
+                        .color(colors::TEXT_SECONDARY),
+                );
                 ui.end_row();
                 for (ext, count) in sorted_types.iter().take(50) {
+                    let ext_size = result.extension_sizes.get(*ext).copied().unwrap_or(0);
+                    let pct = if result.total_size_bytes > 0 {
+                        (ext_size as f64 / result.total_size_bytes as f64) * 100.0
+                    } else {
+                        0.0
+                    };
                     ui.label(
                         egui::RichText::new(format!(".{}", ext))
                             .monospace()
                             .color(colors::ACCENT),
                     );
                     ui.label(format!("{} files", count));
+                    ui.label(formatting::format_bytes(ext_size));
+                    ui.label(format!("{:.1}%", pct));
+                    ui.end_row();
+                }
+            });
+    }
+
+    fn show_categories(&self, ui: &mut egui::Ui, result: &ScanResult) {
+        if result.category_sizes.is_empty() {
+            ui.label(
+                egui::RichText::new("No category data available")
+                    .italics()
+                    .color(colors::TEXT_MUTED),
+            );
+            return;
+        }
+        let mut sorted: Vec<_> = result.category_sizes.iter().collect();
+        sorted.sort_by(|a, b| b.1.cmp(a.1));
+        egui::Grid::new("categories_grid")
+            .num_columns(3)
+            .spacing([20.0, 4.0])
+            .show(ui, |ui| {
+                ui.label(
+                    egui::RichText::new("Category")
+                        .strong()
+                        .color(colors::TEXT_SECONDARY),
+                );
+                ui.label(
+                    egui::RichText::new("Size")
+                        .strong()
+                        .color(colors::TEXT_SECONDARY),
+                );
+                ui.label(
+                    egui::RichText::new("Share")
+                        .strong()
+                        .color(colors::TEXT_SECONDARY),
+                );
+                ui.end_row();
+                for (cat, size) in sorted.iter().take(10) {
+                    let pct = if result.total_size_bytes > 0 {
+                        (**size as f64 / result.total_size_bytes as f64) * 100.0
+                    } else {
+                        0.0
+                    };
+                    ui.label(
+                        egui::RichText::new(*cat)
+                            .color(colors::ACCENT),
+                    );
+                    ui.label(formatting::format_bytes(**size));
+                    ui.label(format!("{:.1}%", pct));
                     ui.end_row();
                 }
             });

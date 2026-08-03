@@ -316,6 +316,8 @@ impl Database {
                 top_directories_json TEXT NOT NULL,
                 largest_files_json TEXT NOT NULL,
                 deep_scan BOOLEAN NOT NULL DEFAULT 0,
+                shallow_scan BOOLEAN NOT NULL DEFAULT 0,
+                max_scan_depth INTEGER NOT NULL DEFAULT 5,
                 potential_cleanup_bytes INTEGER NOT NULL DEFAULT 0,
                 timestamp TEXT NOT NULL
             );
@@ -387,15 +389,18 @@ impl Database {
         Ok(())
     }
 
-    /// Get storage trend data (size over time)
+    /// Get storage trend data (size over time), most recent `limit` entries in chronological order
     pub fn get_storage_trend(&self, limit: usize) -> rusqlite::Result<Vec<(String, u64)>> {
         let mut stmt = self.conn.prepare(
-            "SELECT timestamp, total_size_bytes FROM scan_history ORDER BY timestamp ASC LIMIT ?1",
+            "SELECT timestamp, total_size_bytes FROM scan_history ORDER BY timestamp DESC LIMIT ?1",
         )?;
-        let rows = stmt.query_map(params![limit as i64], |row| {
-            Ok((row.get(0)?, row.get::<_, i64>(1)? as u64))
-        })?;
-        rows.collect()
+        let mut rows: Vec<(String, u64)> = stmt
+            .query_map(params![limit as i64], |row| {
+                Ok((row.get(0)?, row.get::<_, i64>(1)? as u64))
+            })?
+            .collect::<rusqlite::Result<_>>()?;
+        rows.reverse(); // Chronological order (oldest first) for trend analysis
+        Ok(rows)
     }
 
     /// Get the latest scan ID

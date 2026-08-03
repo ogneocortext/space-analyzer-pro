@@ -115,6 +115,22 @@ pub enum Commands {
         #[arg(long, default_value = "50")]
         limit: usize,
 
+        /// Number of records to skip (for pagination)
+        #[arg(long, default_value = "0")]
+        offset: usize,
+
+        /// Search/filter by path (case-insensitive substring match)
+        #[arg(long)]
+        search: Option<String>,
+
+        /// Sort by: timestamp (default), path, total_files, total_size_bytes, duration_secs
+        #[arg(long, default_value = "timestamp")]
+        sort_by: String,
+
+        /// Sort ascending (default: descending/newest first)
+        #[arg(long)]
+        sort_asc: bool,
+
         /// Show full details for one scan by ID
         #[arg(long)]
         id: Option<i64>,

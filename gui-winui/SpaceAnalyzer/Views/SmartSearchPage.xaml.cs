@@ -16,6 +16,7 @@ public sealed partial class SmartSearchPage : Page
         InitializeComponent();
         VM = new SmartSearchViewModel();
         DataContext = VM;
+        ViewModelRegistry.Register(VM);
         AppLog.Page("SmartSearchPage ctor end");
     }
 

@@ -41,15 +41,15 @@ pub fn build_csv(result: &ScanResult) -> String {
     ext_sizes.sort_by(|a, b| b.1.cmp(a.1));
     for (ext, size) in &ext_sizes {
         let count = result.file_types.get(*ext).unwrap_or(&0);
-        out.push_str(&format!(".{},{},{}\n", ext, size, count));
+        out.push_str(&format!(".{},{},{}\n", csv_escape(ext), size, count));
     }
     out.push('\n');
 
     out.push_str("directory,size_bytes,file_count,dir_count\n");
     for dir in &result.top_directories {
         out.push_str(&format!(
-            "\"{}\",{},{},{}\n",
-            dir.path.replace('"', "\"\""),
+            "{},{},{},{}\n",
+            csv_escape(&dir.path),
             dir.total_size,
             dir.file_count,
             dir.dir_count
@@ -60,12 +60,20 @@ pub fn build_csv(result: &ScanResult) -> String {
     out.push_str("file_path,size_bytes\n");
     for file in &result.largest_files {
         out.push_str(&format!(
-            "\"{}\",{}\n",
-            file.path.replace('"', "\"\""),
+            "{},{}\n",
+            csv_escape(&file.path),
             file.size
         ));
     }
     out
+}
+
+fn csv_escape(s: &str) -> String {
+    if s.contains(',') || s.contains('"') || s.contains('\n') {
+        format!("\"{}\"", s.replace('"', "\"\""))
+    } else {
+        s.to_string()
+    }
 }
 
 pub fn categorize_installers(result: &ScanResult) -> Vec<InstallerGroup> {

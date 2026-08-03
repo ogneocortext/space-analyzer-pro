@@ -17,6 +17,7 @@ public sealed partial class SystemPage : Page
         InitializeComponent();
         VM = new SystemViewModel();
         DataContext = VM;
+        ViewModelRegistry.Register(VM);
         AppLog.Page("SystemPage ctor end");
     }
 

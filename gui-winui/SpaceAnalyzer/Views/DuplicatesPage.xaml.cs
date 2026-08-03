@@ -2,6 +2,7 @@
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using SpaceAnalyzer.Controls;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.ViewModels;
 
@@ -16,7 +17,75 @@ public sealed partial class DuplicatesPage : Page
         InitializeComponent();
         VM = new DuplicatesViewModel();
         DataContext = VM;
+        ViewModelRegistry.Register(VM);
         AppLog.Page("DuplicatesPage ctor end");
+        VM.PropertyChanged += OnVmPropertyChanged;
+    }
+
+    private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(DuplicatesViewModel.HasResult))
+        {
+            DrawCharts();
+        }
+    }
+
+    private void DrawCharts()
+    {
+        DrawTopGroupsBar();
+        DrawWastedSpaceDonut();
+    }
+
+    private void DrawTopGroupsBar()
+    {
+        TopGroupsBarChartGrid.Children.Clear();
+        var groups = VM.DuplicateGroups;
+        if (groups == null || groups.Count == 0)
+        {
+            TopGroupsBarChartGrid.Children.Add(new TextBlock
+            {
+                Text = "No data",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11,
+                Opacity = 0.5
+            });
+            return;
+        }
+
+        var top = groups
+            .OrderByDescending(g => g.WastedBytes)
+            .Take(8)
+            .Select(g => (Label: $"Group {g.Hash[..8]}", Value: (double)g.WastedBytes, (string?)g.WastedDisplay))
+            .ToList();
+        var chart = LiveChartsFactory.CreateBarChart(top);
+        TopGroupsBarChartGrid.Children.Add(chart);
+    }
+
+    private void DrawWastedSpaceDonut()
+    {
+        WastedSpaceDonutGrid.Children.Clear();
+        var groups = VM.DuplicateGroups;
+        if (groups == null || groups.Count == 0)
+        {
+            WastedSpaceDonutGrid.Children.Add(new TextBlock
+            {
+                Text = "No data",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11,
+                Opacity = 0.5
+            });
+            return;
+        }
+
+        var top = groups
+            .OrderByDescending(g => g.WastedBytes)
+            .Take(6)
+            .Select(g => (Label: g.Hash[..12], Value: (double)g.WastedBytes))
+            .ToList();
+        var chart = LiveChartsFactory.CreateDonutChart(top);
+        WastedSpaceDonutGrid.Children.Add(chart);
     }
 
     private async void Analyze_Click(object sender, RoutedEventArgs e)

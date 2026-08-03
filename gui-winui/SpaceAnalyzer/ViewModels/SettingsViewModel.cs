@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using Windows.Storage;
 using SpaceAnalyzer.Services;
 
@@ -19,6 +20,7 @@ namespace SpaceAnalyzer.ViewModels;
 public class SettingsViewModel : INotifyPropertyChanged
 {
     private readonly ScannerService _scanner = new();
+    private static readonly HttpClient s_httpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
     private const string LocalSettingsKey = "SpaceAnalyzer.Settings";
 
     // ── Appearance ──
@@ -182,8 +184,8 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { _ollamaTestResult = value; OnPropertyChanged(); }
     }
 
-    private Microsoft.UI.Xaml.Media.SolidColorBrush _ollamaTestBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
-    public Microsoft.UI.Xaml.Media.SolidColorBrush OllamaTestBrush
+    private SolidColorBrush _ollamaTestBrush = GetThemeBrush("MutedBrush");
+    public SolidColorBrush OllamaTestBrush
     {
         get => _ollamaTestBrush;
         set { _ollamaTestBrush = value; OnPropertyChanged(); }
@@ -193,26 +195,25 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         OllamaTesting = true;
         OllamaTestResult = "Testing...";
-        OllamaTestBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray);
+        OllamaTestBrush = GetThemeBrush("MutedBrush");
         try
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            var response = await client.GetAsync($"{OllamaUrl.TrimEnd('/')}/api/tags");
+            var response = await s_httpClient.GetAsync($"{OllamaUrl.TrimEnd('/')}/api/tags");
             if (response.IsSuccessStatusCode)
             {
                 OllamaTestResult = "Connected";
-                OllamaTestBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Green);
+                OllamaTestBrush = GetThemeBrush("SuccessBrush");
             }
             else
             {
                 OllamaTestResult = $"Error {(int)response.StatusCode}";
-                OllamaTestBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Orange);
+                OllamaTestBrush = GetThemeBrush("WarningBrush");
             }
         }
         catch (Exception ex)
         {
             OllamaTestResult = ex.Message.Length > 60 ? ex.Message[..60] : ex.Message;
-            OllamaTestBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Red);
+            OllamaTestBrush = GetThemeBrush("ErrorBrush");
         }
         finally
         {
@@ -248,10 +249,10 @@ public class SettingsViewModel : INotifyPropertyChanged
             var container = ApplicationData.Current.LocalSettings
                 .CreateContainer(LocalSettingsKey, ApplicationDataCreateDisposition.Always);
 
-            if (container.Values.TryGetValue("Theme", out var v))
-                _theme = (string)v;
-            if (container.Values.TryGetValue("ScannerPath", out v))
-                _scannerPath = (string)v;
+            if (container.Values.TryGetValue("Theme", out var v) && v is string theme)
+                _theme = theme;
+            if (container.Values.TryGetValue("ScannerPath", out v) && v is string sp)
+                _scannerPath = sp;
             if (string.IsNullOrWhiteSpace(_scannerPath))
                 _scannerPath = _scanner.ScannerPath;
             if (container.Values.TryGetValue("ScanDepth", out v) && v is double d)
@@ -260,10 +261,10 @@ public class SettingsViewModel : INotifyPropertyChanged
                 _includeHidden = h;
             if (container.Values.TryGetValue("GpuAcceleration", out v) && v is bool g)
                 _gpuAcceleration = g;
-            if (container.Values.TryGetValue("OllamaUrl", out v))
-                _ollamaUrl = (string)v;
-            if (container.Values.TryGetValue("OllamaModel", out v))
-                _ollamaModel = (string)v;
+            if (container.Values.TryGetValue("OllamaUrl", out v) && v is string ou)
+                _ollamaUrl = ou;
+            if (container.Values.TryGetValue("OllamaModel", out v) && v is string om)
+                _ollamaModel = om;
             if (container.Values.TryGetValue("OllamaEnabled", out v) && v is bool oe)
                 _ollamaEnabled = oe;
             if (container.Values.TryGetValue("OllamaThink", out v) && v is bool ot)
@@ -272,18 +273,18 @@ public class SettingsViewModel : INotifyPropertyChanged
                 _agenticToolsEnabled = at;
             if (container.Values.TryGetValue("AutoModelSelection", out v) && v is bool am)
                 _autoModelSelection = am;
-            if (container.Values.TryGetValue("ToolCallingModel", out v))
-                _toolCallingModel = (string)v;
-            if (container.Values.TryGetValue("ToolChoice", out v))
-                _toolChoice = (string)v;
+            if (container.Values.TryGetValue("ToolCallingModel", out v) && v is string tcm)
+                _toolCallingModel = tcm;
+            if (container.Values.TryGetValue("ToolChoice", out v) && v is string tc)
+                _toolChoice = tc;
             if (container.Values.TryGetValue("AutoStartOllama", out v) && v is bool aso)
                 _autoStartOllama = aso;
             if (container.Values.TryGetValue("AiFeaturesPanelVisible", out v) && v is bool af)
                 _aiFeaturesPanelVisible = af;
             if (container.Values.TryGetValue("EmbeddingEnabled", out v) && v is bool ee)
                 _embeddingEnabled = ee;
-            if (container.Values.TryGetValue("EmbeddingModel", out v))
-                _embeddingModel = (string)v;
+            if (container.Values.TryGetValue("EmbeddingModel", out v) && v is string em)
+                _embeddingModel = em;
 
             // Fire change notifications for all properties so the UI reflects loaded values
             OnPropertyChanged(nameof(Theme));
@@ -370,4 +371,8 @@ public class SettingsViewModel : INotifyPropertyChanged
 
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    private static SolidColorBrush GetThemeBrush(string key)
+        => Application.Current.Resources[key] as SolidColorBrush
+           ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
 }

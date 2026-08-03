@@ -121,7 +121,7 @@ pub fn run_clean_analysis(path: &str, output_format: &str) {
                         format_bytes(group.size),
                         group.files.len(),
                         format_bytes(waste),
-                        &group.hash[..12]
+                        &group.hash[..group.hash.len().min(12)]
                     );
                     for f in &group.files {
                         println!("       📄 {}", f.path.display());

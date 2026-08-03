@@ -128,6 +128,8 @@ fn scan_result_with_many_files_populates_types() {
         empty_dirs: Vec::new(),
         scanned_files: HashMap::new(),
         category_sizes: HashMap::new(),
+        potential_cleanup_bytes: 0,
+        timestamp: String::new(),
     };
     say!("   Files: {} | Types: {:?}", result.total_files, result.file_types);
     assert_eq!(result.total_files, 20_000);

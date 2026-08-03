@@ -817,75 +817,75 @@ impl FileScanner {
                                 size: cached_size,
                                 is_dir,
                             });
-                            if is_dir {
-                                dirs_scanned += 1;
-                            } else {
-                                files_scanned += 1;
-                                current_size += cached_size;
+                        if is_dir {
+                            dirs_scanned += 1;
+                        } else {
+                            files_scanned += 1;
+                            current_size += cached_size;
 
-                                let p = Path::new(&path_str);
-                                let ext = p
-                                    .extension()
-                                    .and_then(|e| e.to_str())
+                            let p = Path::new(&path_str);
+                            let ext = p
+                                .extension()
+                                .and_then(|e| e.to_str())
+                                .unwrap_or("")
+                                .to_lowercase();
+
+                            *file_type_counts.entry(ext.clone()).or_insert(0) += 1;
+                            *extension_sizes_acc.entry(ext.clone()).or_insert(0) += cached_size;
+                            let cat = extension_to_category(&ext);
+                            *category_sizes_acc.entry(cat.to_string()).or_insert(0) += cached_size;
+
+                            let file_info = FileInfo {
+                                path: path_str.clone(),
+                                name: p
+                                    .file_name()
+                                    .and_then(|n| n.to_str())
                                     .unwrap_or("")
-                                    .to_lowercase();
+                                    .to_string(),
+                                size: cached_size,
+                                modified: Self::format_timestamp(
+                                    metadata
+                                        .modified()
+                                        .ok()
+                                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
+                                ),
+                                file_type: "file".to_string(),
+                                extension: ext.clone(),
+                            };
+                            live_files.push(file_info.clone());
 
-                                *file_type_counts.entry(ext.clone()).or_insert(0) += 1;
-                                *extension_sizes_acc.entry(ext.clone()).or_insert(0) += cached_size;
-                                let cat = extension_to_category(&ext);
-                                *category_sizes_acc.entry(cat.to_string()).or_insert(0) += cached_size;
-
-                                let file_info = FileInfo {
-                                    path: path_str.clone(),
-                                    name: p
-                                        .file_name()
-                                        .and_then(|n| n.to_str())
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    size: cached_size,
-                                    modified: Self::format_timestamp(
-                                        metadata
-                                            .modified()
-                                            .ok()
-                                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
-                                    ),
-                                    file_type: "file".to_string(),
-                                    extension: ext.clone(),
-                                };
-                                live_files.push(file_info.clone());
-
-                                if live_files.len() > 200 {
-                                    live_files.sort_by_key(|b| std::cmp::Reverse(b.size));
-                                    live_files.truncate(100);
-                                }
+                            if live_files.len() > 200 {
+                                live_files.sort_by_key(|b| std::cmp::Reverse(b.size));
+                                live_files.truncate(100);
                             }
-                            entries_processed += 1;
+                        }
+                        entries_processed += 1;
 
-                            if entries_processed.is_multiple_of(200) {
-                                let pct = if total_estimate > 0 {
-                                    ((entries_processed as f32 / total_estimate as f32) * 100.0)
-                                        .min(99.0)
-                                } else {
-                                    0.0
-                                };
-                                let _ =
-                                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                        progress_callback(ScanProgress {
-                                            files_scanned,
-                                            directories_scanned: dirs_scanned,
-                                            total_size: current_size,
-                                            current_file: path_str.clone(),
-                                            percentage: pct,
-                                            completed: false,
-                                            live_files: live_files.clone(),
-                                            file_type_counts: file_type_counts.clone(),
-                                            extension_sizes: extension_sizes_acc.clone(),
-                                            category_sizes: category_sizes_acc.clone(),
-                                        });
-                                    }));
-                            }
+                        if entries_processed.is_multiple_of(200) {
+                            let pct = if total_estimate > 0 {
+                                ((entries_processed as f32 / total_estimate as f32) * 100.0)
+                                    .min(99.0)
+                            } else {
+                                0.0
+                            };
+                            let _ =
+                                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                    progress_callback(ScanProgress {
+                                        files_scanned,
+                                        directories_scanned: dirs_scanned,
+                                        total_size: current_size,
+                                        current_file: path_str.clone(),
+                                        percentage: pct,
+                                        completed: false,
+                                        live_files: live_files.clone(),
+                                        file_type_counts: file_type_counts.clone(),
+                                        extension_sizes: extension_sizes_acc.clone(),
+                                        category_sizes: category_sizes_acc.clone(),
+                                    });
+                                }));
+                        }
 
-                            continue;
+                        continue;
                         }
                     }
                 }

@@ -38,47 +38,14 @@ public sealed partial class MainWindow : Window
     {
         try
         {
+            // Save settings before disposing
             if (ContentFrame.Content is Views.SettingsPage settingsPage)
-            {
                 (settingsPage.DataContext as SettingsViewModel)?.Save();
-            }
             if (ContentFrame.Content is Views.ScanPage scanPage)
-            {
                 (scanPage.DataContext as ScanViewModel)?.Save();
-            }
-            // Dispose ViewModels that implement IDisposable to release timers and counters
-            if (ContentFrame.Content is Views.DashboardPage dashboardPage)
-            {
-                (dashboardPage.DataContext as DashboardViewModel)?.Dispose();
-            }
-            if (ContentFrame.Content is Views.SmartSearchPage smartSearchPage)
-            {
-                (smartSearchPage.DataContext as SmartSearchViewModel)?.Dispose();
-            }
-            if (ContentFrame.Content is Views.WorkflowsPage workflowsPage)
-            {
-                (workflowsPage.DataContext as WorkflowsViewModel)?.Dispose();
-            }
-            if (ContentFrame.Content is Views.AIAssistantPage aiAssistantPage)
-            {
-                (aiAssistantPage.DataContext as AIAssistantViewModel)?.Dispose();
-            }
-            if (ContentFrame.Content is Views.CleanupPage cleanupPage)
-            {
-                (cleanupPage.DataContext as CleanupViewModel)?.Dispose();
-            }
-            if (ContentFrame.Content is Views.DuplicatesPage duplicatesPage)
-            {
-                (duplicatesPage.DataContext as DuplicatesViewModel)?.Dispose();
-            }
-            if (ContentFrame.Content is Views.HistoryPage historyPage)
-            {
-                (historyPage.DataContext as HistoryViewModel)?.Dispose();
-            }
-            if (ContentFrame.Content is Views.SystemPage systemPage)
-            {
-                (systemPage.DataContext as SystemViewModel)?.Dispose();
-            }
+
+            // Dispose ALL tracked ViewModels (not just the active page's)
+            ViewModelRegistry.DisposeAll();
         }
         catch { /* swallow */ }
         AppLog.Nav("MainWindow closed");

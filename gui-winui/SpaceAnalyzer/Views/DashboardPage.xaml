@@ -35,7 +35,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <Border x:Name="StatCardTotalFiles" Grid.Row="0" Grid.Column="0" Style="{StaticResource DashboardCardBorder}">
+                <Border x:Name="StatCardTotalFiles" Grid.Row="0" Grid.Column="0" Style="{StaticResource HeroCard}">
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center" Height="72">
                         <FontIcon Glyph="&#xEB2F7;" FontSize="{StaticResource Icon.Hero}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
                         <StackPanel VerticalAlignment="Center">
@@ -44,7 +44,7 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
-                <Border x:Name="StatCardTotalSize" Grid.Row="0" Grid.Column="1" Style="{StaticResource DashboardCardBorder}">
+                <Border x:Name="StatCardTotalSize" Grid.Row="0" Grid.Column="1" Style="{StaticResource HeroCard}">
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center" Height="72">
                         <FontIcon Glyph="&#xE9F3;" FontSize="{StaticResource Icon.Hero}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
                         <StackPanel VerticalAlignment="Center">
@@ -53,7 +53,7 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
-                <Border x:Name="StatCardScanCount" Grid.Row="1" Grid.Column="0" Style="{StaticResource DashboardCardBorder}">
+                <Border x:Name="StatCardScanCount" Grid.Row="1" Grid.Column="0" Style="{StaticResource HeroCard}">
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center" Height="72">
                         <FontIcon Glyph="&#xEB39;" FontSize="{StaticResource Icon.Hero}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
                         <StackPanel VerticalAlignment="Center">
@@ -62,7 +62,7 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
-                <Border x:Name="StatCardDuplicateCount" Grid.Row="1" Grid.Column="1" Style="{StaticResource DashboardCardBorder}">
+                <Border x:Name="StatCardDuplicateCount" Grid.Row="1" Grid.Column="1" Style="{StaticResource HeroCard}">
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center" Height="72">
                         <FontIcon Glyph="&#xEB9F;" FontSize="{StaticResource Icon.Hero}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
                         <StackPanel VerticalAlignment="Center">
@@ -83,12 +83,7 @@
                 <!-- Disk Usage Section -->
                 <StackPanel Grid.Column="0" Spacing="{StaticResource Space.MD}">
                     <TextBlock Text="Disk Usage" Style="{StaticResource Type.SectionTitle}" />
-                    <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
-                        <Border.Transitions>
-                            <TransitionCollection>
-                                <EntranceThemeTransition />
-                            </TransitionCollection>
-                        </Border.Transitions>
+                    <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}">
                         <StackPanel Spacing="{StaticResource Space.MD}">
                             <ItemsRepeater x:Name="DiskVolumesList" ItemsSource="{x:Bind VM.DiskVolumes, Mode=OneWay}">
                                 <ItemsRepeater.Layout>
@@ -195,12 +190,7 @@
 
             <!-- System Resources Section -->
             <TextBlock Text="System Resources" Style="{StaticResource Type.SectionTitle}" />
-            <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
-                <Border.Transitions>
-                    <TransitionCollection>
-                        <EntranceThemeTransition />
-                    </TransitionCollection>
-                </Border.Transitions>
+            <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.XL}">
                 <Grid ColumnSpacing="{StaticResource Space.XXL}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -239,12 +229,7 @@
 
             <!-- Quick Scan -->
             <TextBlock Text="Quick Scan" Style="{StaticResource Type.SectionTitle}" />
-            <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
-                <Border.Transitions>
-                    <TransitionCollection>
-                        <EntranceThemeTransition />
-                    </TransitionCollection>
-                </Border.Transitions>
+            <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.XL}">
                 <StackPanel Spacing="{StaticResource Space.MD}">
                     <Grid ColumnSpacing="{StaticResource Space.SM}">
                         <Grid.ColumnDefinitions>
@@ -276,49 +261,57 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Border Grid.Column="0" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
-                    <Border.Transitions>
-                        <TransitionCollection>
-                            <EntranceThemeTransition />
-                        </TransitionCollection>
-                    </Border.Transitions>
+                <Border Grid.Column="0" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.MD}">
                     <StackPanel Spacing="{StaticResource Space.XS}">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
                             <FontIcon Glyph="&#xE964;" FontSize="{StaticResource Icon.Small}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                             <TextBlock Text="CPU" Style="{StaticResource Type.SubTitle}" />
                         </StackPanel>
-                        <Canvas x:Name="CpuChart" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <Grid x:Name="CpuChartGrid" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
                         <TextBlock Text="{x:Bind VM.CpuUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>
-                <Border Grid.Column="1" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
-                    <Border.Transitions>
-                        <TransitionCollection>
-                            <EntranceThemeTransition />
-                        </TransitionCollection>
-                    </Border.Transitions>
+                <Border Grid.Column="1" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.MD}">
                     <StackPanel Spacing="{StaticResource Space.XS}">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
                             <FontIcon Glyph="&#xE9F9;" FontSize="{StaticResource Icon.Small}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                             <TextBlock Text="Memory" Style="{StaticResource Type.SubTitle}" />
                         </StackPanel>
-                        <Canvas x:Name="MemChart" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <Grid x:Name="MemChartGrid" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
                         <TextBlock Text="{x:Bind VM.MemoryUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" />
                     </StackPanel>
                 </Border>
-                <Border Grid.Column="2" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
-                    <Border.Transitions>
-                        <TransitionCollection>
-                            <EntranceThemeTransition />
-                        </TransitionCollection>
-                    </Border.Transitions>
+                <Border Grid.Column="2" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.MD}">
                     <StackPanel Spacing="{StaticResource Space.XS}">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
                             <FontIcon Glyph="&#xE950;" FontSize="{StaticResource Icon.Small}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                             <TextBlock Text="Disk" Style="{StaticResource Type.SubTitle}" />
                         </StackPanel>
-                        <Canvas x:Name="DiskChart" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <Grid x:Name="DiskChartGrid" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
                         <TextBlock Text="{x:Bind VM.DiskUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Storage Breakdown -->
+            <TextBlock Text="Storage Breakdown" Style="{StaticResource Type.SectionTitle}" />
+            <Grid ColumnSpacing="{StaticResource Space.LG}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
+                        <TextBlock Text="Used Space by Volume" Style="{StaticResource Type.SubTitle}" />
+                        <TextBlock Text="Share of total used disk across mounted volumes." Style="{StaticResource Type.Caption}" Opacity="0.6" />
+                        <Grid x:Name="DiskUsageDonutGrid" Height="200" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                    </StackPanel>
+                </Border>
+                <Border Grid.Column="1" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
+                        <TextBlock Text="Top File Types by Size" Style="{StaticResource Type.SubTitle}" />
+                        <TextBlock Text="Largest extensions from your most recent scan." Style="{StaticResource Type.Caption}" Opacity="0.6" />
+                        <Grid x:Name="FileTypePieGrid" Height="200" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
                     </StackPanel>
                 </Border>
             </Grid>

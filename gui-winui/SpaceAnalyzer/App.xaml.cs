@@ -1,5 +1,7 @@
 ﻿// Licensed under the MIT License.
 
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Storage;
@@ -16,13 +18,20 @@ public partial class App : Application
 
     private static void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
     {
-        System.Diagnostics.Debug.WriteLine($"[UnhandledException] {e.Exception}");
-        System.Diagnostics.Debug.WriteLine(e.Exception.StackTrace);
+        var ex = e.Exception;
+        System.Diagnostics.Debug.WriteLine($"[UnhandledException] {ex}");
+        System.Diagnostics.Debug.WriteLine(ex.StackTrace);
         e.Handled = true;
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        LiveCharts.Configure(config => config
+            .AddSkiaSharp()
+            .AddDefaultMappers()
+            .AddDefaultTheme()
+            .UseDefaults());
+
         ApplySavedTheme();
         m_window = new MainWindow();
         m_window.Activate();

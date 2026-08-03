@@ -64,9 +64,12 @@ public sealed class BoolToErrorBrushConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, string language)
     {
         bool isError = value is bool b && b;
-        return isError
-            ? new SolidColorBrush(Microsoft.UI.Colors.Red)
-            : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        if (isError)
+        {
+            return Application.Current.Resources["ErrorBrush"] as SolidColorBrush
+                ?? new SolidColorBrush(Microsoft.UI.Colors.Red);
+        }
+        return new SolidColorBrush(Microsoft.UI.Colors.Transparent);
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)

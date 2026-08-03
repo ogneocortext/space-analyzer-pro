@@ -25,7 +25,7 @@ impl SpaceAnalyzerApp {
                 if self.ollama_client.is_some() && self.scan_result.is_some() =>
             {
                 if self.settings.auto_model_selection {
-                    let _ = self.select_model_for_task("Complex Analysis");
+                    self.select_model_for_task("Complex Analysis");
                 }
                 let old_input = self.chat_input.clone();
                 self.chat_input = prompt.clone();

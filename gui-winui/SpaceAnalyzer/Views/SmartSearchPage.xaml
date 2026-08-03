@@ -97,7 +97,7 @@
                            Style="{StaticResource Type.Body}"/>
 
                 <!-- Results -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}"
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.XL}"
                         Visibility="{x:Bind VM.HasResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
                         <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" Style="{StaticResource Type.CardTitle}"/>

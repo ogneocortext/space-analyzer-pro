@@ -24,7 +24,7 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
                         <TextBlock Text="Scan History" Style="{StaticResource Type.PageTitle}"/>
-                        <TextBlock Text="View and compare previous scan results." Style="{StaticResource Type.Body}"/>
+                        <TextBlock Text="View, search, and compare previous scan results." Style="{StaticResource Type.Body}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Top">
                         <Button Content="Refresh" Click="Refresh_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Refresh history"/>
@@ -32,9 +32,46 @@
                     </StackPanel>
                 </Grid>
 
+                <!-- Trend Chart (visible when there are records) -->
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
+                        <TextBlock Text="Size Trend" Style="{StaticResource Type.SubTitle}" />
+                        <Grid x:Name="TrendChartGrid" Height="140" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Search + Sort Bar (only visible when there are records) -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}">
+                    <Grid ColumnSpacing="{StaticResource Space.SM}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Text="{x:Bind VM.SearchText, Mode=TwoWay}" PlaceholderText="Search by path..." Style="{StaticResource Type.Caption.TextBox}" KeyDown="SearchBox_KeyDown"/>
+                        <Button Grid.Column="1" Content="Search" Click="Search_Click" Style="{StaticResource SmallButton}" AutomationProperties.Name="Search history"/>
+                        <Button Grid.Column="2" Content="Clear" Click="ClearSearch_Click" Style="{StaticResource SmallButton}" Visibility="{x:Bind VM.HasSearchText, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+                        <Button Grid.Column="3" Content="{x:Bind VM.DateSortIndicator, Mode=OneWay}" Click="SortDate_Click" Style="{StaticResource SmallButton}" MinWidth="50" AutomationProperties.Name="Sort by date"/>
+                        <Button Grid.Column="4" Content="{x:Bind VM.SizeSortIndicator, Mode=OneWay}" Click="SortSize_Click" Style="{StaticResource SmallButton}" MinWidth="50" AutomationProperties.Name="Sort by size"/>
+                    </Grid>
+                </Border>
+
                 <!-- Status -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}" Visibility="{x:Bind VM.HasHistory, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
-                    <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" Style="{StaticResource Type.Caption}"/>
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}">
+                    <Grid ColumnSpacing="{StaticResource Space.SM}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{x:Bind VM.StatusMessage, Mode=OneWay}" Style="{StaticResource Type.Caption}" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center">
+                            <Button Content="&#xE72B;" Click="PrevPage_Click" Style="{StaticResource SmallButton}" MinWidth="36" IsEnabled="{x:Bind VM.HasPreviousPage, Mode=OneWay}" AutomationProperties.Name="Previous page"/>
+                            <TextBlock Text="{x:Bind VM.PageInfo, Mode=OneWay}" Style="{StaticResource Type.Caption}" VerticalAlignment="Center" Margin="4,0"/>
+                            <Button Content="&#xE72A;" Click="NextPage_Click" Style="{StaticResource SmallButton}" MinWidth="36" IsEnabled="{x:Bind VM.HasNextPage, Mode=OneWay}" AutomationProperties.Name="Next page"/>
+                        </StackPanel>
+                    </Grid>
                 </Border>
 
                 <!-- History List -->
@@ -52,7 +89,7 @@
                                             <!-- Header row: icon + path + date -->
                                             <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center">
                                                 <FontIcon Glyph="&#xEB39;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
-                                                <StackPanel Spacing="{StaticResource Space.XS}">
+                                                <StackPanel Spacing="{StaticResource Space.XS}" HorizontalAlignment="Stretch" MaxWidth="700">
                                                     <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind Path, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Style="{StaticResource Type.Caption}" Text="{x:Bind DateDisplay, Mode=OneTime}" Opacity="0.8"/>
                                                 </StackPanel>
@@ -99,13 +136,11 @@
                 </Border>
 
                 <!-- File Explorer / Scan Details -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasSelectedRecordVisibility, Mode=OneWay}">
-                    <Border.Transitions>
-                        <TransitionCollection>
-                            <EntranceThemeTransition/>
-                        </TransitionCollection>
-                    </Border.Transitions>
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasSelectedRecordVisibility, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.LG}">
+                        <!-- Back button at top -->
+                        <Button Content="Back to list" Click="BackToList_Click" Style="{StaticResource SmallButton}"/>
+
                         <TextBlock Text="Scan Details" Style="{StaticResource Type.CardTitle}" />
 
                         <!-- Scan Summary -->
@@ -153,14 +188,14 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
                                     <Button Content="Size" Click="FileSizeHeader_Click" Tag="1" Style="{StaticResource TinyButton}" MinWidth="40" MinHeight="20" HorizontalContentAlignment="Left"/>
-                                    <TextBlock Text="{x:Bind VM.SizeSortIndicator, Mode=OneWay}" Style="{StaticResource Type.Tiny}" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                    <TextBlock Text="{x:Bind VM.FileSizeSortIndicator, Mode=OneWay}" Style="{StaticResource Type.Tiny}" VerticalAlignment="Center" Margin="2,0,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
                                     <TextBlock Text="Ext" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Opacity="0.7" VerticalAlignment="Center" Margin="4,0,0,0"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
                                     <Button Content="Name" Click="FileNameHeader_Click" Tag="2" Style="{StaticResource TinyButton}" MinWidth="40" MinHeight="20" HorizontalContentAlignment="Left"/>
-                                    <TextBlock Text="{x:Bind VM.NameSortIndicator, Mode=OneWay}" Style="{StaticResource Type.Tiny}" VerticalAlignment="Center" Margin="2,0,0,0"/>
+                                    <TextBlock Text="{x:Bind VM.FileNameSortIndicator, Mode=OneWay}" Style="{StaticResource Type.Tiny}" VerticalAlignment="Center" Margin="2,0,0,0"/>
                                 </StackPanel>
                             </Grid>
 
@@ -197,6 +232,7 @@
                             </Border>
                         </StackPanel>
 
+                        <!-- Back button at bottom -->
                         <Button Content="Back to list" Click="BackToList_Click" Style="{StaticResource SmallButton}"/>
                     </StackPanel>
                 </Border>
@@ -215,4 +251,3 @@
         </ScrollViewer>
     </Grid>
 </Page>
-

@@ -2,11 +2,14 @@
 
 using System;
 using System.IO;
+using System.Threading;
 
 namespace SpaceAnalyzer.Helpers;
 
 /// <summary>
 /// Simple file logger for diagnosing runtime UI and navigation issues.
+/// Thread-safe: uses <see cref="Interlocked.Increment"/> for sequence numbering
+/// and a <see cref="StreamWriter"/> with explicit flushing for concurrent writes.
 /// </summary>
 public static class AppLog
 {
@@ -16,6 +19,7 @@ public static class AppLog
         "ui-actions.log");
 
     private static int _sequence;
+    private static readonly StreamWriter? s_writer;
 
     static AppLog()
     {
@@ -24,6 +28,7 @@ public static class AppLog
             var dir = Path.GetDirectoryName(LogPath);
             if (dir != null && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
+            s_writer = new StreamWriter(LogPath, append: true) { AutoFlush = true };
         }
         catch { /* no-op */ }
     }
@@ -32,8 +37,9 @@ public static class AppLog
     {
         try
         {
-            var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{++_sequence}] [{category}] {message}";
-            File.AppendAllText(LogPath, line + Environment.NewLine);
+            var seq = Interlocked.Increment(ref _sequence);
+            var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{seq}] [{category}] {message}";
+            s_writer?. WriteLine(line);
         }
         catch { /* swallow logging failures */ }
     }

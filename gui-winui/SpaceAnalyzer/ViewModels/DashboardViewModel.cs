@@ -78,6 +78,15 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
     public bool HasDiskVolumes => _diskVolumes.Any();
     public Microsoft.UI.Xaml.Visibility HasDiskVolumesVisibility => HasDiskVolumes ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
 
+    // ── Latest scan record (for file type pie chart) ──
+
+    private ScanHistoryRecord? _latestScan;
+    public ScanHistoryRecord? LatestScan
+    {
+        get => _latestScan;
+        set { _latestScan = value; OnPropertyChanged(); }
+    }
+
     // ── System resources ──
 
     private double _cpuUsage;
@@ -184,7 +193,7 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
             var result = await _scanner.ScanDirectoryAsync(QuickScanPath);
             if (result != null)
             {
-                QuickScanResultText = $"Scan complete: {result.TotalFiles:N0} files, {result.TotalSizeMb:F1} MB in {result.DurationSecs:F1}s";
+                QuickScanResultText = $"Scan complete: {result.TotalFiles:N0} files, {result.TotalSizeMb:F1} MB, {result.DurationSecs:F1}s";
                 TotalFiles = result.TotalFiles;
                 TotalSizeBytes = result.TotalSizeBytes;
                 ScanCount++;
@@ -256,11 +265,13 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
             {
                 TotalFiles = latest.TotalFiles;
                 TotalSizeBytes = latest.TotalSizeBytes;
+                LatestScan = latest;
             }
             else
             {
                 TotalFiles = 0;
                 TotalSizeBytes = 0;
+                LatestScan = null;
             }
 
             DuplicateCount = 0;

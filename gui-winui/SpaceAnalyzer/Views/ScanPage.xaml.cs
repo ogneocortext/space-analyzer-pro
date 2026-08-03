@@ -17,6 +17,7 @@ public sealed partial class ScanPage : Page
         InitializeComponent();
         VM = new ScanViewModel();
         DataContext = VM;
+        ViewModelRegistry.Register(VM);
         AppLog.Page("ScanPage ctor end");
     }
 

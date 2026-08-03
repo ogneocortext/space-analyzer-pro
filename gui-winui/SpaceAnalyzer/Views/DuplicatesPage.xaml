@@ -46,7 +46,7 @@
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" Style="{StaticResource Type.Body}"/>
 
                 <!-- Results -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.LG}">
                         <TextBlock Text="Analysis Results" Style="{StaticResource Type.CardTitle}" />
 
@@ -69,6 +69,22 @@
                             <StackPanel Grid.Column="2" Spacing="{StaticResource Space.XS}">
                                 <TextBlock Text="{x:Bind VM.PotentialSavingsDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
                                 <TextBlock Text="Reclaimable" Style="{StaticResource Type.StatLabel}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Charts -->
+                        <Grid ColumnSpacing="{StaticResource Space.LG}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="{StaticResource Space.SM}">
+                                <TextBlock Text="Top Groups by Size" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                <Grid x:Name="TopGroupsBarChartGrid" Height="180" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="{StaticResource Space.SM}">
+                                <TextBlock Text="Wasted Space Distribution" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                <Grid x:Name="WastedSpaceDonutGrid" Height="180" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
                             </StackPanel>
                         </Grid>
 

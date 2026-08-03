@@ -121,7 +121,7 @@
                 </Border>
 
                 <!-- Results -->
-                <Border Style="{StaticResource DashboardCardBorder}"
+                <Border Style="{StaticResource AnimatedCard}"
                         Padding="{StaticResource Thickness.LG}"
                         Visibility="{x:Bind VM.HasResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.MD}">

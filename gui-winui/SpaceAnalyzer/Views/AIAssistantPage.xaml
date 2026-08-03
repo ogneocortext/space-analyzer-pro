@@ -5,9 +5,110 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:SpaceAnalyzer.ViewModels"
+    xmlns:controls="using:SpaceAnalyzer.Controls"
     mc:Ignorable="d"
     NavigationCacheMode="Required"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <!-- Template for normal text messages (user, assistant, system) -->
+        <DataTemplate x:Key="TextMessageTemplate" x:DataType="vm:AIChatMessage">
+            <StackPanel Spacing="4">
+                <!-- Role label -->
+                <TextBlock Style="{StaticResource Type.Caption}"
+                           Opacity="0.5"
+                           Margin="8,0,0,0"
+                           Text="{x:Bind Role, Mode=OneWay}"
+                           Visibility="{x:Bind IsUser, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
+
+                <!-- Message bubble -->
+                <Border Padding="16" CornerRadius="16" MaxWidth="70%"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        HorizontalAlignment="{x:Bind IsUser, Mode=OneWay, Converter={StaticResource BoolToHorizontalAlignment}}">
+                    <StackPanel Spacing="{StaticResource Space.XS}">
+                        <!-- Tool name badge -->
+                        <Border Background="{ThemeResource AccentSurfaceBrush}"
+                                CornerRadius="8"
+                                Padding="8,4"
+                                HorizontalAlignment="Left"
+                                Visibility="{x:Bind IsTool, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <FontIcon Glyph="&#xE74C;" FontSize="12" VerticalAlignment="Center"/>
+                                <TextBlock Text="{x:Bind ToolName, Mode=OneWay}"
+                                           Style="{StaticResource Type.Caption}"
+                                           Foreground="White"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Content -->
+                        <TextBlock Text="{x:Bind Content, Mode=OneWay}"
+                                   TextWrapping="Wrap"
+                                   Style="{StaticResource Type.Body}"/>
+
+                        <!-- Timestamp + Copy -->
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" HorizontalAlignment="Right">
+                            <TextBlock Text="{x:Bind TimestampDisplay, Mode=OneWay}"
+                                       Style="{StaticResource Type.Tiny}" Opacity="0.5"/>
+                            <Button Content="Copy" Click="CopyMessage_Click"
+                                    Style="{StaticResource TinyButton}"
+                                    Tag="{x:Bind Content}"
+                                    Visibility="{x:Bind IsUser, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Template for tool result messages — renders rich structured data -->
+        <DataTemplate x:Key="ToolResultTemplate" x:DataType="vm:AIChatMessage">
+            <StackPanel Spacing="4">
+                <TextBlock Style="{StaticResource Type.Caption}"
+                           Opacity="0.5"
+                           Margin="8,0,0,0"
+                           Text="Tool"/>
+
+                <Border Padding="16" CornerRadius="16" MaxWidth="80%"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        HorizontalAlignment="Left">
+                    <StackPanel Spacing="{StaticResource Space.XS}">
+                        <!-- Tool name badge -->
+                        <Border Background="{ThemeResource AccentSurfaceBrush}"
+                                CornerRadius="8"
+                                Padding="8,4"
+                                HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <FontIcon Glyph="&#xE74C;" FontSize="12" VerticalAlignment="Center"/>
+                                <TextBlock Text="{x:Bind ToolName, Mode=OneWay}"
+                                           Style="{StaticResource Type.Caption}"
+                                           Foreground="White"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Rich tool result renderer -->
+                        <controls:ToolResultPresenter
+                            controls:ToolResultPresenter.ToolName="{x:Bind ToolName, Mode=OneWay}"
+                            controls:ToolResultPresenter.ToolResult="{x:Bind Content, Mode=OneWay}"
+                            MaxWidth="380"/>
+
+                        <!-- Timestamp -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock Text="{x:Bind TimestampDisplay, Mode=OneWay}"
+                                       Style="{StaticResource Type.Tiny}" Opacity="0.5"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Template selector -->
+        <controls:ChatMessageTemplateSelector x:Key="ChatMessageTemplateSelector"
+                                               TextTemplate="{StaticResource TextMessageTemplate}"
+                                               ToolResultTemplate="{StaticResource ToolResultTemplate}"/>
+    </Page.Resources>
 
     <Grid Padding="{StaticResource Thickness.XL}">
         <Grid.RowDefinitions>
@@ -28,39 +129,43 @@
         <ScrollViewer x:Name="MessageScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <StackPanel x:Name="MessageContainer" Spacing="{StaticResource Space.MD}">
-                <ItemsControl ItemsSource="{x:Bind VM.Messages, Mode=OneWay}">
+                <ItemsControl ItemsSource="{x:Bind VM.Messages, Mode=OneWay}"
+                              ItemTemplateSelector="{StaticResource ChatMessageTemplateSelector}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Spacing="{StaticResource Space.MD}"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:AIChatMessage">
-                            <Border Padding="16" CornerRadius="16" MaxWidth="70%"
-                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                    BorderThickness="1"
-                                    HorizontalAlignment="{x:Bind IsUser, Mode=OneWay, Converter={StaticResource BoolToHorizontalAlignment}}">
-                                <StackPanel Spacing="{StaticResource Space.XS}">
-                                    <TextBlock Text="{x:Bind Content, Mode=OneWay}"
-                                               TextWrapping="Wrap" Style="{StaticResource Type.Body}"/>
-                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" HorizontalAlignment="Right">
-                                        <TextBlock Text="{x:Bind Timestamp, Mode=OneWay}" Style="{StaticResource Type.Tiny}" Opacity="0.5"/>
-                                        <Button Content="Copy" Click="CopyMessage_Click" Style="{StaticResource TinyButton}" Tag="{x:Bind Content}" Visibility="{x:Bind IsUser, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <!-- Suggested prompts (shown when few messages) -->
-                <StackPanel Spacing="{StaticResource Space.SM}" Margin="0,0,0,12" Visibility="{x:Bind VM.ShowSuggestions, Mode=OneWay}">
+                <!-- Typing indicator -->
+                <StackPanel x:Name="ThinkingIndicator"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            Margin="16,0,0,0"
+                            Visibility="Collapsed">
+                    <Border Padding="12,8" CornerRadius="12"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <ProgressRing IsActive="True" Width="16" Height="16"/>
+                            <TextBlock x:Name="ThinkingText" Style="{StaticResource Type.Body}" Opacity="0.7"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Suggested prompts -->
+                <StackPanel Spacing="{StaticResource Space.SM}" Margin="0,0,0,12"
+                            Visibility="{x:Bind VM.ShowSuggestions, Mode=OneWay}">
                     <TextBlock Text="Try asking:" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
-                        <Button Content="What takes up the most space?" Click="SuggestedPrompt_Click" Style="{StaticResource SmallButton}" Tag="What takes up the most space?"/>
-                        <Button Content="Summarize my disk usage" Click="SuggestedPrompt_Click" Style="{StaticResource SmallButton}" Tag="Summarize my disk usage"/>
-                        <Button Content="Find cleanup opportunities" Click="SuggestedPrompt_Click" Style="{StaticResource SmallButton}" Tag="Find cleanup opportunities"/>
+                        <Button Content="What takes up the most space?" Click="SuggestedPrompt_Click"
+                                Style="{StaticResource SmallButton}" Tag="What takes up the most space?"/>
+                        <Button Content="Summarize my disk usage" Click="SuggestedPrompt_Click"
+                                Style="{StaticResource SmallButton}" Tag="Summarize my disk usage"/>
+                        <Button Content="Find cleanup opportunities" Click="SuggestedPrompt_Click"
+                                Style="{StaticResource SmallButton}" Tag="Find cleanup opportunities"/>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
@@ -78,6 +183,7 @@
                      PlaceholderText="Ask about your disk usage..."
                      AcceptsReturn="True"
                      KeyDown="Input_KeyDown"
+                     IsEnabled="{x:Bind VM.IsNotBusy, Mode=OneWay}"
                      AutomationProperties.Name="Chat message input"/>
             <Button Grid.Column="1"
                     Content="Send"
@@ -101,4 +207,3 @@
                    Margin="0,4,0,0"/>
     </Grid>
 </Page>
-

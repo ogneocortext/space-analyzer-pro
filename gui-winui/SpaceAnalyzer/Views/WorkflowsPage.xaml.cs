@@ -16,6 +16,7 @@ public sealed partial class WorkflowsPage : Page
         InitializeComponent();
         VM = new WorkflowsViewModel();
         DataContext = VM;
+        ViewModelRegistry.Register(VM);
         AppLog.Page("WorkflowsPage ctor end");
     }
 

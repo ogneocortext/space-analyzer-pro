@@ -59,22 +59,23 @@ public static class UiHelper
 
     /// <summary>
     /// Maps a percentage (0-100) to a semantic color brush:
-    /// <c>>= 90</c> = Red, <c>>= 70</c> = Gold, otherwise Green.
+    /// <c>>= 90</c> = Error, <c>>= 70</c> = Warning, otherwise Success.
+    /// Resolves theme-aware brushes from App.xaml resources.
     /// </summary>
-    private static readonly SolidColorBrush BrushRed = new(Colors.Red);
-    private static readonly SolidColorBrush BrushGold = new(Colors.Gold);
-    private static readonly SolidColorBrush BrushGreen = new(Colors.Green);
+    private static SolidColorBrush GetThemeBrush(string key)
+        => Application.Current.Resources[key] as SolidColorBrush
+           ?? new SolidColorBrush(Colors.Gray);
 
     public static SolidColorBrush GetUsageBrush(double percent)
     {
         if (double.IsNaN(percent) || double.IsInfinity(percent))
-            return BrushGreen;
+            return GetThemeBrush("SuccessBrush");
 
         return percent switch
         {
-            >= 90 => BrushRed,
-            >= 70 => BrushGold,
-            _ => BrushGreen,
+            >= 90 => GetThemeBrush("ErrorBrush"),
+            >= 70 => GetThemeBrush("WarningBrush"),
+            _ => GetThemeBrush("SuccessBrush"),
         };
     }
 

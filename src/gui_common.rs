@@ -50,6 +50,7 @@ pub struct ScanResult {
     pub category_sizes: HashMap<String, u64>,
     #[serde(default)]
     pub potential_cleanup_bytes: u64,
+    #[serde(default)]
     pub timestamp: String,
 }
 

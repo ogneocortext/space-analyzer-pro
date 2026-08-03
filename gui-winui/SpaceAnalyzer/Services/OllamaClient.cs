@@ -13,14 +13,15 @@ using System.Threading.Tasks;
 namespace SpaceAnalyzer.Services;
 
 /// <summary>
-/// Minimal HTTP client for the local Ollama REST API.
-/// Communicates with <c>/api/chat</c> and <c>/api/tags</c> endpoints.
+/// HTTP client for the local Ollama REST API.
+/// Supports multi-round agentic tool-calling conversations.
 /// </summary>
 public class OllamaClient : IDisposable
 {
     private readonly HttpClient _http;
     private bool _disposed;
     private ModelFallbackConfig _fallback;
+    private const int MaxRetries = 2;
 
     public OllamaClient(string baseUrl)
     {
@@ -32,18 +33,16 @@ public class OllamaClient : IDisposable
         _fallback = new ModelFallbackConfig();
     }
 
-    /// <summary>
-    /// Configure model fallback from local discovered models.
-    /// </summary>
     public void SetFallbackFromLocal(string primaryModel, IReadOnlyList<string> localModelNames)
     {
         _fallback = ModelFallbackConfig.FromLocalModels(primaryModel, localModelNames);
     }
 
     /// <summary>
-    /// Send a non-streaming chat request with fallback support and return the assistant's reply text.
+    /// Send a chat request and return the full <see cref="ChatResponse"/> (not just text).
+    /// Includes tool_calls when the model requests them.
     /// </summary>
-    public async Task<string> SendChatMessageAsync(
+    public async Task<ChatResponse> SendChatMessageAsync(
         string model,
         List<ChatMessage> messages,
         List<ToolDefinition>? tools = null,
@@ -52,34 +51,37 @@ public class OllamaClient : IDisposable
     {
         if (string.IsNullOrWhiteSpace(model))
             throw new ArgumentException("Model name cannot be empty", nameof(model));
-
         if (messages == null || messages.Count == 0)
             throw new ArgumentException("Messages list cannot be null or empty", nameof(messages));
 
         var candidates = new List<string> { model };
         if (_fallback.Enabled)
-        {
             candidates.AddRange(_fallback.FallbackModels);
-        }
 
         string? lastError = null;
         foreach (var candidate in candidates)
         {
-            try
+            for (int attempt = 0; attempt <= MaxRetries; attempt++)
             {
-                var response = await SendChatRequestAsync(candidate, messages, tools, toolChoice, ct).ConfigureAwait(false);
-                return response;
-            }
-            catch (Exception ex)
-            {
-                lastError = ex.Message;
+                try
+                {
+                    return await SendChatRequestAsync(candidate, messages, tools, toolChoice, ct)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex.Message;
+                    if (attempt < MaxRetries)
+                        await Task.Delay(TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt)), ct)
+                            .ConfigureAwait(false);
+                }
             }
         }
 
         throw new InvalidOperationException($"Chat failed for all candidates. Last error: {lastError}");
     }
 
-    private async Task<string> SendChatRequestAsync(
+    private async Task<ChatResponse> SendChatRequestAsync(
         string model,
         List<ChatMessage> messages,
         List<ToolDefinition>? tools,
@@ -112,11 +114,11 @@ public class OllamaClient : IDisposable
         var responseJson = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         var chatResponse = JsonSerializer.Deserialize<ChatResponse>(responseJson, JsonOptions);
 
-        return chatResponse?.Message?.Content ?? string.Empty;
+        return chatResponse ?? throw new InvalidOperationException("Null response from Ollama");
     }
 
     /// <summary>
-    /// Check whether the Ollama server is reachable and the given model is loaded.
+    /// Check whether the Ollama server is reachable.
     /// </summary>
     public async Task<bool> IsAvailableAsync(CancellationToken ct = default)
     {
@@ -133,7 +135,7 @@ public class OllamaClient : IDisposable
 
     // ── Shared JSON options ──
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    public static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
@@ -154,7 +156,7 @@ public class OllamaClient : IDisposable
 /// <summary>
 /// Role of a chat message participant.
 /// </summary>
-public enum ChatRole { System, User, Assistant }
+public enum ChatRole { System, User, Assistant, Tool }
 
 /// <summary>
 /// A single chat message for Ollama <c>/api/chat</c>.
@@ -163,6 +165,35 @@ public class ChatMessage
 {
     public ChatRole Role { get; set; }
     public string Content { get; set; } = string.Empty;
+
+    [JsonPropertyName("tool_calls")]
+    public List<ToolCallResponse>? ToolCalls { get; set; }
+
+    [JsonPropertyName("tool_call_id")]
+    public string? ToolCallId { get; set; }
+}
+
+/// <summary>
+/// A tool call requested by the model.
+/// </summary>
+public class ToolCallResponse
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "function";
+
+    [JsonPropertyName("function")]
+    public ToolCallFunction Function { get; set; } = new();
+}
+
+/// <summary>
+/// Function details within a tool call.
+/// </summary>
+public class ToolCallFunction
+{
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("arguments")]
+    public object Arguments { get; set; } = new();
 }
 
 /// <summary>
@@ -183,7 +214,6 @@ public class ChatRequest
 
 /// <summary>
 /// Definition of a tool for Ollama <c>/api/chat</c>.
-/// Mirrors the Rust <c>ToolDefinition</c> struct.
 /// </summary>
 public class ToolDefinition
 {
@@ -223,10 +253,6 @@ public class ModelFallbackConfig
     public List<string> FallbackModels { get; set; } = new();
     public bool LogFallbacks { get; set; } = true;
 
-    /// <summary>
-    /// Build a fallback chain from local discovered models, excluding the primary.
-    /// Smaller/faster models are tried first.
-    /// </summary>
     public static ModelFallbackConfig FromLocalModels(string primaryModel, IReadOnlyList<string> localModelNames)
     {
         var fallbacks = localModelNames
@@ -257,4 +283,3 @@ public class ModelFallbackConfig
         return 3;
     }
 }
-

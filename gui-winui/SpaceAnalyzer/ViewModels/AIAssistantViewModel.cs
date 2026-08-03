@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
@@ -14,13 +16,13 @@ namespace SpaceAnalyzer.ViewModels;
 
 /// <summary>
 /// ViewModel for the AI Assistant page. Sends user queries to the local
-/// Ollama server via <see cref="OllamaClient"/> and displays the conversation.
-/// Supports model routing: auto-selects chat/tool models per task and falls
-/// back through local models when the primary is unavailable.
+/// Ollama server via <see cref="OllamaClient"/> and executes tools via
+/// <see cref="ToolExecutor"/> in an agentic loop.
 /// </summary>
 public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
 {
     private OllamaClient? _client;
+    private ToolExecutor? _toolExecutor;
     private CancellationTokenSource _cts = new();
     private bool _disposed;
 
@@ -57,6 +59,15 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
         get => _statusText;
         set { _statusText = value; OnPropertyChanged(); }
     }
+
+    private string _thinkingStatus = string.Empty;
+    public string ThinkingStatus
+    {
+        get => _thinkingStatus;
+        set { _thinkingStatus = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsThinking)); }
+    }
+
+    public bool IsThinking => !string.IsNullOrEmpty(ThinkingStatus);
 
     public bool ShowSuggestions => _messages.Count <= 2;
 
@@ -126,6 +137,15 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
         _client = new OllamaClient(OllamaUrl);
     }
 
+    private void EnsureToolExecutor()
+    {
+        if (_toolExecutor == null)
+        {
+            var scanner = new ScannerService();
+            _toolExecutor = new ToolExecutor(scanner);
+        }
+    }
+
     private void LoadSettings()
     {
         try
@@ -133,8 +153,6 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             var container = Windows.Storage.ApplicationData.Current.LocalSettings
                 .CreateContainer("SpaceAnalyzer.Settings", Windows.Storage.ApplicationDataCreateDisposition.Always);
 
-            // Set backing fields directly to avoid triggering property setter side effects
-            // (e.g. OllamaUrl setter calls RefreshOllamaClient()) before all values load.
             if (container.Values.TryGetValue("OllamaUrl", out var v))
                 _ollamaUrl = (string)v;
             if (container.Values.TryGetValue("OllamaModel", out v))
@@ -148,7 +166,6 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             if (container.Values.TryGetValue("ToolChoice", out v))
                 _toolChoice = (string)v;
 
-            // Fire change notifications for loaded properties
             OnPropertyChanged(nameof(OllamaUrl));
             OnPropertyChanged(nameof(OllamaModel));
             OnPropertyChanged(nameof(ToolCallingModel));
@@ -159,40 +176,32 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AIAssistantViewModel] LoadSettings failed: {ex}");
-            // Defaults are fine.
         }
     }
 
     private const int MaxMessages = 50;
+    private const int MaxToolIterations = 10;
 
-    public void AddMessage(ChatRole role, string content)
+    public void AddMessage(ChatRole role, string content, List<ToolCallResponse>? toolCalls = null, string? toolCallId = null)
     {
-        _messages.Add(new AIChatMessage(role, content));
+        _messages.Add(new AIChatMessage(role, content, toolCalls, toolCallId));
         while (_messages.Count > MaxMessages)
             _messages.RemoveAt(0);
         OnPropertyChanged(nameof(ShowSuggestions));
     }
 
-    private string ClassifyTask(string userMessage)
+    private string SelectModelForTask(string userMessage)
     {
+        if (!AutoModelSelection) return OllamaModel;
+
         var lower = userMessage.ToLowerInvariant();
-        if (lower.Contains("analyz") || lower.Contains("recommend") || lower.Contains("report"))
-            return "Analysis";
-        if (lower.Contains("run") || lower.Contains("execute") || lower.Contains("clean") || lower.Contains("delete"))
-            return "Tool Calling";
-        if (lower.Contains("search") || lower.Contains("find") || lower.Contains("file") || lower.Contains("scan"))
-            return "Semantic Search";
-        return "General Chat";
+        if (lower.Contains("disk") || lower.Contains("scan") || lower.Contains("file")
+            || lower.Contains("duplicate") || lower.Contains("cleanup") || lower.Contains("storage"))
+            return string.IsNullOrWhiteSpace(ToolCallingModel) ? OllamaModel : ToolCallingModel;
+
+        return OllamaModel;
     }
 
-    /// <summary>
-    /// Dynamically resolves tool_choice based on the user's question,
-    /// mirroring the Rust <c>resolve_tool_choice</c> logic in
-    /// <see cref="src/ollama/features.rs"/>.
-    /// When the question clearly references disk-analysis domain keywords
-    /// or tool names, forces "required" so the model skips chit-chat
-    /// and goes straight to tool calling.
-    /// </summary>
     private string ResolveToolChoice(string question, List<ToolDefinition> tools)
     {
         var lower = question.ToLowerInvariant();
@@ -214,27 +223,17 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
         return "auto";
     }
 
-    private string SelectModelForTask(string taskType)
+    private static readonly JsonSerializerOptions s_toolArgJson = new()
     {
-        // In the WinUI frontend we don't have a discovered model list, so we
-        // pick between the two configured slots based on task heuristics.
-        if (!AutoModelSelection) return OllamaModel;
-
-        var lower = taskType.ToLowerInvariant();
-        if (lower.Contains("tool") || lower.Contains("agentic") || lower.Contains("workflow"))
-            return string.IsNullOrWhiteSpace(ToolCallingModel) ? OllamaModel : ToolCallingModel;
-
-        return OllamaModel;
-    }
+        PropertyNameCaseInsensitive = true,
+    };
 
     private List<ToolDefinition> GetToolDefinitions()
     {
-        var tools = new List<ToolDefinition>
+        return new List<ToolDefinition>
         {
-            // Always-available tools
             new ToolDefinition
             {
-                Type = "function",
                 Function = new ToolFunction
                 {
                     Name = "get_disk_volumes",
@@ -244,7 +243,6 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             },
             new ToolDefinition
             {
-                Type = "function",
                 Function = new ToolFunction
                 {
                     Name = "get_system_resources",
@@ -254,7 +252,6 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             },
             new ToolDefinition
             {
-                Type = "function",
                 Function = new ToolFunction
                 {
                     Name = "get_storage_trend",
@@ -272,7 +269,6 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             },
             new ToolDefinition
             {
-                Type = "function",
                 Function = new ToolFunction
                 {
                     Name = "list_workflows",
@@ -282,7 +278,6 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             },
             new ToolDefinition
             {
-                Type = "function",
                 Function = new ToolFunction
                 {
                     Name = "predict_storage",
@@ -298,14 +293,12 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                     }
                 }
             },
-            // Destructive-action preview gate tools (read-only / preview only)
             new ToolDefinition
             {
-                Type = "function",
                 Function = new ToolFunction
                 {
                     Name = "preview_impact",
-                    Description = "Generate a destructive-action impact report for a file. Shows hardlinks, symlinks, sibling files, and an impact assessment. READ-ONLY — does not modify the filesystem.",
+                    Description = "Generate a destructive-action impact report for a file. Shows hardlinks, symlinks, sibling files, and an impact assessment. READ-ONLY.",
                     Parameters = new Dictionary<string, object>
                     {
                         ["type"] = "object",
@@ -319,17 +312,16 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             },
             new ToolDefinition
             {
-                Type = "function",
                 Function = new ToolFunction
                 {
                     Name = "move_to_trash",
-                    Description = "PREVIEW ONLY: Returns an impact report for moving a file to trash. The AI agent CANNOT perform this action directly. The user must confirm via the GUI.",
+                    Description = "PREVIEW ONLY: Returns an impact report for moving a file to trash. Cannot perform the action directly.",
                     Parameters = new Dictionary<string, object>
                     {
                         ["type"] = "object",
                         ["properties"] = new Dictionary<string, object>
                         {
-                            ["path"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Absolute path to the file to move to trash" }
+                            ["path"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Absolute path to the file" }
                         },
                         ["required"] = new List<string> { "path" }
                     }
@@ -337,104 +329,101 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             },
             new ToolDefinition
             {
-                Type = "function",
                 Function = new ToolFunction
                 {
                     Name = "hardlink_duplicates",
-                    Description = "PREVIEW ONLY: Returns a plan for hard-linking duplicate files in a directory. The AI agent CANNOT perform this action directly.",
+                    Description = "PREVIEW ONLY: Returns a plan for hard-linking duplicate files in a directory.",
                     Parameters = new Dictionary<string, object>
                     {
                         ["type"] = "object",
                         ["properties"] = new Dictionary<string, object>
                         {
-                            ["path"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Absolute path to the directory to scan for duplicates" }
+                            ["path"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Absolute path to the directory" }
                         },
                         ["required"] = new List<string> { "path" }
                     }
                 }
-            }
+            },
+            new ToolDefinition
+            {
+                Function = new ToolFunction
+                {
+                    Name = "run_scan",
+                    Description = "Scan a directory and return a summary of disk usage including total files, size, top directories, largest files, and file type distribution.",
+                    Parameters = new Dictionary<string, object>
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new Dictionary<string, object>
+                        {
+                            ["path"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Absolute path to the directory to scan" },
+                            ["deep"] = new Dictionary<string, object> { ["type"] = "boolean", ["description"] = "Enable deep scan with unlimited depth (default false)" }
+                        },
+                        ["required"] = new List<string> { "path" }
+                    }
+                }
+            },
+            new ToolDefinition
+            {
+                Function = new ToolFunction
+                {
+                    Name = "get_scan_summary",
+                    Description = "Get a summary of the latest scan results including total files, size, and file type distribution.",
+                    Parameters = new Dictionary<string, object>()
+                }
+            },
+            new ToolDefinition
+            {
+                Function = new ToolFunction
+                {
+                    Name = "get_file_type_breakdown",
+                    Description = "Get a detailed breakdown of files by extension from the current scan.",
+                    Parameters = new Dictionary<string, object>()
+                }
+            },
+            new ToolDefinition
+            {
+                Function = new ToolFunction
+                {
+                    Name = "search_files",
+                    Description = "Search files in the current scan by extension, name keyword, or size range.",
+                    Parameters = new Dictionary<string, object>
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new Dictionary<string, object>
+                        {
+                            ["extension"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Filter by file extension (without dot, e.g. 'pdf')" },
+                            ["keyword"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Filter by keyword in file path/name" },
+                            ["limit"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Maximum number of results (default 20)" }
+                        },
+                        ["required"] = new List<string>()
+                    }
+                }
+            },
+            new ToolDefinition
+            {
+                Function = new ToolFunction
+                {
+                    Name = "get_largest_files",
+                    Description = "Get the largest files from the current scan.",
+                    Parameters = new Dictionary<string, object>
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new Dictionary<string, object>
+                        {
+                            ["count"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Number of largest files to return (default 20)" }
+                        },
+                        ["required"] = new List<string>()
+                    }
+                }
+            },
         };
-
-        // Scan-dependent tools (only meaningful after a scan has been run)
-        tools.Add(new ToolDefinition
-        {
-            Type = "function",
-            Function = new ToolFunction
-            {
-                Name = "get_scan_summary",
-                Description = "Get a summary of the current scan results including total files, size, and file type distribution.",
-                Parameters = new Dictionary<string, object>()
-            }
-        });
-
-        tools.Add(new ToolDefinition
-        {
-            Type = "function",
-            Function = new ToolFunction
-            {
-                Name = "get_file_type_breakdown",
-                Description = "Get a detailed breakdown of files by extension from the current scan.",
-                Parameters = new Dictionary<string, object>()
-            }
-        });
-
-        tools.Add(new ToolDefinition
-        {
-            Type = "function",
-            Function = new ToolFunction
-            {
-                Name = "analyze_file_patterns",
-                Description = "Analyze file patterns to find duplicates, similar files, and categorization insights from current scan.",
-                Parameters = new Dictionary<string, object>()
-            }
-        });
-
-        tools.Add(new ToolDefinition
-        {
-            Type = "function",
-            Function = new ToolFunction
-            {
-                Name = "search_files",
-                Description = "Search files in the current scan by extension, name keyword, or size range.",
-                Parameters = new Dictionary<string, object>
-                {
-                    ["type"] = "object",
-                    ["properties"] = new Dictionary<string, object>
-                    {
-                        ["extension"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Filter by file extension (without dot, e.g. 'pdf')" },
-                        ["keyword"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Filter by keyword in file path/name" },
-                        ["min_size_mb"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Minimum file size in MB" },
-                        ["max_size_mb"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Maximum file size in MB" },
-                        ["limit"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Maximum number of results (default 20)" }
-                    },
-                    ["required"] = new List<string>()
-                }
-            }
-        });
-
-        tools.Add(new ToolDefinition
-        {
-            Type = "function",
-            Function = new ToolFunction
-            {
-                Name = "get_largest_files",
-                Description = "Get the largest files from the current scan with optional size filter and configurable count.",
-                Parameters = new Dictionary<string, object>
-                {
-                    ["type"] = "object",
-                    ["properties"] = new Dictionary<string, object>
-                    {
-                        ["count"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Number of largest files to return (default 20, max 100)" },
-                        ["min_size_mb"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Minimum file size in MB to include" }
-                    },
-                    ["required"] = new List<string>()
-                }
-            }
-        });
-
-        return tools;
     }
 
+    /// <summary>
+    /// Main send method with agentic tool-calling loop.
+    /// When the model responds with tool_calls, executes them and feeds results back,
+    /// repeating until the model produces a final text response or max iterations reached.
+    /// </summary>
     public async Task SendMessageAsync()
     {
         if (_disposed) return;
@@ -443,69 +432,184 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
 
         _cts.Dispose();
         _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
 
         var userMessage = InputText.Trim();
         AddMessage(ChatRole.User, userMessage);
         InputText = string.Empty;
 
-        var assistantMsg = new AIChatMessage(ChatRole.Assistant, string.Empty);
-        _messages.Add(assistantMsg);
-
         IsBusy = true;
         StatusText = "Thinking...";
-
-        var taskType = ClassifyTask(userMessage);
-        var selectedModel = SelectModelForTask(taskType);
-
-        var apiMessages = new List<ChatMessage>
-        {
-            new()
-            {
-                Role = ChatRole.System,
-                Content = "You are a helpful disk-usage analysis assistant. " +
-                          "You help users find and reclaim disk space. Keep answers concise and actionable."
-            }
-        };
-
-        foreach (var msg in _messages)
-        {
-            apiMessages.Add(new ChatMessage
-            {
-                Role = msg.Role,
-                Content = msg.Content
-            });
-        }
 
         try
         {
             if (_client is null)
             {
-                assistantMsg.Content = "Ollama client is not configured. Check your settings.";
+                AddMessage(ChatRole.Assistant, "Ollama client is not configured. Check your settings.");
                 StatusText = "Not connected.";
                 return;
             }
 
+            EnsureToolExecutor();
+
+            var selectedModel = SelectModelForTask(userMessage);
+            var apiMessages = BuildApiMessages();
             List<ToolDefinition>? tools = null;
             string resolvedToolChoice = "auto";
+
             if (AgenticToolsEnabled)
             {
                 tools = GetToolDefinitions();
                 resolvedToolChoice = ResolveToolChoice(userMessage, tools);
             }
 
-            var response = await _client.SendChatMessageAsync(selectedModel, apiMessages, tools, resolvedToolChoice, _cts.Token);
-            assistantMsg.Content = response;
-            StatusText = "Ready.";
+            for (int iteration = 0; iteration < MaxToolIterations; iteration++)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                ThinkingStatus = iteration == 0
+                    ? "Thinking..."
+                    : $"Executing tools (step {iteration + 1})...";
+
+                var response = await _client.SendChatMessageAsync(
+                    selectedModel, apiMessages, tools, resolvedToolChoice, ct);
+
+                var message = response.Message;
+                if (message == null)
+                {
+                    AddMessage(ChatRole.Assistant, "Received empty response from model.");
+                    break;
+                }
+
+                // Check for tool calls
+                if (message.ToolCalls is { Count: > 0 })
+                {
+                    // Add assistant message with tool_calls to conversation history
+                    apiMessages.Add(new ChatMessage
+                    {
+                        Role = ChatRole.Assistant,
+                        Content = message.Content ?? "",
+                        ToolCalls = message.ToolCalls
+                    });
+
+                    // Execute each tool call and add results
+                    foreach (var toolCall in message.ToolCalls)
+                    {
+                        ct.ThrowIfCancellationRequested();
+
+                        var fnName = toolCall.Function.Name;
+                        var args = ParseToolArguments(toolCall.Function.Arguments);
+
+                        ThinkingStatus = $"Running {fnName}...";
+                        System.Diagnostics.Debug.WriteLine($"[AI] Tool call: {fnName}");
+
+                        var result = await (_toolExecutor ?? throw new InvalidOperationException("ToolExecutor not initialized"))
+                            .ExecuteAsync(fnName, args, ct);
+
+                        // Add tool result to API messages
+                        var toolCallId = $"call_{Guid.NewGuid():N}";
+                        apiMessages.Add(new ChatMessage
+                        {
+                            Role = ChatRole.Tool,
+                            Content = result,
+                            ToolCallId = toolCallId,
+                        });
+
+                        // Also add to display messages (show as assistant with tool info)
+                        AddMessage(ChatRole.Tool, $"[{fnName}] {TruncateResult(result)}",
+                            new List<ToolCallResponse> { toolCall }, toolCallId);
+                    }
+
+                    // Continue loop — model should now synthesize a text response
+                    continue;
+                }
+
+                // No tool calls — this is the final text response
+                AddMessage(ChatRole.Assistant, message.Content ?? "(no response)");
+                StatusText = "Ready.";
+                break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "Cancelled.";
         }
         catch (Exception ex)
         {
-            assistantMsg.Content = $"I could not reach Ollama. Make sure it is running and the model is loaded. ({ex.Message})";
+            AddMessage(ChatRole.Assistant,
+                $"I could not reach Ollama. Make sure it is running and the model is loaded. ({ex.Message})");
             StatusText = "Connection failed.";
         }
         finally
         {
+            ThinkingStatus = string.Empty;
             IsBusy = false;
         }
+    }
+
+    /// <summary>
+    /// Builds the API message list from the display messages, preserving tool_calls
+    /// and tool_call_id fields that are needed for multi-turn tool conversations.
+    /// </summary>
+    private List<ChatMessage> BuildApiMessages()
+    {
+        var apiMessages = new List<ChatMessage>
+        {
+            new ChatMessage
+            {
+                Role = ChatRole.System,
+                Content = "You are a helpful disk-usage analysis assistant. " +
+                          "You help users find and reclaim disk space. Keep answers concise and actionable. " +
+                          "Use the available tools to look up actual data before answering questions about disk usage, " +
+                          "file sizes, scan history, or system resources."
+            }
+        };
+
+        foreach (var msg in _messages.Where(m => m.Role != ChatRole.Tool))
+        {
+            apiMessages.Add(new ChatMessage
+            {
+                Role = msg.Role,
+                Content = msg.Content,
+                ToolCalls = msg.ToolCalls,
+                ToolCallId = msg.ToolCallId,
+            });
+        }
+
+        return apiMessages;
+    }
+
+    private static Dictionary<string, object> ParseToolArguments(object arguments)
+    {
+        if (arguments is Dictionary<string, object> dict)
+            return dict;
+
+        // Handle JsonElement from deserialization
+        if (arguments is JsonElement je)
+        {
+            if (je.ValueKind == JsonValueKind.Object)
+                return JsonSerializer.Deserialize<Dictionary<string, object>>(je.GetRawText(), s_toolArgJson) ?? new();
+            if (je.ValueKind == JsonValueKind.Undefined || je.ValueKind == JsonValueKind.Null)
+                return new();
+        }
+
+        // Try parsing as string
+        var str = arguments.ToString();
+        if (!string.IsNullOrWhiteSpace(str))
+        {
+            try
+            {
+                return JsonSerializer.Deserialize<Dictionary<string, object>>(str, s_toolArgJson) ?? new();
+            }
+            catch { }
+        }
+
+        return new();
+    }
+
+    private static string TruncateResult(string result, int maxLen = 500)
+    {
+        return result.Length <= maxLen ? result : result[..maxLen] + "...";
     }
 
     public void Dispose()
@@ -515,6 +619,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
         _cts.Cancel();
         _cts.Dispose();
         _client?.Dispose();
+        _toolExecutor?.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -536,16 +641,28 @@ public class AIChatMessage : INotifyPropertyChanged
     public string Content
     {
         get => _content;
-        set { _content = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsUser)); }
+        set { _content = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsUser)); OnPropertyChanged(nameof(IsTool)); }
     }
     public DateTime Timestamp { get; }
     public bool IsUser => _role == ChatRole.User;
+    public bool IsTool => _role == ChatRole.Tool;
     public string TimestampDisplay => Timestamp.ToString("HH:mm");
 
-    public AIChatMessage(ChatRole role, string content)
+    /// <summary>Tool calls embedded in an assistant message (for display).</summary>
+    public List<ToolCallResponse>? ToolCalls { get; }
+
+    /// <summary>Tool call ID for tool result messages.</summary>
+    public string? ToolCallId { get; }
+
+    /// <summary>Display name for the tool that was called.</summary>
+    public string ToolName => ToolCalls?.FirstOrDefault()?.Function.Name ?? "";
+
+    public AIChatMessage(ChatRole role, string content, List<ToolCallResponse>? toolCalls = null, string? toolCallId = null)
     {
         _role = role;
         _content = content;
+        ToolCalls = toolCalls;
+        ToolCallId = toolCallId;
         Timestamp = DateTime.Now;
     }
 
@@ -554,5 +671,3 @@ public class AIChatMessage : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
-
-

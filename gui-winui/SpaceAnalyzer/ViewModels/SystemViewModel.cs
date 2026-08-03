@@ -155,18 +155,26 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
     {
         try
         {
-            var processes = Process.GetProcesses()
-                .Where(p => p.WorkingSet64 > 0)
-                .OrderByDescending(p => p.WorkingSet64)
-                .Take(10)
-                .Select(p => new ProcessInfo
-                {
-                    Name = p.ProcessName,
-                    MemoryBytes = (ulong)p.WorkingSet64,
-                    Id = p.Id,
-                })
-                .ToList();
-            TopProcesses = processes;
+            var allProcesses = Process.GetProcesses();
+            try
+            {
+                TopProcesses = allProcesses
+                    .Where(p => p.WorkingSet64 > 0)
+                    .OrderByDescending(p => p.WorkingSet64)
+                    .Take(10)
+                    .Select(p => new ProcessInfo
+                    {
+                        Name = p.ProcessName,
+                        MemoryBytes = (ulong)p.WorkingSet64,
+                        Id = p.Id,
+                    })
+                    .ToList();
+            }
+            finally
+            {
+                foreach (var p in allProcesses)
+                    try { p.Dispose(); } catch { }
+            }
         }
         catch
         {

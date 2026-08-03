@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
+using SpaceAnalyzer.Controls;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.ViewModels;
@@ -20,7 +21,9 @@ public sealed partial class HistoryPage : Page
         InitializeComponent();
         VM = new HistoryViewModel();
         DataContext = VM;
+        ViewModelRegistry.Register(VM);
         AppLog.Page("HistoryPage ctor end");
+        VM.PropertyChanged += OnVmPropertyChanged;
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -30,10 +33,47 @@ public sealed partial class HistoryPage : Page
         _ = RefreshIfNeededAsync();
     }
 
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        VM.PropertyChanged -= OnVmPropertyChanged;
+        base.OnNavigatedFrom(e);
+    }
+
     private async void HistoryPage_Loaded(object sender, RoutedEventArgs e)
     {
         AppLog.Page("HistoryPage Loaded");
         await RefreshIfNeededAsync();
+    }
+
+    private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(HistoryViewModel.History))
+        {
+            DrawTrendChart();
+        }
+    }
+
+    private void DrawTrendChart()
+    {
+        TrendChartGrid.Children.Clear();
+        var history = VM.History;
+        if (history == null || history.Count < 2)
+        {
+            TrendChartGrid.Children.Add(new TextBlock
+            {
+                Text = "Need at least 2 scans to show trend",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11,
+                Opacity = 0.5
+            });
+            return;
+        }
+
+        var sorted = history.OrderBy(h => h.ScanDate).ToList();
+        var items = sorted.Select(h => (h.DateDisplay, (double)h.TotalSizeBytes)).ToList();
+        var chart = LiveChartsFactory.CreateSparkline(items);
+        TrendChartGrid.Children.Add(chart);
     }
 
     private async Task RefreshIfNeededAsync()
@@ -44,6 +84,59 @@ public sealed partial class HistoryPage : Page
             await VM.LoadHistoryAsync();
         }
     }
+
+    // ── Pagination ──
+
+    private async void PrevPage_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage PrevPage_Click");
+        await VM.PreviousPageAsync();
+    }
+
+    private async void NextPage_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage NextPage_Click");
+        await VM.NextPageAsync();
+    }
+
+    // ── Search ──
+
+    private async void Search_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage Search_Click");
+        await VM.SearchAsync();
+    }
+
+    private void ClearSearch_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage ClearSearch_Click");
+        VM.ClearSearch();
+    }
+
+    private async void SearchBox_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            e.Handled = true;
+            await VM.SearchAsync();
+        }
+    }
+
+    // ── Sort ──
+
+    private void SortDate_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage SortDate_Click");
+        VM.ToggleSort("timestamp");
+    }
+
+    private void SortSize_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage SortSize_Click");
+        VM.ToggleSort("total_size_bytes");
+    }
+
+    // ── Navigation ──
 
     private async void Refresh_Click(object sender, RoutedEventArgs e)
     {
@@ -111,7 +204,7 @@ public sealed partial class HistoryPage : Page
     private void BackToList_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("HistoryPage BackToList_Click");
-        VM.SelectedRecord = null;
+        VM.BackToList();
     }
 
     private async void ScanCard_Tapped(object sender, TappedRoutedEventArgs e)
@@ -127,6 +220,8 @@ public sealed partial class HistoryPage : Page
         }
     }
 
+    // ── File Explorer ──
+
     private void ClearFileExplorerFilter_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("HistoryPage ClearFileExplorerFilter_Click");
@@ -138,7 +233,7 @@ public sealed partial class HistoryPage : Page
         AppLog.Action("HistoryPage FileSizeHeader_Click");
         if (sender is Button button && button.Tag is string tag && int.TryParse(tag, out var col))
         {
-            VM.ToggleSort(col);
+            VM.ToggleFileSort(col);
         }
     }
 
@@ -147,7 +242,7 @@ public sealed partial class HistoryPage : Page
         AppLog.Action("HistoryPage FileNameHeader_Click");
         if (sender is Button button && button.Tag is string tag && int.TryParse(tag, out var col))
         {
-            VM.ToggleSort(col);
+            VM.ToggleFileSort(col);
         }
     }
 

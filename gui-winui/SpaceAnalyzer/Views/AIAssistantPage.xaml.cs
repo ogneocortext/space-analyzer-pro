@@ -1,5 +1,6 @@
 ﻿// Licensed under the MIT License.
 
+using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -18,9 +19,27 @@ public sealed partial class AIAssistantPage : Page
         InitializeComponent();
         VM = new AIAssistantViewModel();
         DataContext = VM;
+        ViewModelRegistry.Register(VM);
         AppLog.Page("AIAssistantPage ctor end");
         MessageScroll.SizeChanged += (_, _) => ScrollToBottom();
         VM.Messages.CollectionChanged += (_, _) => ScrollToBottom();
+        VM.PropertyChanged += OnVMPropertyChanged;
+    }
+
+    private void OnVMPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AIAssistantViewModel.IsThinking))
+        {
+            var isThinking = VM.IsThinking;
+            ThinkingIndicator.Visibility = isThinking ? Visibility.Visible : Visibility.Collapsed;
+            if (isThinking)
+                ThinkingText.Text = VM.ThinkingStatus;
+        }
+        else if (e.PropertyName == nameof(AIAssistantViewModel.ThinkingStatus))
+        {
+            if (VM.IsThinking)
+                ThinkingText.Text = VM.ThinkingStatus;
+        }
     }
 
     private void ScrollToBottom()

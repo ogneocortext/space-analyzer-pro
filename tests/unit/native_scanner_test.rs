@@ -313,7 +313,7 @@ fn file_cache_populated_on_first_scan() {
     let cached_files: Vec<_> = result.scanned_files.keys().filter(|p| !p.ends_with(".tmpabU1pR")).collect();
     say!("   cached paths: {:?}", cached_files);
     assert!(
-        result.scanned_files.len() >= 1,
+        !result.scanned_files.is_empty(),
         "at least one entry should be cached: got {}",
         result.scanned_files.len()
     );

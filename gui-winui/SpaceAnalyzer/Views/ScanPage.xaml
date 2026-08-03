@@ -18,120 +18,104 @@
                 <!-- Header -->
                 <StackPanel Spacing="{StaticResource Space.SM}">
                     <TextBlock Text="New Scan" Style="{StaticResource Type.PageTitle}" />
-                    <TextBlock Text="Select a directory to analyze disk usage." Style="{StaticResource Type.Body}" />
+                    <TextBlock Text="Select a directory and choose a scan depth to analyze disk usage." Style="{StaticResource Type.Body}" />
                 </StackPanel>
 
-                <!-- Path Selection -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
-                    <StackPanel Spacing="{StaticResource Space.MD}">
-                        <TextBlock Text="Directory" Style="{StaticResource Type.SubTitle}" />
-                        <Grid ColumnSpacing="{StaticResource Space.SM}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0" Text="{x:Bind VM.ScanPath, Mode=TwoWay}" PlaceholderText="Select a directory to scan..." AutomationProperties.Name="Scan directory path" x:Name="ScanPathTextBox"/>
-                            <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Browse"/>
-                            <Button Grid.Column="2" Content="Open Folder" Click="OpenScanFolder_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Open scan folder"/>
-                        </Grid>
-                        <TextBlock Text="{x:Bind VM.PathValidationMessage, Mode=OneWay}"
-                                   Style="{StaticResource Type.Caption}"
-                                   Foreground="{x:Bind VM.PathExists, Mode=OneWay, Converter={StaticResource BoolToErrorBrush}}"
-                                   Visibility="{x:Bind VM.PathExists, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
-                    </StackPanel>
-                </Border>
+                <!-- Input Row: Path + Depth side by side -->
+                <Grid ColumnSpacing="{StaticResource Space.LG}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
 
-                <!-- Scan Depth Mode -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
-                    <StackPanel Spacing="{StaticResource Space.MD}">
-                        <TextBlock Text="Scan Depth" Style="{StaticResource Type.SubTitle}" />
-                        <TextBlock Text="Choose how deep the scan should go." Style="{StaticResource Type.Hint}" />
+                    <!-- Path Selection -->
+                    <Border Grid.Column="0" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Directory" Style="{StaticResource Type.SubTitle}" />
+                            <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{x:Bind VM.ScanPath, Mode=TwoWay}" PlaceholderText="Select a directory..." AutomationProperties.Name="Scan directory path" />
+                                <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Browse"/>
+                            </Grid>
+                            <TextBlock Text="{x:Bind VM.PathValidationMessage, Mode=OneWay}"
+                                       Style="{StaticResource Type.Caption}"
+                                       Foreground="{x:Bind VM.PathExists, Mode=OneWay, Converter={StaticResource BoolToErrorBrush}}"
+                                       Visibility="{x:Bind VM.PathExists, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
+                        </StackPanel>
+                    </Border>
 
-                        <Grid ColumnSpacing="{StaticResource Space.MD}" RowSpacing="{StaticResource Space.MD}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <RadioButton Grid.Column="0" Grid.Row="0"
-                                         GroupName="ScanDepth"
-                                         Tag="Quick"
-                                         Padding="12,8"
-                                         IsChecked="{x:Bind VM.ShallowScan, Mode=OneWay}"
-                                         Click="DepthRadio_Click">
-                                <StackPanel Spacing="{StaticResource Space.XS}">
-                                    <TextBlock Text="Quick" Style="{StaticResource Type.SubTitle}"/>
-                                    <TextBlock Text="Shallow scan (depth 1)" Style="{StaticResource Type.Hint}" />
-                                </StackPanel>
-                            </RadioButton>
-                            <RadioButton Grid.Column="1" Grid.Row="0"
-                                         GroupName="ScanDepth"
-                                         Tag="Default"
-                                         Padding="12,8"
-                                         IsChecked="{x:Bind VM.DefaultScan, Mode=OneWay}"
-                                         Click="DepthRadio_Click">
-                                <StackPanel Spacing="{StaticResource Space.XS}">
-                                    <TextBlock Text="Default" Style="{StaticResource Type.SubTitle}"/>
-                                    <TextBlock Text="Standard scan (depth 5)" Style="{StaticResource Type.Hint}" />
-                                </StackPanel>
-                            </RadioButton>
-                            <RadioButton Grid.Column="2" Grid.Row="0"
-                                         GroupName="ScanDepth"
-                                         Tag="Deep"
-                                         Padding="12,8"
-                                         IsChecked="{x:Bind VM.DeepScan, Mode=OneWay}"
-                                         Click="DepthRadio_Click">
-                                <StackPanel Spacing="{StaticResource Space.XS}">
-                                    <TextBlock Text="Deep" Style="{StaticResource Type.SubTitle}"/>
-                                    <TextBlock Text="Unlimited depth" Style="{StaticResource Type.Hint}" />
-                                </StackPanel>
-                            </RadioButton>
-
-                            <Slider Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1"
-                                    Header="Custom depth"
-                                    Minimum="1"
-                                    Maximum="20"
-                                    TickFrequency="1"
+                    <!-- Scan Depth -->
+                    <Border Grid.Column="1" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Scan Depth" Style="{StaticResource Type.SubTitle}" />
+                            <TextBlock Text="How deep to scan." Style="{StaticResource Type.Hint}" />
+                            <StackPanel Spacing="{StaticResource Space.SM}">
+                                <RadioButton GroupName="ScanDepth" Tag="Quick" Padding="8,4"
+                                             IsChecked="{x:Bind VM.ShallowScan, Mode=OneWay}" Click="DepthRadio_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
+                                        <TextBlock Text="Quick" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="depth 1" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton GroupName="ScanDepth" Tag="Default" Padding="8,4"
+                                             IsChecked="{x:Bind VM.DefaultScan, Mode=OneWay}" Click="DepthRadio_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
+                                        <TextBlock Text="Default" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="depth 5" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton GroupName="ScanDepth" Tag="Deep" Padding="8,4"
+                                             IsChecked="{x:Bind VM.DeepScan, Mode=OneWay}" Click="DepthRadio_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
+                                        <TextBlock Text="Deep" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="unlimited" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                    </StackPanel>
+                                </RadioButton>
+                            </StackPanel>
+                            <Slider Header="Custom depth" Minimum="1" Maximum="20" TickFrequency="1"
                                     Value="{x:Bind VM.DepthValue, Mode=TwoWay}"
                                     Visibility="{x:Bind VM.ShowCustomDepthSlider, Mode=OneWay}"/>
-                        </Grid>
+                            <TextBlock Text="{x:Bind VM.ResultDepthDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
 
-                        <TextBlock Text="{x:Bind VM.ResultDepthDisplay, Mode=OneWay}"
-                                   Style="{StaticResource Type.Caption}" Margin="0,4,0,0"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- Scan Controls -->
-                <StackPanel Spacing="{StaticResource Space.MD}">
-                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
-                        <Button Content="{x:Bind VM.IsScanning, Mode=OneWay, Converter={StaticResource BoolToScanButtonText}}"
-                                Click="Scan_Click"
-                                AutomationProperties.Name="Start Scan"
+                <!-- Scan Controls Bar -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
+                    <Grid ColumnSpacing="{StaticResource Space.MD}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="{x:Bind VM.IsScanning, Mode=OneWay, Converter={StaticResource BoolToScanButtonText}}"
+                                Click="Scan_Click" AutomationProperties.Name="Start Scan"
                                 Style="{StaticResource PrimaryButton}"/>
-                        <Button Content="Stop"
-                                Click="Scan_Click"
+                        <Button Grid.Column="1" Content="Stop" Click="Scan_Click"
                                 AutomationProperties.Name="Stop Scan"
                                 Style="{StaticResource PrimaryButton}"
                                 IsEnabled="{x:Bind VM.CanStopScan, Mode=OneWay}"/>
-                        <Button Content="Export"
-                                Click="Export_Click"
+                        <Button Grid.Column="2" Content="Export" Click="Export_Click"
                                 AutomationProperties.Name="Export Results"
-                                Style="{StaticResource PrimaryButton}"
+                                Style="{StaticResource SecondaryButton}"
                                 IsEnabled="{x:Bind VM.HasResult, Mode=OneWay}"/>
-                    </StackPanel>
-                    <CheckBox Content="Include hidden files and folders" IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"/>
-                </StackPanel>
+                        <TextBlock Grid.Column="3" Text="{x:Bind VM.StatusMessage, Mode=OneWay}"
+                                   Style="{StaticResource Type.Caption}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" Opacity="0.7"/>
+                        <CheckBox Grid.Column="4" Content="Hidden files" IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"
+                                  VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
 
-                <!-- Status + Progress -->
+                <!-- Progress -->
                 <StackPanel Spacing="{StaticResource Space.XS}" Visibility="{x:Bind VM.IsScanningVisibility, Mode=OneWay}">
                     <ProgressBar Value="{x:Bind VM.ScanProgress, Mode=OneWay}" Maximum="100" Style="{StaticResource MinimalProgressBar}"/>
-                    <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" Style="{StaticResource Type.Body}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{x:Bind VM.LiveFilesDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.6"/>
                 </StackPanel>
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" Style="{StaticResource Type.Body}" TextTrimming="CharacterEllipsis"
                            Visibility="{x:Bind VM.IsNotScanningVisibility, Mode=OneWay}"/>
@@ -152,31 +136,38 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Results (visible during streaming and after completion) -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasActiveResultVisibility, Mode=OneWay}">
-                    <Border.Transitions>
-                        <TransitionCollection>
-                            <EntranceThemeTransition/>
-                        </TransitionCollection>
-                    </Border.Transitions>
-                    <StackPanel Spacing="{StaticResource Space.LG}">
+                <!-- Empty Directories -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasEmptyDirs, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
+                        <TextBlock Text="Empty Directories" Style="{StaticResource Type.SubTitle}" Foreground="{ThemeResource WarningTextBrush}"/>
+                        <TextBlock Text="{x:Bind VM.EmptyDirsCount, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                        <TextBlock Text="empty directories" Style="{StaticResource Type.Caption}" Opacity="0.5" Margin="0,-4,0,0"/>
+                        <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto">
+                            <ItemsRepeater ItemsSource="{x:Bind VM.EmptyDirs, Mode=OneWay}">
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" Style="{StaticResource Type.Caption}" FontFamily="Consolas" Opacity="0.8" TextTrimming="CharacterEllipsis"/>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+
+                <!-- Results -->
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasActiveResultVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
                         <TextBlock Text="Scan Results" Style="{StaticResource Type.CardTitle}" />
-
-                        <!-- Show "Live streaming" label when active -->
-                        <TextBlock Text="{x:Bind VM.LiveFilesDisplay, Mode=OneWay}"
-                                     Style="{StaticResource Type.Dim}"
-                                     TextTrimming="CharacterEllipsis"
-                                     Visibility="{x:Bind VM.IsStreaming, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
-
-                        <Grid ColumnSpacing="{StaticResource Space.XXL}">
+                        <!-- Summary Strip -->
+                        <Grid ColumnSpacing="{StaticResource Space.LG}" Visibility="{x:Bind VM.HasResult, Mode=OneWay}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-
                             <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
                                 <TextBlock Text="{x:Bind VM.ResultFilesDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
                                 <TextBlock Text="Files" Style="{StaticResource Type.StatLabel}"/>
@@ -186,129 +177,136 @@
                                 <TextBlock Text="Total Size" Style="{StaticResource Type.StatLabel}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" Spacing="{StaticResource Space.XS}">
+                                <TextBlock Text="{x:Bind VM.ResultDirsDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                <TextBlock Text="Directories" Style="{StaticResource Type.StatLabel}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="3" Spacing="{StaticResource Space.XS}">
+                                <TextBlock Text="{x:Bind VM.ResultAvgFileSizeDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                <TextBlock Text="Avg File Size" Style="{StaticResource Type.StatLabel}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="4" Spacing="{StaticResource Space.XS}">
+                                <TextBlock Text="{x:Bind VM.ResultSpeedDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                <TextBlock Text="Speed" Style="{StaticResource Type.StatLabel}"/>
+                                <TextBlock Text="{x:Bind VM.ResultSpeedMbDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="5" Spacing="{StaticResource Space.XS}">
                                 <TextBlock Text="{x:Bind VM.ResultDurationDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
                                 <TextBlock Text="Duration" Style="{StaticResource Type.StatLabel}"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="3" Spacing="{StaticResource Space.XS}">
-                                <TextBlock Text="{x:Bind VM.ResultDirsDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
-                                <TextBlock Text="Top Dirs" Style="{StaticResource Type.StatLabel}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="4" Spacing="{StaticResource Space.XS}">
-                                 <TextBlock Text="{x:Bind VM.ResultDepthDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
-                                <TextBlock Text="Depth" Style="{StaticResource Type.StatLabel}"/>
-                            </StackPanel>
                         </Grid>
 
-                        <!-- Speed & Errors summary -->
-                        <Grid ColumnSpacing="{StaticResource Space.XXL}" Visibility="{x:Bind VM.HasResult, Mode=OneWay}">
+                        <!-- Distribution -->
+                        <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.SM}">
+                            <StackPanel Spacing="{StaticResource Space.XS}">
+                                <TextBlock Text="Distribution" Style="{StaticResource Type.CardTitle}"/>
+                                <TextBlock Text="File Types" Style="{StaticResource Type.SubTitle}" Margin="0,4,0,0"/>
+                                <ItemsRepeater ItemsSource="{x:Bind VM.FileTypes, Mode=OneWay}">
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="models:FileTypeDistribution">
+                                            <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                                <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Style="{StaticResource MinimalProgressBar}" Margin="8,0"/>
+                                                <TextBlock Grid.Column="2" Text="{x:Bind CountDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}"/>
+                                                <TextBlock Grid.Column="3" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                                <TextBlock Text="Storage by Category" Style="{StaticResource Type.SubTitle}" Margin="0,4,0,0"/>
+                                <ItemsRepeater ItemsSource="{x:Bind VM.CategoryDistributions, Mode=OneWay}">
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="models:FileTypeDistribution">
+                                            <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
+                                                <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Style="{StaticResource MinimalProgressBar}" Margin="8,0"/>
+                                                <TextBlock Grid.Column="2" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Details -->
+                        <Grid ColumnSpacing="{StaticResource Space.MD}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}" Orientation="Horizontal">
-                                <TextBlock Text="Speed: " Style="{StaticResource Type.Caption}"/>
-                                <TextBlock Text="{x:Bind VM.ResultSpeedDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}" Orientation="Horizontal">
-                                <TextBlock Text="Errors: " Style="{StaticResource Type.Caption}"/>
-                                <TextBlock Text="{x:Bind VM.ResultErrorsDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold" Foreground="{ThemeResource ErrorTextBrush}"/>
-                            </StackPanel>
+
+                            <!-- Largest Files -->
+                            <Border Grid.Column="0" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.SM}">
+                                <StackPanel Spacing="{StaticResource Space.XS}">
+                                    <TextBlock Text="Largest Files" Style="{StaticResource Type.SubTitle}"/>
+                                    <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0" Text="{x:Bind VM.LargestFilesFilter, Mode=TwoWay}" PlaceholderText="Filter..." Style="{StaticResource Type.Caption.TextBox}"/>
+                                        <Button Grid.Column="1" Content="Clear" Click="ClearFilter_Click" Style="{StaticResource SmallButton}" Visibility="{x:Bind VM.HasLargestFilesFilter, Mode=OneWay}"/>
+                                    </Grid>
+                                    <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto">
+                                        <ItemsRepeater ItemsSource="{x:Bind VM.FilteredLargestFiles, Mode=OneWay}">
+                                            <ItemsRepeater.ItemTemplate>
+                                                <DataTemplate x:DataType="models:FileSizeEntry">
+                                                    <Grid ColumnSpacing="{StaticResource Space.SM}" Margin="0,2">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
+                                                        <TextBlock Grid.Column="1" Text="{x:Bind Path, Mode=OneTime}" Style="{StaticResource Type.Caption}" TextTrimming="CharacterEllipsis" Opacity="0.8"/>
+                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
+                                                            <Button Content="Open" Click="OpenFile_Click" Style="{StaticResource TinyButton}" Tag="{x:Bind Path}"/>
+                                                            <Button Content="Folder" Click="OpenFolder_Click" Style="{StaticResource TinyButton}" Tag="{x:Bind Path}"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsRepeater.ItemTemplate>
+                                        </ItemsRepeater>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Largest Directories -->
+                            <Border Grid.Column="1" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.SM}">
+                                <StackPanel Spacing="{StaticResource Space.XS}">
+                                    <TextBlock Text="Largest Directories" Style="{StaticResource Type.SubTitle}"/>
+                                    <ItemsRepeater ItemsSource="{x:Bind VM.TopDirectories, Mode=OneWay}">
+                                        <ItemsRepeater.Layout>
+                                            <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.SM}"/>
+                                        </ItemsRepeater.Layout>
+                                        <ItemsRepeater.ItemTemplate>
+                                            <DataTemplate x:DataType="models:DirEntry">
+                                                <StackPanel Spacing="{StaticResource Space.XS}">
+                                                    <TextBlock Style="{StaticResource Type.Body}" Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8">
+                                                        <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
+                                                        <Run Text=" · "/>
+                                                        <Run Text="{x:Bind FileCount, Mode=OneTime}"/>
+                                                        <Run Text=" files"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsRepeater.ItemTemplate>
+                                    </ItemsRepeater>
+                                </StackPanel>
+                            </Border>
                         </Grid>
 
-                        <!-- File Type Distribution -->
-                        <TextBlock Text="File Type Distribution" Style="{StaticResource Type.SubTitle}" Margin="0,16,0,0"/>
-                        <ItemsRepeater ItemsSource="{x:Bind VM.FileTypes, Mode=OneWay}">
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="models:FileTypeDistribution">
-                                    <StackPanel Spacing="{StaticResource Space.XS}">
-                                        <Grid ColumnSpacing="{StaticResource Space.SM}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                            <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Style="{StaticResource MinimalProgressBar}" Margin="8,0"/>
-                                            <TextBlock Grid.Column="2" Text="{x:Bind CountDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}"/>
-                                        </Grid>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsRepeater.ItemTemplate>
-                        </ItemsRepeater>
-
-                        <!-- Category Distribution -->
-                        <TextBlock Text="Storage by Category" Style="{StaticResource Type.SubTitle}" Margin="0,16,0,0"/>
-                        <ItemsRepeater ItemsSource="{x:Bind VM.CategoryDistributions, Mode=OneWay}">
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="models:FileTypeDistribution">
-                                    <StackPanel Spacing="{StaticResource Space.XS}">
-                                        <Grid ColumnSpacing="{StaticResource Space.SM}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
-                                            <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Style="{StaticResource MinimalProgressBar}" Margin="8,0"/>
-                                            <TextBlock Grid.Column="2" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}"/>
-                                        </Grid>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsRepeater.ItemTemplate>
-                        </ItemsRepeater>
-
-                        <!-- Largest Files -->
-                        <TextBlock Text="Largest Files" Style="{StaticResource Type.SubTitle}" Margin="0,16,0,0"/>
-                        <Grid ColumnSpacing="{StaticResource Space.SM}" Margin="0,4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0" Text="{x:Bind VM.LargestFilesFilter, Mode=TwoWay}" PlaceholderText="Filter by filename or path..." Style="{StaticResource Type.Caption.TextBox}"/>
-                            <Button Grid.Column="1" Content="Clear" Click="ClearFilter_Click" Style="{StaticResource SmallButton}" Visibility="{x:Bind VM.HasLargestFilesFilter, Mode=OneWay}"/>
-                        </Grid>
-                        <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
-                            <ItemsRepeater ItemsSource="{x:Bind VM.FilteredLargestFiles, Mode=OneWay}">
-                                <ItemsRepeater.ItemTemplate>
-                                    <DataTemplate x:DataType="models:FileSizeEntry">
-                                        <Grid ColumnSpacing="{StaticResource Space.SM}" Margin="0,4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
-                                            <TextBlock Grid.Column="1" Text="{x:Bind Path, Mode=OneTime}" Style="{StaticResource Type.Caption}" TextTrimming="CharacterEllipsis" Opacity="0.8"/>
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
-                                                <Button Content="Open" Click="OpenFile_Click" Style="{StaticResource TinyButton}" Tag="{x:Bind Path}"/>
-                                                <Button Content="Folder" Click="OpenFolder_Click" Style="{StaticResource TinyButton}" Tag="{x:Bind Path}"/>
-                                            </StackPanel>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsRepeater.ItemTemplate>
-                            </ItemsRepeater>
-                        </ScrollViewer>
-
-                        <!-- Top Directories -->
-                        <TextBlock Text="Largest Directories" Style="{StaticResource Type.SubTitle}" Margin="0,16,0,0"/>
-                        <ItemsRepeater ItemsSource="{x:Bind VM.TopDirectories, Mode=OneWay}">
-                            <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.MD}"/>
-                            </ItemsRepeater.Layout>
-                            <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="models:DirEntry">
-                                    <StackPanel Spacing="{StaticResource Space.SM}">
-                                        <TextBlock Style="{StaticResource Type.Body}" Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8">
-                                            <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
-                                            <Run Text=" · "/>
-                                            <Run Text="{x:Bind FileCount, Mode=OneTime}"/>
-                                            <Run Text=" files"/>
-                                        </TextBlock>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsRepeater.ItemTemplate>
-                        </ItemsRepeater>
                     </StackPanel>
                 </Border>
 
@@ -316,5 +314,3 @@
         </ScrollViewer>
     </Grid>
 </Page>
-
-

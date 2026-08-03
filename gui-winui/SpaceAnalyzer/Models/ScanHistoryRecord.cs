@@ -72,3 +72,14 @@ public class ScanHistoryRecord
     public string FilesDisplay => $"{TotalFiles:N0} files";
     public string PotentialCleanupDisplay => ByteFormatter.FormatBytes(PotentialCleanupBytes);
 }
+
+/// <summary>
+/// Paginated response from the Rust CLI <c>history</c> subcommand with search/sort.
+/// </summary>
+public class ScanHistoryPageResult
+{
+    public List<ScanHistoryRecord> Records { get; set; } = new();
+    public long Total { get; set; }
+    public long Limit { get; set; }
+    public long Offset { get; set; }
+}

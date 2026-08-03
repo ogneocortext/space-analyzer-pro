@@ -68,7 +68,9 @@ pub fn main() -> AppResult<()> {
             no_anim,
         ),
         Commands::DiskInfo { .. } => handle_disk_info(),
-        Commands::History { limit, id, delete } => handle_history(limit, id, delete, output_format),
+        Commands::History { limit, offset, search, sort_by, sort_asc, id, delete } => {
+            handle_history(limit, offset, search, sort_by, sort_asc, id, delete, output_format)
+        }
         Commands::Dedup { path } => {
             dedup::run_clean_analysis(&path, &output_format);
             Ok(())
@@ -76,6 +78,7 @@ pub fn main() -> AppResult<()> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_scan(
     path: String,
     verbose: bool,
@@ -161,7 +164,7 @@ fn handle_scan(
             &path,
             top_n,
             no_anim,
-            depth_label(effective_deep, effective_shallow, effective_max_depth),
+            &depth_label(effective_deep, effective_shallow, effective_max_depth),
         )?;
     }
 
@@ -256,8 +259,13 @@ fn handle_disk_info() -> AppResult<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_history(
     limit: usize,
+    offset: usize,
+    search: Option<String>,
+    sort_by: String,
+    sort_asc: bool,
     id: Option<i64>,
     delete: Option<i64>,
     output_format: String,
@@ -312,12 +320,15 @@ fn handle_history(
                 }
             }
         } else {
-            match db.get_scan_history(limit) {
-                Ok(records) => {
-                    println!(
-                        "{}",
-                        serde_json::to_string_pretty(&records).unwrap_or_default()
-                    );
+            match db.get_scan_history_page(limit, offset, search.as_deref(), &sort_by, sort_asc) {
+                Ok((records, total)) => {
+                    let response = serde_json::json!({
+                        "records": records,
+                        "total": total,
+                        "limit": limit,
+                        "offset": offset,
+                    });
+                    println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
                 }
                 Err(e) => {
                     eprintln!("Failed to load history: {}", e);
@@ -330,15 +341,15 @@ fn handle_history(
     Ok(())
 }
 
-fn depth_label(deep: bool, shallow: bool, max_depth: Option<usize>) -> &'static str {
+fn depth_label(deep: bool, shallow: bool, max_depth: Option<usize>) -> String {
     if deep {
-        "deep (unlimited)"
+        "deep (unlimited)".to_string()
     } else if shallow || max_depth == Some(1) {
-        "shallow (depth 1)"
+        "shallow (depth 1)".to_string()
     } else if let Some(d) = max_depth {
-        Box::leak(format!("depth {}", d).into_boxed_str())
+        format!("depth {}", d)
     } else {
-        "depth 5"
+        "depth 5".to_string()
     }
 }
 

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using SpaceAnalyzer.Helpers;
 
@@ -25,11 +26,15 @@ public class CleanupCandidate
     public string SizeDisplay => ByteFormatter.FormatBytes(Size);
     public SolidColorBrush RiskLevelBrush => RiskLevel switch
     {
-        RiskLevel.Low => new SolidColorBrush(Microsoft.UI.Colors.Green),
-        RiskLevel.Medium => new SolidColorBrush(Microsoft.UI.Colors.Gold),
-        RiskLevel.High => new SolidColorBrush(Microsoft.UI.Colors.Red),
-        _ => new SolidColorBrush(Microsoft.UI.Colors.Gray),
+        RiskLevel.Low => GetThemeBrush("SuccessBrush"),
+        RiskLevel.Medium => GetThemeBrush("WarningBrush"),
+        RiskLevel.High => GetThemeBrush("ErrorBrush"),
+        _ => GetThemeBrush("MutedBrush"),
     };
+
+    private static SolidColorBrush GetThemeBrush(string key)
+        => Application.Current.Resources[key] as SolidColorBrush
+           ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
 }
 
 /// <summary>
@@ -79,5 +84,5 @@ public class CleanupAnalysis
     public DateTime AnalysisTime { get; set; }
     public string TotalSizeDisplay => ByteFormatter.FormatBytes(TotalSize);
     public string TotalCleanupSizeDisplay => ByteFormatter.FormatBytes(
-        (ulong)CleanupCandidates.Sum(c => (long)c.Size));
+        checked(CleanupCandidates.Aggregate(0UL, (sum, c) => sum + c.Size)));
 }

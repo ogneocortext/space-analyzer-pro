@@ -491,7 +491,7 @@ impl eframe::App for SpaceAnalyzerApp {
         // Smooth scan progress interpolation
         if self.is_scanning {
             let target = self.scan_progress / 100.0;
-            self.smoothed_scan_progress += (target - self.smoothed_scan_progress).min(0.05).max(-0.05);
+            self.smoothed_scan_progress += (target - self.smoothed_scan_progress).clamp(-0.05, 0.05);
         } else {
             self.smoothed_scan_progress = self.scan_progress / 100.0;
         }
