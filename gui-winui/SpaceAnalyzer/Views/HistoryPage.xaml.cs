@@ -147,7 +147,7 @@ public sealed partial class HistoryPage : Page
     private void NewScan_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("HistoryPage NewScan_Click");
-        if (Window.Current is MainWindow mw) mw.NavigateToPage("Scan");
+        if (MainWindow.Current is not null) MainWindow.Current.NavigateToPage("Scan");
     }
 
     private void Rescan_Click(object sender, RoutedEventArgs e)
@@ -180,8 +180,7 @@ public sealed partial class HistoryPage : Page
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Close
         };
-        if (dialog.XamlRoot != null)
-            dialog.XamlRoot = this.XamlRoot;
+        dialog.XamlRoot = this.XamlRoot;
         if (await dialog.ShowAsync() != ContentDialogResult.Primary)
             return;
 

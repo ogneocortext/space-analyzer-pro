@@ -29,7 +29,9 @@ public static class UiHelper
         var picker = new FolderPicker();
         picker.FileTypeFilter.Add("*");
 
-        var window = Microsoft.UI.Xaml.Window.Current;
+        // WinUI 3 desktop apps have no Window.Current (it is always null), so the
+        // picker must be initialized with the handle of the app's main window.
+        var window = MainWindow.Current as Microsoft.UI.Xaml.Window ?? Microsoft.UI.Xaml.Window.Current;
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
         WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
         var folder = await picker.PickSingleFolderAsync();

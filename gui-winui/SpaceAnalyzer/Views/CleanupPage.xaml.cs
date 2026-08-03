@@ -109,8 +109,7 @@ public sealed partial class CleanupPage : Page
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close
             };
-            if (dialog.XamlRoot != null)
-                dialog.XamlRoot = this.XamlRoot;
+            dialog.XamlRoot = this.XamlRoot;
             if (await dialog.ShowAsync() != ContentDialogResult.Primary)
                 return;
         }

@@ -140,7 +140,7 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
 
     // ── Quick Scan ──
 
-    private string _quickScanPath = string.Empty;
+    private string _quickScanPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     public string QuickScanPath
     {
         get => _quickScanPath;

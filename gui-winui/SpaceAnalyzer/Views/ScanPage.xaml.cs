@@ -81,7 +81,7 @@ public sealed partial class ScanPage : Page
             picker.SuggestedFileName = $"scan-{DateTime.Now:yyyy-MM-dd-HHmmss}.json";
             picker.FileTypeChoices.Add("JSON", new[] { ".json" });
 
-            var window = Microsoft.UI.Xaml.Window.Current;
+            var window = MainWindow.Current as Window;
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
             WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
 
