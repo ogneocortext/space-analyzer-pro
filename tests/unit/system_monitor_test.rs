@@ -29,8 +29,10 @@ fn disk_volumes_are_detected() {
     );
 
     for (i, volume) in volumes.iter().enumerate() {
-        eprintln!("    [{}] mount='{}', fs={}, total={} bytes, available={} bytes",
-            i, volume.mount_point, volume.file_system, volume.total_bytes, volume.available_bytes);
+        eprintln!(
+            "    [{}] mount='{}', fs={}, total={} bytes, available={} bytes",
+            i, volume.mount_point, volume.file_system, volume.total_bytes, volume.available_bytes
+        );
         assert!(volume.total_bytes > 0, "Volume should have total bytes");
         assert!(
             volume.available_bytes <= volume.total_bytes,
@@ -45,8 +47,10 @@ fn disk_volumes_are_detected() {
 fn system_resources_are_retrieved() {
     info!("Verifying SystemMonitor::get_system_resources() returns sane values");
     let resources = SystemMonitor::get_system_resources();
-    eprintln!("  cpu_percent={}%, memory_total={} bytes, memory_used={} bytes",
-        resources.cpu_percent, resources.memory_total_bytes, resources.memory_used_bytes);
+    eprintln!(
+        "  cpu_percent={}%, memory_total={} bytes, memory_used={} bytes",
+        resources.cpu_percent, resources.memory_total_bytes, resources.memory_used_bytes
+    );
 
     // CPU should be between 0 and 100
     assert!(
@@ -91,8 +95,17 @@ fn format_bytes_formats_correctly() {
     ];
     for (bytes, expected_unit) in &cases {
         let result = format_bytes(*bytes);
-        eprintln!("  format_bytes({}) -> '{}' (expects '{}')", bytes, result, expected_unit);
-        assert!(result.contains(*expected_unit), "format_bytes({}) should contain '{}', got '{}'", bytes, expected_unit, result);
+        eprintln!(
+            "  format_bytes({}) -> '{}' (expects '{}')",
+            bytes, result, expected_unit
+        );
+        assert!(
+            result.contains(*expected_unit),
+            "format_bytes({}) should contain '{}', got '{}'",
+            bytes,
+            expected_unit,
+            result
+        );
     }
     info!("PASS");
 }

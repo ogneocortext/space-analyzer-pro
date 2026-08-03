@@ -1,8 +1,15 @@
 use super::super::gui_common::ScanResult;
 use super::*;
 
+/// Maximum number of scan-history records kept per distinct path. Newer scans
+/// beyond this limit are removed on insert so the cache cannot grow unbounded.
+pub const MAX_SCANS_PER_PATH: usize = 20;
+
 impl super::Database {
-    /// Save a scan result to history with extended data
+    /// Save a scan result to history with extended data.
+    ///
+    /// After inserting, the history is trimmed to the most recent
+    /// [`MAX_SCANS_PER_PATH`] records for the scanned path.
     pub fn save_scan(
         &self,
         result: &ScanResult,
@@ -33,7 +40,71 @@ impl super::Database {
                 potential_cleanup as i64, timestamp,
             ],
         )?;
-        Ok(self.conn.last_insert_rowid())
+        let id = self.conn.last_insert_rowid();
+        self.prune_path_overflow(&result.path)?;
+        Ok(id)
+    }
+
+    /// Trim history for a single path down to the newest
+    /// [`MAX_SCANS_PER_PATH`] records. Old records are deleted along with any
+    /// orphaned duplicate-analysis/embedding rows that referenced them.
+    fn prune_path_overflow(&self, path: &str) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "DELETE FROM scan_history
+             WHERE path = ?1 AND id NOT IN (
+                 SELECT id FROM scan_history WHERE path = ?1 ORDER BY id DESC LIMIT ?2
+             )",
+            params![path, MAX_SCANS_PER_PATH as i64],
+        )?;
+        self.cleanup_orphaned_scan_data()
+    }
+
+    /// Remove duplicate scan records, keeping only the newest entry per
+    /// (path, total_size_bytes, total_files). Deletes orphaned
+    /// duplicate-analysis/embedding rows for the removed scans. Returns the
+    /// number of scan-history records deleted.
+    pub fn prune_duplicate_scans(&self) -> rusqlite::Result<usize> {
+        let removed = self.conn.execute(
+            "DELETE FROM scan_history WHERE id NOT IN (
+                 SELECT MAX(id) FROM scan_history
+                 GROUP BY path, total_size_bytes, total_files
+             )",
+            [],
+        )?;
+        self.cleanup_orphaned_scan_data()?;
+        Ok(removed)
+    }
+
+    /// Remove scan records whose path is not absolute (drive-letter rooted,
+    /// UNC, or POSIX-rooted). Relative paths such as "." do not resolve to a
+    /// stable directory across runs, so they are pure cache noise. Returns the
+    /// number of scan-history records deleted.
+    pub fn prune_relative_scan_paths(&self) -> rusqlite::Result<usize> {
+        let removed = self.conn.execute(
+            r#"DELETE FROM scan_history
+               WHERE path NOT LIKE '_:\%'
+                 AND path NOT LIKE '_:/%'
+                 AND path NOT LIKE '/%'
+                 AND path NOT LIKE '\\%'"#,
+            [],
+        )?;
+        self.cleanup_orphaned_scan_data()?;
+        Ok(removed)
+    }
+
+    /// Delete rows in child tables that no longer reference a scan_history row.
+    fn cleanup_orphaned_scan_data(&self) -> rusqlite::Result<()> {
+        self.conn.execute(
+            "DELETE FROM duplicate_analysis
+             WHERE scan_id NOT IN (SELECT id FROM scan_history)",
+            [],
+        )?;
+        self.conn.execute(
+            "DELETE FROM file_embeddings
+             WHERE scan_id NOT IN (SELECT id FROM scan_history)",
+            [],
+        )?;
+        Ok(())
     }
 
     /// Save duplicate analysis results linked to a scan
@@ -187,8 +258,10 @@ impl super::Database {
     /// Delete a scan record by ID (also removes associated embeddings and duplicate analysis)
     pub fn delete_scan(&self, id: i64) -> rusqlite::Result<usize> {
         self.delete_scan_embeddings(id)?;
-        self.conn
-            .execute("DELETE FROM duplicate_analysis WHERE scan_id = ?1", params![id])?;
+        self.conn.execute(
+            "DELETE FROM duplicate_analysis WHERE scan_id = ?1",
+            params![id],
+        )?;
         self.conn
             .execute("DELETE FROM scan_history WHERE id = ?1", params![id])
     }
@@ -200,5 +273,100 @@ impl super::Database {
         self.conn.execute("DELETE FROM file_cache", [])?;
         self.conn.execute("DELETE FROM workflow_executions", [])?;
         self.conn.execute("DELETE FROM scan_history", [])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_db() -> Database {
+        Database::open(PathBuf::from(":memory:")).expect("in-memory db")
+    }
+
+    fn insert_scan(db: &Database, path: &str, size: u64, files: i64) -> i64 {
+        db.conn
+            .execute(
+                "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb,
+                                           duration_secs, file_types_json, extension_sizes_json,
+                                           top_directories_json, largest_files_json, deep_scan,
+                                           shallow_scan, max_scan_depth, potential_cleanup_bytes,
+                                           timestamp)
+                 VALUES (?1, ?2, ?3, 0.0, 0.0, '{}', '{}', '[]', '[]', 0, 0, 5, 0, ?4)",
+                params![
+                    path,
+                    files,
+                    size as i64,
+                    format!("2026-08-03T00:00:0{}Z", 1 + path.len() % 9)
+                ],
+            )
+            .unwrap();
+        db.conn.last_insert_rowid()
+    }
+
+    fn count(db: &Database) -> i64 {
+        db.conn
+            .query_row("SELECT COUNT(*) FROM scan_history", [], |r| r.get(0))
+            .unwrap()
+    }
+
+    #[test]
+    fn prune_duplicates_keeps_newest_per_content() {
+        let db = test_db();
+        // Same path + same content signature, three inserts (older first).
+        insert_scan(&db, "C:\\app", 1000, 10);
+        insert_scan(&db, "C:\\app", 1000, 10);
+        insert_scan(&db, "C:\\app", 1000, 10);
+        // Different content for the same path — must be preserved.
+        let newest_id = insert_scan(&db, "C:\\app", 2000, 20);
+
+        assert_eq!(count(&db), 4);
+        let removed = db.prune_duplicate_scans().unwrap();
+        assert_eq!(removed, 2);
+        assert_eq!(count(&db), 2);
+
+        let remaining: Vec<i64> = db
+            .conn
+            .prepare("SELECT id FROM scan_history")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        // The distinct-content record and the newest of the duplicate group survive.
+        assert!(
+            remaining.contains(&newest_id),
+            "distinct-content scan must be kept"
+        );
+    }
+
+    #[test]
+    fn prune_relative_paths_keeps_absolute() {
+        let db = test_db();
+        insert_scan(&db, ".", 100, 5);
+        insert_scan(&db, "src", 100, 5);
+        insert_scan(&db, "C:\\Windows", 100, 5);
+        insert_scan(&db, "C:/Windows/System32", 100, 5);
+        insert_scan(&db, "/usr/share", 100, 5);
+        insert_scan(&db, "\\\\server\\share", 100, 5);
+
+        let removed = db.prune_relative_scan_paths().unwrap();
+        assert_eq!(removed, 2, "relative '.' and 'src' should be dropped");
+        assert_eq!(count(&db), 4);
+    }
+
+    #[test]
+    fn save_scan_trims_path_overflow() {
+        let db = test_db();
+        let max = MAX_SCANS_PER_PATH as i64;
+        for _ in 0..(max + 5) {
+            insert_scan(&db, "C:\\grow", 500, 5);
+        }
+        insert_scan(&db, "D:\\other", 500, 5);
+
+        // insert_scan bypasses save_scan trimming; verify the trim helper works.
+        assert_eq!(count(&db), max + 6);
+        db.prune_path_overflow("C:\\grow").unwrap();
+        assert_eq!(count(&db), max + 1);
     }
 }

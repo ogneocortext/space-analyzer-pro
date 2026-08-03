@@ -6,12 +6,12 @@
 
 #![cfg(test)]
 
-use space_analyzer_pro_desktop::gui_common::{self, ScanResult};
 use space_analyzer_pro_desktop::database::AppSettings;
-use space_analyzer_pro_desktop::workflows::WorkflowTemplates;
+use space_analyzer_pro_desktop::gui_common::{self, ScanResult};
 use space_analyzer_pro_desktop::ollama::client::OllamaClient;
 use space_analyzer_pro_desktop::ollama::types::ClientMetrics;
 use space_analyzer_pro_desktop::system_monitor::SystemMonitor;
+use space_analyzer_pro_desktop::workflows::WorkflowTemplates;
 use std::collections::HashMap;
 
 macro_rules! say {
@@ -19,7 +19,9 @@ macro_rules! say {
 }
 
 macro_rules! pass {
-    () => { eprintln!("  ✅ PASS\n"); };
+    () => {
+        eprintln!("  ✅ PASS\n");
+    };
 }
 
 // 1. ScanResult default must be internally coherent
@@ -27,9 +29,23 @@ macro_rules! pass {
 fn scan_result_defaults_are_zeroed() {
     say!("🔍 Test: ScanResult defaults are zeroed");
     let r = ScanResult::new();
-    say!("   Files: {} | Dirs: {} | Size: {} bytes", r.total_files, r.total_dirs, r.total_size_bytes);
-    say!("   File types empty: {} | Extension sizes empty: {}", r.file_types.is_empty(), r.extension_sizes.is_empty());
-    say!("   Largest files empty: {} | Errors empty: {} | Path: '{}'", r.largest_files.is_empty(), r.errors.is_empty(), r.path);
+    say!(
+        "   Files: {} | Dirs: {} | Size: {} bytes",
+        r.total_files,
+        r.total_dirs,
+        r.total_size_bytes
+    );
+    say!(
+        "   File types empty: {} | Extension sizes empty: {}",
+        r.file_types.is_empty(),
+        r.extension_sizes.is_empty()
+    );
+    say!(
+        "   Largest files empty: {} | Errors empty: {} | Path: '{}'",
+        r.largest_files.is_empty(),
+        r.errors.is_empty(),
+        r.path
+    );
     assert_eq!(r.total_files, 0);
     assert_eq!(r.total_dirs, 0);
     assert_eq!(r.total_size_bytes, 0);
@@ -53,8 +69,19 @@ fn format_bytes_units() {
     ];
     for (bytes, expected_unit) in &cases {
         let result = gui_common::formatting::format_bytes(*bytes);
-        say!("   {} → '{}' (expected unit: {})", bytes, result, expected_unit);
-        assert!(result.contains(*expected_unit), "format_bytes({}) should contain '{}', got '{}'", bytes, expected_unit, result);
+        say!(
+            "   {} → '{}' (expected unit: {})",
+            bytes,
+            result,
+            expected_unit
+        );
+        assert!(
+            result.contains(*expected_unit),
+            "format_bytes({}) should contain '{}', got '{}'",
+            bytes,
+            expected_unit,
+            result
+        );
     }
     pass!();
 }
@@ -63,7 +90,7 @@ fn format_bytes_units() {
 #[test]
 fn scan_result_from_shared_converts_fields() {
     say!("🔍 Test: ScanResult::from_shared converts fields");
-    use shared_scanner::{ScanResult as SharedScanResult, FileInfo};
+    use shared_scanner::{FileInfo, ScanResult as SharedScanResult};
     let shared = SharedScanResult {
         total_files: 5,
         total_directories: 2,
@@ -85,9 +112,19 @@ fn scan_result_from_shared_converts_fields() {
         scanned_files: HashMap::new(),
         category_sizes: HashMap::new(),
     };
-    say!("   Input: {} files, {} dirs, {} bytes", shared.total_files, shared.total_directories, shared.total_size);
+    say!(
+        "   Input: {} files, {} dirs, {} bytes",
+        shared.total_files,
+        shared.total_directories,
+        shared.total_size
+    );
     let result = ScanResult::from_shared(&shared, "/tmp".into(), 1.0);
-    say!("   Output: {} files, {} dirs, {} bytes", result.total_files, result.total_dirs, result.total_size_bytes);
+    say!(
+        "   Output: {} files, {} dirs, {} bytes",
+        result.total_files,
+        result.total_dirs,
+        result.total_size_bytes
+    );
     say!("   File types: {:?}", result.file_types);
     say!("   Largest files: {} entries", result.largest_files.len());
     assert_eq!(result.total_files, 5);
@@ -119,7 +156,10 @@ fn workflow_templates_populated() {
     for wf in &t {
         say!("     • {} ({:?})", wf.name, wf.category);
     }
-    assert!(!t.is_empty(), "all_templates() must seed at least one workflow");
+    assert!(
+        !t.is_empty(),
+        "all_templates() must seed at least one workflow"
+    );
     pass!();
 }
 
@@ -155,7 +195,11 @@ fn ollama_client_rejects_empty_url() {
 fn client_metrics_defaults_zeroed() {
     say!("🔍 Test: ClientMetrics defaults are zeroed");
     let m = ClientMetrics::new();
-    say!("   Total requests: {} | Total chat requests: {}", m.total_requests, m.total_chat_requests);
+    say!(
+        "   Total requests: {} | Total chat requests: {}",
+        m.total_requests,
+        m.total_chat_requests
+    );
     assert_eq!(m.total_requests, 0);
     assert_eq!(m.total_chat_requests, 0);
     pass!();
@@ -170,13 +214,25 @@ fn system_monitor_detects_volumes() {
     for (i, v) in volumes.iter().enumerate() {
         let total_gb = v.total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
         let avail_gb = v.available_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
-        say!("     [{}] {} ({}) — {:.1} GB total, {:.1} GB available",
-            i + 1, v.mount_point, v.file_system, total_gb, avail_gb);
+        say!(
+            "     [{}] {} ({}) — {:.1} GB total, {:.1} GB available",
+            i + 1,
+            v.mount_point,
+            v.file_system,
+            total_gb,
+            avail_gb
+        );
     }
-    assert!(!volumes.is_empty(), "Should detect at least one disk volume");
+    assert!(
+        !volumes.is_empty(),
+        "Should detect at least one disk volume"
+    );
     for v in &volumes {
         assert!(v.total_bytes > 0, "Volume should have total bytes");
-        assert!(v.available_bytes <= v.total_bytes, "Available should not exceed total");
+        assert!(
+            v.available_bytes <= v.total_bytes,
+            "Available should not exceed total"
+        );
     }
     pass!();
 }
@@ -189,9 +245,19 @@ fn system_monitor_resources_reasonable() {
     let mem_total_gb = r.memory_total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
     let mem_used_gb = r.memory_used_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
     say!("   CPU usage: {:.1}%", r.cpu_percent);
-    say!("   Memory: {:.1} GB / {:.1} GB used", mem_used_gb, mem_total_gb);
-    assert!(r.cpu_percent >= 0.0 && r.cpu_percent <= 100.0, "CPU percent should be 0-100");
+    say!(
+        "   Memory: {:.1} GB / {:.1} GB used",
+        mem_used_gb,
+        mem_total_gb
+    );
+    assert!(
+        r.cpu_percent >= 0.0 && r.cpu_percent <= 100.0,
+        "CPU percent should be 0-100"
+    );
     assert!(r.memory_total_bytes > 0, "Should have total memory");
-    assert!(r.memory_used_bytes <= r.memory_total_bytes, "Used memory should not exceed total");
+    assert!(
+        r.memory_used_bytes <= r.memory_total_bytes,
+        "Used memory should not exceed total"
+    );
     pass!();
 }

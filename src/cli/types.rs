@@ -1,5 +1,5 @@
-use space_analyzer_pro_desktop::gui_common;
 pub use gui_common::{DirEntry, ScanResult};
+use space_analyzer_pro_desktop::gui_common;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -85,10 +85,7 @@ pub enum InstallerCategory {
 impl InstallerCategory {
     pub fn from_path(path: &str) -> Self {
         let lower = path.to_lowercase();
-        if lower.contains("driver")
-            || lower.contains("realtek")
-            || lower.contains("mb_driver")
-        {
+        if lower.contains("driver") || lower.contains("realtek") || lower.contains("mb_driver") {
             InstallerCategory::Driver
         } else if lower.contains("cuda")
             || lower.contains("nvidia")

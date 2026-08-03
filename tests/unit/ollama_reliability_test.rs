@@ -68,7 +68,9 @@ fn metrics_tracking_works() {
     let metrics = ClientMetrics::new();
     eprintln!(
         "  total_requests={}, total_chat_requests={}, uptime={}",
-        metrics.total_requests, metrics.total_chat_requests, metrics.uptime_seconds()
+        metrics.total_requests,
+        metrics.total_chat_requests,
+        metrics.uptime_seconds()
     );
     assert_eq!(metrics.total_requests, 0);
     assert_eq!(metrics.total_chat_requests, 0);
@@ -127,8 +129,8 @@ fn non_localhost_url_warning() {
 #[ignore = "requires local Ollama at http://127.0.0.1:11434"]
 #[tokio::test]
 async fn ollama_server_reachable() {
-    let client = OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b")
-        .expect("client builder failed");
+    let client =
+        OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b").expect("client builder failed");
     let available = client.is_available().await;
     eprintln!("  is_available={}", available);
     assert!(available, "Ollama should be reachable at localhost:11434");
@@ -138,13 +140,16 @@ async fn ollama_server_reachable() {
 #[ignore = "requires local Ollama at http://127.0.0.1:11434"]
 #[tokio::test]
 async fn ollama_list_models_returns_data() {
-    let client = OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b")
-        .expect("client builder failed");
+    let client =
+        OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b").expect("client builder failed");
     let models = client
         .list_models()
         .await
         .expect("list_models should succeed");
-    assert!(!models.is_empty(), "should have at least one model installed");
+    assert!(
+        !models.is_empty(),
+        "should have at least one model installed"
+    );
     eprintln!(
         "  models={:?}",
         models.iter().map(|m| m.name.as_str()).collect::<Vec<_>>()
@@ -155,8 +160,8 @@ async fn ollama_list_models_returns_data() {
 #[ignore = "requires local Ollama at http://127.0.0.1:11434"]
 #[tokio::test]
 async fn ollama_get_version() {
-    let client = OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b")
-        .expect("client builder failed");
+    let client =
+        OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b").expect("client builder failed");
     let version = client
         .get_version()
         .await
@@ -171,8 +176,8 @@ async fn ollama_get_version() {
 async fn ollama_chat_request_succeeds() {
     use space_analyzer_pro_desktop::ollama::ChatMessage;
 
-    let client = OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b")
-        .expect("client builder failed");
+    let client =
+        OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b").expect("client builder failed");
 
     let messages = vec![
         ChatMessage::system("You are a concise assistant."),
@@ -187,6 +192,9 @@ async fn ollama_chat_request_succeeds() {
     eprintln!("  content='{}'", content);
     eprintln!("  prompt_tokens={}", usage.prompt_tokens);
     eprintln!("  completion_tokens={}", usage.completion_tokens);
-    assert!(tool_calls.is_none(), "simple chat should not produce tool_calls");
+    assert!(
+        tool_calls.is_none(),
+        "simple chat should not produce tool_calls"
+    );
     assert!(!content.is_empty(), "response content should not be empty");
 }

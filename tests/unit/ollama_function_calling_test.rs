@@ -115,8 +115,8 @@ async fn live_ollama_function_call_roundtrip() {
         ChatMessage, OllamaClient, ToolDefinition, ToolParameters,
     };
 
-    let client = OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b")
-        .expect("client builder failed");
+    let client =
+        OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b").expect("client builder failed");
 
     let tool = ToolDefinition::new(
         "get_disk_volumes",

@@ -4,8 +4,8 @@ pub mod helpers;
 pub mod origins;
 pub mod output;
 pub mod recommendations;
-pub mod report;
 pub mod render;
+pub mod report;
 pub mod scan;
 pub mod types;
 
@@ -37,7 +37,7 @@ pub fn main() -> AppResult<()> {
             report,
             clean,
             cleanup_recommendations,
-             trace_origins,
+            trace_origins,
             ref channel,
             ref ask,
             shallow,
@@ -68,13 +68,43 @@ pub fn main() -> AppResult<()> {
             no_anim,
         ),
         Commands::DiskInfo { .. } => handle_disk_info(),
-        Commands::History { limit, offset, search, sort_by, sort_asc, id, delete } => {
-            handle_history(limit, offset, search, sort_by, sort_asc, id, delete, output_format)
-        }
+        Commands::History {
+            limit,
+            offset,
+            search,
+            sort_by,
+            sort_asc,
+            id,
+            delete,
+            prune,
+            drop_relative,
+        } => handle_history(
+            limit,
+            offset,
+            search,
+            sort_by,
+            sort_asc,
+            id,
+            delete,
+            prune,
+            drop_relative,
+            output_format,
+        ),
         Commands::Dedup { path } => {
             dedup::run_clean_analysis(&path, &output_format);
             Ok(())
         }
+        Commands::Settings {
+            get,
+            set,
+            key,
+            value,
+        } => handle_settings(get, set, key, value, &output_format),
+        Commands::Db {
+            vacuum,
+            info,
+            prune_workflows,
+        } => handle_db(vacuum, info, prune_workflows, &output_format),
     }
 }
 
@@ -268,10 +298,55 @@ fn handle_history(
     sort_asc: bool,
     id: Option<i64>,
     delete: Option<i64>,
+    prune: bool,
+    drop_relative: bool,
     output_format: String,
 ) -> AppResult<()> {
     if let Ok(db) = Database::default_open() {
-        if let Some(scan_id) = delete {
+        if prune {
+            match db.prune_duplicate_scans() {
+                Ok(duplicates_removed) => {
+                    let relative_removed = if drop_relative {
+                        db.prune_relative_scan_paths().unwrap_or(0)
+                    } else {
+                        0
+                    };
+                    let _ = db.vacuum();
+                    if output_format == "json" {
+                        println!(
+                            "{}",
+                            serde_json::json!({
+                                "pruned": true,
+                                "duplicate_records_removed": duplicates_removed,
+                                "relative_path_records_removed": relative_removed,
+                            })
+                        );
+                    } else {
+                        println!("Pruned {} duplicate scan record(s).", duplicates_removed);
+                        if relative_removed > 0 {
+                            println!(
+                                "Removed {} record(s) with non-absolute paths.",
+                                relative_removed
+                            );
+                        }
+                        let (free, _) = db.freelist_info().unwrap_or((0, 0));
+                        if free > 0 {
+                            println!("Free pages remaining: {}", free);
+                        }
+                    }
+                }
+                Err(e) => {
+                    if output_format == "json" {
+                        println!(
+                            "{}",
+                            serde_json::json!({"pruned": false, "error": e.to_string()})
+                        );
+                    } else {
+                        eprintln!("Failed to prune scan history: {}", e);
+                    }
+                }
+            }
+        } else if let Some(scan_id) = delete {
             match db.delete_scan(scan_id) {
                 Ok(count) if count > 0 => {
                     if output_format == "json" {
@@ -328,12 +403,149 @@ fn handle_history(
                         "limit": limit,
                         "offset": offset,
                     });
-                    println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&response).unwrap_or_default()
+                    );
                 }
                 Err(e) => {
                     eprintln!("Failed to load history: {}", e);
                 }
             }
+        }
+    } else {
+        eprintln!("Failed to open database");
+    }
+    Ok(())
+}
+
+fn handle_settings(
+    get: bool,
+    set: bool,
+    key: Option<String>,
+    value: Option<String>,
+    output_format: &str,
+) -> AppResult<()> {
+    if let Ok(db) = Database::default_open() {
+        if get {
+            match db.get_all_settings() {
+                Ok(pairs) => {
+                    if output_format == "json" {
+                        let map: std::collections::BTreeMap<String, String> =
+                            pairs.into_iter().collect();
+                        println!("{}", serde_json::to_string(&map).unwrap_or_default());
+                    } else {
+                        for (k, v) in pairs {
+                            println!("{} = {}", k, v);
+                        }
+                    }
+                }
+                Err(e) => eprintln!("Failed to read settings: {}", e),
+            }
+            return Ok(());
+        }
+        if set {
+            match (key, value) {
+                (Some(key), Some(value)) => match db.upsert_settings(&[(&key, value)]) {
+                    Ok(written) => {
+                        if output_format == "json" {
+                            println!(
+                                "{}",
+                                serde_json::json!({"upserted": written, "success": true})
+                            );
+                        } else {
+                            println!("Upserted {} setting(s).", written);
+                        }
+                    }
+                    Err(e) => eprintln!("Failed to update settings: {}", e),
+                },
+                _ => eprintln!("settings set requires --key and --value"),
+            }
+            return Ok(());
+        }
+        eprintln!("Provide --get or --set with --key and --value");
+    } else {
+        eprintln!("Failed to open database");
+    }
+    Ok(())
+}
+
+fn handle_db(
+    vacuum: bool,
+    info: bool,
+    prune_workflows: usize,
+    output_format: &str,
+) -> AppResult<()> {
+    if let Ok(db) = Database::default_open() {
+        if info {
+            match db.freelist_info() {
+                Ok((free_pages, page_size)) => {
+                    let total_pages = db.page_count().unwrap_or(0);
+                    let used_pages = total_pages.saturating_sub(free_pages);
+                    let row_counts: Vec<(String, i64)> = [
+                        ("scan_history", "scan_history"),
+                        ("disk_space_history", "disk_space_history"),
+                        ("settings", "settings"),
+                        ("workflow_executions", "workflow_executions"),
+                    ]
+                    .iter()
+                    .filter_map(|(label, table)| {
+                        db.table_row_count(table)
+                            .ok()
+                            .map(|c| (label.to_string(), c))
+                    })
+                    .collect();
+                    let response = serde_json::json!({
+                        "free_pages": free_pages,
+                        "page_size": page_size,
+                        "total_pages": total_pages,
+                        "used_pages": used_pages,
+                        "row_counts": row_counts,
+                    });
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&response).unwrap_or_default()
+                    );
+                }
+                Err(e) => eprintln!("Failed to read DB info: {}", e),
+            }
+            return Ok(());
+        }
+        if vacuum {
+            match db.vacuum() {
+                Ok(()) => {
+                    let (free_pages, _) = db.freelist_info().unwrap_or((0, 0));
+                    if output_format == "json" {
+                        println!(
+                            "{}",
+                            serde_json::json!({"vacuumed": true, "free_pages_after": free_pages})
+                        );
+                    } else {
+                        println!("VACUUM complete. Free pages remaining: {}", free_pages);
+                    }
+                }
+                Err(e) => eprintln!("VACUUM failed: {}", e),
+            }
+            return Ok(());
+        }
+        match db.prune_workflow_history(prune_workflows) {
+            Ok(pruned) => {
+                if output_format == "json" {
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "pruned_workflows": pruned,
+                            "retention_limit": prune_workflows,
+                        })
+                    );
+                } else {
+                    println!(
+                        "Pruned {} workflow execution record(s) (keeping newest {}).",
+                        pruned, prune_workflows
+                    );
+                }
+            }
+            Err(e) => eprintln!("Failed to prune workflow history: {}", e),
         }
     } else {
         eprintln!("Failed to open database");

@@ -1,6 +1,6 @@
+use crate::animation;
 use crate::cli::render::{self, pct_of};
 use crate::cli::types::ScanResult;
-use crate::animation;
 use shared_scanner::format_bytes;
 
 pub fn print_text_results(
@@ -258,7 +258,11 @@ fn print_installer_inventory(result: &ScanResult, no_animation: bool) {
     if groups.is_empty() {
         return;
     }
-    animation::print_section_header_animated("📦", "INSTALLER & EXECUTABLE INVENTORY", no_animation);
+    animation::print_section_header_animated(
+        "📦",
+        "INSTALLER & EXECUTABLE INVENTORY",
+        no_animation,
+    );
     println!("   These are likely safe to delete after installation. Sort by size and remove oldest/unneeded.");
     println!();
     render::render_installers_text(&groups);

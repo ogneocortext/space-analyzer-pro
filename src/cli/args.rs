@@ -138,6 +138,17 @@ pub enum Commands {
         /// Delete a scan record by ID
         #[arg(long)]
         delete: Option<i64>,
+
+        /// Prune duplicate scan records, keeping only the newest entry per
+        /// (path, total size, file count). Also removes orphaned
+        /// duplicate-analysis and embedding rows for the deleted scans.
+        #[arg(long)]
+        prune: bool,
+
+        /// When pruning, also drop records whose path is not absolute
+        /// (e.g. relative "." scans that don't resolve to a real directory).
+        #[arg(long)]
+        drop_relative: bool,
     },
 
     /// Run duplicate-file analysis on a directory and output JSON
@@ -145,5 +156,40 @@ pub enum Commands {
         /// Directory to analyze
         #[arg(short, long, default_value = ".")]
         path: String,
+    },
+
+    /// Read or write settings in the embedded database as raw key/value pairs
+    Settings {
+        /// Print all stored settings
+        #[arg(long)]
+        get: bool,
+
+        /// Set a single setting; requires --key and --value
+        #[arg(long)]
+        set: bool,
+
+        /// Setting key to read or write
+        #[arg(long)]
+        key: Option<String>,
+
+        /// Setting value to write (paired with --key)
+        #[arg(long)]
+        value: Option<String>,
+    },
+
+    /// Database maintenance: vacuum free pages, inspect the freelist, and
+    /// prune workflow execution history beyond the retention cap.
+    Db {
+        /// Reclaim free pages left behind by deleted rows (VACUUM)
+        #[arg(long)]
+        vacuum: bool,
+
+        /// Show the freelist and table row counts
+        #[arg(long)]
+        info: bool,
+
+        /// Trim workflow execution history to the newest N records (default 100)
+        #[arg(long, default_value = "100")]
+        prune_workflows: usize,
     },
 }

@@ -319,4 +319,73 @@ impl super::Database {
         tx.commit()?;
         Ok(deleted)
     }
+
+    /// Read all raw key/value pairs from the settings table. Unlike
+    /// `load_settings`, this returns every stored key verbatim (including
+    /// unknown/custom keys), which is what the GUI settings store uses to
+    /// mirror its own preferences without losing Rust-core defaults.
+    pub fn get_all_settings(&self) -> rusqlite::Result<Vec<(String, String)>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT key, value FROM settings ORDER BY key")?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect()
+    }
+
+    /// Upsert arbitrary key/value pairs into the settings table. Existing keys
+    /// are replaced, unknown keys are added. Runs in a single transaction.
+    pub fn upsert_settings(&self, pairs: &[(&str, String)]) -> rusqlite::Result<usize> {
+        if pairs.is_empty() {
+            return Ok(0);
+        }
+        let tx = self.conn.unchecked_transaction()?;
+        let mut written = 0usize;
+        for (key, value) in pairs {
+            written += tx.execute(
+                "INSERT OR REPLACE INTO settings (key, value) VALUES (?1, ?2)",
+                params![key, value],
+            )?;
+        }
+        tx.commit()?;
+        Ok(written)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_db() -> Database {
+        Database::open(PathBuf::from(":memory:")).expect("in-memory db")
+    }
+
+    #[test]
+    fn upsert_and_get_all_round_trip() {
+        let db = test_db();
+        db.upsert_settings(&[
+            ("theme", "Dark".to_string()),
+            ("scanner_path", "C:\\scanner.exe".to_string()),
+        ])
+        .unwrap();
+        let all = db.get_all_settings().unwrap();
+        let map: std::collections::HashMap<_, _> = all.into_iter().collect();
+        assert_eq!(map.get("theme"), Some(&"Dark".to_string()));
+        assert_eq!(
+            map.get("scanner_path"),
+            Some(&"C:\\scanner.exe".to_string())
+        );
+    }
+
+    #[test]
+    fn upsert_overwrites_existing() {
+        let db = test_db();
+        db.upsert_settings(&[("theme", "Dark".to_string())])
+            .unwrap();
+        db.upsert_settings(&[("theme", "Light".to_string())])
+            .unwrap();
+        let all = db.get_all_settings().unwrap();
+        let theme: Vec<_> = all.into_iter().filter(|(k, _)| k == "theme").collect();
+        assert_eq!(theme.len(), 1);
+        assert_eq!(theme[0].1, "Light");
+    }
 }

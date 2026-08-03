@@ -97,8 +97,16 @@ fn cli_unknown_flag_exits_nonzero() {
 fn cli_nonexistent_path_does_not_silently_succeed() {
     info!("Verifying nonexistent path is rejected");
     let bogus: PathBuf = PathBuf::from(r"C:\__space_analyzer_nonexistent_54321__");
-    let out = cli().arg("-p").arg(bogus).output().expect("CLI must execute");
-    eprintln!("  exit_status={:?}, stderr_len={}", out.status, out.stderr.len());
+    let out = cli()
+        .arg("-p")
+        .arg(bogus)
+        .output()
+        .expect("CLI must execute");
+    eprintln!(
+        "  exit_status={:?}, stderr_len={}",
+        out.status,
+        out.stderr.len()
+    );
     assert!(
         !out.status.success() || !out.stderr.is_empty(),
         "A nonexistent path must either exit non-zero or emit stderr"
@@ -126,7 +134,11 @@ fn cli_scan_real_isolated_dir_completes() {
         .output()
         .expect("scan command must execute without the process crashing");
 
-    eprintln!("  exit_status={:?}, stdout_len={}", out.status, out.stdout.len());
+    eprintln!(
+        "  exit_status={:?}, stdout_len={}",
+        out.status,
+        out.stdout.len()
+    );
     assert!(
         out.status.success(),
         "scanning a valid directory must succeed"

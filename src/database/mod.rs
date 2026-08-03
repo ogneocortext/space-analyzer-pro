@@ -106,6 +106,41 @@ impl Database {
         data_dir.join("space-analyzer.db")
     }
 
+    /// Reclaim free pages left behind by deletes (e.g. after pruning). Only
+    /// run when no other connection holds a read lock; the CLI is the sole
+    /// writer, so calling it from a maintenance command is safe.
+    pub fn vacuum(&self) -> rusqlite::Result<()> {
+        self.conn.execute_batch("VACUUM;")
+    }
+
+    /// Report the number of free pages and the file's page size so tooling can
+    /// decide whether a VACUUM is worthwhile. Returns (free_pages, page_size).
+    pub fn freelist_info(&self) -> rusqlite::Result<(i64, i64)> {
+        let free_pages: i64 = self
+            .conn
+            .query_row("PRAGMA freelist_count", [], |r| r.get(0))
+            .unwrap_or(0);
+        let page_size: i64 = self
+            .conn
+            .query_row("PRAGMA page_size", [], |r| r.get(0))
+            .unwrap_or(4096);
+        Ok((free_pages, page_size))
+    }
+
+    /// Total pages in the database file.
+    pub fn page_count(&self) -> rusqlite::Result<i64> {
+        self.conn.query_row("PRAGMA page_count", [], |r| r.get(0))
+    }
+
+    /// Row count for a given table. Returns 0 if the table doesn't exist.
+    pub fn table_row_count(&self, table: &str) -> rusqlite::Result<i64> {
+        self.conn
+            .query_row(&format!("SELECT COUNT(*) FROM {}", table), [], |r| {
+                r.get::<_, i64>(0)
+            })
+            .or_else(|_| Ok(0))
+    }
+
     /// Initialize database schema
     fn migrate(&self) -> rusqlite::Result<()> {
         let user_version: i64 = self

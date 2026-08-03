@@ -59,11 +59,7 @@ pub fn build_csv(result: &ScanResult) -> String {
 
     out.push_str("file_path,size_bytes\n");
     for file in &result.largest_files {
-        out.push_str(&format!(
-            "{},{}\n",
-            csv_escape(&file.path),
-            file.size
-        ));
+        out.push_str(&format!("{},{}\n", csv_escape(&file.path), file.size));
     }
     out
 }
@@ -85,7 +81,10 @@ pub fn categorize_installers(result: &ScanResult) -> Vec<InstallerGroup> {
             continue;
         }
         let cat = InstallerCategory::from_path(&file.path);
-        groups.entry(cat).or_default().push((file.path.clone(), file.size));
+        groups
+            .entry(cat)
+            .or_default()
+            .push((file.path.clone(), file.size));
     }
 
     let mut ordered = Vec::new();

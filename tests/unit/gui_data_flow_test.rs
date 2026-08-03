@@ -7,8 +7,8 @@
 #![cfg(test)]
 
 use space_analyzer_pro_desktop::gui_common::ScanResult;
-use space_analyzer_pro_desktop::workflows::{self, WorkflowAction, Workflow};
 use space_analyzer_pro_desktop::tool_registry::ToolRegistry;
+use space_analyzer_pro_desktop::workflows::{self, Workflow, WorkflowAction};
 use std::collections::HashMap;
 
 macro_rules! say {
@@ -16,7 +16,9 @@ macro_rules! say {
 }
 
 macro_rules! pass {
-    () => { eprintln!("  ✅ PASS\n"); };
+    () => {
+        eprintln!("  ✅ PASS\n");
+    };
 }
 
 // -----------------------------------------------------------------------------
@@ -28,7 +30,10 @@ fn workflow_templates_non_empty() {
     say!("🔍 Test: WorkflowTemplates are non-empty");
     let t = workflows::WorkflowTemplates::all_templates();
     say!("   Found {} templates", t.len());
-    assert!(!t.is_empty(), "all_templates() must seed at least one workflow");
+    assert!(
+        !t.is_empty(),
+        "all_templates() must seed at least one workflow"
+    );
     pass!();
 }
 
@@ -53,9 +58,16 @@ fn workflow_delete_removes_entry() {
         Workflow::new("wf-2", "Two", workflows::WorkflowCategory::Custom),
     ];
     let id = "wf-1".to_string();
-    say!("   Before: {:?}", workflows_list.iter().map(|w| &w.id).collect::<Vec<_>>());
+    say!(
+        "   Before: {:?}",
+        workflows_list.iter().map(|w| &w.id).collect::<Vec<_>>()
+    );
     workflows_list.retain(|w| w.id != id);
-    say!("   After removing '{}': {:?}", id, workflows_list.iter().map(|w| &w.id).collect::<Vec<_>>());
+    say!(
+        "   After removing '{}': {:?}",
+        id,
+        workflows_list.iter().map(|w| &w.id).collect::<Vec<_>>()
+    );
     assert!(!workflows_list.iter().any(|w| w.id == id));
     pass!();
 }
@@ -72,7 +84,10 @@ fn tool_registry_provides_definitions() {
     say!("   Found {} tool definitions", defs.len());
     assert!(!defs.is_empty(), "Tool registry should provide definitions");
     for def in defs {
-        assert!(!def.function.name.is_empty(), "Tool name should not be empty");
+        assert!(
+            !def.function.name.is_empty(),
+            "Tool name should not be empty"
+        );
     }
     pass!();
 }
@@ -98,7 +113,10 @@ fn tool_execution_returns_result() {
     let output = result.unwrap();
     say!("   Output: {} bytes", output.len());
     say!("   {}", output);
-    assert!(!output.is_empty(), "Disk volumes tool should return non-empty result");
+    assert!(
+        !output.is_empty(),
+        "Disk volumes tool should return non-empty result"
+    );
     pass!();
 }
 
@@ -131,7 +149,11 @@ fn scan_result_with_many_files_populates_types() {
         potential_cleanup_bytes: 0,
         timestamp: String::new(),
     };
-    say!("   Files: {} | Types: {:?}", result.total_files, result.file_types);
+    say!(
+        "   Files: {} | Types: {:?}",
+        result.total_files,
+        result.file_types
+    );
     assert_eq!(result.total_files, 20_000);
     assert_eq!(result.file_types.get("log").copied().unwrap_or(0), 15000);
     pass!();
@@ -189,6 +211,9 @@ fn workflow_templates_support_common_ranges() {
     let names: Vec<_> = templates.iter().map(|t| t.name.as_str()).collect();
     say!("   Available: {:?}", names);
     let has_expected = names.contains(&"Weekly Cleanup") || names.contains(&"Startup Scan");
-    assert!(has_expected, "Templates should include common maintenance workflows");
+    assert!(
+        has_expected,
+        "Templates should include common maintenance workflows"
+    );
     pass!();
 }

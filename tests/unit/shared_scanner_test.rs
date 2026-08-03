@@ -39,7 +39,10 @@ fn scan_result_defaults_are_zeroed() {
         scanned_files: std::collections::HashMap::new(),
         category_sizes: std::collections::HashMap::new(),
     };
-    eprintln!("  total_files={}, total_directories={}, total_size={}", r.total_files, r.total_directories, r.total_size);
+    eprintln!(
+        "  total_files={}, total_directories={}, total_size={}",
+        r.total_files, r.total_directories, r.total_size
+    );
     assert_eq!(r.total_files, 0);
     assert_eq!(r.total_directories, 0);
     assert_eq!(r.total_size, 0);
@@ -91,7 +94,10 @@ fn scan_temp_dir_counts_correctly() {
     let result = scanner
         .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::default())
         .expect("scan must succeed on a temp dir");
-    eprintln!("  files={}, size={} bytes", result.total_files, result.total_size);
+    eprintln!(
+        "  files={}, size={} bytes",
+        result.total_files, result.total_size
+    );
     assert_eq!(result.total_files, 2, "two files expected");
     assert_eq!(result.total_size, 9); // alpha(5) + beta(4)
     info!("PASS");
@@ -123,7 +129,10 @@ fn scan_empty_dir_returns_zero_files() {
     let result = scanner
         .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::default())
         .expect("empty-dir scan must succeed");
-    eprintln!("  files={}, dirs={}", result.total_files, result.total_directories);
+    eprintln!(
+        "  files={}, dirs={}",
+        result.total_files, result.total_directories
+    );
     assert_eq!(result.total_files, 0);
     info!("PASS");
 }
@@ -145,7 +154,10 @@ fn scan_dir_with_only_hidden_files_is_not_empty() {
             },
         )
         .expect("scan must succeed");
-    eprintln!("  include_hidden=false: empty_directories={:?}", result.empty_directories);
+    eprintln!(
+        "  include_hidden=false: empty_directories={:?}",
+        result.empty_directories
+    );
     assert!(
         result.empty_directories.is_empty(),
         "dir with only dotfiles must not be reported empty when hidden files are excluded"
@@ -160,7 +172,10 @@ fn scan_dir_with_only_hidden_files_is_not_empty() {
             },
         )
         .expect("scan must succeed");
-    eprintln!("  include_hidden=true: empty_directories={:?}", result_include_hidden.empty_directories);
+    eprintln!(
+        "  include_hidden=true: empty_directories={:?}",
+        result_include_hidden.empty_directories
+    );
     assert!(
         result_include_hidden.empty_directories.is_empty(),
         "dir with only dotfiles must not be reported empty when hidden files are included"
@@ -180,7 +195,10 @@ fn scan_nested_subdirs_are_counted() {
     let result = scanner
         .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::default())
         .expect("nested scan must succeed");
-    eprintln!("  files={}, directories={}", result.total_files, result.total_directories);
+    eprintln!(
+        "  files={}, directories={}",
+        result.total_files, result.total_directories
+    );
     assert_eq!(result.total_files, 1);
     assert!(
         result.total_directories >= 2,
@@ -207,9 +225,18 @@ fn shallow_scan_only_reaches_depth_1() {
     let result = scanner
         .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::shallow())
         .expect("shallow scan must succeed");
-    eprintln!("  shallow: files={}, dirs={}", result.total_files, result.total_directories);
-    assert_eq!(result.total_files, 0, "shallow scan should not descend into level1");
-    assert_eq!(result.total_directories, 2, "root + level1/ should be visible at depth 1");
+    eprintln!(
+        "  shallow: files={}, dirs={}",
+        result.total_files, result.total_directories
+    );
+    assert_eq!(
+        result.total_files, 0,
+        "shallow scan should not descend into level1"
+    );
+    assert_eq!(
+        result.total_directories, 2,
+        "root + level1/ should be visible at depth 1"
+    );
     info!("PASS");
 }
 
@@ -225,7 +252,10 @@ fn deep_scan_reaches_all_nested_dirs() {
     let result = scanner
         .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::deep())
         .expect("deep scan must succeed");
-    eprintln!("  deep: files={}, dirs={}", result.total_files, result.total_directories);
+    eprintln!(
+        "  deep: files={}, dirs={}",
+        result.total_files, result.total_directories
+    );
     assert_eq!(result.total_files, 1);
     assert!(
         result.total_directories >= 4,
@@ -266,8 +296,14 @@ fn custom_max_depth_limits_traversal() {
         )
         .expect("max_depth=1 scan must succeed");
 
-    eprintln!("  max_depth=2: files={}, dirs={}", max_depth_2.total_files, max_depth_2.total_directories);
-    eprintln!("  max_depth=1: files={}, dirs={}", max_depth_1.total_files, max_depth_1.total_directories);
+    eprintln!(
+        "  max_depth=2: files={}, dirs={}",
+        max_depth_2.total_files, max_depth_2.total_directories
+    );
+    eprintln!(
+        "  max_depth=1: files={}, dirs={}",
+        max_depth_1.total_files, max_depth_1.total_directories
+    );
 
     assert!(
         max_depth_2.total_directories >= 2,
@@ -295,7 +331,10 @@ fn file_cache_populated_on_first_scan() {
         .scan_directory_sync(tmp.path().to_str().unwrap(), ScanOptions::default())
         .expect("scan must succeed");
 
-    eprintln!("  cached paths: {:?}", result.scanned_files.keys().collect::<Vec<_>>());
+    eprintln!(
+        "  cached paths: {:?}",
+        result.scanned_files.keys().collect::<Vec<_>>()
+    );
     assert!(
         !result.scanned_files.is_empty(),
         "at least one entry should be cached: got {}",
@@ -329,10 +368,25 @@ fn file_cache_hits_on_unchanged_files() {
         )
         .expect("second scan with cache must succeed");
 
-    eprintln!("  first: files={}, cached={}", first.total_files, first.scanned_files.len());
-    eprintln!("  second: files={}, cached={}", second.total_files, second.scanned_files.len());
-    assert_eq!(first.total_files, second.total_files, "file count should stay stable");
-    assert_eq!(second.scanned_files.len(), first.scanned_files.len(), "second scan should produce same cache size");
+    eprintln!(
+        "  first: files={}, cached={}",
+        first.total_files,
+        first.scanned_files.len()
+    );
+    eprintln!(
+        "  second: files={}, cached={}",
+        second.total_files,
+        second.scanned_files.len()
+    );
+    assert_eq!(
+        first.total_files, second.total_files,
+        "file count should stay stable"
+    );
+    assert_eq!(
+        second.scanned_files.len(),
+        first.scanned_files.len(),
+        "second scan should produce same cache size"
+    );
     info!("PASS");
 }
 
