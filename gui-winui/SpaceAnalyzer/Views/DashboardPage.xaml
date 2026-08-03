@@ -17,12 +17,14 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
                     <TextBlock Text="Dashboard" Style="{StaticResource Type.PageTitle}" />
                     <TextBlock Text="Overview of your disk usage, system resources, and quick actions." Style="{StaticResource Type.Body}" />
                 </StackPanel>
-                <Button Grid.Column="1" Content="Refresh" Click="Refresh_Click" Style="{StaticResource SmallButton}" VerticalAlignment="Top" />
+                <Button x:Name="BtnNewScan" Grid.Column="1" Content="New Scan" Click="BtnNewScan_Click" Style="{StaticResource PrimaryCTAButton}" VerticalAlignment="Center" />
+                <Button Grid.Column="2" Content="Refresh" Click="Refresh_Click" Style="{StaticResource SmallButton}" VerticalAlignment="Center" />
             </Grid>
 
             <!-- Hero Stat Cards -->
@@ -117,73 +119,62 @@
                 <StackPanel Grid.Column="1" Spacing="{StaticResource Space.MD}">
                     <TextBlock Text="Quick Actions" Style="{StaticResource Type.SectionTitle}" />
                     <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
-                        <Grid RowSpacing="{StaticResource Space.MD}" ColumnSpacing="{StaticResource Space.MD}">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-
-                            <Button Grid.Row="0" Grid.Column="0" x:Name="BtnNewScan" Click="BtnNewScan_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
-                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
-                                    <FontIcon Glyph="&#xEB39;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="New Scan" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                        <StackPanel Spacing="{StaticResource Space.SM}">
+                            <Button x:Name="BtnViewHistory" Click="BtnViewHistory_Click" Style="{StaticResource QuickActionButton}">
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
+                                    <FontIcon Glyph="&#xE944;" FontSize="{StaticResource Icon.Button}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="View History" Style="{StaticResource Type.SubTitle}" />
+                                        <TextBlock Text="Browse past scans and compare results" Style="{StaticResource Type.Caption}" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Button>
-                            <Button Grid.Row="0" Grid.Column="1" x:Name="BtnViewHistory" Click="BtnViewHistory_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
-                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
-                                    <FontIcon Glyph="&#xE944;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="History" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                            <Button x:Name="BtnFindDuplicates" Click="BtnFindDuplicates_Click" Style="{StaticResource QuickActionButton}">
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
+                                    <FontIcon Glyph="&#xEB9F;" FontSize="{StaticResource Icon.Button}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Find Duplicates" Style="{StaticResource Type.SubTitle}" />
+                                        <TextBlock Text="Detect and remove duplicate files" Style="{StaticResource Type.Caption}" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Button>
-                            <Button Grid.Row="0" Grid.Column="2" x:Name="BtnFindDuplicates" Click="BtnFindDuplicates_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
-                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
-                                    <FontIcon Glyph="&#xEB9F;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="Duplicates" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                            <Button x:Name="BtnAIAssistant" Click="BtnAIAssistant_Click" Style="{StaticResource QuickActionButton}">
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
+                                    <FontIcon Glyph="&#xE99A;" FontSize="{StaticResource Icon.Button}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="AI Assistant" Style="{StaticResource Type.SubTitle}" />
+                                        <TextBlock Text="Ask questions about your disk usage" Style="{StaticResource Type.Caption}" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Button>
-                            <Button Grid.Row="1" Grid.Column="0" x:Name="BtnAIAssistant" Click="BtnAIAssistant_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
-                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
-                                    <FontIcon Glyph="&#xE99A;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="AI Chat" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                            <Button x:Name="BtnCleanup" Click="BtnCleanup_Click" Style="{StaticResource QuickActionButton}">
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
+                                    <FontIcon Glyph="&#xEB54;" FontSize="{StaticResource Icon.Button}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Cleanup" Style="{StaticResource Type.SubTitle}" />
+                                        <TextBlock Text="Remove unused node_modules and cache" Style="{StaticResource Type.Caption}" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Button>
-                            <Button Grid.Row="1" Grid.Column="1" x:Name="BtnCleanup" Click="BtnCleanup_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
-                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
-                                    <FontIcon Glyph="&#xEB54;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="Cleanup" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                            <Button x:Name="BtnSmartSearch" Click="BtnSmartSearch_Click" Style="{StaticResource QuickActionButton}">
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
+                                    <FontIcon Glyph="&#xE721;" FontSize="{StaticResource Icon.Button}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Search Files" Style="{StaticResource Type.SubTitle}" />
+                                        <TextBlock Text="Find files by name, size, or date" Style="{StaticResource Type.Caption}" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Button>
-                            <Button Grid.Row="1" Grid.Column="2" x:Name="BtnSystem" Click="BtnSystem_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
-                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
-                                    <FontIcon Glyph="&#xE770;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="System" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
+                            <Button x:Name="BtnWorkflows" Click="BtnWorkflows_Click" Style="{StaticResource QuickActionButton}">
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
+                                    <FontIcon Glyph="&#xE74C;" FontSize="{StaticResource Icon.Button}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Workflows" Style="{StaticResource Type.SubTitle}" />
+                                        <TextBlock Text="Automate cleanup and maintenance tasks" Style="{StaticResource Type.Caption}" />
+                                    </StackPanel>
                                 </StackPanel>
                             </Button>
-                            <Button Grid.Row="2" Grid.Column="0" x:Name="BtnSmartSearch" Click="BtnSmartSearch_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
-                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
-                                    <FontIcon Glyph="&#xE721;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="Search" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
-                                </StackPanel>
-                            </Button>
-                            <Button Grid.Row="2" Grid.Column="1" x:Name="BtnWorkflows" Click="BtnWorkflows_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
-                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
-                                    <FontIcon Glyph="&#xE74C;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="Workflows" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
-                                </StackPanel>
-                            </Button>
-                            <Button Grid.Row="2" Grid.Column="2" x:Name="BtnSettings" Click="BtnSettings_Click" Style="{StaticResource DashboardCardButton}" Padding="16" CornerRadius="8">
-                                <StackPanel Spacing="{StaticResource Space.SM}" HorizontalAlignment="Center">
-                                    <FontIcon Glyph="&#xE713;" FontSize="{StaticResource Icon.Button}" HorizontalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                    <TextBlock Text="Settings" Style="{StaticResource Type.SubTitle}" HorizontalAlignment="Center" />
-                                </StackPanel>
-                            </Button>
-                        </Grid>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
             </Grid>

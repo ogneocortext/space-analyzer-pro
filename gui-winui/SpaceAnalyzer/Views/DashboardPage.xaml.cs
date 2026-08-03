@@ -184,8 +184,8 @@ public sealed partial class DashboardPage : Page
     private void SetupHoverEffects()
     {
         AnimationManager.SetupHoverEffects(_animationTracker,
-            BtnNewScan, BtnViewHistory, BtnFindDuplicates, BtnAIAssistant, BtnCleanup, BtnSystem,
-            BtnSmartSearch, BtnWorkflows, BtnSettings);
+            BtnNewScan, BtnViewHistory, BtnFindDuplicates, BtnAIAssistant, BtnCleanup,
+            BtnSmartSearch, BtnWorkflows);
     }
 
     private async Task AnimateStatCards()
