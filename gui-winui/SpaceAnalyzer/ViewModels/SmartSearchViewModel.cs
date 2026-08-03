@@ -49,6 +49,13 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
         set { _matchExact = value; OnPropertyChanged(); }
     }
 
+    private bool _useWildcards;
+    public bool UseWildcards
+    {
+        get => _useWildcards;
+        set { _useWildcards = value; OnPropertyChanged(); }
+    }
+
     private ulong _minSizeMb;
     public ulong MinSizeMb
     {
@@ -145,7 +152,9 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
             var query = SearchQuery.ToLowerInvariant();
             var match = MatchExact
                 ? new Func<string, bool>(name => name.Equals(query, StringComparison.OrdinalIgnoreCase))
-                : new Func<string, bool>(name => name.Contains(query, StringComparison.OrdinalIgnoreCase));
+                : UseWildcards
+                    ? new Func<string, bool>(name => WildcardMatches(name, query))
+                    : new Func<string, bool>(name => name.Contains(query, StringComparison.OrdinalIgnoreCase));
             var minSizeBytes = MinSizeMb * 1024 * 1024;
             var collected = new List<SmartSearchResult>();
 
@@ -212,7 +221,9 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
                 {
                     if (MatchExact
                         ? string.Equals(file.Name, query, StringComparison.OrdinalIgnoreCase)
-                        : file.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+                        : UseWildcards
+                            ? WildcardMatches(file.Name, query)
+                            : file.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
                     {
                         if (file.Length >= (long)minSizeBytes)
                         {
@@ -241,6 +252,40 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
             System.Diagnostics.Debug.WriteLine($"[SmartSearchViewModel] WalkDirectory error: {ex}");
             // Skip inaccessible directories
         }
+    }
+
+    private static bool WildcardMatches(string input, string pattern)
+    {
+        if (string.IsNullOrEmpty(pattern))
+            return true;
+
+        var segments = pattern.Split('*', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
+            return true;
+
+        var lowerInput = input.ToLowerInvariant();
+        var currentIndex = 0;
+
+        if (!pattern.StartsWith("*"))
+        {
+            if (!lowerInput.StartsWith(segments[0], StringComparison.OrdinalIgnoreCase))
+                return false;
+            currentIndex = segments[0].Length;
+        }
+
+        for (var i = pattern.StartsWith("*") ? 0 : 1; i < segments.Length; i++)
+        {
+            var segment = segments[i];
+            var foundIndex = lowerInput.IndexOf(segment, currentIndex, StringComparison.OrdinalIgnoreCase);
+            if (foundIndex < 0)
+                return false;
+            currentIndex = foundIndex + segment.Length;
+        }
+
+        if (!pattern.EndsWith("*") && currentIndex < lowerInput.Length)
+            return lowerInput.EndsWith(segments[^1], StringComparison.OrdinalIgnoreCase);
+
+        return true;
     }
 
     public async Task BrowseForPathAsync()

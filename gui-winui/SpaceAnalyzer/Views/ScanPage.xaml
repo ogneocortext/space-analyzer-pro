@@ -107,6 +107,10 @@
                                 AutomationProperties.Name="Export Results"
                                 Style="{StaticResource SecondaryButton}"
                                 IsEnabled="{x:Bind VM.HasResult, Mode=OneWay}"/>
+                        <ComboBox Grid.Column="3" Width="70" SelectedItem="{x:Bind VM.ExportFormat, Mode=TwoWay}"
+                                  ItemsSource="{x:Bind VM.ExportFormats, Mode=OneWay}"
+                                  VerticalAlignment="Center"
+                                  AutomationProperties.Name="Export format"/>
                         <TextBlock Grid.Column="3" Text="{x:Bind VM.StatusMessage, Mode=OneWay}"
                                    Style="{StaticResource Type.Caption}" VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis" Opacity="0.7"/>

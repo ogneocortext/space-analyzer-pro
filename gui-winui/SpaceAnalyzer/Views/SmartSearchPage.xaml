@@ -70,6 +70,9 @@
                                 <CheckBox Content="Match exact name"
                                           IsChecked="{x:Bind VM.MatchExact, Mode=TwoWay}"
                                           FontSize="12"/>
+                                <CheckBox Content="Use wildcards (*)"
+                                          IsChecked="{x:Bind VM.UseWildcards, Mode=TwoWay}"
+                                          FontSize="12"/>
                                 <CheckBox Content="Include hidden files"
                                           IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"
                                           FontSize="12"/>
@@ -82,7 +85,7 @@
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
                     <StackPanel Spacing="{StaticResource Space.XS}">
                         <TextBlock Text="Tips" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
-                        <TextBlock Text="Use * as a wildcard (e.g. *.log). Leave Min Size at 0 to find all matches." Style="{StaticResource Type.Hint}"/>
+                        <TextBlock Text="Use * as a wildcard (e.g. *.log or report_*_2024.pdf). Leave Min Size at 0 to find all matches." Style="{StaticResource Type.Hint}"/>
                     </StackPanel>
                 </Border>
 

@@ -64,6 +64,14 @@
                                        Foreground="{x:Bind VM.IsScannerPathValid, Mode=OneWay, Converter={StaticResource BoolToErrorBrush}}"
                                        Opacity="0.9"/>
                         </StackPanel>
+                        <StackPanel Spacing="{StaticResource Space.SM}">
+                            <TextBlock Text="App data folder" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <TextBlock Text="Stores the scan history database used by the app and the AI assistant."
+                                       Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                            <Button Content="Open Data Folder" Click="OpenDataFolder_Click"
+                                    HorizontalAlignment="Left" Style="{StaticResource SecondaryButton}"
+                                    AutomationProperties.Name="Open app data folder"/>
+                        </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.MD}">
                             <TextBlock Text="Default scan depth" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
                             <Slider Minimum="1"
@@ -81,6 +89,16 @@
                         <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="GPU acceleration"
                                       IsChecked="{x:Bind VM.GpuAcceleration, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Default scan paths" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <TextBlock Text="Quick-access paths shown on the Scan page. One path per line."
+                                       Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                            <TextBox Text="{x:Bind VM.DefaultScanPaths, Mode=TwoWay}"
+                                     Height="80"
+                                     TextWrapping="Wrap"
+                                     AcceptsReturn="True"
+                                     AutomationProperties.Name="Default scan paths"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

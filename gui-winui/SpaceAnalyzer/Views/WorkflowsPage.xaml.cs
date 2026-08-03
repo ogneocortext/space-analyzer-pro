@@ -52,6 +52,18 @@ public sealed partial class WorkflowsPage : Page
         await VM.RunAsync();
     }
 
+    private void Cancel_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("WorkflowsPage Cancel_Click");
+        VM.Cancel();
+    }
+
+    private void Clear_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("WorkflowsPage Clear_Click");
+        VM.ClearResults();
+    }
+
     private void OpenResultFile_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("WorkflowsPage OpenResultFile_Click");

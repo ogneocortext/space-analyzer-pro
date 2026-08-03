@@ -11,21 +11,20 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
-using Windows.Storage;
 using SpaceAnalyzer.Services;
 
 namespace SpaceAnalyzer.ViewModels;
 
 /// <summary>
 /// ViewModel for the Settings page. Persists theme, scanner path,
-/// and Ollama configuration to <see cref="ApplicationData"/> local settings.
-/// Auto-saves on every change so settings survive rebuilds/restarts.
+/// and Ollama configuration to the embedded database via
+/// <see cref="SettingsStore"/>. Auto-saves on every change so settings
+/// survive rebuilds/restarts.
 /// </summary>
 public class SettingsViewModel : INotifyPropertyChanged
 {
     private readonly ScannerService _scanner = new();
     private static readonly HttpClient s_httpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
-    private const string LocalSettingsKey = "SpaceAnalyzer.Settings";
 
     // ── Appearance ──
 
@@ -122,6 +121,27 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         get => _gpuAcceleration;
         set { _gpuAcceleration = value; OnPropertyChanged(); Save(); }
+    }
+
+    private string _defaultScanPaths = string.Empty;
+    public string DefaultScanPaths
+    {
+        get => _defaultScanPaths;
+        set { _defaultScanPaths = value; OnPropertyChanged(); Save(); }
+    }
+
+    public List<string> DefaultScanPathList
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_defaultScanPaths))
+                return new List<string>();
+            return _defaultScanPaths
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim())
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .ToList();
+        }
     }
 
     // ── Ollama ──
@@ -282,47 +302,37 @@ public class SettingsViewModel : INotifyPropertyChanged
 
     public SettingsViewModel()
     {
-        Load();
+        _ = LoadAsync();
         _ = RefreshDetectedModelsAsync();
     }
 
-    private void Load()
+    private async Task LoadAsync()
+    {
+        await SettingsStore.EnsureLoadedAsync();
+        LoadFromStore();
+    }
+
+    private void LoadFromStore()
     {
         try
         {
-            var container = ApplicationData.Current.LocalSettings
-                .CreateContainer(LocalSettingsKey, ApplicationDataCreateDisposition.Always);
-
-            if (container.Values.TryGetValue("Theme", out var v) && v is string theme)
-                _theme = theme;
-            if (container.Values.TryGetValue("ScannerPath", out v) && v is string sp)
-                _scannerPath = sp;
+            _theme = SettingsStore.Get("theme") ?? "Dark";
+            _scannerPath = SettingsStore.Get("scanner_path") ?? string.Empty;
             if (string.IsNullOrWhiteSpace(_scannerPath))
                 _scannerPath = _scanner.ScannerPath;
-            if (container.Values.TryGetValue("ScanDepth", out v) && v is double d)
-                _scanDepth = d;
-            if (container.Values.TryGetValue("IncludeHidden", out v) && v is bool h)
-                _includeHidden = h;
-            if (container.Values.TryGetValue("GpuAcceleration", out v) && v is bool g)
-                _gpuAcceleration = g;
-            if (container.Values.TryGetValue("OllamaUrl", out v) && v is string ou)
-                _ollamaUrl = ou;
-            if (container.Values.TryGetValue("OllamaModel", out v) && v is string om)
-                _ollamaModel = om;
-            if (container.Values.TryGetValue("OllamaEnabled", out v) && v is bool oe)
-                _ollamaEnabled = oe;
-            if (container.Values.TryGetValue("OllamaThink", out v) && v is bool ot)
-                _ollamaThink = ot;
-            if (container.Values.TryGetValue("AgenticToolsEnabled", out v) && v is bool at)
-                _agenticToolsEnabled = at;
-            if (container.Values.TryGetValue("AutoModelSelection", out v) && v is bool am)
-                _autoModelSelection = am;
-            if (container.Values.TryGetValue("ToolCallingModel", out v) && v is string tcm)
-                _toolCallingModel = tcm;
-            if (container.Values.TryGetValue("ToolChoice", out v) && v is string tc)
-                _toolChoice = tc;
+            _scanDepth = double.TryParse(SettingsStore.Get("scan_depth"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 5;
+            _includeHidden = SettingsStore.Get("include_hidden") == "true";
+            _gpuAcceleration = SettingsStore.Get("gpu_acceleration") != "false";
+            _defaultScanPaths = SettingsStore.Get("default_scan_paths") ?? string.Empty;
+            _ollamaUrl = SettingsStore.Get("ollama_url") ?? "http://localhost:11434";
+            _ollamaModel = SettingsStore.Get("ollama_model") ?? "gemma3:1b";
+            _ollamaEnabled = SettingsStore.Get("ollama_enabled") != "false";
+            _ollamaThink = SettingsStore.Get("ollama_think") != "false";
+            _agenticToolsEnabled = SettingsStore.Get("agentic_tools_enabled") != "false";
+            _autoModelSelection = SettingsStore.Get("auto_model_selection") != "false";
+            _toolCallingModel = SettingsStore.Get("tool_calling_model") ?? "qwen2.5-coder:7b";
+            _toolChoice = SettingsStore.Get("tool_choice") ?? "auto";
 
-            // Fire change notifications for all properties so the UI reflects loaded values
             OnPropertyChanged(nameof(Theme));
             OnPropertyChanged(nameof(ScannerPath));
             OnPropertyChanged(nameof(IsScannerPathValid));
@@ -330,6 +340,7 @@ public class SettingsViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(ScanDepth));
             OnPropertyChanged(nameof(IncludeHidden));
             OnPropertyChanged(nameof(GpuAcceleration));
+            OnPropertyChanged(nameof(DefaultScanPaths));
             OnPropertyChanged(nameof(OllamaUrl));
             OnPropertyChanged(nameof(OllamaModel));
             OnPropertyChanged(nameof(OllamaEnabled));
@@ -342,7 +353,6 @@ public class SettingsViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[SettingsViewModel] Load failed: {ex}");
-            // Defaults are fine.
         }
     }
 
@@ -350,22 +360,20 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         try
         {
-            var container = ApplicationData.Current.LocalSettings
-                .CreateContainer(LocalSettingsKey, ApplicationDataCreateDisposition.Always);
-
-            container.Values["Theme"] = Theme;
-            container.Values["ScannerPath"] = ScannerPath;
-            container.Values["ScanDepth"] = ScanDepth;
-            container.Values["IncludeHidden"] = IncludeHidden;
-            container.Values["GpuAcceleration"] = GpuAcceleration;
-            container.Values["OllamaUrl"] = OllamaUrl;
-            container.Values["OllamaModel"] = OllamaModel;
-            container.Values["OllamaEnabled"] = OllamaEnabled;
-            container.Values["OllamaThink"] = OllamaThink;
-            container.Values["AgenticToolsEnabled"] = AgenticToolsEnabled;
-            container.Values["AutoModelSelection"] = AutoModelSelection;
-            container.Values["ToolCallingModel"] = ToolCallingModel;
-            container.Values["ToolChoice"] = ToolChoice;
+            SettingsStore.Set("theme", Theme);
+            SettingsStore.Set("scanner_path", ScannerPath);
+            SettingsStore.Set("scan_depth", ScanDepth.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            SettingsStore.Set("include_hidden", IncludeHidden.ToString());
+            SettingsStore.Set("gpu_acceleration", GpuAcceleration.ToString());
+            SettingsStore.Set("default_scan_paths", DefaultScanPaths);
+            SettingsStore.Set("ollama_url", OllamaUrl);
+            SettingsStore.Set("ollama_model", OllamaModel);
+            SettingsStore.Set("ollama_enabled", OllamaEnabled.ToString());
+            SettingsStore.Set("ollama_think", OllamaThink.ToString());
+            SettingsStore.Set("agentic_tools_enabled", AgenticToolsEnabled.ToString());
+            SettingsStore.Set("auto_model_selection", AutoModelSelection.ToString());
+            SettingsStore.Set("tool_calling_model", ToolCallingModel);
+            SettingsStore.Set("tool_choice", ToolChoice);
         }
         catch (Exception ex)
         {

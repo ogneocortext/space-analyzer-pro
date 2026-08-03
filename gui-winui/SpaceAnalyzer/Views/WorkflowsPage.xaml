@@ -85,6 +85,10 @@
                                     Style="{StaticResource SecondaryButton}"
                                     AutomationProperties.Name="Open target path"/>
                         </Grid>
+                        <TextBlock Text="Please select a valid directory."
+                                   Style="{StaticResource Type.Caption}"
+                                   Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                   Visibility="{x:Bind VM.IsTargetPathValid, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
 
                         <Grid ColumnSpacing="{StaticResource Space.XXL}">
                             <Grid.ColumnDefinitions>
@@ -111,12 +115,32 @@
                             </StackPanel>
                         </Grid>
 
-                        <Button Content="Run Workflow"
-                                Click="Run_Click"
-                                HorizontalAlignment="Stretch"
-                                Style="{StaticResource PrimaryButton}"
-                                IsEnabled="{x:Bind VM.IsNotRunning, Mode=OneWay}"
-                                AutomationProperties.Name="Run workflow"/>
+                        <Grid ColumnSpacing="{StaticResource Space.SM}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0"
+                                    Content="Run Workflow"
+                                    Click="Run_Click"
+                                    HorizontalAlignment="Stretch"
+                                    Style="{StaticResource PrimaryButton}"
+                                    IsEnabled="{x:Bind VM.IsNotRunning, Mode=OneWay}"
+                                    AutomationProperties.Name="Run workflow"/>
+                            <Button Grid.Column="1"
+                                    Content="Cancel"
+                                    Click="Cancel_Click"
+                                    Style="{StaticResource SecondaryButton}"
+                                    IsEnabled="{x:Bind VM.IsRunning, Mode=OneWay}"
+                                    AutomationProperties.Name="Cancel workflow"/>
+                            <Button Grid.Column="2"
+                                    Content="Clear"
+                                    Click="Clear_Click"
+                                    Style="{StaticResource SecondaryButton}"
+                                    IsEnabled="{x:Bind VM.HasResults, Mode=OneWay}"
+                                    AutomationProperties.Name="Clear results"/>
+                        </Grid>
                     </StackPanel>
                 </Border>
 
@@ -162,6 +186,34 @@
                         <FontIcon Glyph="&#xE74C;" FontSize="{StaticResource Icon.EmptyState}" Opacity="{StaticResource Icon.EmptyStateOpacity}" HorizontalAlignment="Center"/>
                         <TextBlock Text="No workflow results yet" Style="{StaticResource Type.CardTitle}" HorizontalAlignment="Center"/>
                         <TextBlock Text="Select a workflow, choose a target directory, and click Run." Style="{StaticResource Type.Body}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Execution History -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.History.Count, Mode=OneWay, Converter={StaticResource IntToVisibility}, ConverterParameter=0}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="Execution History" Style="{StaticResource Type.SubTitle}"/>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.History, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.XS}"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="vm:WorkflowHistoryEntry">
+                                    <Grid ColumnSpacing="{StaticResource Space.MD}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind TimestampDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.6"/>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind WorkflowName, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind ResultCount, Mode=OneTime, Converter={StaticResource IntToResultsText}}" Style="{StaticResource Type.Caption}"/>
+                                        <TextBlock Grid.Column="3" Text="{x:Bind Status, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
                     </StackPanel>
                 </Border>
 

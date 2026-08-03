@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using SpaceAnalyzer.Helpers;
+using SpaceAnalyzer.Services;
 using SpaceAnalyzer.ViewModels;
 using System.Linq;
 using Windows.Graphics;
@@ -45,6 +46,9 @@ public sealed partial class MainWindow : Window
                 (settingsPage.DataContext as SettingsViewModel)?.Save();
             if (ContentFrame.Content is Views.ScanPage scanPage)
                 (scanPage.DataContext as ScanViewModel)?.Save();
+
+            // Flush any pending DB writes before the process exits
+            _ = SettingsStore.FlushAsync();
 
             // Dispose ALL tracked ViewModels (not just the active page's)
             ViewModelRegistry.DisposeAll();

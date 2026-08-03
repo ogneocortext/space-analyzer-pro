@@ -115,3 +115,44 @@ public sealed class BoolToHorizontalAlignmentConverter : IValueConverter
         return false;
     }
 }
+
+/// <summary>
+/// Converts an <see cref="int"/> to <see cref="Visibility"/>.
+/// Greater than the parameter threshold becomes Visible; otherwise Collapsed.
+/// Parameter defaults to 0 when not provided.
+/// </summary>
+public sealed class IntToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        int threshold = 0;
+        if (parameter is string s && int.TryParse(s, out var parsed))
+            threshold = parsed;
+        if (value is int i && i > threshold)
+            return Visibility.Visible;
+        return Visibility.Collapsed;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+    {
+        return false;
+    }
+}
+
+/// <summary>
+/// Converts an <see cref="int"/> result count to a display string.
+/// </summary>
+public sealed class IntToResultsTextConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is int count)
+            return count == 1 ? "1 result" : $"{count} results";
+        return "0 results";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+    {
+        return false;
+    }
+}

@@ -41,6 +41,23 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    private void OpenDataFolder_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("SettingsPage OpenDataFolder_Click");
+        var folder = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "space-analyzer-pro");
+        try
+        {
+            System.IO.Directory.CreateDirectory(folder);
+            UiHelper.OpenPath(folder);
+        }
+        catch (Exception ex)
+        {
+            AppNotifications.Error("Could not open data folder", ex.Message);
+        }
+    }
+
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("SettingsPage Save_Click");

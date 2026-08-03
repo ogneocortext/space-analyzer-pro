@@ -49,6 +49,8 @@
             <helpers:BoolToErrorBrushConverter x:Key="BoolToErrorBrush"/>
             <helpers:BoolToScanButtonTextConverter x:Key="BoolToScanButtonText"/>
             <helpers:BoolToHorizontalAlignmentConverter x:Key="BoolToHorizontalAlignment"/>
+            <helpers:IntToVisibilityConverter x:Key="IntToVisibility"/>
+            <helpers:IntToResultsTextConverter x:Key="IntToResultsText"/>
 
             <!-- Spacing Tokens (Double) -->
             <x:Double x:Key="Space.XXL">32</x:Double>
@@ -87,23 +89,23 @@
             </Style>
             <Style x:Key="Type.Body" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="14"/>
-                <Setter Property="Opacity" Value="0.8"/>
+                <Setter Property="Opacity" Value="0.9"/>
             </Style>
             <Style x:Key="Type.Caption" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Opacity" Value="0.8"/>
+                <Setter Property="Opacity" Value="0.85"/>
             </Style>
             <Style x:Key="Type.Hint" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Opacity" Value="0.6"/>
+                <Setter Property="Opacity" Value="0.75"/>
             </Style>
             <Style x:Key="Type.Dim" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Opacity" Value="0.5"/>
+                <Setter Property="Opacity" Value="0.65"/>
             </Style>
             <Style x:Key="Type.Tiny" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="11"/>
-                <Setter Property="Opacity" Value="0.7"/>
+                <Setter Property="Opacity" Value="0.8"/>
             </Style>
             <Style x:Key="Type.StatValue" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="28"/>
@@ -246,6 +248,43 @@
             <Style x:Key="MinimalProgressBar" TargetType="ProgressBar">
                 <Setter Property="Height" Value="4"/>
                 <Setter Property="CornerRadius" Value="2"/>
+            </Style>
+
+            <!-- ═══════════════════════════════════════════════════ -->
+            <!-- UX-Redesign Styles                                  -->
+            <!-- ═══════════════════════════════════════════════════ -->
+
+            <!-- Prominent call-to-action button with accent fill and larger padding.
+                 Used for primary actions like "New Scan" to draw the eye. -->
+            <Style x:Key="PrimaryCTAButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                <Setter Property="Padding" Value="20,12"/>
+                <Setter Property="MinWidth" Value="160"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="CornerRadius" Value="8"/>
+            </Style>
+
+            <!-- Quick-action card button with icon, label, and description.
+                 Wider than DashboardCardButton to accommodate a caption line. -->
+            <Style x:Key="QuickActionButton" TargetType="Button" BasedOn="{StaticResource DashboardCardButton}">
+                <Setter Property="Padding" Value="14,12"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            </Style>
+
+            <!-- Small rounded badge for status pills (e.g. "Healthy", "Warning",
+                 "Critical"). Consumer sets Foreground + Background per status. -->
+            <Style x:Key="StatusBadge" TargetType="Border">
+                <Setter Property="CornerRadius" Value="10"/>
+                <Setter Property="Padding" Value="8,2"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+
+            <!-- Section header with built-in spacing, used between major page
+                 sections to create breathing room and visual hierarchy. -->
+            <Style x:Key="SectionHeader" TargetType="StackPanel">
+                <Setter Property="Spacing" Value="{StaticResource Space.XS}"/>
+                <Setter Property="Margin" Value="0,4,0,0"/>
             </Style>
         </ResourceDictionary>
     </Application.Resources>

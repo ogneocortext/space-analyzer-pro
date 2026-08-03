@@ -4,7 +4,7 @@ using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Windows.Storage;
+using SpaceAnalyzer.Services;
 
 namespace SpaceAnalyzer;
 
@@ -24,7 +24,7 @@ public partial class App : Application
         e.Handled = true;
     }
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
         LiveCharts.Configure(config => config
             .AddSkiaSharp()
@@ -32,6 +32,7 @@ public partial class App : Application
             .AddDefaultTheme()
             .UseDefaults());
 
+        await SettingsStore.EnsureLoadedAsync();
         ApplySavedTheme();
         m_window = new MainWindow();
         m_window.Activate();
@@ -41,16 +42,9 @@ public partial class App : Application
     {
         try
         {
-            var container = Windows.Storage.ApplicationData.Current.LocalSettings
-                .CreateContainer("SpaceAnalyzer.Settings", Windows.Storage.ApplicationDataCreateDisposition.Always);
-
-            if (container.Values.TryGetValue("Theme", out var v) && v is string theme)
-            {
-                if (theme == "Dark")
-                    Application.Current.RequestedTheme = Microsoft.UI.Xaml.ApplicationTheme.Dark;
-                else if (theme == "Light")
-                    Application.Current.RequestedTheme = Microsoft.UI.Xaml.ApplicationTheme.Light;
-            }
+            var theme = SettingsStore.Get("theme");
+            if (theme == "Light")
+                Application.Current.RequestedTheme = Microsoft.UI.Xaml.ApplicationTheme.Light;
         }
         catch { /* non-fatal */ }
     }

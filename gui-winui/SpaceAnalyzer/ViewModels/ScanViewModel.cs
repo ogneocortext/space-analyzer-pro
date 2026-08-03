@@ -612,8 +612,19 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         if (LastResult == null)
             throw new InvalidOperationException("No scan result to export.");
 
-        return await _scanner.ExportScanResultAsync(LastResult, outputPath, ct);
+        return await _scanner.ExportScanResultAsync(LastResult, outputPath, ExportFormat, ct);
     }
+
+    private string _exportFormat = "json";
+    public string ExportFormat
+    {
+        get => _exportFormat;
+        set { _exportFormat = value; OnPropertyChanged(); }
+    }
+
+    public ObservableCollection<string> ExportFormats { get; } = new() { "json", "csv", "md" };
+
+    public string ExportFormatDisplay => ExportFormat.ToUpperInvariant();
 
     public void Dispose()
     {
