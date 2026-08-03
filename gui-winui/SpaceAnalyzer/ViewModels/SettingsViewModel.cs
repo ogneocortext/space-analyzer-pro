@@ -1,9 +1,13 @@
 ﻿// Licensed under the MIT License.
 
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -201,6 +205,46 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { _ollamaTestBrush = value; OnPropertyChanged(); }
     }
 
+    // ── Detected models (from /api/tags) ──
+
+    public ObservableCollection<string> DetectedModels { get; } = new();
+
+    public bool HasDetectedModels => DetectedModels.Count > 0;
+
+    public string DetectedModelsSummary =>
+        DetectedModels.Count == 0 ? "No models detected" : $"{DetectedModels.Count} model(s) available";
+
+    /// <summary>
+    /// Queries the Ollama server for installed models and populates
+    /// <see cref="DetectedModels"/>. Swallows failures when the server is offline.
+    /// </summary>
+    public async Task RefreshDetectedModelsAsync()
+    {
+        try
+        {
+            var response = await s_httpClient.GetAsync($"{OllamaUrl.TrimEnd('/')}/api/tags");
+            if (!response.IsSuccessStatusCode)
+                return;
+            var json = await response.Content.ReadAsStringAsync();
+            var payload = JsonSerializer.Deserialize<TagsResponse>(json, OllamaClient.JsonOptions);
+            var names = (payload?.Models ?? new List<OllamaModelInfo>())
+                .Select(m => m.Name)
+                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            DetectedModels.Clear();
+            foreach (var n in names)
+                DetectedModels.Add(n);
+
+            OnPropertyChanged(nameof(HasDetectedModels));
+            OnPropertyChanged(nameof(DetectedModelsSummary));
+        }
+        catch
+        {
+            // Server offline — leave whatever list is currently shown.
+        }
+    }
+
     public async Task TestOllamaConnectionAsync()
     {
         OllamaTesting = true;
@@ -211,7 +255,10 @@ public class SettingsViewModel : INotifyPropertyChanged
             var response = await s_httpClient.GetAsync($"{OllamaUrl.TrimEnd('/')}/api/tags");
             if (response.IsSuccessStatusCode)
             {
-                OllamaTestResult = "Connected";
+                await RefreshDetectedModelsAsync();
+                OllamaTestResult = DetectedModels.Count == 0
+                    ? "Connected (no models found)"
+                    : $"Connected — {DetectedModels.Count} model(s) available";
                 OllamaTestBrush = GetThemeBrush("SuccessBrush");
             }
             else
@@ -236,6 +283,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     public SettingsViewModel()
     {
         Load();
+        _ = RefreshDetectedModelsAsync();
     }
 
     private void Load()

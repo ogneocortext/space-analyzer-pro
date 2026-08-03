@@ -25,6 +25,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
     private ToolExecutor? _toolExecutor;
     private CancellationTokenSource _cts = new();
     private bool _disposed;
+    private List<OllamaModelInfo> _installedModels = new();
 
     // ── Display ──
 
@@ -138,6 +139,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
     {
         LoadSettings();
         _client = new OllamaClient(_ollamaUrl);
+        _ = RefreshInstalledModelsAsync();
         AddMessage(ChatRole.Assistant,
             "Hello! I am your AI assistant for Space Analyzer Pro. " +
             "I can help you understand your disk usage and find space-saving opportunities. " +
@@ -154,6 +156,36 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
         if (_disposed || IsBusy) return;
         LoadSettings();
         RefreshOllamaClient();
+        _ = RefreshInstalledModelsAsync();
+    }
+
+    /// <summary>
+    /// Queries the Ollama server for installed models and configures the client
+    /// fallback so requests never fail because the configured model is missing.
+    /// </summary>
+    private async Task RefreshInstalledModelsAsync()
+    {
+        if (_disposed || _client is null) return;
+        try
+        {
+            _installedModels = await _client.GetInstalledModelsAsync();
+            if (_installedModels.Count == 0 || _client is null) return;
+
+            // Prefer tool-capable, then small models so fallback stays cheap.
+            var fallbacks = _installedModels
+                .Where(m => !string.Equals(m.Name, OllamaModel, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(m => m.Capabilities.Contains("tools"))
+                .ThenBy(m => m.Size)
+                .Select(m => m.Name)
+                .Take(3)
+                .ToList();
+            if (fallbacks.Count > 0)
+                _client.SetFallbackFromLocal(OllamaModel, fallbacks);
+        }
+        catch
+        {
+            // Offline — keep the current list (possibly empty); primary model still tried.
+        }
     }
 
     private void RefreshOllamaClient()
@@ -224,14 +256,28 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
 
     private string SelectModelForTask(string userMessage)
     {
-        if (!AutoModelSelection) return OllamaModel;
-
         var lower = userMessage.ToLowerInvariant();
-        if (lower.Contains("disk") || lower.Contains("scan") || lower.Contains("file")
-            || lower.Contains("duplicate") || lower.Contains("cleanup") || lower.Contains("storage"))
-            return string.IsNullOrWhiteSpace(ToolCallingModel) ? OllamaModel : ToolCallingModel;
+        var isDiskTask = lower.Contains("disk") || lower.Contains("scan") || lower.Contains("file")
+            || lower.Contains("duplicate") || lower.Contains("cleanup") || lower.Contains("storage");
+        var preferred = AutoModelSelection && isDiskTask
+            ? (string.IsNullOrWhiteSpace(ToolCallingModel) ? OllamaModel : ToolCallingModel)
+            : OllamaModel;
 
-        return OllamaModel;
+        // No model list available yet (offline or still loading) — use the configured model.
+        if (_installedModels.Count == 0)
+            return preferred;
+
+        // Use the configured model when it is actually installed.
+        if (_installedModels.Any(m => string.Equals(m.Name, preferred, StringComparison.OrdinalIgnoreCase)))
+            return preferred;
+
+        // Otherwise resolve to an installed model: prefer tool-capable ones for
+        // tool tasks, then the smallest model to keep VRAM usage low.
+        var pick = _installedModels
+            .OrderByDescending(m => m.Capabilities.Contains("tools"))
+            .ThenBy(m => m.Size)
+            .FirstOrDefault();
+        return pick?.Name ?? preferred;
     }
 
     private string ResolveToolChoice(string question, List<ToolDefinition> tools)

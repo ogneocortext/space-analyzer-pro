@@ -137,6 +137,27 @@ public class OllamaClient : IDisposable
         }
     }
 
+    /// <summary>
+    /// Returns the models installed on the Ollama server by querying
+    /// <c>/api/tags</c>. Returns an empty list if the server is unreachable.
+    /// </summary>
+    public async Task<List<OllamaModelInfo>> GetInstalledModelsAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var response = await _http.GetAsync("api/tags", ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return new List<OllamaModelInfo>();
+            var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            var payload = JsonSerializer.Deserialize<TagsResponse>(json, JsonOptions);
+            return payload?.Models ?? new List<OllamaModelInfo>();
+        }
+        catch
+        {
+            return new List<OllamaModelInfo>();
+        }
+    }
+
     // ── Shared JSON options ──
 
     public static readonly JsonSerializerOptions JsonOptions = new()
@@ -156,6 +177,54 @@ public class OllamaClient : IDisposable
 }
 
 // ── Request / Response DTOs ──
+
+/// <summary>
+/// Payload for <c>/api/tags</c>.
+/// </summary>
+public class TagsResponse
+{
+    public List<OllamaModelInfo> Models { get; set; } = new();
+}
+
+/// <summary>
+/// A model installed on the Ollama server (from <c>/api/tags</c>).
+/// </summary>
+public class OllamaModelInfo
+{
+    public string Name { get; set; } = string.Empty;
+    public string Model { get; set; } = string.Empty;
+    public long Size { get; set; }
+
+    [JsonPropertyName("modified_at")]
+    public string? ModifiedAt { get; set; }
+
+    public List<string> Capabilities { get; set; } = new();
+    public OllamaModelDetails? Details { get; set; }
+
+    [JsonIgnore]
+    public string SizeDisplay
+    {
+        get
+        {
+            double mb = Size / (1024.0 * 1024.0);
+            return mb >= 1024 ? $"{mb / 1024.0:F1} GB" : $"{mb:F0} MB";
+        }
+    }
+}
+
+/// <summary>
+/// Model metadata details from <c>/api/tags</c>.
+/// </summary>
+public class OllamaModelDetails
+{
+    public string? Family { get; set; }
+
+    [JsonPropertyName("parameter_size")]
+    public string? ParameterSize { get; set; }
+
+    [JsonPropertyName("quantization_level")]
+    public string? QuantizationLevel { get; set; }
+}
 
 /// <summary>
 /// Role of a chat message participant.

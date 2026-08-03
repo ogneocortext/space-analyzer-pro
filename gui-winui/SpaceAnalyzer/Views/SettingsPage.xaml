@@ -153,6 +153,30 @@
                                            Opacity="0.9"/>
                             </StackPanel>
                         </StackPanel>
+                        <!-- Installed models (from /api/tags) -->
+                        <StackPanel Spacing="{StaticResource Space.SM}"
+                                    Visibility="{x:Bind VM.HasDetectedModels, Mode=OneWay}">
+                            <TextBlock Text="Installed models" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <ItemsControl ItemsSource="{x:Bind VM.DetectedModels, Mode=OneWay}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <ItemsWrapGrid Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Border Background="{ThemeResource AccentSurfaceBrush}"
+                                                CornerRadius="12"
+                                                Padding="10,4"
+                                                Margin="0,0,6,6">
+                                            <TextBlock Text="{x:Bind}" Style="{StaticResource Type.Caption}"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="{x:Bind VM.DetectedModelsSummary, Mode=OneWay}"
+                                       Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 
