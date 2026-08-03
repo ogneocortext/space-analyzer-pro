@@ -48,6 +48,9 @@ pub struct ScanResult {
     pub scanned_files: HashMap<String, (u64, i64)>,
     #[serde(default)]
     pub category_sizes: HashMap<String, u64>,
+    #[serde(default)]
+    pub potential_cleanup_bytes: u64,
+    pub timestamp: String,
 }
 
 /// Directory entry used in scan results
@@ -83,6 +86,8 @@ impl ScanResult {
             empty_dirs: Vec::new(),
             scanned_files: HashMap::new(),
             category_sizes: HashMap::new(),
+            potential_cleanup_bytes: 0,
+            timestamp: String::new(),
         }
     }
 
@@ -120,6 +125,33 @@ impl ScanResult {
         scan_result.category_sizes = result.category_sizes.clone();
 
         scan_result
+    }
+
+    /// Estimate how many bytes could be reclaimed by cleaning caches,
+    /// temp files, and setup/installer archives found in the largest-files list.
+    pub fn calculate_potential_cleanup(&self) -> u64 {
+        let mut total: u64 = 0;
+
+        for (ext, size) in &self.extension_sizes {
+            let lower = ext.to_lowercase();
+            if lower == "tmp" || lower == "cache" || lower == "log" {
+                total += *size;
+            }
+        }
+
+        for file in &self.largest_files {
+            let lower = file.path.to_lowercase();
+            if (lower.ends_with(".exe")
+                || lower.ends_with(".msi")
+                || lower.ends_with(".zip")
+                || lower.ends_with(".rar"))
+                && (lower.contains("installer") || lower.contains("setup"))
+            {
+                total += file.size;
+            }
+        }
+
+        total
     }
 }
 

@@ -13,13 +13,14 @@ namespace SpaceAnalyzer.Services;
 /// Data models now live in <see cref="SpaceAnalyzer.Models"/> for reuse
 /// across ViewModels and Views.
 /// </summary>
-public class ScannerService
+public class ScannerService : IDisposable
 {
     private readonly string _scannerPath;
     private Process? _currentScannerProcess;
     private CancellationTokenSource? _stopCts;
     private CancellationTokenSource? _cleanerStopCts;
     private readonly object _processLock = new();
+    private bool _disposed;
 
     /// <summary>
     /// Maps the Rust scanner's snake_case JSON (e.g. "total_files") to the PascalCase
@@ -191,23 +192,24 @@ public class ScannerService
             CreateNoWindow = true,
         };
 
-        _stopCts?.Cancel();
-        _stopCts?.Dispose();
-        using var stopCts = new CancellationTokenSource();
-        _stopCts = stopCts;
-
+        CancellationTokenSource stopCts;
+        Process process;
         lock (_processLock)
         {
+            _stopCts?.Cancel();
+            _stopCts?.Dispose();
+            stopCts = new CancellationTokenSource();
+            _stopCts = stopCts;
             _currentScannerProcess = new Process { StartInfo = psi };
+            process = _currentScannerProcess;
         }
-
-        using var process = _currentScannerProcess;
         try
         {
             process.Start();
         }
         catch (Exception ex)
         {
+            _currentScannerProcess = null;
             throw new Exception($"Failed to start scanner: {ex.Message}", ex);
         }
 
@@ -261,6 +263,8 @@ public class ScannerService
                                     TotalDirs = complete.TotalDirs,
                                     TopDirectories = complete.TopDirectories,
                                     EmptyDirs = complete.EmptyDirs,
+                                    PotentialCleanupBytes = complete.PotentialCleanupBytes,
+                                    Timestamp = complete.Timestamp,
                                 };
                             }
                         }
@@ -298,8 +302,8 @@ public class ScannerService
             {
                 if (_currentScannerProcess == process)
                     _currentScannerProcess = null;
+                _stopCts = null;
             }
-            _stopCts = null;
         }
 
         if (process.ExitCode != 0)
@@ -394,17 +398,62 @@ public class ScannerService
 
         var args = $"history --limit {limit} --format json";
         var output = await RunScannerAsync(args, ct);
-        // The history subcommand prints nothing to stdout (and an error to stderr) when
-        // the embedded database can't be opened; treat empty output as "no history".
         if (string.IsNullOrWhiteSpace(output))
             return new();
         try
         {
-            return JsonSerializer.Deserialize<List<ScanHistoryRecord>>(output, s_jsonOptions) ?? new();
+            // Handle both old (array) and new (paginated object) response formats
+            using var doc = JsonDocument.Parse(output);
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                return JsonSerializer.Deserialize<List<ScanHistoryRecord>>(output, s_jsonOptions) ?? new();
+            if (doc.RootElement.TryGetProperty("records", out var records))
+                return JsonSerializer.Deserialize<List<ScanHistoryRecord>>(records.GetRawText(), s_jsonOptions) ?? new();
+            return new();
         }
         catch (JsonException jex)
         {
             throw new Exception($"Failed to parse scan history: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Get scan history with pagination, search, and sort support.
+    /// Returns (records, totalCount).
+    /// </summary>
+    public async Task<(List<ScanHistoryRecord> Records, long Total)> GetScanHistoryPageAsync(
+        int limit = 50,
+        int offset = 0,
+        string? search = null,
+        string sortBy = "timestamp",
+        bool sortAsc = false,
+        CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return (new(), 0);
+
+        var args = $"history --limit {limit} --offset {offset} --sort-by {sortBy}";
+        if (sortAsc) args += " --sort-asc";
+        if (!string.IsNullOrWhiteSpace(search)) args += $" --search \"{search}\"";
+
+        var output = await RunScannerAsync(args, ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return (new(), 0);
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            if (doc.RootElement.TryGetProperty("records", out var recordsProp)
+                && doc.RootElement.TryGetProperty("total", out var totalProp))
+            {
+                var records = JsonSerializer.Deserialize<List<ScanHistoryRecord>>(recordsProp.GetRawText(), s_jsonOptions) ?? new();
+                return (records, totalProp.GetInt64());
+            }
+            // Fallback: treat as plain array
+            var fallback = JsonSerializer.Deserialize<List<ScanHistoryRecord>>(output, s_jsonOptions) ?? new();
+            return (fallback, fallback.Count);
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse scan history page: {jex.Message}. Output: {Truncate(output)}", jex);
         }
     }
 
@@ -586,18 +635,32 @@ public class ScannerService
             CreateNoWindow = true,
         };
 
-        _stopCts?.Cancel();
-        _stopCts?.Dispose();
-        using var stopCts = new CancellationTokenSource();
-        _stopCts = stopCts;
-
+        CancellationTokenSource stopCts;
+        Process process;
         lock (_processLock)
         {
-            _currentScannerProcess = new Process { StartInfo = psi };
+            _stopCts?.Cancel();
+            _stopCts?.Dispose();
+            stopCts = new CancellationTokenSource();
+            _stopCts = stopCts;
+            process = new Process { StartInfo = psi };
+            _currentScannerProcess = process;
         }
 
-        using var process = _currentScannerProcess;
-        process.Start();
+        try
+        {
+            process.Start();
+        }
+        catch (Exception ex)
+        {
+            lock (_processLock)
+            {
+                if (_currentScannerProcess == process)
+                    _currentScannerProcess = null;
+                _stopCts = null;
+            }
+            throw new Exception($"Failed to start scanner: {ex.Message}", ex);
+        }
 
         var stderrTask = ReadStderrWithProgressAsync(process.StandardError, progress, ct);
         var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
@@ -624,8 +687,8 @@ public class ScannerService
             {
                 if (_currentScannerProcess == process)
                     _currentScannerProcess = null;
+                _stopCts = null;
             }
-            _stopCts = null;
         }
 
         var stderr = await stderrTask;
@@ -697,5 +760,27 @@ public class ScannerService
                 FileSystem = d.DriveFormat,
             })
             .ToList();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        lock (_processLock)
+        {
+            _stopCts?.Cancel();
+            _stopCts?.Dispose();
+            _stopCts = null;
+            _cleanerStopCts?.Cancel();
+            _cleanerStopCts?.Dispose();
+            _cleanerStopCts = null;
+            if (_currentScannerProcess is { HasExited: false })
+            {
+                try { _currentScannerProcess.Kill(entireProcessTree: true); } catch { }
+            }
+            _currentScannerProcess?.Dispose();
+            _currentScannerProcess = null;
+        }
+        GC.SuppressFinalize(this);
     }
 }

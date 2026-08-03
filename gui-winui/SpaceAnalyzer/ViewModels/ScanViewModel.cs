@@ -7,6 +7,7 @@ using System.Collections.ObjectModel;
 using Windows.Storage;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
+using SpaceAnalyzer.Helpers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -154,6 +155,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
 
     private ScanResult? _partialResult;
     private string _currentFile = string.Empty;
+    private DateTime _scanStartTime;
 
     private void UpdatePartialResult(StreamProgress progress)
     {
@@ -162,13 +164,14 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
 
         ScanProgress = progress.Percentage;
         _currentFile = progress.CurrentFile;
+        var elapsed = (DateTime.UtcNow - _scanStartTime).TotalSeconds;
 
         var partial = new ScanResult
         {
             TotalFiles = (long)progress.FilesScanned,
             TotalSizeBytes = progress.TotalSize,
             TotalSizeMb = progress.TotalSize / (1024.0 * 1024.0),
-            DurationSecs = 0, // Not known during streaming
+            DurationSecs = elapsed,
             Path = ScanPath,
             TotalDirs = progress.DirectoriesScanned,
             Errors = new List<string>(),
@@ -192,12 +195,22 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(LiveSizeDisplay));
         OnPropertyChanged(nameof(ResultFilesDisplay));
         OnPropertyChanged(nameof(ResultSizeDisplay));
+        OnPropertyChanged(nameof(ResultDurationDisplay));
         OnPropertyChanged(nameof(ResultDirsDisplay));
+        OnPropertyChanged(nameof(ResultAvgFileSizeDisplay));
+        OnPropertyChanged(nameof(ResultSpeedDisplay));
+        OnPropertyChanged(nameof(ResultSpeedMbDisplay));
+        OnPropertyChanged(nameof(ResultErrorsDisplay));
         OnPropertyChanged(nameof(TopDirectories));
         OnPropertyChanged(nameof(FileTypes));
         OnPropertyChanged(nameof(CategoryDistributions));
         OnPropertyChanged(nameof(LargestFiles));
+        OnPropertyChanged(nameof(PotentialCleanupDisplay));
+        OnPropertyChanged(nameof(ResultTimestampDisplay));
         OnPropertyChanged(nameof(HasScanErrors));
+        OnPropertyChanged(nameof(EmptyDirs));
+        OnPropertyChanged(nameof(EmptyDirsCount));
+        OnPropertyChanged(nameof(HasEmptyDirs));
         OnPropertyChanged(nameof(FilteredLargestFiles));
     }
 
@@ -214,19 +227,28 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(ResultSizeDisplay));
             OnPropertyChanged(nameof(ResultDurationDisplay));
             OnPropertyChanged(nameof(ResultDirsDisplay));
+            OnPropertyChanged(nameof(ResultAvgFileSizeDisplay));
+            OnPropertyChanged(nameof(ResultSpeedDisplay));
+            OnPropertyChanged(nameof(ResultSpeedMbDisplay));
+            OnPropertyChanged(nameof(ResultErrorsDisplay));
             OnPropertyChanged(nameof(TopDirectories));
             OnPropertyChanged(nameof(FileTypes));
             OnPropertyChanged(nameof(CategoryDistributions));
             OnPropertyChanged(nameof(LargestFiles));
+        OnPropertyChanged(nameof(PotentialCleanupDisplay));
+        OnPropertyChanged(nameof(ResultTimestampDisplay));
             OnPropertyChanged(nameof(ScanErrors));
             OnPropertyChanged(nameof(HasScanErrors));
+            OnPropertyChanged(nameof(EmptyDirs));
+            OnPropertyChanged(nameof(EmptyDirsCount));
+            OnPropertyChanged(nameof(HasEmptyDirs));
             OnPropertyChanged(nameof(ResultSpeedDisplay));
-            OnPropertyChanged(nameof(ResultErrorsDisplay));
             OnPropertyChanged(nameof(FilteredLargestFiles));
             OnPropertyChanged(nameof(LiveFilesDisplay));
             OnPropertyChanged(nameof(LiveSizeDisplay));
         }
     }
+
     public bool HasResult => _lastResult != null;
     public bool HasActiveResult => ActiveResult != null;
     public Microsoft.UI.Xaml.Visibility HasResultVisibility => HasResult ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
@@ -250,14 +272,21 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(ResultSizeDisplay));
             OnPropertyChanged(nameof(ResultDurationDisplay));
             OnPropertyChanged(nameof(ResultDirsDisplay));
+            OnPropertyChanged(nameof(ResultAvgFileSizeDisplay));
             OnPropertyChanged(nameof(ResultSpeedDisplay));
+            OnPropertyChanged(nameof(ResultSpeedMbDisplay));
             OnPropertyChanged(nameof(ResultErrorsDisplay));
             OnPropertyChanged(nameof(TopDirectories));
             OnPropertyChanged(nameof(FileTypes));
             OnPropertyChanged(nameof(CategoryDistributions));
             OnPropertyChanged(nameof(LargestFiles));
+        OnPropertyChanged(nameof(PotentialCleanupDisplay));
+        OnPropertyChanged(nameof(ResultTimestampDisplay));
             OnPropertyChanged(nameof(ScanErrors));
             OnPropertyChanged(nameof(HasScanErrors));
+            OnPropertyChanged(nameof(EmptyDirs));
+            OnPropertyChanged(nameof(EmptyDirsCount));
+            OnPropertyChanged(nameof(HasEmptyDirs));
             OnPropertyChanged(nameof(FilteredLargestFiles));
         }
     }
@@ -275,8 +304,6 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     private ScanResult? ActiveResult => IsStreaming ? (_partialResult ?? _lastResult) : _lastResult;
     public string ResultFilesDisplay => ActiveResult != null ? $"{ActiveResult.TotalFiles:N0} files" : "";
     public string ResultSizeDisplay => ActiveResult != null ? $"{ActiveResult.TotalSizeMb:F1} MB" : "";
-    public string ResultDurationDisplay => ActiveResult != null ? $"{ActiveResult.DurationSecs:F1}s" : "";
-    public string ResultDirsDisplay => ActiveResult != null ? $"{ActiveResult.TopDirectories.Count}" : "";
     public string ResultDepthDisplay => SelectedDepthMode switch
     {
         ScannerService.DepthMode.Deep => "Deep (unlimited)",
@@ -286,6 +313,14 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     };
     public string ResultSpeedDisplay => ActiveResult != null && ActiveResult.DurationSecs > 0
         ? $"{ActiveResult.TotalFiles / ActiveResult.DurationSecs:F0} files/s"
+        : "—";
+    public string ResultSpeedMbDisplay => ActiveResult != null && ActiveResult.DurationSecs > 0
+        ? $"{ActiveResult.TotalSizeBytes / (1024.0 * 1024.0) / ActiveResult.DurationSecs:F1} MB/s"
+        : "—";
+    public string ResultDurationDisplay => ActiveResult != null ? $"{ActiveResult.DurationSecs:F1}s" : "";
+    public string ResultDirsDisplay => ActiveResult != null ? $"{ActiveResult.TotalDirs:N0}" : "";
+    public string ResultAvgFileSizeDisplay => ActiveResult != null && ActiveResult.TotalFiles > 0
+        ? ByteFormatter.FormatBytes((ulong)(ActiveResult.TotalSizeBytes / (ulong)ActiveResult.TotalFiles))
         : "—";
     public string ResultErrorsDisplay => ActiveResult != null && ActiveResult.Errors.Count > 0
         ? $"{ActiveResult.Errors.Count} error(s)"
@@ -312,7 +347,8 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         .Select(kv => new FileTypeDistribution
         {
             Extension = kv.Key,
-            Count = 0,
+            Count = ActiveResult?.FileTypes.Where(ft => CategorizeExtension(ft.Key) == kv.Key)
+                .Sum(ft => (long)ft.Value) ?? 0,
             TotalSize = kv.Value,
             Percentage = ActiveResult?.TotalSizeBytes > 0
                 ? (kv.Value * 100.0) / ActiveResult.TotalSizeBytes
@@ -320,7 +356,31 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         })
         .ToList() ?? new();
 
+    private static string CategorizeExtension(string ext)
+    {
+        var e = ext.ToLowerInvariant();
+        if (e is "jpg" or "jpeg" or "png" or "gif" or "bmp" or "svg" or "webp" or "ico" or "tiff") return "Images";
+        if (e is "mp4" or "mkv" or "avi" or "mov" or "wmv" or "flv" or "webm") return "Videos";
+        if (e is "mp3" or "wav" or "flac" or "aac" or "ogg" or "m4a" or "wma") return "Audio";
+        if (e is "zip" or "rar" or "7z" or "tar" or "gz" or "bz2" or "xz") return "Archives";
+        if (e is "exe" or "dll" or "so" or "dylib" or "bat" or "cmd" or "ps1") return "Executables";
+        if (e is "js" or "ts" or "py" or "rs" or "c" or "cpp" or "h" or "java" or "cs" or "go" or "rb") return "Source code";
+        if (e is "json" or "xml" or "yaml" or "yml" or "toml" or "csv") return "Data";
+        if (e is "pdf" or "doc" or "docx" or "xls" or "xlsx" or "ppt" or "pptx" or "txt" or "md") return "Documents";
+        if (e is "html" or "css" or "scss" or "less") return "Web";
+        if (e is "dll" or "sys" or "drv") return "System";
+        return "Other";
+    }
+
     public List<FileSizeEntry> LargestFiles => ActiveResult?.LargestFiles ?? new();
+
+    public string PotentialCleanupDisplay => ActiveResult != null && ActiveResult.PotentialCleanupBytes > 0
+        ? ByteFormatter.FormatBytes(ActiveResult.PotentialCleanupBytes)
+        : "";
+
+    public string ResultTimestampDisplay => ActiveResult != null && !string.IsNullOrEmpty(ActiveResult.Timestamp)
+        ? $"Scanned at {ActiveResult.Timestamp}"
+        : "";
 
     private string _largestFilesFilter = string.Empty;
     public string LargestFilesFilter
@@ -354,6 +414,9 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     public List<string> ScanErrors => ActiveResult?.Errors ?? new();
 
     public bool HasScanErrors => ActiveResult != null && ActiveResult.Errors.Count > 0;
+    public bool HasEmptyDirs => ActiveResult != null && ActiveResult.EmptyDirs.Count > 0;
+    public int EmptyDirsCount => ActiveResult?.EmptyDirs.Count ?? 0;
+    public List<string> EmptyDirs => ActiveResult?.EmptyDirs ?? new();
 
     // ── Persistence ──
 
@@ -454,6 +517,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         {
             IsScanning = true;
             IsStreaming = true;
+            _scanStartTime = DateTime.UtcNow;
             StatusMessage = "Scanning...";
             ScanProgress = 0;
             LastResult = null;
@@ -472,7 +536,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             LastResult = result;
             if (result != null)
             {
-                StatusMessage = $"Scan complete: {result.TotalFiles:N0} files, {result.TotalSizeMb:F1} MB in {result.DurationSecs:F1}s";
+                StatusMessage = $"Scan complete: {result.TotalFiles:N0} files, {result.TotalSizeMb:F1} MB, {result.DurationSecs:F1}s";
             }
             else
             {
@@ -496,6 +560,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             ScanProgress = 0;
             _partialResult = null;
             _currentFile = string.Empty;
+            _scanStartTime = default;
             OnPropertyChanged(nameof(ActiveResult));
             OnPropertyChanged(nameof(HasActiveResult));
             OnPropertyChanged(nameof(HasActiveResultVisibility));
@@ -503,12 +568,22 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(LiveSizeDisplay));
             OnPropertyChanged(nameof(ResultFilesDisplay));
             OnPropertyChanged(nameof(ResultSizeDisplay));
+            OnPropertyChanged(nameof(ResultDurationDisplay));
             OnPropertyChanged(nameof(ResultDirsDisplay));
+            OnPropertyChanged(nameof(ResultAvgFileSizeDisplay));
+            OnPropertyChanged(nameof(ResultSpeedDisplay));
+            OnPropertyChanged(nameof(ResultSpeedMbDisplay));
+            OnPropertyChanged(nameof(ResultErrorsDisplay));
             OnPropertyChanged(nameof(TopDirectories));
             OnPropertyChanged(nameof(FileTypes));
             OnPropertyChanged(nameof(CategoryDistributions));
             OnPropertyChanged(nameof(LargestFiles));
+        OnPropertyChanged(nameof(PotentialCleanupDisplay));
+        OnPropertyChanged(nameof(ResultTimestampDisplay));
             OnPropertyChanged(nameof(HasScanErrors));
+            OnPropertyChanged(nameof(EmptyDirs));
+            OnPropertyChanged(nameof(EmptyDirsCount));
+            OnPropertyChanged(nameof(HasEmptyDirs));
             OnPropertyChanged(nameof(FilteredLargestFiles));
         }
     }

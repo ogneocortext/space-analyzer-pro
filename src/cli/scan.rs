@@ -85,6 +85,7 @@ pub fn scan_directory(
         ..depth_mode
     };
 
+    let cancel_flag = AtomicBool::new(false);
     let shared_result = scanner.scan_with_progress_sync(
         path.to_str().unwrap_or("."),
         options,
@@ -119,7 +120,7 @@ pub fn scan_directory(
                 let _ = std::io::stderr().flush();
             }
         },
-        &AtomicBool::new(false),
+        &cancel_flag,
     )?;
 
     if cache {
@@ -185,6 +186,8 @@ pub fn scan_directory(
     }
 
     result.empty_dirs = shared_result.empty_directories;
+    result.potential_cleanup_bytes = result.calculate_potential_cleanup();
+    result.timestamp = chrono::Utc::now().to_rfc3339();
 
     if stream {
         let complete = StreamEvent::Complete {
@@ -201,6 +204,8 @@ pub fn scan_directory(
             top_directories: result.top_directories.clone(),
             empty_dirs: result.empty_dirs.clone(),
             category_sizes: result.category_sizes.clone(),
+            potential_cleanup_bytes: result.potential_cleanup_bytes,
+            timestamp: result.timestamp.clone(),
         };
         let line = serde_json::to_string(&complete).unwrap_or_default();
         println!("{}", line);

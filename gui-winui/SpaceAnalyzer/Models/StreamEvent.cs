@@ -107,4 +107,10 @@ public class StreamComplete
 
     [JsonPropertyName("category_sizes")]
     public Dictionary<string, ulong> CategorySizes { get; set; } = new();
+
+    [JsonPropertyName("potential_cleanup_bytes")]
+    public ulong PotentialCleanupBytes { get; set; }
+
+    [JsonPropertyName("timestamp")]
+    public string Timestamp { get; set; } = string.Empty;
 }

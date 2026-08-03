@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### CLI ↔ WinUI 3 Integration Gap Fixes
+
+- **Added `potential_cleanup_bytes` and `timestamp` to AI tool responses** — `ToolExecutor.GetScanSummaryAsync` and `ToolExecutor.RunScanAsync` now surface reclaimable bytes and scan timestamp to the AI assistant, matching the data available in `ScanResult`.
+- **Fixed `SearchFilesAsync` JSON property mismatch** — was querying `large_files` / `size_bytes` (which don't exist in Rust output); corrected to `largest_files` / `size` with a `JsonValueKind.Number` guard. File search from the AI assistant now returns results instead of silently failing.
+- **Fixed `GetLargestFilesAsync` client-side result limiting** — the `--top` CLI flag has no effect on JSON output, so the C# tool was returning all 50 files regardless of the requested count. Rewrote to parse JSON and apply `.Take(count)` client-side.
+- **Exposed `PotentialCleanupDisplay` and `ResultTimestampDisplay` to the Scan page UI** — added computed properties to `ScanViewModel` with `OnPropertyChanged` notifications in all 4 UI-update locations (progress callback, `LastResult` setter, `IsStreaming` setter, `ScanAsync` finally block).
+- **Added `PotentialCleanupBytes`, `Timestamp`, and `PotentialCleanupDisplay` to `ScanResult.cs` model** — enables non-streaming scan results to display cleanup estimates and scan time.
+
 ### Data Streaming — Real-time File Type & Category Distribution
 
 - **Streaming accumulators** — `shared-scanner` `ScanProgress` now carries `file_type_counts`, `extension_sizes`, and `category_sizes` HashMaps that are updated during the scan loop, enabling the WinUI frontend to display live file-type and storage-by-category breakdowns without waiting for the scan to complete.

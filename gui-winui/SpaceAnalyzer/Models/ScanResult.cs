@@ -26,6 +26,12 @@ public class ScanResult
     public List<string> EmptyDirs { get; set; } = new();
     [JsonPropertyName("category_sizes")]
     public Dictionary<string, ulong> CategorySizes { get; set; } = new();
+    [JsonPropertyName("potential_cleanup_bytes")]
+    public ulong PotentialCleanupBytes { get; set; }
+    [JsonPropertyName("timestamp")]
+    public string Timestamp { get; set; } = string.Empty;
+    [JsonIgnore]
+    public string PotentialCleanupDisplay => ByteFormatter.FormatBytes(PotentialCleanupBytes);
     /// <summary>
     /// Per-file size and modification time. The Rust backend emits each entry as a
     /// JSON array <c>[size, mtime]</c>; <see cref="ScannedFileConverter"/> reads that
