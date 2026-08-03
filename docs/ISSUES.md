@@ -3,12 +3,12 @@
 **Authoritative source**: `docs/issues.json` (JSON, schema v1)
 **Legacy reference**: `docs/CONSOLIDATED_ISSUE_TRACKER.csv` (do not edit)
 
-## Open issue counts (2026-06-08)
+## Open issue counts (2026-08-03)
 
 | Category | Open | Done |
 |---|---|---|
-| Total | 29 | 87 |
-| Rust design issues (MAIN-021+) | 12 | 0 |
+| Total | 29 | 110 |
+| Agentic-loop audit (agentic-audit:*) | 0 | 25 (1 wontfix) |
 
 ## Quick commands (copy-paste for agents)
 
