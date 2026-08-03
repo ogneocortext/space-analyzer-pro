@@ -42,12 +42,36 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         try
         {
-            if (theme == "Dark")
-                Application.Current.RequestedTheme = Microsoft.UI.Xaml.ApplicationTheme.Dark;
-            else if (theme == "Light")
-                Application.Current.RequestedTheme = Microsoft.UI.Xaml.ApplicationTheme.Light;
+            var requested = theme switch
+            {
+                "Light" => Microsoft.UI.Xaml.ApplicationTheme.Light,
+                "System" => DetectSystemTheme(),
+                _ => Microsoft.UI.Xaml.ApplicationTheme.Dark,
+            };
+            Application.Current.RequestedTheme = requested;
         }
         catch { /* non-fatal */ }
+    }
+
+    /// <summary>
+    /// Detect whether Windows is currently in dark or light mode by sampling the
+    /// system background color, so the "System" theme choice can be honored.
+    /// </summary>
+    private static Microsoft.UI.Xaml.ApplicationTheme DetectSystemTheme()
+    {
+        try
+        {
+            var color = new Windows.UI.ViewManagement.UISettings()
+                .GetColorValue(Windows.UI.ViewManagement.UIColorType.Background);
+            var luminance = (color.R * 299 + color.G * 587 + color.B * 114) / 1000;
+            return luminance < 128
+                ? Microsoft.UI.Xaml.ApplicationTheme.Dark
+                : Microsoft.UI.Xaml.ApplicationTheme.Light;
+        }
+        catch
+        {
+            return Microsoft.UI.Xaml.ApplicationTheme.Dark;
+        }
     }
 
     // ── Scanner ──
@@ -364,6 +388,8 @@ public class SettingsViewModel : INotifyPropertyChanged
         AiFeaturesPanelVisible = true;
         EmbeddingEnabled = false;
         EmbeddingModel = "nomic-embed-text:latest";
+        OllamaTestResult = string.Empty;
+        OllamaTestBrush = GetThemeBrush("MutedBrush");
         Save();
     }
 

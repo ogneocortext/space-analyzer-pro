@@ -21,7 +21,8 @@ public sealed partial class SettingsPage : Page
 
     private async void Browse_Click(object sender, RoutedEventArgs e)
     {
-        var path = await UiHelper.PickFolderAsync();
+        AppLog.Action("SettingsPage Browse_Click");
+        var path = await UiHelper.PickFileAsync(".exe");
         if (path != null)
         {
             VM.ScannerPath = path;
@@ -42,7 +43,9 @@ public sealed partial class SettingsPage : Page
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
+        AppLog.Action("SettingsPage Save_Click");
         VM.Save();
+        AppNotifications.Success("Settings saved");
     }
 
     private async void TestOllama_Click(object sender, RoutedEventArgs e)
@@ -50,8 +53,22 @@ public sealed partial class SettingsPage : Page
         await VM.TestOllamaConnectionAsync();
     }
 
-    private void Reset_Click(object sender, RoutedEventArgs e)
+    private async void Reset_Click(object sender, RoutedEventArgs e)
     {
+        AppLog.Action("SettingsPage Reset_Click");
+        var dialog = new ContentDialog
+        {
+            Title = "Reset settings",
+            Content = "Reset all settings to their default values? This cannot be undone.",
+            PrimaryButtonText = "Reset",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+        };
+        dialog.XamlRoot = XamlRoot;
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            return;
+
         VM.ResetToDefaults();
+        AppNotifications.Success("Settings reset", "All settings restored to defaults");
     }
 }

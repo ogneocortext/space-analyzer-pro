@@ -57,19 +57,21 @@ public sealed class InverseBoolToVisibilityConverter : IValueConverter
 
 /// <summary>
 /// Converts a <see cref="bool"/> to a <see cref="SolidColorBrush"/>.
-/// <c>true</c> returns the error brush; <c>false</c> returns transparent.
+/// <c>false</c> returns the error brush (invalid/missing value); <c>true</c>
+/// returns a neutral muted brush.
 /// </summary>
 public sealed class BoolToErrorBrushConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, string language)
     {
-        bool isError = value is bool b && b;
+        bool isError = value is not bool b || !b;
         if (isError)
         {
             return Application.Current.Resources["ErrorBrush"] as SolidColorBrush
                 ?? new SolidColorBrush(Microsoft.UI.Colors.Red);
         }
-        return new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        return Application.Current.Resources["MutedBrush"] as SolidColorBrush
+            ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language)

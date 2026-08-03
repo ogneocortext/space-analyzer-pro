@@ -38,6 +38,25 @@ public static class UiHelper
         return folder?.Path;
     }
 
+    // ── File picker ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Opens a file picker dialog and returns the selected file path, or <c>null</c> if cancelled.
+    /// </summary>
+    public static async Task<string?> PickFileAsync(params string[]? fileTypeFilter)
+    {
+        var picker = new FileOpenPicker();
+        var filter = fileTypeFilter is { Length: > 0 } ? fileTypeFilter : new[] { "*" };
+        foreach (var ft in filter)
+            picker.FileTypeFilter.Add(ft);
+
+        var window = MainWindow.Current as Microsoft.UI.Xaml.Window ?? Microsoft.UI.Xaml.Window.Current;
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+        var file = await picker.PickSingleFileAsync();
+        return file?.Path;
+    }
+
     // ── Navigation view ─────────────────────────────────────────────
 
     /// <summary>

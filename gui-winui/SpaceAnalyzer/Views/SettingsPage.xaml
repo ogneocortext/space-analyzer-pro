@@ -53,7 +53,7 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBox Grid.Column="0"
-                                         Text="{x:Bind VM.ScannerPath, Mode=TwoWay}"
+                                         Text="{x:Bind VM.ScannerPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="Select scanner binary..."
                                          AutomationProperties.Name="Scanner binary path"/>
                                 <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Browse"/>
@@ -91,13 +91,13 @@
                         <TextBlock Text="Ollama AI" Style="{StaticResource Type.SectionTitle}"/>
                         <StackPanel Spacing="{StaticResource Space.MD}">
                             <TextBlock Text="Server URL" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
-                            <TextBox Text="{x:Bind VM.OllamaUrl, Mode=TwoWay}"
+                            <TextBox Text="{x:Bind VM.OllamaUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      PlaceholderText="http://localhost:11434"
                                      AutomationProperties.Name="Ollama server URL"/>
                         </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.MD}">
                             <TextBlock Text="Model" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
-                            <TextBox Text="{x:Bind VM.OllamaModel, Mode=TwoWay}"
+                            <TextBox Text="{x:Bind VM.OllamaModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      PlaceholderText="gemma3:1b (or model name)"
                                      AutomationProperties.Name="Ollama model name"/>
                         </StackPanel>
@@ -123,7 +123,7 @@
                         </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.MD}">
                             <TextBlock Text="Tool calling model" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
-                            <TextBox Text="{x:Bind VM.ToolCallingModel, Mode=TwoWay}"
+                            <TextBox Text="{x:Bind VM.ToolCallingModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      PlaceholderText="qwen2.5-coder:7b (or model name)"
                                      AutomationProperties.Name="Tool calling model name"/>
                         </StackPanel>
@@ -174,7 +174,7 @@
                         </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.MD}">
                             <TextBlock Text="Embedding model" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
-                            <TextBox Text="{x:Bind VM.EmbeddingModel, Mode=TwoWay}"
+                            <TextBox Text="{x:Bind VM.EmbeddingModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                      PlaceholderText="nomic-embed-text:latest"
                                      AutomationProperties.Name="Embedding model name"/>
                         </StackPanel>
