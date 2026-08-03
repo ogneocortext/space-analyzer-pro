@@ -85,6 +85,11 @@
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="models:ScanHistoryRecord">
                                     <Border Style="{StaticResource ItemCard}" Tag="{x:Bind Id}" Tapped="ScanCard_Tapped">
+                                        <Border.Transitions>
+                                            <TransitionCollection>
+                                                <EntranceThemeTransition/>
+                                            </TransitionCollection>
+                                        </Border.Transitions>
                                         <StackPanel Spacing="{StaticResource Space.MD}">
                                             <!-- Header row: icon + path + date -->
                                             <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center">
@@ -208,6 +213,11 @@
                                     <ItemsRepeater.ItemTemplate>
                                         <DataTemplate x:DataType="models:FileSizeEntry">
                                             <Grid ColumnSpacing="{StaticResource Space.SM}" Margin="0,4">
+                                                <Grid.Transitions>
+                                                    <TransitionCollection>
+                                                        <EntranceThemeTransition/>
+                                                    </TransitionCollection>
+                                                </Grid.Transitions>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="90"/>
                                                     <ColumnDefinition Width="44"/>

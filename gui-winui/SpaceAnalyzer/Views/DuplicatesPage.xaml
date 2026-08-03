@@ -100,6 +100,11 @@
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="models:DuplicateGroup">
                                     <Border Style="{StaticResource ItemCard}">
+                                        <Border.Transitions>
+                                            <TransitionCollection>
+                                                <EntranceThemeTransition/>
+                                            </TransitionCollection>
+                                        </Border.Transitions>
                                         <StackPanel Spacing="{StaticResource Space.SM}">
                                             <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
                                                 <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind Hash, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>

@@ -110,6 +110,11 @@
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="models:SmartSearchResult">
                                     <Border Style="{StaticResource CompactItemCard}">
+                                        <Border.Transitions>
+                                            <TransitionCollection>
+                                                <EntranceThemeTransition/>
+                                            </TransitionCollection>
+                                        </Border.Transitions>
                                         <StackPanel Spacing="{StaticResource Space.XS}">
                                             <TextBlock Style="{StaticResource Type.SubTitle}"
                                                        Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
