@@ -427,7 +427,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                 Function = new ToolFunction
                 {
                     Name = "run_scan",
-                    Description = "Scan a directory and return a summary of disk usage including total files, size, top directories, largest files, and file type distribution.",
+                    Description = "Scan a directory and return a summary of disk usage including total files, size, top directories, largest files, and file type distribution. Always provide the 'path' argument with the absolute path to the directory to scan, for example \"C:\\Users\\MyName\". If 'path' is omitted, the most recently scanned directory is used instead.",
                     Parameters = new Dictionary<string, object>
                     {
                         ["type"] = "object",

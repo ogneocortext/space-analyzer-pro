@@ -408,7 +408,14 @@ public class ToolExecutor : IDisposable
     {
         var path = GetString(args, "path");
         if (string.IsNullOrWhiteSpace(path))
-            return "Error: path is required";
+        {
+            // Models sometimes omit the path despite it being required; fall back to
+            // the most recently scanned directory rather than failing the tool call.
+            var (latest, _) = await _scanner.GetScanHistoryPageAsync(limit: 1, ct: ct);
+            if (latest.Count == 0)
+                return "Error: no path provided and no prior scan history to use.";
+            path = latest[0].Path;
+        }
 
         if (!Directory.Exists(path))
             return $"Error: directory not found: {path}";
