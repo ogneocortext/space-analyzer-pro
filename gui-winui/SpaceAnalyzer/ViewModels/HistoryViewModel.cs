@@ -2,6 +2,7 @@
 
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
 
@@ -341,18 +342,21 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
                 if (_selectedRecord?.Id == id)
                     SelectedRecord = null;
                 StatusMessage = "Deleted";
+                AppNotifications.Success("Scan record deleted", $"Record {id} removed from history");
                 // Reload to fix pagination gap
                 await LoadPageAsync();
             }
             else
             {
                 StatusMessage = "Delete failed — scanner unavailable";
+                AppNotifications.Error("Delete failed", "Scanner is unavailable");
             }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Delete failed: {ex}");
             StatusMessage = $"Delete failed: {ex.Message}";
+            AppNotifications.Error("Delete failed", ex.Message);
         }
         finally
         {

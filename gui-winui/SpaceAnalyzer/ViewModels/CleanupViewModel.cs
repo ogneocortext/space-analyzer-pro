@@ -2,6 +2,7 @@
 
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
 
@@ -102,16 +103,20 @@ public class CleanupViewModel : INotifyPropertyChanged, IDisposable
             if (result != null)
             {
                 StatusMessage = $"Found {result.NodeModulesCount} node_modules directories, {result.TotalCleanupSizeDisplay} cleanup candidates.";
+                AppNotifications.Success("Cleanup analysis complete",
+                    $"{result.NodeModulesCount} node_modules directories ({result.TotalCleanupSizeDisplay}) found");
             }
             else
             {
                 StatusMessage = "No node_modules found or analysis returned no data.";
+                AppNotifications.Show("Cleanup analysis", "No node_modules directories found");
             }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[CleanupViewModel] Analysis failed: {ex}");
             StatusMessage = $"Analysis failed: {ex.Message}";
+            AppNotifications.Error("Cleanup analysis failed", ex.Message);
         }
         finally
         {

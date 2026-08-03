@@ -51,6 +51,34 @@ public sealed partial class MainWindow : Window
         AppLog.Nav("MainWindow closed");
     }
 
+    private DispatcherTimer? _notificationTimer;
+
+    /// <summary>
+    /// Show a transient notification in the global InfoBar. Auto-hides after
+    /// <paramref name="durationSeconds"/> (a new notification resets the timer).
+    /// </summary>
+    public void ShowNotification(
+        string title,
+        string? message = null,
+        InfoBarSeverity severity = InfoBarSeverity.Informational,
+        double durationSeconds = 6)
+    {
+        GlobalInfoBar.Title = title;
+        GlobalInfoBar.Message = message;
+        GlobalInfoBar.Severity = severity;
+        GlobalInfoBar.IsOpen = true;
+
+        _notificationTimer?.Stop();
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(Math.Max(2, durationSeconds)) };
+        _notificationTimer = timer;
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            GlobalInfoBar.IsOpen = false;
+        };
+        timer.Start();
+    }
+
     private void NavView_Loaded(object sender, RoutedEventArgs e)
     {
         try

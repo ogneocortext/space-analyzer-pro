@@ -117,6 +117,26 @@ public sealed partial class CleanupPage : Page
         await VM.AnalyzeAsync();
     }
 
+    private void Page_DragOver(object sender, DragEventArgs e)
+    {
+        e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+        e.DragUIOverride.Caption = "Analyze this folder";
+        e.DragUIOverride.IsCaptionVisible = true;
+    }
+
+    private async void Page_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
+            return;
+
+        var items = await e.DataView.GetStorageItemsAsync();
+        var folder = items.OfType<Windows.Storage.StorageFolder>().FirstOrDefault();
+        if (folder != null)
+        {
+            VM.TargetPath = folder.Path;
+        }
+    }
+
     private async void Browse_Click(object sender, RoutedEventArgs e)
     {
         try

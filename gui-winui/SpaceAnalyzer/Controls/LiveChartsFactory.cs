@@ -63,6 +63,7 @@ public static class LiveChartsFactory
             Series = series,
             Height = Math.Max(140, list.Count * 32 + 40),
             Width = 380,
+            AnimationsSpeed = TimeSpan.Zero,
             XAxes =
             [
                 new Axis
@@ -70,7 +71,7 @@ public static class LiveChartsFactory
                     Labels = labels,
                     LabelsRotation = 0,
                     TextSize = 11,
-                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230)),
+                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230, 140)),
                 }
             ],
             YAxes =
@@ -78,7 +79,7 @@ public static class LiveChartsFactory
                 new Axis
                 {
                     TextSize = 11,
-                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230)),
+                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230, 140)),
                     Labeler = FormatCompact,
                 }
             ],
@@ -111,6 +112,7 @@ public static class LiveChartsFactory
             Series = series,
             Width = 360,
             Height = 200,
+            AnimationsSpeed = TimeSpan.Zero,
         };
 
         return chart;
@@ -147,6 +149,7 @@ public static class LiveChartsFactory
             Series = series,
             Height = 120,
             Width = 380,
+            AnimationsSpeed = TimeSpan.Zero,
             XAxes =
             [
                 new Axis
@@ -154,7 +157,7 @@ public static class LiveChartsFactory
                     Labels = labels,
                     LabelsRotation = 0,
                     TextSize = 10,
-                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230)),
+                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230, 140)),
                 }
             ],
             YAxes =
@@ -162,7 +165,7 @@ public static class LiveChartsFactory
                 new Axis
                 {
                     TextSize = 10,
-                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230)),
+                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230, 140)),
                     Labeler = FormatBytes,
                 }
             ],
@@ -199,6 +202,7 @@ public static class LiveChartsFactory
         {
             Series = series,
             Height = 72,
+            AnimationsSpeed = TimeSpan.Zero,
             XAxes = [new Axis { IsVisible = false }],
             YAxes = [new Axis { IsVisible = false }],
         };
@@ -236,6 +240,7 @@ public static class LiveChartsFactory
             Width = 140,
             Height = 80,
             MaxAngle = 180,
+            AnimationsSpeed = TimeSpan.Zero,
         };
 
         var grid = new Grid { Width = 140, Height = 80 };

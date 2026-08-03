@@ -72,17 +72,33 @@
             </NavigationViewItem>
         </NavigationView.FooterMenuItems>
 
-        <Frame x:Name="ContentFrame"
-               HorizontalAlignment="Stretch"
-               VerticalAlignment="Stretch"
-               NavigationFailed="ContentFrame_NavigationFailed"
-               Navigated="ContentFrame_Navigated">
-            <Frame.ContentTransitions>
-                <TransitionCollection>
-                    <NavigationThemeTransition/>
-                </TransitionCollection>
-            </Frame.ContentTransitions>
-        </Frame>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <InfoBar x:Name="GlobalInfoBar"
+                     Grid.Row="0"
+                     IsOpen="False"
+                     IsClosable="True"
+                     IsIconVisible="True"
+                     Margin="12,4,12,0"
+                     VerticalAlignment="Top"/>
+
+            <Frame x:Name="ContentFrame"
+                   Grid.Row="1"
+                   HorizontalAlignment="Stretch"
+                   VerticalAlignment="Stretch"
+                   NavigationFailed="ContentFrame_NavigationFailed"
+                   Navigated="ContentFrame_Navigated">
+                <Frame.ContentTransitions>
+                    <TransitionCollection>
+                        <NavigationThemeTransition/>
+                    </TransitionCollection>
+                </Frame.ContentTransitions>
+            </Frame>
+        </Grid>
 
     </NavigationView>
 </Window>

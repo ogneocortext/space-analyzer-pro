@@ -140,10 +140,13 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
                 await RunFindDuplicatesAsync();
             }
             StatusMessage = $"Completed. Found {ResultCount} result(s).";
+            AppNotifications.Success("Workflow completed",
+                $"{SelectedTemplate.Name} found {ResultCount} result(s)");
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error: {ex.Message}";
+            AppNotifications.Error($"Workflow failed: {SelectedTemplate.Name}", ex.Message);
         }
         finally
         {

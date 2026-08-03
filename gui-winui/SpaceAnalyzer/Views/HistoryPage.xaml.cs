@@ -30,7 +30,7 @@ public sealed partial class HistoryPage : Page
     {
         base.OnNavigatedTo(e);
         AppLog.Page("HistoryPage OnNavigatedTo");
-        _ = RefreshIfNeededAsync();
+        _ = ReloadCurrentPageAsync();
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -42,7 +42,22 @@ public sealed partial class HistoryPage : Page
     private async void HistoryPage_Loaded(object sender, RoutedEventArgs e)
     {
         AppLog.Page("HistoryPage Loaded");
-        await RefreshIfNeededAsync();
+        await ReloadCurrentPageAsync();
+    }
+
+    /// <summary>
+    /// Reloads history so newly added scans appear even though the page is cached.
+    /// Preserves the current page when history already exists.
+    /// </summary>
+    private async Task ReloadCurrentPageAsync()
+    {
+        if (!VM.HasHistory)
+        {
+            AppLog.Page("HistoryPage ReloadCurrentPageAsync loading");
+            await VM.LoadHistoryAsync();
+            return;
+        }
+        await VM.LoadPageAsync();
     }
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -74,15 +89,6 @@ public sealed partial class HistoryPage : Page
         var items = sorted.Select(h => (h.DateDisplay, (double)h.TotalSizeBytes)).ToList();
         var chart = LiveChartsFactory.CreateSparkline(items);
         TrendChartGrid.Children.Add(chart);
-    }
-
-    private async Task RefreshIfNeededAsync()
-    {
-        if (!VM.HasHistory)
-        {
-            AppLog.Page("HistoryPage RefreshIfNeededAsync loading");
-            await VM.LoadHistoryAsync();
-        }
     }
 
     // ── Pagination ──

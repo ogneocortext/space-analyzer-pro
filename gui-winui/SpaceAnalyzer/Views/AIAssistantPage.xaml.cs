@@ -52,8 +52,15 @@ public sealed partial class AIAssistantPage : Page
         AppLog.Action("AIAssistantPage Input_KeyDown");
         if (e.Key == Windows.System.VirtualKey.Enter)
         {
-            e.Handled = true;
-            _ = VM.SendMessageAsync();
+            // Ctrl+Enter sends; plain Enter inserts a newline.
+            var ctrl = Microsoft.UI.Input.InputKeyboardSource
+                .GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+            if (ctrl)
+            {
+                e.Handled = true;
+                _ = VM.SendMessageAsync();
+            }
         }
     }
 

@@ -2,6 +2,7 @@
 
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
 
@@ -70,16 +71,20 @@ public class DuplicatesViewModel : INotifyPropertyChanged, IDisposable
             if (result != null && result.DuplicateGroups.Any())
             {
                 StatusMessage = $"Found {result.DuplicateGroups.Count} duplicate groups, {result.TotalDuplicateFiles} files, {result.PotentialSavingsDisplay} reclaimable";
+                AppNotifications.Success("Duplicate analysis complete",
+                    $"{result.TotalDuplicateFiles} files in {result.DuplicateGroups.Count} groups ({result.PotentialSavingsDisplay} reclaimable)");
             }
             else
             {
                 StatusMessage = "No duplicate files found";
+                AppNotifications.Show("Duplicate analysis", "No duplicate files found");
             }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[DuplicatesViewModel] Analysis failed: {ex}");
             StatusMessage = $"Analysis failed: {ex.Message}";
+            AppNotifications.Error("Duplicate analysis failed", ex.Message);
         }
         finally
         {

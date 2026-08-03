@@ -10,7 +10,10 @@
     NavigationCacheMode="Required"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid Padding="{StaticResource Thickness.XL}">
+    <Grid Padding="{StaticResource Thickness.XL}"
+          AllowDrop="True"
+          DragOver="Page_DragOver"
+          Drop="Page_Drop">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="{StaticResource Space.XL}" MaxWidth="1000" HorizontalAlignment="Center">
 

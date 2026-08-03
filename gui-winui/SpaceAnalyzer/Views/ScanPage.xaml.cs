@@ -42,6 +42,35 @@ public sealed partial class ScanPage : Page
         else
         {
             await VM.ScanAsync();
+            if (VM.LastResult != null)
+                AppNotifications.Success("Scan complete", $"{VM.LastResult.TotalFiles:N0} files, {VM.LastResult.TotalSizeMb:F1} MB");
+            else if (VM.StatusMessage?.Contains("cancelled", StringComparison.OrdinalIgnoreCase) == true)
+                AppNotifications.Show("Scan cancelled", null, InfoBarSeverity.Warning);
+            else
+                AppNotifications.Error("Scan failed", VM.StatusMessage);
+        }
+    }
+
+    // ── Drag & drop a folder onto the page to set the scan path ──
+
+    private void Page_DragOver(object sender, DragEventArgs e)
+    {
+        e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Copy;
+        e.DragUIOverride.Caption = "Scan this folder";
+        e.DragUIOverride.IsCaptionVisible = true;
+    }
+
+    private async void Page_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.DataView.Contains(Windows.ApplicationModel.DataTransfer.StandardDataFormats.StorageItems))
+            return;
+
+        var items = await e.DataView.GetStorageItemsAsync();
+        var folder = items.OfType<Windows.Storage.StorageFolder>().FirstOrDefault();
+        if (folder != null)
+        {
+            VM.ScanPath = folder.Path;
+            AppNotifications.Success("Scan path set", folder.Path);
         }
     }
 
@@ -88,7 +117,8 @@ public sealed partial class ScanPage : Page
             var file = await picker.PickSaveFileAsync();
             if (file != null)
             {
-                await VM.ExportResultsAsync(file.Path);
+                var saved = await VM.ExportResultsAsync(file.Path);
+                AppNotifications.Success("Export saved", saved);
             }
         }
         catch (Exception ex)
