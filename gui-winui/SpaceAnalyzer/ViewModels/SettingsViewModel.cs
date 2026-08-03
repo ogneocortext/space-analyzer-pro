@@ -178,20 +178,6 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { _toolChoice = value; OnPropertyChanged(); Save(); }
     }
 
-    private bool _autoStartOllama = true;
-    public bool AutoStartOllama
-    {
-        get => _autoStartOllama;
-        set { _autoStartOllama = value; OnPropertyChanged(); Save(); }
-    }
-
-    private bool _aiFeaturesPanelVisible = true;
-    public bool AiFeaturesPanelVisible
-    {
-        get => _aiFeaturesPanelVisible;
-        set { _aiFeaturesPanelVisible = value; OnPropertyChanged(); Save(); }
-    }
-
     // ── Ollama connection test ──
 
     private bool _ollamaTesting;
@@ -245,20 +231,6 @@ public class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
-    private bool _embeddingEnabled;
-    public bool EmbeddingEnabled
-    {
-        get => _embeddingEnabled;
-        set { _embeddingEnabled = value; OnPropertyChanged(); Save(); }
-    }
-
-    private string _embeddingModel = "nomic-embed-text:latest";
-    public string EmbeddingModel
-    {
-        get => _embeddingModel;
-        set { _embeddingModel = value; OnPropertyChanged(); Save(); }
-    }
-
     // ── Lifecycle ──
 
     public SettingsViewModel()
@@ -301,14 +273,6 @@ public class SettingsViewModel : INotifyPropertyChanged
                 _toolCallingModel = tcm;
             if (container.Values.TryGetValue("ToolChoice", out v) && v is string tc)
                 _toolChoice = tc;
-            if (container.Values.TryGetValue("AutoStartOllama", out v) && v is bool aso)
-                _autoStartOllama = aso;
-            if (container.Values.TryGetValue("AiFeaturesPanelVisible", out v) && v is bool af)
-                _aiFeaturesPanelVisible = af;
-            if (container.Values.TryGetValue("EmbeddingEnabled", out v) && v is bool ee)
-                _embeddingEnabled = ee;
-            if (container.Values.TryGetValue("EmbeddingModel", out v) && v is string em)
-                _embeddingModel = em;
 
             // Fire change notifications for all properties so the UI reflects loaded values
             OnPropertyChanged(nameof(Theme));
@@ -326,10 +290,6 @@ public class SettingsViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(AutoModelSelection));
             OnPropertyChanged(nameof(ToolCallingModel));
             OnPropertyChanged(nameof(ToolChoice));
-            OnPropertyChanged(nameof(AutoStartOllama));
-            OnPropertyChanged(nameof(AiFeaturesPanelVisible));
-            OnPropertyChanged(nameof(EmbeddingEnabled));
-            OnPropertyChanged(nameof(EmbeddingModel));
         }
         catch (Exception ex)
         {
@@ -358,10 +318,6 @@ public class SettingsViewModel : INotifyPropertyChanged
             container.Values["AutoModelSelection"] = AutoModelSelection;
             container.Values["ToolCallingModel"] = ToolCallingModel;
             container.Values["ToolChoice"] = ToolChoice;
-            container.Values["AutoStartOllama"] = AutoStartOllama;
-            container.Values["AiFeaturesPanelVisible"] = AiFeaturesPanelVisible;
-            container.Values["EmbeddingEnabled"] = EmbeddingEnabled;
-            container.Values["EmbeddingModel"] = EmbeddingModel;
         }
         catch (Exception ex)
         {
@@ -384,10 +340,6 @@ public class SettingsViewModel : INotifyPropertyChanged
         AutoModelSelection = true;
         ToolCallingModel = "qwen2.5-coder:7b";
         ToolChoice = "auto";
-        AutoStartOllama = true;
-        AiFeaturesPanelVisible = true;
-        EmbeddingEnabled = false;
-        EmbeddingModel = "nomic-embed-text:latest";
         OllamaTestResult = string.Empty;
         OllamaTestBrush = GetThemeBrush("MutedBrush");
         Save();

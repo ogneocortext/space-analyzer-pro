@@ -47,7 +47,8 @@ public class OllamaClient : IDisposable
         List<ChatMessage> messages,
         List<ToolDefinition>? tools = null,
         string? toolChoice = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool? think = null)
     {
         if (string.IsNullOrWhiteSpace(model))
             throw new ArgumentException("Model name cannot be empty", nameof(model));
@@ -65,7 +66,7 @@ public class OllamaClient : IDisposable
             {
                 try
                 {
-                    return await SendChatRequestAsync(candidate, messages, tools, toolChoice, ct)
+                    return await SendChatRequestAsync(candidate, messages, tools, toolChoice, think, ct)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -86,6 +87,7 @@ public class OllamaClient : IDisposable
         List<ChatMessage> messages,
         List<ToolDefinition>? tools,
         string? toolChoice,
+        bool? think,
         CancellationToken ct)
     {
         var request = new ChatRequest
@@ -104,6 +106,8 @@ public class OllamaClient : IDisposable
             Tools = tools,
             ToolChoice = toolChoice
         };
+        if (think.HasValue)
+            request.Think = think.Value;
 
         var json = JsonSerializer.Serialize(request, JsonOptions);
         using var content = new StringContent(json, Encoding.UTF8, "application/json");

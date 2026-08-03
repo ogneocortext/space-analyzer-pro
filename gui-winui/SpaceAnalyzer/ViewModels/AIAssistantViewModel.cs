@@ -120,6 +120,20 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
         set { _toolChoice = value; OnPropertyChanged(); }
     }
 
+    private bool _ollamaEnabled = true;
+    public bool OllamaEnabled
+    {
+        get => _ollamaEnabled;
+        set { _ollamaEnabled = value; OnPropertyChanged(); }
+    }
+
+    private bool _ollamaThink = true;
+    public bool OllamaThink
+    {
+        get => _ollamaThink;
+        set { _ollamaThink = value; OnPropertyChanged(); }
+    }
+
     public AIAssistantViewModel()
     {
         LoadSettings();
@@ -128,6 +142,18 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             "Hello! I am your AI assistant for Space Analyzer Pro. " +
             "I can help you understand your disk usage and find space-saving opportunities. " +
             "Ask me anything!");
+    }
+
+    /// <summary>
+    /// Re-reads shared settings from <see cref="Windows.Storage.ApplicationData"/>
+    /// local settings. Called when the page is navigated to so changes made on the
+    /// Settings page take effect without an app restart.
+    /// </summary>
+    public void ReloadSettings()
+    {
+        if (_disposed || IsBusy) return;
+        LoadSettings();
+        RefreshOllamaClient();
     }
 
     private void RefreshOllamaClient()
@@ -165,6 +191,10 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                 _autoModelSelection = b2;
             if (container.Values.TryGetValue("ToolChoice", out v))
                 _toolChoice = (string)v;
+            if (container.Values.TryGetValue("OllamaEnabled", out v) && v is bool oe)
+                _ollamaEnabled = oe;
+            if (container.Values.TryGetValue("OllamaThink", out v) && v is bool ot)
+                _ollamaThink = ot;
 
             OnPropertyChanged(nameof(OllamaUrl));
             OnPropertyChanged(nameof(OllamaModel));
@@ -172,6 +202,8 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(AgenticToolsEnabled));
             OnPropertyChanged(nameof(AutoModelSelection));
             OnPropertyChanged(nameof(ToolChoice));
+            OnPropertyChanged(nameof(OllamaEnabled));
+            OnPropertyChanged(nameof(OllamaThink));
         }
         catch (Exception ex)
         {
@@ -450,6 +482,13 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                 return;
             }
 
+            if (!OllamaEnabled)
+            {
+                AddMessage(ChatRole.Assistant, "Ollama AI is disabled. Enable it in Settings to chat.");
+                StatusText = "AI disabled.";
+                return;
+            }
+
             EnsureToolExecutor();
 
             var selectedModel = SelectModelForTask(userMessage);
@@ -472,7 +511,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                     : $"Executing tools (step {iteration + 1})...";
 
                 var response = await _client.SendChatMessageAsync(
-                    selectedModel, apiMessages, tools, resolvedToolChoice, ct);
+                    selectedModel, apiMessages, tools, resolvedToolChoice, ct, think: OllamaThink);
 
                 var message = response.Message;
                 if (message == null)

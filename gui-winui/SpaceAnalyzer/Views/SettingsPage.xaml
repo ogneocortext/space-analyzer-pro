@@ -110,10 +110,6 @@
                                       IsChecked="{x:Bind VM.OllamaThink, Mode=TwoWay}"/>
                         </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.MD}">
-                            <CheckBox Content="Auto-start Ollama when needed"
-                                      IsChecked="{x:Bind VM.AutoStartOllama, Mode=TwoWay}"/>
-                        </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="Enable agentic tool calling"
                                       IsChecked="{x:Bind VM.AgenticToolsEnabled, Mode=TwoWay}"/>
                         </StackPanel>
@@ -137,10 +133,6 @@
                                 <x:String>required</x:String>
                             </ComboBox>
                         </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
-                            <CheckBox Content="Show AI Tools panel in AI Assistant tab"
-                                      IsChecked="{x:Bind VM.AiFeaturesPanelVisible, Mode=TwoWay}"/>
-                        </StackPanel>
                         <!-- Test connection -->
                         <StackPanel Spacing="{StaticResource Space.SM}">
                             <Button Content="Test Connection" Click="TestOllama_Click"
@@ -160,23 +152,6 @@
                                            Foreground="{x:Bind VM.OllamaTestBrush, Mode=OneWay}"
                                            Opacity="0.9"/>
                             </StackPanel>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
-                <!-- Smart Search -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
-                    <StackPanel Spacing="{StaticResource Space.LG}">
-                        <TextBlock Text="Smart Search (Semantic Indexing)" Style="{StaticResource Type.SectionTitle}"/>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
-                            <CheckBox Content="Enable semantic indexing"
-                                      IsChecked="{x:Bind VM.EmbeddingEnabled, Mode=TwoWay}"/>
-                        </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Embedding model" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
-                            <TextBox Text="{x:Bind VM.EmbeddingModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     PlaceholderText="nomic-embed-text:latest"
-                                     AutomationProperties.Name="Embedding model name"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

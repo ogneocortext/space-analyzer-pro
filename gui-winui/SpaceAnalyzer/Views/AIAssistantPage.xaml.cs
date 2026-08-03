@@ -4,6 +4,7 @@ using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Navigation;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Services;
 using SpaceAnalyzer.ViewModels;
@@ -24,6 +25,16 @@ public sealed partial class AIAssistantPage : Page
         MessageScroll.SizeChanged += (_, _) => ScrollToBottom();
         VM.Messages.CollectionChanged += (_, _) => ScrollToBottom();
         VM.PropertyChanged += OnVMPropertyChanged;
+    }
+
+    /// <summary>
+    /// Re-read shared settings whenever the page is navigated to, so Ollama
+    /// changes made on the Settings page take effect without an app restart.
+    /// </summary>
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        VM.ReloadSettings();
     }
 
     private void OnVMPropertyChanged(object? sender, PropertyChangedEventArgs e)
