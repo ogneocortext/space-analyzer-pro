@@ -407,7 +407,7 @@ public class ScannerService : IDisposable
             if (doc.RootElement.ValueKind == JsonValueKind.Array)
                 return JsonSerializer.Deserialize<List<ScanHistoryRecord>>(output, s_jsonOptions) ?? new();
             if (doc.RootElement.TryGetProperty("records", out var records))
-                return JsonSerializer.Deserialize<List<ScanHistoryRecord>>(records.GetRawText(), s_jsonOptions) ?? new();
+                return records.Deserialize<List<ScanHistoryRecord>>(s_jsonOptions) ?? new();
             return new();
         }
         catch (JsonException jex)
@@ -444,7 +444,7 @@ public class ScannerService : IDisposable
             if (doc.RootElement.TryGetProperty("records", out var recordsProp)
                 && doc.RootElement.TryGetProperty("total", out var totalProp))
             {
-                var records = JsonSerializer.Deserialize<List<ScanHistoryRecord>>(recordsProp.GetRawText(), s_jsonOptions) ?? new();
+                var records = recordsProp.Deserialize<List<ScanHistoryRecord>>(s_jsonOptions) ?? new();
                 return (records, totalProp.GetInt64());
             }
             // Fallback: treat as plain array

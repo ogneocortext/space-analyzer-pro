@@ -24,7 +24,6 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
     private readonly DispatcherTimer _refreshTimer;
     private PerformanceCounter? _cpuCounter;
     private bool _cpuCounterInitialized;
-    private bool _dedupLoaded;
     private bool _disposed;
 
     public DashboardViewModel()
@@ -274,21 +273,10 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
                 LatestScan = null;
             }
 
+            // Duplicate count is intentionally NOT auto-computed here: hashing every
+            // file in the latest scan's folder pegs disk/CPU for minutes at app start
+            // just to fill one stat card. Users get real numbers on the Duplicates page.
             DuplicateCount = 0;
-            if (!_dedupLoaded && latest != null && !string.IsNullOrEmpty(latest.Path) && _scanner.IsAvailable)
-            {
-                try
-                {
-                    var dedup = await _scanner.RunDedupAnalysisAsync(latest.Path);
-                    DuplicateCount = (int)(dedup?.TotalDuplicateFiles ?? 0);
-                    _dedupLoaded = true;
-                }
-                catch
-                {
-                    DuplicateCount = 0;
-                    _dedupLoaded = true;
-                }
-            }
         }
         catch
         {
