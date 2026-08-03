@@ -281,8 +281,9 @@ gui-winui/                 # WinUI 3 desktop GUI (active development)
     MainWindow.xaml(.cs)   # NavigationView shell
     Views/                 # XAML pages (Dashboard, Scan, Settings, etc.)
     ViewModels/            # MVVM view models
-    Services/
-      ScannerService.cs    # Rust CLI interop (subprocess + JSON)
+     Services/
+       ScannerService.cs    # Rust CLI interop (subprocess + JSON)
+       ToolExecutor.cs      # AI tool-call execution (scan, dedup, history, disk-info)
     Models/                # Data models
     Assets/                # Icons, images
 

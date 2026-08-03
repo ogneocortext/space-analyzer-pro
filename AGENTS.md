@@ -60,12 +60,16 @@ Two GUI implementations exist side-by-side for comparison:
 
 The WinUI 3 app calls the Rust scanner as a subprocess using subcommands:
 ```
-space-analyzer-pro scan --path "C:\Users" --format json
-space-analyzer-pro disk-info --path "C:\Users" --format json
-space-analyzer-pro history --limit 50 --format json
-space-analyzer-pro dedup --path "C:\Users" --format json
+cargo run --bin space-analyzer-cli -- scan --path "C:\Users" --format json
+cargo run --bin space-analyzer-cli -- scan --path "C:\Users" --format json --stream
+cargo run --bin space-analyzer-cli -- disk-info --format json
+cargo run --bin space-analyzer-cli -- history --limit 50 --format json
+cargo run --bin space-analyzer-cli -- history --id 1 --format json
+cargo run --bin space-analyzer-cli -- dedup --path "C:\Users" --format json
 ```
-JSON output is deserialized into C# models in `gui-winui/SpaceAnalyzer/Services/ScannerService.cs`.
+JSON output is deserialized into C# models in `gui-winui/SpaceAnalyzer/Models/` via `ScannerService.cs`.
+`ToolExecutor.cs` exposes a subset of scanner+filesystem operations as callable tools
+for the AI Assistant.
 
 > **`disk-info` output shape:** prints a **JSON array** of every mounted volume (the
 > `--path` argument is accepted for positional consistency but ignored in JSON output).
@@ -110,7 +114,7 @@ The WinUI 3 `ScannerService` also supports scan cancellation via `StopScan()` (k
 - `src/cli/` — CLI module with clap subcommands (scan, disk-info, history, dedup)
 - `gui-egui/src/gui/` — eframe GUI modules (dashboard, system, scan, etc.)
 - `gui-winui/SpaceAnalyzer/Views/` — WinUI 3 XAML pages
-- `gui-winui/SpaceAnalyzer/Services/` — Rust CLI interop, data services
+- `gui-winui/SpaceAnalyzer/Services/` — Rust CLI interop, data services (`ScannerService.cs`, `ToolExecutor.cs`)
 - `gui-winui/SpaceAnalyzer/ViewModels/` — MVVM view models
 - `gui-winui/SpaceAnalyzer/Models/` — Data models (ScanResult, DiskVolume, FileTypeDistribution, etc.)
 - `src/ollama/` — Ollama REST API client and feature detection
