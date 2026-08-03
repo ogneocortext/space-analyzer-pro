@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 
 namespace SpaceAnalyzer.Services;
@@ -100,6 +101,90 @@ public class ScannerService : IDisposable
     /// Returns true if the Rust scanner binary is available.
     /// </summary>
     public bool IsAvailable => File.Exists(_scannerPath);
+
+    /// <summary>
+    /// Reads all key/value settings from the embedded database by
+    /// invoking <c>space-analyzer-cli settings get --format json</c>.
+    /// Returns an empty dictionary if the CLI is unavailable or the
+    /// command fails.
+    /// </summary>
+    public async Task<Dictionary<string, string>> GetSettingsAsync(
+        CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return new Dictionary<string, string>();
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = _scannerPath,
+                Arguments = "settings get --format json",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            using var process = new Process { StartInfo = psi };
+            process.Start();
+            var json = await process.StandardOutput.ReadToEndAsync();
+            await process.WaitForExitAsync(ct);
+            if (process.ExitCode != 0)
+                return new Dictionary<string, string>();
+            if (string.IsNullOrWhiteSpace(json))
+                return new Dictionary<string, string>();
+            var parsed = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                json,
+                s_jsonOptions);
+            var result = new Dictionary<string, string>();
+            if (parsed != null)
+            {
+                foreach (var kvp in parsed)
+                {
+                    result[kvp.Key] = kvp.Value.ValueKind == JsonValueKind.String
+                        ? kvp.Value.GetString() ?? string.Empty
+                        : kvp.Value.GetRawText();
+                }
+            }
+            return result;
+        }
+        catch
+        {
+            return new Dictionary<string, string>();
+        }
+    }
+
+    /// <summary>
+    /// Writes a batch of key/value settings to the embedded database by
+    /// invoking <c>space-analyzer-cli settings set --key K --value V</c>
+    /// for each pair.
+    /// </summary>
+    public async Task SetSettingsAsync(
+        IReadOnlyDictionary<string, string> values,
+        CancellationToken ct = default)
+    {
+        if (!IsAvailable || values.Count == 0)
+            return;
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = _scannerPath,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            foreach (var kvp in values)
+            {
+                psi.Arguments = $"settings set --key \"{kvp.Key}\" --value \"{kvp.Value}\"";
+                using var process = new Process { StartInfo = psi };
+                process.Start();
+                await process.WaitForExitAsync(ct);
+            }
+        }
+        catch
+        {
+            // Non-fatal: settings are still written to LocalSettings cache.
+        }
+    }
 
     /// <summary>
     /// Run a directory scan and return structured results.
@@ -356,14 +441,57 @@ public class ScannerService : IDisposable
     }
 
     /// <summary>
-    /// Export a scan result to a JSON file.
+    /// Export a scan result to a file. Supported formats: json, csv, md.
     /// </summary>
-    public async Task<string> ExportScanResultAsync(ScanResult result, string outputPath, CancellationToken ct = default)
+    public async Task<string> ExportScanResultAsync(ScanResult result, string outputPath, string format = "json", CancellationToken ct = default)
     {
-        var options = new JsonSerializerOptions { WriteIndented = true };
-        var json = JsonSerializer.Serialize(result, options);
-        await File.WriteAllTextAsync(outputPath, json, ct);
+        format = format.ToLowerInvariant() switch
+        {
+            "csv" => "csv",
+            "md" or "markdown" => "md",
+            _ => "json",
+        };
+
+        var content = format switch
+        {
+            "csv" => SerializeToCsv(result),
+            "md" => SerializeToMarkdown(result),
+            _ => JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }),
+        };
+
+        await File.WriteAllTextAsync(outputPath, content, ct);
         return outputPath;
+    }
+
+    private static string SerializeToCsv(ScanResult result)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Path,SizeBytes,SizeDisplay,Modified");
+        foreach (var kvp in (result.ScannedFiles ?? new()).OrderByDescending(kv => kv.Value.Size))
+        {
+            var modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).ToString("o");
+            var path = kvp.Key.Replace("\"", "\"\"");
+            sb.AppendLine($"\"{path}\",{kvp.Value.Size},\"{ByteFormatter.FormatBytes(kvp.Value.Size)}\",\"{modified}\"");
+        }
+        return sb.ToString();
+    }
+
+    private static string SerializeToMarkdown(ScanResult result)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"# Space Analyzer Scan: {result.Path}\n");
+        sb.AppendLine($"- **Files:** {result.TotalFiles:N0}");
+        sb.AppendLine($"- **Total Size:** {ByteFormatter.FormatBytes(result.TotalSizeBytes)}");
+        sb.AppendLine($"- **Duration:** {result.DurationSecs:F1}s\n");
+        sb.AppendLine("## Largest Files\n");
+        sb.AppendLine("| Size | Path |");
+        sb.AppendLine("|------|------|");
+        foreach (var f in (result.LargestFiles ?? new()).Take(50))
+        {
+            var path = f.Path.Replace("|", "\\|");
+            sb.AppendLine($"| {f.SizeDisplay} | `{path}` |");
+        }
+        return sb.ToString();
     }
 
     /// <summary>

@@ -1663,7 +1663,7 @@
         "ai_duration_s": 66.2,
         "ai_last_error": "",
         "ai_model": "qwen3:8b",
-        "ai_response": "{\n  \"root_cause\": \"The issue is not in the provided source files but in the need to create startup scripts (.bat and .sh) with proper dependency ordering for the application.\",\n  \"file\": \"src/ollama/features.rs\",\n  \"line_range\": \"1-100\",\n  \"current_code\": \"//! High-level Ollama-driven features for Space Analyzer Pro.\\n//!\\n//! Each feature targets one specific model capability reported by Ollama\\n//! 0.30+ and is designed with a deliberate data-flow shape:\\n//!\\n//! | Feature              | Capability | Data flow                                      |\\n//! |----------------------|------------|------------------------------------------------|\\n//! | `semantic_search`    | embedding  | Pre-embed files once; new query = 1 embed +   |\\n//! |                      |            | cosine similarity (no LLM roundtrip)           |\\n//! | `summarize_scan`     | completion | Send only top-10 files + type breakdown, not  |\\n//! |                      |            | the whole scan; returns \u0393\u00eb\u00f1 200 token summary    |\\n//! | `cleanup_plan`       | thinking   | `think: true` \u0393\u00e5\u00c6 capture `thinking` field; user |\\n//! |                      |            | sees the final plan, not the chain of thought  |\\n//! | `describe_screenshot`| vision     | Image is base64-encoded, downscaled to \u0393\u00eb\u00f11024px |\\n//! |                      |            | before being embedded in the user message     |\\n//! | `agentic_question`   | tools      | Model calls only the tools it needs; results   |\\n//! |                      |            | are appended as `tool` messages, not full      |\\n//! |                      |            | transcripts. Loops until model returns text.  |\\n//!\\n//! All features are async, return structured results with timing/token\\n//! metrics, and never panic. The returned `String` errors are\\n//! user-friendly \u0393\u00c7\u00f6 safe to display in a toast or log line.\",\n  \"fixed_code\": \"//! High-level Ollama-driven features for Space Analyzer Pro.\\n//!\\n//! Each feature targets one specific model ",
+        "ai_response": "{\n  \"root_cause\": \"The issue is not in the provided source files but in the need to create startup scripts (.bat and .sh) with proper dependency ordering for the application.\",\n  \"file\": \"src/ollama/features.rs\",\n  \"line_range\": \"1-100\",\n  \"current_code\": \"//! High-level Ollama-driven features for Space Analyzer Pro.\\n//!\\n//! Each feature targets one specific model capability reported by Ollama\\n//! 0.30+ and is designed with a deliberate data-flow shape:\\n//!\\n//! | Feature              | Capability | Data flow                                      |\\n//! |----------------------|------------|------------------------------------------------|\\n//! | `semantic_search`    | embedding  | Pre-embed files once; new query = 1 embed +   |\\n//! |                      |            | cosine similarity (no LLM roundtrip)           |\\n//! | `summarize_scan`     | completion | Send only top-10 files + type breakdown, not  |\\n//! |                      |            | the whole scan; returns Γëñ 200 token summary    |\\n//! | `cleanup_plan`       | thinking   | `think: true` ΓåÆ capture `thinking` field; user |\\n//! |                      |            | sees the final plan, not the chain of thought  |\\n//! | `describe_screenshot`| vision     | Image is base64-encoded, downscaled to Γëñ1024px |\\n//! |                      |            | before being embedded in the user message     |\\n//! | `agentic_question`   | tools      | Model calls only the tools it needs; results   |\\n//! |                      |            | are appended as `tool` messages, not full      |\\n//! |                      |            | transcripts. Loops until model returns text.  |\\n//!\\n//! All features are async, return structured results with timing/token\\n//! metrics, and never panic. The returned `String` errors are\\n//! user-friendly ΓÇö safe to display in a toast or log line.\",\n  \"fixed_code\": \"//! High-level Ollama-driven features for Space Analyzer Pro.\\n//!\\n//! Each feature targets one specific model ",
         "ai_started_at": "2026-06-12T01:31:04+00:00",
         "ai_status": "done",
         "assignee": "no-startup-script",
@@ -2560,8 +2560,535 @@
       "status": "open",
       "tags": [],
       "title": "Color Contrast Issues on Data Bars"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/ViewModels/AIAssistantViewModel.cs",
+        "file": "SelectModelForTask does case-sensitive model name check",
+        "resolution": "Use case-insensitive comparison for installed model lookup"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:7a3c1d4e9f2b",
+      "last_seen": "2026-08-03",
+      "notes": "m.Name == preferred was case-sensitive. Fixed in current code: SelectModelForTask now uses string.Equals(m.Name, preferred, StringComparison.OrdinalIgnoreCase).",
+      "occurrences": 1,
+      "priority_note": "Low — only affects users with non-canonical casing in Ollama model names.",
+      "priority_rank": 0,
+      "resolution": "Changed to case-insensitive StringComparison.OrdinalIgnoreCase",
+      "screenshot": null,
+      "severity": "low",
+      "status": "done",
+      "tags": [],
+      "title": "SelectModelForTask uses case-sensitive model name match"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/ViewModels/AIAssistantViewModel.cs",
+        "file": "ShowSuggestions can flicker back after max-iteration tool loop",
+        "resolution": "Gate ShowSuggestions on both message count and IsBusy state"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:5f8b2a1c9d4e",
+      "last_seen": "2026-08-03",
+      "notes": "ShowSuggestions only checks _messages.Count <= 2. After the max-iteration loop exhausts, IsBusy flips false and the suggestions panel can reappear. Fixed: ShowSuggestions now also requires !IsBusy.",
+      "occurrences": 1,
+      "priority_note": "Low — cosmetic, only visible after a long tool chain.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "low",
+      "status": "done",
+      "tags": [],
+      "title": "ShowSuggestions flickers back after max-iteration tool loop"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "WorkflowFindByDateRangeAsync uses >= cutoff (recent) but workflow name implies a true date range",
+        "resolution": "Add start_date/end_date parameters so the workflow supports a real date range"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:9c4e7b2a1f5d",
+      "last_seen": "2026-08-03",
+      "notes": "Workflow name is find_by_date_range but implementation only supported days_old cutoff with >= (recent). Fixed: now accepts optional start_date and end_date (ISO-8601) and filters by the actual range.",
+      "occurrences": 1,
+      "priority_note": "Medium — misleading name; users expecting a true date range will get only recent files.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "medium",
+      "status": "done",
+      "tags": [],
+      "title": "WorkflowFindByDateRangeAsync name/semantics mismatch — only supports recent cutoff"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "GetLargestFileEntriesAsync streaming fallback may return partial LargestFiles on cancellation",
+        "resolution": "Propagate cancellation into the streaming scan and return null when cancelled instead of partial results"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:3d8f5a2b7c1e",
+      "last_seen": "2026-08-03",
+      "notes": "When no cached scan exists, GetLargestFileEntriesAsync falls back to ScanDirectoryStreamingAsync. Fixed: returns null when ct.IsCancellationRequested after the scan.",
+      "occurrences": 1,
+      "priority_note": "Low — only triggers on explicit user cancellation during a cold scan.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "low",
+      "status": "done",
+      "tags": [],
+      "title": "GetLargestFileEntriesAsync returns partial LargestFiles on cancellation"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "RunCliAsync returns 'Error: ' even when stderr is empty on non-zero exit",
+        "resolution": "Fall back to stdout or a generic message when stderr is empty"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:1b6d4f8a2c5e",
+      "last_seen": "2026-08-03",
+      "notes": "RunCliAsync returned 'Error: {stderr}' when ExitCode != 0. If stderr was empty the user saw 'Error: ' with no details. Fixed: falls back to stdout or a generic message when stderr is empty.",
+      "occurrences": 1,
+      "priority_note": "Low — edge case; most CLI failures do write to stderr.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "low",
+      "status": "done",
+      "tags": [],
+      "title": "RunCliAsync shows empty error message when CLI writes failure to stdout"
+    },
+    {
+      "category": "documentation",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "PreviewImpactAsync hardcodes fsutil hardlink list which is Windows-only",
+        "resolution": "Document that this tool is Windows-only (acceptable because the app is WinUI 3)"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:6e2a9c4b1d8f",
+      "last_seen": "2026-08-03",
+      "notes": "PreviewImpactAsync shells out to fsutil hardlink list which only exists on Windows. This is acceptable because the entire WinUI 3 app targets Windows, but it is undocumented. Status: wontfix — not a bug in the current Windows-only context.",
+      "occurrences": 1,
+      "priority_note": "Info — not a bug in the current Windows-only context, just missing documentation.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "low",
+      "status": "wontfix",
+      "tags": [],
+      "title": "PreviewImpactAsync fsutil hardlink list is Windows-only and undocumented"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "WorkflowConstants fields referenced as private undefined names in ToolExecutor and WorkflowsViewModel",
+        "resolution": "Extracted to Models/WorkflowConstants.cs; both classes now reference the shared class"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:a1b2c3d4e5f6",
+      "last_seen": "2026-08-03",
+      "notes": "ToolExecutor.cs and WorkflowsViewModel.cs both referenced private extension-set fields that did not exist in the other class. Fixed by extracting to a shared Models/WorkflowConstants.cs.",
+      "occurrences": 1,
+      "priority_note": "High — workflows would throw at runtime when referenced from the wrong class.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "high",
+      "status": "done",
+      "tags": [],
+      "title": "WorkflowConstants fields referenced as private undefined names"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "ResolveScanPathAsync did not pass CancellationToken to GetScanHistoryPageAsync",
+        "resolution": "Added ct parameter to GetScanHistoryPageAsync call"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:b2c3d4e5f6a7",
+      "last_seen": "2026-08-03",
+      "notes": "ResolveScanPathAsync called _scanner.GetScanHistoryPageAsync without passing the CancellationToken, so cancellation requests during path resolution were ignored.",
+      "occurrences": 1,
+      "priority_note": "Medium — cancellation silently ignored during path resolution.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "medium",
+      "status": "done",
+      "tags": [],
+      "title": "ResolveScanPathAsync did not propagate CancellationToken"
+    },
+    {
+      "category": "code-quality",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "FormatBytes had a dead private copy; callers were inconsistent",
+        "resolution": "Removed private copy; all callers now use ByteFormatter.FormatBytes"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:c3d4e5f6a7b8",
+      "last_seen": "2026-08-03",
+      "notes": "ToolExecutor.cs contained a private FormatBytes(ulong) method that was never called. All call sites already used ByteFormatter.FormatBytes. Removed the orphan method.",
+      "occurrences": 1,
+      "priority_note": "Low — dead code removal.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "low",
+      "status": "done",
+      "tags": [],
+      "title": "Dead private FormatBytes method in ToolExecutor"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/ViewModels/AIAssistantViewModel.cs",
+        "file": "BuildApiMessages silently dropped ALL ChatRole.Tool messages",
+        "resolution": "Now includes tool result messages with role=tool, content, and tool_call_id"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:d4e5f6a7b8c9",
+      "last_seen": "2026-08-03",
+      "notes": "BuildApiMessages filtered out ALL ChatRole.Tool messages (m.Role != ChatRole.Tool). After any tool call, the next API request had zero context of what the tool returned, breaking multi-turn agentic loops after step 1. Critical fix.",
+      "occurrences": 1,
+      "priority_note": "Critical — broke the entire agentic loop after the first tool call.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "critical",
+      "status": "done",
+      "tags": [],
+      "title": "BuildApiMessages silently dropped ALL ChatRole.Tool messages"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/ViewModels/AIAssistantViewModel.cs",
+        "file": "ParseToolArguments called .ToString() on JsonElement values in Dictionary<string, object>",
+        "resolution": "Detects nested JsonElement and re-serializes/deserializes to unwrap"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:e5f6a7b8c9d0",
+      "last_seen": "2026-08-03",
+      "notes": "ParseToolArguments returned raw Dictionary<string, object> containing nested JsonElement values. Calling .ToString() on those produced 'System.Text.Json.JsonElement', causing silent empty-argument tool calls.",
+      "occurrences": 1,
+      "priority_note": "High — tools ran with empty/garbage arguments.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "high",
+      "status": "done",
+      "tags": [],
+      "title": "ParseToolArguments produced 'System.Text.Json.JsonElement' for nested JsonElement values"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "WorkflowFindHiddenFilesAsync/WorkflowFindReadOnlyAsync did bitwise AND on file SIZE with FileAttributes",
+        "resolution": "Now uses File.GetAttributes(kvp.Key) to read real file attributes"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:f6a7b8c9d0e1",
+      "last_seen": "2026-08-03",
+      "notes": "WorkflowFindHiddenFilesAsync and WorkflowFindReadOnlyAsync did kvp.Value.Size & FileAttributes.Hidden (bitwise AND on file SIZE). ScannedFileEntry has no attributes field — these workflows always returned empty results.",
+      "occurrences": 1,
+      "priority_note": "Critical — workflows always returned empty results.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "critical",
+      "status": "done",
+      "tags": [],
+      "title": "WorkflowFindHiddenFiles/ReadOnly did bitwise AND on file SIZE instead of attributes"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "SearchFilesAsync empty-result message was copy-paste from GetLargestFilesAsync",
+        "resolution": "Changed message to 'No files match the current filters in the target directory.'"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:a7b8c9d0e1f2",
+      "last_seen": "2026-08-03",
+      "notes": "SearchFilesAsync returned 'No large files found.' when files existed but no results matched the filters. Fixed to say 'No files match the current filters in the target directory.'",
+      "occurrences": 1,
+      "priority_note": "Medium — misleading UX.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "medium",
+      "status": "done",
+      "tags": [],
+      "title": "SearchFilesAsync error message was copy-paste from GetLargestFilesAsync"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "GetString/GetOptionalString called .ToString() on JsonElement",
+        "resolution": "Explicit JsonElement unwrap: GetString() for string-typed, GetRawText() for others"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:b8c9d0e1f2a3",
+      "last_seen": "2026-08-03",
+      "notes": "GetString/GetOptionalString called v.ToString() without checking for JsonElement, which produces 'System.Text.Json.JsonElement' instead of the actual value.",
+      "occurrences": 1,
+      "priority_note": "Medium — produced garbage string values for JsonElement arguments.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "medium",
+      "status": "done",
+      "tags": [],
+      "title": "GetString/GetOptionalString produced 'System.Text.Json.JsonElement' for JsonElement values"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "WorkflowFindLargeFilesAsync always did a fresh deep scan; ignored GetLargestFileEntriesAsync cache",
+        "resolution": "Now uses GetLargestFileEntriesAsync which reuses cached scan when available"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:c9d0e1f2a3b4",
+      "last_seen": "2026-08-03",
+      "notes": "WorkflowFindLargeFilesAsync called _scanner.ScanDirectoryAsync directly (always fresh deep scan). Fixed to use GetLargestFileEntriesAsync which checks the scan-history cache first.",
+      "occurrences": 1,
+      "priority_note": "Medium — wasted time and I/O on repeated calls.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "medium",
+      "status": "done",
+      "tags": [],
+      "title": "WorkflowFindLargeFilesAsync ignored GetLargestFileEntriesAsync cache"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "PredictStorageAsync divided by zero when all timestamps are identical",
+        "resolution": "Guarded denominator with Math.Abs(denom) < 1e-9 check"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:d0e1f2a3b4c5",
+      "last_seen": "2026-08-03",
+      "notes": "PredictStorageAsync computed slope = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX). When all scan timestamps are identical the denominator is zero, producing Infinity/NaN. Fixed with guard.",
+      "occurrences": 1,
+      "priority_note": "Medium — produced garbage prediction on repeated scans at the same timestamp.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "medium",
+      "status": "done",
+      "tags": [],
+      "title": "PredictStorageAsync zero-division when all timestamps are identical"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "RunCliAsync timeout and user cancellation both returned the same generic message",
+        "resolution": "Check ct.IsCancellationRequested and return distinct messages"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:e1f2a3b4c5d6",
+      "last_seen": "2026-08-03",
+      "notes": "RunCliAsync returned 'Operation timed out.' for both actual timeouts and user cancellation, misleading users about what happened.",
+      "occurrences": 1,
+      "priority_note": "Medium — poor UX for cancelled operations.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "medium",
+      "status": "done",
+      "tags": [],
+      "title": "RunCliAsync returned same message for timeout and user cancellation"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/ViewModels/AIAssistantViewModel.cs",
+        "file": "analyze_file_patterns tool was in ExecuteAsync switch but not in GetToolDefinitions",
+        "resolution": "Added tool definition with path parameter"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:f2a3b4c5d6e7",
+      "last_seen": "2026-08-03",
+      "notes": "analyze_file_patterns was implemented in ToolExecutor.ExecuteAsync but was not exposed in AIAssistantViewModel.GetToolDefinitions(), so the model could never call it.",
+      "occurrences": 1,
+      "priority_note": "High — tool was completely unreachable by the model.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "high",
+      "status": "done",
+      "tags": [],
+      "title": "analyze_file_patterns tool unreachable — missing from GetToolDefinitions"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/ViewModels/AIAssistantViewModel.cs",
+        "file": "MaxToolIterations exhaustion was silent — no message added to chat",
+        "resolution": "Added explicit message when loop exhausts"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:a3b4c5d6e7f8",
+      "last_seen": "2026-08-03",
+      "notes": "When MaxToolIterations (10) was exhausted, the agentic loop exited silently with no message shown to the user. Fixed by adding an explicit message explaining the limit was reached.",
+      "occurrences": 1,
+      "priority_note": "Medium — user had no feedback that the loop stopped.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "medium",
+      "status": "done",
+      "tags": [],
+      "title": "MaxToolIterations exhaustion was silent"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "file": "ToolExecutor.Dispose() did not dispose owned ScannerService",
+        "resolution": "Added _scanner?.Dispose() to Dispose method"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:b4c5d6e7f8a9",
+      "last_seen": "2026-08-03",
+      "notes": "ToolExecutor owns a ScannerService but Dispose() was a no-op. The scanner subprocess handle was never released until GC finalization.",
+      "occurrences": 1,
+      "priority_note": "Medium — resource leak on repeated open/close of AI assistant.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "medium",
+      "status": "done",
+      "tags": [],
+      "title": "ToolExecutor.Dispose did not dispose owned ScannerService"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/OllamaClient.cs",
+        "date_resolved": "2026-08-03",
+        "file": "ToolCallResponse missing Id property — tool_call_id mismatch with Ollama",
+        "resolution": "Added Id property to ToolCallResponse and use Ollama-returned tool_call id instead of generating a new Guid"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:1c2d3e4f5a6b",
+      "last_seen": "2026-08-03",
+      "notes": "Ollama API returns tool_calls with an id field (e.g. call_abc123), but C# ToolCallResponse has no Id property to capture it. AIAssistantViewModel generates a new random Guid (call_{Guid.NewGuid():N}) instead of using Ollama id. This means tool_call_id in tool result messages does not match the id in the assistant tool_calls, violating the OpenAI-compatible tool-use spec. The Rust GUI correctly preserves call.id.",
+      "occurrences": 1,
+      "priority_note": "High — violates Ollama/OpenAI tool-use contract; some models may reject mismatched ids.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "medium",
+      "status": "done",
+      "tags": [],
+      "title": "ToolCallResponse drops Ollama tool_call id — tool_call_id mismatch in multi-turn loops"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/ViewModels/AIAssistantViewModel.cs",
+        "date_resolved": "2026-08-03",
+        "file": "Assistant tool_calls not persisted in _messages for multi-turn context",
+        "resolution": "AddMessage now persists assistant tool_calls messages to _messages so BuildApiMessages includes them on follow-up turns"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:2d3e4f5a6b7c",
+      "last_seen": "2026-08-03",
+      "notes": "When the model returns tool_calls, the assistant message is added to apiMessages but NOT to _messages. On a follow-up user turn, BuildApiMessages() rebuilds from _messages, losing the previous assistant tool_calls. The resulting API context is [system, user, tool_results, final_assistant] instead of [system, user, assistant(tool_calls), tool_results, final_assistant]. The Rust GUI correctly persists assistant messages with tool_calls in conversation_history.",
+      "occurrences": 1,
+      "priority_note": "Medium — breaks strict OpenAI tool-use message ordering; may confuse models on follow-up turns.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "medium",
+      "status": "done",
+      "tags": [],
+      "title": "Assistant tool_calls lost between turns — not persisted in _messages"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "date_resolved": "2026-08-03",
+        "file": "GetInt throws InvalidOperationException on JsonElement numbers larger than int.MaxValue",
+        "resolution": "GetInt uses TryGetInt64 with Math.Clamp fallback instead of GetInt32, avoiding InvalidOperationException on large numbers"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:3e4f5a6b7c8d",
+      "last_seen": "2026-08-03",
+      "notes": "GetInt calls je.GetInt32() when the JsonElement is a number. If the model sends a value larger than int.MaxValue (e.g. min_size_mb=999999), GetInt32 throws InvalidOperationException. The fallback int.TryParse(je.GetRawText(), ...) also fails for large numbers, silently returning defaultValue. This affects any tool parameter that could receive large integer values from the model.",
+      "occurrences": 1,
+      "priority_note": "Low — only affects edge cases with very large integer parameters.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "low",
+      "status": "done",
+      "tags": [],
+      "title": "GetInt overflows on JsonElement numbers larger than int.MaxValue"
+    },
+    {
+      "category": "feature-gap",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/Services/ToolExecutor.cs",
+        "date_resolved": "2026-08-03",
+        "file": "ExtractDirectoryPath does not handle UNC paths",
+        "resolution": "ExtractDirectoryPath now matches UNC share anchors (\\\\server\\share) with the same candidate-growth logic as drive-letter paths"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:4f5a6b7c8d9e",
+      "last_seen": "2026-08-03",
+      "notes": "ExtractDirectoryPath only handles drive-letter anchored paths (C:\\...) and quoted/backticked paths. UNC paths like \\\\server\\share are not matched by the drive-letter regex and fall through to null. Users targeting network shares get no path resolution.",
+      "occurrences": 1,
+      "priority_note": "Low — only affects users with network share paths.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "low",
+      "status": "done",
+      "tags": [],
+      "title": "ExtractDirectoryPath does not resolve UNC network share paths"
+    },
+    {
+      "category": "bug",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/ViewModels/AIAssistantViewModel.cs",
+        "date_resolved": "2026-08-03",
+        "file": "ResolveToolChoice greeting detection misses hi without trailing space",
+        "resolution": "Replaced lower.Contains(\"hi \") with a word-boundary regex match (\\bhi\\b) via IsGreeting helper"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:5a6b7c8d9e0f",
+      "last_seen": "2026-08-03",
+      "notes": "lower.Contains('hi ') only matches when hi is followed by a space. If the user types hi at the end of a message (e.g. 'Just saying hi') or 'hi!' with punctuation, it is not matched and the tool choice may be forced to required instead of auto.",
+      "occurrences": 1,
+      "priority_note": "Low — cosmetic; affects only short greeting messages.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "low",
+      "status": "done",
+      "tags": [],
+      "title": "ResolveToolChoice greeting detection misses hi without trailing space"
+    },
+    {
+      "category": "code-quality",
+      "extra": {
+        "component": "gui-winui/SpaceAnalyzer/ViewModels/AIAssistantViewModel.cs",
+        "date_resolved": "2026-08-03",
+        "file": "BuildApiMessages includes ToolCallId on non-tool messages",
+        "resolution": "BuildApiMessages no longer sets ToolCallId on User/Assistant messages; added WhenWritingNull to JsonOptions to omit null fields"
+      },
+      "first_seen": "2026-08-03",
+      "issue_id": "agentic-audit:6b7c8d9e0f1a",
+      "last_seen": "2026-08-03",
+      "notes": "BuildApiMessages sets ToolCallId = msg.ToolCallId for User and Assistant messages as well as Tool messages. For non-tool messages the property is typically null, but including it in the payload is semantically incorrect and could confuse downstream API consumers.",
+      "occurrences": 1,
+      "priority_note": "Low — cosmetic; property is null for non-tool messages so no runtime impact.",
+      "priority_rank": 0,
+      "screenshot": null,
+      "severity": "low",
+      "status": "done",
+      "tags": [],
+      "title": "BuildApiMessages sets ToolCallId on User/Assistant messages unnecessarily"
     }
   ],
   "schema_version": 1,
-  "updated_at": "2026-07-30T09:38:41+00:00"
+  "updated_at": "2026-08-03T19:52:20+00:00"
 }

@@ -165,6 +165,10 @@ public class OllamaClient : IDisposable
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         WriteIndented = false,
+        // Omit null fields (e.g. tool_call_id on non-tool messages, tool_calls on
+        // plain text messages) so the request payload matches the Ollama/OpenAI
+        // tool-use message shape exactly.
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
@@ -251,6 +255,14 @@ public class ChatMessage
 /// </summary>
 public class ToolCallResponse
 {
+    /// <summary>
+    /// Ollama/OpenAI tool-call identifier (e.g. <c>call_abc123</c>). Preserved so
+    /// the tool-result message's <c>tool_call_id</c> matches the assistant's
+    /// tool_calls id, as required by the tool-use spec.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
     [JsonPropertyName("type")]
     public string Type { get; set; } = "function";
 

@@ -4,12 +4,15 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
+using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
 
 namespace SpaceAnalyzer.ViewModels;
@@ -70,7 +73,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
 
     public bool IsThinking => !string.IsNullOrEmpty(ThinkingStatus);
 
-    public bool ShowSuggestions => _messages.Count <= 2;
+    public bool ShowSuggestions => _messages.Count <= 2 && !IsBusy;
 
     // ── Settings (from local settings) ──
 
@@ -208,25 +211,14 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
     {
         try
         {
-            var container = Windows.Storage.ApplicationData.Current.LocalSettings
-                .CreateContainer("SpaceAnalyzer.Settings", Windows.Storage.ApplicationDataCreateDisposition.Always);
-
-            if (container.Values.TryGetValue("OllamaUrl", out var v))
-                _ollamaUrl = (string)v;
-            if (container.Values.TryGetValue("OllamaModel", out v))
-                _ollamaModel = (string)v;
-            if (container.Values.TryGetValue("ToolCallingModel", out v))
-                _toolCallingModel = (string)v;
-            if (container.Values.TryGetValue("AgenticToolsEnabled", out v) && v is bool b)
-                _agenticToolsEnabled = b;
-            if (container.Values.TryGetValue("AutoModelSelection", out v) && v is bool b2)
-                _autoModelSelection = b2;
-            if (container.Values.TryGetValue("ToolChoice", out v))
-                _toolChoice = (string)v;
-            if (container.Values.TryGetValue("OllamaEnabled", out v) && v is bool oe)
-                _ollamaEnabled = oe;
-            if (container.Values.TryGetValue("OllamaThink", out v) && v is bool ot)
-                _ollamaThink = ot;
+            _ollamaUrl = SettingsStore.Get("ollama_url") ?? "http://localhost:11434";
+            _ollamaModel = SettingsStore.Get("ollama_model") ?? "gemma3:1b";
+            _toolCallingModel = SettingsStore.Get("tool_calling_model") ?? "qwen2.5-coder:7b";
+            _agenticToolsEnabled = SettingsStore.Get("agentic_tools_enabled") != "false";
+            _autoModelSelection = SettingsStore.Get("auto_model_selection") != "false";
+            _toolChoice = SettingsStore.Get("tool_choice") ?? "auto";
+            _ollamaEnabled = SettingsStore.Get("ollama_enabled") != "false";
+            _ollamaThink = SettingsStore.Get("ollama_think") != "false";
 
             OnPropertyChanged(nameof(OllamaUrl));
             OnPropertyChanged(nameof(OllamaModel));
@@ -294,11 +286,24 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
         var hasDomainKeyword = domainKeywords.Any(k => lower.Contains(k));
         var hasToolName = tools.Any(t => lower.Contains(t.Function.Name.ToLowerInvariant()));
 
-        if (tools.Count == 0 || lower.Contains("hello") || lower.Contains("hi "))
+        if (tools.Count == 0 || IsGreeting(lower))
             return "auto";
         if (hasDomainKeyword || hasToolName)
             return "required";
         return "auto";
+    }
+
+    /// <summary>
+    /// Detects short greeting messages so tool choice stays "auto" instead of
+    /// forcing tool use. Uses a word-boundary match so "hi" matches on its own,
+    /// at the end of a message ("Just saying hi"), or with punctuation ("hi!"),
+    /// but does not match inside words like "hint" or "this".
+    /// </summary>
+    private static bool IsGreeting(string lower)
+    {
+        if (lower.Contains("hello"))
+            return true;
+        return Regex.IsMatch(lower, @"\bhi\b");
     }
 
     private static readonly JsonSerializerOptions s_toolArgJson = new()
@@ -444,6 +449,23 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             {
                 Function = new ToolFunction
                 {
+                    Name = "analyze_file_patterns",
+                    Description = "Analyze duplicate file patterns and potential savings in the target directory using content hashing.",
+                    Parameters = new Dictionary<string, object>
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new Dictionary<string, object>
+                        {
+                            ["path"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Absolute path to the directory to analyze (optional, uses most recent scan path if omitted)" }
+                        },
+                        ["required"] = new List<string>()
+                    }
+                }
+            },
+            new ToolDefinition
+            {
+                Function = new ToolFunction
+                {
                     Name = "get_scan_summary",
                     Description = "Get a summary of the latest scan results including total files, size, and file type distribution.",
                     Parameters = new Dictionary<string, object>()
@@ -463,7 +485,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                 Function = new ToolFunction
                 {
                     Name = "search_files",
-                    Description = "Search files in the current scan by extension, name keyword, or size range.",
+                    Description = "Search files in the target directory by extension, name keyword, or size range. Uses the most recent cached scan of that directory when available (fast, no re-scan), otherwise performs a new scan.",
                     Parameters = new Dictionary<string, object>
                     {
                         ["type"] = "object",
@@ -482,7 +504,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                 Function = new ToolFunction
                 {
                     Name = "get_largest_files",
-                    Description = "Get the largest files from the current scan.",
+                    Description = "Get the largest files from the target directory. Uses the most recent cached scan of that directory when available (fast, no re-scan), otherwise performs a new scan.",
                     Parameters = new Dictionary<string, object>
                     {
                         ["type"] = "object",
@@ -491,6 +513,30 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                             ["count"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Number of largest files to return (default 20)" }
                         },
                         ["required"] = new List<string>()
+                    }
+                }
+            },
+            new ToolDefinition
+            {
+                Function = new ToolFunction
+                {
+                    Name = "run_workflow",
+                    Description = "Execute a predefined workflow to find files matching specific criteria (e.g. large files, old files, duplicates, zero-byte files, temp files, hidden files, orphaned projects, downloads bloat). Provide the 'workflow' parameter with the workflow name. Use list_workflows to see all available workflows and their descriptions.",
+                    Parameters = new Dictionary<string, object>
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new Dictionary<string, object>
+                        {
+                            ["workflow"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "The workflow name to execute (e.g. 'find_large_files', 'find_old_files', 'find_duplicate_files')" },
+                            ["path"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Absolute path to the target directory (optional, uses most recent scan path if omitted)" },
+                            ["min_size_mb"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Minimum file size in MB (used by find_large_files, find_in_size_range, downloads_folder_bloat)" },
+                            ["max_size_mb"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Maximum file size in MB (used by find_in_size_range)" },
+                            ["days_old"] = new Dictionary<string, object> { ["type"] = "integer", ["description"] = "Number of days old (used by find_old_files, find_recently_modified, find_files_older_than, downloads_folder_bloat)" },
+                            ["start_date"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "Start date for find_by_date_range (ISO-8601, e.g. 2026-01-01)" },
+                            ["end_date"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "End date for find_by_date_range (ISO-8601, e.g. 2026-06-30)" },
+                            ["extension"] = new Dictionary<string, object> { ["type"] = "string", ["description"] = "File extension to filter by (used by find_by_extension, e.g. '.log')" }
+                        },
+                        ["required"] = new List<string> { "workflow" }
                     }
                 }
             },
@@ -569,13 +615,20 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                 // Check for tool calls
                 if (message.ToolCalls is { Count: > 0 })
                 {
-                    // Add assistant message with tool_calls to conversation history
+                    // Add assistant message with tool_calls to the live API context
                     apiMessages.Add(new ChatMessage
                     {
                         Role = ChatRole.Assistant,
                         Content = message.Content ?? "",
                         ToolCalls = message.ToolCalls
                     });
+
+                    // Persist the assistant tool_calls message to the display list so
+                    // BuildApiMessages() includes it on follow-up turns. Without this,
+                    // the next user turn rebuilds [system, user, tool_results, …]
+                    // instead of [system, user, assistant(tool_calls), tool_results, …],
+                    // breaking the OpenAI/Ollama tool-use message ordering.
+                    AddMessage(ChatRole.Assistant, message.Content ?? "", message.ToolCalls);
 
                     // Execute each tool call and add results
                     foreach (var toolCall in message.ToolCalls)
@@ -588,11 +641,33 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                         ThinkingStatus = $"Running {fnName}...";
                         System.Diagnostics.Debug.WriteLine($"[AI] Tool call: {fnName}");
 
-                        var result = await (_toolExecutor ?? throw new InvalidOperationException("ToolExecutor not initialized"))
-                            .ExecuteAsync(fnName, args, ct, userMessage);
+                        // Live progress for scan-backed tools (run_scan, and the
+                        // live-scan fallback of get_largest_files/search_files).
+                        bool firstProgress = true;
+                        var throttle = Stopwatch.StartNew();
+                        var progress = new Progress<StreamProgress>(p =>
+                        {
+                            if (!firstProgress && throttle.ElapsedMilliseconds < 200)
+                                return;
+                            firstProgress = false;
+                            throttle.Restart();
+                            ThinkingStatus = p.Percentage > 0
+                                ? $"Running {fnName} — {p.Percentage:0}% · {p.FilesScanned:N0} files…"
+                                : p.FilesScanned > 0
+                                    ? $"Running {fnName} — {p.FilesScanned:N0} files…"
+                                    : $"Running {fnName}…";
+                        });
 
-                        // Add tool result to API messages
-                        var toolCallId = $"call_{Guid.NewGuid():N}";
+                        var result = await (_toolExecutor ?? throw new InvalidOperationException("ToolExecutor not initialized"))
+                            .ExecuteAsync(fnName, args, ct, userMessage, progress);
+
+                        // Use the tool-call id returned by Ollama so the tool result
+                        // message's tool_call_id matches the assistant's tool_calls id
+                        // (OpenAI/Ollama tool-use spec). Fall back to a generated id
+                        // when the model omits one.
+                        var toolCallId = !string.IsNullOrWhiteSpace(toolCall.Id)
+                            ? toolCall.Id
+                            : $"call_{Guid.NewGuid():N}";
                         apiMessages.Add(new ChatMessage
                         {
                             Role = ChatRole.Tool,
@@ -614,6 +689,12 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                 StatusText = "Ready.";
                 break;
             }
+
+            // Loop exhausted — model kept requesting tools without producing a final answer.
+            AddMessage(ChatRole.Assistant,
+                $"Reached the maximum of {MaxToolIterations} tool steps without a final answer. " +
+                "Try rephrasing your question or narrowing the target directory.");
+            StatusText = "Max steps reached.";
         }
         catch (OperationCanceledException)
         {
@@ -633,8 +714,9 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
     }
 
     /// <summary>
-    /// Builds the API message list from the display messages, preserving tool_calls
-    /// and tool_call_id fields that are needed for multi-turn tool conversations.
+    /// Builds the API message list from the display messages. Unlike the display
+    /// list, the Ollama API context must include tool result messages (role "tool")
+    /// so the model can see prior tool outputs on subsequent turns.
     /// </summary>
     private List<ChatMessage> BuildApiMessages()
     {
@@ -650,15 +732,33 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             }
         };
 
-        foreach (var msg in _messages.Where(m => m.Role != ChatRole.Tool))
+        foreach (var msg in _messages)
         {
-            apiMessages.Add(new ChatMessage
+            // Always include user and assistant messages.
+            if (msg.Role == ChatRole.User || msg.Role == ChatRole.Assistant)
             {
-                Role = msg.Role,
-                Content = msg.Content,
-                ToolCalls = msg.ToolCalls,
-                ToolCallId = msg.ToolCallId,
-            });
+                apiMessages.Add(new ChatMessage
+                {
+                    Role = msg.Role,
+                    Content = msg.Content,
+                    ToolCalls = msg.ToolCalls,
+                    // ToolCallId is only valid on tool-result messages; omitting it
+                    // here (plus WhenWritingNull in JsonOptions) keeps the payload
+                    // semantically correct for the Ollama/OpenAI tool-use spec.
+                });
+                continue;
+            }
+
+            // Include tool result messages so the model can see prior outputs.
+            if (msg.Role == ChatRole.Tool)
+            {
+                apiMessages.Add(new ChatMessage
+                {
+                    Role = ChatRole.Tool,
+                    Content = msg.Content,
+                    ToolCallId = msg.ToolCallId,
+                });
+            }
         }
 
         return apiMessages;
@@ -667,9 +767,15 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
     private static Dictionary<string, object> ParseToolArguments(object arguments)
     {
         if (arguments is Dictionary<string, object> dict)
-            return dict;
+        {
+            // Nested JsonElement values must be unwrapped to plain objects.
+            var hasNestedElements = dict.Values.Any(v => v is JsonElement);
+            if (!hasNestedElements)
+                return dict;
+            var json = JsonSerializer.Serialize(dict);
+            return JsonSerializer.Deserialize<Dictionary<string, object>>(json, s_toolArgJson) ?? new();
+        }
 
-        // Handle JsonElement from deserialization
         if (arguments is JsonElement je)
         {
             if (je.ValueKind == JsonValueKind.Object)
@@ -678,7 +784,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                 return new();
         }
 
-        // Try parsing as string
+        // Fallback: try parsing the string representation.
         var str = arguments.ToString();
         if (!string.IsNullOrWhiteSpace(str))
         {

@@ -122,3 +122,28 @@ The WinUI 3 `ScannerService` also supports scan cancellation via `StopScan()` (k
 - `ux-pipeline/src/ux_pipeline/` — Python pipeline modules
 - `docs/` — changelog, issue data, architecture notes
 - `scripts/` — test scripts, utility tools (no one-off patches)
+
+## Agentic Loop Audit — ToolExecutor.cs + AIAssistantViewModel.cs
+
+Comprehensive audit of the WinUI 3 agentic data flow (user message → Ollama → tool calls → results → next turn).
+Bugs found: ~15. Bugs fixed so far: 9 (build-verified, MSBuild 0 errors).
+
+### Fixed (committed/working)
+
+| # | File | Bug | Fix |
+|---|------|-----|-----|
+| 1 | `ToolExecutor.cs` | `WorkflowConstants` fields referenced as private undefined names | Extracted to `Models/WorkflowConstants.cs`; both `ToolExecutor` and `WorkflowsViewModel` now reference the shared class |
+| 2 | `ToolExecutor.cs` | `ResolveScanPathAsync` did not pass `CancellationToken` to `GetScanHistoryPageAsync` | Added `ct` parameter |
+| 3 | `ToolExecutor.cs` | `FormatBytes` had a dead private copy; callers were inconsistent | Removed private copy; all callers now use `ByteFormatter.FormatBytes` |
+| 4 | `AIAssistantViewModel.cs` | `BuildApiMessages` silently dropped ALL `ChatRole.Tool` messages | Now includes tool result messages so the model sees prior outputs on subsequent turns (critical for multi-turn agentic loops) |
+| 5 | `AIAssistantViewModel.cs` | `ParseToolArguments` called `.ToString()` on `JsonElement` values in `Dictionary<string, object>`, producing `"System.Text.Json.JsonElement"` | Detects nested `JsonElement` and re-serializes/deserializes to unwrap |
+| 6 | `ToolExecutor.cs` | `WorkflowFindHiddenFilesAsync`/`WorkflowFindReadOnlyAsync` did `kvp.Value.Size & FileAttributes.Hidden` (bitwise AND on file SIZE) | Now uses `File.GetAttributes(kvp.Key)` to read real file attributes |
+| 7 | `ToolExecutor.cs` | `SearchFilesAsync` empty-result message said "No files found" even when files existed but filters matched nothing | Message now says "No files match the current filters" |
+| 8 | `ToolExecutor.cs` | `GetString`/`GetOptionalString` called `.ToString()` on `JsonElement`, producing type name instead of value | Explicit `JsonElement` unwrap: `GetString()` for string-typed, `GetRawText()` for others |
+| 9 | `ToolExecutor.cs` | `WorkflowFindLargeFilesAsync` always did a fresh deep scan; ignored `GetLargestFileEntriesAsync` cache | Now uses `GetLargestFileEntriesAsync` (reuses cached scan when available) |
+
+### Remaining (not yet fixed)
+
+| # | File | Issue | Severity |
+|---|------|-------|----------|
+| 15 | `ToolExecutor.cs` | `PreviewImpactAsync` hardcodes `fsutil hardlink list` which is Windows-only; the app is WinUI 3 so this is acceptable but undocumented | Info (wontfix — tracked in docs/issues.json) |
