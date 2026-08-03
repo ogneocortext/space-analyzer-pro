@@ -147,8 +147,20 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     }
 
     private ScanResult? _lastResult;
+    private DateTime _lastProgressUpdate;
+
     private void HandleStreamingProgress(StreamProgress progress)
     {
+        // Throttle UI churn: the scanner emits one line per file, so surface at most
+        // ~7 updates/sec and skip lines that advance progress by less than 1%. This
+        // avoids re-sorting live files and raising ~30 PropertyChanged events per file.
+        var now = DateTime.UtcNow;
+        if (_lastProgressUpdate != default
+            && now - _lastProgressUpdate < TimeSpan.FromMilliseconds(150)
+            && Math.Abs(progress.Percentage - _scanProgress) < 1.0)
+            return;
+        _lastProgressUpdate = now;
+
         StatusMessage = $"Scanning: {progress.CurrentFile}";
         UpdatePartialResult(progress);
     }

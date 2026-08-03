@@ -51,6 +51,9 @@ public sealed partial class HistoryPage : Page
     /// </summary>
     private async Task ReloadCurrentPageAsync()
     {
+        // OnNavigatedTo and Loaded both invoke this on first visit; skip the overlap
+        // so only one LoadPageAsync (one scanner subprocess) runs.
+        if (VM.IsLoading) return;
         if (!VM.HasHistory)
         {
             AppLog.Page("HistoryPage ReloadCurrentPageAsync loading");
