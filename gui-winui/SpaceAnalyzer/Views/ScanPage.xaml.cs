@@ -42,12 +42,23 @@ public sealed partial class ScanPage : Page
         else
         {
             await VM.ScanAsync();
+            var status = VM.StatusMessage;
             if (VM.LastResult != null)
+            {
                 AppNotifications.Success("Scan complete", $"{VM.LastResult.TotalFiles:N0} files, {VM.LastResult.TotalSizeMb:F1} MB");
-            else if (VM.StatusMessage?.Contains("cancelled", StringComparison.OrdinalIgnoreCase) == true)
+            }
+            else if (status?.Contains("cancelled", StringComparison.OrdinalIgnoreCase) == true)
+            {
                 AppNotifications.Show("Scan cancelled", null, InfoBarSeverity.Warning);
-            else
-                AppNotifications.Error("Scan failed", VM.StatusMessage);
+            }
+            else if (status?.StartsWith("Scan failed", StringComparison.Ordinal) == true)
+            {
+                AppNotifications.Error("Scan failed", status);
+            }
+            else if (!string.IsNullOrEmpty(status))
+            {
+                AppNotifications.Show("Scan", status);
+            }
         }
     }
 

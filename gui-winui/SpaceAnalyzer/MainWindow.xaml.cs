@@ -36,6 +36,8 @@ public sealed partial class MainWindow : Window
 
     private void OnWindowClosed(object sender, WindowEventArgs args)
     {
+        _isClosed = true;
+        _notificationTimer?.Stop();
         try
         {
             // Save settings before disposing
@@ -52,6 +54,7 @@ public sealed partial class MainWindow : Window
     }
 
     private DispatcherTimer? _notificationTimer;
+    private bool _isClosed;
 
     /// <summary>
     /// Show a transient notification in the global InfoBar. Auto-hides after
@@ -63,6 +66,8 @@ public sealed partial class MainWindow : Window
         InfoBarSeverity severity = InfoBarSeverity.Informational,
         double durationSeconds = 6)
     {
+        if (_isClosed) return;
+
         GlobalInfoBar.Title = title;
         GlobalInfoBar.Message = message;
         GlobalInfoBar.Severity = severity;
@@ -74,6 +79,7 @@ public sealed partial class MainWindow : Window
         timer.Tick += (_, _) =>
         {
             timer.Stop();
+            if (_isClosed) return;
             GlobalInfoBar.IsOpen = false;
         };
         timer.Start();
