@@ -10,7 +10,8 @@
 #![cfg(test)]
 
 use proptest::prelude::*;
-use shared_scanner::{FileInfo, FileScanner, ScanOptions, ScanResult};
+use shared_scanner::{FileInfo, FileScanner, ScanOptions, ScanProgress, ScanResult};
+use std::sync::atomic::AtomicBool;
 
 macro_rules! info {
     ($($arg:tt)*) => { eprintln!("[shared_scanner] {}", format!($($arg)*)) };
@@ -340,6 +341,42 @@ fn file_cache_populated_on_first_scan() {
         "at least one entry should be cached: got {}",
         result.scanned_files.len()
     );
+    info!("PASS");
+}
+
+#[test]
+fn plain_progress_scan_populates_scanned_files() {
+    // Regression: scan_with_progress_sync (the path the CLI and agent use) must
+    // populate `scanned_files` even without --cache. A prior bug only filled it on
+    // cache hits, so every workflow reading the map (temp/cache, old files, hidden,
+    // zero-byte, by-extension, ...) silently returned 0 results.
+    info!("Verifying scan_with_progress_sync populates scanned_files without a cache");
+    let tmp = tempfile::TempDir::new().expect("can create TempDir");
+    let file = tmp.path().join("keep.txt");
+    std::fs::write(&file, b"cache me").unwrap();
+
+    let scanner = FileScanner::new();
+    let cancel = AtomicBool::new(false);
+    let result = scanner
+        .scan_with_progress_sync(
+            tmp.path().to_str().unwrap(),
+            ScanOptions::default(),
+            |_p: ScanProgress| {},
+            &cancel,
+        )
+        .expect("scan must succeed");
+
+    assert!(
+        !result.scanned_files.is_empty(),
+        "scan_with_progress_sync must populate scanned_files even without --cache"
+    );
+    let entry = result
+        .scanned_files
+        .iter()
+        .find(|(p, _)| p.ends_with("keep.txt"))
+        .expect("keep.txt should be present in scanned_files");
+    assert_eq!(entry.1 .0, 8, "recorded size should match written bytes");
+    assert!(entry.1 .1 > 0, "recorded mtime should be non-zero");
     info!("PASS");
 }
 

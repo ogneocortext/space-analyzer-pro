@@ -20,6 +20,7 @@ public sealed partial class DuplicatesPage : Page
         ViewModelRegistry.Register(VM);
         AppLog.Page("DuplicatesPage ctor end");
         VM.PropertyChanged += OnVmPropertyChanged;
+        VM.FilesSentToRecycleBin += OnFilesSentToRecycleBin;
     }
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -92,6 +93,49 @@ public sealed partial class DuplicatesPage : Page
     {
         AppLog.Action("DuplicatesPage Analyze_Click");
         await VM.AnalyzeAsync();
+    }
+
+    private async void Hardlink_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("DuplicatesPage Hardlink_Click");
+        if (string.IsNullOrWhiteSpace(VM.ScanPath) || !Directory.Exists(VM.ScanPath)) return;
+
+        var dialog = new ContentDialog
+        {
+            Title = "Hardlink duplicates",
+            Content = "Replace duplicate copies with hard links to the original. This reclaims space without deleting any file content — every path still opens normally. Do you want to apply it to all duplicates in this directory?",
+            PrimaryButtonText = "Hardlink",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+        dialog.XamlRoot = this.XamlRoot;
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            return;
+
+        await VM.ApplyHardlinksAsync();
+    }
+
+    private async void AnalyzeImpact_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("DuplicatesPage AnalyzeImpact_Click");
+        await VM.AnalyzeImpactAsync();
+    }
+
+    private async void ImpactBrowse_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("DuplicatesPage ImpactBrowse_Click");
+        try
+        {
+            var path = await UiHelper.PickFileAsync();
+            if (path != null)
+            {
+                VM.ImpactPath = path;
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("DuplicatesPage ImpactBrowse_Click failed", ex);
+        }
     }
 
     private void Page_DragOver(object sender, DragEventArgs e)
@@ -185,8 +229,8 @@ public sealed partial class DuplicatesPage : Page
         var dialog = new ContentDialog
         {
             Title = "Remove duplicate copies",
-            Content = $"Permanently delete {VM.SelectedCount} duplicate group(s), keeping one copy of each file? This cannot be undone.",
-            PrimaryButtonText = "Remove",
+            Content = $"Move the extra copies from {VM.SelectedCount} duplicate group(s) to the Recycle Bin, keeping one copy of each file? Nothing is permanently deleted \u2014 you can restore files from the Recycle Bin afterwards.",
+            PrimaryButtonText = "Move to Recycle Bin",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Close
         };
@@ -195,5 +239,33 @@ public sealed partial class DuplicatesPage : Page
             return;
 
         await VM.RemoveSelectedAsync();
+    }
+
+    private async void OnFilesSentToRecycleBin(object? sender, int count)
+    {
+        AppLog.Action($"DuplicatesPage recycle-bin: {count} file(s)");
+        // Offer to empty the bin, but only when something is actually in it and the
+        // user chooses to. Otherwise the files remain restorable via the Recycle Bin.
+        if (!FileOperations.RecycleBinHasItems())
+            return;
+
+        var dialog = new ContentDialog
+        {
+            Title = "Empty the Recycle Bin?",
+            Content = $"{count} file(s) were moved to the Recycle Bin. Empty it now to reclaim the space, or keep it so you can restore anything that was removed by mistake?",
+            PrimaryButtonText = "Empty Recycle Bin",
+            SecondaryButtonText = "Keep (restore later)",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+        dialog.XamlRoot = this.XamlRoot;
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            if (FileOperations.EmptyRecycleBin())
+                AppNotifications.Show("Recycle Bin emptied", null, InfoBarSeverity.Success);
+            else
+                AppNotifications.Error("Could not empty Recycle Bin", "The Recycle Bin may be in use. Try again or empty it from Windows Explorer.");
+        }
     }
 }

@@ -1,5 +1,7 @@
+use crate::animation::{display_width, SECTION_WIDTH};
 use crate::cli::helpers;
 use crate::cli::types::{InstallerCategory, InstallerGroup, Recommendation, ScanResult};
+use crate::hprintln;
 use shared_scanner::format_bytes;
 
 pub fn pct_of(part: u64, total: u64) -> f64 {
@@ -22,6 +24,16 @@ pub fn is_installer(path: &str) -> bool {
         || lower.ends_with(".pkg")
 }
 
+/// Render an extension for display. Empty extensions become `(no ext)`
+/// without a stray leading dot.
+pub fn format_extension(ext: &str) -> String {
+    if ext.is_empty() {
+        "(no ext)".to_string()
+    } else {
+        format!(".{ext}")
+    }
+}
+
 pub fn build_csv(result: &ScanResult) -> String {
     let mut out = String::new();
     out.push_str("section,key,value\n");
@@ -38,10 +50,15 @@ pub fn build_csv(result: &ScanResult) -> String {
 
     out.push_str("extension,size_bytes,file_count\n");
     let mut ext_sizes: Vec<_> = result.extension_sizes.iter().collect();
-    ext_sizes.sort_by(|a, b| b.1.cmp(a.1));
+    ext_sizes.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
     for (ext, size) in &ext_sizes {
         let count = result.file_types.get(*ext).unwrap_or(&0);
-        out.push_str(&format!(".{},{},{}\n", csv_escape(ext), size, count));
+        out.push_str(&format!(
+            "{},{},{}\n",
+            csv_escape(&format_extension(ext)),
+            size,
+            count
+        ));
     }
     out.push('\n');
 
@@ -65,7 +82,7 @@ pub fn build_csv(result: &ScanResult) -> String {
 }
 
 fn csv_escape(s: &str) -> String {
-    if s.contains(',') || s.contains('"') || s.contains('\n') {
+    if s.contains(',') || s.contains('"') || s.contains('\n') || s.contains('\r') {
         format!("\"{}\"", s.replace('"', "\"\""))
     } else {
         s.to_string()
@@ -94,7 +111,8 @@ pub fn categorize_installers(result: &ScanResult) -> Vec<InstallerGroup> {
         InstallerCategory::Application,
         InstallerCategory::Other,
     ] {
-        if let Some(entries) = groups.remove(&cat) {
+        if let Some(mut entries) = groups.remove(&cat) {
+            entries.sort_by_key(|e| std::cmp::Reverse(e.1));
             ordered.push(InstallerGroup {
                 category: cat,
                 entries,
@@ -102,6 +120,28 @@ pub fn categorize_installers(result: &ScanResult) -> Vec<InstallerGroup> {
         }
     }
     ordered
+}
+
+/// Total bytes held by `node_modules` directories.
+///
+/// Shared by the recommendations block and the `--cleanup-recommendations`
+/// block so the two never report different numbers for the same thing.
+pub fn node_modules_bytes(result: &ScanResult) -> u64 {
+    let from_dirs: u64 = result
+        .top_directories
+        .iter()
+        .filter(|d| d.path.to_lowercase().contains("node_modules"))
+        .map(|d| d.total_size)
+        .sum();
+    if from_dirs > 0 {
+        return from_dirs;
+    }
+    result
+        .largest_files
+        .iter()
+        .filter(|f| f.path.to_lowercase().contains("node_modules"))
+        .map(|f| f.size)
+        .sum()
 }
 
 pub fn build_recommendations(result: &ScanResult) -> Vec<Recommendation> {
@@ -132,7 +172,7 @@ pub fn build_recommendations(result: &ScanResult) -> Vec<Recommendation> {
     let ollama_size: u64 = result
         .largest_files
         .iter()
-        .filter(|file| file.path.contains(".ollama") || file.path.contains("ollama"))
+        .filter(|file| file.path.to_lowercase().contains("ollama"))
         .map(|file| file.size)
         .sum();
     if ollama_size > 1024 * 1024 * 1024 {
@@ -167,32 +207,47 @@ pub fn build_recommendations(result: &ScanResult) -> Vec<Recommendation> {
         ));
     }
 
-    for file in &result.largest_files {
-        let path = &file.path;
-        let size = file.size;
-        if (path.contains(".vhdx") || path.contains("ext4.vhdx") || path.contains("WSL"))
-            && size > 1024 * 1024 * 1024
-        {
-            recs.push((
-                2,
-                format!(
-                    "WSL/VM disk image found: {} ({}) — Consider compacting or removing unused distributions.",
-                    std::path::Path::new(path)
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy(),
-                    format_bytes(size)
-                ),
-            ));
-        }
+    // Collapse VM/WSL disk images into a single line instead of one line per
+    // matching file, which used to flood the recommendations block.
+    let vm_images: Vec<&space_analyzer_pro_desktop::gui_common::LargestFileEntry> = result
+        .largest_files
+        .iter()
+        .filter(|file| {
+            let lower = file.path.to_lowercase();
+            (lower.ends_with(".vhdx") || lower.ends_with(".vhd") || lower.contains("\\wsl"))
+                && file.size > 1024 * 1024 * 1024
+        })
+        .collect();
+    if !vm_images.is_empty() {
+        let total: u64 = vm_images.iter().map(|f| f.size).sum();
+        let names: Vec<String> = vm_images
+            .iter()
+            .take(3)
+            .map(|f| {
+                std::path::Path::new(&f.path)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string()
+            })
+            .collect();
+        let suffix = if vm_images.len() > 3 {
+            format!(" and {} more", vm_images.len() - 3)
+        } else {
+            String::new()
+        };
+        recs.push((
+            2,
+            format!(
+                "WSL/VM disk images are using {} ({}{}) — consider compacting or removing unused distributions.",
+                format_bytes(total),
+                names.join(", "),
+                suffix
+            ),
+        ));
     }
 
-    let node_modules_size: u64 = result
-        .top_directories
-        .iter()
-        .filter(|d| d.path.to_lowercase().contains("node_modules"))
-        .map(|d| d.total_size)
-        .sum();
+    let node_modules_size = node_modules_bytes(result);
     if node_modules_size > 0 {
         recs.push((1, format!(
             "node_modules directories are using {}. Run `npm prune` or delete unused project dependencies.",
@@ -311,22 +366,25 @@ pub fn build_recommendations(result: &ScanResult) -> Vec<Recommendation> {
         ));
     }
 
-    recs.into_iter()
+    let mut recs: Vec<Recommendation> = recs
+        .into_iter()
         .map(|(priority, message)| Recommendation { priority, message })
-        .collect()
+        .collect();
+    // Sort once, here, so the text and markdown renderers can never disagree
+    // about the order of the same advice.
+    recs.sort_by_key(|r| std::cmp::Reverse(r.priority));
+    recs
 }
 
 pub fn render_recommendations_text(recs: &[Recommendation]) {
     if recs.is_empty() {
         return;
     }
-    println!("💡 RECOMMENDATIONS");
-    let mut sorted = recs.to_vec();
-    sorted.sort_by_key(|r| std::cmp::Reverse(r.priority));
-    for rec in &sorted {
-        println!("   {}", rec.message);
+    hprintln!("💡 RECOMMENDATIONS");
+    for rec in recs {
+        hprintln!("   {}", rec.message);
     }
-    println!();
+    hprintln!();
 }
 
 pub fn render_recommendations_markdown(recs: &[Recommendation]) -> String {
@@ -342,84 +400,73 @@ pub fn render_recommendations_markdown(recs: &[Recommendation]) -> String {
     md
 }
 
+/// Total bytes and file count across every installer group.
+pub fn installer_totals(groups: &[InstallerGroup]) -> (u64, usize) {
+    (
+        groups.iter().flat_map(|g| &g.entries).map(|(_, s)| *s).sum(),
+        groups.iter().map(|g| g.entries.len()).sum(),
+    )
+}
+
 pub fn render_installers_text(groups: &[InstallerGroup]) {
     if groups.is_empty() {
         return;
     }
 
-    let total_size: u64 = groups
-        .iter()
-        .flat_map(|g| &g.entries)
-        .map(|(_, s)| *s)
-        .sum();
-    println!(
-        "   📦 INSTALLER & EXECUTABLE INVENTORY ({}, {} files)",
-        format_bytes(total_size),
-        groups.iter().map(|g| g.entries.len()).sum::<usize>()
-    );
-    println!(
-        "   These are likely safe to delete after installation. Sort by size and remove oldest/unneeded."
-    );
-    println!();
-
     for group in groups {
         let size: u64 = group.entries.iter().map(|(_, s)| *s).sum();
-        let padding = (38 - group.category.label().len()).max(3);
-        println!(
-            "   ┌─ {} {}: {} total {}┐",
+        // Both borders are derived from one width constant so the box always
+        // closes squarely, and saturating_sub keeps a long label from
+        // underflow-panicking.
+        let heading = format!(
+            "─ {} {}: {} total ",
             group.category.emoji(),
             group.category.label(),
-            format_bytes(size),
-            "─".repeat(padding)
+            format_bytes(size)
         );
+        let inner = SECTION_WIDTH.saturating_sub(2);
+        let padding = inner.saturating_sub(display_width(&heading));
+        hprintln!("   ┌{}{}┐", heading, "─".repeat(padding));
         for (path, size) in group.entries.iter().take(10) {
             let name = std::path::Path::new(path)
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
-            println!("   │  {:>10}  {} ", format_bytes(*size), name);
+                .unwrap_or_else(|| path.clone());
+            hprintln!("   │ {:>10}  {}", format_bytes(*size), name);
         }
         if group.entries.len() > 10 {
-            println!(
-                "   │  ... and {} more ({})  ",
+            hprintln!(
+                "   │ ... and {} more ({})",
                 group.entries.len() - 10,
                 format_bytes(group.entries[10..].iter().map(|(_, s)| *s).sum::<u64>())
             );
         }
-        println!("   └────────────────────────────────────────────────────┘");
-        println!();
+        hprintln!("   │ {}", group.category.advice());
+        hprintln!("   └{}┘", "─".repeat(inner));
+        hprintln!();
     }
-
-    println!("   💡 To safely reclaim space: sort by size, delete old installers that are no longer needed.");
-    println!("      Driver/GPU installers (CUDA, NVIDIA) are safe to remove if already installed.");
-    println!();
 }
 
 pub fn render_installers_markdown(groups: &[InstallerGroup]) -> String {
     if groups.is_empty() {
         return String::new();
     }
-    let total_inst_size: u64 = groups
-        .iter()
-        .flat_map(|g| &g.entries)
-        .map(|(_, s)| *s)
-        .sum();
+    let (total_inst_size, total_files) = installer_totals(groups);
     let mut md = String::new();
     md.push_str("## 📦 Installer & Executable Inventory\n\n");
     md.push_str(&format!(
         "**Total:** {} across {} files\n\n",
         format_bytes(total_inst_size),
-        groups.iter().map(|g| g.entries.len()).sum::<usize>()
+        total_files
     ));
-    md.push_str("These files are likely safe to delete after installation.\n\n");
 
     for group in groups {
-        let _group_size: u64 = group.entries.iter().map(|(_, s)| *s).sum();
         md.push_str(&format!(
             "### {} {}\n\n",
             group.category.emoji(),
             group.category.label()
         ));
+        md.push_str(&format!("{}\n\n", group.category.advice()));
         md.push_str("| Size | File |\n|------|------|\n");
         for (path, size) in group.entries.iter().take(15) {
             md.push_str(&format!("| {} | `{}` |\n", format_bytes(*size), path));
@@ -427,6 +474,70 @@ pub fn render_installers_markdown(groups: &[InstallerGroup]) -> String {
         md.push('\n');
     }
 
-    md.push_str("> **Tip:** Delete old installer/run files after installation. Driver/GPU installers are safe to remove if already installed.\n\n");
     md
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cli::types::ScanResult;
+
+    #[test]
+    fn extension_display_has_no_stray_dot() {
+        assert_eq!(format_extension(""), "(no ext)");
+        assert_eq!(format_extension("rs"), ".rs");
+    }
+
+    #[test]
+    fn csv_never_emits_a_bare_dot_row_and_escapes_separators() {
+        let mut result = ScanResult::new();
+        result.extension_sizes.insert(String::new(), 10);
+        result.file_types.insert(String::new(), 1);
+        let csv = build_csv(&result);
+        assert!(csv.contains("(no ext),10,1"), "got:\n{csv}");
+        assert!(!csv.contains("\n.,"), "bare '.' row must be gone:\n{csv}");
+        assert_eq!(csv_escape("a,b"), "\"a,b\"");
+        assert_eq!(csv_escape("say \"hi\""), "\"say \"\"hi\"\"\"");
+    }
+
+    #[test]
+    fn recommendations_are_sorted_by_descending_priority() {
+        let recs = vec![
+            Recommendation {
+                priority: 0,
+                message: "low".into(),
+            },
+            Recommendation {
+                priority: 3,
+                message: "high".into(),
+            },
+        ];
+        let mut sorted = recs.clone();
+        sorted.sort_by_key(|r| std::cmp::Reverse(r.priority));
+        let md = render_recommendations_markdown(&sorted);
+        let high_at = md.find("high").unwrap();
+        let low_at = md.find("low").unwrap();
+        assert!(high_at < low_at, "markdown must follow priority order");
+    }
+
+    #[test]
+    fn node_modules_total_is_computed_once_from_directories() {
+        let mut result = ScanResult::new();
+        result.top_directories.push(crate::cli::types::DirEntry {
+            path: r"C:\proj\node_modules".into(),
+            name: "node_modules".into(),
+            total_size: 500,
+            file_count: 10,
+            dir_count: 2,
+        });
+        result
+            .largest_files
+            .push(space_analyzer_pro_desktop::gui_common::LargestFileEntry {
+                path: r"C:\proj\node_modules\big.js".into(),
+                size: 100,
+            });
+        // Directory totals win; the file list is only a fallback, so the two
+        // renderers can never disagree.
+        assert_eq!(node_modules_bytes(&result), 500);
+    }
 }

@@ -123,6 +123,10 @@ tracing-appender = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56"
+# Windows-only native scanner exposes the USN journal APIs used by the `usn`
+# CLI subcommand. It is feature-gated to Windows so non-Windows builds are
+# unaffected. The `napi` feature stays off (only the plain `lib` target links).
+space_scanner = { package = "space-analyzer", path = "native/scanner" }
 windows-sys = { version = "0.61", features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_Foundation",

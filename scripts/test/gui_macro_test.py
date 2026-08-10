@@ -54,6 +54,40 @@ user32 = ctypes.windll.user32
 gdi32 = ctypes.windll.gdi32
 kernel32 = ctypes.windll.kernel32
 
+# Declare proper Win32 prototypes so 64-bit HANDLE values don't overflow c_int
+# (undeclared calls truncate/sign-extend pointers on x64 and crash GDI calls).
+HWND = ctypes.c_void_p
+HDC = ctypes.c_void_p
+HBITMAP = ctypes.c_void_p
+
+user32.GetDC.argtypes = [HWND]
+user32.GetDC.restype = HDC
+user32.ReleaseDC.argtypes = [HWND, HDC]
+user32.ReleaseDC.restype = ctypes.c_int
+user32.PrintWindow.argtypes = [HWND, HDC, ctypes.c_uint]
+user32.PrintWindow.restype = ctypes.c_int
+user32.GetClientRect.argtypes = [HWND, ctypes.c_void_p]
+user32.GetClientRect.restype = ctypes.c_int
+user32.GetWindowRect.argtypes = [HWND, ctypes.c_void_p]
+user32.GetWindowRect.restype = ctypes.c_int
+user32.SetWindowPos.argtypes = [HWND, HWND, ctypes.c_int, ctypes.c_int,
+                                 ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+user32.SetWindowPos.restype = ctypes.c_int
+
+gdi32.CreateCompatibleDC.argtypes = [HDC]
+gdi32.CreateCompatibleDC.restype = HDC
+gdi32.CreateCompatibleBitmap.argtypes = [HDC, ctypes.c_int, ctypes.c_int]
+gdi32.CreateCompatibleBitmap.restype = HBITMAP
+gdi32.SelectObject.argtypes = [HDC, HBITMAP]
+gdi32.SelectObject.restype = HBITMAP
+gdi32.GetDIBits.argtypes = [HDC, HBITMAP, ctypes.c_uint, ctypes.c_uint,
+                            ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint]
+gdi32.GetDIBits.restype = ctypes.c_int
+gdi32.DeleteObject.argtypes = [HBITMAP]
+gdi32.DeleteObject.restype = ctypes.c_int
+gdi32.DeleteDC.argtypes = [HDC]
+gdi32.DeleteDC.restype = ctypes.c_int
+
 # ═══════════════════════════════════════════════════════════════
 # Win32 / PrintWindow helpers
 # ═══════════════════════════════════════════════════════════════
@@ -145,6 +179,57 @@ def process_alive(hwnd) -> bool:
         if success:
             return exit_code.value == 259
     return True
+
+
+# ── Multi-monitor positioning (keep the app off the user's working screen) ──
+SWP_NOSIZE = 0x0001
+SWP_NOZORDER = 0x0004
+SWP_NOACTIVATE = 0x0010
+SWP_SHOWWINDOW = 0x0040
+SW_SHOWNOACTIVATE = 8
+
+MonitorEnumProc = ctypes.WINFUNCTYPE(
+    ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p,
+    ctypes.POINTER(ctypes.wintypes.RECT), ctypes.c_void_p,
+)
+
+
+def enum_monitors() -> list[tuple[int, int, int, int]]:
+    """Return list of (left, top, right, bottom) for each display."""
+    monitors: list[tuple[int, int, int, int]] = []
+
+    def cb(_hmon, _hdc, lprect, _lparam):
+        r = lprect.contents
+        monitors.append((r.left, r.top, r.right, r.bottom))
+        return True
+
+    user32.EnumDisplayMonitors(0, 0, MonitorEnumProc(cb), 0)
+    return monitors
+
+
+def pin_window_to_monitor(hwnd, monitor_index: int = 1, margin: int = 40) -> bool:
+    """Move the window onto a specific monitor WITHOUT stealing focus.
+
+    SetWindowPos with SWP_NOACTIVATE keeps the user's foreground window focused,
+    so there is no cursor/focus disruption on other screens. The test still uses
+    UIA Invoke()/PrintWindow for input and screenshots — no desktop capture.
+    """
+    monitors = enum_monitors()
+    if not monitors:
+        return False
+    idx = max(0, min(monitor_index, len(monitors) - 1))
+    left, top, right, bottom = monitors[idx]
+    x = left + margin
+    y = top + margin
+    res = user32.SetWindowPos(
+        hwnd, 0, x, y, 0, 0,
+        SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+    )
+    return bool(res)
+
+
+# Module-level monitor selection (set from CLI).
+MONITOR_INDEX = 1
 
 
 def capture_app_window(hwnd) -> tuple[bytes, int, int] | None:
@@ -608,7 +693,11 @@ def launch_app(exe_path: Path) -> tuple[subprocess.Popen | None, "auto.WindowCon
         process.terminate()
         return None, None, None
 
-    user32.ShowWindow(hwnd, SW_RESTORE)
+    # Show without stealing focus, then pin to the chosen monitor so the app
+    # stays away from the user's working screen (no activation, no cursor move).
+    user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)
+    time.sleep(0.2)
+    pin_window_to_monitor(hwnd, MONITOR_INDEX)
     time.sleep(0.5)
 
     return process, window, hwnd
@@ -848,12 +937,23 @@ def find_binary() -> Path | None:
 
 
 def main() -> int:
+    import argparse
+
+    ap = argparse.ArgumentParser(description="GUI functional test suite (non-intrusive, window-only).")
+    ap.add_argument("--monitor", type=int, default=1,
+                    help="Monitor index to pin the app to (0=primary, 1=secondary...). Default 1.")
+    ap.add_argument("--exe", type=str, default=None, help="Explicit path to SpaceAnalyzer.exe")
+    args = ap.parse_args()
+
+    global MONITOR_INDEX
+    MONITOR_INDEX = args.monitor
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%H:%M:%S",
     )
-    exe = find_binary()
+    exe = Path(args.exe) if args.exe else find_binary()
     if not exe:
         logger.error("SpaceAnalyzer.exe not found.")
         logger.info("Build first: MSBuild gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64")

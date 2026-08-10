@@ -23,7 +23,7 @@
                     <TextBlock Text="Dashboard" Style="{StaticResource Type.PageTitle}" />
                     <TextBlock Text="Overview of your disk usage, system resources, and quick actions." Style="{StaticResource Type.Body}" />
                 </StackPanel>
-                <Button x:Name="BtnNewScan" Grid.Column="1" Content="New Scan" Click="BtnNewScan_Click" Style="{StaticResource PrimaryCTAButton}" VerticalAlignment="Center" />
+                <Button x:Name="BtnNewScan" Grid.Column="1" Content="New Scan" Click="BtnNewScan_Click" Style="{StaticResource PrimaryCTAButton}" VerticalAlignment="Center" ToolTipService.ToolTip="Start a new scan of a folder or drive to populate the dashboard and history." />
                 <Button Grid.Column="2" Content="Refresh" Click="Refresh_Click" Style="{StaticResource SmallButton}" VerticalAlignment="Center" />
             </Grid>
 
@@ -60,11 +60,11 @@
                         <FontIcon Glyph="&#xEB39;" FontSize="{StaticResource Icon.Hero}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="{x:Bind VM.ScanCountDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" />
-                            <TextBlock Text="Scans" Style="{StaticResource Type.StatLabel}" />
+                                <TextBlock Text="Total scans" Style="{StaticResource Type.StatLabel}" />
                         </StackPanel>
                     </StackPanel>
                 </Border>
-                <Border x:Name="StatCardDuplicateCount" Grid.Row="1" Grid.Column="1" Style="{StaticResource HeroCard}">
+                <Border x:Name="StatCardDuplicateCount" Grid.Row="1" Grid.Column="1" Style="{StaticResource HeroCard}" ToolTipService.ToolTip="No duplicate files detected — your drive is tidy.">
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center" Height="72">
                         <FontIcon Glyph="&#xEB9F;" FontSize="{StaticResource Icon.Hero}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
                         <StackPanel VerticalAlignment="Center">
@@ -74,6 +74,9 @@
                     </StackPanel>
                 </Border>
             </Grid>
+
+            <!-- Visual separation between hero stats and the detailed sections below -->
+            <Border Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}" Opacity="0.5" />
 
             <!-- Two-column layout: Disk Usage + Quick Actions -->
             <Grid ColumnSpacing="{StaticResource Space.LG}" RowSpacing="{StaticResource Space.LG}">
@@ -102,14 +105,16 @@
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Grid.Column="0"
-                                                       Text="{x:Bind MountPoint, Mode=OneTime}"
-                                                       Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center" />
-                                            <TextBlock Grid.Row="0" Grid.Column="1"
-                                                       Text="{x:Bind UsagePercentDisplay, Mode=OneTime}"
-                                                       Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"
-                                                       VerticalAlignment="Center" />
+                                            <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                                                        Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind MountPoint, Mode=OneTime}"
+                                                           Style="{StaticResource Type.SubTitle}" />
+                                                <TextBlock Text="{x:Bind UsagePercentDisplay, Mode=OneTime}"
+                                                           Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"
+                                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                            </StackPanel>
                                             <ProgressBar Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
                                                          Value="{x:Bind UsagePercent, Mode=OneTime}" Maximum="100"
                                                          Style="{StaticResource StandardProgressBar}"
@@ -123,6 +128,9 @@
                                                 <Run Text="{x:Bind AvailableDisplay, Mode=OneTime}" />
                                                 <Run Text=" free" />
                                             </TextBlock>
+                                            <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                                    Height="1" Margin="0,8,0,0"
+                                                    Background="{ThemeResource CardStrokeColorDefaultBrush}" Opacity="0.4" />
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsRepeater.ItemTemplate>
@@ -138,7 +146,7 @@
                     <TextBlock Text="Quick Actions" Style="{StaticResource Type.SectionTitle}" />
                     <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
                         <StackPanel Spacing="{StaticResource Space.MD}">
-                            <Button x:Name="BtnViewHistory" Click="BtnViewHistory_Click" Style="{StaticResource QuickActionButton}">
+                            <Button x:Name="BtnViewHistory" Click="BtnViewHistory_Click" Style="{StaticResource QuickActionButton}" AutomationProperties.Name="View History">
                                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
                                     <FontIcon Glyph="&#xE944;" FontSize="{StaticResource Icon.Button}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
                                     <StackPanel Spacing="2">
@@ -147,7 +155,7 @@
                                     </StackPanel>
                                 </StackPanel>
                             </Button>
-                            <Button x:Name="BtnFindDuplicates" Click="BtnFindDuplicates_Click" Style="{StaticResource QuickActionButton}">
+                            <Button x:Name="BtnFindDuplicates" Click="BtnFindDuplicates_Click" Style="{StaticResource QuickActionButton}" AutomationProperties.Name="Find Duplicates">
                                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
                                     <FontIcon Glyph="&#xEB9F;" FontSize="{StaticResource Icon.Button}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
                                     <StackPanel Spacing="2">
@@ -156,7 +164,7 @@
                                     </StackPanel>
                                 </StackPanel>
                             </Button>
-                            <Button x:Name="BtnAIAssistant" Click="BtnAIAssistant_Click" Style="{StaticResource QuickActionButton}">
+                            <Button x:Name="BtnAIAssistant" Click="BtnAIAssistant_Click" Style="{StaticResource QuickActionButton}" AutomationProperties.Name="AI Assistant">
                                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
                                     <FontIcon Glyph="&#xE99A;" FontSize="{StaticResource Icon.Button}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center" />
                                     <StackPanel Spacing="2">
@@ -274,9 +282,9 @@
 
             <!-- Resource History Charts -->
             <TextBlock Text="Resource History" Style="{StaticResource Type.SectionTitle}" />
-            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,-4">
+            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,-4" VerticalAlignment="Center">
                 <Border Width="14" Height="10" Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="2" VerticalAlignment="Center" />
-                <TextBlock Text="Shaded band = Space Analyzer scanning" Style="{StaticResource Type.Caption}" Opacity="0.7" VerticalAlignment="Center" />
+                <TextBlock Text="Shaded band = scanning · lines mark 70% (warning) and 90% (critical)" Style="{StaticResource Type.Caption}" Opacity="0.7" VerticalAlignment="Center" />
             </StackPanel>
             <Grid ColumnSpacing="{StaticResource Space.LG}">
                 <Grid.ColumnDefinitions>
@@ -393,9 +401,9 @@
                 </Border>
                 <Border Grid.Column="1" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}">
                     <StackPanel Spacing="{StaticResource Space.SM}">
-                        <TextBlock Text="Top File Types by Size" Style="{StaticResource Type.SubTitle}" />
-                        <TextBlock Text="Largest extensions from your most recent scan." Style="{StaticResource Type.Caption}" Opacity="0.6" />
-                        <Grid x:Name="FileTypePieGrid" Height="200" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <TextBlock Text="Top File Types by Count" Style="{StaticResource Type.SubTitle}" />
+                        <TextBlock Text="Click a bar to search that type · most common extensions from your most recent scan." Style="{StaticResource Type.Caption}" Opacity="0.6" />
+                        <Grid x:Name="FileTypeBarsGrid" Height="200" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
                     </StackPanel>
                 </Border>
             </Grid>
@@ -434,6 +442,10 @@
 
             <!-- Bloat Detection (gap 2.2) -->
             <TextBlock Text="Bloat Detection" Style="{StaticResource Type.SectionTitle}" />
+            <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.6"
+                       Visibility="{x:Bind VM.HasBloatFindings, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                <Run Text="Potential reclaimable: " /><Run Text="{x:Bind VM.BloatTotalDisplay, Mode=OneWay}" />
+            </TextBlock>
             <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}"
                     Visibility="{x:Bind VM.HasBloatFindings, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                 <ItemsRepeater ItemsSource="{x:Bind VM.BloatFindings, Mode=OneWay}">
@@ -492,7 +504,7 @@
                                     </Grid.ColumnDefinitions>
                                     <Border Grid.Column="0" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
                                         <Border.Background>
-                                            <SolidColorBrush Color="{x:Bind Priority, Mode=OneWay, Converter={StaticResource PriorityToBrush}}" />
+                                            <SolidColorBrush Color="{x:Bind Priority, Mode=OneTime, Converter={StaticResource PriorityToBrush}}" />
                                         </Border.Background>
                                         <TextBlock Text="{x:Bind PriorityLabel}" Style="{StaticResource Type.Tiny}"
                                                    Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
@@ -502,7 +514,7 @@
                                         <TextBlock Text="{x:Bind Detail}" Style="{StaticResource Type.Tiny}" Opacity="0.7" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <TextBlock Grid.Column="2" Text="{x:Bind EstimatedSavingsDisplay}" Style="{StaticResource Type.SubTitle}"
-                                               VerticalAlignment="Center" Visibility="{x:Bind HasSavings, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+                                                VerticalAlignment="Center" Visibility="{x:Bind HasSavings, Mode=OneTime, Converter={StaticResource BoolToVisibility}}" />
                                 </Grid>
                             </Border>
                         </DataTemplate>

@@ -181,6 +181,30 @@ public sealed class PriorityToBrushConverter : IValueConverter
 }
 
 /// <summary>
+/// Maps a scan-type label ("Deep", "Shallow", "Custom", "Default") to a theme-aware
+/// <see cref="SolidColorBrush"/> so each history card can show a color-coded type badge
+/// (Deep = accent, Shallow = success, Custom = attention, Default = muted).
+/// </summary>
+public sealed class ScanTypeToBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        string type = value?.ToString() ?? string.Empty;
+        string key = type switch
+        {
+            "Deep" => "AccentTextFillColorPrimaryBrush",
+            "Shallow" => "SystemFillColorSuccessBrush",
+            "Custom" => "SystemFillColorAttentionBrush",
+            _ => "TextFillColorSecondaryBrush"
+        };
+        return Application.Current.Resources[key] as SolidColorBrush
+            ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => null!;
+}
+
+/// <summary>
 /// Compares the bound selected-template id to <see cref="ConverterParameter"/> and returns
 /// the accent surface tint when they match (selected) or the default card background otherwise.
 /// </summary>
@@ -233,6 +257,41 @@ public sealed class SelectedIdVisibilityConverter : IValueConverter
 }
 
 /// <summary>
+/// Card fill for an item that carries its own <c>IsSelected</c> flag (data-templated pickers
+/// where the view cannot compare against the parent view model's selection).
+/// Accent surface tint when selected, default card background otherwise.
+/// </summary>
+public sealed class SelectedFlagBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool selected = value is bool b && b;
+        var key = selected ? "AccentSurfaceBrush" : "CardBackgroundFillColorDefaultBrush";
+        return Application.Current.Resources[key] as SolidColorBrush
+            ?? new SolidColorBrush(selected ? Microsoft.UI.Colors.DodgerBlue : Microsoft.UI.Colors.Transparent);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => null!;
+}
+
+/// <summary>
+/// Card stroke counterpart to <see cref="SelectedFlagBrushConverter"/>: solid accent border
+/// when selected, default card stroke otherwise.
+/// </summary>
+public sealed class SelectedFlagBorderConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool selected = value is bool b && b;
+        var key = selected ? "AccentButtonBackground" : "CardStrokeColorDefaultBrush";
+        return Application.Current.Resources[key] as SolidColorBrush
+            ?? new SolidColorBrush(selected ? Microsoft.UI.Colors.DodgerBlue : Microsoft.UI.Colors.Gray);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => null!;
+}
+
+/// <summary>
 /// Converts a selected-count <see cref="int"/> to a "Remove Selected (N)" button label.
 /// </summary>
 public sealed class SelectedCountToLabelConverter : IValueConverter
@@ -244,4 +303,40 @@ public sealed class SelectedCountToLabelConverter : IValueConverter
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => 0;
+}
+
+/// <summary>
+/// Two-way binds an enum property to a ToggleButton: true when the enum equals the
+/// <see cref="ConverterParameter"/> value, and sets the enum when toggled on.
+/// </summary>
+public sealed class EnumEqualsConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value == null || parameter == null) return false;
+        return string.Equals(value.ToString(), parameter.ToString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language)
+    {
+        if (value is bool b && b && parameter != null && targetType.IsEnum)
+            return Enum.Parse(targetType, parameter.ToString()!, true);
+        return null!;
+    }
+}
+
+/// <summary>
+/// Formats a progress percentage for display. Values &lt; 0 (indeterminate) render as an
+/// empty string so an indeterminate scan shows no misleading "0%".
+/// </summary>
+public sealed class DoubleToPercentTextConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        if (value is double d && d >= 0)
+            return $"{Math.Round(d)}%";
+        return string.Empty;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => 0.0;
 }

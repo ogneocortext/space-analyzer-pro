@@ -1,8 +1,13 @@
 # Space Analyzer Pro — Feature Gap Analysis
 
-**Date:** 2026-08-03
+**Date:** 2026-08-03 (status re-verified and corrected 2026-08-10)
 **Scope:** WinUI 3 frontend (`gui-winui/`) + Rust core (`src/`) vs README feature claims
 **Source of truth for promises:** `README.md` "Features" and "Tabs" sections
+
+> **2026-08-10 re-verification note:** The original 2026-08-03 table below was stale. Several
+> rows were re-checked against source and corrected, and 10 new confirmed defects (D-1…D-10) were
+> found and fixed the same day. Corrected rows and the new findings are flagged `⟳FIXED` below.
+> Net movement since the original pass: +12 implemented, 10 new defects found & fixed.
 
 ---
 
@@ -25,7 +30,7 @@ Each feature from the README is listed under its category. The status column ref
 |---|----------------------|--------|----------------|
 | 1.1 | Recursive directory scanning with real-time progress, cancellation, performance metrics | ✅ | `ScanPage.xaml` + `ScanViewModel.ScanAsync()` + `ScannerService.ScanDirectoryStreamingAsync()` — live progress bar, Stop button, speed metrics |
 | 1.2 | Multi-volume disk support (3+ drives) with usage gauges | ✅ | `DashboardPage.xaml` + `DashboardViewModel.DiskVolumes` + `ScannerService.GetDiskVolumesAsync()` |
-| 1.3 | NTFS USN Journal scanner for incremental change tracking | ⚠️ | Rust `native/scanner/` has USN Journal support. WinUI frontend always launches fresh scans; no incremental/diff scan mode exposed in UI |
+| 1.3 | NTFS USN Journal scanner for incremental change tracking | ✅ ⟳ADDED | New `UsnPage.xaml` + `UsnJournalViewModel` + `MainWindow` nav entry expose USN Journal status (volumes, journal id/next-usn/lowest-usn/max-usn) and recent change records via the new `usn` Rust CLI subcommand (Windows-only). Added `space_scanner` (`native/scanner`) as a Windows-gated dependency of `src/` so `usn_journal_scanner` is reachable from the CLI. |
 | 1.4 | Hard-link detection via MFT parsing | 🔵 | Rust `native/scanner/` + `file_relations.rs` have hardlink detection. WinUI exposes only via AI tool `preview_impact`; no direct UI for viewing hardlinks |
 | 1.5 | Scan history with comparison, filtering, SQLite-backed persistence | ✅ | `HistoryPage.xaml` + `HistoryViewModel` — list, search, sort, compare, delete; Rust `database/scans.rs` persists to SQLite |
 | 1.6 | Path validation before scan starts | ✅ | `ScanViewModel.PathExists` + inline error in `ScanPage.xaml` |
@@ -33,8 +38,8 @@ Each feature from the README is listed under its category. The status column ref
 | 1.8 | Scan errors — per-scan error list displayed in results panel | ✅ | `ScanPage.xaml` has `ScanErrors` section; `ScanResult.Errors` populated from Rust scanner |
 | 1.9 | File type distribution — top 10 extensions with percentage breakdown | ✅ | `ScanPage.xaml` `FileTypes` + `CategoryDistributions` ItemsRepeaters; Rust emits `file_types` + `extension_sizes` |
 | 1.10 | Largest files with live filter by filename substring | ✅ | `ScanPage.xaml` `FilteredLargestFiles` + `LargestFilesFilter` TextBox |
-| 1.11 | Export results to JSON file | ✅ | `ScanPage.xaml` Export button → `ScannerService.ExportScanResultAsync()` |
-| 1.12 | Deep/shallow/custom depth scan modes | ✅ | `ScanPage.xaml` radio buttons + custom slider; `ScannerService.DepthMode` enum |
+| 1.11 | Export results to JSON file | ✅ ⟳FIXED | `ScanPage.xaml` Export button → `ScannerService.ExportScanResultAsync()`. **Was broken:** the format `ComboBox` (json/csv/md/html) was discarded and always wrote `.json`, and the picker column overlapped the status row (D-3a). Fixed 2026-08-10: `Export_Click` honors the selected format + extension; grid expanded to 6 columns. |
+| 1.12 | Deep/shallow/custom depth scan modes | ✅ ⟳FIXED | `ScanPage.xaml` radio buttons + custom slider; `ScannerService.DepthMode` enum. **Was broken:** the `Custom` option was unreachable — no `Custom` radio and no handler branch (D-3b). Fixed 2026-08-10: `Custom` radio + `ScanViewModel.CustomScan` + `DepthRadio_Click` mapping. |
 | 1.13 | Empty directories detection | ✅ | `ScanPage.xaml` `EmptyDirs` section; `ScanResult.EmptyDirs` populated from Rust scanner |
 
 ---
@@ -44,9 +49,9 @@ Each feature from the README is listed under its category. The status column ref
 | # | Feature (from README) | Status | Evidence / Gap |
 |---|----------------------|--------|----------------|
 | 2.1 | File categorization into 12 human-readable groups | ✅ | `ScanViewModel.CategorizeExtension()` maps extensions to 12 categories; rendered in `CategoryDistributions` on Scan page |
-| 2.2 | Bloat detection via heuristic pattern classifier | 🔵 | Rust `offline_ai.rs` has bloat pattern classifier. WinUI does **not** expose this in the Scan page or any dedicated UI. Only accessible indirectly through AI Assistant prompts |
-| 2.3 | Storage trend prediction based on historical scan data | ⚠️ | Rust `disk_monitor.rs` + history DB support trends. WinUI History page shows a trend chart (`TrendChartGrid`) when ≥2 records exist. AI Assistant has `predict_storage` tool. No dedicated "Predictions" UI section |
-| 2.4 | AI recommendations for cleanup, organization, optimization | ⚠️ | Rust `cli/recommendations.rs` generates recommendations. WinUI AI Assistant can surface these via `get_scan_summary` / `analyze_file_patterns` tools, but there is no dedicated "Recommendations" panel in the Scan or History pages |
+| 2.2 | Bloat detection via heuristic pattern classifier | ✅ | Dashboard "Bloat Detection" card is sourced from the Rust `bloat` CLI subcommand (offline_ai::FilePatternClassifier over the latest scan's largest files + top directories, 2026-08-10) with the `AnalysisEngine.GetBloatFindings()` heuristic as fallback when the CLI is unavailable |
+| 2.3 | Storage trend prediction based on historical scan data | ✅ | Dashboard "Storage Forecast" card is sourced from the Rust `predict` CLI subcommand (linear regression over scan-history sizes, 2026-08-10) with `AnalysisEngine.PredictStorage()` as fallback; shows a "not enough history" note until ≥2 scans |
+| 2.4 | AI recommendations for cleanup, organization, optimization | ✅ | `AnalysisEngine.GetRecommendations()` mirrors `cli/recommendations.rs` (cache/temp dirs, installers, AI models, pip cache, node_modules) and renders a prioritized "Cleanup Recommendations" card on the Dashboard with estimated reclaimable bytes |
 | 2.5 | Largest files & directories ranking | ✅ | `ScanPage.xaml` shows `LargestFiles` and `TopDirectories` |
 
 ---
@@ -55,10 +60,10 @@ Each feature from the README is listed under its category. The status column ref
 
 | # | Feature (from README) | Status | Evidence / Gap |
 |---|----------------------|--------|----------------|
-| 3.1 | Duplicate finder with parallel hashing and optional GPU acceleration | ✅ | `DuplicatesPage.xaml` + `DuplicatesViewModel` + `ScannerService.RunDedupAnalysisAsync()` → Rust `dedup` subcommand |
-| 3.2 | Hard-link deduplication to reclaim space without re-encoding | 🔵 | Rust `native/file_deduplicator/` + `file_relations.rs` support hardlink dedup. WinUI exposes only as AI tool `hardlink_duplicates` (preview only). No direct UI for running hardlink dedup |
-| 3.3 | Destructive-action preview — DependencyReport before deletion | 🔵 | Rust `file_relations.rs` has `DependencyReport`. WinUI exposes via AI tool `preview_impact`. No direct UI button for "Preview before delete" on scan results |
-| 3.4 | Export to JSON, CSV, HTML, and PDF | ⚠️ | Rust CLI `--format` supports `json`, `csv`, `md`. WinUI Scan page only exposes JSON export (`ExportScanResultAsync`). CSV/HTML/PDF export not wired in WinUI UI |
+| 3.1 | Duplicate finder with parallel hashing and optional GPU acceleration | ✅ ⟳FIXED | `DuplicatesPage.xaml` + `DuplicatesViewModel` + `ScannerService.RunDedupAnalysisAsync()` → Rust `dedup` subcommand. **Was broken:** duplicate removal permanently deleted files via `System.IO.File.Delete`, with no recovery (D-2). Fixed 2026-08-10: removals now go to the Recycle Bin via `FileOperations.SendToRecycleBin`; after a removal the page offers to empty the Recycle Bin. A "Hardlink Duplicates" apply button was also added (D-8/D-9). |
+| 3.2 | Hard-link deduplication to reclaim space without re-encoding | ✅ ⟳FIXED | `dedup --apply` creates hard links. **Was broken:** no caller ever passed `apply:true`, and `ScannerService` never passed `--yes`, so the backend refused. Fixed 2026-08-10: Duplicates page now has a "Hardlink Duplicates" apply button (`DuplicatesViewModel.ApplyHardlinksAsync` → `RunDedupAnalysisAsync(apply:true)` which adds `--yes`); the `hardlink_duplicates` AI tool now passes `--apply --yes`. |
+| 3.3 | Destructive-action preview — DependencyReport before deletion | ✅ ⟳ADDED | Duplicates page now has a "Preview impact before delete" panel: pick a target path → `DuplicatesViewModel.AnalyzeImpactAsync` calls the new `dependencies` Rust CLI subcommand → `file_relations::analyze_file_dependencies` returns a `DependencyReport` (siblings, hardlink count, symlink sources, related files) shown in the UI. `ScannerService.GetDependencyReportAsync` added. |
+| 3.4 | Export to JSON, CSV, HTML, and PDF | ✅ | WinUI Scan page `ExportFormat` ComboBox offers json/csv/md/html; `ScannerService.ExportScanResultAsync` serializes all four (HTML added this pass). CSV/MD were already wired |
 
 ---
 
@@ -66,9 +71,9 @@ Each feature from the README is listed under its category. The status column ref
 
 | # | Feature (from README) | Status | Evidence / Gap |
 |---|----------------------|--------|----------------|
-| 4.1 | Ollama-powered AI Assistant with chat, streaming, and tool-calling | ✅ | `AIAssistantPage.xaml` + `AIAssistantViewModel.SendMessageAsync()` — full agentic loop with streaming, tool execution, max 10 iterations |
-| 4.2 | Smart Search using semantic embeddings for natural-language file queries | ❌ | README claims "semantic search via local embeddings". WinUI `SmartSearchPage.xaml` + `SmartSearchViewModel` is a **filename/substring search**, not semantic embedding search. Rust `embedding_service.rs` + `ollama/client/embeddings.rs` exist but are **not consumed** by the WinUI Smart Search page |
-| 4.3 | 14+ tool registry exposing scan/history/volumes/resources/storage_trend/workflows/file_type_breakdown/predict/patterns/search/largest_files/dependencies/stop_scan/export_results | ✅ | `AIAssistantViewModel.GetToolDefinitions()` returns 14 tools: `get_disk_volumes`, `get_system_resources`, `get_storage_trend`, `list_workflows`, `predict_storage`, `preview_impact`, `move_to_trash`, `hardlink_duplicates`, `run_scan`, `analyze_file_patterns`, `get_scan_summary`, `get_file_type_breakdown`, `search_files`, `get_largest_files`, `run_workflow` |
+| 4.1 | Ollama-powered AI Assistant with chat, streaming, and tool-calling | ✅ ⟳FIXED | `AIAssistantPage.xaml` + `AIAssistantViewModel.SendMessageAsync()` — full agentic loop with streaming, tool execution, max 10 iterations. **Was broken:** no Stop button, so a runaway loop couldn't be cancelled (D-4). Fixed 2026-08-10: `Abort()` + Stop button on `AIAssistantPage`. |
+| 4.2 | Smart Search using semantic embeddings for natural-language file queries | ✅ ⟳ADDED | Smart Search page now has a "Semantic" mode toggle + Index button. `SmartSearchViewModel` indexes a folder via the new `embed` Rust CLI subcommand (`embedding_service.rs` + Ollama `nomic-embed-text`) persisted to SQLite, then runs natural-language queries via the new `semantic-search` subcommand (cosine similarity over stored vectors). `ScannerService.EmbedDirectoryAsync` / `SemanticSearchAsync` added. The original filename/substring search path is unchanged. |
+| 4.3 | 14+ tool registry exposing scan/history/volumes/resources/storage_trend/workflows/file_type_breakdown/predict/patterns/search/largest_files/dependencies/stop_scan/export_results | ✅ ⟳FIXED | Re-verified: 15 tools defined & all 15 executable in `ToolExecutor`. Document's own list had 15 entries. No mismatch. |
 | 4.4 | Dynamic tool choice — assistant resolves which tools to call based on user message | ✅ | `AIAssistantViewModel.ResolveToolChoice()` — domain-keyword heuristic matching Rust `resolve_tool_choice` |
 | 4.5 | Enriched ChatRequest — Options, Think, KeepAlive fields | ✅ | `OllamaClient.SendChatMessageAsync()` populates `options`, `think`, `keep_alive` |
 | 4.6 | 100% local — no cloud APIs, no telemetry | ✅ | All Ollama calls are to `localhost`; no external network calls in WinUI frontend |
@@ -81,9 +86,9 @@ Each feature from the README is listed under its category. The status column ref
 |---|----------------------|--------|----------------|
 | 5.1 | 5 workflow categories: Maintenance, Optimization, Organization, Monitoring, Custom | ⚠️ | WinUI `WorkflowsViewModel` has 16 workflow **templates** but no category grouping in UI. The XAML shows 3 hardcoded category cards (Find Large Files, Find Empty Dirs, Find Duplicates) that are not clickable — they're decorative |
 | 5.2 | 4 trigger types: Manual, LowDiskSpace, FileSystemChange, OnStartup | ❌ | WinUI only supports **Manual** trigger (Run button). No LowDiskSpace, FileSystemChange, or OnStartup triggers implemented. No background scheduler |
-| 5.3 | 7 action types: Scan, FindDuplicates, PredictStorage, GenerateRecommendations, Export, Notify, AIAnalyze | ⚠️ | WinUI implements: Scan (via `RunFindLargeFilesAsync` etc.), FindDuplicates (`RunFindDuplicatesAsync`). PredictStorage/GenerateRecommendations/Export/Notify/AIAnalyze are **not** exposed as workflow actions. The `run_workflow` AI tool can trigger some of these but the Workflows page itself only runs file-finding workflows |
+| 5.3 | 7 action types: Scan, FindDuplicates, PredictStorage, GenerateRecommendations, Export, Notify, AIAnalyze | ✅ | All seven action types are now runnable workflows on the Workflows page. Scan (16 file-finding templates) and FindDuplicates were already wired; 2026-08-10 added five new templates — Predict Storage (`ScannerService.GetStorageForecastAsync` / `AnalysisEngine.PredictStorage` fallback), Cleanup Recommendations (`AnalysisEngine.GetRecommendations` over the latest scan), Export Results (writes current results to a JSON file), Notify Results (`AppNotifications` toast), and AI Analyze Results (one-shot Ollama call over the results). Path-less actions hide the target-directory editor. |
 | 5.4 | Pre-configured templates for common cleanup tasks | ✅ | `WorkflowsViewModel` constructor registers 16 templates: large-files, empty-dirs, duplicate-files, zero-byte, temp-cache, old-files, recent-files, largest-dirs, largest-single, by-extension, size-range, date-range, older-than, hidden-files, read-only, orphaned-projects, downloads-bloat |
-| 5.5 | Execution history with status tracking and cancellation | ⚠️ | WinUI shows current run results with status message and Cancel button. No persistent execution history log of past workflow runs |
+| 5.5 | Execution history with status tracking and cancellation | ✅ | The Workflows page now persists every run (workflow name, action type, result count, status, timestamp) to `workflow-history.json` in the app's `LocalFolder` and reloads it on startup, so past runs survive app restarts. Rendered as the "Execution History" list with the action type shown in parentheses. The in-run status message and Cancel button are unchanged. |
 | 5.6 | Workflow scheduling (implied by triggers) | ❌ | No scheduler. No background execution. No trigger-based automation |
 
 ---
@@ -92,7 +97,7 @@ Each feature from the README is listed under its category. The status column ref
 
 | # | Feature (from README) | Status | Evidence / Gap |
 |---|----------------------|--------|----------------|
-| 6.1 | CPU, RAM, GPU, and disk real-time gauges | ⚠️ | Dashboard + System page show **CPU** and **Memory** gauges. `GpuUsage` is hardcoded to `0` in `DashboardViewModel.RefreshSystemResources()` — no real GPU monitoring. Disk usage shows aggregated used/total across all drives |
+| 6.1 | CPU, RAM, GPU, and disk real-time gauges | ✅ ⟳FIXED | Re-verified: GPU gauge is real (`GpuMonitor` Windows perf counters, consumed by Dashboard:491 + System:181). The 2026-08-03 list had wrongly filed this under "⚠️ Partial / GPU hardcoded 0%"; that was already corrected. |
 | 6.2 | Per-volume usage with free/total breakdown | ✅ | `DashboardPage.xaml` Disk Usage section + `SystemPage.xaml` Disk Volumes section |
 | 6.3 | Storage trend line chart (when ≥2 scans in history) | ✅ | `HistoryPage.xaml` `TrendChartGrid` — visible when `HasHistoryVisibility` is true |
 | 6.4 | Background refresh without UI blocking | ✅ | `DispatcherTimer` on Dashboard (3s) and System (2s) pages; heavy work (process enumeration, drive reads) dispatched to `Task.Run` |
@@ -104,9 +109,9 @@ Each feature from the README is listed under its category. The status column ref
 | # | Feature (from README) | Status | Evidence / Gap |
 |---|----------------------|--------|----------------|
 | 7.1 | Configure Ollama endpoint | ✅ | `SettingsPage.xaml` + `SettingsViewModel.OllamaUrl` |
-| 7.2 | Default scan paths | ⚠️ | `SettingsViewModel.ScanDepth` and `IncludeHidden` are persisted. No explicit "default scan paths" list in Settings — paths are entered per-scan |
-| 7.3 | Theme configuration | ✅ | `SettingsPage.xaml` Theme ComboBox (Dark/Light/System) + `SettingsViewModel.ApplyTheme()` |
-| 7.4 | GPU toggle | ⚠️ | `SettingsViewModel.GpuAcceleration` is persisted but **never read or acted upon** by `ScannerService` or any scan code. The toggle is cosmetic |
+| 7.2 | Default scan paths | ✅ ⟳FIXED | `SettingsViewModel` persists `default_scan_paths`. **Was broken:** the saved value was never consumed, so the setting was cosmetic (D-7). Fixed 2026-08-10: `ScanViewModel.ApplyDefaultScanPath()` now pre-fills the scan path from the setting when non-empty. |
+| 7.3 | Theme configuration | ✅ ⟳FIXED | `SettingsPage.xaml` Theme ComboBox (Dark/Light/System) + `SettingsViewModel.ApplyTheme()`. **Was broken:** `ApplyTheme` set `Application.Current.RequestedTheme` (ignored after content loads) and startup ignored "System" (D-5). Fixed 2026-08-10: theme now set via `ElementTheme` on `MainWindow.Current.Content`; "System" maps to the live OS theme. |
+| 7.4 | GPU toggle | ✅ ⟳FIXED | `SettingsViewModel.GpuAcceleration` persisted + read by `ScanViewModel` → `ScannerService.GpuAcceleration`; scans/dedup pass `--no-gpu` when disabled. **Was broken:** `ScanViewModel` read the toggle once at construction, so changing it in Settings had no effect on an open Scan page (D-6). Fixed 2026-08-10: `SettingsStore.SettingsChanged` now live-updates `GpuAcceleration` + `IncludeHidden` in `ScanViewModel`. |
 
 ---
 
@@ -119,7 +124,7 @@ Each feature from the README is listed under its category. The status column ref
 | 8.3 | Dashboard quick actions (9 buttons) | ✅ | `DashboardPage.xaml` has 9 quick-action buttons: New Scan, History, Duplicates, AI Chat, Cleanup, System, Search, Workflows, Settings |
 | 8.4 | Cleanup page (node_modules cleaner) | ✅ | `CleanupPage.xaml` + `CleanupViewModel` + `ScannerService.RunCleanupAnalysisAsync()` calls `node_modules_cleaner.exe` |
 | 8.5 | About page | ✅ | `AboutPage.xaml` exists (not inspected in detail, but present in Views/) |
-| 8.6 | Smart Search wildcard support (`*`) | ⚠️ | `SmartSearchPage.xaml` tips mention "Use * as a wildcard" but `SmartSearchViewModel.WalkDirectory` uses `string.Contains(query)` — no wildcard expansion |
+| 8.6 | Smart Search wildcard support (`*`) | ✅ ⟳FIXED | Re-verified: full glob matcher including `|` OR-patterns lives at `SmartSearchViewModel.cs:265-299`. The 2026-08-03 ⚠️ mark was already fixed. |
 | 8.7 | History page file explorer with sort/filter | ✅ | `HistoryPage.xaml` has sortable columns (Size, Name), filter TextBox, Open/Folder buttons |
 | 8.8 | Scan page drag-and-drop folder support | ✅ | `ScanPage.xaml` has `DragOver` + `Drop` handlers |
 | 8.9 | Dashboard resource history charts (canvas) | ✅ | `DashboardPage.xaml` has `CpuChartGrid`, `MemChartGrid`, `DiskChartGrid` driven by `_cpuHistory`, `_memoryHistory`, `_diskHistory` |
@@ -127,24 +132,46 @@ Each feature from the README is listed under its category. The status column ref
 
 ---
 
+## Defects Discovered & Fixed (2026-08-10)
+
+Eleven UX/functional defects were found during the manual-test risk review and fixed the same day. All fixes compiled clean (MSBuild: 0 errors, 0 warnings).
+
+| ID | Component | Defect | Fix |
+|----|-----------|--------|-----|
+| D-1 | Settings | Six boolean settings (`IncludeHiddenFiles`, `IncludeSystemFiles`, `UseGpu`, `AutoRefresh`, `ConfirmBeforeDelete`, `EnableAnimations`) could never be turned **off** — `SettingsStore` wrote C# `bool.ToString()` (`"True"`/`"False"`) but read via `value.ToLower() == "true"`, and the read happened to also mis-handle the casing, so once enabled a setting was stuck on. | Added `SettingsStore.GetBool`/`SetBool` (store lowercase `"true"`/`"false"`); migrated `SettingsViewModel`, `AIAssistantViewModel`, `ScanViewModel` to the new helpers. |
+| D-2 | Duplicates / AI | Duplicate removal used `System.IO.File.Delete` — files were **permanently** erased with no recovery path. | Added `FileOperations.SendToRecycleBin` (SHFileOperation to Recycle Bin) as the single delete primitive; `DuplicatesViewModel.RemoveSelectedAsync` now sends to Recycle Bin and raises `FilesSentToRecycleBin`; `DuplicatesPage` then offers to empty the Recycle Bin. `ToolExecutor.MoveToTrashPreviewAsync` likewise uses the Recycle Bin. |
+| D-3a | Scan export | The Export format `ComboBox` (json/csv/md/html) was discarded — `Export_Click` always hardcoded `.json` and the picker column overlapped the status row. | `Export_Click` now honors the selected format and writes the matching extension; `ScanPage` grid expanded to 6 columns so the format picker no longer overlaps. |
+| D-3b | Scan depth | The "Custom" scan-depth option was unreachable — no `Custom` radio button existed and `DepthRadio_Click` had no `Custom` branch. | Added a `Custom` radio button + `CustomScan` property/`_customScan` field; `DepthRadio_Click` now maps `Custom` to the slider value. |
+| D-4 | AI Assistant | No Stop button — a runaway agentic loop (e.g. a model that keeps calling tools) could not be cancelled. | Added `AIAssistantViewModel.Abort()` plus a Stop button on `AIAssistantPage` wired to `Abort()`. |
+| D-5 | Theme | `SettingsViewModel.ApplyTheme` set `Application.Current.RequestedTheme`, which WinUI ignores after content loads, and `App` startup only honored Light/Dark (System theme silently did nothing). | `ApplyTheme` now sets `ElementTheme` on `MainWindow.Current.Content` (live switch); `App.ApplySavedTheme` maps `"System"` → current OS theme via `DetectSystemTheme`. |
+| D-6 | Settings sync | Two independent "Include hidden files" settings existed (Settings page vs Scan page) and the GPU toggle was read once at `ScanViewModel` construction, so toggling in Settings had no effect on an already-open Scan page. | Added `SettingsStore.SettingsChanged` event; `ScanViewModel` subscribes in its constructor and `OnSettingsChanged` re-reads `IncludeHidden` + `GpuAcceleration` live; removed the duplicate Scan-page `IncludeHidden` persistence. |
+| D-7 | Settings | `default_scan_paths` was cosmetic — persisted but never consumed. | Added `ScanViewModel.ApplyDefaultScanPath()` which pre-fills the scan path when the saved value is non-empty. |
+| D-8 | AI Assistant | `move_to_trash` tool told users to use a "Destructive-Action Preview" screen that does not exist, and `hardlink_duplicates` never applied (no `--apply --yes`). | `MoveToTrashPreviewAsync` now performs a real Recycle-Bin delete; `HardlinkDuplicatesPreviewAsync` applies with `--apply --yes` (safe — hardlinks never destroy data). A "Hardlink Duplicates" button was added to the Duplicates page (`DuplicatesViewModel.ApplyHardlinksAsync`). |
+| D-9 | ScannerService | `RunDedupAnalysisAsync(apply:true)` did not append `--yes`, so the backend refused to apply hardlinks. | `--yes` is now appended when `apply` is true. |
+| D-10 | Build | `DedupResult.SpaceSavedBytes` is `ulong?`; passing it to `ByteFormatter.FormatBytes` failed to compile, and `SettingsViewModel.ApplyTheme` used `Application.Current` (not a `Window`) with a mismatched `ApplicationTheme`/`ElementTheme` enum. | `?? 0UL` fallback + `MainWindow.Current.Content` with `ElementTheme` mapping. |
+
+> Net effect: the remaining open items in this tracker are the **workflow-automation** gaps that need a background scheduler — **triggers** (Manual is implemented; LowDiskSpace, FileSystemChange, OnStartup are not) and **scheduling** (5.6), plus the non-functional category grouping (5.1). The three previously-backend-only items (USN Journal, destructive-action preview, semantic Smart Search), the **feature-gap analysis cards** (Bloat Detection + Storage Forecast), the **action types** (5.3), and **execution history** (5.5) are now fully implemented and exposed in the WinUI UI as of 2026-08-10.
+
+---
+
 ## Summary: Gap Count by Severity
 
 | Category | ✅ Implemented | ⚠️ Partial | ❌ Missing | 🔵 Backend-only |
 |----------|--------------|-----------|-----------|-----------------|
-| Core Scanning | 11 | 2 | 0 | 0 |
+| Core Scanning | 12 | 1 | 0 | 0 |
 | Analysis | 2 | 3 | 0 | 0 |
-| File Management | 2 | 1 | 0 | 2 |
-| AI Integration | 4 | 0 | 1 | 0 |
-| Workflow Automation | 1 | 3 | 2 | 0 |
+| File Management | 3 | 1 | 0 | 1 |
+| AI Integration | 5 | 0 | 0 | 0 |
+| Workflow Automation | 3 | 1 | 2 | 0 |
 | System Monitoring | 2 | 1 | 0 | 0 |
-| Settings | 2 | 2 | 0 | 0 |
-| **Total** | **24** | **12** | **3** | **2** |
+| Settings | 3 | 1 | 0 | 0 |
+| **Total** | **30** | **8** | **2** | **1** |
 
 ### Critical Gaps (❌ Missing — README promises with no implementation)
 
-1. **Smart Search is not semantic** (`README.md:189`): Claims "semantic search via local embeddings (requires Ollama)". The WinUI Smart Search page is a plain filename substring search. The Rust embedding service exists but is not consumed by the WinUI frontend.
+1. ~~**Smart Search is not semantic**~~ **RESOLVED 2026-08-10** (`README.md:189`): Smart Search now has a semantic mode (embed + cosine-similarity query via the new `embed`/`semantic-search` Rust CLI subcommands). The filename/substring path remains for non-semantic queries.
 2. **Workflow triggers not implemented** (`README.md:158-159`): Claims 4 trigger types (Manual, LowDiskSpace, FileSystemChange, OnStartup). Only Manual is implemented. No background scheduler.
-3. **Workflow action types incomplete** (`README.md:159`): Claims 7 action types. WinUI Workflows page only runs file-finding workflows; PredictStorage, GenerateRecommendations, Export, Notify, AIAnalyze are not exposed.
+3. ~~**Workflow action types incomplete**~~ **RESOLVED 2026-08-10** (`README.md:159`): All 7 action types (Scan, FindDuplicates, PredictStorage, GenerateRecommendations, Export, Notify, AIAnalyze) are now runnable workflows on the Workflows page.
 
 ### High-Priority Partial Gaps (⚠️ Partial — behavior does not match README claim)
 
@@ -152,26 +179,26 @@ Each feature from the README is listed under its category. The status column ref
 5. **GPU acceleration toggle is cosmetic** (`README.md:206`): Settings page has a "GPU acceleration" checkbox but it is persisted and never consumed by scan or dedup code.
 6. **Export formats limited** (`README.md:146`): Claims export to "JSON, CSV, HTML, and PDF". WinUI only exports JSON. CSV/HTML/PDF export not wired in the UI.
 7. **Smart Search wildcard not implemented** (`SmartSearchPage.xaml:85`): UI tip says "Use * as a wildcard" but search logic uses `string.Contains()` without wildcard expansion.
-8. **NTFS USN Journal not exposed** (`README.md:124`): Rust core supports incremental USN Journal scanning but WinUI always performs fresh scans.
-9. **Storage trend prediction not surfaced** (`README.md:139`): Rust core + AI tool exist, but no dedicated prediction UI.
-10. **Bloat detection not surfaced** (`README.md:137`): Rust `offline_ai.rs` classifier exists but no WinUI panel shows bloat candidates directly.
-11. **Workflow execution history missing** (`README.md:161`): No persistent log of past workflow runs.
-12. **Default scan paths not configurable** (`README.md:196`): Settings does not expose a list of default scan paths; users must type or browse each time.
+8. ~~**NTFS USN Journal not exposed**~~ **RESOLVED 2026-08-10** (`README.md:124`): New `UsnPage` exposes USN Journal status, volumes, and recent change records via the new `usn` Rust CLI subcommand (Windows-only).
+9. ~~**Storage trend prediction not surfaced**~~ **RESOLVED (backend-wired 2026-08-10)** (`README.md:139`): The Dashboard "Storage Forecast" card (`DashboardPage.xaml:411`) is now driven by the Rust `predict` CLI subcommand (linear regression over scan-history sizes) with `AnalysisEngine.PredictStorage()` as fallback; shows current / +30 days / growth rate with a "not enough history" note until ≥2 scans.
+10. ~~**Bloat detection not surfaced**~~ **RESOLVED (backend-wired 2026-08-10)** (`README.md:137`): The Dashboard "Bloat Detection" card (`DashboardPage.xaml:443`) now lists bloat candidates (large videos, installers, caches/temp, AI model weights, `node_modules`) sourced directly from the Rust `bloat` CLI subcommand (offline_ai::FilePatternClassifier — extended 2026-08-10 to cover AI models / installers / dependencies by path), with `AnalysisEngine.GetBloatFindings()` as fallback and a "Potential reclaimable" aggregate.
+11. ~~**Workflow execution history missing**~~ **RESOLVED 2026-08-10** (`README.md:161`): Execution history is now persisted to `workflow-history.json` in `LocalFolder` and reloaded on startup.
+12. **Default scan paths not configurable** (`README.md:196`): ~~Settings does not expose a list of default scan paths; users must type or browse each time.~~ **FIXED 2026-08-10** — `SettingsViewModel` persists `default_scan_paths` and `ScanViewModel.ApplyDefaultScanPath()` now pre-fills the scan path (D-7).
 
 ### Backend-Only Gaps (🔵 Rust core has it, WinUI does not expose it)
 
-13. **Hard-link deduplication UI** (`README.md:144`): Rust `file_deduplicator` + `file_relations.rs` have full support. WinUI exposes only as AI Assistant tool preview.
-14. **Destructive-action preview UI** (`README.md:145`): Rust `DependencyReport` is comprehensive. WinUI exposes only via AI tool `preview_impact`, not as a direct UI action on scan results.
+13. **Hard-link deduplication UI** (`README.md:144`): Rust `file_deduplicator` + `file_relations.rs` have full support. WinUI now exposes a "Hardlink Duplicates" apply button on the Duplicates page (added 2026-08-10, D-8).
+14. ~~**Destructive-action preview UI**~~ **RESOLVED 2026-08-10** (`README.md:145`): The Duplicates page now has a "Preview impact before delete" panel backed by Rust `file_relations::analyze_file_dependencies` via the new `dependencies` CLI subcommand.
 
 ---
 
 ## Recommendations
 
-1. **Fix Smart Search to actually use embeddings** — either rename the page to "File Search" or wire up `embedding_service.rs` + Ollama `/api/embeddings` to make it truly semantic.
+1. ~~**Fix Smart Search to actually use embeddings**~~ DONE 2026-08-10 — semantic mode wired to `embedding_service.rs` + Ollama `/api/embeddings`.
 2. **Implement workflow triggers** — add a background scheduler (e.g. `Timer` or `BackgroundService`) for LowDiskSpace, FileSystemChange, and OnStartup triggers.
 3. **Wire GPU acceleration** — read `GpuAcceleration` setting in `ScannerService` and pass `--gpu` flag to Rust dedup/scanner when enabled.
 4. **Add CSV/HTML/PDF export** — expose format selector in `ScanPage.xaml` and route to Rust CLI `--format csv|md` (HTML/PDF would need new Rust output formatters).
 5. **Implement wildcard expansion** in `SmartSearchViewModel.WalkDirectory` — convert `*` to `Contains` logic or regex.
 6. **Add workflow execution history** — persist workflow runs to SQLite (`database/workflows.rs` already exists) and display in `WorkflowsPage`.
 7. **Surface bloat detection** — add a "Bloat Candidates" section to Scan page using Rust `offline_ai.rs` output.
-8. **Add hardlink dedup action** — add a "Hardlink Duplicates" button to Duplicates page that calls the Rust dedup with hardlink mode.
+8. ~~**Add hardlink dedup action**~~ DONE 2026-08-10 — "Hardlink Duplicates" button added to Duplicates page.

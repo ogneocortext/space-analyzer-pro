@@ -114,12 +114,21 @@ public sealed partial class ScanPage : Page
     private async void Export_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("ScanPage Export_Click");
+        if (VM.LastResult == null) return;
         try
         {
+            var format = (VM.ExportFormat ?? "json").ToLowerInvariant();
+            var ext = format switch
+            {
+                "csv" => ".csv",
+                "md" or "markdown" => ".md",
+                "html" or "htm" => ".html",
+                _ => ".json"
+            };
             var picker = new Windows.Storage.Pickers.FileSavePicker();
             picker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
-            picker.SuggestedFileName = $"scan-{DateTime.Now:yyyy-MM-dd-HHmmss}.json";
-            picker.FileTypeChoices.Add("JSON", new[] { ".json" });
+            picker.SuggestedFileName = $"scan-{DateTime.Now:yyyy-MM-dd-HHmmss}{ext}";
+            picker.FileTypeChoices.Add(format.ToUpperInvariant(), new[] { ext });
 
             var window = MainWindow.Current as Window;
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
@@ -148,6 +157,7 @@ public sealed partial class ScanPage : Page
             "Quick"   => ScannerService.DepthMode.Shallow,
             "Default" => ScannerService.DepthMode.Default,
             "Deep"    => ScannerService.DepthMode.Deep,
+            "Custom"  => ScannerService.DepthMode.Custom,
             _         => VM.SelectedDepthMode
         };
     }

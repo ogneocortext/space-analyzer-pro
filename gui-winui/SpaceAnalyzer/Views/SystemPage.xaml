@@ -30,11 +30,13 @@
                         </Grid.ColumnDefinitions>
 
                         <!-- CPU -->
-                        <StackPanel Grid.Column="0" Spacing="{StaticResource Space.MD}">
+                        <StackPanel Grid.Column="0" Spacing="{StaticResource Space.MD}"
+                                    Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                    Padding="{StaticResource Thickness.MD}" CornerRadius="6">
                             <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
                                 <FontIcon Glyph="&#xE964;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center"
                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-<TextBlock Text="CPU" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center"/>
+<TextBlock Text="CPU" Style="{StaticResource Type.GroupHeading}" VerticalAlignment="Center"/>
                             </StackPanel>
                             <ProgressBar x:Name="CpuBar" Value="{x:Bind VM.CpuUsage, Mode=OneWay}"
                                          Maximum="100" Style="{StaticResource StandardProgressBar}"
@@ -45,11 +47,13 @@
                         </StackPanel>
 
                         <!-- Memory -->
-                        <StackPanel Grid.Column="1" Spacing="{StaticResource Space.MD}">
+                        <StackPanel Grid.Column="1" Spacing="{StaticResource Space.MD}"
+                                    Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                    Padding="{StaticResource Thickness.MD}" CornerRadius="6">
                             <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
                                 <FontIcon Glyph="&#xE9F9;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center"
                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-<TextBlock Text="Memory" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center"/>
+<TextBlock Text="Memory" Style="{StaticResource Type.GroupHeading}" VerticalAlignment="Center"/>
                             </StackPanel>
                             <ProgressBar x:Name="MemBar" Value="{x:Bind VM.MemoryUsage, Mode=OneWay}"
                                          Maximum="100" Style="{StaticResource StandardProgressBar}"
@@ -64,7 +68,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
                                 <FontIcon Glyph="&#xF211;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center"
                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                <TextBlock Text="GPU" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center"/>
+                                <TextBlock Text="GPU" Style="{StaticResource Type.GroupHeading}" VerticalAlignment="Center"/>
                             </StackPanel>
 
                             <!-- Available: live gauge + percentage -->
@@ -78,9 +82,9 @@
                             </StackPanel>
 
                             <!-- Unavailable: explicit status instead of a bare "n/a" -->
-                            <Border BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
-                                    BorderThickness="1" CornerRadius="8"
-                                    Padding="{StaticResource Thickness.MD}"
+                            <Border BorderBrush="{ThemeResource SystemFillColorCautionBrush}" BorderThickness="1" CornerRadius="8"
+                                    Padding="{StaticResource Thickness.SM}"
+                                    Opacity="0.92"
                                     Visibility="{x:Bind VM.GpuAvailable, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
                                 <StackPanel Spacing="{StaticResource Space.SM}">
                                     <FontIcon Glyph="&#xE7BA;" FontSize="{StaticResource Icon.Small}" HorizontalAlignment="Center"
@@ -90,6 +94,12 @@
                                     <TextBlock Text="{x:Bind VM.GpuSubtitle, Mode=OneWay}" Style="{StaticResource Type.Caption}"
                                                 Opacity="0.8" HorizontalAlignment="Center" TextAlignment="Center"
                                                 TextWrapping="Wrap"/>
+                                    <TextBlock Text="Windows does not expose live GPU performance counters for this adapter, so usage cannot be displayed."
+                                                Style="{StaticResource Type.Tiny}" Opacity="0.7" HorizontalAlignment="Center"
+                                                TextAlignment="Center" TextWrapping="Wrap"/>
+                                    <TextBlock Text="Enable them in Windows Settings → System → Display → Graphics, or via your GPU vendor's control panel."
+                                                Style="{StaticResource Type.Tiny}" Opacity="0.7" HorizontalAlignment="Center"
+                                                TextAlignment="Center" TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -136,7 +146,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="Disk Volumes" Style="{StaticResource Type.CardTitle}" VerticalAlignment="Center"/>
-                            <Button Grid.Column="1" Content="Refresh" Click="Refresh_Click" Style="{StaticResource SmallButton}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="Refresh" Click="Refresh_Click" Style="{StaticResource SecondaryButton}" VerticalAlignment="Center"/>
                         </Grid>
                         <ItemsRepeater ItemsSource="{x:Bind VM.DiskVolumes, Mode=OneWay}">
                             <ItemsRepeater.Layout>
@@ -203,6 +213,9 @@
                                 </DataTemplate>
                             </ItemsRepeater.ItemTemplate>
                         </ItemsRepeater>
+                        <TextBlock Text="No process data available right now."
+                                   Style="{StaticResource Type.Caption}" Opacity="0.7"
+                                   Visibility="{x:Bind VM.HasTopProcesses, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
                     </StackPanel>
                 </Border>
 

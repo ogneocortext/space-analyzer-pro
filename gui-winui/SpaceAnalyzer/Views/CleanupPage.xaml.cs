@@ -160,4 +160,45 @@ public sealed partial class CleanupPage : Page
             UiHelper.OpenPath(path);
         }
     }
+
+    private void UseTempFolder_Click(object sender, RoutedEventArgs e)
+    {
+        VM.UseTempFolder();
+    }
+
+    private async void AnalyzeTemp_Click(object sender, RoutedEventArgs e)
+    {
+        await VM.AnalyzeTempAsync();
+    }
+
+    private async void DeleteTempSelected_Click(object sender, RoutedEventArgs e)
+    {
+        int count = VM.TempSelectedCount;
+        if (count == 0) return;
+
+        var dialog = new ContentDialog
+        {
+            Title = "Send to Recycle Bin",
+            Content = $"Move {count} selected item(s) ({VM.TempSelectedSizeDisplay}) to the Recycle Bin? " +
+                      "They can be restored from the Recycle Bin afterward.",
+            PrimaryButtonText = "Recycle",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+        dialog.XamlRoot = this.XamlRoot;
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            return;
+
+        await VM.DeleteSelectedTempAsync();
+    }
+
+    private void SelectAllTemp_Click(object sender, RoutedEventArgs e)
+    {
+        VM.SelectAllTemp();
+    }
+
+    private void ClearTempSelection_Click(object sender, RoutedEventArgs e)
+    {
+        VM.ClearTempSelection();
+    }
 }

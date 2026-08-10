@@ -39,6 +39,7 @@ pub struct ScanHistoryRecord {
     pub extension_sizes_json: String,
     pub top_directories_json: String,
     pub largest_files_json: String,
+    pub category_sizes_json: String,
     pub deep_scan: bool,
     pub shallow_scan: bool,
     pub max_scan_depth: u32,
@@ -134,8 +135,21 @@ impl Database {
 
     /// Row count for a given table. Returns 0 if the table doesn't exist.
     pub fn table_row_count(&self, table: &str) -> rusqlite::Result<i64> {
+        // Only allow known tables so a caller-supplied name cannot be injected
+        // into the SQL. Unknown names simply report zero rows.
+        const ALLOWED: &[&str] = &[
+            "scan_history",
+            "disk_space_history",
+            "settings",
+            "workflow_executions",
+            "file_cache",
+            "file_embeddings",
+        ];
+        if !ALLOWED.contains(&table) {
+            return Ok(0);
+        }
         self.conn
-            .query_row(&format!("SELECT COUNT(*) FROM {}", table), [], |r| {
+            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| {
                 r.get::<_, i64>(0)
             })
             .or_else(|_| Ok(0))
@@ -333,11 +347,50 @@ impl Database {
                 self.conn.execute_batch("COMMIT")?;
             }
         }
+        if user_version < 6 {
+            let table_exists: bool = self
+                .conn
+                .query_row(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='scan_history'",
+                    [],
+                    |_| Ok(true),
+                )
+                .unwrap_or(false);
+
+            if table_exists {
+                self.conn.execute_batch("BEGIN IMMEDIATE")?;
+                let migration_result = (|| -> rusqlite::Result<()> {
+                    let columns: Vec<String> = self.conn.prepare(
+                        "SELECT name FROM pragma_table_info('scan_history') WHERE name IN ('category_sizes_json')"
+                    )?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+
+                    if !columns.contains(&"category_sizes_json".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN category_sizes_json TEXT NOT NULL DEFAULT '{}';",
+                        )?;
+                    }
+                    self.conn.execute("PRAGMA user_version = 6", [])?;
+                    Ok(())
+                })();
+                if migration_result.is_err() {
+                    let _ = self.conn.execute_batch("ROLLBACK");
+                    migration_result?;
+                } else {
+                    self.conn.execute_batch("COMMIT")?;
+                }
+            }
+        }
         Ok(())
     }
 
     fn initialize(&self) -> rusqlite::Result<()> {
         self.migrate()?;
+        // Best-effort: populate category_sizes_json for records created before
+        // that column existed. Non-fatal so a read-only/locked database never
+        // blocks startup; run `history --backfill-categories` to force it.
+        if let Err(e) = self.backfill_category_sizes() {
+            eprintln!("[db] category back-fill skipped: {e}");
+        }
         self.conn.execute_batch("
             CREATE TABLE IF NOT EXISTS scan_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -350,6 +403,7 @@ impl Database {
                 extension_sizes_json TEXT NOT NULL,
                 top_directories_json TEXT NOT NULL,
                 largest_files_json TEXT NOT NULL,
+                category_sizes_json TEXT NOT NULL DEFAULT '{}',
                 deep_scan BOOLEAN NOT NULL DEFAULT 0,
                 shallow_scan BOOLEAN NOT NULL DEFAULT 0,
                 max_scan_depth INTEGER NOT NULL DEFAULT 5,

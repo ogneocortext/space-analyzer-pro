@@ -10,7 +10,9 @@ impl SpaceAnalyzerApp {
         let gpu_info = SystemMonitor::detect_gpu();
 
         self.system_state.cpu_history.push(resources.cpu_percent);
-        self.system_state.memory_history.push(resources.memory_percent);
+        self.system_state
+            .memory_history
+            .push(resources.memory_percent);
 
         let total_space: u64 = disk_volumes.iter().map(|v| v.total_bytes).sum();
         let used_space: u64 = disk_volumes.iter().map(|v| v.used_bytes).sum();
@@ -22,7 +24,9 @@ impl SpaceAnalyzerApp {
         self.system_state.disk_history.push(disk_pct);
 
         self.system_state.cpu_history.truncate(MAX_HISTORY_POINTS);
-        self.system_state.memory_history.truncate(MAX_HISTORY_POINTS);
+        self.system_state
+            .memory_history
+            .truncate(MAX_HISTORY_POINTS);
         self.system_state.disk_history.truncate(MAX_HISTORY_POINTS);
 
         self.system_state.disk_volumes = disk_volumes;

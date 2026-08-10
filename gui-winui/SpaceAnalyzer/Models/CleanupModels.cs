@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using SpaceAnalyzer.Helpers;
@@ -12,6 +14,36 @@ namespace SpaceAnalyzer.Models;
 /// Risk level for a cleanup candidate.
 /// </summary>
 public enum RiskLevel { Low, Medium, High }
+
+/// <summary>
+/// Which cleanup engine the Cleanup page is using.
+/// </summary>
+public enum CleanupMode { NodeModules, TempCaches }
+
+/// <summary>
+/// A top-level entry (directory or loose file) discovered in a temp/cache folder,
+/// presented for manual selection before deletion.
+/// </summary>
+public class TempCleanupEntry : INotifyPropertyChanged
+{
+    private bool _isSelected;
+    public string Path { get; set; } = string.Empty;
+    public string Name => System.IO.Path.GetFileName(Path.TrimEnd('\\', '/'));
+    public bool IsDirectory { get; set; }
+    public ulong SizeBytes { get; set; }
+    public DateTime LastWrite { get; set; }
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set { _isSelected = value; OnPropertyChanged(); }
+    }
+    public string SizeDisplay => ByteFormatter.FormatBytes(SizeBytes);
+    public string LastWriteDisplay => LastWrite.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
 
 /// <summary>
 /// A candidate directory flagged for potential cleanup.

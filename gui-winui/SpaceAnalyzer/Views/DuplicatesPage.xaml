@@ -45,6 +45,76 @@
                         HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButton}"
                         IsEnabled="{x:Bind VM.IsNotScanning, Mode=OneWay}"/>
 
+                <!-- Hardlink Duplicates (reclaim space without deleting data) -->
+                <Button Content="Hardlink Duplicates" Click="Hardlink_Click"
+                        HorizontalAlignment="Stretch" Style="{StaticResource SecondaryButton}"
+                        IsEnabled="{x:Bind VM.HasResult, Mode=OneWay}"
+                        AutomationProperties.Name="Hardlink duplicate files"/>
+
+                <!-- Deletion-impact preview (dependencies subcommand) -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="Deletion Impact Preview" Style="{StaticResource Type.SubTitle}"/>
+                        <TextBlock Text="Check whether deleting a single file will break siblings, symlinks, or shared (hard-linked) data before you remove anything."
+                                   Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                        <Grid ColumnSpacing="{StaticResource Space.SM}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{x:Bind VM.ImpactPath, Mode=TwoWay}" PlaceholderText="Path to the file you plan to delete..." Style="{StaticResource FieldTextBox}"/>
+                            <Button Grid.Column="1" Content="Browse" Click="ImpactBrowse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Browse impact file"/>
+                            <Button Grid.Column="2" Content="Analyze Impact" Click="AnalyzeImpact_Click" Style="{StaticResource PrimaryButton}" IsEnabled="{x:Bind VM.IsNotAnalyzingImpact, Mode=OneWay}" AutomationProperties.Name="Analyze deletion impact"/>
+                        </Grid>
+
+                        <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasImpact, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel Spacing="{StaticResource Space.MD}">
+                                <TextBlock Text="Impact Summary" Style="{StaticResource Type.CardTitle}"/>
+                                <TextBlock Text="{x:Bind VM.ImpactSummary, Mode=OneWay}" Style="{StaticResource Type.Body}" TextWrapping="Wrap"/>
+                                <Grid ColumnSpacing="{StaticResource Space.XXL}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                                        <TextBlock Text="{x:Bind VM.ImpactRelatedCount, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                        <TextBlock Text="Related" Style="{StaticResource Type.StatLabel}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
+                                        <TextBlock Text="{x:Bind VM.ImpactSameStemCount, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                        <TextBlock Text="Same stem" Style="{StaticResource Type.StatLabel}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="{StaticResource Space.XS}">
+                                        <TextBlock Text="{x:Bind VM.ImpactSiblingCount, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                        <TextBlock Text="Siblings" Style="{StaticResource Type.StatLabel}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3" Spacing="{StaticResource Space.XS}">
+                                        <TextBlock Text="{x:Bind VM.ImpactSymlinkSourceCount, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                        <TextBlock Text="Symlink src" Style="{StaticResource Type.StatLabel}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <ItemsRepeater ItemsSource="{x:Bind VM.ImpactSiblingFiles, Mode=OneWay}" Margin="0,8,0,0">
+                                    <ItemsRepeater.Layout>
+                                        <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.XS}"/>
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="models:RelatedFile">
+                                            <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.8" TextWrapping="Wrap">
+                                                <Run Text="{x:Bind Relation, Mode=OneTime}"/>
+                                                <Run Text=" — "/>
+                                                <Run Text="{x:Bind Path, Mode=OneTime}"/>
+                                            </TextBlock>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
                 <!-- Status -->
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" Style="{StaticResource Type.Body}"/>
 

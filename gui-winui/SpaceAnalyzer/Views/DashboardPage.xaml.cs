@@ -1,5 +1,6 @@
 ﻿// Licensed under the MIT License.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using LiveChartsCore;
@@ -28,6 +29,14 @@ public sealed partial class DashboardPage : Page
     private LineSeries<double>? _memScanBand;
     private LineSeries<double>? _diskScanBand;
     private LineSeries<double>? _gpuScanBand;
+    private LineSeries<double>? _cpuThreshWarn;
+    private LineSeries<double>? _cpuThreshCrit;
+    private LineSeries<double>? _memThreshWarn;
+    private LineSeries<double>? _memThreshCrit;
+    private LineSeries<double>? _gpuThreshWarn;
+    private LineSeries<double>? _gpuThreshCrit;
+    private LineSeries<double>? _diskThreshWarn;
+    private LineSeries<double>? _diskThreshCrit;
     private CartesianChart? _cpuChart;
     private CartesianChart? _memChart;
     private CartesianChart? _diskChart;
@@ -85,21 +94,22 @@ public sealed partial class DashboardPage : Page
     private void DrawAllCharts()
     {
         CreateSparklineIfNeeded(CpuChartGrid, VM.CpuHistory, VM.ScanBandValues, new SKColor(0, 120, 212),
-            out _cpuChart, out _cpuSeries, out _cpuScanBand);
+            out _cpuChart, out _cpuSeries, out _cpuScanBand, out _cpuThreshWarn, out _cpuThreshCrit);
         CreateSparklineIfNeeded(MemChartGrid, VM.MemoryHistory, VM.ScanBandValues, new SKColor(156, 39, 176),
-            out _memChart, out _memSeries, out _memScanBand);
+            out _memChart, out _memSeries, out _memScanBand, out _memThreshWarn, out _memThreshCrit);
         CreateSparklineIfNeeded(GpuChartGrid, VM.GpuHistory, VM.ScanBandValues, new SKColor(255, 152, 0),
-            out _gpuChart, out _gpuSeries, out _gpuScanBand);
+            out _gpuChart, out _gpuSeries, out _gpuScanBand, out _gpuThreshWarn, out _gpuThreshCrit);
         CreateSparklineIfNeeded(DiskChartGrid, VM.DiskHistory, VM.ScanBandValues, new SKColor(0, 150, 136),
-            out _diskChart, out _diskSeries, out _diskScanBand);
+            out _diskChart, out _diskSeries, out _diskScanBand, out _diskThreshWarn, out _diskThreshCrit);
         UpdateSparklineValues();
         DrawDiskUsageDonut();
-        DrawFileTypePie();
+        DrawFileTypeBars();
     }
 
     private static void CreateSparklineIfNeeded(
         Grid grid, IReadOnlyList<double> values, IReadOnlyList<double> bandValues, SKColor color,
-        out CartesianChart chart, out LineSeries<double> series, out LineSeries<double> band)
+        out CartesianChart chart, out LineSeries<double> series, out LineSeries<double> band,
+        out LineSeries<double> warn, out LineSeries<double> crit)
     {
         // Translucent band pinned at the top of the chart while the scanner is
         // running. Drawn behind the value line so the activity window reads as a
@@ -115,6 +125,12 @@ public sealed partial class DashboardPage : Page
             ZIndex = 0,
         };
 
+        // Static threshold guides at 70% (warning) and 90% (critical). They are
+        // sized to the full history window in UpdateSparklineValues so they span
+        // the whole chart rather than just the first two samples.
+        warn = MakeThresholdLine(70, new SKColor(232, 163, 61, 220));
+        crit = MakeThresholdLine(90, new SKColor(214, 67, 43, 220));
+
         series = new LineSeries<double>
         {
             Values = values.ToArray(),
@@ -128,7 +144,7 @@ public sealed partial class DashboardPage : Page
 
         chart = new CartesianChart
         {
-            Series = [band, series],
+            Series = [band, warn, crit, series],
             Height = 72,
             XAxes = [new Axis { IsVisible = false }],
             YAxes =
@@ -146,8 +162,28 @@ public sealed partial class DashboardPage : Page
         grid.Children.Add(chart);
     }
 
+    private static LineSeries<double> MakeThresholdLine(double level, SKColor color) => new()
+    {
+        Values = [level, level],
+        Fill = null,
+        Stroke = new SolidColorPaint(color) { StrokeThickness = 1 },
+        GeometrySize = 0,
+        LineSmoothness = 0,
+        Name = "",
+        ZIndex = 0,
+        IsHoverable = false,
+    };
+
+    private static double[] ConstantArray(int n, double v)
+    {
+        var arr = new double[n];
+        if (n > 0) Array.Fill(arr, v);
+        return arr;
+    }
+
     private void UpdateSparklineValues()
     {
+        int len = VM.CpuHistory.Count;
         if (_cpuSeries != null) _cpuSeries.Values = VM.CpuHistory.ToArray();
         if (_memSeries != null) _memSeries.Values = VM.MemoryHistory.ToArray();
         if (_diskSeries != null) _diskSeries.Values = VM.DiskHistory.ToArray();
@@ -156,6 +192,14 @@ public sealed partial class DashboardPage : Page
         if (_memScanBand != null) _memScanBand.Values = VM.ScanBandValues.ToArray();
         if (_diskScanBand != null) _diskScanBand.Values = VM.ScanBandValues.ToArray();
         if (_gpuScanBand != null) _gpuScanBand.Values = VM.ScanBandValues.ToArray();
+        if (_cpuThreshWarn != null) _cpuThreshWarn.Values = ConstantArray(len, 70);
+        if (_cpuThreshCrit != null) _cpuThreshCrit.Values = ConstantArray(len, 90);
+        if (_memThreshWarn != null) _memThreshWarn.Values = ConstantArray(len, 70);
+        if (_memThreshCrit != null) _memThreshCrit.Values = ConstantArray(len, 90);
+        if (_gpuThreshWarn != null) _gpuThreshWarn.Values = ConstantArray(len, 70);
+        if (_gpuThreshCrit != null) _gpuThreshCrit.Values = ConstantArray(len, 90);
+        if (_diskThreshWarn != null) _diskThreshWarn.Values = ConstantArray(len, 70);
+        if (_diskThreshCrit != null) _diskThreshCrit.Values = ConstantArray(len, 90);
         UpdateChartAnnotations();
     }
 
@@ -200,19 +244,19 @@ public sealed partial class DashboardPage : Page
         {
             var name = !string.IsNullOrWhiteSpace(v.Label) ? $"{v.Label} ({v.MountPoint.TrimEnd('\\')})" : v.MountPoint.TrimEnd('\\');
             var pct = v.UsagePercentDisplay;
-            return ($"{name} · {pct}", (double)v.UsedBytes);
+            return (Label: $"{name} · {pct}", Value: (double)v.UsedBytes, DrillKey: v.MountPoint);
         }).ToList();
-        var chart = LiveChartsFactory.CreateDonutChart(items);
+        var chart = LiveChartsFactory.CreateDonutChart(items, key => DrillToVolumeScan(key));
         DiskUsageDonutGrid.Children.Add(chart);
     }
 
-    private void DrawFileTypePie()
+    private void DrawFileTypeBars()
     {
-        FileTypePieGrid.Children.Clear();
+        FileTypeBarsGrid.Children.Clear();
         var latestScan = VM.LatestScan;
         if (latestScan == null || latestScan.FileTypes == null || latestScan.FileTypes.Count == 0)
         {
-            FileTypePieGrid.Children.Add(new TextBlock
+            FileTypeBarsGrid.Children.Add(new TextBlock
             {
                 Text = "Run a scan to see file types",
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -228,8 +272,30 @@ public sealed partial class DashboardPage : Page
             .Take(8)
             .Select(kv => (Label: kv.Key, (double)kv.Value))
             .ToList();
-        var chart = LiveChartsFactory.CreateDonutChart(top);
-        FileTypePieGrid.Children.Add(chart);
+        var chart = LiveChartsFactory.CreateFileTypeBarChart(top, DrillToFileType);
+        FileTypeBarsGrid.Children.Add(chart);
+    }
+
+    // ── Click-to-drill navigation from the storage-breakdown charts ──
+
+    /// <summary>
+    /// Tapping a file-type bar jumps to Smart Search pre-filled with that extension
+    /// and the most-recent scan's path, so the user can drill straight into matches.
+    /// </summary>
+    private void DrillToFileType(string ext)
+    {
+        if (MainWindow.Current is null) return;
+        var path = VM.LatestScan?.Path;
+        MainWindow.Current.NavigateToPage("SmartSearch", new SmartSearchPreset(Query: ext, Path: path));
+    }
+
+    /// <summary>
+    /// Tapping a disk-usage donut slice re-scans that volume.
+    /// </summary>
+    private void DrillToVolumeScan(string? mountPoint)
+    {
+        if (MainWindow.Current is null || string.IsNullOrEmpty(mountPoint)) return;
+        MainWindow.Current.NavigateToPage("Scan", mountPoint);
     }
 
     private void SetupHoverEffects()

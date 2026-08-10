@@ -4,11 +4,16 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:SpaceAnalyzer.ViewModels"
     xmlns:models="using:SpaceAnalyzer.Models"
+    xmlns:helpers="using:SpaceAnalyzer.Helpers"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     NavigationCacheMode="Required"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Page.Resources>
+        <helpers:EnumEqualsConverter x:Key="EnumEquals"/>
+    </Page.Resources>
 
     <Grid Padding="{StaticResource Thickness.XL}"
           AllowDrop="True"
@@ -19,8 +24,14 @@
 
                 <!-- Header -->
                 <StackPanel Spacing="{StaticResource Space.SM}">
-                    <TextBlock Text="node_modules Cleaner" Style="{StaticResource Type.PageTitle}"/>
-                    <TextBlock Text="Analyze and clean node_modules directories to reclaim disk space." Style="{StaticResource Type.Body}"/>
+                    <TextBlock Text="Cleanup" Style="{StaticResource Type.PageTitle}"/>
+                    <TextBlock Text="Reclaim disk space by cleaning node_modules or general temp/cache folders." Style="{StaticResource Type.Body}"/>
+                </StackPanel>
+
+                <!-- Mode selector -->
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
+                    <ToggleButton Content="node_modules" IsChecked="{x:Bind VM.Mode, Mode=TwoWay, Converter={StaticResource EnumEquals}, ConverterParameter='NodeModules'}"/>
+                    <ToggleButton Content="Temp &amp; Caches" IsChecked="{x:Bind VM.Mode, Mode=TwoWay, Converter={StaticResource EnumEquals}, ConverterParameter='TempCaches'}"/>
                 </StackPanel>
 
                 <!-- Target Path -->
@@ -38,8 +49,9 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Options -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
+                <!-- Options (node_modules mode) -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}"
+                        Visibility="{x:Bind VM.IsNodeModulesMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel Spacing="{StaticResource Space.LG}">
                         <TextBlock Text="Options" Style="{StaticResource Type.SubTitle}"/>
                         <Grid ColumnSpacing="{StaticResource Space.XXL}">
@@ -79,16 +91,34 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Action Button -->
-                <Button Content="Analyze node_modules" Click="Analyze_Click"
+                <!-- Temp & Caches options -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}"
+                        Visibility="{x:Bind VM.IsTempMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="Temp &amp; Cache Cleaner" Style="{StaticResource Type.SubTitle}"/>
+                        <TextBlock Text="Lists the top-level folders and files in the target directory so you can review and send them to the Recycle Bin. Nothing is deleted until you confirm." Style="{StaticResource Type.Body}"/>
+                        <Button Content="Use Temp Folder" Click="UseTempFolder_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Use Temp Folder"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Action Buttons (mode-specific) -->
+                <Button Content="Find cleanable node_modules" Click="Analyze_Click"
                         HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButton}"
-                        IsEnabled="{x:Bind VM.IsNotAnalyzing, Mode=OneWay}"/>
+                        IsEnabled="{x:Bind VM.IsNotAnalyzing, Mode=OneWay}"
+                        Visibility="{x:Bind VM.IsNodeModulesMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+                <Button Content="Scan Temp Folder" Click="AnalyzeTemp_Click"
+                        HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButton}"
+                        IsEnabled="{x:Bind VM.IsNotAnalyzing, Mode=OneWay}"
+                        Visibility="{x:Bind VM.IsTempMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
 
                 <!-- Status -->
-                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" Style="{StaticResource Type.Body}"/>
+                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.85"/>
 
-                <!-- Results -->
-                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
+                <!-- Results separator -->
+                <Border Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}" Opacity="0.5" Margin="0,4" />
+
+                <!-- Results (node_modules mode) -->
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.NodeModulesResultVisibility, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.LG}">
                         <TextBlock Text="Analysis Results" Style="{StaticResource Type.CardTitle}" />
 
@@ -189,14 +219,58 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Empty State (results placeholder — mirrors the results card) -->
-                <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
+                <!-- Empty State (results placeholder) -->
+                <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.EmptyStateVisibility, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.LG}">
                         <TextBlock Text="Analysis Results" Style="{StaticResource Type.CardTitle}"/>
                         <StackPanel Style="{StaticResource EmptyStatePanel}">
                             <FontIcon Glyph="&#xEB9F;" Style="{StaticResource EmptyStateIcon}"/>
                             <TextBlock Text="No cleanup results yet" Style="{StaticResource EmptyStateTitle}"/>
                             <TextBlock Text="Select a directory and click Analyze to find node_modules to clean up." Style="{StaticResource EmptyStateHint}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Temp & Cache results -->
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.TempResultVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.LG}">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center">
+                            <TextBlock Text="Temp &amp; Cache Entries" Style="{StaticResource Type.CardTitle}"/>
+                            <TextBlock Text="{x:Bind VM.TempSelectedSizeDisplay, Mode=OneWay}" Style="{StaticResource Type.Body}" Opacity="0.8"/>
+                        </StackPanel>
+
+                        <ItemsRepeater ItemsSource="{x:Bind VM.TempEntries, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.MD}"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:TempCleanupEntry">
+                                    <Border Style="{StaticResource ItemCard}">
+                                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center">
+                                            <CheckBox IsChecked="{x:Bind IsSelected, Mode=TwoWay}" VerticalAlignment="Center"/>
+                                            <StackPanel Spacing="{StaticResource Space.XS}" HorizontalAlignment="Stretch">
+                                                <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.7" Text="{x:Bind Path, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <TextBlock Style="{StaticResource Type.Body}" Text="{x:Bind SizeDisplay, Mode=OneTime}" Opacity="0.8" VerticalAlignment="Center"/>
+                                            <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.6" Text="{x:Bind LastWriteDisplay, Mode=OneTime}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
+                            <Button Content="Delete Selected" Click="DeleteTempSelected_Click"
+                                    Style="{StaticResource DangerButton}"
+                                    IsEnabled="{x:Bind VM.TempHasSelection, Mode=OneWay}"
+                                    AutomationProperties.Name="Delete selected temp items"/>
+                            <Button Content="Select All" Click="SelectAllTemp_Click"
+                                    Style="{StaticResource SecondaryButton}"
+                                    AutomationProperties.Name="Select all temp items"/>
+                            <Button Content="Clear" Click="ClearTempSelection_Click"
+                                    Style="{StaticResource SecondaryButton}"
+                                    AutomationProperties.Name="Clear temp selection"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

@@ -146,8 +146,10 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
     public List<ProcessInfo> TopProcesses
     {
         get => _topProcesses;
-        set { _topProcesses = value; OnPropertyChanged(); }
+        set { _topProcesses = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasTopProcesses)); }
     }
+
+    public bool HasTopProcesses => _topProcesses.Count > 0;
 
     // ── Methods ──
 

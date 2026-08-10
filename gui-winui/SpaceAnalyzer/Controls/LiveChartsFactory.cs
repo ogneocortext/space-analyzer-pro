@@ -10,6 +10,7 @@ using LiveChartsCore.SkiaSharpView.Painting;
 using LiveChartsCore.SkiaSharpView.WinUI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using SkiaSharp;
 
 namespace SpaceAnalyzer.Controls;
@@ -34,16 +35,34 @@ public static class LiveChartsFactory
         new(121, 85, 72),     // brown
     ];
 
-    private static readonly SolidColorPaint s_axisLabelPaint =
-        new(new SKColor(214, 219, 226));
+    // Axis paints are resolved per-chart from theme resources so the labels and
+    // grid separators stay legible in both light and dark themes. The shared
+    // statics above are replaced by these factories, called at create time.
+    private static SKColor ThemeColor(string key, SKColor fallback)
+    {
+        if (Application.Current.Resources.TryGetValue(key, out var value) && value is SolidColorBrush brush)
+            return new SKColor(brush.Color.R, brush.Color.G, brush.Color.B, brush.Color.A);
+        return fallback;
+    }
 
-    private static readonly SolidColorPaint s_axisSeparatorPaint =
-        new(new SKColor(230, 230, 230, 90));
+    private static SolidColorPaint MakeLabelPaint() =>
+        new(ThemeColor("TextFillColorSecondaryBrush", new SKColor(150, 150, 150)));
 
-    // ── Bar Chart ──
+    private static SolidColorPaint MakeSeparatorPaint() =>
+        new(ThemeColor("CardStrokeColorDefaultBrush", new SKColor(128, 128, 128, 60)));
 
+    // ── Bar Chart ─
+
+    /// <summary>
+    /// Vertical bar chart with one bar per item. The optional <paramref name="yLabeler"/>
+    /// formats the Y axis (and the series tooltip) so non-byte metrics such as file
+    /// counts or durations render with their own units instead of being coerced to
+    /// bytes by <see cref="FormatBytes"/>.
+    /// </summary>
     public static FrameworkElement CreateBarChart(
-        IEnumerable<(string Label, double Value, string? DisplayText)> items)
+        IEnumerable<(string Label, double Value, string? DisplayText)> items,
+        Func<double, string>? yLabeler = null,
+        Action<int>? onIndexClick = null)
     {
         var list = items.ToList();
         if (list.Count == 0) return new TextBlock { Text = "No data" };
@@ -51,15 +70,23 @@ public static class LiveChartsFactory
         var series = new ISeries[list.Count];
         for (int i = 0; i < list.Count; i++)
         {
-            series[i] = new ColumnSeries<double>
+            var idx = i;
+            var name = list[i].DisplayText
+                ?? (yLabeler != null
+                    ? $"{list[i].Label} — {yLabeler(list[i].Value)}"
+                    : $"{list[i].Label} — {FormatBytes(list[i].Value)}");
+            var col = new ColumnSeries<double>
             {
                 Values = [list[i].Value],
-                Name = $"{list[i].Label} — {FormatBytes(list[i].Value)}",
+                Name = name,
                 Fill = new SolidColorPaint(s_palette[i % s_palette.Length]),
                 MaxBarWidth = 20,
                 Rx = 4,
                 Ry = 4,
             };
+            if (onIndexClick != null)
+                col.ChartPointPointerDown += (_, _) => onIndexClick(idx);
+            series[i] = col;
         }
 
         var labels = list.Select(x => TruncateLabel(x.Label, 18)).ToArray();
@@ -68,7 +95,8 @@ public static class LiveChartsFactory
         {
             Series = series,
             Height = Math.Max(140, list.Count * 32 + 40),
-            Width = 380,
+            Width = double.NaN,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             AnimationsSpeed = TimeSpan.Zero,
             XAxes =
             [
@@ -77,8 +105,8 @@ public static class LiveChartsFactory
                     Labels = labels,
                     LabelsRotation = 0,
                     TextSize = 11,
-                    LabelsPaint = s_axisLabelPaint,
-                    SeparatorsPaint = s_axisSeparatorPaint,
+                    LabelsPaint = MakeLabelPaint(),
+                    SeparatorsPaint = MakeSeparatorPaint(),
                 }
             ],
             YAxes =
@@ -86,14 +114,95 @@ public static class LiveChartsFactory
                 new Axis
                 {
                     TextSize = 11,
-                    LabelsPaint = s_axisLabelPaint,
-                    SeparatorsPaint = s_axisSeparatorPaint,
-                    Labeler = FormatCompact,
+                    LabelsPaint = MakeLabelPaint(),
+                    SeparatorsPaint = MakeSeparatorPaint(),
+                    Labeler = yLabeler ?? FormatCompact,
                 }
             ],
         };
 
         return chart;
+    }
+
+    // ── File-type bar chart (Dashboard) ──
+
+    /// <summary>
+    /// Vertical bar chart of the most common file extensions (by file count).
+    /// A single ColumnSeries with category labels on the X axis, so each
+    /// extension gets its own bar with its count on the Y axis. Values are raw
+    /// counts (not bytes) — unlike CreateDonutChart, which is for composition.
+    /// </summary>
+    public static FrameworkElement CreateFileTypeBarChart(
+        IEnumerable<(string Label, double Value)> items,
+        Action<string>? onLabelClick = null)
+    {
+        var list = items.ToList();
+        if (list.Count == 0)
+            return new TextBlock
+            {
+                Text = "Run a scan to see file types",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11,
+                Opacity = 0.5,
+            };
+
+        var top = list.OrderByDescending(x => x.Value).Take(8).ToList();
+        var labels = top.Select(x => TruncateLabel(x.Label, 10)).ToArray();
+
+        var series = new ColumnSeries<double>
+        {
+            Values = top.Select(x => x.Value).ToArray(),
+            Name = "Files",
+            Fill = new SolidColorPaint(new SKColor(0, 120, 212)),
+            MaxBarWidth = 34,
+            Rx = 3,
+            Ry = 3,
+            DataLabelsPaint = MakeLabelPaint(),
+            DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.Top,
+            DataLabelsSize = 10,
+        };
+
+        if (onLabelClick != null)
+        {
+            series.ChartPointPointerDown += (_, point) =>
+            {
+                if (point.Index >= 0 && point.Index < top.Count)
+                    onLabelClick(top[point.Index].Label);
+            };
+        }
+
+        return new CartesianChart
+        {
+            Series = [series],
+            Height = 200,
+            Width = double.NaN,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            AnimationsSpeed = TimeSpan.Zero,
+            XAxes =
+            [
+                new Axis
+                {
+                    Labels = labels,
+                    LabelsRotation = 0,
+                    TextSize = 11,
+                    LabelsPaint = MakeLabelPaint(),
+                    SeparatorsPaint = MakeSeparatorPaint(),
+                }
+            ],
+            YAxes =
+            [
+                new Axis
+                {
+                    TextSize = 11,
+                    LabelsPaint = MakeLabelPaint(),
+                    SeparatorsPaint = MakeSeparatorPaint(),
+                    Labeler = value => value >= 1000
+                        ? (value / 1000).ToString("N1") + "K"
+                        : value.ToString("0"),
+                }
+            ],
+        };
     }
 
     // ── Donut Chart ──
@@ -113,6 +222,47 @@ public static class LiveChartsFactory
                 Fill = new SolidColorPaint(s_palette[i % s_palette.Length]),
                 InnerRadius = 50,
             };
+        }
+
+        var chart = new PieChart
+        {
+            Series = series,
+            Width = 360,
+            Height = 200,
+            AnimationsSpeed = TimeSpan.Zero,
+        };
+
+        return chart;
+    }
+
+    /// <summary>
+    /// Donut variant that fires <paramref name="onDrillKeyClick"/> when a slice is
+    /// tapped, passing back the caller-supplied <c>DrillKey</c> for that slice
+    /// (e.g. a volume mount point) so the host page can navigate on the selection.
+    /// </summary>
+    public static FrameworkElement CreateDonutChart(
+        IEnumerable<(string Label, double Value, string DrillKey)> items,
+        Action<string>? onDrillKeyClick = null)
+    {
+        var list = items.ToList();
+        if (list.Count == 0) return new TextBlock { Text = "No data" };
+
+        var series = new ISeries[list.Count];
+        for (int i = 0; i < list.Count; i++)
+        {
+            var drillKey = list[i].DrillKey;
+            var slice = new PieSeries<double>
+            {
+                Values = [list[i].Value],
+                Name = $"{list[i].Label} — {FormatBytes(list[i].Value)}",
+                Fill = new SolidColorPaint(s_palette[i % s_palette.Length]),
+                InnerRadius = 50,
+            };
+            if (onDrillKeyClick != null)
+            {
+                slice.ChartPointPointerDown += (_, _) => onDrillKeyClick(drillKey);
+            }
+            series[i] = slice;
         }
 
         var chart = new PieChart
@@ -156,7 +306,8 @@ public static class LiveChartsFactory
         {
             Series = series,
             Height = 120,
-            Width = 380,
+            Width = double.NaN,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             AnimationsSpeed = TimeSpan.Zero,
             XAxes =
             [
@@ -165,8 +316,8 @@ public static class LiveChartsFactory
                     Labels = labels,
                     LabelsRotation = 0,
                     TextSize = 11,
-                    LabelsPaint = s_axisLabelPaint,
-                    SeparatorsPaint = s_axisSeparatorPaint,
+                    LabelsPaint = MakeLabelPaint(),
+                    SeparatorsPaint = MakeSeparatorPaint(),
                 }
             ],
             YAxes =
@@ -174,8 +325,8 @@ public static class LiveChartsFactory
                 new Axis
                 {
                     TextSize = 11,
-                    LabelsPaint = s_axisLabelPaint,
-                    SeparatorsPaint = s_axisSeparatorPaint,
+                    LabelsPaint = MakeLabelPaint(),
+                    SeparatorsPaint = MakeSeparatorPaint(),
                     Labeler = FormatBytes,
                 }
             ],

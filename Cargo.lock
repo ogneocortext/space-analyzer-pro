@@ -5405,6 +5405,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "shared-scanner",
+ "space-analyzer",
  "sysinfo",
  "tar",
  "tempfile",

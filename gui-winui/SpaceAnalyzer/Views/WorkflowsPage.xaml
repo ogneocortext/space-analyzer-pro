@@ -21,102 +21,90 @@
                                Style="{StaticResource Type.Body}"/>
                 </StackPanel>
 
-                <!-- Workflow Selection -->
+                <!-- ── Step 1: pick a workflow ────────────────────────────────────
+                     Data-driven over VM.Templates so every registered workflow is
+                     directly pickable. The previous three hardcoded Borders all
+                     defaulted to Grid.Column 0, so they rendered stacked on top of
+                     each other and the other 14 workflows were only reachable
+                     through a narrow, truncating ComboBox. -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
-                        <TextBlock Text="Select a Workflow" Style="{StaticResource Type.SubTitle}"/>
-                        <TextBlock Text="{x:Bind VM.SelectedTemplate.Description, Mode=OneWay}" Style="{StaticResource Type.Body}" Opacity="0.8" TextWrapping="Wrap"/>
+                        <StackPanel Spacing="{StaticResource Space.XS}">
+                            <TextBlock Text="1 · Select a workflow" Style="{StaticResource Type.SubTitle}"/>
+                            <TextBlock Text="{x:Bind VM.SelectedTemplate.Description, Mode=OneWay}"
+                                       Style="{StaticResource Type.Caption}" Opacity="0.8" TextWrapping="Wrap"/>
+                        </StackPanel>
 
-                        <Grid ColumnSpacing="{StaticResource Space.MD}" RowSpacing="{StaticResource Space.MD}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.Templates, Mode=OneWay}"
+                                       HorizontalAlignment="Stretch">
+                            <ItemsRepeater.Layout>
+                                <UniformGridLayout MinItemWidth="216"
+                                                   MinItemHeight="64"
+                                                   MinColumnSpacing="{StaticResource Space.MD}"
+                                                   MinRowSpacing="{StaticResource Space.MD}"
+                                                   ItemsStretch="Fill"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="vm:WorkflowTemplate">
+                                    <Button Style="{StaticResource SelectableCardButton}"
+                                            Tag="{x:Bind Id}"
+                                            Click="WorkflowCard_Click"
+                                            AutomationProperties.Name="{x:Bind Name}"
+                                            AutomationProperties.HelpText="{x:Bind Description}"
+                                            ToolTipService.ToolTip="{x:Bind Description}"
+                                            Background="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource SelectedFlagBrush}}"
+                                            BorderBrush="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource SelectedFlagBorder}}">
+                                        <Grid ColumnSpacing="{StaticResource Space.MD}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon Grid.Column="0"
+                                                      Glyph="{x:Bind IconGlyph}"
+                                                      FontSize="{StaticResource Icon.Card}"
+                                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                      VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind Name}"
+                                                           Style="{StaticResource Type.Caption}"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap"/>
+                                                <TextBlock Text="{x:Bind ShortDescription}"
+                                                           Style="{StaticResource Type.Tiny}"
+                                                           Opacity="0.7"
+                                                           TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                            <FontIcon Grid.Column="2"
+                                                      Glyph="&#xE73E;"
+                                                      FontSize="{StaticResource Icon.Small}"
+                                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                      VerticalAlignment="Top"
+                                                      Visibility="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Border>
 
-                            <Border Style="{StaticResource CompactItemCard}"
-                                    Tag="large-files"
-                                    Tapped="WorkflowCard_Tapped"
-                                    ToolTipService.ToolTip="Click to select this workflow"
-                                    Background="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBrush}, ConverterParameter='large-files'}"
-                                    BorderBrush="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBorder}, ConverterParameter='large-files'}">
-                                <Grid ColumnSpacing="{StaticResource Space.MD}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <FontIcon Grid.Column="0" Glyph="&#xE7C3;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
-                                    <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
-                                        <TextBlock Text="Find Large Files" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Locate files larger than a threshold" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
-                                    </StackPanel>
-                                    <FontIcon Grid.Column="2" Glyph="&#xE73E;" FontSize="{StaticResource Icon.Small}"
-                                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top"
-                                              Visibility="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdVisibility}, ConverterParameter='large-files'}"/>
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource CompactItemCard}"
-                                    Tag="empty-dirs"
-                                    Tapped="WorkflowCard_Tapped"
-                                    ToolTipService.ToolTip="Click to select this workflow"
-                                    Background="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBrush}, ConverterParameter='empty-dirs'}"
-                                    BorderBrush="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBorder}, ConverterParameter='empty-dirs'}">
-                                <Grid ColumnSpacing="{StaticResource Space.MD}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <FontIcon Grid.Column="0" Glyph="&#xE7F6;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
-                                    <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
-                                        <TextBlock Text="Find Empty Dirs" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Locate directories with no files" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
-                                    </StackPanel>
-                                    <FontIcon Grid.Column="2" Glyph="&#xE73E;" FontSize="{StaticResource Icon.Small}"
-                                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top"
-                                              Visibility="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdVisibility}, ConverterParameter='empty-dirs'}"/>
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource CompactItemCard}"
-                                    Tag="duplicate-files"
-                                    Tapped="WorkflowCard_Tapped"
-                                    ToolTipService.ToolTip="Click to select this workflow"
-                                    Background="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBrush}, ConverterParameter='duplicate-files'}"
-                                    BorderBrush="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBorder}, ConverterParameter='duplicate-files'}">
-                                <Grid ColumnSpacing="{StaticResource Space.MD}">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <FontIcon Grid.Column="0" Glyph="&#xE8ED;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
-                                    <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
-                                        <TextBlock Text="Find Duplicates" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
-                                        <TextBlock Text="Scan for duplicate files by hash" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
-                                    </StackPanel>
-                                    <FontIcon Grid.Column="2" Glyph="&#xE73E;" FontSize="{StaticResource Icon.Small}"
-                                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top"
-                                              Visibility="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdVisibility}, ConverterParameter='duplicate-files'}"/>
-                                </Grid>
-                            </Border>
-                        </Grid>
+                <!-- ── Step 2: configure and run ─────────────────────────────────── -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="2 · Configure and run" Style="{StaticResource Type.SubTitle}"/>
 
-                        <ComboBox Header="Workflow"
-                                  ItemsSource="{x:Bind VM.Templates, Mode=OneWay}"
-                                  SelectedItem="{x:Bind VM.SelectedTemplate, Mode=TwoWay}"
-                                  DisplayMemberPath="Name"
-                                  AutomationProperties.Name="Workflow type"/>
-
-                        <TextBlock Text="Target Directory" Style="{StaticResource Type.SubTitle}"/>
-                        <Grid ColumnSpacing="{StaticResource Space.SM}">
+                        <TextBlock Text="Target directory" Style="{StaticResource Type.Caption}" Opacity="0.8"
+                                   Visibility="{x:Bind VM.ShowTargetPath, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+                        <Grid ColumnSpacing="{StaticResource Space.SM}"
+                              Visibility="{x:Bind VM.ShowTargetPath, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                              <TextBox Grid.Column="0"
-                                      Text="{x:Bind VM.TargetPath, Mode=TwoWay}"
+                                      Text="{x:Bind VM.TargetPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       PlaceholderText="Select a directory..."
                                       AutomationProperties.Name="Target directory"
                                       Style="{StaticResource FieldTextBox}"/>
@@ -129,38 +117,74 @@
                                     Content="Open"
                                     Click="OpenTargetPath_Click"
                                     Style="{StaticResource SecondaryButton}"
+                                    IsEnabled="{x:Bind VM.IsTargetPathValid, Mode=OneWay}"
                                     AutomationProperties.Name="Open target path"/>
                         </Grid>
-                        <TextBlock Text="Please select a valid directory."
+                        <TextBlock Text="That folder does not exist. Pick a valid directory to enable Run."
                                    Style="{StaticResource Type.Caption}"
+                                   TextWrapping="Wrap"
                                    Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                                   Visibility="{x:Bind VM.IsTargetPathValid, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
+                                   Visibility="{x:Bind VM.ShowTargetPath, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
 
-                        <Grid ColumnSpacing="{StaticResource Space.XXL}">
+                        <!-- Parameters: only the ones the selected workflow actually reads.
+                             Max size / days / extension drive 14 of the 17 workflows but had
+                             no editor at all, so those runs silently used hardcoded defaults. -->
+                        <Grid ColumnSpacing="{StaticResource Space.LG}"
+                              Visibility="{x:Bind VM.HasParameters, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Spacing="{StaticResource Space.SM}">
-                                <TextBlock Text="Min Size (MB)" Style="{StaticResource Type.Caption}" Opacity="0.8"/>
-                                <TextBox Text="{x:Bind VM.MinSizeMb, Mode=TwoWay}"
-                                         AutomationProperties.Name="Minimum size in megabytes">
-                                    <TextBox.InputScope>
-                                        <InputScope>
-                                            <InputScope.Names>
-                                                <InputScopeName NameValue="Number"/>
-                                            </InputScope.Names>
-                                        </InputScope>
-                                    </TextBox.InputScope>
-                                </TextBox>
-                            </StackPanel>
-                            <StackPanel Spacing="{StaticResource Space.SM}">
-                                <TextBlock Text="Status" Style="{StaticResource Type.Caption}" Opacity="0.8"/>
-                                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}"
-                                           Style="{StaticResource Type.Body}" VerticalAlignment="Center"/>
-                            </StackPanel>
+
+                            <NumberBox Grid.Column="0"
+                                       Header="Min size (MB)"
+                                       Value="{x:Bind VM.MinSizeMbValue, Mode=TwoWay}"
+                                       Minimum="0"
+                                       Maximum="10485760"
+                                       SpinButtonPlacementMode="Compact"
+                                       ValidationMode="InvalidInputOverwritten"
+                                       HorizontalAlignment="Stretch"
+                                       AutomationProperties.Name="Minimum size in megabytes"
+                                       Visibility="{x:Bind VM.ShowMinSize, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+
+                            <NumberBox Grid.Column="1"
+                                       Header="Max size (MB)"
+                                       Value="{x:Bind VM.MaxSizeMbValue, Mode=TwoWay}"
+                                       Minimum="0"
+                                       Maximum="10485760"
+                                       SpinButtonPlacementMode="Compact"
+                                       ValidationMode="InvalidInputOverwritten"
+                                       HorizontalAlignment="Stretch"
+                                       AutomationProperties.Name="Maximum size in megabytes"
+                                       Visibility="{x:Bind VM.ShowMaxSize, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+
+                            <NumberBox Grid.Column="1"
+                                       Header="{x:Bind VM.DaysLabel, Mode=OneWay}"
+                                       Value="{x:Bind VM.DaysOldValue, Mode=TwoWay}"
+                                       Minimum="1"
+                                       Maximum="36500"
+                                       SpinButtonPlacementMode="Compact"
+                                       ValidationMode="InvalidInputOverwritten"
+                                       HorizontalAlignment="Stretch"
+                                       AutomationProperties.Name="Age in days"
+                                       Visibility="{x:Bind VM.ShowDays, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+
+                            <TextBox Grid.Column="0"
+                                     Header="File extension"
+                                     Text="{x:Bind VM.ExtensionFilter, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     PlaceholderText=".log"
+                                     Style="{StaticResource FieldTextBox}"
+                                     AutomationProperties.Name="File extension filter"
+                                     Visibility="{x:Bind VM.ShowExtension, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
                         </Grid>
 
+                        <TextBlock Text="This workflow takes no extra parameters."
+                                   Style="{StaticResource Type.Caption}"
+                                   Opacity="0.6"
+                                   Visibility="{x:Bind VM.HasNoParameters, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+
+                        <!-- Actions -->
                         <Grid ColumnSpacing="{StaticResource Space.SM}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -168,12 +192,16 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Button Grid.Column="0"
-                                    Content="Run Workflow"
                                     Click="Run_Click"
                                     HorizontalAlignment="Stretch"
                                     Style="{StaticResource PrimaryButton}"
-                                    IsEnabled="{x:Bind VM.IsNotRunning, Mode=OneWay}"
-                                    AutomationProperties.Name="Run workflow"/>
+                                    IsEnabled="{x:Bind VM.CanRun, Mode=OneWay}"
+                                    AutomationProperties.Name="Run workflow">
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
+                                    <FontIcon Glyph="&#xE768;" FontSize="{StaticResource Icon.Small}"/>
+                                    <TextBlock Text="Run Workflow"/>
+                                </StackPanel>
+                            </Button>
                             <Button Grid.Column="1"
                                     Content="Cancel"
                                     Click="Cancel_Click"
@@ -187,6 +215,58 @@
                                     IsEnabled="{x:Bind VM.HasResults, Mode=OneWay}"
                                     AutomationProperties.Name="Clear results"/>
                         </Grid>
+
+                        <!-- Live run state: shows the directory/file currently being
+                             scanned plus a determinate progress bar while the scan runs. -->
+                        <Border Style="{StaticResource AnimatedCard}"
+                                Padding="{StaticResource Thickness.MD}"
+                                Visibility="{x:Bind VM.IsRunning, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel Spacing="{StaticResource Space.SM}">
+                                <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ProgressRing Grid.Column="0" Width="16" Height="16"
+                                                  IsActive="True" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{x:Bind VM.StatusMessage, Mode=OneWay}"
+                                               Style="{StaticResource Type.Caption}" Opacity="0.85"
+                                               TextWrapping="Wrap" VerticalAlignment="Center"
+                                               AutomationProperties.LiveSetting="Polite"/>
+                                    <TextBlock Grid.Column="2"
+                                               Text="{x:Bind VM.ProgressPercent, Mode=OneWay, Converter={StaticResource DoubleToPercentText}}"
+                                               Style="{StaticResource Type.Caption}" Opacity="0.8"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <ProgressBar Value="{x:Bind VM.ProgressPercent, Mode=OneWay}"
+                                             IsIndeterminate="{x:Bind VM.IsProgressIndeterminate, Mode=OneWay}"
+                                             Minimum="0" Maximum="100"
+                                             Style="{StaticResource MinimalProgressBar}"/>
+
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}"
+                                            Visibility="{x:Bind VM.IsRunning, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                    <FontIcon Glyph="&#xE8B7;" FontSize="{StaticResource Icon.Small}" Opacity="0.7" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{x:Bind VM.CurrentLocation, Mode=OneWay}"
+                                               Style="{StaticResource Type.Tiny}" Opacity="0.7"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}"
+                                            Visibility="{x:Bind VM.IsRunning, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                    <FontIcon Glyph="&#xE7C3;" FontSize="{StaticResource Icon.Small}" Opacity="0.7" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{x:Bind VM.CurrentFileDisplay, Mode=OneWay}"
+                                               Style="{StaticResource Type.Tiny}" Opacity="0.7"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.6">
+                                    <Run Text="{x:Bind VM.FilesScanned, Mode=OneWay}"/><Run Text=" files · "/>
+                                    <Run Text="{x:Bind VM.DirectoriesScanned, Mode=OneWay}"/><Run Text=" dirs · "/>
+                                    <Run Text="{x:Bind VM.ScannedBytesDisplay, Mode=OneWay}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
 
@@ -195,8 +275,30 @@
                         Padding="{StaticResource Thickness.LG}"
                         Visibility="{x:Bind VM.HasResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
-                        <TextBlock Text="Results" Style="{StaticResource Type.CardTitle}"/>
-                        <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" Style="{StaticResource Type.Body}" Opacity="0.8"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Results" Style="{StaticResource Type.CardTitle}"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind VM.ResultsSummary, Mode=OneWay}"
+                                           Style="{StaticResource Type.Caption}" Opacity="0.8"
+                                           VerticalAlignment="Center"/>
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center">
+                                    <TextBlock Text="Sort" Style="{StaticResource Type.Tiny}" Opacity="0.7" VerticalAlignment="Center"/>
+                                    <ComboBox SelectedValue="{x:Bind VM.SortKey, Mode=TwoWay}" SelectedValuePath="Tag"
+                                              Width="120" VerticalAlignment="Center">
+                                        <ComboBoxItem Tag="size" Content="Size"/>
+                                        <ComboBoxItem Tag="name" Content="Name"/>
+                                        <ComboBoxItem Tag="path" Content="Path"/>
+                                    </ComboBox>
+                                    <Button Click="SortDir_Click" Style="{StaticResource SecondaryButton}"
+                                            Content="{x:Bind VM.SortDirectionGlyph, Mode=OneWay}"
+                                            AutomationProperties.Name="Toggle sort direction"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
 
                         <ItemsRepeater ItemsSource="{x:Bind VM.Results, Mode=OneWay}">
                             <ItemsRepeater.Layout>
@@ -205,20 +307,32 @@
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="models:SmartSearchResult">
                                     <Border Style="{StaticResource CompactItemCard}">
-                                        <StackPanel Spacing="{StaticResource Space.XS}">
-                                            <TextBlock Style="{StaticResource Type.SubTitle}"
-                                                       Text="{x:Bind Name, Mode=OneTime}"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8">
-                                                <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
-                                                <Run Text=" · "/>
-                                                <Run Text="{x:Bind Path, Mode=OneTime}" FontStyle="Italic"/>
-                                            </TextBlock>
-                                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Margin="0,4,0,0">
-                                                <Button Content="Open" Click="OpenResultFile_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
-                                                <Button Content="Folder" Click="OpenResultFolder_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
+                                        <Grid ColumnSpacing="{StaticResource Space.MD}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center">
+                                                <TextBlock Style="{StaticResource Type.SubTitle}"
+                                                           Text="{x:Bind Name, Mode=OneTime}"
+                                                           TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
+                                                    <Run Text=" · "/>
+                                                    <Run Text="{x:Bind Path, Mode=OneTime}" FontStyle="Italic"/>
+                                                </TextBlock>
                                             </StackPanel>
-                                        </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                                        Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
+                                                <Button Content="Open" Click="OpenResultFile_Click"
+                                                        Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"
+                                                        AutomationProperties.Name="Open file"/>
+                                                <Button Content="Folder" Click="OpenResultFolder_Click"
+                                                        Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"
+                                                        AutomationProperties.Name="Open containing folder"/>
+                                            </StackPanel>
+                                        </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsRepeater.ItemTemplate>
@@ -226,17 +340,40 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Empty State -->
-                <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.HasResults, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
+                <!-- Report panel — analytical action types (PredictStorage, GenerateRecommendations,
+                     Export, Notify, AIAnalyze) surface their output here as a scrollable text block
+                     instead of the file list. Hidden for file-finding workflows. -->
+                <Border Style="{StaticResource AnimatedCard}"
+                        Padding="{StaticResource Thickness.LG}"
+                        Visibility="{x:Bind VM.HasReport, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="{x:Bind VM.ReportTitle, Mode=OneWay}" Style="{StaticResource Type.CardTitle}"/>
+                        <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto">
+                            <TextBlock Text="{x:Bind VM.Report, Mode=OneWay}"
+                                       Style="{StaticResource Type.Body}"
+                                       TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+
+                <!-- Divider separating the setup region above from the results/empty
+                     region below, so the screen reads as two clear modes. -->
+                <Border Height="1" Background="{ThemeResource CardStrokeColorDefaultBrush}"
+                        Margin="{StaticResource Thickness.Zero}" Opacity="0.6"/>
+
+                <!-- Empty State — distinguishes "not run yet" from "ran, matched nothing" -->
+                <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.ShowEmptyState, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel Spacing="{StaticResource Space.MD}" HorizontalAlignment="Center">
-                        <FontIcon Glyph="&#xE74C;" FontSize="{StaticResource Icon.EmptyState}" Opacity="{StaticResource Icon.EmptyStateOpacity}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="No workflow results yet" Style="{StaticResource Type.CardTitle}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Select a workflow, choose a target directory, and click Run." Style="{StaticResource Type.Body}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                        <FontIcon Glyph="&#xE721;" FontSize="{StaticResource Icon.EmptyState}"
+                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                  Opacity="{StaticResource Icon.EmptyStateOpacity}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind VM.EmptyStateTitle, Mode=OneWay}" Style="{StaticResource Type.CardTitle}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind VM.EmptyStateHint, Mode=OneWay}" Style="{StaticResource Type.Body}" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="520"/>
                     </StackPanel>
                 </Border>
 
                 <!-- Execution History -->
-                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.History.Count, Mode=OneWay, Converter={StaticResource IntToVisibility}, ConverterParameter=0}">
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasHistory, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
                         <TextBlock Text="Execution History" Style="{StaticResource Type.SubTitle}"/>
                         <ItemsRepeater ItemsSource="{x:Bind VM.History, Mode=OneWay}">
@@ -253,7 +390,7 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="{x:Bind TimestampDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.6"/>
-                                        <TextBlock Grid.Column="1" Text="{x:Bind WorkflowName, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind HistoryLabel, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
                                         <TextBlock Grid.Column="2" Text="{x:Bind ResultCount, Mode=OneTime, Converter={StaticResource IntToResultsText}}" Style="{StaticResource Type.Caption}"/>
                                         <TextBlock Grid.Column="3" Text="{x:Bind Status, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
                                     </Grid>
@@ -267,4 +404,3 @@
         </ScrollViewer>
     </Grid>
 </Page>
-

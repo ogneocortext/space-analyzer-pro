@@ -4,38 +4,42 @@ use shared_scanner::format_bytes;
 use space_analyzer_pro_desktop::origin_tracer::{OriginAssessment, OriginReport, SafetyLevel};
 
 use crate::animation;
+use crate::hprintln;
 
-/// Print a human-readable origin + safety report to stdout.
+/// Print a human-readable origin + safety report.
+///
+/// Goes to stdout in text mode and to stderr whenever stdout has to stay a
+/// single machine-readable document (see [`crate::cli::sink`]).
 pub fn print_origin_report(report: &OriginReport, no_animation: bool) {
-    println!();
+    hprintln!();
     animation::print_section_header_animated("🧭", "ORIGIN & DELETE-SAFETY REPORT", no_animation);
-    println!("   Traces each path back to the app/system that created it and");
-    println!("   judges whether it is safe to delete. Verdicts:");
-    println!("   🟢 SAFE   🟡 REVIEW   🟠 KEEP (LIKELY NEEDED)   🔴 DO NOT DELETE");
-    println!();
+    hprintln!("   Traces each path back to the app/system that created it and");
+    hprintln!("   judges whether it is safe to delete. Verdicts:");
+    hprintln!("   🟢 SAFE   🟡 REVIEW   🟠 KEEP (LIKELY NEEDED)   🔴 DO NOT DELETE");
+    hprintln!();
 
-    println!("   Reclaimable space summary:");
-    println!(
+    hprintln!("   Reclaimable space summary:");
+    hprintln!(
         "   🟢 Safe to delete : {} (across {} entries)",
         format_bytes(report.safe_to_delete_bytes),
         count_by(report, SafetyLevel::Safe)
     );
-    println!(
+    hprintln!(
         "   🟡 Review first   : {} (across {} entries)",
         format_bytes(report.review_bytes),
         count_by(report, SafetyLevel::Review)
     );
-    println!(
+    hprintln!(
         "   🟠 Keep (likely)  : {} (across {} entries)",
         format_bytes(report.caution_bytes),
         count_by(report, SafetyLevel::Caution)
     );
-    println!(
+    hprintln!(
         "   🔴 Do not delete  : {} (across {} entries)",
         format_bytes(report.keep_bytes),
         count_by(report, SafetyLevel::DoNotDelete)
     );
-    println!();
+    hprintln!();
 
     print_group(report, SafetyLevel::Safe, "SAFE TO DELETE", no_animation);
     print_group(report, SafetyLevel::Review, "REVIEW FIRST", no_animation);
@@ -79,34 +83,34 @@ fn print_group(report: &OriginReport, level: SafetyLevel, title: &str, no_animat
     for a in entries {
         print_assessment(a);
     }
-    println!();
+    hprintln!();
 }
 
 fn print_assessment(a: &OriginAssessment) {
     let kind = if a.is_directory { "dir " } else { "file" };
-    println!(
+    hprintln!(
         "   {} [{}] {:>10}  {}",
         a.safety.emoji(),
         kind,
         format_bytes(a.size),
         a.path
     );
-    println!("        origin : {}", a.origin);
-    println!("        class  : {}", a.category);
+    hprintln!("        origin : {}", a.origin);
+    hprintln!("        class  : {}", a.category);
     let recoverable = if a.recoverable { "yes" } else { "no" };
     let app = match a.app_installed {
         Some(true) => "installed",
         Some(false) => "NOT found on PATH",
         None => "n/a",
     };
-    println!("        recoverable: {recoverable}  | owning app: {app}");
+    hprintln!("        recoverable: {recoverable}  | owning app: {app}");
     if !a.related_paths.is_empty() {
-        println!("        related:");
+        hprintln!("        related:");
         for r in a.related_paths.iter().take(6) {
-            println!("          - {r}");
+            hprintln!("          - {r}");
         }
     }
-    println!("        why    : {}", a.reasoning);
+    hprintln!("        why    : {}", a.reasoning);
 }
 
 /// Render the origin + safety report as a markdown section (for `--report`).

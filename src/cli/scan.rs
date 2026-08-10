@@ -22,9 +22,20 @@ pub fn scan_directory(
     max_size: Option<u64>,
     include_hidden: bool,
     threads: usize,
+    no_gpu: bool,
     cache: bool,
     stream: bool,
+    progress_json: bool,
 ) -> AppResult<ScanResult> {
+    // A `Path` that cannot be represented as UTF-8 cannot be handed to the
+    // native scanner (which takes `&str`). Fail loudly instead of silently
+    // scanning "." via `unwrap_or(".")`, which would report the wrong tree.
+    let path_str = path.to_str().ok_or_else(|| {
+        space_analyzer_pro_desktop::error::AppError::Validation(format!(
+            "Path contains characters that cannot be represented as UTF-8: {}",
+            path.display()
+        ))
+    })?;
     let spinner = if verbose {
         let pb = animation::create_scan_spinner(&path.display().to_string());
         if deep {
@@ -61,9 +72,14 @@ pub fn scan_directory(
         }
     };
 
+    // Key the incremental file cache by the canonical display path (not the raw
+    // CLI string) so "." resolves to an absolute directory and repeated scans of
+    // the same directory — via different spellings — share the cache. This also
+    // matches scan_history.path, which lets orphan pruning find stale caches.
+    let cache_key = super::helpers::display_path(path);
     let file_cache: Option<HashMap<String, (u64, i64)>> = if cache {
         Database::default_open().ok().and_then(|db| {
-            db.load_file_cache(path.to_str().unwrap_or("."))
+            db.load_file_cache(&cache_key)
                 .ok()
                 .map(|entries| {
                     entries
@@ -82,12 +98,13 @@ pub fn scan_directory(
         include_hidden,
         num_threads: threads,
         file_cache,
+        gpu_acceleration: !no_gpu,
         ..depth_mode
     };
 
     let cancel_flag = AtomicBool::new(false);
     let shared_result = scanner.scan_with_progress_sync(
-        path.to_str().unwrap_or("."),
+        path_str,
         options,
         move |progress: ScanProgress| {
             if stream {
@@ -114,7 +131,9 @@ pub fn scan_directory(
                 let line = serde_json::to_string(&event).unwrap_or_default();
                 println!("{}", line);
                 let _ = std::io::stdout().flush();
-            } else {
+            } else if progress_json {
+                // Only emit `__PROGRESS__` when a host process asked for it, so
+                // interactive runs stay quiet and machine output is opt-in.
                 let json = serde_json::to_string(&progress).unwrap_or_default();
                 eprintln!("__PROGRESS__{json}");
                 let _ = std::io::stderr().flush();
@@ -137,7 +156,7 @@ pub fn scan_directory(
                     (path.clone(), size, mtime, ext)
                 })
                 .collect();
-            let _ = db.save_file_cache(path.to_str().unwrap_or("."), &entries);
+            let _ = db.save_file_cache(&cache_key, &entries);
         }
     }
 
@@ -152,8 +171,9 @@ pub fn scan_directory(
     result.total_size_bytes = shared_result.total_size;
     result.total_size_mb = shared_result.total_size as f64 / (1024.0 * 1024.0);
     result.duration_secs = duration;
-    result.path = path.to_string_lossy().to_string();
+    result.path = super::helpers::display_path(path);
     result.errors = shared_result.errors;
+    result.scanned_files = shared_result.scanned_files.clone();
 
     for (ext, count) in shared_result.file_types {
         result.file_types.insert(ext, count as usize);
@@ -178,7 +198,7 @@ pub fn scan_directory(
     top_dirs.sort_by_key(|b| std::cmp::Reverse(b.total_size));
     result.top_directories = top_dirs;
 
-    for file in shared_result.largest_files.into_iter().take(50) {
+    for file in shared_result.largest_files.into_iter().take(1000) {
         result.largest_files.push(LargestFileEntry {
             path: file.path,
             size: file.size,

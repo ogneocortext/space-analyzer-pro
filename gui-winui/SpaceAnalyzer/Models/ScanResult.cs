@@ -70,10 +70,23 @@ public class FileSizeEntry
     public string SizeDisplay => ByteFormatter.FormatBytes(Size);
     [JsonIgnore]
     public string Name => System.IO.Path.GetFileName(Path);
+    /// <summary>
+    /// File extension without the leading dot (e.g. "gz" not ".gz"), normalized to
+    /// lower case so it matches the scanner's extension keys and the Largest Files /
+    /// File Types tabs render consistently.
+    /// </summary>
     [JsonIgnore]
-    public string Extension => System.IO.Path.GetExtension(Path);
+    public string Extension => (System.IO.Path.GetExtension(Path) ?? string.Empty).TrimStart('.').ToLowerInvariant();
     [JsonIgnore]
     public string ParentPath => System.IO.Path.GetDirectoryName(Path) ?? string.Empty;
+    /// <summary>
+    /// Share of the largest file in the current view (0-100), used to render the
+    /// size-proportion bar in the detail "Largest Files" list. Set by the view model.
+    /// </summary>
+    [JsonIgnore]
+    public double Percent { get; set; }
+    [JsonIgnore]
+    public string PercentDisplay => $"{Percent:F0}%";
 }
 
 /// <summary>
@@ -88,6 +101,14 @@ public class DirEntry
     public ulong DirCount { get; set; }
     [JsonIgnore]
     public string SizeDisplay => ByteFormatter.FormatBytes(TotalSize);
+    /// <summary>
+    /// Share of the scanned root's total size (0-100), used for the size-proportion
+    /// bar in the detail "Folders" list. Set by the view model.
+    /// </summary>
+    [JsonIgnore]
+    public double Percent { get; set; }
+    [JsonIgnore]
+    public string PercentDisplay => $"{Percent:F1}%";
 }
 
 /// <summary>
@@ -107,6 +128,29 @@ public class ExtensionStat
     public ExtensionStat(string extension, ulong size, double percent)
     {
         Extension = string.IsNullOrWhiteSpace(extension) ? "(none)" : extension;
+        Size = size;
+        Percent = percent;
+    }
+}
+
+/// <summary>
+/// Aggregated storage usage for a high-level file category (Documents, Images,
+/// Code, …), derived from a scan's per-extension sizes. Used by the history
+/// detail "Overview" and "File Types" breakdowns.
+/// </summary>
+public class CategoryStat
+{
+    public string Category { get; }
+    public ulong Size { get; }
+    public double Percent { get; }
+    [JsonIgnore]
+    public string SizeDisplay => ByteFormatter.FormatBytes(Size);
+    [JsonIgnore]
+    public string PercentDisplay => $"{Percent:F1}%";
+
+    public CategoryStat(string category, ulong size, double percent)
+    {
+        Category = category;
         Size = size;
         Percent = percent;
     }

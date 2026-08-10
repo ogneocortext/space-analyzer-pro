@@ -23,6 +23,7 @@ public class ScanHistoryRecord
     public string ExtensionSizesJson { get; set; } = string.Empty;
     public string TopDirectoriesJson { get; set; } = string.Empty;
     public string LargestFilesJson { get; set; } = string.Empty;
+    public string CategorySizesJson { get; set; } = string.Empty;
     public bool DeepScan { get; set; }
     public bool ShallowScan { get; set; }
     public int MaxScanDepth { get; set; } = 5;
@@ -41,6 +42,9 @@ public class ScanHistoryRecord
     private List<FileSizeEntry>? _largestFiles;
     public List<FileSizeEntry> LargestFiles => _largestFiles ??= JsonSerializer.Deserialize<List<FileSizeEntry>>(LargestFilesJson, ScannerJsonOptions) ?? new();
 
+    private Dictionary<string, ulong>? _categorySizes;
+    public Dictionary<string, ulong> CategorySizes => _categorySizes ??= JsonSerializer.Deserialize<Dictionary<string, ulong>>(CategorySizesJson, ScannerJsonOptions) ?? new();
+
     private static readonly JsonSerializerOptions ScannerJsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -55,6 +59,21 @@ public class ScanHistoryRecord
             if (ShallowScan) return "Shallow (depth 1)";
             if (MaxScanDepth != 5) return $"Custom (depth {MaxScanDepth})";
             return "Default (depth 5)";
+        }
+    }
+
+    /// <summary>
+    /// Short, badge-friendly scan-type label derived from <see cref="DepthDisplay"/>:
+    /// "Deep", "Shallow", "Custom", or "Default". Used for the color-coded type pill.
+    /// </summary>
+    public string ScanTypeShort
+    {
+        get
+        {
+            if (DeepScan) return "Deep";
+            if (ShallowScan) return "Shallow";
+            if (MaxScanDepth != 5) return "Custom";
+            return "Default";
         }
     }
 

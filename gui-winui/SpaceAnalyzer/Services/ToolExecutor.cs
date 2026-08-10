@@ -294,11 +294,18 @@ public class ToolExecutor : IDisposable
             return Task.FromResult($"Error: file not found: {path}");
 
         var info = new FileInfo(path);
+        // Actually perform the removal via the Recycle Bin so the file stays
+        // recoverable. Anything an AI agent (or workflow) deletes intentionally
+        // lands here first, never a permanent delete.
+        bool moved = FileOperations.SendToRecycleBin(info.FullName);
         return Task.FromResult(JsonSerializer.Serialize(new
         {
             path = info.FullName,
             size_mb = Math.Round(info.Length / (1024.0 * 1024), 2),
-            note = "PREVIEW ONLY - The AI agent cannot perform this action. Please confirm via the GUI."
+            moved_to_recycle_bin = moved,
+            note = moved
+                ? "Moved to the Recycle Bin. You can restore it from there, or empty the Recycle Bin to reclaim the space."
+                : "Could not move to the Recycle Bin; nothing was deleted."
         }, s_json));
     }
 
@@ -310,7 +317,12 @@ public class ToolExecutor : IDisposable
         if (!Directory.Exists(path))
             return $"Error: directory not found: {path}";
 
-        var dedupOutput = await RunCliAsync($"dedup --path \"{path}\" --format json", ct);
+        // Apply hard-links now (the backend requires --yes for non-interactive
+        // apply, and refuses to modify files without it). Hard-linking never
+        // deletes data — identical copies collapse to one inode and the reclaimed
+        // space is reported in the result. Nothing is sent to the Recycle Bin
+        // because no file content is destroyed.
+        var dedupOutput = await RunCliAsync($"dedup --path \"{path}\" --apply --yes --format json", ct);
         if (string.IsNullOrWhiteSpace(dedupOutput))
             return "No duplicate analysis available.";
 

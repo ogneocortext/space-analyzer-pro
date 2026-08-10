@@ -400,20 +400,60 @@ impl SpaceAnalyzerApp {
 
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    stat_card(ui, "Files", &format!("{}", result.total_files), colors::ACCENT);
-                    stat_card(ui, "Size", &formatting::format_bytes(result.total_size_bytes), colors::SUCCESS);
+                    stat_card(
+                        ui,
+                        "Files",
+                        &format!("{}", result.total_files),
+                        colors::ACCENT,
+                    );
+                    stat_card(
+                        ui,
+                        "Size",
+                        &formatting::format_bytes(result.total_size_bytes),
+                        colors::SUCCESS,
+                    );
                     stat_card(ui, "Dirs", &format!("{}", result.total_dirs), colors::INFO);
                     if result.total_files > 0 {
                         let avg = result.total_size_bytes / result.total_files as u64;
-                        stat_card(ui, "Avg Size", &formatting::format_bytes(avg), colors::WARNING);
+                        stat_card(
+                            ui,
+                            "Avg Size",
+                            &formatting::format_bytes(avg),
+                            colors::WARNING,
+                        );
                     }
-                    stat_card(ui, "Duration", &format!("{:.1}s", result.duration_secs), colors::INFO);
+                    stat_card(
+                        ui,
+                        "Duration",
+                        &format!("{:.1}s", result.duration_secs),
+                        colors::INFO,
+                    );
                     if result.duration_secs > 0.0 {
-                        stat_card(ui, "Speed", &format!("{:.0}/s", result.total_files as f64 / result.duration_secs), colors::ACCENT);
-                        stat_card(ui, "Throughput", &format!("{:.1} MB/s", result.total_size_bytes as f64 / (1024.0 * 1024.0) / result.duration_secs), colors::SUCCESS);
+                        stat_card(
+                            ui,
+                            "Speed",
+                            &format!("{:.0}/s", result.total_files as f64 / result.duration_secs),
+                            colors::ACCENT,
+                        );
+                        stat_card(
+                            ui,
+                            "Throughput",
+                            &format!(
+                                "{:.1} MB/s",
+                                result.total_size_bytes as f64
+                                    / (1024.0 * 1024.0)
+                                    / result.duration_secs
+                            ),
+                            colors::SUCCESS,
+                        );
                     }
                     if !result.errors.is_empty() {
-                        stat_card(ui, "Errors", &result.errors.len().to_string(), colors::ERROR);
+                        stat_card(
+                            ui,
+                            "Errors",
+                            &result.errors.len().to_string(),
+                            colors::ERROR,
+                        );
                     }
                 });
 
@@ -462,9 +502,12 @@ impl SpaceAnalyzerApp {
                             .max_height(120.0)
                             .show(ui, |ui| {
                                 ui.label(
-                                    egui::RichText::new(format!("{} empty directories found", result.empty_dirs.len()))
-                                        .size(12.0)
-                                        .color(colors::TEXT_SECONDARY),
+                                    egui::RichText::new(format!(
+                                        "{} empty directories found",
+                                        result.empty_dirs.len()
+                                    ))
+                                    .size(12.0)
+                                    .color(colors::TEXT_SECONDARY),
                                 );
                                 ui.add_space(4.0);
                                 for dir in result.empty_dirs.iter().take(20) {
@@ -477,9 +520,12 @@ impl SpaceAnalyzerApp {
                                 }
                                 if result.empty_dirs.len() > 20 {
                                     ui.label(
-                                        egui::RichText::new(format!("... and {} more", result.empty_dirs.len() - 20))
-                                            .size(11.0)
-                                            .color(colors::TEXT_MUTED),
+                                        egui::RichText::new(format!(
+                                            "... and {} more",
+                                            result.empty_dirs.len() - 20
+                                        ))
+                                        .size(11.0)
+                                        .color(colors::TEXT_MUTED),
                                     );
                                 }
                             });
@@ -649,10 +695,7 @@ impl SpaceAnalyzerApp {
                     } else {
                         0.0
                     };
-                    ui.label(
-                        egui::RichText::new(*cat)
-                            .color(colors::ACCENT),
-                    );
+                    ui.label(egui::RichText::new(*cat).color(colors::ACCENT));
                     ui.label(formatting::format_bytes(**size));
                     ui.label(format!("{:.1}%", pct));
                     ui.end_row();

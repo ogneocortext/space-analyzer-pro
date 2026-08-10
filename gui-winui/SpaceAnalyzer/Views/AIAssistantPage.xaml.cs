@@ -91,6 +91,12 @@ public sealed partial class AIAssistantPage : Page
             "Ask me anything!");
     }
 
+    private void Stop_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("AIAssistantPage Stop_Click");
+        VM.Abort();
+    }
+
     private void CopyMessage_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("AIAssistantPage CopyMessage_Click");

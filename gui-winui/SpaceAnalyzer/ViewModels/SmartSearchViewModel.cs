@@ -70,6 +70,67 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
         set { _includeHidden = value; OnPropertyChanged(); }
     }
 
+    // ── Semantic (embedding) search ──
+
+    /// <summary>
+    /// When true, searches use semantic embeddings (the Rust <c>semantic-search</c>
+    /// subcommand) instead of literal name matching. Requires an index first.
+    /// </summary>
+    private bool _isSemantic;
+    public bool IsSemantic
+    {
+        get => _isSemantic;
+        set
+        {
+            _isSemantic = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SemanticAvailable));
+            OnPropertyChanged(nameof(ShowFilenameResults));
+            OnPropertyChanged(nameof(ShowFilenameEmpty));
+            OnPropertyChanged(nameof(ShowSemanticResults));
+        }
+    }
+
+    /// <summary>Show the literal-name results panel only in filename mode with hits.</summary>
+    public bool ShowFilenameResults => !_isSemantic && ResultCount > 0;
+    /// <summary>Show the filename empty-state panel only in filename mode with no hits.</summary>
+    public bool ShowFilenameEmpty => !_isSemantic && ResultCount == 0;
+    /// <summary>Show the semantic results panel only in semantic mode with hits.</summary>
+    public bool ShowSemanticResults => _isSemantic && SemanticResults.Count > 0;
+
+    /// <summary>True once a directory has been indexed with embeddings.</summary>
+    public bool SemanticAvailable => _indexedScanId.HasValue;
+    private long? _indexedScanId;
+
+    public ObservableCollection<SemanticSearchResult> SemanticResults { get; } = new();
+
+    private int _semanticResultCount;
+    public int SemanticResultCount
+    {
+        get => _semanticResultCount;
+        set
+        {
+            _semanticResultCount = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowSemanticResults));
+        }
+    }
+
+    private bool _isIndexing;
+    public bool IsIndexing
+    {
+        get => _isIndexing;
+        set { _isIndexing = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotIndexing)); }
+    }
+    public bool IsNotIndexing => !_isIndexing;
+
+    private string _indexStatus = "Not indexed yet. Index this folder with embeddings to enable semantic search.";
+    public string IndexStatus
+    {
+        get => _indexStatus;
+        set { _indexStatus = value; OnPropertyChanged(); }
+    }
+
     // ── Search state ──
 
     private bool _isSearching;
@@ -94,7 +155,14 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
     public int ResultCount
     {
         get => _resultCount;
-        set { _resultCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasResults)); }
+        set
+        {
+            _resultCount = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasResults));
+            OnPropertyChanged(nameof(ShowFilenameResults));
+            OnPropertyChanged(nameof(ShowFilenameEmpty));
+        }
     }
 
     /// <summary>
@@ -118,10 +186,15 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
         StatusMessage = "Searching...";
         Results.Clear();
         ResultCount = 0;
+        SemanticResults.Clear();
 
         try
         {
-            if (_scanner.IsAvailable)
+            if (_isSemantic)
+            {
+                await SearchSemanticAsync(ct);
+            }
+            else if (_scanner.IsAvailable)
             {
                 await SearchWithScannerAsync();
             }
@@ -129,7 +202,9 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
             {
                 await SearchWithManagedWalkAsync();
             }
-            StatusMessage = $"Found {ResultCount} match(es).";
+            StatusMessage = _isSemantic
+                ? $"Found {SemanticResults.Count} semantic match(es)."
+                : $"Found {ResultCount} match(es).";
         }
         catch (Exception ex)
         {
@@ -139,6 +214,81 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
         {
             IsSearching = false;
         }
+    }
+
+    /// <summary>
+    /// Index <see cref="SearchPath"/> with embeddings via the Rust <c>embed</c>
+    /// subcommand so semantic search becomes available. Re-indexing reuses the
+    /// same scan id so previous vectors are overwritten.
+    /// </summary>
+    public async Task IndexAsync()
+    {
+        if (IsIndexing || string.IsNullOrWhiteSpace(SearchPath))
+            return;
+
+        _cts.Dispose();
+        var newCts = new CancellationTokenSource();
+        _cts = newCts;
+
+        var ct = _cts.Token;
+        IsIndexing = true;
+        IndexStatus = "Indexing with embeddings...";
+        try
+        {
+            var result = await _scanner.EmbedDirectoryAsync(
+                SearchPath,
+                _indexedScanId,
+                includeHidden: IncludeHidden,
+                ct: ct);
+            if (result != null)
+            {
+                _indexedScanId = result.ScanId;
+                OnPropertyChanged(nameof(SemanticAvailable));
+                IndexStatus = $"Indexed {result.Embedded} file(s) with {result.Model} (scan #{result.ScanId}).";
+                AppNotifications.Success("Semantic index ready",
+                    $"{result.Embedded} file(s) indexed for semantic search.");
+            }
+            else
+            {
+                IndexStatus = "Indexing failed: no result from scanner.";
+                AppNotifications.Error("Indexing failed", "The scanner returned no result.");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SmartSearchViewModel] Index failed: {ex}");
+            IndexStatus = $"Indexing failed: {ex.Message}";
+            AppNotifications.Error("Indexing failed", ex.Message);
+        }
+        finally
+        {
+            IsIndexing = false;
+        }
+    }
+
+    private async Task SearchSemanticAsync(CancellationToken ct)
+    {
+        if (!_indexedScanId.HasValue)
+        {
+            // No index yet - build it, then search against it in one shot.
+            await IndexAsync();
+            if (!_indexedScanId.HasValue)
+                return;
+        }
+
+        if (!_scanner.IsAvailable)
+        {
+            StatusMessage = "Semantic search requires the Rust scanner with an embedding model.";
+            return;
+        }
+
+        var hits = await _scanner.SemanticSearchAsync(SearchQuery, _indexedScanId.Value, top: 50, ct);
+        if (hits == null)
+            return;
+
+        foreach (var h in hits)
+            SemanticResults.Add(h);
+        SemanticResultCount = SemanticResults.Count;
     }
 
     private async Task SearchWithScannerAsync()
@@ -262,6 +412,17 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
         if (string.IsNullOrEmpty(pattern))
             return true;
 
+        // Support OR of multiple wildcard patterns: "*.jpg|*.png|*.gif" matches a
+        // file whose name satisfies ANY one pattern. Used by category drills that
+        // resolve to several extensions joined by '|'.
+        if (pattern.Contains('|'))
+        {
+            foreach (var part in pattern.Split('|'))
+                if (WildcardMatches(input, part))
+                    return true;
+            return false;
+        }
+
         var segments = pattern.Split('*', StringSplitOptions.RemoveEmptyEntries);
         if (segments.Length == 0)
             return true;
@@ -321,6 +482,15 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
+
+/// <summary>
+/// Drill-in preset passed when navigating to Smart Search from another page
+/// (e.g. the Dashboard file-type chart, or the History Library Composition donut).
+/// Pre-fills the search box and path so the user lands one tap away from the
+/// results they were drilling toward. When <see cref="Category"/> is set (donut
+/// drill) it resolves to that category's extensions and runs an OR-wildcard search.
+/// </summary>
+public sealed record SmartSearchPreset(string? Query = null, string? Path = null, string? Category = null);
 
 
 

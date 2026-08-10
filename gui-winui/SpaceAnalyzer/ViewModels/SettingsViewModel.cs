@@ -51,7 +51,25 @@ public class SettingsViewModel : INotifyPropertyChanged
                 "System" => DetectSystemTheme(),
                 _ => Microsoft.UI.Xaml.ApplicationTheme.Dark,
             };
-            Application.Current.RequestedTheme = requested;
+
+            // WinUI 3 only honours Application.RequestedTheme when set before the
+            // first window content is created. After that it throws, so apply the
+            // theme to the live root element instead (element-level themes can be
+            // changed at any time). This lets the Settings picker switch themes
+            // live without a restart.
+            if (MainWindow.Current?.Content is Microsoft.UI.Xaml.FrameworkElement root)
+            {
+                root.RequestedTheme = requested switch
+                {
+                    Microsoft.UI.Xaml.ApplicationTheme.Light => Microsoft.UI.Xaml.ElementTheme.Light,
+                    Microsoft.UI.Xaml.ApplicationTheme.Dark => Microsoft.UI.Xaml.ElementTheme.Dark,
+                    _ => Microsoft.UI.Xaml.ElementTheme.Default
+                };
+            }
+            else
+            {
+                Application.Current.RequestedTheme = requested;
+            }
         }
         catch { /* non-fatal */ }
     }
@@ -321,15 +339,15 @@ public class SettingsViewModel : INotifyPropertyChanged
             if (string.IsNullOrWhiteSpace(_scannerPath))
                 _scannerPath = _scanner.ScannerPath;
             _scanDepth = double.TryParse(SettingsStore.Get("scan_depth"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 5;
-            _includeHidden = SettingsStore.Get("include_hidden") == "true";
-            _gpuAcceleration = SettingsStore.Get("gpu_acceleration") != "false";
+            _includeHidden = SettingsStore.GetBool("include_hidden");
+            _gpuAcceleration = SettingsStore.GetBool("gpu_acceleration", true);
             _defaultScanPaths = SettingsStore.Get("default_scan_paths") ?? string.Empty;
             _ollamaUrl = SettingsStore.Get("ollama_url") ?? "http://localhost:11434";
             _ollamaModel = SettingsStore.Get("ollama_model") ?? "gemma3:1b";
-            _ollamaEnabled = SettingsStore.Get("ollama_enabled") != "false";
-            _ollamaThink = SettingsStore.Get("ollama_think") != "false";
-            _agenticToolsEnabled = SettingsStore.Get("agentic_tools_enabled") != "false";
-            _autoModelSelection = SettingsStore.Get("auto_model_selection") != "false";
+            _ollamaEnabled = SettingsStore.GetBool("ollama_enabled", true);
+            _ollamaThink = SettingsStore.GetBool("ollama_think", true);
+            _agenticToolsEnabled = SettingsStore.GetBool("agentic_tools_enabled", true);
+            _autoModelSelection = SettingsStore.GetBool("auto_model_selection", true);
             _toolCallingModel = SettingsStore.Get("tool_calling_model") ?? "qwen2.5-coder:7b";
             _toolChoice = SettingsStore.Get("tool_choice") ?? "auto";
 
@@ -363,15 +381,15 @@ public class SettingsViewModel : INotifyPropertyChanged
             SettingsStore.Set("theme", Theme);
             SettingsStore.Set("scanner_path", ScannerPath);
             SettingsStore.Set("scan_depth", ScanDepth.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            SettingsStore.Set("include_hidden", IncludeHidden.ToString());
-            SettingsStore.Set("gpu_acceleration", GpuAcceleration.ToString());
+            SettingsStore.SetBool("include_hidden", IncludeHidden);
+            SettingsStore.SetBool("gpu_acceleration", GpuAcceleration);
             SettingsStore.Set("default_scan_paths", DefaultScanPaths);
             SettingsStore.Set("ollama_url", OllamaUrl);
             SettingsStore.Set("ollama_model", OllamaModel);
-            SettingsStore.Set("ollama_enabled", OllamaEnabled.ToString());
-            SettingsStore.Set("ollama_think", OllamaThink.ToString());
-            SettingsStore.Set("agentic_tools_enabled", AgenticToolsEnabled.ToString());
-            SettingsStore.Set("auto_model_selection", AutoModelSelection.ToString());
+            SettingsStore.SetBool("ollama_enabled", OllamaEnabled);
+            SettingsStore.SetBool("ollama_think", OllamaThink);
+            SettingsStore.SetBool("agentic_tools_enabled", AgenticToolsEnabled);
+            SettingsStore.SetBool("auto_model_selection", AutoModelSelection);
             SettingsStore.Set("tool_calling_model", ToolCallingModel);
             SettingsStore.Set("tool_choice", ToolChoice);
         }

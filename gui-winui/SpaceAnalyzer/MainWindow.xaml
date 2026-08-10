@@ -57,6 +57,11 @@
                     <FontIcon Glyph="&#xE73D;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
+            <NavigationViewItem Content="USN Journal" Tag="UsnJournal">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE8B7;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
         </NavigationView.MenuItems>
 
         <NavigationView.FooterMenuItems>

@@ -214,11 +214,11 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
             _ollamaUrl = SettingsStore.Get("ollama_url") ?? "http://localhost:11434";
             _ollamaModel = SettingsStore.Get("ollama_model") ?? "gemma3:1b";
             _toolCallingModel = SettingsStore.Get("tool_calling_model") ?? "qwen2.5-coder:7b";
-            _agenticToolsEnabled = SettingsStore.Get("agentic_tools_enabled") != "false";
-            _autoModelSelection = SettingsStore.Get("auto_model_selection") != "false";
+            _agenticToolsEnabled = SettingsStore.GetBool("agentic_tools_enabled", true);
+            _autoModelSelection = SettingsStore.GetBool("auto_model_selection", true);
             _toolChoice = SettingsStore.Get("tool_choice") ?? "auto";
-            _ollamaEnabled = SettingsStore.Get("ollama_enabled") != "false";
-            _ollamaThink = SettingsStore.Get("ollama_think") != "false";
+            _ollamaEnabled = SettingsStore.GetBool("ollama_enabled", true);
+            _ollamaThink = SettingsStore.GetBool("ollama_think", true);
 
             OnPropertyChanged(nameof(OllamaUrl));
             OnPropertyChanged(nameof(OllamaModel));
@@ -834,6 +834,21 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
         _client?.Dispose();
         _toolExecutor?.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Cancels any in-flight agentic loop (streaming / tool execution) so the user
+    /// can stop a long-running scan or tool chain. The loop checks the
+    /// CancellationToken each iteration and tears down the scanner process tree via
+    /// <see cref="Services.ScannerService.StopScan"/>.
+    /// </summary>
+    public void Abort()
+    {
+        if (!_disposed && IsBusy)
+        {
+            try { _cts.Cancel(); }
+            catch { /* already cancelled */ }
+        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -68,26 +68,64 @@
                                 </TextBox>
                             </StackPanel>
 
-                            <StackPanel Grid.Column="1" Spacing="{StaticResource Space.SM}">
-                                <CheckBox Content="Match exact name"
-                                          IsChecked="{x:Bind VM.MatchExact, Mode=TwoWay}"
-                                          Style="{StaticResource FieldCheckBox}"/>
-                                <CheckBox Content="Use wildcards (*)"
-                                          IsChecked="{x:Bind VM.UseWildcards, Mode=TwoWay}"
-                                          Style="{StaticResource FieldCheckBox}"/>
-                                <CheckBox Content="Include hidden files"
-                                          IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"
-                                          Style="{StaticResource FieldCheckBox}"/>
-                            </StackPanel>
+                            <Border Grid.Column="1" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
+                                <StackPanel Spacing="{StaticResource Space.SM}">
+                                    <TextBlock Text="Filters" Style="{StaticResource Type.FieldHeading}"/>
+                                    <CheckBox Content="Match exact name"
+                                              IsChecked="{x:Bind VM.MatchExact, Mode=TwoWay}"
+                                              Style="{StaticResource FieldCheckBox}"/>
+                                    <CheckBox Content="Use wildcards (*)"
+                                              IsChecked="{x:Bind VM.UseWildcards, Mode=TwoWay}"
+                                              Style="{StaticResource FieldCheckBox}"/>
+                                    <CheckBox Content="Include hidden files"
+                                              IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"
+                                              Style="{StaticResource FieldCheckBox}"/>
+                                </StackPanel>
+                            </Border>
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <!-- Tips -->
+                <!-- Tips (distinct advisory panel, visually separated from the form above) -->
+                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                        BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                        BorderThickness="1" CornerRadius="8"
+                        Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
+                        <FontIcon Glyph="&#xE946;" FontSize="{StaticResource Icon.Small}"
+                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top"/>
+                        <StackPanel Spacing="{StaticResource Space.XS}">
+                            <TextBlock Text="Tips" Style="{StaticResource Type.SubTitle}"/>
+                            <TextBlock Text="Use * as a wildcard (e.g. *.log or report_*_2024.pdf). Leave Min Size at 0 to find all matches." Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Search mode + semantic index -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
-                    <StackPanel Spacing="{StaticResource Space.XS}">
-                        <TextBlock Text="Tips" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
-                        <TextBlock Text="Use * as a wildcard (e.g. *.log or report_*_2024.pdf). Leave Min Size at 0 to find all matches." Style="{StaticResource Type.Hint}"/>
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <Grid ColumnSpacing="{StaticResource Space.MD}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                                <TextBlock Text="Semantic search" Style="{StaticResource Type.SubTitle}"/>
+                                <TextBlock Text="Use AI embeddings to find files by meaning, not just filename." Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" IsOn="{x:Bind VM.IsSemantic, Mode=TwoWay}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <StackPanel Visibility="{x:Bind VM.IsSemantic, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" Spacing="{StaticResource Space.SM}">
+                            <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{x:Bind VM.IndexStatus, Mode=OneWay}" Style="{StaticResource Type.Hint}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Content="Index with embeddings" Click="Index_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotIndexing, Mode=OneWay}" AutomationProperties.Name="Index folder with embeddings"/>
+                            </Grid>
+                            <ProgressRing Width="18" Height="18" IsActive="{x:Bind VM.IsIndexing, Mode=OneWay}" Visibility="{x:Bind VM.IsIndexing, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 
@@ -95,6 +133,7 @@
                 <Button Content="Start Search" Click="Search_Click"
                         AutomationProperties.Name="Start Search"
                         HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButton}"
+                        Height="40" VerticalContentAlignment="Center"
                         IsEnabled="{x:Bind VM.IsNotSearching, Mode=OneWay}"/>
 
                 <!-- Status -->
@@ -103,7 +142,7 @@
 
                 <!-- Results -->
                 <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.XL}"
-                        Visibility="{x:Bind VM.HasResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
+                        Visibility="{x:Bind VM.ShowFilenameResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
                         <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" Style="{StaticResource Type.CardTitle}"/>
                         <TextBlock Text="results found" Style="{StaticResource Type.Body}" Opacity="0.8"/>
@@ -140,8 +179,43 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Semantic Results -->
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.XL}"
+                        Visibility="{x:Bind VM.ShowSemanticResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="{x:Bind VM.SemanticResultCount, Mode=OneWay}" Style="{StaticResource Type.CardTitle}"/>
+                        <TextBlock Text="semantic matches" Style="{StaticResource Type.Body}" Opacity="0.8"/>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.SemanticResults, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.SM}"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:SemanticSearchResult">
+                                    <Border Style="{StaticResource CompactItemCard}">
+                                        <StackPanel Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Style="{StaticResource Type.SubTitle}"
+                                                       Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8">
+                                                <Run Text="{x:Bind SimilarityDisplay, Mode=OneTime}"/>
+                                                <Run Text=" · "/>
+                                                <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
+                                            </TextBlock>
+                                            <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.55" TextWrapping="Wrap"
+                                                       Text="{x:Bind FilePath, Mode=OneTime}"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Margin="0,4,0,0">
+                                                <Button Content="Open" Click="OpenResultFile_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind FilePath}"/>
+                                                <Button Content="Folder" Click="OpenResultFolder_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind FilePath}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Border>
+
                 <!-- Empty State -->
-                <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.HasResults, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
+                <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.ShowFilenameEmpty, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel Spacing="{StaticResource Space.MD}" HorizontalAlignment="Center">
                         <FontIcon Glyph="&#xE721;" FontSize="{StaticResource Icon.EmptyState}" Opacity="{StaticResource Icon.EmptyStateOpacity}" HorizontalAlignment="Center"/>
                         <TextBlock Text="No results yet" Style="{StaticResource Type.CardTitle}" HorizontalAlignment="Center"/>

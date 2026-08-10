@@ -1,59 +1,263 @@
 #!/usr/bin/env python3
 """Launch SpaceAnalyzer and capture screenshots of each page via UI Automation.
 
-The WinUI 3 NavigationView uses PaneDisplayMode="Top" (horizontal top bar,
-NOT a left sidebar - the old coordinate-math approach clicked Dashboard content
-every time). Keyboard navigation (Right+Enter) also failed intermittently: focus
+NON-INTRUSIVE DESIGN (run on a separate screen without disrupting your work):
+  • Screenshots use PrintWindow (PW_RENDERFULLCONTENT) — captures ONLY the app's
+    own window content, never the rest of the desktop / your other monitor.
+  • The window is pinned to a chosen monitor with SetWindowPos(SWP_NOACTIVATE),
+    so it never steals focus from whatever you are doing on another screen.
+  • Tab navigation uses the UIA SelectionItemPattern.Select() — a programmatic
+    selection that performs the real tab switch WITHOUT ever moving the system
+    cursor. No mouse_event / SetCursorPos / pyautogui.click / PostMessage is used
+    anywhere, so your pointer stays exactly where it is on your other screen.
+
+CAPTURE POLICY (self-improvement loop — see analyze_design_feedback.py):
+  Only run this script when a UI change has been made that would VISIBLY differ
+  from the screenshots already under macro_logs/screenshots_*. Do NOT re-capture
+  merely to get fresh feedback — instead re-run analyze_design_feedback.py, which
+  rotates through designer personas on the SAME images and accumulates a
+  categorized backlog. Re-capture only after an implemented change is visible.
+
+The WinUI 3 NavigationView uses PaneDisplayMode="Top" (horizontal top bar, NOT a
+left sidebar). Keyboard navigation (Right+Enter) failed intermittently: focus
 shifted to Quick Action buttons and opened browser tabs.
 
-This script uses Windows UI Automation (`uiautomation` package) to click each
-NavigationViewItem by its visible Name. Key findings from UIA tree inspection:
+Key findings from UIA tree inspection:
   - Window title includes a version suffix: "Space Analyzer Pro v4.0.0"
-  - Nav items are TabItemControl (class=NavigationViewItem), NOT ListItemControl
-  - "System" and "Cleanup" overflow into a "More" button menu
-  - "Settings" and "About" are FooterMenuItem TabItemControls
-  - UIA Invoke.Click() throws HRESULT after the first navigation (app's event
-    handler fails). pyautogui.click() at BoundingRectangle center works.
-  - Window must be found by process PID, not title (other apps may match).
+  - Nav items are TabItemControl (class=NavigationViewItem) with a UIA Name that
+    usually equals the visible label — EXCEPT "Advanced Search" (UIA Name "Search")
+    and "Automation Workflows" (UIA Name "Workflows").
+  - At a normal window width all tabs are visible TabItemControls; when the window
+    is narrow some overflow into a "More" flyout (exposed as MenuItemControl).
+  - UIA Invoke() throws HRESULT after the first navigation, but
+    SelectionItemPattern.Select() switches tabs reliably and cursor-less.
+  - Window must be found by process PID/HWND, not title (other apps may match).
   - WindowControl must be re-created from HWND each iteration (elements go stale).
 """
-import pygetwindow as gw
+import argparse
+import ctypes
+import ctypes.wintypes
 import subprocess
+import sys
 import time
 from pathlib import Path
 
 import pyautogui
+import pygetwindow as gw
 import uiautomation as auto
 
+# ── Win32 constants ─────────────────────────────────────────────
+user32 = ctypes.windll.user32
+gdi32 = ctypes.windll.gdi32
+kernel32 = ctypes.windll.kernel32
+
+# Declare proper Win32 prototypes so 64-bit HANDLE values don't overflow c_int
+# (undeclared calls truncate/sign-extend pointers on x64 and crash GDI calls).
+HWND = ctypes.c_void_p
+HDC = ctypes.c_void_p
+HBITMAP = ctypes.c_void_p
+
+user32.GetDC.argtypes = [HWND]
+user32.GetDC.restype = HDC
+user32.ReleaseDC.argtypes = [HWND, HDC]
+user32.ReleaseDC.restype = ctypes.c_int
+user32.PrintWindow.argtypes = [HWND, HDC, ctypes.c_uint]
+user32.PrintWindow.restype = ctypes.c_int
+user32.GetClientRect.argtypes = [HWND, ctypes.c_void_p]
+user32.GetClientRect.restype = ctypes.c_int
+user32.GetWindowRect.argtypes = [HWND, ctypes.c_void_p]
+user32.GetWindowRect.restype = ctypes.c_int
+user32.SetWindowPos.argtypes = [HWND, HWND, ctypes.c_int, ctypes.c_int,
+                                 ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+user32.SetWindowPos.restype = ctypes.c_int
+
+gdi32.CreateCompatibleDC.argtypes = [HDC]
+gdi32.CreateCompatibleDC.restype = HDC
+gdi32.CreateCompatibleBitmap.argtypes = [HDC, ctypes.c_int, ctypes.c_int]
+gdi32.CreateCompatibleBitmap.restype = HBITMAP
+gdi32.SelectObject.argtypes = [HDC, HBITMAP]
+gdi32.SelectObject.restype = HBITMAP
+gdi32.GetDIBits.argtypes = [HDC, HBITMAP, ctypes.c_uint, ctypes.c_uint,
+                             ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint]
+gdi32.GetDIBits.restype = ctypes.c_int
+gdi32.DeleteObject.argtypes = [HBITMAP]
+gdi32.DeleteObject.restype = ctypes.c_int
+gdi32.DeleteDC.argtypes = [HDC]
+gdi32.DeleteDC.restype = ctypes.c_int
+
+PW_RENDERFULLCONTENT = 2
+DIB_RGB_COLORS = 0
+SWP_NOSIZE = 0x0001
+SWP_NOZORDER = 0x0004
+SWP_NOACTIVATE = 0x0010
+SWP_SHOWWINDOW = 0x0040
+SW_SHOWNOACTIVATE = 8
+
+MonitorEnumProc = ctypes.WINFUNCTYPE(
+    ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p,
+    ctypes.POINTER(ctypes.wintypes.RECT), ctypes.c_void_p,
+)
+
+
+class BITMAPINFOHEADER(ctypes.Structure):
+    _fields_ = [
+        ("biSize", ctypes.c_uint32),
+        ("biWidth", ctypes.c_int32),
+        ("biHeight", ctypes.c_int32),
+        ("biPlanes", ctypes.c_uint16),
+        ("biBitCount", ctypes.c_uint16),
+        ("biCompression", ctypes.c_uint32),
+        ("biSizeImage", ctypes.c_uint32),
+        ("biXPelsPerMeter", ctypes.c_int32),
+        ("biYPelsPerMeter", ctypes.c_int32),
+        ("biClrUsed", ctypes.c_uint32),
+        ("biClrImportant", ctypes.c_uint32),
+    ]
+
+
+class BITMAPINFO(ctypes.Structure):
+    _fields_ = [
+        ("bmiHeader", BITMAPINFOHEADER),
+        ("bmiColors", ctypes.c_uint32 * 3),
+    ]
+
+
 REPO = Path(r"E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer")
-EXE = REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Debug" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe"
 TS = time.strftime("%Y%m%d_%H%M%S")
 SHOTS = REPO / "macro_logs" / f"screenshots_{TS}"
 SHOTS.mkdir(parents=True, exist_ok=True)
 
-# Nav items in XAML order - exact Content labels from MainWindow.xaml MenuItems + FooterMenuItems.
+# Nav items in XAML order. (display_label, screenshot_stem)
 NAV_ITEMS = [
-    ("Dashboard",          "01_tab_dashboard"),
-    ("Scan",               "02_tab_scan"),
-    ("History",            "03_tab_history"),
-    ("Advanced Search",    "04_tab_smart_search"),
-    ("Automation Workflows", "05_tab_workflows"),
-    ("AI Assistant",       "06_tab_ai_chat"),
-    ("Duplicates",         "07_tab_dedup"),
-    ("System",             "08_tab_system"),  # in overflow "More" menu
-    ("Cleanup",            "10_tab_cleanup"),  # in overflow "More" menu
-    ("Settings",           "09_tab_settings"),  # footer item
+    ("Dashboard",           "01_tab_dashboard"),
+    ("Scan",                "02_tab_scan"),
+    ("History",             "03_tab_history"),
+    ("Advanced Search",     "04_tab_smart_search"),
+    ("Automation Workflows","05_tab_workflows"),
+    ("AI Assistant",        "06_tab_ai_chat"),
+    ("Duplicates",          "07_tab_dedup"),
+    ("System",              "08_tab_system"),
+    ("Cleanup",             "10_tab_cleanup"),
+    ("Settings",            "09_tab_settings"),  # footer item
 ]
-OVERFLOW_ITEMS = {"System", "Cleanup"}
 
-pyautogui.FAILSAFE = True
+# UIA automation Name differs from the visible label for two tabs.
+AUTO_NAME = {
+    "Advanced Search": "Search",
+    "Automation Workflows": "Workflows",
+}
+
+pyautogui.FAILSAFE = False  # we never move the cursor; no need for corner-abort
 auto.uiautomation.SetGlobalSearchTimeout(2)
 
 
-def snap(name: str):
-    path = SHOTS / f"{name}.png"
-    img = pyautogui.screenshot()
+# ── Monitor helpers (keep the app off the user's working screen) ──
+
+def enum_monitors() -> list[tuple[int, int, int, int]]:
+    """Return list of (left, top, right, bottom) for each display."""
+    monitors: list[tuple[int, int, int, int]] = []
+
+    def cb(_hmon, _hdc, lprect, _lparam):
+        r = lprect.contents
+        monitors.append((r.left, r.top, r.right, r.bottom))
+        return True
+
+    user32.EnumDisplayMonitors(0, 0, MonitorEnumProc(cb), 0)
+    return monitors
+
+
+def pin_window_to_monitor(hwnd, monitor_index: int = 1, margin: int = 40) -> bool:
+    """Move the window onto a specific monitor WITHOUT stealing focus, and size
+    it to fill the monitor so every top-bar nav tab is visible (avoids the
+    NavigationView 'More' overflow flyout that hides trailing tabs like
+    Duplicates/System/Cleanup from UI Automation).
+
+    SetWindowPos with SWP_NOACTIVATE keeps the user's foreground window focused,
+    so there is no cursor/focus disruption on other screens.
+    """
+    monitors = enum_monitors()
+    if not monitors:
+        return False
+    idx = max(0, min(monitor_index, len(monitors) - 1))
+    left, top, right, bottom = monitors[idx]
+    x = left + margin
+    y = top + margin
+    w = max(800, (right - left) - 2 * margin)
+    h = max(600, (bottom - top) - 2 * margin)
+    res = user32.SetWindowPos(
+        hwnd, 0, x, y, w, h,
+        SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+    )
+    return bool(res)
+
+
+SW_MAXIMIZE = 3
+
+
+def maximize_window(hwnd) -> None:
+    """Maximize the app window so all top-bar nav tabs are visible (avoids the
+    NavigationView 'More' overflow that hides trailing tabs from UIA)."""
+    try:
+        user32.ShowWindow.argtypes = [HWND, ctypes.c_int]
+        user32.ShowWindow.restype = ctypes.c_int
+        user32.ShowWindow(hwnd, SW_MAXIMIZE)
+    except Exception:
+        pass
+
+
+def capture_window_png(hwnd, path: str) -> bool:
+    """Capture ONLY the app window via PrintWindow (no desktop capture)."""
+    from PIL import Image
+
+    rect = ctypes.wintypes.RECT()
+    user32.GetClientRect(hwnd, ctypes.byref(rect))
+    w, h = rect.right, rect.bottom
+    if w == 0 or h == 0:
+        return False
+
+    hwnd_dc = user32.GetDC(hwnd)
+    mem_dc = gdi32.CreateCompatibleDC(hwnd_dc)
+    hbitmap = gdi32.CreateCompatibleBitmap(hwnd_dc, w, h)
+    gdi32.SelectObject(mem_dc, hbitmap)
+
+    result = user32.PrintWindow(hwnd, mem_dc, PW_RENDERFULLCONTENT)
+    if not result:
+        gdi32.DeleteObject(hbitmap)
+        gdi32.DeleteDC(mem_dc)
+        user32.ReleaseDC(hwnd, hwnd_dc)
+        return False
+
+    bmi = BITMAPINFO()
+    bmi.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+    bmi.bmiHeader.biWidth = w
+    bmi.bmiHeader.biHeight = -h
+    bmi.bmiHeader.biPlanes = 1
+    bmi.bmiHeader.biBitCount = 32
+    bmi.bmiHeader.biCompression = 0
+
+    buf_size = w * h * 4
+    buf = ctypes.create_string_buffer(buf_size)
+    res = gdi32.GetDIBits(hwnd_dc, hbitmap, 0, h, buf, ctypes.byref(bmi), DIB_RGB_COLORS)
+    gdi32.DeleteObject(hbitmap)
+    gdi32.DeleteDC(mem_dc)
+    user32.ReleaseDC(hwnd, hwnd_dc)
+    if not res:
+        return False
+
+    img = Image.frombuffer("RGBA", (w, h), buf.raw, "raw", "BGRA", 0, 1)
     img.save(path)
+    return True
+
+
+def snap(name: str, hwnd) -> None:
+    path = SHOTS / f"{name}.png"
+    if hwnd:
+        capture_window_png(hwnd, str(path))
+    else:
+        # Only if we somehow have no HWND: this is the one case that captures
+        # the whole desktop, so avoid it whenever possible.
+        img = pyautogui.screenshot()
+        img.save(path)
     print(f"saved {path.name}")
     time.sleep(0.3)
 
@@ -65,282 +269,175 @@ def snap(name: str):
 _CACHED_HWND = None
 
 
-def find_window() -> auto.WindowControl | None:
+def find_window() -> tuple[auto.WindowControl | None, int | None]:
     """Find the Space Analyzer window via pygetwindow + UIA by HWND.
 
-    On first call, searches by title prefix "Space Analyzer" and caches the
-    HWND. On subsequent calls, uses the cached HWND directly (the window
-    title changes after navigation, so title-based search would fail).
-    Falls back to title search if the cached HWND is no longer valid.
+    Returns (WindowControl, hwnd). On first call searches by title prefix
+    "Space Analyzer" and caches the HWND. On subsequent calls uses the cached
+    HWND directly (the window title changes after navigation). Falls back to
+    title search if the cached HWND is no longer valid.
     """
     global _CACHED_HWND
 
-    # Try cached HWND first
     if _CACHED_HWND is not None:
-        print(f"    [find_window] trying cached HWND {_CACHED_HWND}")
         try:
             wc = auto.WindowControl(searchDepth=1, Handle=_CACHED_HWND)
             if wc:
-                # The class name can change during navigation (observed:
-                # WinUIDesktopWin32WindowClass -> Chrome_WidgetWin_1).
-                # Accept any top-level window at our cached HWND.
-                return wc
-        except Exception as exc:
-            print(f"      cached HWND failed: {exc}")
+                return wc, _CACHED_HWND
+        except Exception:
             _CACHED_HWND = None
 
-# Fall back to title-based search
     for attempt in range(5):
         wins = gw.getAllWindows()
         space_wins = [w for w in wins if w.title and w.title.lower().startswith("space analyzer")]
         if space_wins:
-            print(f"    [find_window] attempt {attempt+1}: found {len(space_wins)} Space Analyzer window(s)")
             for w in space_wins:
                 try:
                     hwnd = int(w._hWnd)
                     wc = auto.WindowControl(searchDepth=1, Handle=hwnd)
                     cls = wc.ClassName if wc else "(none)"
-                    print(f"      hwnd={hwnd} class={cls!r} title={w.title!r}")
                     if wc and cls == "WinUIDesktopWin32WindowClass":
                         _CACHED_HWND = hwnd
-                        return wc
-                except Exception as exc:
-                    print(f"      hwnd={w._hWnd} error: {exc}")
+                        return wc, hwnd
+                except Exception:
                     continue
-        else:
-            print(f"    [find_window] attempt {attempt+1}: no Space Analyzer windows found (total={len(wins)})")
         time.sleep(0.5)
-    return None
+    return None, None
 
 
-def click_overflow_item(window: auto.Control, label: str) -> bool:
-    """Open the 'More' overflow menu and click an item inside it."""
-    auto.uiautomation.SetGlobalSearchTimeout(2)
-    # Find and click the "More" overflow button
-    rect = get_nav_item_bounds(window, "More")
-    if rect is None:
-        # Fallback: try as ButtonControl
+def _select_tab(window: auto.Control, label: str) -> bool:
+    """Select a nav tab via the UIA SelectionItemPattern.Select().
+
+    This performs the real tab switch programmatically and does NOT move the
+    system cursor. Falls back to a MenuItemControl (overflow flyout) and then
+    to Invoke() if the SelectionItemPattern is unavailable. Retries with a
+    settle delay because the NavigationView can rebuild after the prior
+    navigation and the TabItemControl may not be ready immediately.
+    """
+    name = AUTO_NAME.get(label, label)
+    for attempt in range(2):
+        auto.uiautomation.SetGlobalSearchTimeout(4)
+        time.sleep(0.8)  # let the previous navigation settle
+        item = None
+        for ctrl_cls in (auto.TabItemControl, auto.MenuItemControl):
+            try:
+                item = ctrl_cls(searchDepth=20, Name=name)
+                break
+            except Exception:
+                continue
+        if item is None:
+            print(f"    [select] attempt {attempt + 1}: could not find tab '{label}'")
+            continue
         try:
-            more = window.ButtonControl(searchDepth=20, Name="More")
-            rect = more.BoundingRectangle
-        except Exception:
-            pass
-    if rect is None:
-        # Coordinate fallback: "More" button is at the right end of the nav bar
-        try:
-            win_rect = window.BoundingRectangle
-            if win_rect and win_rect.top >= -500:
-                # "More" button is typically at window_right - 60, nav_bar_y + center
-                x = win_rect.right - 60
-                y = win_rect.top + _NAV_BAR_Y_OFFSET + 22
-                print(f"    [overflow-coord] clicking 'More' at ({x},{y})")
-                pyautogui.click(x, y)
-                time.sleep(0.5)
-        except Exception:
-            return False
-    else:
-        _click_at_center(rect)
-        time.sleep(0.5)
-    # The overflow popup is a separate window - find it
-    try:
-        popup = auto.WindowControl(searchDepth=2, ClassName="Popup")
-        if popup and popup.Exists(3):
-            rect = get_nav_item_bounds(popup, label)
-            if rect is not None:
-                _click_at_center(rect)
-                time.sleep(0.3)
+            try:
+                item.SetFocus()
+            except Exception:
+                pass
+            pat = item.GetSelectionItemPattern()
+            if pat is not None:
+                pat.Select()
+                print(f"    [select] '{label}' via SelectionItemPattern")
                 return True
-    except Exception:
-        pass
-    # Fallback: search entire window tree for the overflow item
-    try:
-        item = auto.Control(searchDepth=20, Name=label)
-        if item:
-            r = item.BoundingRectangle
-            if r and r.top >= 0:
-                _click_at_center(r)
-                time.sleep(0.3)
-                return True
-    except Exception:
-        pass
+            item.Invoke()
+            print(f"    [select] '{label}' via Invoke")
+            return True
+        except Exception as exc:
+            print(f"    [select] '{label}' attempt {attempt + 1} failed: {exc}")
+    print(f"    [select] '{label}' failed after retries")
     return False
 
 
-def _click_at_center(rect) -> None:
-    """Click at the center of a UIA BoundingRectangle using pyautogui."""
-    cx = (rect.left + rect.right) / 2
-    cy = (rect.top + rect.bottom) / 2
-    pyautogui.click(cx, cy)
+def find_binary() -> Path:
+    candidates = [
+        REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Release" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
+        REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Debug" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
+        REPO / "target" / "release" / "space-analyzer-gui.exe",
+        REPO / "target" / "debug" / "space-analyzer-gui.exe",
+    ]
+    for p in candidates:
+        if p.exists():
+            return p.resolve()
+    return REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Debug" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe"
 
 
-# Map of nav item labels to their horizontal offset from the window left edge.
-# These are empirical offsets measured from successful UIA hits. The nav bar
-# sits at a fixed Y offset from the window top (~45px into the title bar).
-# Fixed screen coordinates for nav items, measured from a window positioned
-# at (100, 50) with the nav bar at y=105. These are used when UIA cannot find
-# the nav item (WinUI 3 content islands hide nav items from UIA after nav).
-# The window is normalized to (100, 50) before each click.
-_FIXED_NAV_COORDS = {
-    "Dashboard":             (182, 105),
-    "Scan":                  (306, 105),
-    "History":               (430, 105),
-    "Advanced Search":       (554, 105),
-    "Automation Workflows":  (678, 105),
-    "AI Assistant":          (802, 105),
-    "Duplicates":            (926, 105),
-    "System":               (1050, 105),  # overflow item
-    "Cleanup":              (1050, 105),  # overflow item
-    "Settings":              (100,  963),  # footer item
-}
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Headed screenshot capture (non-intrusive, cursor-less).")
+    ap.add_argument("--monitor", type=int, default=1,
+                    help="Monitor index to pin the app to (0=primary, 1=secondary...). Default 1.")
+    ap.add_argument("--exe", type=str, default=None, help="Explicit path to SpaceAnalyzer.exe")
+    ap.add_argument("--shots-dir", type=str, default=None, help="Override output directory")
+    args = ap.parse_args()
 
+    global SHOTS
+    if args.shots_dir:
+        SHOTS = Path(args.shots_dir)
+        SHOTS.mkdir(parents=True, exist_ok=True)
 
-def _click_nav_by_coord(window, label):
-    """Click a nav item using fixed screen coordinates.
+    EXE = Path(args.exe) if args.exe else find_binary()
+    if not EXE.exists():
+        print(f"ERROR: SpaceAnalyzer.exe not found at {EXE}")
+        print("Build first: MSBuild gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64")
+        return 1
 
-    Used as fallback when UIA cannot find the nav item (common in WinUI 3
-    after navigation, where content islands may hide nav items from UIA).
+    monitors = enum_monitors()
+    print(f"Detected {len(monitors)} monitor(s); pinning app to monitor index {args.monitor}")
+    if len(monitors) <= args.monitor:
+        print(f"  (only {len(monitors)} monitor(s) available; using index {len(monitors)-1})")
 
-    Normalizes the window to (100, 50) first so the fixed coordinates are
-    accurate regardless of where the app moved the window.
-    """
-    if label not in _FIXED_NAV_COORDS:
-        return False
-    try:
-        # Normalize window position -- the app can move/resize the window
-        # after navigation, making relative coordinates wrong.
-        try:
-            hwnd = window.NativeWindowHandle
-            for w in gw.getAllWindows():
-                if hasattr(w, '_hWnd') and int(w._hWnd) == hwnd:
-                    if w.left is not None and (w.top != 50 or w.left != 100):
-                        w.restore()
-                        w.moveTo(100, 50)
-                        w.activate()
-                        time.sleep(0.5)
-                    break
-        except Exception:
-            pass
+    # Launch
+    proc = subprocess.Popen([str(EXE)], cwd=str(EXE.parent))
+    print(f"launched pid={proc.pid}")
 
-        x, y = _FIXED_NAV_COORDS[label]
-        print(f'    [coord-fallback] clicking {label!r} at fixed ({x},{y})')
-        pyautogui.click(x, y)
-        return True
-    except Exception as exc:
-        print(f'    [coord-fallback] error: {exc}')
-        return False
-
-def get_nav_item_bounds(window: auto.Control, label: str) -> auto.Rect | None:
-    """Find a NavigationViewItem (TabItemControl) and return its BoundingRectangle.
-
-    Accessing BoundingRectangle triggers a UIA search. We skip Exists() because
-    it triggers WalkControl->GetFirstChildControl which throws on stale elements.
-
-    CRITICAL: After navigation, UIA may find content headings (same Name) inside
-    the page content instead of the actual nav tab. We reject any hit whose
-    top edge is below 150px -- the nav bar is always at the top of the window.
-    """
-    candidates = []
-    for ctrl_cls in (auto.TabItemControl, auto.ButtonControl):
-        try:
-            item = ctrl_cls(searchDepth=20, Name=label)
-            rect = item.BoundingRectangle
-            if rect and rect.left != -32000 and rect.right != 0:
-                candidates.append((item.ControlTypeName, rect))
-        except Exception:
-            continue
-
-    for ctrl_type, rect in candidates:
-        # Only accept items in the top nav bar region (y < 150).
-        # Content headings can share the same Name after navigation.
-        if rect.top < 150:
-            print(f"    found {ctrl_type} '{label}' at {rect}")
-            return rect
-        else:
-            print(f"    [nav-filter] skipping {ctrl_type} '{label}' at y={rect.top} (content heading?)")
-
-    return None
-
-
-# Launch
-proc = subprocess.Popen([str(EXE)], cwd=str(EXE.parent))
-print(f"launched pid={proc.pid}")
-time.sleep(5)
-
-snap("01_launched")
-
-# -- Navigate via UI Automation --
-print("locating Space Analyzer window via UI Automation (HWND)...")
-window = find_window()
-if window is None:
-    raise RuntimeError("Could not find Space Analyzer window via UI Automation")
-
-print(f"  found window: title={window.Name!r}")
-window.SetFocus()
-time.sleep(0.5)
-
-for label, stem in NAV_ITEMS:
-    print(f"  navigating to '{label}'...")
-    try:
-        # Re-acquire the window from HWND each iteration. UIA elements go stale
-        # after page navigation (HRESULT -2147417851 / -2147220991 on refind).
-        # Re-finding by HWND gives a fresh element tree.
-        window = find_window()
-        if window is None:
-            print(f"    FATAL: cannot find window for '{label}'")
+    window, hwnd = None, None
+    for _ in range(50):  # poll up to ~25s for the (slow) cold start
+        window, hwnd = find_window()
+        if window is not None and hwnd is not None:
             break
-        window.SetFocus()
         time.sleep(0.5)
 
-        # Normalize window position -- UIA BoundingRectangle can report wrong
-        # coordinates after navigation (window appears off-screen). Use
-        # pygetwindow to restore to a consistent on-screen position.
+    if window is None or hwnd is None:
+        print("Could not find Space Analyzer window via UI Automation")
+        proc.terminate()
+        return 1
+
+    # Pin to the chosen monitor WITHOUT stealing focus from your other screen.
+    pin_window_to_monitor(hwnd, args.monitor)
+    maximize_window(hwnd)
+    time.sleep(0.5)
+    snap("01_launched", hwnd)
+
+    print(f"  found window: title={window.Name!r}")
+    for label, stem in NAV_ITEMS:
+        print(f"  navigating to '{label}'...")
         try:
-            hwnd = window.NativeWindowHandle
-            for w in gw.getAllWindows():
-                if hasattr(w, "_hWnd") and int(w._hWnd) == hwnd:
-                    if w.left is not None and (w.top < 0 or w.left > 2000 or w.top > 1000):
-                        w.restore()
-                        w.moveTo(100, 50)
-                        w.activate()
-                        time.sleep(0.5)
-                    break
-        except Exception:
-            pass
+            window, hwnd = find_window()
+            if window is None or hwnd is None:
+                print(f"    FATAL: cannot find window for '{label}'")
+                break
+            # Keep the window pinned (no activate) so it never pops over your work.
+            pin_window_to_monitor(hwnd, args.monitor)
+            maximize_window(hwnd)
+            time.sleep(0.4)
 
-        if label in OVERFLOW_ITEMS:
-            ok = click_overflow_item(window, label)
+            ok = _select_tab(window, label)
             if not ok:
-                print(f"    WARNING: '{label}' not found in overflow menu")
+                print(f"    WARNING: could not select '{label}'")
             time.sleep(1.0)
-        else:
-            # Try UIA first
-            rect = get_nav_item_bounds(window, label)
-            if rect is not None:
-                _click_at_center(rect)
-                time.sleep(1.0)
-            else:
-                # Settings is a footer item that UIA rarely finds -- use coords directly
-                if label == "Settings":
-                    print(f"    using fixed coordinates for footer item '{label}'")
-                    _click_nav_by_coord(window, label)
-                    time.sleep(1.0)
-                else:
-                    # UIA failed -- fall back to coordinate-based nav bar click.
-                    # Nav bar is at a fixed offset from the window title bar.
-                    ok = _click_nav_by_coord(window, label)
-                    if not ok:
-                        print(f"    WARNING: '{label}' not found via UIA or coordinates")
-                    time.sleep(1.0)
-        snap(stem)
-    except Exception as exc:
-        print(f"    click failed for '{label}': {exc}")
-        snap(stem)
+            snap(stem, hwnd)
+        except Exception as exc:
+            print(f"    select failed for '{label}': {exc}")
+            snap(stem, hwnd)
 
-# Close
-proc.terminate()
-try:
-    proc.wait(timeout=10)
-except subprocess.TimeoutExpired:
-    proc.kill()
+    # Close
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
 
-print(f"screenshots saved to {SHOTS}")
+    print(f"screenshots saved to {SHOTS}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

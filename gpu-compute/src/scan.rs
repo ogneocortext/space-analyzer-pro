@@ -261,7 +261,14 @@ fn count_dir_entries(entries: &[RawFileEntry]) -> HashMap<String, u64> {
     counts
 }
 
-/// Compute per-directory aggregate information for immediate subdirectories
+/// Compute per-directory aggregate information for immediate subdirectories of
+/// `scan_root`.
+///
+/// Each entry is attributed to the subdirectory of `scan_root` that contains it,
+/// so a file sitting directly in `scan_root` lands in the root group instead of
+/// being reported as its own "directory". `dir_count` counts only sub-directories
+/// *inside* each group (not the group directory itself), and `name` is the
+/// directory's basename rather than its full path.
 fn compute_subdirectories(entries: &[RawFileEntry], scan_root: Option<&Path>) -> Vec<DirInfo> {
     let mut dir_sizes: HashMap<String, u64> = HashMap::new();
     let mut dir_file_counts: HashMap<String, u64> = HashMap::new();
@@ -270,43 +277,62 @@ fn compute_subdirectories(entries: &[RawFileEntry], scan_root: Option<&Path>) ->
 
     for entry in entries {
         let path = Path::new(&entry.path);
-        let first = scan_root
-            .and_then(|root| path.strip_prefix(root).ok())
-            .and_then(|relative| relative.components().next())
-            .or_else(|| path.components().nth(2));
-        if let Some(first) = first {
-            let sub_name = if let Some(root) = scan_root {
-                root.join(first.as_os_str()).to_string_lossy().to_string()
-            } else {
-                first.as_os_str().to_string_lossy().to_string()
-            };
-            if entry.is_dir {
-                *dir_dir_counts.entry(sub_name.clone()).or_insert(0) += 1;
-            } else {
-                *dir_sizes.entry(sub_name.clone()).or_insert(0) += entry.size;
-                *dir_file_counts.entry(sub_name.clone()).or_insert(0) += 1;
-                let current_largest = dir_largest.entry(sub_name.clone()).or_insert(0);
-                if entry.size > *current_largest {
-                    *current_largest = entry.size;
+        let sub_name: String = match scan_root {
+            Some(root) => match path.strip_prefix(root) {
+                Ok(rel) => match rel.components().next() {
+                    Some(first) => root
+                        .join(first.as_os_str())
+                        .to_string_lossy()
+                        .to_string(),
+                    None => root.to_string_lossy().to_string(),
+                },
+                Err(_) => root.to_string_lossy().to_string(),
+            },
+            None => {
+                let comps: Vec<_> = path.components().collect();
+                if comps.len() >= 3 {
+                    comps[2].as_os_str().to_string_lossy().to_string()
+                } else {
+                    path.to_string_lossy().to_string()
                 }
+            }
+        };
+
+        if entry.is_dir {
+            // Skip the group directory itself so it is not counted in its own
+            // dir_count.
+            if entry.path != sub_name {
+                *dir_dir_counts.entry(sub_name.clone()).or_insert(0) += 1;
+            }
+        } else {
+            *dir_sizes.entry(sub_name.clone()).or_insert(0) += entry.size;
+            *dir_file_counts.entry(sub_name.clone()).or_insert(0) += 1;
+            let current_largest = dir_largest.entry(sub_name.clone()).or_insert(0);
+            if entry.size > *current_largest {
+                *current_largest = entry.size;
             }
         }
     }
 
-    // Collect all subdirectory names
     let mut all_names: std::collections::HashSet<String> = std::collections::HashSet::new();
     all_names.extend(dir_sizes.keys().cloned());
     all_names.extend(dir_dir_counts.keys().cloned());
 
     let mut result: Vec<DirInfo> = all_names
         .into_iter()
-        .map(|name| DirInfo {
-            path: name.clone(),
-            name: name.clone(),
-            total_size: dir_sizes.get(&name).copied().unwrap_or(0),
-            file_count: dir_file_counts.get(&name).copied().unwrap_or(0),
-            dir_count: dir_dir_counts.get(&name).copied().unwrap_or(0),
-            largest_file_size: dir_largest.get(&name).copied().unwrap_or(0),
+        .map(|name| {
+            let basename = Path::new(&name)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| name.clone());
+            DirInfo {
+                path: name.clone(),
+                name: basename,
+                total_size: dir_sizes.get(&name).copied().unwrap_or(0),
+                file_count: dir_file_counts.get(&name).copied().unwrap_or(0),
+                dir_count: dir_dir_counts.get(&name).copied().unwrap_or(0),
+                largest_file_size: dir_largest.get(&name).copied().unwrap_or(0),
+            }
         })
         .collect();
 

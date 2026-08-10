@@ -1,7 +1,26 @@
-use crate::animation;
-use crate::cli::render::{self, pct_of};
+use crate::animation::{self, display_width, SECTION_WIDTH};
+use crate::cli::render::{self, format_extension, pct_of};
 use crate::cli::types::ScanResult;
+use crate::hprintln;
 use shared_scanner::format_bytes;
+
+/// Draw the report banner with both rules derived from one width constant so
+/// the box always closes squarely (the title row used to be one cell short).
+fn print_banner() {
+    let title = "Space Analyzer Pro — Disk Space Report";
+    let inner = SECTION_WIDTH;
+    let title_width = display_width(title);
+    let left = inner.saturating_sub(title_width) / 2;
+    let right = inner.saturating_sub(left + title_width);
+    hprintln!("╔{}╗", "═".repeat(inner));
+    hprintln!(
+        "║{}{}{}║",
+        " ".repeat(left),
+        title,
+        " ".repeat(right)
+    );
+    hprintln!("╚{}╝", "═".repeat(inner));
+}
 
 pub fn print_text_results(
     result: &ScanResult,
@@ -10,11 +29,9 @@ pub fn print_text_results(
     no_animation: bool,
     depth_label: &str,
 ) {
-    println!();
-    println!("╔══════════════════════════════════════════════════════════════╗");
-    println!("║           Space Analyzer Pro — Disk Space Report            ║");
-    println!("╚══════════════════════════════════════════════════════════════╝");
-    println!();
+    hprintln!();
+    print_banner();
+    hprintln!();
 
     if let Some(disk) = crate::cli::helpers::get_disk_info(&result.path) {
         let bar_width = 24;
@@ -31,32 +48,33 @@ pub fn print_text_results(
             bar_width,
             no_animation,
         );
-        println!();
+        hprintln!();
     }
 
     animation::print_section_header_animated("📊", "SCAN SUMMARY", no_animation);
-    println!("   Path:     {}", result.path);
-    println!("   Depth:    {}", depth_label);
-    println!(
+    hprintln!("   Path:     {}", result.path);
+    hprintln!("   Depth:    {}", depth_label);
+    hprintln!(
         "   Files:    {} files in {} directories",
-        result.total_files, result.total_dirs
+        result.total_files,
+        result.total_dirs
     );
-    println!(
+    hprintln!(
         "   Total:    {} ({:.2} MB)",
         format_bytes(result.total_size_bytes),
         result.total_size_mb
     );
-    println!("   Duration: {:.2} seconds", result.duration_secs);
+    hprintln!("   Duration: {:.2} seconds", result.duration_secs);
     if !result.errors.is_empty() {
-        println!("   Errors:   {} (access denied, etc.)", result.errors.len());
+        hprintln!("   Errors:   {} (access denied, etc.)", result.errors.len());
         for error in result.errors.iter().take(10) {
-            println!("   - {}", error);
+            hprintln!("   - {}", error);
         }
         if result.errors.len() > 10 {
-            println!("   ... and {} more", result.errors.len() - 10);
+            hprintln!("   ... and {} more", result.errors.len() - 10);
         }
     }
-    println!();
+    hprintln!();
 
     if !result.top_directories.is_empty() {
         animation::print_section_header_animated(
@@ -68,19 +86,28 @@ pub fn print_text_results(
             ),
             no_animation,
         );
-        println!("   {:<8} {:<8} {:>10}  Path", "Files", "Dirs", "Size");
-        println!(
-            "   {}─{:<8}─{}─{:>10}─{}",
-            "─".repeat(3),
+        // Header, rule and rows all share the same column widths, so "Path"
+        // finally sits above the paths instead of above the percentages.
+        hprintln!(
+            "   {:>8} {:>6} {:>11} {:>8}  {}",
+            "Files",
+            "Dirs",
+            "Size",
+            "% Total",
+            "Path"
+        );
+        hprintln!(
+            "   {} {} {} {}  {}",
             "─".repeat(8),
-            "─".repeat(3),
-            "─".repeat(10),
-            "─".repeat(30)
+            "─".repeat(6),
+            "─".repeat(11),
+            "─".repeat(8),
+            "─".repeat(20)
         );
 
         for dir in result.top_directories.iter().take(top_n) {
-            println!(
-                "   {:<8} {:<8} {:>10} ({:5.1}%)  {}",
+            hprintln!(
+                "   {:>8} {:>6} {:>11} {:>7.1}%  {}",
                 dir.file_count,
                 dir.dir_count,
                 format_bytes(dir.total_size),
@@ -93,13 +120,13 @@ pub fn print_text_results(
                 .iter()
                 .map(|d| d.total_size)
                 .sum();
-            println!(
+            hprintln!(
                 "   ... and {} more directories ({})",
                 result.top_directories.len() - top_n,
                 format_bytes(remaining)
             );
         }
-        println!();
+        hprintln!();
     }
 
     if verbose {
@@ -108,18 +135,24 @@ pub fn print_text_results(
         } else {
             0.0
         };
-        println!();
         animation::print_section_header_animated("⚡", "SCAN PERFORMANCE", no_animation);
-        println!(
+        hprintln!(
             "   Scanned {} files in {:.2}s ({:.0} files/sec)",
-            result.total_files, result.duration_secs, scan_speed
+            result.total_files,
+            result.duration_secs,
+            scan_speed
         );
-        println!();
+        hprintln!(
+            "   Directories: {} | Errors: {}",
+            result.total_dirs,
+            result.errors.len()
+        );
+        hprintln!();
     }
 
     if !result.extension_sizes.is_empty() {
         let mut ext_sizes: Vec<_> = result.extension_sizes.iter().collect();
-        ext_sizes.sort_by(|a, b| b.1.cmp(a.1));
+        ext_sizes.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
 
         animation::print_section_header_animated(
             "📄",
@@ -130,31 +163,32 @@ pub fn print_text_results(
             ),
             no_animation,
         );
-        println!(
-            "   {:<12} {:>8} {:>10}  % of Total",
-            "Extension", "Count", "Size"
+        hprintln!(
+            "   {:<12} {:>8} {:>11} {:>8}",
+            "Extension",
+            "Count",
+            "Size",
+            "% Total"
         );
-        println!(
-            "   {}─{:<12}─{}─{:>10}─{}",
-            "─".repeat(3),
+        hprintln!(
+            "   {} {} {} {}",
             "─".repeat(12),
             "─".repeat(8),
-            "─".repeat(10),
-            "─".repeat(12)
+            "─".repeat(11),
+            "─".repeat(8)
         );
 
         for (ext, size) in ext_sizes.iter().take(top_n) {
             let count = result.file_types.get(*ext).unwrap_or(&0);
-            let ext_display = if ext.is_empty() { "(no ext)" } else { ext };
-            println!(
-                "   .{:<11} {:>8} {:>10}  {:>5.1}%",
-                ext_display,
+            hprintln!(
+                "   {:<12} {:>8} {:>11} {:>7.1}%",
+                format_extension(ext),
                 count,
                 format_bytes(**size),
                 pct_of(**size, result.total_size_bytes)
             );
         }
-        println!();
+        hprintln!();
     }
 
     if !result.top_directories.is_empty() {
@@ -165,7 +199,7 @@ pub fn print_text_results(
             *cats.entry(cat).or_default() += d.total_size;
         }
         let mut sorted: Vec<_> = cats.iter().collect();
-        sorted.sort_by(|a, b| b.1.cmp(a.1));
+        sorted.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
         animation::print_section_header_animated(
             "📂",
             &format!(
@@ -175,14 +209,8 @@ pub fn print_text_results(
             ),
             no_animation,
         );
-        println!("   {:<16} {:>10}  {:>6}", "Category", "Size", "% Total");
-        println!(
-            "   {}─{:<16}─{}─{}",
-            "─".repeat(3),
-            "─".repeat(16),
-            "─".repeat(10),
-            "─".repeat(6)
-        );
+        hprintln!("   {:<18} {:>11} {:>8}", "Category", "Size", "% Total");
+        hprintln!("   {} {} {}", "─".repeat(18), "─".repeat(11), "─".repeat(8));
         for (&cat, &size) in sorted.iter().take(top_n) {
             let emoji = match cat {
                 "Windows" => "🖥️",
@@ -198,15 +226,15 @@ pub fn print_text_results(
                 "Test Fixtures" => "🧪",
                 _ => "📁",
             };
-            println!(
-                "   {} {:<14} {:>10}  {:>5.1}%",
+            hprintln!(
+                "   {} {:<15} {:>11} {:>7.1}%",
                 emoji,
                 cat,
                 format_bytes(size),
                 pct_of(size, result.total_size_bytes)
             );
         }
-        println!();
+        hprintln!();
     }
 
     if !result.largest_files.is_empty() {
@@ -219,15 +247,15 @@ pub fn print_text_results(
             no_animation,
         );
         for (i, file) in result.largest_files.iter().take(top_n).enumerate() {
-            println!(
-                "   {:>3}. {:>10} ({:5.1}%)  {}",
+            hprintln!(
+                "   {:>3}. {:>11} {:>7.1}%  {}",
                 i + 1,
                 format_bytes(file.size),
                 pct_of(file.size, result.total_size_bytes),
                 file.path
             );
         }
-        println!();
+        hprintln!();
     }
 
     print_installer_inventory(result, no_animation);
@@ -240,12 +268,12 @@ pub fn print_text_results(
             no_animation,
         );
         for dir in result.empty_dirs.iter().take(20) {
-            println!("   {}", dir);
+            hprintln!("   {}", dir);
         }
         if result.empty_dirs.len() > 20 {
-            println!("   ... and {} more", result.empty_dirs.len() - 20);
+            hprintln!("   ... and {} more", result.empty_dirs.len() - 20);
         }
-        println!();
+        hprintln!();
     }
 }
 
@@ -258,12 +286,20 @@ fn print_installer_inventory(result: &ScanResult, no_animation: bool) {
     if groups.is_empty() {
         return;
     }
+    // The section header, totals and advisory line live here only; the group
+    // renderer no longer repeats them (it used to print an identical header
+    // and advisory line immediately below this one).
+    let (total_size, total_files) = render::installer_totals(&groups);
     animation::print_section_header_animated(
         "📦",
-        "INSTALLER & EXECUTABLE INVENTORY",
+        &format!(
+            "INSTALLER & EXECUTABLE INVENTORY ({}, {} files)",
+            format_bytes(total_size),
+            total_files
+        ),
         no_animation,
     );
-    println!("   These are likely safe to delete after installation. Sort by size and remove oldest/unneeded.");
-    println!();
+    hprintln!("   Grouped by type; each group states whether it is safe to delete.");
+    hprintln!();
     render::render_installers_text(&groups);
 }

@@ -25,7 +25,6 @@
                     <StackPanel Spacing="{StaticResource Space.LG}">
                         <TextBlock Text="Appearance" Style="{StaticResource Type.SectionTitle}"/>
                         <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Theme" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
                             <ComboBox Header="Theme"
                                       SelectedItem="{x:Bind VM.Theme, Mode=TwoWay}"
                                       HorizontalAlignment="Stretch"
@@ -45,7 +44,7 @@
                     <StackPanel Spacing="{StaticResource Space.LG}">
                         <TextBlock Text="Scanner" Style="{StaticResource Type.SectionTitle}"/>
                         <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Scanner binary path" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <TextBlock Text="Scanner binary path" Style="{StaticResource Type.FieldHeading}"/>
                             <Grid ColumnSpacing="{StaticResource Space.SM}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -66,15 +65,15 @@
                                        Opacity="0.9"/>
                         </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.SM}">
-                            <TextBlock Text="App data folder" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <TextBlock Text="App data folder" Style="{StaticResource Type.FieldHeading}"/>
                             <TextBlock Text="Stores the scan history database used by the app and the AI assistant."
-                                       Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                                        Style="{StaticResource Type.Caption}" TextWrapping="Wrap"/>
                             <Button Content="Open Data Folder" Click="OpenDataFolder_Click"
                                     HorizontalAlignment="Left" Style="{StaticResource SecondaryButton}"
                                     AutomationProperties.Name="Open app data folder"/>
                         </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Default scan depth" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <TextBlock Text="Default scan depth" Style="{StaticResource Type.FieldHeading}"/>
                             <Slider Minimum="1"
                                     Maximum="20"
                                     Value="{x:Bind VM.ScanDepth, Mode=TwoWay}"
@@ -82,7 +81,7 @@
                                     Width="300"
                                     ToolTipService.ToolTip="Number of folder levels to descend when scanning (1–20)."/>
                             <TextBlock Text="{x:Bind VM.ScanDepth, Mode=OneWay}"
-                                       Style="{StaticResource Type.Caption}" Opacity="0.8"/>
+                                        Style="{StaticResource Type.Caption}"/>
                         </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="Include hidden files and folders by default"
@@ -93,7 +92,7 @@
                                       IsChecked="{x:Bind VM.GpuAcceleration, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
                         </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Default scan paths" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <TextBlock Text="Default scan paths" Style="{StaticResource Type.FieldHeading}"/>
                             <TextBlock Text="Quick-access paths shown on the Scan page. One path per line."
                                        Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
                             <TextBox Text="{x:Bind VM.DefaultScanPaths, Mode=TwoWay}"
@@ -110,14 +109,14 @@
                     <StackPanel Spacing="{StaticResource Space.LG}">
                         <TextBlock Text="Ollama AI" Style="{StaticResource Type.SectionTitle}"/>
                         <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Server URL" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <TextBlock Text="Server URL" Style="{StaticResource Type.FieldHeading}"/>
                              <TextBox Text="{x:Bind VM.OllamaUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       PlaceholderText="http://localhost:11434"
                                       AutomationProperties.Name="Ollama server URL"
                                       Style="{StaticResource FieldTextBox}"/>
                         </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Model" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <TextBlock Text="Model" Style="{StaticResource Type.FieldHeading}"/>
                              <TextBox Text="{x:Bind VM.OllamaModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       PlaceholderText="gemma3:1b (or model name)"
                                       AutomationProperties.Name="Ollama model name"
@@ -140,14 +139,14 @@
                                       IsChecked="{x:Bind VM.AutoModelSelection, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
                         </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Tool calling model" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <TextBlock Text="Tool calling model" Style="{StaticResource Type.FieldHeading}"/>
                              <TextBox Text="{x:Bind VM.ToolCallingModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       PlaceholderText="qwen2.5-coder:7b (or model name)"
                                       AutomationProperties.Name="Tool calling model name"
                                       Style="{StaticResource FieldTextBox}"/>
                         </StackPanel>
                         <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Tool choice" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <TextBlock Text="Tool choice" Style="{StaticResource Type.FieldHeading}"/>
                             <ComboBox SelectedItem="{x:Bind VM.ToolChoice, Mode=TwoWay}"
                                       HorizontalAlignment="Stretch"
                                       AutomationProperties.Name="Tool choice">
@@ -179,7 +178,7 @@
                         <!-- Installed models (from /api/tags) -->
                         <StackPanel Spacing="{StaticResource Space.SM}"
                                     Visibility="{x:Bind VM.HasDetectedModels, Mode=OneWay}">
-                            <TextBlock Text="Installed models" Style="{StaticResource Type.SubTitle}" Opacity="0.9"/>
+                            <TextBlock Text="Installed models" Style="{StaticResource Type.FieldHeading}"/>
                             <ItemsControl ItemsSource="{x:Bind VM.DetectedModels, Mode=OneWay}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -198,7 +197,7 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <TextBlock Text="{x:Bind VM.DetectedModelsSummary, Mode=OneWay}"
-                                       Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                        Style="{StaticResource Type.Caption}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>

@@ -46,9 +46,9 @@ public sealed partial class WorkflowsPage : Page
         }
     }
 
-    private void WorkflowCard_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    private void WorkflowCard_Click(object sender, RoutedEventArgs e)
     {
-        AppLog.Action("WorkflowsPage WorkflowCard_Tapped");
+        AppLog.Action("WorkflowsPage WorkflowCard_Click");
         if (sender is FrameworkElement fe && fe.Tag is string id)
         {
             var tpl = VM.Templates.FirstOrDefault(t => t.Id == id);
@@ -75,6 +75,12 @@ public sealed partial class WorkflowsPage : Page
     {
         AppLog.Action("WorkflowsPage Clear_Click");
         VM.ClearResults();
+    }
+
+    private void SortDir_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("WorkflowsPage SortDir_Click");
+        VM.SortAscending = !VM.SortAscending;
     }
 
     private void OpenResultFile_Click(object sender, RoutedEventArgs e)

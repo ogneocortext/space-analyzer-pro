@@ -1,13 +1,47 @@
+use crate::cli::sink;
+use crate::{hprint, hprintln};
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::io::{self, Write};
+use std::sync::OnceLock;
 use std::time::Duration;
+
+/// Whether the destination for human-facing output is an interactive terminal.
+///
+/// Animations are pure `thread::sleep` time (measured at ~2.4 s for a two-file
+/// scan), which is wasted whenever the output is piped to a file, another
+/// process or CI. Detect that once and skip the sleeps entirely.
+fn output_is_interactive() -> bool {
+    static INTERACTIVE: OnceLock<(bool, bool)> = OnceLock::new();
+    let (stdout_tty, stderr_tty) = *INTERACTIVE.get_or_init(|| {
+        (
+            console::Term::stdout().is_term(),
+            console::Term::stderr().is_term(),
+        )
+    });
+    if sink::human_goes_to_stderr() {
+        stderr_tty
+    } else {
+        stdout_tty
+    }
+}
+
+/// Resolve the effective animation setting: explicit `--no-animation` always
+/// wins, and non-interactive output implies "no animation" as well.
+pub fn animations_enabled(no_animation: bool) -> bool {
+    !no_animation && output_is_interactive()
+}
 
 /// Animated typewriter banner that prints the Space Analyzer Pro header.
 pub fn print_animated_banner() {
     let version = env!("CARGO_PKG_VERSION");
     let title = format!("Space Analyzer Pro v{}", version);
     let prefix = "=> ";
+
+    if !output_is_interactive() {
+        eprintln!("{}{}", prefix, title);
+        return;
+    }
 
     // Typewriter effect for the title line
     eprint!("{}", prefix.cyan().bold());
@@ -21,7 +55,7 @@ pub fn print_animated_banner() {
     std::thread::sleep(Duration::from_millis(80));
 
     // Animated underline
-    let line_len = title.len() + prefix.len();
+    let line_len = title.chars().count() + prefix.len();
     let chunk = 6;
     eprint!("  ");
     let _ = io::stderr().flush();
@@ -70,18 +104,25 @@ pub fn finish_scan_spinner(pb: &ProgressBar, file_count: u64, duration_secs: f64
     ));
 }
 
+/// Width of the decorated section-header rule, shared with the report banner
+/// so every framed block lines up.
+pub const SECTION_WIDTH: usize = 62;
+
 /// Print a section header, optionally animated.
 pub fn print_section_header_animated(icon: &str, title: &str, no_animation: bool) {
     let title_part = format!(" {} {} ", icon, title);
-    let total_width: usize = 46;
-    let line_width = (total_width.saturating_sub(title_part.len())) / 2;
-    let line_right = total_width.saturating_sub(line_width + title_part.len());
+    // Emoji icons render two cells wide in virtually every terminal, so count
+    // them as such when centring — otherwise the rules drift by one column.
+    let title_width = display_width(&title_part);
+    let total_width = SECTION_WIDTH;
+    let line_width = total_width.saturating_sub(title_width) / 2;
+    let line_right = total_width.saturating_sub(line_width + title_width);
 
-    if no_animation {
+    if !animations_enabled(no_animation) {
         // Instant output — no delays
         let left_line = "═".repeat(line_width);
         let right_line = "═".repeat(line_right);
-        println!(
+        hprintln!(
             "  {}{}{}",
             left_line.dimmed(),
             title_part.white().bold(),
@@ -92,19 +133,19 @@ pub fn print_section_header_animated(icon: &str, title: &str, no_animation: bool
 
     // Print left line in chunks
     let chunk = 10;
-    eprint!("  ");
+    hprint!("  ");
     for i in (0..line_width).step_by(chunk) {
         let end = (i + chunk).min(line_width);
         let segment: String = "═".repeat(end - i);
-        print!("{}", segment.dimmed());
-        let _ = io::stdout().flush();
+        hprint!("{}", segment.dimmed());
+        sink::flush_human();
         std::thread::sleep(Duration::from_millis(15));
     }
 
     // Print title
     for ch in title_part.chars() {
-        print!("{}", ch.to_string().white().bold());
-        let _ = io::stdout().flush();
+        hprint!("{}", ch.to_string().white().bold());
+        sink::flush_human();
         std::thread::sleep(Duration::from_millis(10));
     }
 
@@ -112,11 +153,43 @@ pub fn print_section_header_animated(icon: &str, title: &str, no_animation: bool
     for i in (0..line_right).step_by(chunk) {
         let end = (i + chunk).min(line_right);
         let segment: String = "═".repeat(end - i);
-        print!("{}", segment.dimmed());
-        let _ = io::stdout().flush();
+        hprint!("{}", segment.dimmed());
+        sink::flush_human();
         std::thread::sleep(Duration::from_millis(15));
     }
-    println!();
+    hprintln!();
+}
+
+/// Approximate terminal cell width of a string, treating emoji and other
+/// wide code points as two columns.
+pub fn display_width(text: &str) -> usize {
+    text.chars()
+        .filter(|c| !is_zero_width(*c))
+        .map(|c| if is_wide(c) { 2 } else { 1 })
+        .sum()
+}
+
+fn is_zero_width(c: char) -> bool {
+    matches!(c, '\u{200d}' | '\u{fe0e}' | '\u{fe0f}')
+}
+
+fn is_wide(c: char) -> bool {
+    matches!(c as u32,
+        0x1100..=0x115F
+        | 0x2E80..=0x303E
+        | 0x3041..=0x33FF
+        | 0x3400..=0x4DBF
+        | 0x4E00..=0x9FFF
+        | 0xA000..=0xA4CF
+        | 0xAC00..=0xD7A3
+        | 0xF900..=0xFAFF
+        | 0xFE30..=0xFE6F
+        | 0xFF00..=0xFF60
+        | 0xFFE0..=0xFFE6
+        | 0x1F300..=0x1F64F
+        | 0x1F680..=0x1F6FF
+        | 0x1F900..=0x1F9FF
+        | 0x20000..=0x3FFFD)
 }
 
 /// Print a disk usage bar, optionally animated.
@@ -127,58 +200,54 @@ pub fn print_animated_bar_mode(
     width: usize,
     no_animation: bool,
 ) {
-    let target_filled = (percent / 100.0 * width as f32).round() as usize;
+    let clamped = percent.clamp(0.0, 100.0);
+    let target_filled = ((clamped / 100.0) * width as f32).round() as usize;
+    let target_filled = target_filled.min(width);
 
-    if no_animation {
+    if !animations_enabled(no_animation) {
         // Instant output
         let filled = "█".repeat(target_filled);
         let empty = "░".repeat(width.saturating_sub(target_filled));
-        println!(
-            "  {} [{}{} ] {:.1}%",
+        hprintln!(
+            "  {} [{}{}] {:.1}%",
             label.bold(),
             filled.green(),
             empty.dimmed(),
             percent
         );
         if !total_str.is_empty() {
-            println!("    {}", total_str.dimmed());
+            hprintln!("    {}", total_str.dimmed());
         }
         return;
     }
 
     // Print label and opening bracket
-    print!("  {} [", label.bold());
-    let _ = io::stdout().flush();
+    hprint!("  {} [", label.bold());
+    sink::flush_human();
 
     // Fill the bar character by character — append only, no \r
     let step_ms = if target_filled > 25 { 6 } else { 12 };
     let mut current: usize = 0;
-    loop {
-        if current >= target_filled {
-            break;
-        }
+    while current < target_filled {
         let advance = ((target_filled - current) / 3)
             .max(1)
             .min(target_filled - current);
         let prev = current;
-        current += advance;
-        if current > target_filled {
-            current = target_filled;
-        }
+        current = (current + advance).min(target_filled);
 
         // Only print the NEW characters (advance), not the full bar
         let new_filled = "█".repeat(current - prev);
-        print!("{}", new_filled.green());
-        let _ = io::stdout().flush();
+        hprint!("{}", new_filled.green());
+        sink::flush_human();
         std::thread::sleep(Duration::from_millis(step_ms));
     }
 
     // Print remaining empty portion and close
     let empty = "░".repeat(width.saturating_sub(target_filled));
-    println!("{} ] {:.1}%", empty.dimmed(), percent);
+    hprintln!("{}] {:.1}%", empty.dimmed(), percent);
 
     if !total_str.is_empty() {
-        println!("    {}", total_str.dimmed());
+        hprintln!("    {}", total_str.dimmed());
     }
 }
 
@@ -215,5 +284,17 @@ mod tests {
         assert_eq!(format_with_commas(999), "999");
         assert_eq!(format_with_commas(1000), "1,000");
         assert_eq!(format_with_commas(1234567), "1,234,567");
+    }
+
+    #[test]
+    fn no_animation_flag_always_disables_animation() {
+        assert!(!animations_enabled(true));
+    }
+
+    #[test]
+    fn display_width_counts_emoji_as_two_columns() {
+        assert_eq!(display_width("abc"), 3);
+        assert_eq!(display_width("📊"), 2);
+        assert_eq!(display_width(" 📊 SCAN "), 9);
     }
 }

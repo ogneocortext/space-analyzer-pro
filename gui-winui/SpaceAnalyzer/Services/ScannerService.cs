@@ -227,7 +227,7 @@ public class ScannerService : IDisposable
         DepthMode depthMode = DepthMode.Default,
         int maxDepth = 5,
         bool includeHidden = false,
-        IProgress<double>? progress = null,
+        IProgress<StreamProgress>? progress = null,
         CancellationToken ct = default,
         bool? useGpu = null)
     {
@@ -250,6 +250,12 @@ public class ScannerService : IDisposable
             args += " --include-hidden";
         if (!(useGpu ?? GpuAcceleration))
             args += " --no-gpu";
+        // --progress-json makes the scanner emit a __PROGRESS__ line to stderr on every
+        // progress callback (currently scanned file + running counts) without changing the
+        // JSON result on stdout. Only added when a caller wants live updates, so other
+        // ScanDirectoryAsync callers are unaffected.
+        if (progress is not null)
+            args += " --progress-json";
 
         int scanId = ScanActivityMonitor.Instance.BeginScan(path);
         try
@@ -624,6 +630,7 @@ public class ScannerService : IDisposable
         string? search = null,
         string sortBy = "timestamp",
         bool sortAsc = false,
+        bool onlyDuplicates = false,
         CancellationToken ct = default)
     {
         if (!IsAvailable)
@@ -640,6 +647,7 @@ public class ScannerService : IDisposable
         var args = $"history --limit {limit} --offset {offset} --sort-by {effectiveSortBy}";
         if (sortAsc) args += " --sort-asc";
         if (!string.IsNullOrWhiteSpace(search)) args += $" --search \"{search}\"";
+        if (onlyDuplicates) args += " --only-duplicates";
 
         var output = await RunScannerAsync(args, ct);
         if (string.IsNullOrWhiteSpace(output))
@@ -660,6 +668,66 @@ public class ScannerService : IDisposable
         catch (JsonException jex)
         {
             throw new Exception($"Failed to parse scan history page: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Get the lightweight chronological series of every scan (id, path,
+    /// timestamp, size) for the "Size Trend" graph. This is independent of the
+    /// paginated <see cref="History"/> list so the chart stays stable across
+    /// page turns and searches.
+    /// </summary>
+    public async Task<List<HistoryTrendPoint>> GetScanHistoryTrendAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return new();
+
+        var output = await RunScannerAsync("history --trend --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return new();
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                return JsonSerializer.Deserialize<List<HistoryTrendPoint>>(output, s_jsonOptions) ?? new();
+            return new();
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse scan trend: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Aggregate the per-category size breakdown across every scan-history record
+    /// (the backend sums each record's <c>category_sizes_json</c>). Returns a flat
+    /// category -&gt; bytes map used by the History page "Library Composition" donut.
+    /// </summary>
+    public async Task<Dictionary<string, ulong>> GetCategoryHistoryAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return new Dictionary<string, ulong>();
+
+        var output = await RunScannerAsync("history --category-totals --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return new Dictionary<string, ulong>();
+
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                var dict = new Dictionary<string, ulong>(StringComparer.OrdinalIgnoreCase);
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                    if (prop.Value.TryGetUInt64(out var v))
+                        dict[prop.Name] = v;
+                return dict;
+            }
+            return new Dictionary<string, ulong>();
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse category history: {jex.Message}. Output: {Truncate(output)}", jex);
         }
     }
 
@@ -722,9 +790,15 @@ public class ScannerService : IDisposable
 
         var args = $"dedup --path \"{path}\" --format json";
         if (apply)
+        {
             args += " --apply";
+            // The backend refuses to modify any files without --yes in non-interactive
+            // mode, so it must be supplied for an apply to actually create hard links.
+            args += " --yes";
+        }
         if (!(useGpu ?? GpuAcceleration))
             args += " --no-gpu";
+
         int scanId = ScanActivityMonitor.Instance.BeginScan(path);
         try
         {
@@ -741,6 +815,251 @@ public class ScannerService : IDisposable
         finally
         {
             ScanActivityMonitor.Instance.EndScan(scanId);
+        }
+    }
+
+    /// <summary>
+    /// Remove scan records that captured nothing (zero files) via
+    /// <c>history --prune-empty</c>. Returns the number removed.
+    /// </summary>
+    public async Task<(bool Success, int Removed, string Error)> PruneEmptyScansAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return (false, 0, "Scanner unavailable");
+
+        var output = await RunScannerAsync("history --prune-empty --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return (false, 0, "Empty response from scanner");
+
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("pruned_empty", out var ok) && ok.GetBoolean())
+            {
+                var removed = root.TryGetProperty("empty_records_removed", out var r) ? r.GetInt32() : 0;
+                return (true, removed, string.Empty);
+            }
+            if (root.TryGetProperty("error", out var err))
+                return (false, 0, err.GetString() ?? "Unknown error");
+            return (false, 0, "Unexpected prune response");
+        }
+        catch (JsonException jex)
+        {
+            return (false, 0, $"Failed to parse result: {jex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Remove scan records whose path is not absolute (e.g. relative "." scans)
+    /// via <c>history --prune --drop-relative</c>. Returns the number removed.
+    /// </summary>
+    public async Task<(bool Success, int Removed, string Error)> PruneRelativeScansAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return (false, 0, "Scanner unavailable");
+
+        var output = await RunScannerAsync("history --prune --drop-relative --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return (false, 0, "Empty response from scanner");
+
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("pruned", out var ok) && ok.GetBoolean())
+            {
+                var removed = root.TryGetProperty("relative_path_records_removed", out var r) ? r.GetInt32() : 0;
+                return (true, removed, string.Empty);
+            }
+            if (root.TryGetProperty("error", out var err))
+                return (false, 0, err.GetString() ?? "Unknown error");
+            return (false, 0, "Unexpected prune response");
+        }
+        catch (JsonException jex)
+        {
+            return (false, 0, $"Failed to parse result: {jex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Recompute the per-category size breakdown for cached scans that predate
+    /// the category column, using only the already-stored extension sizes.
+    /// Returns the number of records back-filled.
+    /// </summary>
+    public async Task<(bool Success, int Updated, string Error)> BackfillCategoriesAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return (false, 0, "Scanner unavailable");
+
+        var output = await RunScannerAsync("history --backfill-categories --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return (false, 0, "Empty response from scanner");
+
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("backfilled", out var ok) && ok.GetBoolean())
+            {
+                var updated = root.TryGetProperty("records_updated", out var u) ? u.GetInt32() : 0;
+                return (true, updated, string.Empty);
+            }
+            if (root.TryGetProperty("error", out var err))
+                return (false, 0, err.GetString() ?? "Unknown error");
+            return (false, 0, "Unexpected back-fill response");
+        }
+        catch (JsonException jex)
+        {
+            return (false, 0, $"Failed to parse result: {jex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Remove per-scan file-cache rows whose directory no longer has any saved
+    /// scan history (stale incremental-scan caches) via <c>db --prune-file-cache</c>.
+    /// Returns the number of cache rows removed.
+    /// </summary>
+    public async Task<(bool Success, int Removed, string Error)> PruneFileCacheAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return (false, 0, "Scanner unavailable");
+
+        var output = await RunScannerAsync("db --prune-file-cache --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return (false, 0, "Empty response from scanner");
+
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("pruned_file_cache", out var ok) && ok.GetBoolean())
+            {
+                var removed = root.TryGetProperty("cache_rows_removed", out var r) ? r.GetInt32() : 0;
+                return (true, removed, string.Empty);
+            }
+            if (root.TryGetProperty("error", out var err))
+                return (false, 0, err.GetString() ?? "Unknown error");
+            return (false, 0, "Unexpected prune response");
+        }
+        catch (JsonException jex)
+        {
+            return (false, 0, $"Failed to parse result: {jex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Drop disk-space snapshots older than <paramref name="keepHours"/> via
+    /// <c>db --prune-disk-space N</c>. Returns the number of snapshots removed.
+    /// </summary>
+    public async Task<(bool Success, int Removed, string Error)> PruneDiskSpaceAsync(int keepHours, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return (false, 0, "Scanner unavailable");
+
+        var output = await RunScannerAsync($"db --prune-disk-space {keepHours} --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return (false, 0, "Empty response from scanner");
+
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("pruned_disk_space", out var ok) && ok.GetBoolean())
+            {
+                var removed = root.TryGetProperty("disk_records_removed", out var r) ? r.GetInt32() : 0;
+                return (true, removed, string.Empty);
+            }
+            if (root.TryGetProperty("error", out var err))
+                return (false, 0, err.GetString() ?? "Unknown error");
+            return (false, 0, "Unexpected prune response");
+        }
+        catch (JsonException jex)
+        {
+            return (false, 0, $"Failed to parse result: {jex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Compact the embedded database (VACUUM) to reclaim space left by deleted
+    /// rows. Returns true on success.
+    /// </summary>
+    public async Task<(bool Success, string Error)> VacuumDatabaseAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return (false, "Scanner unavailable");
+
+        var output = await RunScannerAsync("db --vacuum --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return (false, "Empty response from scanner");
+
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("vacuumed", out var ok) && ok.GetBoolean())
+                return (true, string.Empty);
+            if (root.TryGetProperty("error", out var err))
+                return (false, err.GetString() ?? "Unknown error");
+            return (false, "Unexpected vacuum response");
+        }
+        catch (JsonException jex)
+        {
+            return (false, $"Failed to parse result: {jex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Read database maintenance stats (free/total/used pages and per-table row
+    /// counts) via <c>db --info</c>.
+    /// </summary>
+    public async Task<DatabaseInfo?> GetDatabaseInfoAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return null;
+
+        var output = await RunScannerAsync("db --info --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return null;
+        try
+        {
+            return JsonSerializer.Deserialize<DatabaseInfo>(output, s_jsonOptions);
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse database info: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Delete ALL scan history records via <c>history --clear</c>. Destructive.
+    /// Returns the number of records removed.
+    /// </summary>
+    public async Task<(bool Success, int Removed, string Error)> ClearHistoryAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return (false, 0, "Scanner unavailable");
+
+        var output = await RunScannerAsync("history --clear --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return (false, 0, "Empty response from scanner");
+
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("cleared", out var ok) && ok.GetBoolean())
+            {
+                var removed = root.TryGetProperty("records_removed", out var r) ? r.GetInt32() : 0;
+                return (true, removed, string.Empty);
+            }
+            if (root.TryGetProperty("error", out var err))
+                return (false, 0, err.GetString() ?? "Unknown error");
+            return (false, 0, "Unexpected clear response");
+        }
+        catch (JsonException jex)
+        {
+            return (false, 0, $"Failed to parse result: {jex.Message}");
         }
     }
 
@@ -873,6 +1192,217 @@ public class ScannerService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Analyze a single file's relationships and deletion impact via the
+    /// Rust <c>dependencies</c> subcommand (file_relations::analyze_file_dependencies).
+    /// </summary>
+    public async Task<DependencyReport?> GetDependencyReportAsync(string path, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return null;
+
+        var output = await RunScannerAsync($"dependencies \"{path}\" --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return null;
+        try
+        {
+            return JsonSerializer.Deserialize<DependencyReport>(output, s_jsonOptions);
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse dependency report: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Generate and store semantic embeddings for a directory via the Rust
+    /// <c>embed</c> subcommand. Returns the scan id the vectors are attached to
+    /// (created when <paramref name="scanId"/> is null).
+    /// </summary>
+    public async Task<EmbedResult?> EmbedDirectoryAsync(
+        string path,
+        long? scanId = null,
+        string? minSize = null,
+        string? maxSize = null,
+        bool includeHidden = false,
+        CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return null;
+
+        var args = $"embed \"{path}\" --format json";
+        if (scanId.HasValue) args += $" --scan-id {scanId.Value}";
+        if (!string.IsNullOrWhiteSpace(minSize)) args += $" --min-size \"{minSize}\"";
+        if (!string.IsNullOrWhiteSpace(maxSize)) args += $" --max-size \"{maxSize}\"";
+        if (includeHidden) args += " --include-hidden";
+
+        var output = await RunScannerAsync(args, ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return null;
+        try
+        {
+            return JsonSerializer.Deserialize<EmbedResult>(output, s_jsonOptions);
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse embed result: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Natural-language file search over a previously embedded scan via the Rust
+    /// <c>semantic-search</c> subcommand. Returns ranked matches by similarity.
+    /// </summary>
+    public async Task<List<SemanticSearchResult>?> SemanticSearchAsync(
+        string query,
+        long scanId,
+        int top = 20,
+        CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return null;
+
+        var args = $"semantic-search \"{query}\" --scan-id {scanId} --top {top} --format json";
+        var output = await RunScannerAsync(args, ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            if (doc.RootElement.TryGetProperty("results", out var results))
+                return results.Deserialize<List<SemanticSearchResult>>(s_jsonOptions) ?? new();
+            // Tolerate a bare array response as well.
+            return JsonSerializer.Deserialize<List<SemanticSearchResult>>(output, s_jsonOptions) ?? new();
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse semantic search results: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// List volumes that expose an NTFS USN change journal via the Rust
+    /// <c>usn volumes</c> subcommand.
+    /// </summary>
+    public async Task<List<string>?> GetUsnVolumesAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return new List<string>();
+
+        var output = await RunScannerAsync("usn volumes --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return new List<string>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(output, s_jsonOptions) ?? new List<string>();
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse USN volumes: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Show USN journal status for a drive via the Rust <c>usn status</c> subcommand.
+    /// </summary>
+    public async Task<UsnJournalInfo?> GetUsnStatusAsync(string? drive = null, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return null;
+
+        var args = "usn status --format json";
+        if (!string.IsNullOrWhiteSpace(drive)) args += $" \"{drive}\"";
+        var output = await RunScannerAsync(args, ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return null;
+        try
+        {
+            return JsonSerializer.Deserialize<UsnJournalInfo>(output, s_jsonOptions);
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse USN status: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Read recent USN journal changes for a drive via the Rust
+    /// <c>usn changes</c> subcommand.
+    /// </summary>
+    public async Task<ChangeSet?> GetUsnChangesAsync(string drive, int max = 1000, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return null;
+
+        var args = $"usn changes \"{drive}\" --max {max} --format json";
+        var output = await RunScannerAsync(args, ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return null;
+        try
+        {
+            return JsonSerializer.Deserialize<ChangeSet>(output, s_jsonOptions);
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse USN changes: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Detect bloat candidates in a stored scan using the Rust <c>bloat</c>
+    /// subcommand (offline_ai::FilePatternClassifier). Returns null when the
+    /// scanner is unavailable or the command fails, so the caller can fall back
+    /// to its local heuristic.
+    /// </summary>
+    public async Task<List<BloatFinding>?> GetBloatFindingsAsync(long? scanId = null, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return null;
+
+        var args = "bloat --format json";
+        if (scanId.HasValue && scanId.Value > 0)
+            args += $" --scan-id {scanId.Value}";
+
+        var output = await RunScannerAsync(args, ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            if (doc.RootElement.TryGetProperty("findings", out var findings))
+                return findings.Deserialize<List<BloatFinding>>(s_jsonOptions) ?? new List<BloatFinding>();
+            return new List<BloatFinding>();
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse bloat findings: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Project future disk usage from the scan-history size trend via the Rust
+    /// <c>predict</c> subcommand (linear regression over historical sizes).
+    /// Returns null when the scanner is unavailable or the command fails, so the
+    /// caller can fall back to its local heuristic.
+    /// </summary>
+    public async Task<StoragePrediction?> GetStorageForecastAsync(int days = 30, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return null;
+
+        var output = await RunScannerAsync($"predict --days {days} --format json", ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return null;
+        try
+        {
+            return JsonSerializer.Deserialize<StoragePrediction>(output, s_jsonOptions);
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse storage forecast: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
     // -- Internal helpers --
 
     /// <summary>
@@ -881,7 +1411,7 @@ public class ScannerService : IDisposable
     /// If progress is provided, parses __PROGRESS__ lines from stderr
     /// and reports percentage updates.
     /// </summary>
-    private async Task<string> RunScannerAsync(string args, CancellationToken ct, IProgress<double>? progress = null)
+    private async Task<string> RunScannerAsync(string args, CancellationToken ct, IProgress<StreamProgress>? progress = null)
     {
         var psi = new ProcessStartInfo
         {
@@ -965,7 +1495,7 @@ public class ScannerService : IDisposable
     /// </summary>
     private static async Task<string> ReadStderrWithProgressAsync(
         System.IO.StreamReader stderr,
-        IProgress<double>? progress,
+        IProgress<StreamProgress>? progress,
         CancellationToken ct)
     {
         var sb = new System.Text.StringBuilder();
@@ -987,16 +1517,16 @@ public class ScannerService : IDisposable
                 var json = line["__PROGRESS__".Length..];
                 try
                 {
-                    using var doc = System.Text.Json.JsonDocument.Parse(json);
-                    var root = doc.RootElement;
-                    if (root.TryGetProperty("percentage", out var pct))
-                    {
-                        progress.Report(pct.GetSingle());
-                    }
+                    // The JSON carries the full ScanProgress payload (files_scanned,
+                    // directories_scanned, total_size, percentage, current_file, …), so the
+                    // caller gets the live file + location, not just a percentage.
+                    var sp = System.Text.Json.JsonSerializer.Deserialize<StreamProgress>(json, s_jsonOptions);
+                    if (sp is not null)
+                        progress.Report(sp);
                 }
                 catch
                 {
-                    // Ignore parse errors for progress lines
+                    // Ignore malformed progress lines
                 }
             }
         }

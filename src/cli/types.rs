@@ -68,7 +68,7 @@ pub struct DiskInfo {
     pub usage_percent: f32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Recommendation {
     pub priority: u32,
     pub message: String,
@@ -82,22 +82,72 @@ pub enum InstallerCategory {
     Other,
 }
 
+/// Lowercase file name plus its immediate parent directory name.
+///
+/// Classification deliberately ignores the rest of the path: matching bare
+/// substrings against the *whole* path meant every file under `C:\Users\...`
+/// hit the "user" rule and every file on the Desktop hit the "desktop" rule,
+/// so ordinary archives were reported as application installers.
+fn name_and_parent(path: &str) -> (String, String) {
+    let p = std::path::Path::new(path);
+    let name = p
+        .file_name()
+        .map(|n| n.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    let parent = p
+        .parent()
+        .and_then(|d| d.file_name())
+        .map(|n| n.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    (name, parent)
+}
+
+/// True for names like `596.21-desktop-win10-win11-64bit.exe` — a graphics
+/// driver package identified by its `<major>.<minor>-desktop` version stamp
+/// rather than by one hardcoded release the developer happened to have.
+fn looks_like_gpu_driver_release(name: &str) -> bool {
+    let Some(idx) = name.find("-desktop") else {
+        return false;
+    };
+    let version = &name[..idx];
+    let mut parts = version.rsplit(|c: char| !(c.is_ascii_digit() || c == '.'));
+    let candidate = parts.next().unwrap_or("");
+    let mut chunks = candidate.split('.');
+    let (Some(major), Some(minor)) = (chunks.next(), chunks.next()) else {
+        return false;
+    };
+    !major.is_empty()
+        && !minor.is_empty()
+        && major.chars().all(|c| c.is_ascii_digit())
+        && minor.chars().all(|c| c.is_ascii_digit())
+}
+
 impl InstallerCategory {
     pub fn from_path(path: &str) -> Self {
-        let lower = path.to_lowercase();
-        if lower.contains("driver") || lower.contains("realtek") || lower.contains("mb_driver") {
+        let (name, parent) = name_and_parent(path);
+        let haystack = format!("{parent}/{name}");
+
+        const DRIVER_MARKERS: [&str; 5] =
+            ["driver", "realtek", "chipset", "mb_driver", "audio_driver"];
+        const GPU_MARKERS: [&str; 6] = ["cuda", "nvidia", "geforce", "radeon", "cudnn", "amd_ryzen"];
+        const APP_MARKERS: [&str; 6] = [
+            "setup",
+            "install",
+            "installer",
+            "-x64",
+            "webinstall",
+            "redist",
+        ];
+
+        if DRIVER_MARKERS.iter().any(|m| haystack.contains(m)) {
             InstallerCategory::Driver
-        } else if lower.contains("cuda")
-            || lower.contains("nvidia")
-            || lower.contains("596.21-desktop")
-            || lower.contains("amd_ryzen")
+        } else if GPU_MARKERS.iter().any(|m| haystack.contains(m))
+            || looks_like_gpu_driver_release(&name)
         {
             InstallerCategory::GpuCuda
-        } else if lower.contains("setup")
-            || lower.contains("installer")
-            || lower.contains("user")
-            || lower.ends_with(".msi")
-            || lower.contains("desktop")
+        } else if name.ends_with(".msi")
+            || name.ends_with(".msix")
+            || APP_MARKERS.iter().any(|m| name.contains(m))
         {
             InstallerCategory::Application
         } else {
@@ -122,10 +172,94 @@ impl InstallerCategory {
             InstallerCategory::Other => "📄",
         }
     }
+
+    /// Advice shown alongside the group, so archives are not lumped in with
+    /// installers under a blanket "safe to delete" claim.
+    pub fn advice(&self) -> &'static str {
+        match self {
+            InstallerCategory::GpuCuda => "Safe to remove once the driver is installed.",
+            InstallerCategory::Driver => "Safe to remove once the driver is installed.",
+            InstallerCategory::Application => {
+                "Safe to remove after confirming the application works."
+            }
+            InstallerCategory::Other => {
+                "Review before deleting — these may be archives you still need."
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct InstallerGroup {
     pub category: InstallerCategory,
     pub entries: Vec<(String, u64)>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ordinary_user_archives_are_not_installers() {
+        // Previously matched the bare "user" substring in C:\Users\... and the
+        // "desktop" substring in the Desktop folder.
+        assert_eq!(
+            InstallerCategory::from_path(r"C:\Users\alice\Downloads\photos-2024.zip"),
+            InstallerCategory::Other
+        );
+        assert_eq!(
+            InstallerCategory::from_path(r"C:\Users\alice\Desktop\backup.rar"),
+            InstallerCategory::Other
+        );
+        assert_eq!(
+            InstallerCategory::from_path(r"C:\Users\alice\AppData\Local\Temp\archive.zip"),
+            InstallerCategory::Other
+        );
+    }
+
+    #[test]
+    fn real_installers_are_still_detected() {
+        assert_eq!(
+            InstallerCategory::from_path(r"C:\Users\alice\Downloads\setup_app.exe"),
+            InstallerCategory::Application
+        );
+        assert_eq!(
+            InstallerCategory::from_path(r"D:\stuff\SomeApp.msi"),
+            InstallerCategory::Application
+        );
+        assert_eq!(
+            InstallerCategory::from_path(r"D:\stuff\VisualStudioInstaller.exe"),
+            InstallerCategory::Application
+        );
+    }
+
+    #[test]
+    fn drivers_and_gpu_packages_are_classified() {
+        assert_eq!(
+            InstallerCategory::from_path(r"D:\dl\Realtek_Audio.exe"),
+            InstallerCategory::Driver
+        );
+        assert_eq!(
+            InstallerCategory::from_path(r"D:\dl\cuda_12.4.0_windows.exe"),
+            InstallerCategory::GpuCuda
+        );
+    }
+
+    #[test]
+    fn gpu_driver_versions_are_matched_generically_not_hardcoded() {
+        // The old code only knew about one specific release ("596.21-desktop").
+        assert_eq!(
+            InstallerCategory::from_path(r"D:\dl\596.21-desktop-win10-win11-64bit.exe"),
+            InstallerCategory::GpuCuda
+        );
+        assert_eq!(
+            InstallerCategory::from_path(r"D:\dl\601.05-desktop-win11-64bit.exe"),
+            InstallerCategory::GpuCuda
+        );
+        // A plain "desktop" in the name is not a driver release.
+        assert_eq!(
+            InstallerCategory::from_path(r"D:\dl\desktop-photos.zip"),
+            InstallerCategory::Other
+        );
+    }
 }

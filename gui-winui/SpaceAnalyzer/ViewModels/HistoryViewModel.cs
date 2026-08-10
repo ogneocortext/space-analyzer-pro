@@ -22,6 +22,80 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
     // ── History list ──
 
     private List<ScanHistoryRecord> _history = new();
+
+    /// <summary>
+    /// Every scan in the database as a lightweight (id, path, timestamp, size)
+    /// series, independent of the paged <see cref="History"/> list. Drives the
+    /// "Size Trend" chart (so it stays stable across page turns) and the global
+    /// duplicate summary shown in the header.
+    /// </summary>
+    private List<HistoryTrendPoint> _trendRecords = new();
+    public List<HistoryTrendPoint> TrendRecords
+    {
+        get => _trendRecords;
+        set
+        {
+            _trendRecords = value;
+            RefreshDuplicateSummary();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasDuplicatesAny));
+            OnPropertyChanged(nameof(DuplicateGroupsCount));
+            OnPropertyChanged(nameof(DuplicateRecordsCount));
+            OnPropertyChanged(nameof(DuplicateSummaryDisplay));
+            OnPropertyChanged(nameof(HasDuplicatesInView));
+            OnPropertyChanged(nameof(RedundantInView));
+        }
+    }
+
+    /// <summary>True when any folder has been scanned more than once.</summary>
+    public bool HasDuplicatesAny => _duplicateRecords > 0;
+
+    private int _duplicateGroups;
+    private int _duplicateRecords;
+    private int _redundantRecords;
+
+    /// <summary>Number of folders that have been scanned more than once.</summary>
+    public int DuplicateGroupsCount => _duplicateGroups;
+
+    /// <summary>Total scans that are re-scans of a folder (members of any duplicate group).</summary>
+    public int DuplicateRecordsCount => _duplicateRecords;
+
+    /// <summary>
+    /// Human-readable header summary, e.g. "47 duplicate scans across 12 folders".
+    /// Empty string when there are no duplicates.
+    /// </summary>
+    public string DuplicateSummaryDisplay
+    {
+        get
+        {
+            if (_duplicateRecords == 0) return string.Empty;
+            var folderWord = _duplicateGroups == 1 ? "folder" : "folders";
+            return $"{_duplicateRecords} duplicate scan{(_duplicateRecords == 1 ? "" : "s")} across {_duplicateGroups} {folderWord}";
+        }
+    }
+
+    /// <summary>
+    /// Recompute the global duplicate summary from the full trend series. A scan
+    /// is "duplicate" when its (normalized) folder has been scanned more than once.
+    /// </summary>
+    private void RefreshDuplicateSummary()
+    {
+        _duplicateGroups = 0;
+        _duplicateRecords = 0;
+        _redundantRecords = 0;
+        var groups = _trendRecords
+            .GroupBy(t => NormalizePath(t.Path), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .ToList();
+        foreach (var g in groups)
+        {
+            _duplicateGroups++;
+            var count = g.Count();
+            _duplicateRecords += count;
+            _redundantRecords += count - 1;
+        }
+    }
+
     public List<ScanHistoryRecord> History
     {
         get => _history;
@@ -48,6 +122,7 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(HasHistory));
             OnPropertyChanged(nameof(HasHistoryVisibility));
             OnPropertyChanged(nameof(HasNoHistoryVisibility));
+            OnPropertyChanged(nameof(HistoryListVisibility));
             OnPropertyChanged(nameof(HasDuplicatesInView));
             OnPropertyChanged(nameof(RedundantInView));
         }
@@ -55,22 +130,17 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
 
     private static string NormalizePath(string p) => (p ?? string.Empty).TrimEnd('\\').ToLowerInvariant();
 
-    public bool HasDuplicatesInView => _history.Any(r => r.IsDuplicateView);
+    /// <summary>
+    /// True when duplicates exist anywhere in history (not just the current page),
+    /// so the header "Delete Duplicates" badge is always meaningful.
+    /// </summary>
+    public bool HasDuplicatesInView => HasDuplicatesAny;
 
     /// <summary>
-    /// Number of records in the current view that would be removed by pruning
-    /// (newest kept per directory group).
+    /// Number of scans that would be removed if every folder kept only its newest
+    /// scan (the redundant re-scans across the whole history).
     /// </summary>
-    public int RedundantInView
-    {
-        get
-        {
-            var removed = 0;
-            foreach (var g in _history.GroupBy(r => NormalizePath(r.Path), StringComparer.OrdinalIgnoreCase))
-                if (g.Count() > 1) removed += g.Count() - 1;
-            return removed;
-        }
-    }
+    public int RedundantInView => _redundantRecords;
     public bool HasHistory => _history.Any();
     public Microsoft.UI.Xaml.Visibility HasHistoryVisibility => HasHistory ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public Microsoft.UI.Xaml.Visibility HasNoHistoryVisibility => HasHistory ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
@@ -182,21 +252,27 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
     public string SortBy
     {
         get => _sortBy;
-        set { _sortBy = value; OnPropertyChanged(); OnPropertyChanged(nameof(DateSortIndicator)); OnPropertyChanged(nameof(PathSortIndicator)); OnPropertyChanged(nameof(SizeSortIndicator)); OnPropertyChanged(nameof(FilesSortIndicator)); }
+        set { _sortBy = value; OnPropertyChanged(); OnPropertyChanged(nameof(DateSortIndicator)); OnPropertyChanged(nameof(PathSortIndicator)); OnPropertyChanged(nameof(SizeSortIndicator)); OnPropertyChanged(nameof(FilesSortIndicator)); OnPropertyChanged(nameof(DuplicateSortIndicator)); }
     }
 
     private bool _sortAsc;
     public bool SortAsc
     {
         get => _sortAsc;
-        set { _sortAsc = value; OnPropertyChanged(); OnPropertyChanged(nameof(DateSortIndicator)); OnPropertyChanged(nameof(PathSortIndicator)); OnPropertyChanged(nameof(SizeSortIndicator)); OnPropertyChanged(nameof(FilesSortIndicator)); }
+        set { _sortAsc = value; OnPropertyChanged(); OnPropertyChanged(nameof(DateSortIndicator)); OnPropertyChanged(nameof(PathSortIndicator)); OnPropertyChanged(nameof(SizeSortIndicator)); OnPropertyChanged(nameof(FilesSortIndicator)); OnPropertyChanged(nameof(DuplicateSortIndicator)); }
     }
+
+    /// <summary>The sort column the server actually receives. "duplicate" is a
+    /// UI convenience that groups same-folder scans together, so it maps to a
+    /// path sort.</summary>
+    public string ServerSortBy => _sortBy == "duplicate" ? "path" : _sortBy;
 
     private string SortIndicatorFor(string column) => SortBy == column ? (SortAsc ? " \u25B2" : " \u25BC") : "";
     public string DateSortIndicator => SortIndicatorFor("timestamp");
     public string PathSortIndicator => SortIndicatorFor("path");
     public string SizeSortIndicator => SortIndicatorFor("total_size_bytes");
     public string FilesSortIndicator => SortIndicatorFor("total_files");
+    public string DuplicateSortIndicator => SortIndicatorFor("duplicate");
 
     public void ToggleSort(string column)
     {
@@ -205,8 +281,27 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
         else
         {
             SortBy = column;
-            SortAsc = false;
+            // "duplicate" groups same-folder scans, so sort folders ascending.
+            SortAsc = column == "duplicate";
         }
+        CurrentPage = 1;
+        _ = LoadPageAsync();
+    }
+
+    // ── Duplicate filter ──
+
+    private bool _onlyDuplicates;
+    public bool OnlyDuplicates
+    {
+        get => _onlyDuplicates;
+        set { _onlyDuplicates = value; OnPropertyChanged(); OnPropertyChanged(nameof(OnlyDuplicatesIndicator)); }
+    }
+
+    public string OnlyDuplicatesIndicator => _onlyDuplicates ? " \u25CF" : "";
+
+    public void ToggleOnlyDuplicates()
+    {
+        OnlyDuplicates = !OnlyDuplicates;
         CurrentPage = 1;
         _ = LoadPageAsync();
     }
@@ -232,8 +327,12 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(HasExtensionBreakdown));
             OnPropertyChanged(nameof(HasExtensionBreakdownVisibility));
             OnPropertyChanged(nameof(ExtensionBreakdownCountDisplay));
+            OnPropertyChanged(nameof(CategoryBreakdown));
+            OnPropertyChanged(nameof(HasCategoryBreakdown));
+            OnPropertyChanged(nameof(CategoryBreakdownCountDisplay));
             OnPropertyChanged(nameof(OverviewTopDirs));
             OnPropertyChanged(nameof(OverviewTopTypes));
+            OnPropertyChanged(nameof(HistoryListVisibility));
             ResetFileExplorer();
             RefreshFilteredFiles();
         }
@@ -241,6 +340,8 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
     public bool HasSelectedRecord => _selectedRecord != null;
     public Microsoft.UI.Xaml.Visibility HasSelectedRecordVisibility => HasSelectedRecord ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public Microsoft.UI.Xaml.Visibility HasListVisibility => HasSelectedRecord ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+    public Microsoft.UI.Xaml.Visibility HistoryListVisibility =>
+        (HasSelectedRecord || !HasHistory) ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
 
     // ── File Explorer ──
 
@@ -343,6 +444,12 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
         };
 
         _filteredLargestFiles = query.ToList();
+        if (_filteredLargestFiles.Count > 0)
+        {
+            var max = _filteredLargestFiles.Max(f => f.Size);
+            foreach (var f in _filteredLargestFiles)
+                f.Percent = max > 0 ? (double)f.Size / max * 100.0 : 0;
+        }
         OnPropertyChanged(nameof(FilteredLargestFiles));
         OnPropertyChanged(nameof(HasLargestFiles));
         OnPropertyChanged(nameof(HasLargestFilesVisibility));
@@ -357,10 +464,14 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
         get
         {
             if (_selectedRecord == null) return new();
-            return _selectedRecord.TopDirectories
+            var total = _selectedRecord.TotalSizeBytes;
+            var list = _selectedRecord.TopDirectories
                 .OrderByDescending(d => d.TotalSize)
                 .Take(15)
                 .ToList();
+            foreach (var d in list)
+                d.Percent = total > 0 ? (double)d.TotalSize / total * 100.0 : 0;
+            return list;
         }
     }
 
@@ -387,6 +498,52 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
     public bool HasExtensionBreakdown => ExtensionBreakdown.Count > 0;
     public Microsoft.UI.Xaml.Visibility HasExtensionBreakdownVisibility => HasExtensionBreakdown ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public string ExtensionBreakdownCountDisplay => HasExtensionBreakdown ? $"{ExtensionBreakdown.Count} extension(s)" : "No type data";
+
+    /// <summary>
+    /// High-level category rollup (Documents, Images, Code, …) derived from the
+    /// scan's per-extension sizes. This is what the "Overview" and "File Types"
+    /// tabs render as colored bars so users see the categorization at a glance.
+    /// </summary>
+    public List<CategoryStat> CategoryBreakdown
+    {
+        get
+        {
+            if (_selectedRecord == null) return new();
+            // Prefer the Rust scanner's authoritative, path-aware category breakdown
+            // (persisted as category_sizes_json). It classifies development folders
+            // (node_modules/venv/.cargo/…) as "Development" and build/target trees as
+            // "Build Output" — context an extension-only map cannot recover. Fall back
+            // to deriving categories from per-extension sizes only when the recorded
+            // scan predates that column.
+            var catSizes = _selectedRecord.CategorySizes;
+            if (catSizes.Count > 0)
+            {
+                ulong total = catSizes.Values.Aggregate(0UL, (acc, v) => acc + v);
+                return catSizes
+                    .OrderByDescending(kv => kv.Value)
+                    .Select(kv => new CategoryStat(kv.Key, kv.Value, total > 0 ? (double)kv.Value / total * 100.0 : 0))
+                    .ToList();
+            }
+            var exts = _selectedRecord.ExtensionSizes;
+            if (exts.Count == 0) return new();
+            var byCat = new Dictionary<string, ulong>(StringComparer.OrdinalIgnoreCase);
+            ulong extTotal = 0;
+            foreach (var kv in exts)
+            {
+                var cat = FileCategory.CategoryForExtension(kv.Key);
+                byCat.TryGetValue(cat, out var cur);
+                byCat[cat] = cur + kv.Value;
+                extTotal += kv.Value;
+            }
+            return byCat
+                .OrderByDescending(kv => kv.Value)
+                .Select(kv => new CategoryStat(kv.Key, kv.Value, extTotal > 0 ? (double)kv.Value / extTotal * 100.0 : 0))
+                .ToList();
+        }
+    }
+
+    public bool HasCategoryBreakdown => CategoryBreakdown.Count > 0;
+    public string CategoryBreakdownCountDisplay => HasCategoryBreakdown ? $"{CategoryBreakdown.Count} categories" : "No category data";
 
     /// <summary>
     /// Top 5 folders + types for the "Overview" tab of the detail pivot: a quick
@@ -427,10 +584,75 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
         set { _statusMessage = value; OnPropertyChanged(); }
     }
 
+    // ── All-history category composition (Library Composition donut) ──
+
+    private List<CategoryStat> _categoryHistory = new();
+    public List<CategoryStat> CategoryHistory
+    {
+        get => _categoryHistory;
+        private set
+        {
+            _categoryHistory = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasCategoryHistory));
+            OnPropertyChanged(nameof(CategoryHistoryCountDisplay));
+        }
+    }
+    public bool HasCategoryHistory => _categoryHistory.Count > 0;
+    public string CategoryHistoryCountDisplay => HasCategoryHistory ? $"{_categoryHistory.Count} categories" : "No category data";
+
+    /// <summary>
+    /// Load the aggregate category breakdown across every scan (the backend sums
+    /// each record's category_sizes_json). Independent of the paginated list so the
+    /// "Library Composition" donut reflects the whole library, not one page.
+    /// </summary>
+    public async Task LoadCategoryHistoryAsync()
+    {
+        try
+        {
+            var dict = await _scanner.GetCategoryHistoryAsync();
+            if (dict.Count == 0)
+            {
+                CategoryHistory = new List<CategoryStat>();
+                return;
+            }
+            ulong total = dict.Values.Aggregate(0UL, (acc, v) => acc + v);
+            CategoryHistory = dict
+                .OrderByDescending(kv => kv.Value)
+                .Select(kv => new CategoryStat(kv.Key, kv.Value, total > 0 ? (double)kv.Value / total * 100.0 : 0))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] LoadCategoryHistory failed: {ex}");
+            CategoryHistory = new List<CategoryStat>();
+        }
+    }
+
     public async Task LoadHistoryAsync()
     {
         CurrentPage = 1;
         await LoadPageAsync();
+        await LoadTrendAsync();
+        await LoadCategoryHistoryAsync();
+    }
+
+    /// <summary>
+    /// Load the lightweight full-history series used by the "Size Trend" chart
+    /// and the duplicate summary. Independent of the paginated list, so it is
+    /// fetched from its own CLI call and refreshed only on full reloads/mutations.
+    /// </summary>
+    public async Task LoadTrendAsync()
+    {
+        try
+        {
+            TrendRecords = await _scanner.GetScanHistoryTrendAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] LoadTrend failed: {ex}");
+            TrendRecords = new List<HistoryTrendPoint>();
+        }
     }
 
     public async Task LoadPageAsync()
@@ -443,7 +665,7 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
             var (records, total) = await _scanner.GetScanHistoryPageAsync(
                 PageSize, offset,
                 string.IsNullOrWhiteSpace(SearchText) ? null : SearchText,
-                SortBy, SortAsc);
+                ServerSortBy, SortAsc, OnlyDuplicates);
             History = records;
             TotalCount = total;
             StatusMessage = TotalCount == 0 ? "No scan history found" : $"Showing {records.Count} of {TotalCount} scans";
@@ -492,15 +714,17 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
     {
         try
         {
+            AppLog.Page($"LoadDetailsAsync id={record.Id}");
             IsLoading = true;
             StatusMessage = "Loading details...";
             var details = await _scanner.GetScanDetailsAsync(record.Id);
             SelectedRecord = details ?? record;
             StatusMessage = "Details loaded";
+            AppLog.Page($"LoadDetailsAsync id={record.Id} -> {(details is null ? "fallback-to-list-record" : "details-loaded")}, dirs={SelectedRecord.TopDirectories.Count}, files={SelectedRecord.LargestFiles.Count}");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] LoadDetails failed: {ex}");
+            AppLog.Exception(ex, $"LoadDetailsAsync id={record.Id}");
             StatusMessage = $"Failed to load details: {ex.Message}";
         }
         finally
@@ -529,6 +753,7 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
                     SelectedRecord = null;
                 StatusMessage = "Deleted";
                 AppNotifications.Success("Scan record deleted", $"Record {id} removed from history");
+                await LoadTrendAsync();
             }
             else
             {
@@ -576,6 +801,281 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
             System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Prune failed: {ex}");
             StatusMessage = $"Prune failed: {ex.Message}";
             AppNotifications.Error("Prune failed", ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    // ── Database / cache management ──
+
+    private DatabaseInfo? _dbInfo;
+    public DatabaseInfo? DbInfo
+    {
+        get => _dbInfo;
+        set
+        {
+            _dbInfo = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(DbInfoSummary));
+        }
+    }
+    public string DbInfoSummary => _dbInfo?.Summary ?? "Database info unavailable";
+
+    /// <summary>Refresh the cache-stats panel without touching the history list.</summary>
+    public async Task LoadDatabaseInfoAsync()
+    {
+        try
+        {
+            DbInfo = await _scanner.GetDatabaseInfoAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] LoadDatabaseInfo failed: {ex}");
+            DbInfo = null;
+        }
+    }
+
+    public async Task PruneEmptyScansAsync()
+    {
+        if (IsLoading) return;
+        try
+        {
+            IsLoading = true;
+            StatusMessage = "Removing empty scans...";
+            var (success, removed, error) = await _scanner.PruneEmptyScansAsync();
+            if (success)
+            {
+                var msg = removed > 0
+                    ? $"Removed {removed} empty scan record(s)."
+                    : "No empty scans found.";
+                StatusMessage = msg;
+                AppNotifications.Success("Empty scans cleaned", msg);
+                await LoadHistoryAsync();
+            }
+            else
+            {
+                StatusMessage = $"Prune failed: {error}";
+                AppNotifications.Error("Prune failed", error);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Prune empty failed: {ex}");
+            StatusMessage = $"Prune failed: {ex.Message}";
+            AppNotifications.Error("Prune failed", ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task PruneRelativeScansAsync()
+    {
+        if (IsLoading) return;
+        try
+        {
+            IsLoading = true;
+            StatusMessage = "Removing non-absolute paths...";
+            var (success, removed, error) = await _scanner.PruneRelativeScansAsync();
+            if (success)
+            {
+                var msg = removed > 0
+                    ? $"Removed {removed} scan record(s) with invalid paths."
+                    : "No invalid-path scans found.";
+                StatusMessage = msg;
+                AppNotifications.Success("Path prune complete", msg);
+                await LoadHistoryAsync();
+            }
+            else
+            {
+                StatusMessage = $"Prune failed: {error}";
+                AppNotifications.Error("Prune failed", error);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Prune relative failed: {ex}");
+            StatusMessage = $"Prune failed: {ex.Message}";
+            AppNotifications.Error("Prune failed", ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task BackfillCategoriesAsync()
+    {
+        if (IsLoading) return;
+        try
+        {
+            IsLoading = true;
+            StatusMessage = "Recomputing categories...";
+            var (success, updated, error) = await _scanner.BackfillCategoriesAsync();
+            if (success)
+            {
+                var msg = updated > 0
+                    ? $"Recomputed categories for {updated} scan(s)."
+                    : "All scans already have category data.";
+                StatusMessage = msg;
+                AppNotifications.Success("Categories recomputed", msg);
+                // Categories are read when a record's details are opened, so a list
+                // reload is unnecessary; just refresh the stats panel.
+                await LoadDatabaseInfoAsync();
+            }
+            else
+            {
+                StatusMessage = $"Back-fill failed: {error}";
+                AppNotifications.Error("Back-fill failed", error);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Backfill failed: {ex}");
+            StatusMessage = $"Back-fill failed: {ex.Message}";
+            AppNotifications.Error("Back-fill failed", ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task VacuumDatabaseAsync()
+    {
+        if (IsLoading) return;
+        try
+        {
+            IsLoading = true;
+            StatusMessage = "Compacting database...";
+            var (success, error) = await _scanner.VacuumDatabaseAsync();
+            if (success)
+            {
+                StatusMessage = "Database compacted.";
+                AppNotifications.Success("Database compacted", "Reclaimed free space.");
+                await LoadDatabaseInfoAsync();
+            }
+            else
+            {
+                StatusMessage = $"Vacuum failed: {error}";
+                AppNotifications.Error("Vacuum failed", error);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Vacuum failed: {ex}");
+            StatusMessage = $"Vacuum failed: {ex.Message}";
+            AppNotifications.Error("Vacuum failed", ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task PruneFileCacheAsync()
+    {
+        if (IsLoading) return;
+        try
+        {
+            IsLoading = true;
+            StatusMessage = "Cleaning stale file cache...";
+            var (success, removed, error) = await _scanner.PruneFileCacheAsync();
+            if (success)
+            {
+                var msg = removed > 0
+                    ? $"Removed {removed} stale file-cache row(s)."
+                    : "No stale file-cache entries found.";
+                StatusMessage = msg;
+                AppNotifications.Success("File cache cleaned", msg);
+                await LoadDatabaseInfoAsync();
+            }
+            else
+            {
+                StatusMessage = $"Prune failed: {error}";
+                AppNotifications.Error("Prune failed", error);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Prune file cache failed: {ex}");
+            StatusMessage = $"Prune failed: {ex.Message}";
+            AppNotifications.Error("Prune failed", ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task PruneDiskSpaceAsync(int keepHours)
+    {
+        if (IsLoading) return;
+        try
+        {
+            IsLoading = true;
+            StatusMessage = "Pruning disk-space history...";
+            var (success, removed, error) = await _scanner.PruneDiskSpaceAsync(keepHours);
+            if (success)
+            {
+                var msg = removed > 0
+                    ? $"Removed {removed} disk-space snapshot(s) older than {keepHours}h."
+                    : "No old disk-space snapshots to remove.";
+                StatusMessage = msg;
+                AppNotifications.Success("Disk history pruned", msg);
+                await LoadDatabaseInfoAsync();
+            }
+            else
+            {
+                StatusMessage = $"Prune failed: {error}";
+                AppNotifications.Error("Prune failed", error);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Prune disk space failed: {ex}");
+            StatusMessage = $"Prune failed: {ex.Message}";
+            AppNotifications.Error("Prune failed", ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task ClearHistoryAsync()
+    {
+        if (IsLoading) return;
+        try
+        {
+            IsLoading = true;
+            StatusMessage = "Clearing all history...";
+            var (success, removed, error) = await _scanner.ClearHistoryAsync();
+            if (success)
+            {
+                var msg = $"Cleared {removed} scan record(s).";
+                StatusMessage = msg;
+                AppNotifications.Success("History cleared", msg);
+                History = new List<ScanHistoryRecord>();
+                TotalCount = 0;
+                SelectedRecord = null;
+                DbInfo = null;
+                await LoadTrendAsync();
+            }
+            else
+            {
+                StatusMessage = $"Clear failed: {error}";
+                AppNotifications.Error("Clear failed", error);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Clear failed: {ex}");
+            StatusMessage = $"Clear failed: {ex.Message}";
+            AppNotifications.Error("Clear failed", ex.Message);
         }
         finally
         {

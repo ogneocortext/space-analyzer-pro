@@ -25,8 +25,43 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         Load();
         InitializeQuickScanTargets();
         // Honor the global GPU-acceleration toggle (Settings → Advanced).
-        // "false" disables GPU batch hashing; any other value (or unset) enables it.
-        _scanner.GpuAcceleration = SettingsStore.Get("gpu_acceleration") != "false";
+        _scanner.GpuAcceleration = SettingsStore.GetBool("gpu_acceleration", true);
+        // Keep GPU + hidden-files toggles in sync with the Settings page, which is
+        // the single source of truth (these settings are shared across pages).
+        SettingsStore.SettingsChanged += OnSettingsChanged;
+        ApplyDefaultScanPath();
+    }
+
+    /// <summary>
+    /// If no scan path has been set manually, fall back to the first entry of the
+    /// user's configured default scan paths (Settings → Advanced). Gives the README
+    /// "default scan paths" setting a concrete effect instead of being cosmetic.
+    /// </summary>
+    private void ApplyDefaultScanPath()
+    {
+        if (!string.IsNullOrWhiteSpace(_scanPath) && Directory.Exists(_scanPath))
+            return;
+        var raw = SettingsStore.Get("default_scan_paths");
+        if (string.IsNullOrWhiteSpace(raw)) return;
+        var first = raw.Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Trim().Trim('"'))
+            .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p) && Directory.Exists(p));
+        if (first != null)
+        {
+            _scanPath = first;
+            OnPropertyChanged(nameof(ScanPath));
+            OnPropertyChanged(nameof(PathExists));
+            OnPropertyChanged(nameof(PathValidationMessage));
+        }
+    }
+
+    private void OnSettingsChanged(object? sender, SettingsStore.SettingsChangedEventArgs e)
+    {
+        if (_disposed) return;
+        if (e.Key == "include_hidden")
+            IncludeHidden = SettingsStore.GetBool("include_hidden");
+        else if (e.Key == "gpu_acceleration")
+            _scanner.GpuAcceleration = SettingsStore.GetBool("gpu_acceleration", true);
     }
 
     // ── Scan options ──
@@ -63,6 +98,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
 
     private double _depthValue = 5;
     private double _customMaxDepth = 5;
+    private bool _customScan;
     public double DepthValue
     {
         get => _depthValue;
@@ -93,12 +129,15 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
 
     public bool DefaultScan => SelectedDepthMode == ScannerService.DepthMode.Default;
 
+    public bool CustomScan => SelectedDepthMode == ScannerService.DepthMode.Custom;
+
     public bool ShowCustomDepthSlider => SelectedDepthMode == ScannerService.DepthMode.Custom;
 
     public ScannerService.DepthMode SelectedDepthMode
     {
         get
         {
+            if (_customScan) return ScannerService.DepthMode.Custom;
             if (DepthInt == 1) return ScannerService.DepthMode.Shallow;
             if (DepthInt >= 20) return ScannerService.DepthMode.Deep;
             if (DepthInt == 5) return ScannerService.DepthMode.Default;
@@ -106,6 +145,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         }
         set
         {
+            _customScan = value == ScannerService.DepthMode.Custom;
             _customMaxDepth = value switch
             {
                 ScannerService.DepthMode.Shallow => 1,
@@ -115,6 +155,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
                 _ => 5
             };
             DepthValue = _customMaxDepth;
+            OnPropertyChanged(nameof(CustomScan));
             OnPropertyChanged(nameof(ShowCustomDepthSlider));
         }
     }
@@ -451,8 +492,8 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
                 _depthValue = d;
             if (container.Values.TryGetValue("CustomMaxDepth", out v) && v is double cmd)
                 _customMaxDepth = cmd;
-            if (container.Values.TryGetValue("IncludeHidden", out v) && v is bool h)
-                _includeHidden = h;
+            // NB: IncludeHidden is owned by SettingsStore (Settings page), not this
+            // local ApplicationData container, so it is no longer read/written here.
             if (container.Values.TryGetValue("ScanPath", out v))
                 _scanPath = v?.ToString() ?? _scanPath;
 
@@ -485,7 +526,6 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
 
             container.Values["DepthValue"] = DepthValue;
             container.Values["CustomMaxDepth"] = _customMaxDepth;
-            container.Values["IncludeHidden"] = IncludeHidden;
             container.Values["ScanPath"] = ScanPath;
         }
         catch (Exception ex)
@@ -638,6 +678,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        SettingsStore.SettingsChanged -= OnSettingsChanged;
         _scanner.StopScan();
         GC.SuppressFinalize(this);
     }

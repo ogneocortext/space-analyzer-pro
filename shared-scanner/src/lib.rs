@@ -43,33 +43,90 @@ pub struct ScanProgress {
     pub category_sizes: HashMap<String, u64>,
 }
 
-/// Map a file extension to a high-level storage category.
-/// This mirrors the FILE_CATEGORIES mapping in space_analyzer_pro_desktop::category
-/// but is kept here so shared-scanner can compute categories without depending
-/// on the main crate.
-fn extension_to_category(ext: &str) -> &'static str {
+/// Map a file to a high-level storage category.
+///
+/// This mirrors the `FILE_CATEGORIES` mapping in
+/// `space_analyzer_pro_desktop::category` but is kept here so shared-scanner can
+/// compute categories without depending on the main crate. Unlike the main-crate
+/// copy, this version also accepts the file path so it can apply path-based
+/// overrides.
+///
+/// The main-crate `FILE_CATEGORIES` enumerates several *directory* names
+/// (`node_modules`, `venv`, `dist`, `build`, …) under "Development". Those can
+/// never match a file *extension*, so without path awareness a `node_modules`
+/// tree was silently bucketed as "Code"/"Other" instead of "Development". We
+/// resolve that here by classifying well-known development folders from the path
+/// first, then falling back to the extension map.
+/// Map a file *extension* (no path context) to a high-level storage category.
+///
+/// This is the extension-only half of [`extension_to_category`]. It is exposed
+/// publicly so callers that only have an extension (e.g. a cached
+/// `extension_sizes` map with no per-file paths) can classify files the same way
+/// a live scan does. Path-derived categories (Development, Build Output, VCS)
+/// cannot be recovered from an extension alone — for those, prefer a fresh scan.
+pub fn category_for_extension(ext: &str) -> &'static str {
     match ext {
         "txt" | "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "odt" | "ods"
-        | "odp" | "rtf" | "md" | "csv" => "Documents",
+        | "odp" | "rtf" | "md" | "csv" | "log" => "Documents",
         "jpg" | "jpeg" | "png" | "gif" | "bmp" | "svg" | "webp" | "ico" | "tiff" | "tif" => {
             "Images"
         }
         "mp4" | "avi" | "mkv" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpeg" | "mpg" => "Videos",
         "mp3" | "wav" | "flac" | "aac" | "ogg" | "wma" | "m4a" => "Audio",
-        "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "iso" | "cab" => "Archives",
-        "js" | "ts" | "py" | "java" | "c" | "cpp" | "h" | "hpp" | "cs" | "go" | "rs" | "php"
-        | "rb" | "swift" | "kt" | "scala" | "html" | "css" | "scss" | "sass" | "less" | "json"
-        | "xml" | "yaml" | "yml" => "Code",
+        "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "iso" | "cab" | "zst" => "Archives",
+        "js" | "ts" | "tsx" | "jsx" | "py" | "java" | "c" | "cpp" | "h" | "hpp" | "cs" | "go"
+        | "rs" | "php" | "rb" | "swift" | "kt" | "scala" | "html" | "css" | "scss" | "sass"
+        | "less" | "json" | "xml" | "yaml" | "yml" | "toml" | "ini" | "cfg" | "lock" => "Code",
         "db" | "sqlite" | "sql" | "mdb" | "accdb" => "Databases",
         "exe" | "msi" | "bat" | "cmd" | "sh" | "ps1" | "app" | "dmg" | "deb" | "rpm" => {
             "Executables"
         }
-        "dll" | "sys" | "drv" | "fon" | "ttf" | "otf" | "log" | "tmp" => "System",
-        "gradle" | "maven" | "node_modules" | "venv" | "env" | "dist" | "build" => "Development",
+        // System binaries only — fonts are their own category below.
+        "dll" | "sys" | "drv" => "System",
+        // Fonts were previously lumped into "System"; they are a distinct media
+        // type and are now reported separately.
+        "ttf" | "otf" | "fon" | "woff" | "woff2" => "Fonts",
+        "tmp" => "Temporary",
         "sav" | "save" | "game" => "Games",
         "" => "Other",
         _ => "Other",
     }
+}
+
+fn extension_to_category(ext: &str, path: &str) -> &'static str {
+    // Path-based overrides take precedence so directory-shaped categories (which
+    // have no file extension of their own) are classified correctly.
+    let lower = path.to_lowercase();
+    if lower.contains("node_modules")
+        || lower.contains("\\venv\\")
+        || lower.contains("/venv/")
+        || lower.contains(".venv")
+        || lower.contains("site-packages")
+        || lower.contains("\\.cargo\\")
+        || lower.contains("/.cargo/")
+        || lower.contains("\\.rustup\\")
+        || lower.contains(".android")
+        || lower.contains("\\unity\\")
+        || lower.contains("/unity/")
+        || lower.contains("gradle")
+    {
+        return "Development";
+    }
+    if lower.contains("\\target\\") || lower.contains("/target/") {
+        if lower.contains("target\\debug")
+            || lower.contains("target/debug")
+            || lower.contains("target\\release")
+            || lower.contains("target/release")
+        {
+            return "Build Output";
+        }
+        return "Development";
+    }
+    if lower.contains(".git") {
+        return "VCS";
+    }
+
+    category_for_extension(ext)
 }
 
 /// Scan result structure
@@ -447,6 +504,32 @@ impl FileScanner {
         }
     }
 
+    /// Whether a directory entry should be treated as hidden for directory
+    /// pruning, using OS-correct rules. On Windows this is the
+    /// FILE_ATTRIBUTE_HIDDEN bit (not the Unix leading-dot convention); on Unix
+    /// it is a leading-dot name. Traversal errors count as not hidden so a single
+    /// unreadable entry never prunes a whole subtree.
+    fn dir_entry_is_hidden(entry: &walkdir::DirEntry) -> bool {
+        match entry.metadata() {
+            Ok(m) => {
+                #[cfg(windows)]
+                {
+                    use std::os::windows::fs::MetadataExt;
+                    const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
+                    m.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0
+                }
+                #[cfg(not(windows))]
+                {
+                    entry
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .is_some_and(|n| n.starts_with('.'))
+                }
+            }
+            Err(_) => false,
+        }
+    }
+
     fn compute_true_empty_dirs(walk_entries: &[walkdir::DirEntry]) -> Vec<String> {
         use std::collections::{HashMap, HashSet};
 
@@ -525,7 +608,15 @@ impl FileScanner {
         }
 
         let mut walk_entries = Vec::new();
-        for entry in walker {
+        for entry in walker.into_iter().filter_entry(|e| {
+            if options.include_hidden {
+                return true;
+            }
+            if !e.file_type().is_dir() {
+                return true;
+            }
+            !Self::dir_entry_is_hidden(e)
+        }) {
             match entry {
                 Ok(entry) => walk_entries.push(entry),
                 Err(error) => result.errors.push(format!("Traversal error: {error}")),
@@ -691,6 +782,17 @@ impl FileScanner {
         let mut file_type_counts: HashMap<String, u64> = HashMap::new();
         let mut extension_sizes_acc: HashMap<String, u64> = HashMap::new();
         let mut category_sizes_acc: HashMap<String, u64> = HashMap::new();
+        let mut entries_processed: u64 = 0;
+
+        // Honor `--threads`: the post-processing below (and the GPU processor's
+        // parallel extension extraction) run on rayon's global pool, so sizing
+        // it here gives the flag a real effect. A second call with a different
+        // size is ignored by rayon, which is acceptable.
+        if options.num_threads > 0 {
+            let _ = rayon::ThreadPoolBuilder::new()
+                .num_threads(options.num_threads)
+                .build_global();
+        }
 
         let mut walker = WalkDir::new(path);
         if let Some(depth) = options.max_depth {
@@ -699,15 +801,23 @@ impl FileScanner {
         if !options.follow_symlinks {
             walker = walker.follow_links(false);
         }
-
-        // Avoid a second full directory walk just to estimate progress. The
-        // estimate is deliberately conservative and grows as entries arrive.
-        let total_estimate = 1000u64;
-
-        let mut entries_processed: u64 = 0;
-
-        let walk_entries: Vec<walkdir::DirEntry> =
-            walker.into_iter().filter_map(|e| e.ok()).collect();
+        // Skip hidden directories (and their subtrees) up front when the caller
+        // asked to exclude them, so neither the walk nor the post-processing
+        // ever sees the pruned entries.
+        let walk_entries: Vec<walkdir::DirEntry> = walker
+            .into_iter()
+            .filter_entry(|e| {
+                if options.include_hidden {
+                    return true;
+                }
+                if !e.file_type().is_dir() {
+                    return true;
+                }
+                !Self::dir_entry_is_hidden(e)
+            })
+            .filter_map(|e| e.ok())
+            .collect();
+        let total_estimate = (walk_entries.len() as u64).max(1);
         let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
 
         for entry_result in walk_entries {
@@ -830,7 +940,7 @@ impl FileScanner {
 
                                 *file_type_counts.entry(ext.clone()).or_insert(0) += 1;
                                 *extension_sizes_acc.entry(ext.clone()).or_insert(0) += cached_size;
-                                let cat = extension_to_category(&ext);
+                                let cat = extension_to_category(&ext, &path_str);
                                 *category_sizes_acc.entry(cat.to_string()).or_insert(0) +=
                                     cached_size;
 
@@ -915,7 +1025,7 @@ impl FileScanner {
 
                 *file_type_counts.entry(ext.clone()).or_insert(0) += 1;
                 *extension_sizes_acc.entry(ext.clone()).or_insert(0) += size;
-                let cat = extension_to_category(&ext);
+                let cat = extension_to_category(&ext, &path_str);
                 *category_sizes_acc.entry(cat.to_string()).or_insert(0) += size;
 
                 let file_info = FileInfo {
@@ -945,6 +1055,7 @@ impl FileScanner {
 
                 files_scanned += 1;
                 current_size += size;
+                scanned_files.insert(path_str.clone(), (size, mtime));
             }
 
             entries_processed += 1;

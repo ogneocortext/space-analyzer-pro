@@ -1,6 +1,18 @@
 use super::super::gui_common::ScanResult;
 use super::*;
 
+/// A compact, chart-friendly projection of a scan-history row. Used by the
+/// "Size Trend" graph so the UI can plot every scan over time without pulling
+/// the heavy per-scan JSON payloads (top directories, largest files, …) into
+/// memory.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HistoryTrendPoint {
+    pub id: i64,
+    pub path: String,
+    pub timestamp: String,
+    pub total_size_bytes: u64,
+}
+
 /// Maximum number of scan-history records kept per distinct path. Newer scans
 /// beyond this limit are removed on insert so the cache cannot grow unbounded.
 pub const MAX_SCANS_PER_PATH: usize = 20;
@@ -25,17 +37,20 @@ impl super::Database {
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
         let largest_files_json = serde_json::to_string(&result.largest_files)
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+        let category_sizes_json = serde_json::to_string(&result.category_sizes)
+            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
         let potential_cleanup = result.calculate_potential_cleanup();
 
         let timestamp = chrono::Utc::now().to_rfc3339();
         self.conn.execute(
-            "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![
                 result.path, result.total_files as i64, result.total_size_bytes as i64,
                 result.total_size_mb, result.duration_secs,
                 file_types_json, extension_sizes_json, top_directories_json, largest_files_json,
+                category_sizes_json,
                 deep_scan, shallow_scan, max_scan_depth as i64,
                 potential_cleanup as i64, timestamp,
             ],
@@ -92,6 +107,19 @@ impl super::Database {
         Ok(removed)
     }
 
+    /// Delete scan records that captured nothing (zero files). These are empty
+    /// scans (e.g. of a temporary or non-existent directory) that carry no useful
+    /// metrics. Also removes orphaned duplicate-analysis/embedding rows for the
+    /// deleted scans. Returns the number of scan-history records deleted.
+    pub fn prune_empty_scans(&self) -> rusqlite::Result<usize> {
+        let removed = self.conn.execute(
+            "DELETE FROM scan_history WHERE total_files = 0",
+            [],
+        )?;
+        self.cleanup_orphaned_scan_data()?;
+        Ok(removed)
+    }
+
     /// Delete rows in child tables that no longer reference a scan_history row.
     fn cleanup_orphaned_scan_data(&self) -> rusqlite::Result<()> {
         self.conn.execute(
@@ -126,7 +154,7 @@ impl super::Database {
     /// Get scan history, most recent first
     pub fn get_scan_history(&self, limit: usize) -> rusqlite::Result<Vec<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp
+            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, category_sizes_json
              FROM scan_history ORDER BY timestamp DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], |row| {
@@ -141,17 +169,23 @@ impl super::Database {
                 extension_sizes_json: row.get(7)?,
                 top_directories_json: row.get(8)?,
                 largest_files_json: row.get(9)?,
-                deep_scan: row.get(10)?,
-                shallow_scan: row.get(11)?,
-                max_scan_depth: row.get::<_, i64>(12)? as u32,
-                potential_cleanup_bytes: row.get::<_, i64>(13)? as u64,
-                timestamp: row.get(14)?,
+                category_sizes_json: row.get(10)?,
+                deep_scan: row.get(11)?,
+                shallow_scan: row.get(12)?,
+                max_scan_depth: row.get::<_, i64>(13)? as u32,
+                potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
+                timestamp: row.get(15)?,
             })
         })?;
         rows.collect()
     }
 
-    /// Get scan history with pagination, search, and sort support
+    /// Get scan history with pagination, search, sort, and duplicate filtering.
+    ///
+    /// When `only_duplicates` is true, only scans whose `path` appears more than
+    /// once in history are returned (every member of each re-scanned-folder
+    /// group, including the newest). This keeps the result paginated while still
+    /// letting the caller learn the total number of duplicate records.
     pub fn get_scan_history_page(
         &self,
         limit: usize,
@@ -159,6 +193,7 @@ impl super::Database {
         search: Option<&str>,
         sort_by: &str,
         sort_asc: bool,
+        only_duplicates: bool,
     ) -> rusqlite::Result<(Vec<ScanHistoryRecord>, i64)> {
         let order = match sort_by {
             "path" => "path",
@@ -169,37 +204,74 @@ impl super::Database {
         };
         let direction = if sort_asc { "ASC" } else { "DESC" };
 
-        let (count_sql, query_sql) = if let Some(s) = search {
-            let pattern = format!("%{}%", s);
-            let escaped = pattern.replace('\'', "''");
-            (
-                format!("SELECT COUNT(*) FROM scan_history WHERE path LIKE '{}'", escaped),
-                format!(
-                    "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, \
+        let columns = "id, path, total_files, total_size_bytes, total_size_mb, duration_secs, \
                      file_types_json, extension_sizes_json, top_directories_json, largest_files_json, \
-                     deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp \
-                     FROM scan_history WHERE path LIKE '{}' ORDER BY {} {} LIMIT ?1 OFFSET ?2",
-                    escaped, order, direction
+                     category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp";
+
+        // Build the query with the search pattern bound as a parameter rather
+        // than interpolated. The `order`/`direction` values are whitelisted
+        // above, so only the search term is user-controlled and it is now bound.
+        //
+        // `only_duplicates` adds a sub-query that keeps only folders scanned more
+        // than once. The two optional conditions are combined with AND.
+        let dup_clause = "path IN (SELECT path FROM scan_history GROUP BY path HAVING COUNT(*) > 1)";
+        let (count_sql, query_sql, bound) = match (search, only_duplicates) {
+            (Some(s), true) => {
+                let pattern = format!("%{}%", s.replace('\'', "''"));
+                (
+                    format!("SELECT COUNT(*) FROM scan_history WHERE path LIKE ?1 AND {dup_clause}"),
+                    format!(
+                        "SELECT {columns} FROM scan_history WHERE path LIKE ?1 AND {dup_clause} ORDER BY {order} {direction} LIMIT ?2 OFFSET ?3"
+                    ),
+                    vec![
+                        Box::new(pattern) as Box<dyn rusqlite::ToSql>,
+                        Box::new(limit as i64) as Box<dyn rusqlite::ToSql>,
+                        Box::new(offset as i64) as Box<dyn rusqlite::ToSql>,
+                    ],
+                )
+            }
+            (Some(s), false) => {
+                let pattern = format!("%{}%", s.replace('\'', "''"));
+                (
+                    "SELECT COUNT(*) FROM scan_history WHERE path LIKE ?1".to_string(),
+                    format!(
+                        "SELECT {columns} FROM scan_history WHERE path LIKE ?1 ORDER BY {order} {direction} LIMIT ?2 OFFSET ?3"
+                    ),
+                    vec![
+                        Box::new(pattern) as Box<dyn rusqlite::ToSql>,
+                        Box::new(limit as i64) as Box<dyn rusqlite::ToSql>,
+                        Box::new(offset as i64) as Box<dyn rusqlite::ToSql>,
+                    ],
+                )
+            }
+            (None, true) => (
+                format!("SELECT COUNT(*) FROM scan_history WHERE {dup_clause}"),
+                format!(
+                    "SELECT {columns} FROM scan_history WHERE {dup_clause} ORDER BY {order} {direction} LIMIT ?1 OFFSET ?2"
                 ),
-            )
-        } else {
-            (
+                vec![
+                    Box::new(limit as i64) as Box<dyn rusqlite::ToSql>,
+                    Box::new(offset as i64) as Box<dyn rusqlite::ToSql>,
+                ],
+            ),
+            (None, false) => (
                 "SELECT COUNT(*) FROM scan_history".to_string(),
                 format!(
-                    "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, \
-                     file_types_json, extension_sizes_json, top_directories_json, largest_files_json, \
-                     deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp \
-                     FROM scan_history ORDER BY {} {} LIMIT ?1 OFFSET ?2",
-                    order, direction
+                    "SELECT {columns} FROM scan_history ORDER BY {order} {direction} LIMIT ?1 OFFSET ?2"
                 ),
-            )
+                vec![
+                    Box::new(limit as i64) as Box<dyn rusqlite::ToSql>,
+                    Box::new(offset as i64) as Box<dyn rusqlite::ToSql>,
+                ],
+            ),
         };
 
         let total: i64 = self.conn.query_row(&count_sql, [], |row| row.get(0))?;
 
         let mut stmt = self.conn.prepare(&query_sql)?;
+        let params = rusqlite::params_from_iter(bound.iter().map(|b| &**b));
         let rows = stmt
-            .query_map(params![limit as i64, offset as i64], |row| {
+            .query_map(params, |row| {
                 Ok(ScanHistoryRecord {
                     id: row.get(0)?,
                     path: row.get(1)?,
@@ -211,11 +283,12 @@ impl super::Database {
                     extension_sizes_json: row.get(7)?,
                     top_directories_json: row.get(8)?,
                     largest_files_json: row.get(9)?,
-                    deep_scan: row.get(10)?,
-                    shallow_scan: row.get(11)?,
-                    max_scan_depth: row.get::<_, i64>(12)? as u32,
-                    potential_cleanup_bytes: row.get::<_, i64>(13)? as u64,
-                    timestamp: row.get(14)?,
+                    category_sizes_json: row.get(10)?,
+                    deep_scan: row.get(11)?,
+                    shallow_scan: row.get(12)?,
+                    max_scan_depth: row.get::<_, i64>(13)? as u32,
+                    potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
+                    timestamp: row.get(15)?,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
@@ -223,10 +296,57 @@ impl super::Database {
         Ok((rows, total))
     }
 
+    /// Return every scan-history row as a compact `(id, path, timestamp, size)`
+    /// tuple, ordered chronologically (oldest first) for trend plotting. The
+    /// heavy per-scan JSON columns are intentionally omitted so this stays cheap
+    /// even for thousands of records.
+    pub fn get_scan_history_trend(&self) -> rusqlite::Result<Vec<HistoryTrendPoint>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, path, timestamp, total_size_bytes FROM scan_history ORDER BY timestamp ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(HistoryTrendPoint {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                timestamp: row.get(2)?,
+                total_size_bytes: row.get::<_, i64>(3)? as u64,
+            })
+        })?;
+        rows.collect()
+    }
+
+    /// Aggregate the per-category size breakdown across every scan-history record.
+    /// Each row stores its own `category_sizes_json` (category -> bytes); this sums
+    /// them into a single map so the UI can render a "library composition" donut
+    /// spanning all scans without re-scanning. Rows with empty/invalid JSON are
+    /// skipped so a single corrupt record can't poison the aggregate.
+    pub fn get_category_totals(&self) -> rusqlite::Result<HashMap<String, u64>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT category_sizes_json FROM scan_history")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+
+        let mut totals: HashMap<String, u64> = HashMap::new();
+        for r in rows {
+            let json = r?;
+            if json.is_empty() || json == "{}" || json == "null" {
+                continue;
+            }
+            let map: HashMap<String, u64> = match serde_json::from_str(&json) {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            for (cat, bytes) in map {
+                *totals.entry(cat).or_insert(0) += bytes;
+            }
+        }
+        Ok(totals)
+    }
+
     /// Get a specific scan by ID
     pub fn get_scan_by_id(&self, id: i64) -> rusqlite::Result<Option<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp
+            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp
              FROM scan_history WHERE id = ?1",
         )?;
         let row = stmt.query_row(params![id], |row| {
@@ -241,11 +361,12 @@ impl super::Database {
                 extension_sizes_json: row.get(7)?,
                 top_directories_json: row.get(8)?,
                 largest_files_json: row.get(9)?,
-                deep_scan: row.get(10)?,
-                shallow_scan: row.get(11)?,
-                max_scan_depth: row.get::<_, i64>(12)? as u32,
-                potential_cleanup_bytes: row.get::<_, i64>(13)? as u64,
-                timestamp: row.get(14)?,
+                category_sizes_json: row.get(10)?,
+                deep_scan: row.get(11)?,
+                shallow_scan: row.get(12)?,
+                max_scan_depth: row.get::<_, i64>(13)? as u32,
+                potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
+                timestamp: row.get(15)?,
             })
         });
         match row {
@@ -253,6 +374,64 @@ impl super::Database {
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(e),
         }
+    }
+
+    /// Recompute `category_sizes_json` for any history record that lacks it.
+    ///
+    /// Records created before the `category_sizes_json` column existed stored
+    /// only `extension_sizes_json`. Since the per-file paths are not retained,
+    /// the path-derived categories (Development/Build Output/VCS) cannot be
+    /// recovered, but the extension-derived breakdown can be rebuilt from the
+    /// cached `extension_sizes` map. This keeps the History detail category
+    /// rollups populated for older cached scans without forcing a re-scan.
+    ///
+    /// Returns the number of records back-filled. Idempotent: rows that already
+    /// have a category breakdown are skipped, so calling this repeatedly is a
+    /// no-op once every record is populated.
+    pub fn backfill_category_sizes(&self) -> rusqlite::Result<usize> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, extension_sizes_json FROM scan_history \
+             WHERE category_sizes_json IS NULL \
+                OR category_sizes_json = '{}' \
+                OR category_sizes_json = 'null'",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })?;
+
+        let mut updates: Vec<(String, i64)> = Vec::new();
+        for row in rows {
+            let (id, ext_json) = row?;
+            let ext_map: HashMap<String, u64> = match serde_json::from_str(&ext_json) {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            if ext_map.is_empty() {
+                continue;
+            }
+            let mut cats: HashMap<String, u64> = HashMap::new();
+            for (ext, size) in &ext_map {
+                let cat = shared_scanner::category_for_extension(ext);
+                *cats.entry(cat.to_string()).or_insert(0) += size;
+            }
+            let json = serde_json::to_string(&cats)
+                .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+            updates.push((json, id));
+        }
+
+        if updates.is_empty() {
+            return Ok(0);
+        }
+
+        let tx = self.conn.unchecked_transaction()?;
+        for (json, id) in &updates {
+            tx.execute(
+                "UPDATE scan_history SET category_sizes_json = ?1 WHERE id = ?2",
+                params![json, id],
+            )?;
+        }
+        tx.commit()?;
+        Ok(updates.len())
     }
 
     /// Delete a scan record by ID (also removes associated embeddings and duplicate analysis)
@@ -266,13 +445,27 @@ impl super::Database {
             .execute("DELETE FROM scan_history WHERE id = ?1", params![id])
     }
 
-    /// Clear all scan history (also removes associated embeddings, duplicate analysis, and file cache)
+    /// Clear all scan history (also removes associated embeddings, duplicate
+    /// analysis, and the per-scan file cache). Workflow execution history is a
+    /// separate domain with its own pruning (`db --prune-workflows`), so it is
+    /// intentionally left intact.
     pub fn clear_history(&self) -> rusqlite::Result<usize> {
         self.conn.execute("DELETE FROM file_embeddings", [])?;
         self.conn.execute("DELETE FROM duplicate_analysis", [])?;
         self.conn.execute("DELETE FROM file_cache", [])?;
-        self.conn.execute("DELETE FROM workflow_executions", [])?;
         self.conn.execute("DELETE FROM scan_history", [])
+    }
+
+    /// Remove file-cache rows whose `scan_path` no longer has any matching
+    /// scan-history record. The scanner keys the cache by the canonical
+    /// (display) path, so this cleans up caches for directories that have had
+    /// every history record pruned or cleared. Returns the number of cache rows
+    /// removed.
+    pub fn prune_orphaned_file_cache(&self) -> rusqlite::Result<usize> {
+        self.conn.execute(
+            "DELETE FROM file_cache WHERE scan_path NOT IN (SELECT DISTINCT path FROM scan_history)",
+            [],
+        )
     }
 }
 
@@ -356,6 +549,73 @@ mod tests {
     }
 
     #[test]
+    fn backfill_recomputes_category_sizes_from_extension_sizes() {
+        let db = test_db();
+        // A legacy record: extension sizes are present, category breakdown absent.
+        db.conn
+            .execute(
+                "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb,
+                                           duration_secs, file_types_json, extension_sizes_json,
+                                           top_directories_json, largest_files_json, deep_scan,
+                                           shallow_scan, max_scan_depth, potential_cleanup_bytes,
+                                           timestamp, category_sizes_json)
+                 VALUES ('C:\\legacy', 3, 2024, 0.0, 0.0, '{}', '{\"rs\":600,\"md\":424,\"ttf\":1000}',
+                         '[]', '[]', 0, 0, 5, 0, '2026-08-03T00:00:00Z', '{}')",
+                [],
+            )
+            .unwrap();
+
+        let updated = db.backfill_category_sizes().unwrap();
+        assert_eq!(updated, 1, "exactly one legacy record should be back-filled");
+
+        let json: String = db
+            .conn
+            .query_row(
+                "SELECT category_sizes_json FROM scan_history WHERE path = 'C:\\legacy'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let cats: std::collections::HashMap<String, u64> =
+            serde_json::from_str(&json).unwrap();
+        assert_eq!(cats.get("Code").copied(), Some(600));
+        assert_eq!(cats.get("Documents").copied(), Some(424));
+        assert_eq!(cats.get("Fonts").copied(), Some(1000));
+
+        // Idempotent: a second run must not touch already-populated rows.
+        assert_eq!(db.backfill_category_sizes().unwrap(), 0);
+    }
+
+    #[test]
+    fn prune_orphaned_file_cache_removes_unmatched_paths() {
+        let db = test_db();
+        let _ = insert_scan(&db, "C:\\keep", 500, 5);
+        // file_cache rows for a path that still has history, and one that does not.
+        db.conn
+            .execute(
+                "INSERT INTO file_cache (scan_path, file_path, size_bytes, mtime_unix, extension, updated_at)
+                 VALUES ('C:\\keep', 'C:\\keep\\a.txt', 10, 0, 'txt', datetime('now'))",
+                [],
+            )
+            .unwrap();
+        db.conn
+            .execute(
+                "INSERT INTO file_cache (scan_path, file_path, size_bytes, mtime_unix, extension, updated_at)
+                 VALUES ('C:\\gone', 'C:\\gone\\b.txt', 20, 0, 'txt', datetime('now'))",
+                [],
+            )
+            .unwrap();
+
+        let removed = db.prune_orphaned_file_cache().unwrap();
+        assert_eq!(removed, 1, "only the orphaned path cache should be removed");
+        let remaining: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM file_cache", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(remaining, 1);
+    }
+
+    #[test]
     fn save_scan_trims_path_overflow() {
         let db = test_db();
         let max = MAX_SCANS_PER_PATH as i64;
@@ -368,5 +628,39 @@ mod tests {
         assert_eq!(count(&db), max + 6);
         db.prune_path_overflow("C:\\grow").unwrap();
         assert_eq!(count(&db), max + 1);
+    }
+
+    #[test]
+    fn get_scan_history_page_only_duplicates() {
+        let db = test_db();
+        // Two scans of the same folder -> duplicates; one unique folder.
+        insert_scan(&db, "C:\\dup", 100, 5);
+        insert_scan(&db, "C:\\dup", 200, 6);
+        insert_scan(&db, "C:\\unique", 300, 7);
+
+        let (all, total_all) = db
+            .get_scan_history_page(50, 0, None, "timestamp", false, false)
+            .unwrap();
+        assert_eq!(total_all, 3);
+        assert_eq!(all.len(), 3);
+
+        let (dupes, total_dupes) = db
+            .get_scan_history_page(50, 0, None, "timestamp", false, true)
+            .unwrap();
+        assert_eq!(total_dupes, 2, "both re-scans of C:\\dup must be returned");
+        assert!(dupes.iter().all(|r| r.path.eq_ignore_ascii_case("C:\\dup")));
+    }
+
+    #[test]
+    fn get_scan_history_trend_returns_all_chronological() {
+        let db = test_db();
+        insert_scan(&db, "C:\\a", 100, 5);
+        insert_scan(&db, "C:\\b", 200, 6);
+
+        let points = db.get_scan_history_trend().unwrap();
+        assert_eq!(points.len(), 2);
+        // timestamp ASC -> first inserted (C:\a) comes first.
+        assert!(points[0].path.eq_ignore_ascii_case("C:\\a"));
+        assert_eq!(points[1].total_size_bytes, 200);
     }
 }

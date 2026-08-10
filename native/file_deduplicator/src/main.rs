@@ -91,6 +91,7 @@ fn main() -> Result<()> {
         dry_run: cli.dry_run,
         create_hard_links: cli.hard_links,
         parallel_jobs: cli.jobs,
+        use_gpu: true,
     };
 
     // Create deduplicator

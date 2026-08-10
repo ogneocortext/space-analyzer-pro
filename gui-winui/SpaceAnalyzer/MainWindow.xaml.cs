@@ -147,6 +147,7 @@ public sealed partial class MainWindow : Window
                 "Dedup" => typeof(Views.DuplicatesPage),
                 "System" => typeof(Views.SystemPage),
                 "Cleanup" => typeof(Views.CleanupPage),
+                "UsnJournal" => typeof(Views.UsnPage),
                 "Settings" => typeof(Views.SettingsPage),
                 "About" => typeof(Views.AboutPage),
                 _ => typeof(Views.DashboardPage)
@@ -200,6 +201,7 @@ public sealed partial class MainWindow : Window
             "Dedup" => "Space Analyzer Pro — Duplicates",
             "System" => "Space Analyzer Pro — System Resources",
             "Cleanup" => "Space Analyzer Pro — Cleanup",
+            "UsnJournal" => "Space Analyzer Pro — USN Journal",
             "Settings" => "Space Analyzer Pro — Settings",
             "About" => "Space Analyzer Pro — About",
             _ => "Space Analyzer Pro"

@@ -27,6 +27,24 @@ public static class SettingsStore
     private static CancellationTokenSource? s_saveCts;
 
     /// <summary>
+    /// Raised whenever a setting value changes in the in-memory cache (after any
+    /// <see cref="Set"/> call). Lets other ViewModels react to settings edits made
+    /// on the Settings page without polling.
+    /// </summary>
+    public static event EventHandler<SettingsChangedEventArgs>? SettingsChanged;
+
+    public sealed class SettingsChangedEventArgs : EventArgs
+    {
+        public string Key { get; }
+        public string? Value { get; }
+        public SettingsChangedEventArgs(string key, string? value)
+        {
+            Key = key;
+            Value = value;
+        }
+    }
+
+    /// <summary>
     /// Ensures the in-memory cache is populated. Loads from the DB
     /// (<c>settings get --format json</c>), falling back to
     /// <see cref="ApplicationData"/> local settings, then defaults.
@@ -73,6 +91,32 @@ public static class SettingsStore
     }
 
     /// <summary>
+    /// Reads a setting as a boolean. Values are normalised to the lowercase
+    /// literals "true"/"false" on write (see <see cref="SetBool"/>), so a missing
+    /// or unrecognised value falls back to <paramref name="defaultValue"/>.
+    /// This avoids the previous string-comparison bug where C#'s
+    /// <c>bool.ToString()</c> ("True"/"False") was compared against lower-cased
+    /// literals, which silently pinned every boolean to its default.
+    /// </summary>
+    public static bool GetBool(string key, bool defaultValue = false)
+    {
+        var raw = Get(key);
+        if (string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (string.Equals(raw, "false", StringComparison.OrdinalIgnoreCase))
+            return false;
+        return defaultValue;
+    }
+
+    /// <summary>
+    /// Writes a boolean setting using the canonical lowercase literal, so reads
+    /// via <see cref="GetBool"/> and the legacy <c>== "true"</c> / <c>!= "false"</c>
+    /// patterns both resolve correctly.
+    /// </summary>
+    public static void SetBool(string key, bool value)
+        => Set(key, value ? "true" : "false");
+
+    /// <summary>
     /// Writes a setting into the in-memory cache, mirrors it to
     /// <see cref="ApplicationData"/> local settings synchronously, and
     /// schedules a debounced DB persist.
@@ -85,6 +129,7 @@ public static class SettingsStore
         }
         MirrorToLocalSettings(key, value);
         ScheduleDbSave();
+        SettingsChanged?.Invoke(null, new SettingsChangedEventArgs(key, value));
     }
 
     /// <summary>
