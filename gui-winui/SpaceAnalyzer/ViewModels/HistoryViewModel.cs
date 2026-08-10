@@ -1,6 +1,7 @@
 // Licensed under the MIT License.
 
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
@@ -24,11 +25,126 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
     public List<ScanHistoryRecord> History
     {
         get => _history;
-        set { _history = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasHistory)); OnPropertyChanged(nameof(HasHistoryVisibility)); OnPropertyChanged(nameof(HasNoHistoryVisibility)); }
+        set
+        {
+            _history = value;
+            // Flag records whose directory also appears elsewhere in this view so
+            // the list can surface redundant scans (makes Delete Duplicates useful).
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in _history)
+            {
+                var key = NormalizePath(r.Path);
+                counts.TryGetValue(key, out var c);
+                counts[key] = c + 1;
+            }
+            foreach (var r in _history)
+                r.IsDuplicateView = counts.TryGetValue(NormalizePath(r.Path), out var c) && c > 1;
+
+            // A reload invalidates any in-flight comparison selection.
+            foreach (var r in _history)
+                r.IsCompareSelected = false;
+
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasHistory));
+            OnPropertyChanged(nameof(HasHistoryVisibility));
+            OnPropertyChanged(nameof(HasNoHistoryVisibility));
+            OnPropertyChanged(nameof(HasDuplicatesInView));
+            OnPropertyChanged(nameof(RedundantInView));
+        }
+    }
+
+    private static string NormalizePath(string p) => (p ?? string.Empty).TrimEnd('\\').ToLowerInvariant();
+
+    public bool HasDuplicatesInView => _history.Any(r => r.IsDuplicateView);
+
+    /// <summary>
+    /// Number of records in the current view that would be removed by pruning
+    /// (newest kept per directory group).
+    /// </summary>
+    public int RedundantInView
+    {
+        get
+        {
+            var removed = 0;
+            foreach (var g in _history.GroupBy(r => NormalizePath(r.Path), StringComparer.OrdinalIgnoreCase))
+                if (g.Count() > 1) removed += g.Count() - 1;
+            return removed;
+        }
     }
     public bool HasHistory => _history.Any();
     public Microsoft.UI.Xaml.Visibility HasHistoryVisibility => HasHistory ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public Microsoft.UI.Xaml.Visibility HasNoHistoryVisibility => HasHistory ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+
+    // ── Multi-select comparison ──
+
+    private bool _showComparison;
+    public bool ShowComparison
+    {
+        get => _showComparison;
+        set { _showComparison = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasComparisonVisibility)); }
+    }
+    public Microsoft.UI.Xaml.Visibility HasComparisonVisibility => _showComparison ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+    private List<CompareCardModel> _comparisons = new();
+    public List<CompareCardModel> Comparisons
+    {
+        get => _comparisons;
+        private set { _comparisons = value; OnPropertyChanged(); }
+    }
+
+    public int CompareSelectedCount => _history.Count(r => r.IsCompareSelected);
+    public bool HasCompareSelection => CompareSelectedCount >= 2;
+
+    /// <summary>
+    /// Called from the UI when a card's compare checkbox is toggled so the
+    /// header "Compare (N)" button and its count badge refresh.
+    /// </summary>
+    public void NotifyCompareSelectionChanged()
+    {
+        OnPropertyChanged(nameof(CompareSelectedCount));
+        OnPropertyChanged(nameof(HasCompareSelection));
+    }
+
+    public void OpenComparison()
+    {
+        var selected = _history.Where(r => r.IsCompareSelected).ToList();
+        if (selected.Count < 2) return;
+
+        var baseline = selected[0];
+        var cards = new List<CompareCardModel>();
+        foreach (var r in selected)
+        {
+            var exts = r.ExtensionSizes;
+            ulong extTotal = exts.Values.Aggregate(0UL, (acc, v) => acc + v);
+            var topTypes = exts
+                .OrderByDescending(kv => kv.Value)
+                .Take(5)
+                .Select(kv => new ExtensionStat(kv.Key, kv.Value, extTotal > 0 ? (double)kv.Value / extTotal * 100.0 : 0))
+                .ToList();
+
+            cards.Add(new CompareCardModel
+            {
+                Record = r,
+                TopDirs = r.TopDirectories.OrderByDescending(d => d.TotalSize).Take(5).ToList(),
+                TopTypes = topTypes,
+                IsBaseline = r == baseline,
+                DeltaSizeBytes = (long)r.TotalSizeBytes - (long)baseline.TotalSizeBytes,
+                DeltaFiles = r.TotalFiles - baseline.TotalFiles,
+                DeltaDurationSecs = r.DurationSecs - baseline.DurationSecs,
+            });
+        }
+
+        Comparisons = cards;
+        ShowComparison = true;
+    }
+
+    public void ClearComparison()
+    {
+        ShowComparison = false;
+        Comparisons = new();
+        foreach (var r in _history) r.IsCompareSelected = false;
+        NotifyCompareSelectionChanged();
+    }
 
     // ── Pagination ──
 
@@ -108,6 +224,16 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(HasSelectedRecord));
             OnPropertyChanged(nameof(HasSelectedRecordVisibility));
             OnPropertyChanged(nameof(HasListVisibility));
+            OnPropertyChanged(nameof(TopDirectoriesView));
+            OnPropertyChanged(nameof(HasTopDirectories));
+            OnPropertyChanged(nameof(HasTopDirectoriesVisibility));
+            OnPropertyChanged(nameof(TopDirectoriesCountDisplay));
+            OnPropertyChanged(nameof(ExtensionBreakdown));
+            OnPropertyChanged(nameof(HasExtensionBreakdown));
+            OnPropertyChanged(nameof(HasExtensionBreakdownVisibility));
+            OnPropertyChanged(nameof(ExtensionBreakdownCountDisplay));
+            OnPropertyChanged(nameof(OverviewTopDirs));
+            OnPropertyChanged(nameof(OverviewTopTypes));
             ResetFileExplorer();
             RefreshFilteredFiles();
         }
@@ -222,6 +348,66 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
         OnPropertyChanged(nameof(HasLargestFilesVisibility));
         OnPropertyChanged(nameof(HasNoLargestFilesVisibility));
         OnPropertyChanged(nameof(LargestFilesCountDisplay));
+    }
+
+    // ── Per-scan breakdown (detail view) ──
+
+    public List<DirEntry> TopDirectoriesView
+    {
+        get
+        {
+            if (_selectedRecord == null) return new();
+            return _selectedRecord.TopDirectories
+                .OrderByDescending(d => d.TotalSize)
+                .Take(15)
+                .ToList();
+        }
+    }
+
+    public bool HasTopDirectories => TopDirectoriesView.Count > 0;
+    public Microsoft.UI.Xaml.Visibility HasTopDirectoriesVisibility => HasTopDirectories ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+    public string TopDirectoriesCountDisplay => HasTopDirectories ? $"{TopDirectoriesView.Count} folder(s)" : "No directory data";
+
+    public List<ExtensionStat> ExtensionBreakdown
+    {
+        get
+        {
+            if (_selectedRecord == null) return new();
+            var exts = _selectedRecord.ExtensionSizes;
+            if (exts.Count == 0) return new();
+            ulong total = exts.Values.Aggregate(0UL, (acc, v) => acc + v);
+            return exts
+                .OrderByDescending(kv => kv.Value)
+                .Take(20)
+                .Select(kv => new ExtensionStat(kv.Key, kv.Value, total > 0 ? (double)kv.Value / total * 100.0 : 0))
+                .ToList();
+        }
+    }
+
+    public bool HasExtensionBreakdown => ExtensionBreakdown.Count > 0;
+    public Microsoft.UI.Xaml.Visibility HasExtensionBreakdownVisibility => HasExtensionBreakdown ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+    public string ExtensionBreakdownCountDisplay => HasExtensionBreakdown ? $"{ExtensionBreakdown.Count} extension(s)" : "No type data";
+
+    /// <summary>
+    /// Top 5 folders + types for the "Overview" tab of the detail pivot: a quick
+    /// at-a-glance summary so users don't have to jump between tabs.
+    /// </summary>
+    public List<DirEntry> OverviewTopDirs
+    {
+        get
+        {
+            if (_selectedRecord == null) return new();
+            return _selectedRecord.TopDirectories.OrderByDescending(d => d.TotalSize).Take(5).ToList();
+        }
+    }
+
+    public List<ExtensionStat> OverviewTopTypes
+    {
+        get
+        {
+            if (_selectedRecord == null) return new();
+            return ExtensionBreakdown.Take(5).ToList();
+        }
     }
 
     // ── Load state ──
@@ -343,8 +529,6 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
                     SelectedRecord = null;
                 StatusMessage = "Deleted";
                 AppNotifications.Success("Scan record deleted", $"Record {id} removed from history");
-                // Reload to fix pagination gap
-                await LoadPageAsync();
             }
             else
             {
@@ -357,6 +541,41 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
             System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Delete failed: {ex}");
             StatusMessage = $"Delete failed: {ex.Message}";
             AppNotifications.Error("Delete failed", ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task PruneDuplicateScansAsync()
+    {
+        if (IsLoading) return;
+        try
+        {
+            IsLoading = true;
+            StatusMessage = "Removing duplicate scans...";
+            var (success, duplicates, _, error) = await _scanner.PruneDuplicateScansAsync();
+            if (success)
+            {
+                var msg = duplicates > 0
+                    ? $"Removed {duplicates} duplicate scan record(s)."
+                    : "No duplicate scans found.";
+                StatusMessage = msg;
+                AppNotifications.Success("Duplicates cleaned", msg);
+                await LoadHistoryAsync();
+            }
+            else
+            {
+                StatusMessage = $"Prune failed: {error}";
+                AppNotifications.Error("Prune failed", error);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Prune failed: {ex}");
+            StatusMessage = $"Prune failed: {ex.Message}";
+            AppNotifications.Error("Prune failed", ex.Message);
         }
         finally
         {

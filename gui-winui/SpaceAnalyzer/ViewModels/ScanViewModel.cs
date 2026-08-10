@@ -24,6 +24,9 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
     {
         Load();
         InitializeQuickScanTargets();
+        // Honor the global GPU-acceleration toggle (Settings → Advanced).
+        // "false" disables GPU batch hashing; any other value (or unset) enables it.
+        _scanner.GpuAcceleration = SettingsStore.Get("gpu_acceleration") != "false";
     }
 
     // ── Scan options ──
@@ -66,6 +69,11 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         set
         {
             _depthValue = value;
+            // Keep the remembered custom depth in sync while the user is dragging the
+            // slider in Custom mode. Without this, switching to Default/Deep and back to
+            // Custom discards the value and resets to the stale _customMaxDepth.
+            if (SelectedDepthMode == ScannerService.DepthMode.Custom)
+                _customMaxDepth = DepthInt;
             OnPropertyChanged();
             OnPropertyChanged(nameof(SelectedDepthMode));
             OnPropertyChanged(nameof(ResultDepthDisplay));
@@ -622,7 +630,7 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         set { _exportFormat = value; OnPropertyChanged(); }
     }
 
-    public ObservableCollection<string> ExportFormats { get; } = new() { "json", "csv", "md" };
+    public ObservableCollection<string> ExportFormats { get; } = new() { "json", "csv", "md", "html" };
 
     public string ExportFormatDisplay => ExportFormat.ToUpperInvariant();
 

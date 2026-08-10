@@ -1,5 +1,7 @@
 ﻿// Licensed under the MIT License.
 
+using System.Collections.Generic;
+using System.Linq;
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
@@ -21,9 +23,15 @@ public sealed partial class DashboardPage : Page
     private LineSeries<double>? _cpuSeries;
     private LineSeries<double>? _memSeries;
     private LineSeries<double>? _diskSeries;
+    private LineSeries<double>? _gpuSeries;
+    private LineSeries<double>? _cpuScanBand;
+    private LineSeries<double>? _memScanBand;
+    private LineSeries<double>? _diskScanBand;
+    private LineSeries<double>? _gpuScanBand;
     private CartesianChart? _cpuChart;
     private CartesianChart? _memChart;
     private CartesianChart? _diskChart;
+    private CartesianChart? _gpuChart;
 
     public DashboardPage()
     {
@@ -42,7 +50,8 @@ public sealed partial class DashboardPage : Page
         base.OnNavigatedTo(e);
         VM.DispatcherTimer.Start();
         VM.PropertyChanged += OnVmPropertyChanged;
-        DrawAllCharts();
+        // Charts are (re)drawn once the dashboard data has loaded, in OnPageLoaded,
+        // so drawing here (before data exists) is redundant work.
     }
 
     protected override void OnNavigatedFrom(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
@@ -64,7 +73,8 @@ public sealed partial class DashboardPage : Page
     {
         if (e.PropertyName is nameof(DashboardViewModel.CpuHistory)
             or nameof(DashboardViewModel.MemoryHistory)
-            or nameof(DashboardViewModel.DiskHistory))
+            or nameof(DashboardViewModel.DiskHistory)
+            or nameof(DashboardViewModel.GpuHistory))
         {
             UpdateSparklineValues();
         }
@@ -74,21 +84,37 @@ public sealed partial class DashboardPage : Page
 
     private void DrawAllCharts()
     {
-        CreateSparklineIfNeeded(CpuChartGrid, VM.CpuHistory, new SKColor(0, 120, 212),
-            out _cpuChart, out _cpuSeries);
-        CreateSparklineIfNeeded(MemChartGrid, VM.MemoryHistory, new SKColor(156, 39, 176),
-            out _memChart, out _memSeries);
-        CreateSparklineIfNeeded(DiskChartGrid, VM.DiskHistory, new SKColor(0, 150, 136),
-            out _diskChart, out _diskSeries);
+        CreateSparklineIfNeeded(CpuChartGrid, VM.CpuHistory, VM.ScanBandValues, new SKColor(0, 120, 212),
+            out _cpuChart, out _cpuSeries, out _cpuScanBand);
+        CreateSparklineIfNeeded(MemChartGrid, VM.MemoryHistory, VM.ScanBandValues, new SKColor(156, 39, 176),
+            out _memChart, out _memSeries, out _memScanBand);
+        CreateSparklineIfNeeded(GpuChartGrid, VM.GpuHistory, VM.ScanBandValues, new SKColor(255, 152, 0),
+            out _gpuChart, out _gpuSeries, out _gpuScanBand);
+        CreateSparklineIfNeeded(DiskChartGrid, VM.DiskHistory, VM.ScanBandValues, new SKColor(0, 150, 136),
+            out _diskChart, out _diskSeries, out _diskScanBand);
         UpdateSparklineValues();
         DrawDiskUsageDonut();
         DrawFileTypePie();
     }
 
     private static void CreateSparklineIfNeeded(
-        Grid grid, IReadOnlyList<double> values, SKColor color,
-        out CartesianChart chart, out LineSeries<double> series)
+        Grid grid, IReadOnlyList<double> values, IReadOnlyList<double> bandValues, SKColor color,
+        out CartesianChart chart, out LineSeries<double> series, out LineSeries<double> band)
     {
+        // Translucent band pinned at the top of the chart while the scanner is
+        // running. Drawn behind the value line so the activity window reads as a
+        // shaded column rather than noise.
+        band = new LineSeries<double>
+        {
+            Values = bandValues.ToArray(),
+            Fill = new SolidColorPaint(new SKColor(255, 196, 0, 38)),
+            Stroke = new SolidColorPaint(new SKColor(255, 196, 0, 110)) { StrokeThickness = 1 },
+            GeometrySize = 0,
+            LineSmoothness = 0,
+            Name = "",
+            ZIndex = 0,
+        };
+
         series = new LineSeries<double>
         {
             Values = values.ToArray(),
@@ -97,11 +123,12 @@ public sealed partial class DashboardPage : Page
             GeometrySize = 0,
             LineSmoothness = 0.3,
             Name = "",
+            ZIndex = 1,
         };
 
         chart = new CartesianChart
         {
-            Series = [series],
+            Series = [band, series],
             Height = 72,
             XAxes = [new Axis { IsVisible = false }],
             YAxes =
@@ -124,6 +151,30 @@ public sealed partial class DashboardPage : Page
         if (_cpuSeries != null) _cpuSeries.Values = VM.CpuHistory.ToArray();
         if (_memSeries != null) _memSeries.Values = VM.MemoryHistory.ToArray();
         if (_diskSeries != null) _diskSeries.Values = VM.DiskHistory.ToArray();
+        if (_gpuSeries != null) _gpuSeries.Values = VM.GpuHistory.ToArray();
+        if (_cpuScanBand != null) _cpuScanBand.Values = VM.ScanBandValues.ToArray();
+        if (_memScanBand != null) _memScanBand.Values = VM.ScanBandValues.ToArray();
+        if (_diskScanBand != null) _diskScanBand.Values = VM.ScanBandValues.ToArray();
+        if (_gpuScanBand != null) _gpuScanBand.Values = VM.ScanBandValues.ToArray();
+        UpdateChartAnnotations();
+    }
+
+    // ── Peak / avg annotations for the resource-history sparklines ──
+
+    private static string FormatPeakAvg(IReadOnlyList<double> history)
+    {
+        if (history == null || history.Count == 0) return "";
+        double peak = history.Max();
+        double avg = history.Average();
+        return $"Peak {peak:F0}%  ·  Avg {avg:F0}%";
+    }
+
+    private void UpdateChartAnnotations()
+    {
+        if (CpuPeakAvg != null) CpuPeakAvg.Text = FormatPeakAvg(VM.CpuHistory);
+        if (MemPeakAvg != null) MemPeakAvg.Text = FormatPeakAvg(VM.MemoryHistory);
+        if (GpuPeakAvg != null) GpuPeakAvg.Text = FormatPeakAvg(VM.GpuHistory);
+        if (DiskPeakAvg != null) DiskPeakAvg.Text = FormatPeakAvg(VM.DiskHistory);
     }
 
     // ── Donut charts: recreate only when data changes ──

@@ -161,4 +161,39 @@ public sealed partial class DuplicatesPage : Page
             }
         }
     }
+
+    private void GroupCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("DuplicatesPage GroupCheck_Changed");
+        VM.NotifySelectionChanged();
+    }
+
+    private void SelectAll_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("DuplicatesPage SelectAll_Click");
+        if (sender is CheckBox checkBox)
+        {
+            VM.SelectAll(checkBox.IsChecked == true);
+        }
+    }
+
+    private async void RemoveSelected_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("DuplicatesPage RemoveSelected_Click");
+        if (!VM.HasSelection) return;
+
+        var dialog = new ContentDialog
+        {
+            Title = "Remove duplicate copies",
+            Content = $"Permanently delete {VM.SelectedCount} duplicate group(s), keeping one copy of each file? This cannot be undone.",
+            PrimaryButtonText = "Remove",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+        dialog.XamlRoot = this.XamlRoot;
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            return;
+
+        await VM.RemoveSelectedAsync();
+    }
 }

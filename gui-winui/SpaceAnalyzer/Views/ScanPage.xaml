@@ -40,7 +40,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0" Text="{x:Bind VM.ScanPath, Mode=TwoWay}" PlaceholderText="Select a directory..." AutomationProperties.Name="Scan directory path" />
+                                 <TextBox Grid.Column="0" Text="{x:Bind VM.ScanPath, Mode=TwoWay}" PlaceholderText="Select a directory..." AutomationProperties.Name="Scan directory path" Style="{StaticResource FieldTextBox}" />
                                 <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Browse"/>
                             </Grid>
                             <TextBlock Text="{x:Bind VM.PathValidationMessage, Mode=OneWay}"
@@ -55,22 +55,22 @@
                         <StackPanel Spacing="{StaticResource Space.MD}">
                             <TextBlock Text="Scan Depth" Style="{StaticResource Type.SubTitle}" />
                             <TextBlock Text="How deep to scan." Style="{StaticResource Type.Hint}" />
-                            <StackPanel Spacing="{StaticResource Space.SM}">
-                                <RadioButton GroupName="ScanDepth" Tag="Quick" Padding="8,4"
+                            <StackPanel Spacing="{StaticResource Space.MD}">
+                                <RadioButton GroupName="ScanDepth" Tag="Quick" Padding="10,6"
                                              IsChecked="{x:Bind VM.ShallowScan, Mode=OneWay}" Click="DepthRadio_Click">
                                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
                                         <TextBlock Text="Quick" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
                                         <TextBlock Text="depth 1" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
                                     </StackPanel>
                                 </RadioButton>
-                                <RadioButton GroupName="ScanDepth" Tag="Default" Padding="8,4"
+                                <RadioButton GroupName="ScanDepth" Tag="Default" Padding="10,6"
                                              IsChecked="{x:Bind VM.DefaultScan, Mode=OneWay}" Click="DepthRadio_Click">
                                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
                                         <TextBlock Text="Default" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
                                         <TextBlock Text="depth 5" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
                                     </StackPanel>
                                 </RadioButton>
-                                <RadioButton GroupName="ScanDepth" Tag="Deep" Padding="8,4"
+                                <RadioButton GroupName="ScanDepth" Tag="Deep" Padding="10,6"
                                              IsChecked="{x:Bind VM.DeepScan, Mode=OneWay}" Click="DepthRadio_Click">
                                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
                                         <TextBlock Text="Deep" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
@@ -80,7 +80,8 @@
                             </StackPanel>
                             <Slider Header="Custom depth" Minimum="1" Maximum="20" TickFrequency="1"
                                     Value="{x:Bind VM.DepthValue, Mode=TwoWay}"
-                                    Visibility="{x:Bind VM.ShowCustomDepthSlider, Mode=OneWay}"/>
+                                    Visibility="{x:Bind VM.ShowCustomDepthSlider, Mode=OneWay}"
+                                    ToolTipService.ToolTip="Number of folder levels to descend when scanning (1–20)."/>
                             <TextBlock Text="{x:Bind VM.ResultDepthDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
                         </StackPanel>
                     </Border>
@@ -115,7 +116,7 @@
                                    Style="{StaticResource Type.Caption}" VerticalAlignment="Center"
                                    TextTrimming="CharacterEllipsis" Opacity="0.7"/>
                         <CheckBox Grid.Column="4" Content="Hidden files" IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"
-                                  VerticalAlignment="Center"/>
+                                  Style="{StaticResource FieldCheckBox}"/>
                     </Grid>
                 </Border>
 

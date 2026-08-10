@@ -594,6 +594,7 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                 resolvedToolChoice = ResolveToolChoice(userMessage, tools);
             }
 
+            bool gotFinalAnswer = false;
             for (int iteration = 0; iteration < MaxToolIterations; iteration++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -602,13 +603,29 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                     ? "Thinking..."
                     : $"Executing tools (step {iteration + 1})...";
 
+                // Force a tool call on the first turn only (when the question is a
+                // domain query). After the model has gathered data, switch to "auto"
+                // so it is free to synthesize a final text answer instead of being
+                // forced into another tool call (which produced empty "(no response)"
+                // answers and redundant multi-tool loops like list_workflows ->
+                // run_workflow -> run_scan -> search_files for a single query).
+                var effectiveToolChoice = iteration == 0 ? resolvedToolChoice : "auto";
+
+                // Regression guard for winui:c4d7b1e9a2f0: forcing tool_choice="required"
+                // on any iteration after the first reintroduces empty "(no response)" answers
+                // and redundant multi-tool loops. Only the first turn may force a tool call.
+                System.Diagnostics.Debug.Assert(
+                    iteration == 0 || effectiveToolChoice == "auto",
+                    "tool_choice must be 'auto' after the first iteration; only turn 0 may force a tool.");
+
                 var response = await _client.SendChatMessageAsync(
-                    selectedModel, apiMessages, tools, resolvedToolChoice, ct, think: OllamaThink);
+                    selectedModel, apiMessages, tools, effectiveToolChoice, ct, think: OllamaThink);
 
                 var message = response.Message;
                 if (message == null)
                 {
                     AddMessage(ChatRole.Assistant, "Received empty response from model.");
+                    gotFinalAnswer = true;
                     break;
                 }
 
@@ -687,14 +704,19 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
                 // No tool calls — this is the final text response
                 AddMessage(ChatRole.Assistant, message.Content ?? "(no response)");
                 StatusText = "Ready.";
+                gotFinalAnswer = true;
                 break;
             }
 
-            // Loop exhausted — model kept requesting tools without producing a final answer.
-            AddMessage(ChatRole.Assistant,
-                $"Reached the maximum of {MaxToolIterations} tool steps without a final answer. " +
-                "Try rephrasing your question or narrowing the target directory.");
-            StatusText = "Max steps reached.";
+            // Only surface the exhaustion notice if the model never produced a final
+            // answer (i.e. it kept requesting tools until the iteration cap was hit).
+            if (!gotFinalAnswer)
+            {
+                AddMessage(ChatRole.Assistant,
+                    $"Reached the maximum of {MaxToolIterations} tool steps without a final answer. " +
+                    "Try rephrasing your question or narrowing the target directory.");
+                StatusText = "Max steps reached.";
+            }
         }
         catch (OperationCanceledException)
         {

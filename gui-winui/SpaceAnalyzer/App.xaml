@@ -23,9 +23,10 @@
                     <SolidColorBrush x:Key="ErrorTextBrush" Color="#C42B1C"/>
                     <SolidColorBrush x:Key="InfoBrush" Color="#0078D4"/>
                     <SolidColorBrush x:Key="InfoSubtleBrush" Color="#0078D4" Opacity="0.10"/>
-                    <SolidColorBrush x:Key="MutedBrush" Color="#6B6B6B"/>
+                    <SolidColorBrush x:Key="MutedBrush" Color="#595959"/>
                     <SolidColorBrush x:Key="AccentSurfaceBrush" Color="#0078D4" Opacity="0.06"/>
                     <SolidColorBrush x:Key="CardBackgroundFillColorHoverBrush" Color="#F9F9F9"/>
+                    <SolidColorBrush x:Key="EmptyStateFillBrush" Color="#F3F3F3"/>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="SuccessBrush" Color="#4CC26A"/>
@@ -38,9 +39,10 @@
                     <SolidColorBrush x:Key="ErrorTextBrush" Color="#FF6B6B"/>
                     <SolidColorBrush x:Key="InfoBrush" Color="#60CDFF"/>
                     <SolidColorBrush x:Key="InfoSubtleBrush" Color="#60CDFF" Opacity="0.12"/>
-                    <SolidColorBrush x:Key="MutedBrush" Color="#9E9E9E"/>
+                    <SolidColorBrush x:Key="MutedBrush" Color="#B5B5B5"/>
                     <SolidColorBrush x:Key="AccentSurfaceBrush" Color="#60CDFF" Opacity="0.08"/>
                     <SolidColorBrush x:Key="CardBackgroundFillColorHoverBrush" Color="#3A3A3A"/>
+                    <SolidColorBrush x:Key="EmptyStateFillBrush" Color="#2A2D33"/>
                 </ResourceDictionary>
             </ResourceDictionary.MergedDictionaries>
 
@@ -51,6 +53,11 @@
             <helpers:BoolToHorizontalAlignmentConverter x:Key="BoolToHorizontalAlignment"/>
             <helpers:IntToVisibilityConverter x:Key="IntToVisibility"/>
             <helpers:IntToResultsTextConverter x:Key="IntToResultsText"/>
+            <helpers:PriorityToBrushConverter x:Key="PriorityToBrush"/>
+            <helpers:SelectedCountToLabelConverter x:Key="SelectedCountToLabel"/>
+            <helpers:SelectedIdBrushConverter x:Key="SelectedIdBrush"/>
+            <helpers:SelectedIdBorderConverter x:Key="SelectedIdBorder"/>
+            <helpers:SelectedIdVisibilityConverter x:Key="SelectedIdVisibility"/>
 
             <!-- Spacing Tokens (Double) -->
             <x:Double x:Key="Space.XXL">32</x:Double>
@@ -73,35 +80,35 @@
                 <Setter Property="FontSize" Value="28"/>
                 <Setter Property="FontWeight" Value="Bold"/>
             </Style>
-            <Style x:Key="Type.SectionTitle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="18"/>
-                <Setter Property="FontWeight" Value="SemiBold"/>
-                <Setter Property="Opacity" Value="0.9"/>
-            </Style>
-            <Style x:Key="Type.CardTitle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="16"/>
-                <Setter Property="FontWeight" Value="SemiBold"/>
-            </Style>
-            <Style x:Key="Type.SubTitle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="14"/>
-                <Setter Property="FontWeight" Value="SemiBold"/>
-                <Setter Property="Opacity" Value="0.9"/>
-            </Style>
-            <Style x:Key="Type.Body" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="14"/>
-                <Setter Property="Opacity" Value="0.9"/>
-            </Style>
-            <Style x:Key="Type.Caption" TargetType="TextBlock">
+                <Style x:Key="Type.SectionTitle" TargetType="TextBlock">
+                    <Setter Property="FontSize" Value="18"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="Opacity" Value="1.0"/>
+                </Style>
+                <Style x:Key="Type.CardTitle" TargetType="TextBlock">
+                    <Setter Property="FontSize" Value="16"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </Style>
+                <Style x:Key="Type.SubTitle" TargetType="TextBlock">
+                    <Setter Property="FontSize" Value="14"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="Opacity" Value="1.0"/>
+                </Style>
+                <Style x:Key="Type.Body" TargetType="TextBlock">
+                    <Setter Property="FontSize" Value="14"/>
+                    <Setter Property="Opacity" Value="0.95"/>
+                </Style>
+                <Style x:Key="Type.Caption" TargetType="TextBlock">
+                    <Setter Property="FontSize" Value="12"/>
+                    <Setter Property="Opacity" Value="0.9"/>
+                </Style>
+            <Style x:Key="Type.Hint" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="12"/>
                 <Setter Property="Opacity" Value="0.85"/>
             </Style>
-            <Style x:Key="Type.Hint" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Opacity" Value="0.75"/>
-            </Style>
             <Style x:Key="Type.Dim" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Opacity" Value="0.65"/>
+                <Setter Property="Opacity" Value="0.8"/>
             </Style>
             <Style x:Key="Type.Tiny" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="11"/>
@@ -113,17 +120,38 @@
             </Style>
              <Style x:Key="Type.StatLabel" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Opacity" Value="0.8"/>
+                <Setter Property="Opacity" Value="0.9"/>
             </Style>
 
             <!-- TextBox Typography Styles (Control targetType) -->
+            <!-- NOTE: previously used SystemControlDisabledBaseLowBrush for the border,
+                 which made the border nearly invisible in dark mode. Use a real stroke
+                 brush and drop the global Opacity so text stays high-contrast. -->
             <Style x:Key="Type.Caption.TextBox" TargetType="TextBox">
                 <Setter Property="FontSize" Value="12"/>
-                <Setter Property="Opacity" Value="0.8"/>
-                <Setter Property="BorderBrush" Value="{ThemeResource SystemControlDisabledBaseLowBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <Setter Property="PlaceholderForeground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorSecondaryBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Padding" Value="6,4"/>
+                <Setter Property="Padding" Value="8,5"/>
                 <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="MinHeight" Value="32"/>
+            </Style>
+
+            <!-- Primary directory/path text field: high-contrast foreground, visible
+                 border, comfortable hit target. Applied to every folder/path input so
+                 the app reads consistently across tabs. -->
+            <Style x:Key="FieldTextBox" TargetType="TextBox">
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                <Setter Property="PlaceholderForeground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Setter Property="Background" Value="{ThemeResource TextControlBackground}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorSecondaryBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="10,7"/>
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="MinHeight" Value="38"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
             </Style>
 
             <!-- Icon Tokens -->
@@ -175,6 +203,7 @@
                 <Setter Property="CornerRadius" Value="6"/>
             </Style>
             <Style x:Key="EmptyStateCard" TargetType="Border" BasedOn="{StaticResource DashboardCardBorder}">
+                <Setter Property="Background" Value="{ThemeResource EmptyStateFillBrush}"/>
                 <Setter Property="Padding" Value="{StaticResource Thickness.XL}"/>
             </Style>
 
@@ -212,24 +241,92 @@
                 <Setter Property="Padding" Value="16,10"/>
                 <Setter Property="MinWidth" Value="140"/>
             </Style>
+            <!-- Ghost / secondary button: a clearly visible resting border so it reads
+                 as a distinct, interactive control on dark cards (Browse, Open, Refresh,
+                 Clear, pagination, etc.). Explicit hover/pressed/focus/disabled states
+                 keep keyboard and pointer affordances intact. Small/Tiny derive from it. -->
             <Style x:Key="SecondaryButton" TargetType="Button">
                 <Setter Property="Background" Value="{ThemeResource ButtonBackground}"/>
-                <Setter Property="BorderBrush" Value="{ThemeResource ButtonBorderBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorSecondaryBrush}"/>
                 <Setter Property="Foreground" Value="{ThemeResource ButtonForeground}"/>
+                <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Padding" Value="12,8"/>
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="FocusVisualPrimaryBrush" Value="{ThemeResource SystemControlHighlightAccentBrush}"/>
+                <Setter Property="FocusVisualMargin" Value="-2"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <ContentPresenter x:Name="CP"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                Padding="{TemplateBinding Padding}"
+                                HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                FocusVisualPrimaryBrush="{TemplateBinding FocusVisualPrimaryBrush}"
+                                FocusVisualMargin="{TemplateBinding FocusVisualMargin}"
+                                AutomationProperties.AccessibilityView="Raw">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CP" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource AccentSurfaceBrush}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CP" Storyboard.TargetProperty="BorderBrush">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ControlStrokeColorPrimaryBrush}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CP" Storyboard.TargetProperty="Foreground">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CP" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource AccentSurfaceBrush}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CP" Storyboard.TargetProperty="BorderBrush">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource SystemControlHighlightAccentBrush}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CP" Storyboard.TargetProperty="Foreground">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                            </Storyboard>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CP" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ButtonBackgroundDisabled}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CP" Storyboard.TargetProperty="BorderBrush">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ButtonBorderBrushDisabled}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="CP" Storyboard.TargetProperty="Foreground">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ButtonForegroundDisabled}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                            </Storyboard>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </ContentPresenter>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
-            <Style x:Key="SmallButton" TargetType="Button">
-                <Setter Property="Background" Value="{ThemeResource ButtonBackground}"/>
-                <Setter Property="BorderBrush" Value="{ThemeResource ButtonBorderBrush}"/>
-                <Setter Property="Foreground" Value="{ThemeResource ButtonForeground}"/>
-                <Setter Property="Padding" Value="8,4"/>
+            <Style x:Key="SmallButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                <Setter Property="Padding" Value="10,6"/>
                 <Setter Property="FontSize" Value="12"/>
             </Style>
-            <Style x:Key="TinyButton" TargetType="Button">
-                <Setter Property="Background" Value="{ThemeResource ButtonBackground}"/>
-                <Setter Property="BorderBrush" Value="{ThemeResource ButtonBorderBrush}"/>
-                <Setter Property="Foreground" Value="{ThemeResource ButtonForeground}"/>
-                <Setter Property="Padding" Value="4,2"/>
+            <Style x:Key="TinyButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                <Setter Property="Padding" Value="6,3"/>
                 <Setter Property="FontSize" Value="11"/>
             </Style>
 
@@ -272,6 +369,14 @@
                 <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             </Style>
 
+            <!-- Suggestion chip: a pill-shaped, clearly interactive prompt that reads
+                 as a distinct "chip" rather than a rectangular action button. -->
+            <Style x:Key="SuggestionChip" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                <Setter Property="CornerRadius" Value="16"/>
+                <Setter Property="Padding" Value="14,8"/>
+                <Setter Property="FontWeight" Value="Normal"/>
+            </Style>
+
             <!-- Small rounded badge for status pills (e.g. "Healthy", "Warning",
                  "Critical"). Consumer sets Foreground + Background per status. -->
             <Style x:Key="StatusBadge" TargetType="Border">
@@ -285,6 +390,91 @@
             <Style x:Key="SectionHeader" TargetType="StackPanel">
                 <Setter Property="Spacing" Value="{StaticResource Space.XS}"/>
                 <Setter Property="Margin" Value="0,4,0,0"/>
+            </Style>
+
+            <!-- Destructive action button (e.g. "Delete" in History). Uses the
+                 semantic ErrorBrush so it is never mistaken for a neutral action,
+                 and degrades to a clearly-disabled red-tint when IsEnabled=false. -->
+            <Style x:Key="DangerButton" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource ErrorBrush}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource ErrorBrush}"/>
+                <Setter Property="Foreground" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="12,8"/>
+                <Setter Property="FontSize" Value="12"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="CornerRadius" Value="4"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <ContentPresenter x:Name="ContentPresenter"
+                                              Background="{TemplateBinding Background}"
+                                              BorderBrush="{TemplateBinding BorderBrush}"
+                                              BorderThickness="{TemplateBinding BorderThickness}"
+                                              CornerRadius="{TemplateBinding CornerRadius}"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              Padding="{TemplateBinding Padding}"
+                                              HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              AutomationProperties.AccessibilityView="Raw">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="Disabled">
+                                            <Storyboard>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ContentPresenter" Storyboard.TargetProperty="Background">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ErrorSubtleBrush}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ContentPresenter" Storyboard.TargetProperty="BorderBrush">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource ErrorSubtleBrush}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ContentPresenter" Storyboard.TargetProperty="Foreground">
+                                                    <DiscreteObjectKeyFrame KeyTime="0" Value="{ThemeResource TextFillColorDisabledBrush}"/>
+                                                </ObjectAnimationUsingKeyFrames>
+                                            </Storyboard>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </ContentPresenter>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Empty-state building blocks: a slightly more visible icon, a full-
+                 strength title, and a constrained, wrapped hint. Applied to the
+                 Duplicates / Cleanup empty states so they read as "ready", not
+                 "broken". -->
+            <Style x:Key="EmptyStatePanel" TargetType="StackPanel">
+                <Setter Property="Spacing" Value="{StaticResource Space.MD}"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+                <Setter Property="Margin" Value="{StaticResource Thickness.XL}"/>
+            </Style>
+            <Style x:Key="EmptyStateIcon" TargetType="FontIcon">
+                <Setter Property="FontSize" Value="{StaticResource Icon.EmptyState}"/>
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Setter Property="Opacity" Value="0.55"/>
+                <Setter Property="HorizontalAlignment" Value="Center"/>
+            </Style>
+            <Style x:Key="EmptyStateTitle" TargetType="TextBlock" BasedOn="{StaticResource Type.SubTitle}">
+                <Setter Property="TextAlignment" Value="Center"/>
+                <Setter Property="Opacity" Value="1.0"/>
+            </Style>
+            <Style x:Key="EmptyStateHint" TargetType="TextBlock" BasedOn="{StaticResource Type.Body}">
+                <Setter Property="TextAlignment" Value="Center"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+                <Setter Property="Opacity" Value="0.85"/>
+                <Setter Property="MaxWidth" Value="420"/>
+            </Style>
+
+            <!-- Filter / option checkbox with a heavier label weight so functional
+                 choices (Include hidden files, Perform cleanup, etc.) read as distinct
+                 interactive controls rather than quiet body text. -->
+            <Style x:Key="FieldCheckBox" TargetType="CheckBox">
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
         </ResourceDictionary>
     </Application.Resources>

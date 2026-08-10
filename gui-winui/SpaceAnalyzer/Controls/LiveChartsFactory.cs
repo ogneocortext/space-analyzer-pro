@@ -34,6 +34,12 @@ public static class LiveChartsFactory
         new(121, 85, 72),     // brown
     ];
 
+    private static readonly SolidColorPaint s_axisLabelPaint =
+        new(new SKColor(214, 219, 226));
+
+    private static readonly SolidColorPaint s_axisSeparatorPaint =
+        new(new SKColor(230, 230, 230, 90));
+
     // ── Bar Chart ──
 
     public static FrameworkElement CreateBarChart(
@@ -71,7 +77,8 @@ public static class LiveChartsFactory
                     Labels = labels,
                     LabelsRotation = 0,
                     TextSize = 11,
-                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230, 140)),
+                    LabelsPaint = s_axisLabelPaint,
+                    SeparatorsPaint = s_axisSeparatorPaint,
                 }
             ],
             YAxes =
@@ -79,7 +86,8 @@ public static class LiveChartsFactory
                 new Axis
                 {
                     TextSize = 11,
-                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230, 140)),
+                    LabelsPaint = s_axisLabelPaint,
+                    SeparatorsPaint = s_axisSeparatorPaint,
                     Labeler = FormatCompact,
                 }
             ],
@@ -156,16 +164,18 @@ public static class LiveChartsFactory
                 {
                     Labels = labels,
                     LabelsRotation = 0,
-                    TextSize = 10,
-                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230, 140)),
+                    TextSize = 11,
+                    LabelsPaint = s_axisLabelPaint,
+                    SeparatorsPaint = s_axisSeparatorPaint,
                 }
             ],
             YAxes =
             [
                 new Axis
                 {
-                    TextSize = 10,
-                    SeparatorsPaint = new SolidColorPaint(new SKColor(230, 230, 230, 140)),
+                    TextSize = 11,
+                    LabelsPaint = s_axisLabelPaint,
+                    SeparatorsPaint = s_axisSeparatorPaint,
                     Labeler = FormatBytes,
                 }
             ],

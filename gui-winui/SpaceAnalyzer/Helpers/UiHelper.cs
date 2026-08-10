@@ -113,6 +113,14 @@ public static class UiHelper
         return GlobalMemoryStatusEx(ref memStatus);
     }
 
+    /// <summary>
+    /// Managed mirror of the Win32 MEMORYSTATUSEX structure. Every field must be
+    /// present and in order: <c>GlobalMemoryStatusEx</c> validates <c>dwLength</c>
+    /// against <c>sizeof(MEMORYSTATUSEX)</c> (64 bytes) and fails with
+    /// ERROR_INVALID_PARAMETER when it does not match, which silently zeroed every
+    /// memory gauge while the struct was missing <c>ullAvailPageFile</c> and
+    /// <c>ullTotalVirtual</c>.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public struct MemoryStatusEx
     {
@@ -121,6 +129,8 @@ public static class UiHelper
         public ulong ullTotalPhys;
         public ulong ullAvailPhys;
         public ulong ullTotalPageFile;
+        public ulong ullAvailPageFile;
+        public ulong ullTotalVirtual;
         public ulong ullAvailVirtual;
         public ulong ullAvailExtendedVirtual;
     }

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### History, Duplicates & Dashboard Resource-Correlation (this session)
+
+- **History → Delete Duplicate Scans** — added `ScannerService.PruneDuplicateScansAsync` (CLI `history --prune`) and `HistoryViewModel.PruneDuplicateScansAsync`; wired a DangerButton + confirmation `ContentDialog` on `HistoryPage`. Keeps the newest record per (path, size, file count).
+- **History detail Pivot + per-scan breakdown** — added `TopDirectoriesView` / `ExtensionBreakdown` (with `ExtensionStat`), Overview / Largest Files / Folders / File Types tabs, file-list sort (size/name) and live filter, copy-path button, and an Escape-to-back `KeyboardAccelerator`.
+- **History multi-select comparison** — `CompareCardModel` computes baseline deltas (size / files / duration) across up to N selected scans with side-by-side cards.
+- **Duplicates UX** — sort (Wasted / Size / Copies via `SortKey` / `SortIndex` / `SortedGroups`), per-group selection + Select All, and "Remove Selected (N)" with confirmation; deletion keeps one copy per group, then auto re-runs analysis. Fixed `SelectAll` so per-group checkboxes visually refresh (the model has no `INotifyPropertyChanged`).
+- **Dashboard "Scanner Impact" panel** — new `ScanActivityMonitor` singleton lets any scan (Quick Scan, Scan page, dedup, cleanup, AI assistant) be correlated with live CPU / memory / GPU / disk samples; a translucent band marks scan windows on the sparklines and a panel shows scan-vs-idle averages per resource.
+- Added `ScanImpactInfo` model; wired `ScannerService.ScanDirectoryAsync` / `ScanDirectoryStreamingAsync` / `RunDedupAnalysisAsync` / `RunCleanupAnalysisAsync` to open/close scan windows.
+
 ### CLI ↔ WinUI 3 Integration Gap Fixes
 
 - **Added `potential_cleanup_bytes` and `timestamp` to AI tool responses** — `ToolExecutor.GetScanSummaryAsync` and `ToolExecutor.RunScanAsync` now surface reclaimable bytes and scan timestamp to the AI assistant, matching the data available in `ScanResult`.
@@ -9,6 +18,20 @@
 - **Fixed `GetLargestFilesAsync` client-side result limiting** — the `--top` CLI flag has no effect on JSON output, so the C# tool was returning all 50 files regardless of the requested count. Rewrote to parse JSON and apply `.Take(count)` client-side.
 - **Exposed `PotentialCleanupDisplay` and `ResultTimestampDisplay` to the Scan page UI** — added computed properties to `ScanViewModel` with `OnPropertyChanged` notifications in all 4 UI-update locations (progress callback, `LastResult` setter, `IsStreaming` setter, `ScanAsync` finally block).
 - **Added `PotentialCleanupBytes`, `Timestamp`, and `PotentialCleanupDisplay` to `ScanResult.cs` model** — enables non-streaming scan results to display cleanup estimates and scan time.
+
+### Dashboard Analysis Panels (bloat / recommendations / forecast)
+
+- **Bloat Detection panel (gap 2.2)** — `Helpers/AnalysisEngine.GetBloatFindings()` mirrors the Rust `offline_ai.rs` classifier (large videos >500 MB, cache/temp, installers, AI model weights, node_modules) and renders a card on the Dashboard from the latest scan's largest files / top directories.
+- **Cleanup Recommendations panel (gap 2.4)** — `AnalysisEngine.GetRecommendations()` mirrors `cli/recommendations.rs` (cache/temp folders, old installers, AI models, pip cache, node_modules) and renders a prioritized card with estimated reclaimable bytes per action.
+- **Storage Forecast panel (gap 2.3)** — `AnalysisEngine.PredictStorage()` runs linear regression over scan history and shows current size, projected size in 30 days, and GB/day growth rate; shows a "not enough history" note until ≥2 scans exist.
+- New models `AnalysisModels.cs` (`Recommendation`, `BloatFinding`, `StoragePrediction`) and `Helpers/PriorityToBrushConverter` (priority → badge color); all three panels live on `DashboardPage.xaml`, populated by `DashboardViewModel.LoadAnalysisPanels()`.
+
+### GPU Acceleration & Deduplication Controls
+
+- **GPU acceleration is now a real toggle (Rust CLI)** — added `--no-gpu` to `scan` and `dedup` subcommands. `DeduplicationConfig.use_gpu` gates `BatchHasher::with_gpu()`, so the Settings → Advanced "GPU acceleration" switch actually forces CPU hashing when off.
+- **Real hard-link deduplication from the CLI** — `dedup` gained `--apply` (create hard links instead of dry-run), `--min-size`, and `--max-size`. The JSON output now reports `files_processed`, `space_saved_bytes`, and `errors` on apply.
+- **WinUI GPU toggle wired end-to-end** — `ScanViewModel` reads the global `gpu_acceleration` setting into `ScannerService.GpuAcceleration`; both streaming and non-streaming scans pass `--no-gpu` when disabled. `ScannerService.RunDedupAnalysisAsync` accepts `apply`/`useGpu` and maps the new result fields into `DedupResult` (`FilesProcessed`, `SpaceSavedBytes`, `Errors`).
+- **Export format selector extended** — added `html` to the export formats; `ScannerService.ExportScanResultAsync` now produces a styled self-contained HTML report (joining the existing json/csv/md options already wired to the Scan page ComboBox).
 
 ### Data Streaming — Real-time File Type & Category Distribution
 

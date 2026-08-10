@@ -33,7 +33,7 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0" Text="{x:Bind VM.ScanPath, Mode=TwoWay}" PlaceholderText="Select a directory to analyze..." AutomationProperties.Name="Scan directory path"/>
+                             <TextBox Grid.Column="0" Text="{x:Bind VM.ScanPath, Mode=TwoWay}" PlaceholderText="Select a directory to analyze..." AutomationProperties.Name="Scan directory path" Style="{StaticResource FieldTextBox}"/>
                             <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Browse"/>
                             <Button Grid.Column="2" Content="Open" Click="OpenScanPath_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Open scan path"/>
                         </Grid>
@@ -52,6 +52,30 @@
                 <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.LG}">
                         <TextBlock Text="Analysis Results" Style="{StaticResource Type.CardTitle}" />
+
+                        <!-- Sort + bulk selection controls -->
+                        <Grid ColumnSpacing="{StaticResource Space.MD}" RowSpacing="{StaticResource Space.SM}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Sort by" VerticalAlignment="Center" Style="{StaticResource Type.Caption}"/>
+                            <ComboBox Grid.Column="1" SelectedIndex="{x:Bind VM.SortIndex, Mode=TwoWay}" VerticalAlignment="Center" AutomationProperties.Name="Sort groups by">
+                                <x:String>Wasted space</x:String>
+                                <x:String>File size</x:String>
+                                <x:String>Copies</x:String>
+                            </ComboBox>
+                            <CheckBox Grid.Column="2" Content="Select all"
+                                      Checked="SelectAll_Click" Unchecked="SelectAll_Click"
+                                      Style="{StaticResource FieldCheckBox}" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                            <Button Grid.Column="3" Content="{x:Bind VM.SelectedCount, Mode=OneWay, Converter={StaticResource SelectedCountToLabel}}"
+                                    Click="RemoveSelected_Click" IsEnabled="{x:Bind VM.HasSelection, Mode=OneWay}"
+                                    Style="{StaticResource DangerButton}" VerticalAlignment="Center"/>
+                            <ProgressRing Grid.Column="4" Width="18" Height="18" IsActive="{x:Bind VM.IsRemoving, Mode=OneWay}" Visibility="{x:Bind VM.IsRemoving, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" VerticalAlignment="Center"/>
+                        </Grid>
 
                         <!-- Summary Stats -->
                         <Grid ColumnSpacing="{StaticResource Space.XXL}">
@@ -93,7 +117,7 @@
 
                         <!-- Duplicate Groups List -->
                         <TextBlock Text="Duplicate Groups" Style="{StaticResource Type.SubTitle}" Margin="0,16,0,0"/>
-                        <ItemsRepeater ItemsSource="{x:Bind VM.DuplicateGroups, Mode=OneWay}">
+                        <ItemsRepeater ItemsSource="{x:Bind VM.SortedGroups, Mode=OneWay}">
                             <ItemsRepeater.Layout>
                                 <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.MD}"/>
                             </ItemsRepeater.Layout>
@@ -106,17 +130,34 @@
                                             </TransitionCollection>
                                         </Border.Transitions>
                                         <StackPanel Spacing="{StaticResource Space.SM}">
-                                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
-                                                <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind Hash, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Style="{StaticResource Type.Body}" Text="{x:Bind SizeDisplay, Mode=OneTime}" Opacity="0.8"/>
-                                            </StackPanel>
-                                            <TextBlock Style="{StaticResource Type.Body}" Opacity="0.8">
-                                                <Run Text="{x:Bind FileCount, Mode=OneTime}"/>
-                                                <Run Text=" copies"/>
-                                                <Run Text=" · "/>
-                                                <Run Text="{x:Bind WastedDisplay, Mode=OneTime}"/>
-                                                <Run Text=" wasted"/>
-                                            </TextBlock>
+                                            <Grid ColumnSpacing="{StaticResource Space.MD}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <CheckBox Grid.Column="0"
+                                                          IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
+                                                          Checked="GroupCheck_Changed" Unchecked="GroupCheck_Changed"
+                                                          Style="{StaticResource FieldCheckBox}" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
+                                                    <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind PrimaryName, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Style="{StaticResource Type.Body}" Opacity="0.8">
+                                                        <Run Text="{x:Bind FileCount, Mode=OneTime}"/>
+                                                        <Run Text=" copies"/>
+                                                        <Run Text=" · "/>
+                                                        <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
+                                                        <Run Text=" each · "/>
+                                                        <Run Text="{x:Bind WastedDisplay, Mode=OneTime}"/>
+                                                        <Run Text=" wasted"/>
+                                                    </TextBlock>
+                                                    <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.55" FontFamily="Consolas">
+                                                        <Run Text="hash "/>
+                                                        <Run Text="{x:Bind HashShort, Mode=OneTime}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Style="{StaticResource Type.SubTitle}" Text="{x:Bind WastedDisplay, Mode=OneTime}" VerticalAlignment="Center"/>
+                                            </Grid>
                                             <ItemsRepeater ItemsSource="{x:Bind Files, Mode=OneTime}">
                                                 <ItemsRepeater.ItemTemplate>
                                                     <DataTemplate x:DataType="x:String">
@@ -138,10 +179,10 @@
 
                 <!-- Empty State -->
                 <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
-                    <StackPanel Spacing="{StaticResource Space.MD}" HorizontalAlignment="Center">
-                        <FontIcon Glyph="&#xEB9F;" FontSize="{StaticResource Icon.EmptyState}" Opacity="{StaticResource Icon.EmptyStateOpacity}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="No duplicates found" Style="{StaticResource Type.CardTitle}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Select a directory and click Analyze Duplicates to get started." Style="{StaticResource Type.Body}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                    <StackPanel Style="{StaticResource EmptyStatePanel}">
+                        <FontIcon Glyph="&#xEB9F;" Style="{StaticResource EmptyStateIcon}"/>
+                        <TextBlock Text="Ready to find duplicates" Style="{StaticResource EmptyStateTitle}"/>
+                        <TextBlock Text="Select a directory and click Analyze Duplicates to get started." Style="{StaticResource EmptyStateHint}"/>
                     </StackPanel>
                 </Border>
 

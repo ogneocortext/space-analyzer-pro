@@ -132,25 +132,33 @@ public static class SettingsStore
 
     private static void ScheduleDbSave()
     {
-        s_saveCts?.Cancel();
-        s_saveCts = new CancellationTokenSource();
-        var ct = s_saveCts.Token;
-
+        // The Tick handler is attached exactly once when the timer is first created;
+        // re-arming only restarts the debounce interval. Attaching inside this method
+        // (the previous behavior) stacked a new handler on every Set() call on the
+        // reused timer, so N edits spawned N handlers that each flushed on one tick.
         if (s_saveTimer is null)
         {
-            s_saveTimer = DispatcherQueue.GetForCurrentThread()?.CreateTimer();
+            var dq = DispatcherQueue.GetForCurrentThread();
+            s_saveTimer = dq?.CreateTimer();
             if (s_saveTimer is null)
                 return; // No dispatcher on this thread — skip debounced persist.
+            s_saveTimer.Tick += OnSaveTimerTick;
         }
-        var timer = s_saveTimer;
-        timer.Stop();
-        timer.Interval = TimeSpan.FromMilliseconds(500);
-        timer.Tick += async (sender, args) =>
-        {
-            timer.Stop();
-            await FlushCore(ct);
-        };
-        timer.Start();
+
+        // (Re)arm the debounce with a fresh cancellation token for this edit.
+        s_saveCts?.Cancel();
+        s_saveCts = new CancellationTokenSource();
+
+        s_saveTimer.Stop();
+        s_saveTimer.Interval = TimeSpan.FromMilliseconds(500);
+        s_saveTimer.Start();
+    }
+
+    private static async void OnSaveTimerTick(object? sender, object e)
+    {
+        s_saveTimer?.Stop();
+        var ct = s_saveCts?.Token ?? CancellationToken.None;
+        await FlushCore(ct);
     }
 
     private static async Task FlushCore(CancellationToken ct)

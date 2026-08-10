@@ -38,7 +38,12 @@ public class ScanResult
     /// into <see cref="ScannedFileEntry"/>. (System.Text.Json cannot deserialize JSON
     /// arrays into C# tuples, so a populated map would throw without the converter.)
     /// </summary>
-    [JsonIgnore]
+    // The Rust scanner emits `scanned_files` as a map of {path: [size, mtime]};
+    // ScannedFileConverter reads each value into a ScannedFileEntry. This MUST be
+    // deserialized: the Workflows page and Smart Search iterate it for per-file
+    // matching, and without it those workflows return 0 results whenever the
+    // scanner is available (they never fall back to the managed walk).
+    [JsonPropertyName("scanned_files")]
     public Dictionary<string, ScannedFileEntry> ScannedFiles { get; set; } = new();
 }
 
@@ -83,6 +88,28 @@ public class DirEntry
     public ulong DirCount { get; set; }
     [JsonIgnore]
     public string SizeDisplay => ByteFormatter.FormatBytes(TotalSize);
+}
+
+/// <summary>
+/// Aggregated size for a single file extension, used by the history detail
+/// view's "File Types" breakdown.
+/// </summary>
+public class ExtensionStat
+{
+    public string Extension { get; }
+    public ulong Size { get; }
+    public double Percent { get; }
+    [JsonIgnore]
+    public string SizeDisplay => ByteFormatter.FormatBytes(Size);
+    [JsonIgnore]
+    public string PercentDisplay => $"{Percent:F1}%";
+
+    public ExtensionStat(string extension, ulong size, double percent)
+    {
+        Extension = string.IsNullOrWhiteSpace(extension) ? "(none)" : extension;
+        Size = size;
+        Percent = percent;
+    }
 }
 
 /// <summary>

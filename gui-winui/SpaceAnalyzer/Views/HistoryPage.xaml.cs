@@ -23,13 +23,16 @@ public sealed partial class HistoryPage : Page
         DataContext = VM;
         ViewModelRegistry.Register(VM);
         AppLog.Page("HistoryPage ctor end");
-        VM.PropertyChanged += OnVmPropertyChanged;
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
         AppLog.Page("HistoryPage OnNavigatedTo");
+        // (Re)subscribe here rather than in the ctor: the page is cached
+        // (NavigationCacheMode=Required), so the ctor runs once but OnNavigatedFrom
+        // unsubscribes. Subscribing on every navigation keeps the trend chart in sync.
+        VM.PropertyChanged += OnVmPropertyChanged;
         _ = ReloadCurrentPageAsync();
     }
 
@@ -145,6 +148,38 @@ public sealed partial class HistoryPage : Page
         VM.ToggleSort("total_size_bytes");
     }
 
+    private void SortFiles_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage SortFiles_Click");
+        VM.ToggleSort("total_files");
+    }
+
+    // ── Multi-select comparison ──
+
+    private void CompareCheck_Changed(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage CompareCheck_Changed");
+        VM.NotifyCompareSelectionChanged();
+    }
+
+    private void CompareCheck_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        // Stop the tap from bubbling to the card Border (which opens details).
+        e.Handled = true;
+    }
+
+    private void Compare_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage Compare_Click");
+        VM.OpenComparison();
+    }
+
+    private void ClearComparison_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage ClearComparison_Click");
+        VM.ClearComparison();
+    }
+
     // ── Navigation ──
 
     private async void Refresh_Click(object sender, RoutedEventArgs e)
@@ -196,6 +231,24 @@ public sealed partial class HistoryPage : Page
         await VM.DeleteHistoryAsync(id);
     }
 
+    private async void DeleteDuplicates_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage DeleteDuplicates_Click");
+        var dialog = new ContentDialog
+        {
+            Title = "Delete duplicate scans",
+            Content = "Remove duplicate scan records, keeping only the newest entry for each directory? This cannot be undone.",
+            PrimaryButtonText = "Delete Duplicates",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+        dialog.XamlRoot = this.XamlRoot;
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            return;
+
+        await VM.PruneDuplicateScansAsync();
+    }
+
     private async void ViewDetails_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("HistoryPage ViewDetails_Click");
@@ -213,6 +266,27 @@ public sealed partial class HistoryPage : Page
     {
         AppLog.Action("HistoryPage BackToList_Click");
         VM.BackToList();
+    }
+
+    private void Escape_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (VM.HasSelectedRecord)
+        {
+            args.Handled = true;
+            VM.BackToList();
+        }
+    }
+
+    private void CopyPath_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage CopyPath_Click");
+        if (sender is not Button { Tag: string path } || string.IsNullOrEmpty(path))
+            return;
+
+        var data = new Windows.ApplicationModel.DataTransfer.DataPackage();
+        data.SetText(path);
+        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(data);
+        AppNotifications.Success("Path copied", path);
     }
 
     private async void ScanCard_Tapped(object sender, TappedRoutedEventArgs e)

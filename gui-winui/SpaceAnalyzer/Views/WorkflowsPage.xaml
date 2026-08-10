@@ -34,26 +34,71 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <Border Style="{StaticResource CompactItemCard}">
-                                <StackPanel Spacing="{StaticResource Space.XS}">
-                                    <FontIcon Glyph="&#xE7C3;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                    <TextBlock Text="Find Large Files" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Locate files larger than a threshold" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
-                                </StackPanel>
+                            <Border Style="{StaticResource CompactItemCard}"
+                                    Tag="large-files"
+                                    Tapped="WorkflowCard_Tapped"
+                                    ToolTipService.ToolTip="Click to select this workflow"
+                                    Background="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBrush}, ConverterParameter='large-files'}"
+                                    BorderBrush="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBorder}, ConverterParameter='large-files'}">
+                                <Grid ColumnSpacing="{StaticResource Space.MD}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE7C3;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
+                                        <TextBlock Text="Find Large Files" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Locate files larger than a threshold" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                    </StackPanel>
+                                    <FontIcon Grid.Column="2" Glyph="&#xE73E;" FontSize="{StaticResource Icon.Small}"
+                                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top"
+                                              Visibility="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdVisibility}, ConverterParameter='large-files'}"/>
+                                </Grid>
                             </Border>
-                            <Border Style="{StaticResource CompactItemCard}">
-                                <StackPanel Spacing="{StaticResource Space.XS}">
-                                    <FontIcon Glyph="&#xE7F6;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                    <TextBlock Text="Find Empty Dirs" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Locate directories with no files" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
-                                </StackPanel>
+                            <Border Style="{StaticResource CompactItemCard}"
+                                    Tag="empty-dirs"
+                                    Tapped="WorkflowCard_Tapped"
+                                    ToolTipService.ToolTip="Click to select this workflow"
+                                    Background="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBrush}, ConverterParameter='empty-dirs'}"
+                                    BorderBrush="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBorder}, ConverterParameter='empty-dirs'}">
+                                <Grid ColumnSpacing="{StaticResource Space.MD}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE7F6;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
+                                        <TextBlock Text="Find Empty Dirs" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Locate directories with no files" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                    </StackPanel>
+                                    <FontIcon Grid.Column="2" Glyph="&#xE73E;" FontSize="{StaticResource Icon.Small}"
+                                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top"
+                                              Visibility="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdVisibility}, ConverterParameter='empty-dirs'}"/>
+                                </Grid>
                             </Border>
-                            <Border Style="{StaticResource CompactItemCard}">
-                                <StackPanel Spacing="{StaticResource Space.XS}">
-                                    <FontIcon Glyph="&#xE8ED;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                    <TextBlock Text="Find Duplicates" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Scan for duplicate files by hash" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
-                                </StackPanel>
+                            <Border Style="{StaticResource CompactItemCard}"
+                                    Tag="duplicate-files"
+                                    Tapped="WorkflowCard_Tapped"
+                                    ToolTipService.ToolTip="Click to select this workflow"
+                                    Background="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBrush}, ConverterParameter='duplicate-files'}"
+                                    BorderBrush="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdBorder}, ConverterParameter='duplicate-files'}">
+                                <Grid ColumnSpacing="{StaticResource Space.MD}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <FontIcon Grid.Column="0" Glyph="&#xE8ED;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                                    <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
+                                        <TextBlock Text="Find Duplicates" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="Scan for duplicate files by hash" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                    </StackPanel>
+                                    <FontIcon Grid.Column="2" Glyph="&#xE73E;" FontSize="{StaticResource Icon.Small}"
+                                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top"
+                                              Visibility="{x:Bind VM.SelectedTemplate.Id, Mode=OneWay, Converter={StaticResource SelectedIdVisibility}, ConverterParameter='duplicate-files'}"/>
+                                </Grid>
                             </Border>
                         </Grid>
 
@@ -70,10 +115,11 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0"
-                                     Text="{x:Bind VM.TargetPath, Mode=TwoWay}"
-                                     PlaceholderText="Select a directory..."
-                                     AutomationProperties.Name="Target directory"/>
+                             <TextBox Grid.Column="0"
+                                      Text="{x:Bind VM.TargetPath, Mode=TwoWay}"
+                                      PlaceholderText="Select a directory..."
+                                      AutomationProperties.Name="Target directory"
+                                      Style="{StaticResource FieldTextBox}"/>
                             <Button Grid.Column="1"
                                     Content="Browse"
                                     Click="Browse_Click"

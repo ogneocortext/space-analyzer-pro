@@ -144,7 +144,7 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
             "Find files within a specified size range.",
             "\uE747", "size-range"));
         Templates.Add(new WorkflowTemplate("Find by Date Range",
-            "Find files created or modified within a date range.",
+            "Find files modified within the last N days (recency filter). For an explicit start/end range, use the Smart Search page.",
             "\uE787", "date-range"));
         Templates.Add(new WorkflowTemplate("Find Files Older Than",
             "Find files older than a specified number of days.",
@@ -190,7 +190,12 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
             StatusMessage = "Please select a valid target directory.";
             return;
         }
-        if (MinSizeMb == 0)
+
+        // Only size-based workflows require a minimum size. Blocking extension / hidden /
+        // read-only / orphaned workflows when MinSizeMb is 0 would wrongly prevent them
+        // from running (0 is a valid "no minimum" for those).
+        var sizeBasedTemplates = new HashSet<string> { "large-files", "size-range", "downloads-bloat" };
+        if (sizeBasedTemplates.Contains(SelectedTemplate.Id) && MinSizeMb == 0)
         {
             StatusMessage = "Min Size must be at least 1 MB.";
             return;
@@ -327,16 +332,19 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
                     var minBytes = MinSizeMb * 1024 * 1024;
                     var collected = new List<SmartSearchResult>();
 
-                    foreach (var dir in result.TopDirectories)
+                    // Match individual files by size (not directories). The scanner emits a
+                    // full scanned_files map, so this finds the actual large files rather
+                    // than large folders.
+                    foreach (var kvp in result.ScannedFiles)
                     {
-                        if (dir.TotalSize >= minBytes)
+                        if (kvp.Value.Size >= minBytes)
                         {
                             collected.Add(new SmartSearchResult
                             {
-                                Path = dir.Path,
-                                Name = dir.Name,
-                                SizeBytes = dir.TotalSize,
-                                SizeDisplay = ByteFormatter.FormatBytes(dir.TotalSize)
+                                Path = kvp.Key,
+                                Name = Path.GetFileName(kvp.Key) ?? kvp.Key,
+                                SizeBytes = kvp.Value.Size,
+                                SizeDisplay = ByteFormatter.FormatBytes(kvp.Value.Size)
                             });
                         }
                     }

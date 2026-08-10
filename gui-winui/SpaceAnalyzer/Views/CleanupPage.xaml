@@ -32,7 +32,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0" Text="{x:Bind VM.TargetPath, Mode=TwoWay}" PlaceholderText="Select a directory to analyze..." AutomationProperties.Name="Target directory"/>
+                             <TextBox Grid.Column="0" Text="{x:Bind VM.TargetPath, Mode=TwoWay}" PlaceholderText="Select a directory to analyze..." AutomationProperties.Name="Target directory" Style="{StaticResource FieldTextBox}"/>
                             <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Browse"/>
                         </Grid>
                     </StackPanel>
@@ -72,7 +72,10 @@
                                 </TextBox>
                             </StackPanel>
                         </Grid>
-                        <CheckBox Content="Perform cleanup (delete files)" IsChecked="{x:Bind VM.PerformCleanup, Mode=TwoWay}"/>
+                        <CheckBox Content="Perform cleanup (delete files)" IsChecked="{x:Bind VM.PerformCleanup, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
+                        <TextBlock Text="Off by default. When enabled, matching files are permanently deleted — review the candidates list before running."
+                                   Style="{StaticResource Type.Hint}"/>
+
                     </StackPanel>
                 </Border>
 
@@ -186,12 +189,15 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Empty State -->
+                <!-- Empty State (results placeholder — mirrors the results card) -->
                 <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
-                    <StackPanel Spacing="{StaticResource Space.MD}" HorizontalAlignment="Center">
-                        <FontIcon Glyph="&#xEB9F;" FontSize="{StaticResource Icon.EmptyState}" Opacity="{StaticResource Icon.EmptyStateOpacity}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="No cleanup results yet" Style="{StaticResource Type.CardTitle}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Select a directory and click Analyze to find node_modules to clean up." Style="{StaticResource Type.Body}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                    <StackPanel Spacing="{StaticResource Space.LG}">
+                        <TextBlock Text="Analysis Results" Style="{StaticResource Type.CardTitle}"/>
+                        <StackPanel Style="{StaticResource EmptyStatePanel}">
+                            <FontIcon Glyph="&#xEB9F;" Style="{StaticResource EmptyStateIcon}"/>
+                            <TextBlock Text="No cleanup results yet" Style="{StaticResource EmptyStateTitle}"/>
+                            <TextBlock Text="Select a directory and click Analyze to find node_modules to clean up." Style="{StaticResource EmptyStateHint}"/>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

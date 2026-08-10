@@ -31,19 +31,21 @@
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0"
-                                     Text="{x:Bind VM.SearchPath, Mode=TwoWay}"
-                                     PlaceholderText="Select a directory to search..."
-                                     AutomationProperties.Name="Search path"/>
+                             <TextBox Grid.Column="0"
+                                      Text="{x:Bind VM.SearchPath, Mode=TwoWay}"
+                                      PlaceholderText="Select a directory to search..."
+                                      AutomationProperties.Name="Search path"
+                                      Style="{StaticResource FieldTextBox}"/>
                             <Button Grid.Column="1" Content="Browse" Click="Browse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Browse"/>
                             <Button Grid.Column="2" Content="Open" Click="OpenSearchPath_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Open search path"/>
                         </Grid>
 
                         <StackPanel Spacing="{StaticResource Space.SM}" Margin="0,8,0,0">
                             <TextBlock Text="Search Query" Style="{StaticResource Type.SubTitle}"/>
-                            <TextBox Text="{x:Bind VM.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     PlaceholderText="Enter file/folder name to search for..."
-                                     AutomationProperties.Name="Search query"/>
+                             <TextBox Text="{x:Bind VM.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      PlaceholderText="Enter file/folder name to search for..."
+                                      AutomationProperties.Name="Search query"
+                                      Style="{StaticResource FieldTextBox}"/>
                         </StackPanel>
 
                         <Grid Margin="0,8,0,0" ColumnSpacing="{StaticResource Space.XXL}">
@@ -69,13 +71,13 @@
                             <StackPanel Grid.Column="1" Spacing="{StaticResource Space.SM}">
                                 <CheckBox Content="Match exact name"
                                           IsChecked="{x:Bind VM.MatchExact, Mode=TwoWay}"
-                                          FontSize="12"/>
+                                          Style="{StaticResource FieldCheckBox}"/>
                                 <CheckBox Content="Use wildcards (*)"
                                           IsChecked="{x:Bind VM.UseWildcards, Mode=TwoWay}"
-                                          FontSize="12"/>
+                                          Style="{StaticResource FieldCheckBox}"/>
                                 <CheckBox Content="Include hidden files"
                                           IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"
-                                          FontSize="12"/>
+                                          Style="{StaticResource FieldCheckBox}"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>

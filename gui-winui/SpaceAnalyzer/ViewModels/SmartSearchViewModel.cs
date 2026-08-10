@@ -158,16 +158,19 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
             var minSizeBytes = MinSizeMb * 1024 * 1024;
             var collected = new List<SmartSearchResult>();
 
-            foreach (var dir in result.TopDirectories)
+            // Match against actual files (the scanner's scanned_files map), not just
+            // top-level directories, so a file-name query returns real hits.
+            foreach (var kvp in result.ScannedFiles)
             {
-                if (match(dir.Name) && dir.TotalSize >= minSizeBytes)
+                var name = Path.GetFileName(kvp.Key);
+                if (match(name) && kvp.Value.Size >= minSizeBytes)
                 {
                     collected.Add(new SmartSearchResult
                     {
-                        Path = dir.Path,
-                        Name = dir.Name,
-                        SizeBytes = dir.TotalSize,
-                        SizeDisplay = ByteFormatter.FormatBytes(dir.TotalSize)
+                        Path = kvp.Key,
+                        Name = name,
+                        SizeBytes = kvp.Value.Size,
+                        SizeDisplay = ByteFormatter.FormatBytes(kvp.Value.Size)
                     });
                 }
             }

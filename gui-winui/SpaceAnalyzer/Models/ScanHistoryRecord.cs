@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using SpaceAnalyzer.Helpers;
 
 namespace SpaceAnalyzer.Models;
@@ -71,6 +72,21 @@ public class ScanHistoryRecord
     public string DurationDisplay => $"{(int)DurationSecs / 60}m {(int)DurationSecs % 60}s";
     public string FilesDisplay => $"{TotalFiles:N0} files";
     public string PotentialCleanupDisplay => ByteFormatter.FormatBytes(PotentialCleanupBytes);
+
+    /// <summary>
+    /// Transient UI flag: true when this record's directory also appears
+    /// elsewhere in the currently loaded history view (i.e. it is a redundant
+    /// scan). Not serialized.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsDuplicateView { get; set; }
+
+    /// <summary>
+    /// Transient UI flag: true when this record is ticked for multi-select
+    /// comparison. Not serialized.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsCompareSelected { get; set; }
 }
 
 /// <summary>

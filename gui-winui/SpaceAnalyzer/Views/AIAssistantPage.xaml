@@ -161,11 +161,11 @@
                     <TextBlock Text="Try asking:" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
                         <Button Content="What takes up the most space?" Click="SuggestedPrompt_Click"
-                                Style="{StaticResource SmallButton}" Tag="What takes up the most space?"/>
+                                Style="{StaticResource SuggestionChip}" Tag="What takes up the most space?"/>
                         <Button Content="Summarize my disk usage" Click="SuggestedPrompt_Click"
-                                Style="{StaticResource SmallButton}" Tag="Summarize my disk usage"/>
+                                Style="{StaticResource SuggestionChip}" Tag="Summarize my disk usage"/>
                         <Button Content="Find cleanup opportunities" Click="SuggestedPrompt_Click"
-                                Style="{StaticResource SmallButton}" Tag="Find cleanup opportunities"/>
+                                Style="{StaticResource SuggestionChip}" Tag="Find cleanup opportunities"/>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
@@ -178,13 +178,14 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBox Grid.Column="0"
-                     Text="{x:Bind VM.InputText, Mode=TwoWay}"
-                     PlaceholderText="Ask about your disk usage..."
-                     AcceptsReturn="True"
-                     KeyDown="Input_KeyDown"
-                     IsEnabled="{x:Bind VM.IsNotBusy, Mode=OneWay}"
-                     AutomationProperties.Name="Chat message input"/>
+             <TextBox Grid.Column="0"
+                      Text="{x:Bind VM.InputText, Mode=TwoWay}"
+                      PlaceholderText="Ask about your disk usage..."
+                      AcceptsReturn="True"
+                      KeyDown="Input_KeyDown"
+                      IsEnabled="{x:Bind VM.IsNotBusy, Mode=OneWay}"
+                      AutomationProperties.Name="Chat message input"
+                      Style="{StaticResource FieldTextBox}"/>
             <Button Grid.Column="1"
                     Content="Send"
                     Click="Send_Click"

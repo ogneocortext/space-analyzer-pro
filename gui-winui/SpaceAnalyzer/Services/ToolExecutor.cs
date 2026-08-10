@@ -969,7 +969,7 @@ public class ToolExecutor : IDisposable
         if (!args.TryGetValue(key, out var v))
             return string.Empty;
         if (v is JsonElement je)
-            return je.ValueKind == JsonValueKind.String ? je.GetString()! : je.GetRawText();
+            return JsonElementToString(je);
         return v?.ToString() ?? string.Empty;
     }
 
@@ -978,8 +978,26 @@ public class ToolExecutor : IDisposable
         if (!args.TryGetValue(key, out var v))
             return null;
         if (v is JsonElement je)
-            return je.ValueKind == JsonValueKind.String ? je.GetString() : je.GetRawText();
+            return JsonElementToString(je);
         return v?.ToString();
+    }
+
+    /// <summary>
+    /// Returns a JsonElement's value as a plain string. String kinds return their text;
+    /// numbers/booleans are coerced to their textual form (e.g. "100", "true") instead of
+    /// the raw JSON token, so downstream string consumers never receive a JSON literal
+    /// like <c>123</c> or <c>true</c> that they would then mishandle.
+    /// </summary>
+    private static string JsonElementToString(JsonElement je)
+    {
+        return je.ValueKind switch
+        {
+            JsonValueKind.String => je.GetString() ?? string.Empty,
+            JsonValueKind.True => "true",
+            JsonValueKind.False => "false",
+            JsonValueKind.Number => je.GetRawText(),
+            _ => je.GetRawText(),
+        };
     }
 
     private static int GetInt(Dictionary<string, object> args, string key, int defaultValue)

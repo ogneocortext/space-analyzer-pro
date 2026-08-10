@@ -20,10 +20,11 @@
                     <TextBlock Text="Monitor CPU, memory, disk volumes, and top processes in real time." Style="{StaticResource Type.Body}"/>
                 </StackPanel>
 
-                <!-- CPU & Memory -->
+                <!-- CPU, Memory & GPU -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
                     <Grid ColumnSpacing="{StaticResource Space.XXL}">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
@@ -57,6 +58,41 @@
                                        Style="{StaticResource Type.StatValue}" HorizontalAlignment="Center"/>
                             <TextBlock Text="Usage" Style="{StaticResource Type.Caption}" Opacity="0.7" HorizontalAlignment="Center"/>
                         </StackPanel>
+
+                        <!-- GPU -->
+                        <StackPanel Grid.Column="2" Spacing="{StaticResource Space.MD}">
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
+                                <FontIcon Glyph="&#xF211;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center"
+                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                <TextBlock Text="GPU" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Available: live gauge + percentage -->
+                            <StackPanel Spacing="{StaticResource Space.MD}"
+                                        Visibility="{x:Bind VM.GpuAvailable, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                <ProgressBar x:Name="GpuBar" Value="{x:Bind VM.GpuUsage, Mode=OneWay}"
+                                             Maximum="100" Style="{StaticResource StandardProgressBar}"
+                                             Foreground="{x:Bind VM.GpuBrush, Mode=OneWay}" />
+                                <TextBlock Text="{x:Bind VM.GpuUsageDisplay, Mode=OneWay}"
+                                            Style="{StaticResource Type.StatValue}" HorizontalAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Unavailable: explicit status instead of a bare "n/a" -->
+                            <Border BorderBrush="{ThemeResource SystemFillColorCautionBrush}"
+                                    BorderThickness="1" CornerRadius="8"
+                                    Padding="{StaticResource Thickness.MD}"
+                                    Visibility="{x:Bind VM.GpuAvailable, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
+                                <StackPanel Spacing="{StaticResource Space.SM}">
+                                    <FontIcon Glyph="&#xE7BA;" FontSize="{StaticResource Icon.Small}" HorizontalAlignment="Center"
+                                              Foreground="{ThemeResource SystemFillColorCautionBrush}"/>
+                                    <TextBlock Text="Not available" Style="{StaticResource Type.Caption}"
+                                                HorizontalAlignment="Center" TextAlignment="Center" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{x:Bind VM.GpuSubtitle, Mode=OneWay}" Style="{StaticResource Type.Caption}"
+                                                Opacity="0.8" HorizontalAlignment="Center" TextAlignment="Center"
+                                                TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </Grid>
                 </Border>
 
@@ -64,35 +100,44 @@
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
                         <TextBlock Text="Memory Details" Style="{StaticResource Type.CardTitle}"/>
-                        <Grid ColumnSpacing="{StaticResource Space.XXL}">
+                        <Grid ColumnSpacing="{StaticResource Space.XL}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
-                                <TextBlock Text="Total" Style="{StaticResource Type.Caption}" Opacity="0.8"/>
-                                <TextBlock Text="{x:Bind VM.TotalMemoryDisplay, Mode=OneTime}" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Total" Style="{StaticResource Type.Caption}" Opacity="0.9"/>
+                                <TextBlock Text="{x:Bind VM.TotalMemoryDisplay, Mode=OneWay}" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
-                                <TextBlock Text="Used" Style="{StaticResource Type.Caption}" Opacity="0.8"/>
-                                <TextBlock Text="{x:Bind VM.UsedMemoryDisplay, Mode=OneTime}" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
-                            </StackPanel>
+                            <Border Grid.Column="1" Width="1" Margin="0,2" Background="{ThemeResource CardStrokeColorDefaultBrush}" Opacity="0.6"/>
                             <StackPanel Grid.Column="2" Spacing="{StaticResource Space.XS}">
-                                <TextBlock Text="Available" Style="{StaticResource Type.Caption}" Opacity="0.8"/>
-                                <TextBlock Text="{x:Bind VM.AvailableMemoryDisplay, Mode=OneTime}" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Used" Style="{StaticResource Type.Caption}" Opacity="0.9"/>
+                                <TextBlock Text="{x:Bind VM.UsedMemoryDisplay, Mode=OneWay}" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
+                            </StackPanel>
+                            <Border Grid.Column="3" Width="1" Margin="0,2" Background="{ThemeResource CardStrokeColorDefaultBrush}" Opacity="0.6"/>
+                            <StackPanel Grid.Column="4" Spacing="{StaticResource Space.XS}">
+                                <TextBlock Text="Available" Style="{StaticResource Type.Caption}" Opacity="0.9"/>
+                                <TextBlock Text="{x:Bind VM.AvailableMemoryDisplay, Mode=OneWay}" Style="{StaticResource Type.SubTitle}" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Border>
 
+
                 <!-- Disk Volumes -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
                     <StackPanel Spacing="{StaticResource Space.LG}">
-                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center">
-                            <TextBlock Text="Disk Volumes" Style="{StaticResource Type.CardTitle}"/>
-                            <Button Content="Refresh" Click="Refresh_Click" Style="{StaticResource SmallButton}"/>
-                        </StackPanel>
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Disk Volumes" Style="{StaticResource Type.CardTitle}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="Refresh" Click="Refresh_Click" Style="{StaticResource SmallButton}" VerticalAlignment="Center"/>
+                        </Grid>
                         <ItemsRepeater ItemsSource="{x:Bind VM.DiskVolumes, Mode=OneWay}">
                             <ItemsRepeater.Layout>
                                 <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.MD}"/>

@@ -46,6 +46,19 @@ public sealed partial class WorkflowsPage : Page
         }
     }
 
+    private void WorkflowCard_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    {
+        AppLog.Action("WorkflowsPage WorkflowCard_Tapped");
+        if (sender is FrameworkElement fe && fe.Tag is string id)
+        {
+            var tpl = VM.Templates.FirstOrDefault(t => t.Id == id);
+            if (tpl != null)
+            {
+                VM.SelectedTemplate = tpl;
+            }
+        }
+    }
+
     private async void Run_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("WorkflowsPage Run_Click");

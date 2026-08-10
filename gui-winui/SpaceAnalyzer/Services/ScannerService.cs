@@ -126,8 +126,12 @@ public class ScannerService : IDisposable
             };
             using var process = new Process { StartInfo = psi };
             process.Start();
+            // Drain stderr concurrently so the pipe buffer can never fill and block the
+            // process (which would deadlock WaitForExitAsync). stdout is read below.
+            var stderrTask = process.StandardError.ReadToEndAsync(ct);
             var json = await process.StandardOutput.ReadToEndAsync();
             await process.WaitForExitAsync(ct);
+            _ = await stderrTask;
             if (process.ExitCode != 0)
                 return new Dictionary<string, string>();
             if (string.IsNullOrWhiteSpace(json))
@@ -177,7 +181,25 @@ public class ScannerService : IDisposable
                 psi.Arguments = $"settings set --key \"{kvp.Key}\" --value \"{kvp.Value}\"";
                 using var process = new Process { StartInfo = psi };
                 process.Start();
-                await process.WaitForExitAsync(ct);
+
+                // Drain both streams so a chatty/large response cannot fill the pipe
+                // buffer and deadlock the process before it exits.
+                var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+                var stderrTask = process.StandardError.ReadToEndAsync(ct);
+
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+                try
+                {
+                    await process.WaitForExitAsync(linkedCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    try { process.Kill(entireProcessTree: true); } catch { }
+                    throw;
+                }
+
+                await Task.WhenAll(stdoutTask, stderrTask);
             }
         }
         catch
@@ -197,13 +219,17 @@ public class ScannerService : IDisposable
         Deep
     }
 
+    /// <summary>When false, the scanner is told to run on CPU only (--no-gpu).</summary>
+    public bool GpuAcceleration { get; set; } = true;
+
     public async Task<ScanResult?> ScanDirectoryAsync(
         string path,
         DepthMode depthMode = DepthMode.Default,
         int maxDepth = 5,
         bool includeHidden = false,
         IProgress<double>? progress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool? useGpu = null)
     {
         if (!IsAvailable)
             throw new FileNotFoundException(
@@ -222,16 +248,26 @@ public class ScannerService : IDisposable
             args += $" --max-depth {maxDepth}";
         if (includeHidden)
             args += " --include-hidden";
+        if (!(useGpu ?? GpuAcceleration))
+            args += " --no-gpu";
 
-        var output = await RunScannerAsync(args, ct, progress);
+        int scanId = ScanActivityMonitor.Instance.BeginScan(path);
         try
         {
-            return JsonSerializer.Deserialize<ScanResult>(output, s_jsonOptions)
-                ?? throw new JsonException("Scanner returned empty result");
+            var output = await RunScannerAsync(args, ct, progress);
+            try
+            {
+                return JsonSerializer.Deserialize<ScanResult>(output, s_jsonOptions)
+                    ?? throw new JsonException("Scanner returned empty result");
+            }
+            catch (JsonException jex)
+            {
+                throw new Exception($"Failed to parse scan result: {jex.Message}. Output: {Truncate(output)}", jex);
+            }
         }
-        catch (JsonException jex)
+        finally
         {
-            throw new Exception($"Failed to parse scan result: {jex.Message}. Output: {Truncate(output)}", jex);
+            ScanActivityMonitor.Instance.EndScan(scanId);
         }
     }
 
@@ -247,7 +283,8 @@ public class ScannerService : IDisposable
         int maxDepth = 5,
         bool includeHidden = false,
         IProgress<StreamProgress>? onProgress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool? useGpu = null)
     {
         if (!IsAvailable)
             throw new FileNotFoundException(
@@ -266,7 +303,10 @@ public class ScannerService : IDisposable
             args += $" --max-depth {maxDepth}";
         if (includeHidden)
             args += " --include-hidden";
+        if (!(useGpu ?? GpuAcceleration))
+            args += " --no-gpu";
 
+        int scanId = ScanActivityMonitor.Instance.BeginScan(path);
         var psi = new ProcessStartInfo
         {
             FileName = _scannerPath,
@@ -389,6 +429,7 @@ public class ScannerService : IDisposable
                     _currentScannerProcess = null;
                 _stopCts = null;
             }
+            ScanActivityMonitor.Instance.EndScan(scanId);
         }
 
         if (process.ExitCode != 0)
@@ -441,7 +482,7 @@ public class ScannerService : IDisposable
     }
 
     /// <summary>
-    /// Export a scan result to a file. Supported formats: json, csv, md.
+    /// Export a scan result to a file. Supported formats: json, csv, md, html.
     /// </summary>
     public async Task<string> ExportScanResultAsync(ScanResult result, string outputPath, string format = "json", CancellationToken ct = default)
     {
@@ -449,6 +490,7 @@ public class ScannerService : IDisposable
         {
             "csv" => "csv",
             "md" or "markdown" => "md",
+            "html" or "htm" => "html",
             _ => "json",
         };
 
@@ -456,6 +498,7 @@ public class ScannerService : IDisposable
         {
             "csv" => SerializeToCsv(result),
             "md" => SerializeToMarkdown(result),
+            "html" => SerializeToHtml(result),
             _ => JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }),
         };
 
@@ -491,6 +534,33 @@ public class ScannerService : IDisposable
             var path = f.Path.Replace("|", "\\|");
             sb.AppendLine($"| {f.SizeDisplay} | `{path}` |");
         }
+        return sb.ToString();
+    }
+
+    private static string SerializeToHtml(ScanResult result)
+    {
+        var esc = (string s) => s.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("<!DOCTYPE html>");
+        sb.AppendLine("<html lang=\"en\"><head><meta charset=\"utf-8\">");
+        sb.AppendLine($"<title>Space Analyzer Scan: {esc(result.Path)}</title>");
+        sb.AppendLine("<style>body{font-family:Segoe UI,system-ui,sans-serif;margin:2rem;color:#1b1b1b}");
+        sb.AppendLine("table{border-collapse:collapse;width:100%;margin-top:1rem}");
+        sb.AppendLine("th,td{border:1px solid #d0d0d0;padding:.4rem .6rem;text-align:left}");
+        sb.AppendLine("th{background:#f3f3f3}td.size{text-align:right;font-variant-numeric:tabular-nums}</style>");
+        sb.AppendLine("</head><body>");
+        sb.AppendLine($"<h1>Space Analyzer Scan: {esc(result.Path)}</h1>");
+        sb.AppendLine("<ul>");
+        sb.AppendLine($"<li><strong>Files:</strong> {result.TotalFiles:N0}</li>");
+        sb.AppendLine($"<li><strong>Total Size:</strong> {ByteFormatter.FormatBytes(result.TotalSizeBytes)}</li>");
+        sb.AppendLine($"<li><strong>Duration:</strong> {result.DurationSecs:F1}s</li>");
+        sb.AppendLine("</ul>");
+        sb.AppendLine("<h2>Largest Files</h2>");
+        sb.AppendLine("<table><thead><tr><th>Size</th><th>Path</th></tr></thead><tbody>");
+        foreach (var f in (result.LargestFiles ?? new()).Take(50))
+            sb.AppendLine($"<tr><td class=\"size\">{f.SizeDisplay}</td><td>{esc(f.Path)}</td></tr>");
+        sb.AppendLine("</tbody></table>");
+        sb.AppendLine("</body></html>");
         return sb.ToString();
     }
 
@@ -559,7 +629,15 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (new(), 0);
 
-        var args = $"history --limit {limit} --offset {offset} --sort-by {sortBy}";
+        // Only forward columns the CLI actually accepts; an invalid --sort-by silently
+        // falls back to a default on the server and would make the UI sort indicator lie.
+        var allowedSort = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "timestamp", "path", "total_size_bytes", "total_files",
+        };
+        var effectiveSortBy = allowedSort.Contains(sortBy) ? sortBy : "timestamp";
+
+        var args = $"history --limit {limit} --offset {offset} --sort-by {effectiveSortBy}";
         if (sortAsc) args += " --sort-asc";
         if (!string.IsNullOrWhiteSpace(search)) args += $" --search \"{search}\"";
 
@@ -633,20 +711,70 @@ public class ScannerService : IDisposable
             return false;
         }
     }
-    public async Task<DedupResult?> RunDedupAnalysisAsync(string path, CancellationToken ct = default)
+    public async Task<DedupResult?> RunDedupAnalysisAsync(
+        string path,
+        CancellationToken ct = default,
+        bool apply = false,
+        bool? useGpu = null)
     {
         if (!IsAvailable)
             return null;
 
         var args = $"dedup --path \"{path}\" --format json";
-        var output = await RunScannerAsync(args, ct);
+        if (apply)
+            args += " --apply";
+        if (!(useGpu ?? GpuAcceleration))
+            args += " --no-gpu";
+        int scanId = ScanActivityMonitor.Instance.BeginScan(path);
         try
         {
-            return JsonSerializer.Deserialize<DedupResult>(output, s_jsonOptions);
+            var output = await RunScannerAsync(args, ct);
+            try
+            {
+                return JsonSerializer.Deserialize<DedupResult>(output, s_jsonOptions);
+            }
+            catch (JsonException jex)
+            {
+                throw new Exception($"Failed to parse dedup result: {jex.Message}. Output: {Truncate(output)}", jex);
+            }
+        }
+        finally
+        {
+            ScanActivityMonitor.Instance.EndScan(scanId);
+        }
+    }
+
+    /// <summary>
+    /// Remove duplicate scan records from history, keeping the newest entry per
+    /// (path, total size, file count). Returns the prune outcome.
+    /// </summary>
+    public async Task<(bool Success, int DuplicatesRemoved, int RelativeRemoved, string Error)> PruneDuplicateScansAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return (false, 0, 0, "Scanner unavailable");
+
+        var args = "history --prune --format json";
+        var output = await RunScannerAsync(args, ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return (false, 0, 0, "Empty response from scanner");
+
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("pruned", out var pruned) && pruned.GetBoolean())
+            {
+                var dup = root.TryGetProperty("duplicate_records_removed", out var d) ? d.GetInt32() : 0;
+                var rel = root.TryGetProperty("relative_path_records_removed", out var r) ? r.GetInt32() : 0;
+                return (true, dup, rel, string.Empty);
+            }
+            if (root.TryGetProperty("error", out var err))
+                return (false, 0, 0, err.GetString() ?? "Unknown error");
+            return (false, 0, 0, "Unexpected prune response");
         }
         catch (JsonException jex)
         {
-            throw new Exception($"Failed to parse dedup result: {jex.Message}. Output: {Truncate(output)}", jex);
+            return (false, 0, 0, $"Failed to parse prune result: {jex.Message}");
         }
     }
 
@@ -664,6 +792,7 @@ public class ScannerService : IDisposable
         if (!File.Exists(cleanerPath))
             return null;
 
+        int scanId = ScanActivityMonitor.Instance.BeginScan(path);
         var tempOutput = Path.Combine(Path.GetTempPath(), $"nm_clean_{Guid.NewGuid():N}.json");
         try
         {
@@ -740,6 +869,7 @@ public class ScannerService : IDisposable
             {
                 try { File.Delete(tempOutput); } catch { }
             }
+            ScanActivityMonitor.Instance.EndScan(scanId);
         }
     }
 

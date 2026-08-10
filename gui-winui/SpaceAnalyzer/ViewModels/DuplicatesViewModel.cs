@@ -54,6 +54,74 @@ public class DuplicatesViewModel : INotifyPropertyChanged, IDisposable
     public string PotentialSavingsDisplay => _lastResult?.PotentialSavingsDisplay ?? "";
     public List<DuplicateGroup> DuplicateGroups => _lastResult?.DuplicateGroups ?? new();
 
+    // ── Sorting ──
+
+    private string _sortKey = "Wasted";
+    public string SortKey
+    {
+        get => _sortKey;
+        set
+        {
+            if (_sortKey == value) return;
+            _sortKey = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SortedGroups));
+        }
+    }
+
+    /// <summary>Sorted copy of the groups, used by the results list (newest/largest first).</summary>
+    public List<DuplicateGroup> SortedGroups
+    {
+        get
+        {
+            if (_lastResult == null) return new List<DuplicateGroup>();
+            return _sortKey switch
+            {
+                "Size" => _lastResult.DuplicateGroups.OrderByDescending(g => g.Size).ToList(),
+                "Files" => _lastResult.DuplicateGroups.OrderByDescending(g => g.FileCount).ToList(),
+                _ => _lastResult.DuplicateGroups.OrderByDescending(g => g.WastedBytes).ToList(),
+            };
+        }
+    }
+
+    public int SortIndex
+    {
+        get => _sortKey == "Size" ? 1 : _sortKey == "Files" ? 2 : 0;
+        set => SortKey = value switch { 1 => "Size", 2 => "Files", _ => "Wasted" };
+    }
+
+    // ── Selection (for removal) ──
+
+    public bool HasSelection => _lastResult != null && _lastResult.DuplicateGroups.Any(g => g.IsSelected);
+    public int SelectedCount => _lastResult?.DuplicateGroups.Count(g => g.IsSelected) ?? 0;
+
+    private bool _isRemoving;
+    public bool IsRemoving
+    {
+        get => _isRemoving;
+        set { _isRemoving = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotRemoving)); }
+    }
+    public bool IsNotRemoving => !_isRemoving;
+
+    /// <summary>Called by the group checkbox handlers so the header buttons can react to selection changes.</summary>
+    public void NotifySelectionChanged()
+    {
+        OnPropertyChanged(nameof(HasSelection));
+        OnPropertyChanged(nameof(SelectedCount));
+    }
+
+    public void SelectAll(bool select)
+    {
+        if (_lastResult == null) return;
+        foreach (var g in _lastResult.DuplicateGroups) g.IsSelected = select;
+        NotifySelectionChanged();
+        // DuplicateGroup has no INotifyPropertyChanged, so the per-group checkboxes
+        // (TwoWay-bound to IsSelected) won't refresh from a model-side change unless
+        // the bound collection is replaced. SortedGroups returns a fresh list, forcing
+        // the ItemsRepeater to rebuild and re-read IsSelected.
+        OnPropertyChanged(nameof(SortedGroups));
+    }
+
     public async Task AnalyzeAsync()
     {
         if (IsScanning || string.IsNullOrWhiteSpace(ScanPath))
@@ -97,6 +165,62 @@ public class DuplicatesViewModel : INotifyPropertyChanged, IDisposable
         if (_disposed) return;
         _disposed = true;
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Deletes the extra copies of every selected group (keeps the first file of each group),
+    /// then re-runs the analysis to refresh the view. Requires the user to have confirmed via
+    /// the UI ContentDialog first.
+    /// </summary>
+    public async Task RemoveSelectedAsync()
+    {
+        if (_lastResult == null) return;
+        var groups = _lastResult.DuplicateGroups
+            .Where(g => g.IsSelected && g.Files.Count > 1)
+            .ToList();
+        if (groups.Count == 0) return;
+
+        IsRemoving = true;
+        int removed = 0;
+        ulong freed = 0;
+        try
+        {
+            foreach (var g in groups)
+            {
+                // Keep the first file; remove the remaining identical copies.
+                for (int i = 1; i < g.Files.Count; i++)
+                {
+                    var file = g.Files[i];
+                    try
+                    {
+                        if (System.IO.File.Exists(file))
+                        {
+                            System.IO.File.Delete(file);
+                            removed++;
+                            freed += g.Size;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[DuplicatesViewModel] delete failed {file}: {ex}");
+                    }
+                }
+            }
+
+            StatusMessage = $"Removed {removed} duplicate copies ({ByteFormatter.FormatBytes(freed)} reclaimed)";
+            AppNotifications.Success("Duplicates removed", $"{removed} duplicate copies removed");
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Removal failed: {ex.Message}";
+            AppNotifications.Error("Duplicate removal failed", ex.Message);
+        }
+        finally
+        {
+            IsRemoving = false;
+        }
+
+        await AnalyzeAsync();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

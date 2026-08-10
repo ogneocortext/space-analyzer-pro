@@ -84,6 +84,53 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
     }
     public string UsedMemoryDisplay => ByteFormatter.FormatBytes(UsedMemory);
 
+    // ── GPU ──
+
+    private double _gpuUsage;
+    public double GpuUsage
+    {
+        get => _gpuUsage;
+        set { _gpuUsage = value; OnPropertyChanged(); OnPropertyChanged(nameof(GpuUsageDisplay)); OnPropertyChanged(nameof(GpuBrush)); }
+    }
+
+    private bool _gpuAvailable;
+    public bool GpuAvailable
+    {
+        get => _gpuAvailable;
+        set { _gpuAvailable = value; OnPropertyChanged(); OnPropertyChanged(nameof(GpuUsageDisplay)); OnPropertyChanged(nameof(GpuSubtitle)); }
+    }
+
+    public string GpuUsageDisplay => GpuAvailable ? $"{GpuUsage:F1}%" : "n/a";
+    public SolidColorBrush GpuBrush => UiHelper.GetUsageBrush(GpuUsage);
+
+    private string _gpuName = string.Empty;
+    public string GpuName
+    {
+        get => _gpuName;
+        set { _gpuName = value; OnPropertyChanged(); OnPropertyChanged(nameof(GpuSubtitle)); }
+    }
+
+    private ulong _gpuMemoryBytes;
+    public ulong GpuMemoryBytes
+    {
+        get => _gpuMemoryBytes;
+        set { _gpuMemoryBytes = value; OnPropertyChanged(); OnPropertyChanged(nameof(GpuSubtitle)); }
+    }
+
+    /// <summary>Adapter name plus dedicated VRAM in use, shown under the GPU gauge.</summary>
+    public string GpuSubtitle
+    {
+        get
+        {
+            if (!GpuAvailable)
+                return "GPU performance counters unavailable on this system";
+            var name = string.IsNullOrWhiteSpace(GpuName) ? "GPU" : GpuName;
+            return GpuMemoryBytes > 0
+                ? $"{name} · {ByteFormatter.FormatBytes(GpuMemoryBytes)} dedicated memory in use"
+                : name;
+        }
+    }
+
     // ── Disk ──
 
     private List<DiskVolume> _diskVolumes = new();
@@ -125,6 +172,18 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
                 TotalMemory = memStatus.ullTotalPhys;
                 AvailableMemory = memStatus.ullAvailPhys;
                 UsedMemory = memStatus.ullTotalPhys - memStatus.ullAvailPhys;
+            }
+
+            // Real GPU utilization; GpuAvailable stays false when Windows exposes no
+            // GPU Engine counters so the page shows "n/a" instead of a fake 0%.
+            var gpuPercent = GpuMonitor.TryGetUsagePercent();
+            GpuAvailable = gpuPercent.HasValue;
+            GpuUsage = gpuPercent ?? 0;
+            if (GpuAvailable)
+            {
+                if (string.IsNullOrEmpty(GpuName))
+                    GpuName = GpuMonitor.TryGetAdapterName() ?? string.Empty;
+                GpuMemoryBytes = GpuMonitor.TryGetDedicatedMemoryBytes() ?? 0;
             }
         }
         catch
