@@ -27,6 +27,16 @@ Two GUI implementations exist side-by-side for comparison:
 |---------|------|-------------|
 | `SpaceAnalyzer` | `gui-winui/` | Desktop GUI built with WinUI 3 + Windows App SDK 2.2 |
 
+## Project Status (quick reference)
+
+- **Active app:** WinUI 3 (C#) in `gui-winui/`, on a Rust core in `src/`.
+- **`gui-egui/` is a comparison prototype — exclude from work** unless explicitly asked.
+- **ON HOLD:** workflow triggers/scheduler (Manual trigger only) until all other systems
+  are proven stable; misconfiguration risks destructive changes on the user's machine.
+  See `docs/ARCHITECTURE_DECISIONS.md` §8 before proposing any automation/cleanup.
+- **Start here for status:** `docs/INDEX.md` is the agent documentation hub (current
+  status, active vs archive docs, and how to verify status quickly).
+
 ## Commands
 
 ### Rust (cargo)
@@ -102,6 +112,7 @@ The WinUI 3 `ScannerService` also supports scan cancellation via `StopScan()` (k
 - Run `just verify` (or at minimum `cargo test --workspace`) after structural changes.
 - Do NOT create `fix_*.py`, `patch_*.py`, or other one-off scripts at the repo root. Make changes directly to source files.
 - Do NOT create files under `scripts/temporary/`. If a temporary fix is needed, apply it inline to the target file.
+- **Screenshots / visual verification**: the assistant cannot analyze images directly. Any new screenshot (WinUI GUI, scan output, charts) must be submitted to the local gemma4 vision model (`gemma4:e2b-it-qat`) via the `vision-feedback`/`vision` tools for analysis rather than being inspected inline.
 
 ## Testing
 - **WinUI 3 app** (`gui-winui/`): Playwright/browser-based testing is **not applicable** — this is a native desktop app, not a web app. No automated browser tests should be invoked for this GUI.

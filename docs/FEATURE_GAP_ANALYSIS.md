@@ -9,6 +9,12 @@
 > found and fixed the same day. Corrected rows and the new findings are flagged `⟳FIXED` below.
 > Net movement since the original pass: +12 implemented, 10 new defects found & fixed.
 
+> **Maintenance rule (2026-08-11):** The **Summary: Gap Count by Severity** table is *derived*
+> from the per-feature rows above — it is **not** hand-edited. After any row change, regenerate
+> it from the rows with `python docs/generate_status_summary.py --write` (also validates
+> `ISSUES.md` counts from `issues.json`). Run `… --check` in review to fail on drift. The old
+> stale-summary drift (31/7 vs 39/0/2/1) must not recur.
+
 ---
 
 ## How to Read This Document
@@ -84,7 +90,7 @@ Each feature from the README is listed under its category. The status column ref
 
 | # | Feature (from README) | Status | Evidence / Gap |
 |---|----------------------|--------|----------------|
-| 5.1 | 5 workflow categories: Maintenance, Optimization, Organization, Monitoring, Custom | ⚠️ | WinUI `WorkflowsViewModel` has 16 workflow **templates** but no category grouping in UI. The XAML shows 3 hardcoded category cards (Find Large Files, Find Empty Dirs, Find Duplicates) that are not clickable — they're decorative |
+| 5.1 | 5 workflow categories: Maintenance, Optimization, Organization, Monitoring, Custom | ✅ | `WorkflowsViewModel` now groups all 22 templates into the five README categories via a `WorkflowCategory` enum + `WorkflowCategoryGroup` class; `WorkflowsPage` renders one labelled section per category (icon, description, template count) with real, clickable workflow cards. `BuildCategories()` maps each template id to a category and reuses the same `WorkflowTemplate` instances as the master list, so selection state stays in sync |
 | 5.2 | 4 trigger types: Manual, LowDiskSpace, FileSystemChange, OnStartup | ❌ | WinUI only supports **Manual** trigger (Run button). No LowDiskSpace, FileSystemChange, or OnStartup triggers implemented. No background scheduler |
 | 5.3 | 7 action types: Scan, FindDuplicates, PredictStorage, GenerateRecommendations, Export, Notify, AIAnalyze | ✅ | All seven action types are now runnable workflows on the Workflows page. Scan (16 file-finding templates) and FindDuplicates were already wired; 2026-08-10 added five new templates — Predict Storage (`ScannerService.GetStorageForecastAsync` / `AnalysisEngine.PredictStorage` fallback), Cleanup Recommendations (`AnalysisEngine.GetRecommendations` over the latest scan), Export Results (writes current results to a JSON file), Notify Results (`AppNotifications` toast), and AI Analyze Results (one-shot Ollama call over the results). Path-less actions hide the target-directory editor. |
 | 5.4 | Pre-configured templates for common cleanup tasks | ✅ | `WorkflowsViewModel` constructor registers 16 templates: large-files, empty-dirs, duplicate-files, zero-byte, temp-cache, old-files, recent-files, largest-dirs, largest-single, by-extension, size-range, date-range, older-than, hidden-files, read-only, orphaned-projects, downloads-bloat |
@@ -150,55 +156,68 @@ Eleven UX/functional defects were found during the manual-test risk review and f
 | D-9 | ScannerService | `RunDedupAnalysisAsync(apply:true)` did not append `--yes`, so the backend refused to apply hardlinks. | `--yes` is now appended when `apply` is true. |
 | D-10 | Build | `DedupResult.SpaceSavedBytes` is `ulong?`; passing it to `ByteFormatter.FormatBytes` failed to compile, and `SettingsViewModel.ApplyTheme` used `Application.Current` (not a `Window`) with a mismatched `ApplicationTheme`/`ElementTheme` enum. | `?? 0UL` fallback + `MainWindow.Current.Content` with `ElementTheme` mapping. |
 
-> Net effect: the remaining open items in this tracker are the **workflow-automation** gaps that need a background scheduler — **triggers** (Manual is implemented; LowDiskSpace, FileSystemChange, OnStartup are not) and **scheduling** (5.6), plus the non-functional category grouping (5.1). The three previously-backend-only items (USN Journal, destructive-action preview, semantic Smart Search), the **feature-gap analysis cards** (Bloat Detection + Storage Forecast), the **action types** (5.3), and **execution history** (5.5) are now fully implemented and exposed in the WinUI UI as of 2026-08-10.
+> Net effect: the remaining open items in this tracker are the **workflow-automation** gaps that need a background scheduler — **triggers** (Manual is implemented; LowDiskSpace, FileSystemChange, OnStartup are not) and **scheduling** (5.6). The three previously-backend-only items (USN Journal, destructive-action preview, semantic Smart Search), the **feature-gap analysis cards** (Bloat Detection + Storage Forecast), the **action types** (5.3), the **category grouping** (5.1), and **execution history** (5.5) are now fully implemented and exposed in the WinUI UI as of 2026-08-10.
 
 ---
 
 ## Summary: Gap Count by Severity
 
+> **Reconciled 2026-08-11** against the detailed rows above (the rows are authoritative;
+> the previous summary table here was stale and has been corrected to match them).
+
+<!--GAP_SUMMARY_START-->
 | Category | ✅ Implemented | ⚠️ Partial | ❌ Missing | 🔵 Backend-only |
 |----------|--------------|-----------|-----------|-----------------|
-| Core Scanning | 12 | 1 | 0 | 0 |
-| Analysis | 2 | 3 | 0 | 0 |
-| File Management | 3 | 1 | 0 | 1 |
-| AI Integration | 5 | 0 | 0 | 0 |
-| Workflow Automation | 3 | 1 | 2 | 0 |
-| System Monitoring | 2 | 1 | 0 | 0 |
-| Settings | 3 | 1 | 0 | 0 |
-| **Total** | **30** | **8** | **2** | **1** |
+| Core Scanning | 12 | 0 | 0 | 1 |
+| Analysis | 5 | 0 | 0 | 0 |
+| File Management | 4 | 0 | 0 | 0 |
+| AI Integration | 6 | 0 | 0 | 0 |
+| Workflow Automation | 4 | 0 | 2 | 0 |
+| System Monitoring | 4 | 0 | 0 | 0 |
+| Settings | 4 | 0 | 0 | 0 |
+| **Total (§1–7)** | **39** | **0** | **2** | **1** |
+<!--GAP_SUMMARY_END-->
+
+> Additional findings (§8) add 10 more implemented items (8.1–8.10).
+> The only remaining ❌ items are the two **workflow-automation** gaps (5.2 triggers,
+> 5.6 scheduling), which are **on hold** per `ARCHITECTURE_DECISIONS.md` §8.
 
 ### Critical Gaps (❌ Missing — README promises with no implementation)
 
 1. ~~**Smart Search is not semantic**~~ **RESOLVED 2026-08-10** (`README.md:189`): Smart Search now has a semantic mode (embed + cosine-similarity query via the new `embed`/`semantic-search` Rust CLI subcommands). The filename/substring path remains for non-semantic queries.
-2. **Workflow triggers not implemented** (`README.md:158-159`): Claims 4 trigger types (Manual, LowDiskSpace, FileSystemChange, OnStartup). Only Manual is implemented. No background scheduler.
+2. **Workflow triggers not implemented** (`README.md:158-159`): Claims 4 trigger types (Manual, LowDiskSpace, FileSystemChange, OnStartup). Only Manual is implemented. No background scheduler. **ON HOLD** — per `ARCHITECTURE_DECISIONS.md` §8, blocked until all other systems are proven stable because misconfiguration could cause destructive changes on the user's machine.
 3. ~~**Workflow action types incomplete**~~ **RESOLVED 2026-08-10** (`README.md:159`): All 7 action types (Scan, FindDuplicates, PredictStorage, GenerateRecommendations, Export, Notify, AIAnalyze) are now runnable workflows on the Workflows page.
 
 ### High-Priority Partial Gaps (⚠️ Partial — behavior does not match README claim)
 
-4. **GPU monitoring is a placeholder** (`README.md:164`): Claims "CPU, RAM, GPU, and disk real-time gauges". GPU gauge is hardcoded to 0% in `DashboardViewModel.cs:320`.
-5. **GPU acceleration toggle is cosmetic** (`README.md:206`): Settings page has a "GPU acceleration" checkbox but it is persisted and never consumed by scan or dedup code.
-6. **Export formats limited** (`README.md:146`): Claims export to "JSON, CSV, HTML, and PDF". WinUI only exports JSON. CSV/HTML/PDF export not wired in the UI.
-7. **Smart Search wildcard not implemented** (`SmartSearchPage.xaml:85`): UI tip says "Use * as a wildcard" but search logic uses `string.Contains()` without wildcard expansion.
-8. ~~**NTFS USN Journal not exposed**~~ **RESOLVED 2026-08-10** (`README.md:124`): New `UsnPage` exposes USN Journal status, volumes, and recent change records via the new `usn` Rust CLI subcommand (Windows-only).
-9. ~~**Storage trend prediction not surfaced**~~ **RESOLVED (backend-wired 2026-08-10)** (`README.md:139`): The Dashboard "Storage Forecast" card (`DashboardPage.xaml:411`) is now driven by the Rust `predict` CLI subcommand (linear regression over scan-history sizes) with `AnalysisEngine.PredictStorage()` as fallback; shows current / +30 days / growth rate with a "not enough history" note until ≥2 scans.
-10. ~~**Bloat detection not surfaced**~~ **RESOLVED (backend-wired 2026-08-10)** (`README.md:137`): The Dashboard "Bloat Detection" card (`DashboardPage.xaml:443`) now lists bloat candidates (large videos, installers, caches/temp, AI model weights, `node_modules`) sourced directly from the Rust `bloat` CLI subcommand (offline_ai::FilePatternClassifier — extended 2026-08-10 to cover AI models / installers / dependencies by path), with `AnalysisEngine.GetBloatFindings()` as fallback and a "Potential reclaimable" aggregate.
-11. ~~**Workflow execution history missing**~~ **RESOLVED 2026-08-10** (`README.md:161`): Execution history is now persisted to `workflow-history.json` in `LocalFolder` and reloaded on startup.
-12. **Default scan paths not configurable** (`README.md:196`): ~~Settings does not expose a list of default scan paths; users must type or browse each time.~~ **FIXED 2026-08-10** — `SettingsViewModel` persists `default_scan_paths` and `ScanViewModel.ApplyDefaultScanPath()` now pre-fills the scan path (D-7).
+> Re-verified 2026-08-11 against the detailed rows above. Most items originally listed here
+> were already fixed; the only genuinely remaining partial gap is **PDF export** (#6).
+
+4. ~~**GPU monitoring is a placeholder**~~ **RESOLVED** (`6.1`): GPU gauge is real — `GpuMonitor` Windows perf counters; the "hardcoded 0%" claim was incorrect.
+5. ~~**GPU acceleration toggle is cosmetic**~~ **RESOLVED** (`7.4`, D-6): `SettingsStore.SettingsChanged` live-updates `GpuAcceleration` in `ScanViewModel`/`DedupViewModel`.
+6. **Export formats** (`README.md:146`): Claims "JSON, CSV, HTML, and PDF". **JSON/CSV/MD/HTML are implemented** (`3.4`); **PDF is still not** exported from the WinUI UI. Minor gap — keep low priority.
+7. ~~**Smart Search wildcard not implemented**~~ **RESOLVED** (`8.6`): full glob matcher incl. `|` OR-patterns lives in `SmartSearchViewModel`.
+8. ~~**NTFS USN Journal not exposed**~~ **RESOLVED** (`1.3`): `UsnPage` exposes USN status via the `usn` CLI subcommand.
+9. ~~**Storage trend prediction not surfaced**~~ **RESOLVED** (`2.3`): Dashboard "Storage Forecast" card driven by `predict` CLI.
+10. ~~**Bloat detection not surfaced**~~ **RESOLVED** (`2.2`): Dashboard "Bloat Detection" card driven by `bloat` CLI.
+11. ~~**Workflow execution history missing**~~ **RESOLVED** (`5.5`): persisted to `workflow-history.json`.
+12. ~~**Default scan paths not configurable**~~ **RESOLVED** (`7.2`, D-7): `default_scan_paths` persisted + consumed by `ScanViewModel.ApplyDefaultScanPath()`.
 
 ### Backend-Only Gaps (🔵 Rust core has it, WinUI does not expose it)
 
-13. **Hard-link deduplication UI** (`README.md:144`): Rust `file_deduplicator` + `file_relations.rs` have full support. WinUI now exposes a "Hardlink Duplicates" apply button on the Duplicates page (added 2026-08-10, D-8).
-14. ~~**Destructive-action preview UI**~~ **RESOLVED 2026-08-10** (`README.md:145`): The Duplicates page now has a "Preview impact before delete" panel backed by Rust `file_relations::analyze_file_dependencies` via the new `dependencies` CLI subcommand.
+13. ~~**Hard-link deduplication UI**~~ **RESOLVED** (`3.2`, D-8/D-9): "Hardlink Duplicates" apply button on Duplicates page + `hardlink_duplicates` AI tool passes `--apply --yes`.
+14. ~~**Destructive-action preview UI**~~ **RESOLVED** (`3.3`): "Preview impact before delete" panel backed by `file_relations::analyze_file_dependencies`.
+> Note: `1.4` (hard-link *detection* via MFT) remains 🔵 backend-only — exposed only via the `preview_impact` AI tool, not a dedicated WinUI view.
 
 ---
 
 ## Recommendations
 
-1. ~~**Fix Smart Search to actually use embeddings**~~ DONE 2026-08-10 — semantic mode wired to `embedding_service.rs` + Ollama `/api/embeddings`.
-2. **Implement workflow triggers** — add a background scheduler (e.g. `Timer` or `BackgroundService`) for LowDiskSpace, FileSystemChange, and OnStartup triggers.
-3. **Wire GPU acceleration** — read `GpuAcceleration` setting in `ScannerService` and pass `--gpu` flag to Rust dedup/scanner when enabled.
-4. **Add CSV/HTML/PDF export** — expose format selector in `ScanPage.xaml` and route to Rust CLI `--format csv|md` (HTML/PDF would need new Rust output formatters).
-5. **Implement wildcard expansion** in `SmartSearchViewModel.WalkDirectory` — convert `*` to `Contains` logic or regex.
-6. **Add workflow execution history** — persist workflow runs to SQLite (`database/workflows.rs` already exists) and display in `WorkflowsPage`.
-7. **Surface bloat detection** — add a "Bloat Candidates" section to Scan page using Rust `offline_ai.rs` output.
-8. ~~**Add hardlink dedup action**~~ DONE 2026-08-10 — "Hardlink Duplicates" button added to Duplicates page.
+1. ~~**Fix Smart Search to actually use embeddings**~~ DONE (`4.2`).
+2. **Implement workflow triggers** — LowDiskSpace, FileSystemChange, OnStartup + background scheduler. **ON HOLD** (see `ARCHITECTURE_DECISIONS.md` §8): blocked until all other systems are proven stable, because misconfiguration could cause destructive changes.
+3. ~~**Wire GPU acceleration**~~ DONE (`7.4`, D-6).
+4. **Add PDF export** — JSON/CSV/MD/HTML already wired (`3.4`); PDF still needs a Rust output formatter. Low priority.
+5. ~~**Implement wildcard expansion**~~ DONE (`8.6`).
+6. ~~**Add workflow execution history**~~ DONE (`5.5`).
+7. ~~**Surface bloat detection**~~ DONE (`2.2`).
+8. ~~**Add hardlink dedup action**~~ DONE (`3.2`, D-8).
