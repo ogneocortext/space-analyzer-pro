@@ -157,3 +157,5 @@ node_modules/
 
 # Archived web assets
 archive/**/node_modules/
+docs/archive/state/
+docs/archive/ux-pipeline/
