@@ -1,0 +1,165 @@
+# [Unreleased]
+
+### Settings Store & ViewModel Robustness
+
+- **Fixed `ResetToDefaults` missing `DefaultScanPaths` reset** — "Reset to Defaults" previously left the default scan paths populated; `SettingsViewModel.ResetToDefaults()` now also clears `DefaultScanPaths`.
+- **Eliminated `SettingsStore.EnsureLoadedAsync()` load race** — concurrent callers could both pass the `s_loaded` guard and re-read the DB. Rewrote it to cache a single load `Task` so all callers await one load.
+- **Made the LocalSettings→DB migration authoritative** — migrated values are now flushed back to the embedded DB (a no-op when the scanner CLI is unavailable), so the DB is actually the source of truth rather than only LocalSettings.
+- **Re-applied saved theme on Settings load** — `LoadFromStore()` now calls `ApplyTheme(_theme)` after restoring values, so the live root matches the picker even if the startup-time apply was skipped.
+- **Removed duplicated theme logic** — extracted `Helpers/ThemeHelper.cs` (`ResolveTheme` / `DetectSystemTheme`) and pointed both `App.ApplySavedTheme()` and `SettingsViewModel.ApplyTheme()` at it, deleting the copy-pasted `DetectSystemTheme` in both.
+
+### History, Duplicates & Dashboard Resource-Correlation (this session)
+
+- **History → Delete Duplicate Scans** — added `ScannerService.PruneDuplicateScansAsync` (CLI `history --prune`) and `HistoryViewModel.PruneDuplicateScansAsync`; wired a DangerButton + confirmation `ContentDialog` on `HistoryPage`. Keeps the newest record per (path, size, file count).
+- **History detail Pivot + per-scan breakdown** — added `TopDirectoriesView` / `ExtensionBreakdown` (with `ExtensionStat`), Overview / Largest Files / Folders / File Types tabs, file-list sort (size/name) and live filter, copy-path button, and an Escape-to-back `KeyboardAccelerator`.
+- **History multi-select comparison** — `CompareCardModel` computes baseline deltas (size / files / duration) across up to N selected scans with side-by-side cards.
+- **Duplicates UX** — sort (Wasted / Size / Copies via `SortKey` / `SortIndex` / `SortedGroups`), per-group selection + Select All, and "Remove Selected (N)" with confirmation; deletion keeps one copy per group, then auto re-runs analysis. Fixed `SelectAll` so per-group checkboxes visually refresh (the model has no `INotifyPropertyChanged`).
+- **Dashboard "Scanner Impact" panel** — new `ScanActivityMonitor` singleton lets any scan (Quick Scan, Scan page, dedup, cleanup, AI assistant) be correlated with live CPU / memory / GPU / disk samples; a translucent band marks scan windows on the sparklines and a panel shows scan-vs-idle averages per resource.
+- Added `ScanImpactInfo` model; wired `ScannerService.ScanDirectoryAsync` / `ScanDirectoryStreamingAsync` / `RunDedupAnalysisAsync` / `RunCleanupAnalysisAsync` to open/close scan windows.
+
+### CLI ↔ WinUI 3 Integration Gap Fixes
+
+- **Added `potential_cleanup_bytes` and `timestamp` to AI tool responses** — `ToolExecutor.GetScanSummaryAsync` and `ToolExecutor.RunScanAsync` now surface reclaimable bytes and scan timestamp to the AI assistant, matching the data available in `ScanResult`.
+- **Fixed `SearchFilesAsync` JSON property mismatch** — was querying `large_files` / `size_bytes` (which don't exist in Rust output); corrected to `largest_files` / `size` with a `JsonValueKind.Number` guard. File search from the AI assistant now returns results instead of silently failing.
+- **Fixed `GetLargestFilesAsync` client-side result limiting** — the `--top` CLI flag has no effect on JSON output, so the C# tool was returning all 50 files regardless of the requested count. Rewrote to parse JSON and apply `.Take(count)` client-side.
+- **Exposed `PotentialCleanupDisplay` and `ResultTimestampDisplay` to the Scan page UI** — added computed properties to `ScanViewModel` with `OnPropertyChanged` notifications in all 4 UI-update locations (progress callback, `LastResult` setter, `IsStreaming` setter, `ScanAsync` finally block).
+- **Added `PotentialCleanupBytes`, `Timestamp`, and `PotentialCleanupDisplay` to `ScanResult.cs` model** — enables non-streaming scan results to display cleanup estimates and scan time.
+
+### Dashboard Analysis Panels (bloat / recommendations / forecast)
+
+- **Bloat Detection panel (gap 2.2)** — `Helpers/AnalysisEngine.GetBloatFindings()` mirrors the Rust `offline_ai.rs` classifier (large videos >500 MB, cache/temp, installers, AI model weights, node_modules) and renders a card on the Dashboard from the latest scan's largest files / top directories.
+- **Cleanup Recommendations panel (gap 2.4)** — `AnalysisEngine.GetRecommendations()` mirrors `cli/recommendations.rs` (cache/temp folders, old installers, AI models, pip cache, node_modules) and renders a prioritized card with estimated reclaimable bytes per action.
+- **Storage Forecast panel (gap 2.3)** — `AnalysisEngine.PredictStorage()` runs linear regression over scan history and shows current size, projected size in 30 days, and GB/day growth rate; shows a "not enough history" note until ≥2 scans exist.
+- New models `AnalysisModels.cs` (`Recommendation`, `BloatFinding`, `StoragePrediction`) and `Helpers/PriorityToBrushConverter` (priority → badge color); all three panels live on `DashboardPage.xaml`, populated by `DashboardViewModel.LoadAnalysisPanels()`.
+
+### GPU Acceleration & Deduplication Controls
+
+- **GPU acceleration is now a real toggle (Rust CLI)** — added `--no-gpu` to `scan` and `dedup` subcommands. `DeduplicationConfig.use_gpu` gates `BatchHasher::with_gpu()`, so the Settings → Advanced "GPU acceleration" switch actually forces CPU hashing when off.
+- **Real hard-link deduplication from the CLI** — `dedup` gained `--apply` (create hard links instead of dry-run), `--min-size`, and `--max-size`. The JSON output now reports `files_processed`, `space_saved_bytes`, and `errors` on apply.
+- **WinUI GPU toggle wired end-to-end** — `ScanViewModel` reads the global `gpu_acceleration` setting into `ScannerService.GpuAcceleration`; both streaming and non-streaming scans pass `--no-gpu` when disabled. `ScannerService.RunDedupAnalysisAsync` accepts `apply`/`useGpu` and maps the new result fields into `DedupResult` (`FilesProcessed`, `SpaceSavedBytes`, `Errors`).
+- **Export format selector extended** — added `html` to the export formats; `ScannerService.ExportScanResultAsync` now produces a styled self-contained HTML report (joining the existing json/csv/md options already wired to the Scan page ComboBox).
+
+### Data Streaming — Real-time File Type & Category Distribution
+
+- **Streaming accumulators** — `shared-scanner` `ScanProgress` now carries `file_type_counts`, `extension_sizes`, and `category_sizes` HashMaps that are updated during the scan loop, enabling the WinUI frontend to display live file-type and storage-by-category breakdowns without waiting for the scan to complete.
+- **CLI `--stream` NDJSON protocol** — `StreamEvent::Progress` and `StreamEvent::Complete` now include `file_types`, `extension_sizes`, and `category_sizes` fields; the CLI emits these as cumulative stats on every progress line.
+- **WinUI streaming display** — `ScannerService.ScanDirectoryStreamingAsync` deserializes the new fields into `StreamProgress`/`StreamComplete`; `ScanViewModel.UpdatePartialResult` now reads accumulators directly from the stream instead of recomputing from `LiveFiles`.
+- **Storage by Category panel** — new ItemsRepeater on `ScanPage.xaml` showing real-time category sizes with progress bars and formatted size labels, driven by the `CategoryDistributions` property on `ScanViewModel`.
+- **Pre-existing ScannerService fixes** — fixed `StreamReader` wrapping (`process.StandardOutput` is already a `StreamReader`), `Dictionary<string,int>` → `long` cast for `FileTypes` in `StreamComplete` → `ScanResult` mapping, and `timeoutCts` variable scoping (moved outside `try` block for `catch` accessibility).
+- **Category accumulator** — `extension_to_category()` helper in `shared-scanner` maps file extensions to high-level categories (Documents, Images, Videos, Audio, Archives, Code, Databases, Executables, System, Development, Games, Other).
+- **Quick scan targets** — `ScanPage.xaml` now has a "Quick Targets" section with a ComboBox of preset directories (User Profile, Desktop, Documents, Downloads, Pictures, Local AppData, Temp). Selecting a target auto-fills the path textbox; the standalone "Scan" button triggers the scan — no manual address entry needed for testing.
+
+### WinUI 3 — Scan Page Enhancements
+
+- **Stop Scan button** — cancels the running scanner process tree via `ScannerService.StopScan()`.
+- **Path validation** — invalid or non-existent scan paths are rejected before the scanner is launched, with a clear error message displayed inline.
+- **Scan errors display** — per-scan error list shown in the results panel when the Rust scanner reports errors.
+- **File type distribution** — top 10 extensions with percentage breakdown rendered as a chart (`FileTypeDistribution` model).
+- **Largest files with filter** — file list with live substring filter by filename.
+- **Export results** — JSON export button on the scan page via `ScannerService.ExportScanResultAsync()`.
+- **Deep/shallow/custom depth modes** — scan depth selector with preset and custom options.
+- **Scan speed metrics** — files/second display in the results panel.
+- **Scanner process tracking** — `ScannerService` now tracks `_currentScannerProcess` for cancellation support.
+
+### WinUI 3 — AI Assistant Enhancements
+
+- **Expanded tool registry** — `GetToolDefinitions()` grew from 3 tools to 14, mirroring the Rust backend's full tool set with safety gates.
+- **Dynamic tool choice** — `ResolveToolChoice()` uses domain-keyword heuristic matching the Rust `resolve_tool_choice` logic.
+- **Enriched ChatRequest** — `Options`, `Think`, and `KeepAlive` fields now populated in `OllamaClient.SendChatRequestAsync()`.
+
+### WinUI 3 — Converters & Helpers
+
+- **New converters** — `BoolToErrorBrushConverter` (red brush for error states) and `BoolToScanButtonTextConverter` ("Stop Scan" / "Start Scan").
+- **`UiHelper.OpenPath()`** — helper to open a file or folder in Windows Explorer.
+- **`FileTypeDistribution` model** — new data model for the file type chart on the scan page.
+
+### Rust — Scan Page Improvements
+
+- **Path validation** added to `gui-egui/src/gui/scan.rs` `start_scan()` — invalid paths are rejected before scanning starts.
+- **Removed unsafe Copy button** from egui scan page (no clipboard crate available in egui dependencies).
+
+- **Fixed build against Windows App SDK 2.3 / .NET 10** — resolved API compatibility issues:
+  - Removed `Window.RequestedTheme` / `ApplicationTheme.Unspecified` usage (not supported in WinAppSDK 2.3); theme persistence remains in `SettingsViewModel` but no longer applies at runtime.
+  - Fixed `Colors` class references (`Microsoft.UI.Colors`) and `SolidColorBrush` construction in `UiHelper.GetUsageBrush()`.
+  - Added missing `Windows.Storage` and `Windows.Storage.Pickers` usings for `ApplicationData` in ViewModels.
+  - Fixed `Application.Current.GetWindow()` → `Microsoft.UI.Xaml.Window.Current` (correct WinUI 3 API).
+  - Fixed folder picker hwnd resolution to use `WindowNative.GetWindowHandle(window)`.
+- **Fixed SettingsPage.xaml.cs duplicate `VM` property** — removed the code-behind `VM` field that conflicted with the XAML `Page.DataContext` named `VM`.
+- **Fixed AIAssistantPage.xaml** — removed invalid `VerticalScrollBarVisibility` on `TextBox`; simplified message list layout to a single `Border` per message.
+- **Fixed SmartSearchPage.xaml** — removed `Style="{StaticResource DashboardCardBorder}"` from inner `Border` elements to eliminate "duplicate Child property" compiler error; removed unsupported `Opacity` attribute on `Run` elements; added `HasResults` ViewModel property for visibility binding.
+- **Refactored converters** — split `BoolToVisibilityConverter` into separate `BoolToVisibilityConverter` and `InverseBoolToVisibilityConverter` classes (WinUI XAML compiler does not support `ConverterParameter` on value converters).
+
+### WinUI 3 — New Pages
+
+- **Implemented `SmartSearchPage`** — full UI for searching files by name and size with path picker, size filter, exact/hidden options, and results list.
+- **Implemented `WorkflowsPage`** — stub page with workflow creation form (name, type selector, auto-run checkbox) and saved workflows section.
+
+### WinUI 3 — Code Cleanup
+
+- **Moved `SmartSearchResult` model** from `SmartSearchViewModel.cs` to `Models/SmartSearchResult.cs` for proper XAML `x:DataType` resolution.
+- **Added `HasResults` computed property** to `SmartSearchViewModel` for clean visibility binding on the results container.
+- **Created `Helpers/Converters.cs`** with reusable visibility converters.
+- **Simplified `App.xaml.cs`** — removed broken `ApplySavedTheme()` method that used non-existent WinUI 3 APIs.
+
+### Rust — CLI Refactor
+
+- **New `src/cli/render.rs`** — shared formatting module with helpers: `pct_of()`, `is_installer()`, `build_csv()`, `categorize_installers()`, `build_recommendations()`, plus text/markdown render functions for recommendations and installer inventory.
+- **`src/cli/types.rs`** — added `Recommendation`, `InstallerCategory`, `InstallerGroup` structs so installer classification and recommendations are typed.
+- **`src/cli/output.rs`** — deduplicated CSV generation and installer inventory rendering; now delegates to `render.rs` helpers instead of inline logic.
+- **`src/cli/report.rs`** — removed duplicated CSV generation, installer categorization, and recommendation building; all now use shared `render.rs` helpers.
+- **`src/cli/recommendations.rs`** — unified recommendation data model through `render::build_recommendations`; `print_cleanup_recommendations` retains its distinct logic.
+- **`src/cli/mod.rs`** — broke down the ~399-line `main()` into command handlers (`handle_scan`, `handle_disk_info`, `handle_history`, `output_results`, `run_ai_question`) and utilities (`depth_label`).
+- **`src/cli/scan.rs`** — removed unused `_no_animation` parameter.
+- All workspace tests verified passing after refactor.
+
+### Rust — Shared Scanner Cleanup
+
+- **Eliminated duplicate `format_bytes`** implementations across `main.rs`, `system_monitor.rs`, and `workflows/mod.rs`; single canonical `shared_scanner::format_bytes` used everywhere.
+- **Added `total_dirs` and `top_directories`** to `gui_common::ScanResult`; removed hardcoded empty arrays in database persistence.
+- **`shared-scanner/src/lib.rs`** — removed identity multiplication dead code; added `top_directories` reporting.
+
+### Rust — Build & Dependency Updates
+
+- **Fixed `Cargo.toml`** version and metadata for workspace alignment.
+- **Updated 30+ dependencies** across all 6 workspace crates.
+- **API migration**: rusqlite u64→i64 casts, sysinfo method renames, rand 0.9 API.
+- **All tests verified** — 179+ workspace tests pass cleanly.
+
+### GUI — Visual Redesign
+
+- **New unified design system** across all 8 GUI tabs (Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, System, Settings): layered near-black navy/slate surfaces, blue primary accent, green/amber/coral semantic colors, rounded cards with subtle borders, and an 8 px spacing system.
+- **`src/gui/colors.rs`** — added `BG_APP`, `BG_HEADER`, `SURFACE_1/2/3`, refined text colors, accent colors, and semantic colors; preserved legacy aliases; converted `ACCENT_SOFT` to a function because `Color32::from_rgba_unmultiplied` is not `const` in egui 0.34.
+- **`src/gui/theme.rs`** — new refined dark theme with improved widget states (noninteractive/inactive/hovered/active), 8 px spacing, updated text styles; replaced deprecated `ctx.set_style()` with `ctx.set_global_style()`.
+- **`src/gui/ui_helpers.rs`** — new reusable primitives: `Tone` enum, `app_card`, `section_header`, `status_badge`, `primary_button`, `secondary_button`, `danger_button`, `empty_state`, `inline_alert`, plus kept existing `card_frame`, `section_heading`, `stat_card`, `badge`, `gauge_bar`, `labeled_gauge`, `icon_text`.
+- **App shell (`mod.rs`)** — distinct header surface with branding/version/AI model status, compact horizontal-scrolling tab bar with active tab styling (blue-tinted fill, border, brighter text), improved status message bar with context-aware recovery actions.
+- **Dashboard** — page header with subtitle/actions, critical disk pressure alert (>=90% used), balanced responsive two-column layout on wide windows, metric cards, improved volume rows with color-coded progress bars and usage thresholds, quick actions, system resources, file type distribution, categories, bloat candidates, recommendations, storage trend.
+- **Scan** — guided form layout with "Scan a location" header, scan target card with path input and browse, scan options card with deep scan toggle, action row with Start/Stop/Export buttons and validation text, progress display with files/sec and MB/s, results section with stat cards, errors, file distribution, file types, largest files.
+- **History** — page header, toolbar with refresh and clear all, purposeful empty state ("No scans yet" with primary action), structured history records with badges and hover actions, detail view with export options.
+- **Smart Search (`embeddings.rs`)** — disabled state warning when semantic indexing is off with action to open settings, disabled search field with explanatory text, search input with keyboard Enter support, indexing progress display, indexed files counter with limit info, results grid, rebuild index button.
+- **Workflows (`workflow_render.rs`)** — active workflow execution status card, responsive workflow cards with category badge, enabled/disabled status badge, action count, last run, enable-workflow action for disabled workflows, run/edit/delete actions, execution history, workflow editor modal with trigger configuration (Manual, Scheduled with presets, Low Disk Space, On Startup) and action management.
+- **Notifications** — new notification system component for contextual app messages.
+
+### WinUI 3 — Bug Fixes (June 2026)
+
+- **Removed duplicate Settings nav item** — `IsSettingsVisible="True"` on `NavigationView` was showing a built-in Settings item alongside the explicit footer Settings item; removed the XAML attribute.
+- **Fixed Results section null-reference crashes** — `ScanPage`, `DuplicatesPage`, and `CleanupPage` bound directly to `VM.LastResult.xxx` before any scan ran. Replaced with null-safe ViewModel properties (`TopDirectories`, `DuplicateGroups`, `CleanupCandidates`, etc.) so pages load cleanly.
+- **Fixed Cleanup numeric TwoWay bindings** — `MinSizeMb`/`UnusedDays` were `ulong`; WinUI `x:Bind TwoWay` on `TextBox` requires `int`/`double`. Changed ViewModel types to `int` and cast to `ulong` only when calling the scanner.
+- **Reused `PerformanceCounter` instances** — `DashboardViewModel` and `SystemViewModel` were allocating a new counter every 2–3 seconds. Now reused and disposed properly.
+- **Fixed redundant Frame navigation** — Dashboard Quick Action buttons set `NavigationView.SelectedItem`, which fired `SelectionChanged` and caused a second navigation. Added a guard so `MainWindow` skips `Navigate` when the target page is already active.
+
+### GUI — Phosphor Icon Migration
+
+- **Replaced emoji icons with Phosphor font icons** across the entire GUI (dashboard, scan, history, settings, system, AI panels, tool results). Removed macro-generated icon functions returning `(codepoint, "emoji")` in favor of typed `&str` constants from `egui_phosphor::regular`.
+- **Restructured `icons.rs`** — constants live at module top level (no nested `pub mod icons`); added 30+ Phosphor constants (TIMER, REFRESH, CIRCLE, DASHBOARD, SMART_SEARCH, etc.).
+- **Fixed `section_heading()` signature** — `Option<char>` → `Option<&'static str>` to accept Phosphor icon strings instead of emoji chars.
+- **Fixed `tool_result_parser.rs`** — return type changed from `Option<(u32, &str)>` to `Option<&str>` to match new constant scheme.
+- **Fixed `icon_text()` call sites** — removed stale 4-arg invocations that were passing codepoint + family name.
+- **Fixed `badge()` and button-label type mismatches** — `.to_string()` / `&` conversions where `format!()` returns `String` but the target expects `&str`.
+- **Fixed double-wrapped `format!()` calls** in scan timer and dashboard date formatter (leftover from bulk fix script).
+- **Removed duplicate `use` imports** in `mod.rs` and `features_panel.rs`.
+- **Exported `labeled_gauge`** from `ui_helpers` (was private, causing build errors in dashboard and system panels).
+
+### Scanner Performance
+
+- Removed the duplicate pre-scan used only to estimate progress. Progress now adapts while the active traversal runs, avoiding a second directory walk and reducing startup I/O on large profiles.
+
