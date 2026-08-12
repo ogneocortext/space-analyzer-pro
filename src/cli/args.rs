@@ -443,6 +443,10 @@ pub enum Commands {
         #[arg(long, default_value = "50")]
         limit: usize,
     },
+
+    /// Enumerate installed applications and dev tools, then flag installs that are
+    /// duplicated across drives/paths or present in multiple versions
+    AppInventory,
 }
 
 /// Sub-commands for inspecting NTFS USN change journals.

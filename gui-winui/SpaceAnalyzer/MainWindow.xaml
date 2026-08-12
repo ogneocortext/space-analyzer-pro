@@ -47,6 +47,11 @@
                     <FontIcon Glyph="&#xE8ED;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
+            <NavigationViewItem Content="Installed Apps" Tag="InstalledApps">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE7B8;"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
             <NavigationViewItem Content="System" Tag="System">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE770;"/>

@@ -194,6 +194,27 @@ Reviewed the Rust-core ↔ WinUI 3 boundary (see prior session's Findings). Impl
 - **End-to-end `/p:BuildRustOnBuild=true -t:Build` verified:** GUI builds, `BuildRustScanner` re-runs the (now-fixed) `&&` cargo command (idempotent — `Finished` in seconds), `CopyRustTools` copies. Full chain works.
 - **Contract tests:** `dotnet test` (net8.0, headless) → 8 passed (5 existing `ViewModelBase` + 3 `ScannerContractTests`). No WinUI/Windows usings leaked into the linked model sources (`ScanResult.cs`/`StreamEvent.cs`/`ScanHistoryRecord.cs`/`ByteFormatter.cs`).
 
+### Installed-app / dev-tool inventory feature (2026-08-11)
+- **Problem it solves:** user wanted to know what is installed in >1 location (split C:/D:)
+  and in multiple versions, plus deletion impact. The existing `dedup` subcommand is
+  pure content-hash file dup detection; `origin_tracer` only classifies paths already
+  in a scan (no registry read, no version correlation). Neither answered the question.
+- **Backend:** new `src/app_inventory.rs` + `app-inventory` CLI subcommand
+  (`src/cli/app_inventory.rs`). Enumerates Windows **registry** uninstall keys
+  (HKLM/HKCU, 32+64-bit) for DisplayName/DisplayVersion/InstallLocation/EstimatedSize,
+  plus dev-tool roots: **Scoop** (`~/scoop/apps`), **Chocolatey** (`C:\ProgramData\chocolatey\lib`),
+  **rustup** toolchains, **VS Code** extensions, **WSL** distros (`wsl --list`).
+  Groups by normalized identity; flags `is_duplicate_location`,
+  `has_multiple_versions`, and `older_versions`; reuses `origin_tracer::assess_file`
+  for the per-group deletion-safety verdict + guidance. JSON via `--format json`.
+- **GUI:** new `InstalledAppsPage` (XAML + VM) + `AppInventoryModels.cs` +
+  `ScannerService.RunAppInventoryAsync` + nav tab "Installed Apps". Shows redundant
+  groups (dup-location / multi-version) with per-instance version/drive/size.
+- **Verified:** `cargo build --release --bin space-analyzer-cli` (1m48s) +
+  smoke test → 326 installs / 192 groups / 3 dup-location + 5 multi-version /
+  ~7.97 GB reclaimable (e.g. BrowserOS, NVIDIA CUDA 12.4+13.3, Rust toolchains,
+  Windows SDK, OpenCode, Python Launcher). WinUI GUI MSBuild build: 0 errors.
+
 ### Review findings (still open, optional)
 - [1] Add `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md`, root `CODE_OF_CONDUCT.md` (none tracked).
 - [2] Set repo Description + Topics via `gh repo edit` (not a git op).

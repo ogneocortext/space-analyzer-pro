@@ -1,3 +1,4 @@
+pub mod app_inventory;
 pub mod args;
 pub mod bloat;
 pub mod dedup;
@@ -147,6 +148,10 @@ pub fn main() -> AppResult<()> {
                 apply,
                 yes,
             )
+        }
+        Commands::AppInventory => {
+            sink::route_human_output_to_stderr(output_format.is_machine_readable());
+            app_inventory::handle(output_format)
         }
         Commands::Settings {
             get,

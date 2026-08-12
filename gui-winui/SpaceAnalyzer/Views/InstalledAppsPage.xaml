@@ -1,0 +1,149 @@
+<Page
+    x:Class="SpaceAnalyzer.Views.InstalledAppsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:SpaceAnalyzer.ViewModels"
+    xmlns:models="using:SpaceAnalyzer.Models"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    NavigationCacheMode="Required"
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid Padding="{StaticResource Thickness.XL}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="{StaticResource Space.XL}" MaxWidth="1000" HorizontalAlignment="Center">
+
+                <!-- Header -->
+                <StackPanel Spacing="{StaticResource Space.SM}">
+                    <TextBlock Text="Installed Apps &amp; Dev Tools" Style="{StaticResource Type.PageTitle}"/>
+                    <TextBlock Text="Find applications and development tools installed in more than one place (e.g. split across C: and D:) or present in multiple versions."
+                               Style="{StaticResource Type.Body}" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <!-- Analyze -->
+                <Button Content="Analyze Installed Apps" Click="Analyze_Click"
+                        HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButton}"
+                        IsEnabled="{x:Bind VM.IsNotScanning, Mode=OneWay}"/>
+
+                <!-- Status -->
+                <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" Style="{StaticResource Type.Body}"/>
+
+                <!-- Summary -->
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.LG}">
+                        <TextBlock Text="Overview" Style="{StaticResource Type.CardTitle}"/>
+                        <Grid ColumnSpacing="{StaticResource Space.XXL}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                                <TextBlock Text="{x:Bind VM.TotalApps, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                <TextBlock Text="Installs" Style="{StaticResource Type.StatLabel}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
+                                <TextBlock Text="{x:Bind VM.DuplicateLocationGroups, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                <TextBlock Text="Dup locations" Style="{StaticResource Type.StatLabel}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Spacing="{StaticResource Space.XS}">
+                                <TextBlock Text="{x:Bind VM.MultiVersionGroups, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                <TextBlock Text="Multi-version" Style="{StaticResource Type.StatLabel}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="3" Spacing="{StaticResource Space.XS}">
+                                <TextBlock Text="{x:Bind VM.TotalWastedDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                <TextBlock Text="Reclaimable" Style="{StaticResource Type.StatLabel}"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Redundant groups -->
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.LG}">
+                        <TextBlock Text="Duplicate / Multi-Version Installs" Style="{StaticResource Type.CardTitle}"/>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.RedundantGroups, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.MD}"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:AppGroup">
+                                    <Border Style="{StaticResource ItemCard}">
+                                        <StackPanel Spacing="{StaticResource Space.SM}">
+                                            <Grid ColumnSpacing="{StaticResource Space.MD}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                                                    <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind DisplayName, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Style="{StaticResource Type.Body}" Opacity="0.8">
+                                                        <Run Text="{x:Bind Source, Mode=OneTime}"/>
+                                                        <Run Text=" · "/>
+                                                        <Run Text="{x:Bind TotalSizeDisplay, Mode=OneTime}"/>
+                                                        <Run Text=" across "/>
+                                                        <Run Text="{x:Bind DistinctLocations, Mode=OneTime}"/>
+                                                        <Run Text=" location(s)"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                                <Border Grid.Column="1" Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                        CornerRadius="4" Padding="8,4" VerticalAlignment="Center">
+                                                    <TextBlock Style="{StaticResource Type.Tiny}" Foreground="White" Text="{x:Bind RedundancyLabel, Mode=OneTime}"/>
+                                                </Border>
+                                            </Grid>
+
+                                            <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.85" TextWrapping="Wrap">
+                                                <Run Text="Safety: "/>
+                                                <Run Text="{x:Bind Safety, Mode=OneTime}"/>
+                                                <Run Text=" · "/>
+                                                <Run Text="{x:Bind DeletionGuidance, Mode=OneTime}"/>
+                                            </TextBlock>
+
+                                            <ItemsRepeater ItemsSource="{x:Bind Instances, Mode=OneTime}">
+                                                <ItemsRepeater.Layout>
+                                                    <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.XS}"/>
+                                                </ItemsRepeater.Layout>
+                                                <ItemsRepeater.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:AppInstance">
+                                                        <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"
+                                                                       Text="{x:Bind VersionDisplay, Mode=OneTime}" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="1" Style="{StaticResource Type.Tiny}" Opacity="0.75"
+                                                                       Text="{x:Bind LocationDisplay, Mode=OneTime}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="2" Style="{StaticResource Type.Tiny}" Opacity="0.6"
+                                                                       Text="{x:Bind Drive, Mode=OneTime}" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Style="{StaticResource Type.Tiny}" Opacity="0.6"
+                                                                       Text="{x:Bind SizeDisplay, Mode=OneTime}" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsRepeater.ItemTemplate>
+                                            </ItemsRepeater>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Border>
+
+                <!-- Empty State -->
+                <Border Style="{StaticResource EmptyStateCard}" Visibility="{x:Bind VM.HasResultVisibility, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
+                    <StackPanel Style="{StaticResource EmptyStatePanel}">
+                        <FontIcon Glyph="&#xE7B8;" Style="{StaticResource EmptyStateIcon}"/>
+                        <TextBlock Text="Ready to inventory installed apps" Style="{StaticResource EmptyStateTitle}"/>
+                        <TextBlock Text="Click Analyze Installed Apps to enumerate applications and dev tools across all drives." Style="{StaticResource EmptyStateHint}"/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

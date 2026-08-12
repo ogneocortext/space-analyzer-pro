@@ -958,6 +958,27 @@ public class ScannerService : IDisposable
     }
 
     /// <summary>
+    /// Enumerate installed applications and dev tools, then detect installs that are
+    /// duplicated across drives/paths or present in multiple versions. Reads the
+    /// Windows registry uninstall keys plus package-manager / toolchain roots.
+    /// </summary>
+    public async Task<AppInventoryReport?> RunAppInventoryAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return null;
+
+        var output = await RunScannerAsync(new[] { "app-inventory", "--format", "json" }, ct);
+        try
+        {
+            return JsonSerializer.Deserialize<AppInventoryReport>(output, s_jsonOptions);
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse app-inventory result: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
     /// Remove scan records that captured nothing (zero files) via
     /// <c>history --prune-empty</c>. Returns the number removed.
     /// </summary>

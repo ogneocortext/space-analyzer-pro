@@ -4,6 +4,7 @@
 //! Binary targets (space-analyzer-cli) depend on this lib.
 //! Integration tests import this lib instead of using a #[path] shim.
 
+pub mod app_inventory;
 pub mod category;
 pub mod database;
 pub mod disk_monitor;
