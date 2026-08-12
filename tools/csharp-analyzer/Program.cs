@@ -147,6 +147,44 @@ static class AnalyzerHelpers
                 && type != "string" && type != "object";
         });
     }
+
+    /// <summary>Returns the rightmost identifier of a type or name, ignoring namespace qualification
+    /// (e.g. <c>System.Windows.Media.SolidColorBrush</c> and <c>SolidColorBrush</c> both yield "SolidColorBrush").</summary>
+    public static string SimpleName(this TypeSyntax type) => type switch
+    {
+        IdentifierNameSyntax id => id.Identifier.Text,
+        GenericNameSyntax g => g.Identifier.Text,
+        QualifiedNameSyntax q => SimpleName(q.Right),
+        AliasQualifiedNameSyntax a => SimpleName(a.Name),
+        _ => type.ToString()
+    };
+
+    public static string SimpleName(this NameSyntax name) => name switch
+    {
+        IdentifierNameSyntax id => id.Identifier.Text,
+        GenericNameSyntax g => g.Identifier.Text,
+        QualifiedNameSyntax q => SimpleName(q.Right),
+        AliasQualifiedNameSyntax a => SimpleName(a.Name),
+        _ => name.ToString()
+    };
+
+    public static string SimpleName(this ExpressionSyntax expr) => expr switch
+    {
+        NameSyntax ns => SimpleName(ns),
+        MemberAccessExpressionSyntax ma => SimpleName(ma.Name),
+        _ => expr.ToString()
+    };
+
+    /// <summary>True if the node is (transitively) the operand of an <c>await</c> expression.</summary>
+    public static bool IsAwaited(this SyntaxNode node)
+    {
+        for (var p = node.Parent; p != null; p = p.Parent)
+        {
+            if (p is AwaitExpressionSyntax)
+                return true;
+        }
+        return false;
+    }
 }
 
 class Program
@@ -155,6 +193,12 @@ class Program
     {
         "obj", "bin", "packages", ".vs", "node_modules"
     };
+
+    static bool IsInSkipDir(string filePath)
+    {
+        var segments = filePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return segments.Any(s => SkipDirs.Contains(s, StringComparer.OrdinalIgnoreCase));
+    }
 
     static readonly string[] DisposableTypeKeywords =
     {
@@ -223,8 +267,7 @@ class Program
 
         foreach (var csFile in Directory.EnumerateFiles(rootDir, "*.cs", SearchOption.AllDirectories))
         {
-            var dir = Path.GetDirectoryName(csFile)!;
-            if (SkipDirs.Any(d => dir.Contains($"{Path.DirectorySeparatorChar}{d}{Path.DirectorySeparatorChar}")))
+            if (IsInSkipDir(csFile))
                 continue;
 
             try
@@ -250,7 +293,6 @@ class Program
     {
         var methods = root.DescendantNodes().OfType<MethodDeclarationSyntax>().ToList();
         var classes = root.DescendantNodes().OfType<ClassDeclarationSyntax>().ToList();
-        var methodLookup = methods.ToDictionary(m => m, m => m);
         var safePathVariables = CollectPathVariables(root);
 
         // 1. async void non-event-handler
@@ -311,7 +353,9 @@ class Program
             var block = catchClause.Block;
             if (block != null && !block.Statements.Any())
             {
-                if (catchClause.FirstAncestorOrSelf<FinallyClauseSyntax>() != null)
+                // An empty catch paired with a finally that performs cleanup is a tolerable pattern.
+                var tryStmt = catchClause.FirstAncestorOrSelf<TryStatementSyntax>();
+                if (tryStmt?.Finally != null)
                     continue;
 
                 findings.Add(new("medium", "error-handling",
@@ -324,25 +368,24 @@ class Program
         // 4. ConfigureAwait(false) not part of await
         foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
-            if (invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "ConfigureAwait" })
-            {
-                var parent = invocation.Parent;
-                if (parent is not AwaitExpressionSyntax)
+                if (invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "ConfigureAwait" })
                 {
-                    findings.Add(new("low", "async",
-                        "ConfigureAwait(false) on a non-awaited call has no effect.",
-                        filePath, invocation.Line(),
-                        "Remove if not paired with await."));
+                    if (!AnalyzerHelpers.IsAwaited(invocation))
+                    {
+                        findings.Add(new("low", "async",
+                            "ConfigureAwait(false) on a non-awaited call has no effect.",
+                            filePath, invocation.Line(),
+                            "Remove if not paired with await."));
+                    }
                 }
-            }
         }
 
         // 5. Await subprocess without ConfigureAwait(false)
         foreach (var awaitExpr in root.DescendantNodes().OfType<AwaitExpressionSyntax>())
         {
             if (awaitExpr.Expression is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax ma }
-                && ma.Expression is IdentifierNameSyntax id
-                && id.Identifier.Text == "_scanner")
+                && ma.Expression.SimpleName() is var recvName
+                && (recvName is "Scanner" or "Process" or "_scanner" || recvName.EndsWith("Scanner", StringComparison.Ordinal)))
             {
                 var hasConfigureAwait = awaitExpr.DescendantNodes().OfType<InvocationExpressionSyntax>()
                     .Any(i => i.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "ConfigureAwait" });
@@ -383,10 +426,9 @@ class Program
         foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
             if (invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "Run" } ma
-                && ma.Expression is IdentifierNameSyntax { Identifier.Text: "Task" })
+                && ma.Expression.SimpleName() == "Task")
             {
-                var parent = invocation.Parent;
-                if (parent is not AwaitExpressionSyntax && !AnalyzerHelpers.IsInUsing(invocation))
+                if (!AnalyzerHelpers.IsAwaited(invocation) && !AnalyzerHelpers.IsInUsing(invocation))
                 {
                     findings.Add(new("medium", "async",
                         "Task.Run started without await; exceptions become unobserved.",
@@ -399,7 +441,7 @@ class Program
         // 8. Raw Thread
         foreach (var creation in root.DescendantNodes().OfType<ObjectCreationExpressionSyntax>())
         {
-            if (creation.Type.ToString() == "Thread")
+            if (creation.Type.SimpleName() == "Thread")
             {
                 findings.Add(new("high", "threading",
                     "Raw Thread creation bypasses the WinUI 3 dispatcher and can crash UI access.",
@@ -412,7 +454,7 @@ class Program
         foreach (var memberAccess in root.DescendantNodes().OfType<MemberAccessExpressionSyntax>())
         {
             if (memberAccess.Name.Identifier.Text == "None"
-                && memberAccess.Expression is IdentifierNameSyntax { Identifier.Text: "CancellationToken" })
+                && memberAccess.Expression.SimpleName() == "CancellationToken")
             {
                 var containingMethod = memberAccess.ContainingMethod();
                 if (containingMethod != null
@@ -430,7 +472,7 @@ class Program
         // 10. Process without dispose
         foreach (var creation in root.DescendantNodes().OfType<ObjectCreationExpressionSyntax>())
         {
-            if (creation.Type.ToString() == "Process" && !AnalyzerHelpers.IsInUsing(creation))
+            if (creation.Type.SimpleName() == "Process" && !AnalyzerHelpers.IsInUsing(creation))
             {
                 findings.Add(new("medium", "interop",
                     "Process created without using/Dispose; OS handle may leak on repeated calls.",
@@ -442,7 +484,7 @@ class Program
         // 11. DispatcherTimer without Stop
         foreach (var creation in root.DescendantNodes().OfType<ObjectCreationExpressionSyntax>())
         {
-            if (creation.Type.ToString() == "DispatcherTimer")
+            if (creation.Type.SimpleName() == "DispatcherTimer")
             {
                 var cls = creation.ContainingClass();
                 if (cls != null && !AnalyzerHelpers.HasStop(cls))
@@ -504,11 +546,11 @@ class Program
         foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
             if (invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "Deserialize" } ma
-                && ma.Expression is IdentifierNameSyntax { Identifier.Text: "JsonSerializer" })
+                && ma.Expression.SimpleName() == "JsonSerializer")
             {
                 var method = invocation.ContainingMethod();
                 if (method != null && !method.DescendantNodes().OfType<ObjectCreationExpressionSyntax>().Any(
-                        o => o.Type.ToString() == "JsonSerializerOptions"))
+                        o => o.Type.SimpleName() == "JsonSerializerOptions"))
                 {
                     findings.Add(new("medium", "data",
                         "JSON deserialization without explicit options may fail on case or missing members.",
@@ -539,9 +581,8 @@ class Program
         // 15. File.Exists without Path.Combine
         foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
-            if (invocation.Expression is IdentifierNameSyntax { Identifier.Text: "File.Exists" } ||
-                (invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "Exists" } &&
-                 invocation.Expression is MemberAccessExpressionSyntax { Expression: IdentifierNameSyntax { Identifier.Text: "File" } }))
+            if (invocation.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "Exists" } ma
+                && ma.Expression.SimpleName() == "File")
             {
                 var arg = invocation.ArgumentList.Arguments.FirstOrDefault();
                 if (arg == null)
@@ -564,7 +605,7 @@ class Program
         // 16. SolidColorBrush inline
         foreach (var creation in root.DescendantNodes().OfType<ObjectCreationExpressionSyntax>())
         {
-            if (creation.Type.ToString() == "SolidColorBrush")
+            if (creation.Type.SimpleName() == "SolidColorBrush")
             {
                 findings.Add(new("low", "memory",
                     "SolidColorBrush created inline is not cached; repeated property access allocates new brushes.",
