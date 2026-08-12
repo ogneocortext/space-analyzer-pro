@@ -367,20 +367,9 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     public void ResetToDefaults()
     {
-        Theme = "Dark";
-        ScannerPath = string.Empty;
-        ScanDepth = 5;
-        IncludeHidden = false;
-        GpuAcceleration = true;
-        DefaultScanPaths = string.Empty;
-        OllamaUrl = "http://localhost:11434";
-        OllamaModel = "gemma3:1b";
-        OllamaEnabled = true;
-        OllamaThink = true;
-        AgenticToolsEnabled = true;
-        AutoModelSelection = true;
-        ToolCallingModel = "qwen2.5-coder:7b";
-        ToolChoice = "auto";
+        // Defaults live only in AppSettings.Defaults; delegate so the two can never drift.
+        AppSettings.ResetToDefaults();
+        NotifyAll();
         OllamaTestResult = string.Empty;
         OllamaTestBrush = GetThemeBrush("MutedBrush");
     }

@@ -323,8 +323,35 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
 
     public SmartSearchViewModel()
     {
+        // Await the cache load BEFORE reading persisted values. Reading first
+        // (the previous behaviour) saw an empty cache and silently dropped every
+        // persisted Smart Search setting, so they were never restored.
+        _ = InitializeAsync();
+    }
+
+    private async Task InitializeAsync()
+    {
+        await SettingsStore.EnsureLoadedAsync();
         LoadSettings();
-        _ = SettingsStore.EnsureLoadedAsync();
+        NotifySettingsLoaded();
+    }
+
+    private void NotifySettingsLoaded()
+    {
+        OnPropertyChanged(nameof(IncludeHidden));
+        OnPropertyChanged(nameof(MaxResults));
+        OnPropertyChanged(nameof(DisplayCount));
+        OnPropertyChanged(nameof(ShowRawBytes));
+        OnPropertyChanged(nameof(IsCompactDensity));
+        OnPropertyChanged(nameof(DensityItemSpacing));
+        OnPropertyChanged(nameof(DensityCardPadding));
+        OnPropertyChanged(nameof(FollowSymlinks));
+        OnPropertyChanged(nameof(CollapseSmallGroups));
+        OnPropertyChanged(nameof(OtherThresholdMb));
+        OnPropertyChanged(nameof(IsAdvancedMode));
+        OnPropertyChanged(nameof(SemanticTopK));
+        OnPropertyChanged(nameof(GroupByMode));
+        OnPropertyChanged(nameof(SortBy));
     }
 
     private void LoadSettings()
