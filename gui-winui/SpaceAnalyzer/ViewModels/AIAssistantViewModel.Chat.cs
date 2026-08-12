@@ -34,6 +34,8 @@ public partial class AIAssistantViewModel
         IsBusy = true;
         StatusText = "Thinking...";
 
+        string? selectedModel = null;
+
         try
         {
             if (_client is null)
@@ -52,7 +54,7 @@ public partial class AIAssistantViewModel
 
             EnsureToolExecutor();
 
-            var selectedModel = SelectModelForTask(userMessage);
+            selectedModel = SelectModelForTask(userMessage);
             var apiMessages = BuildApiMessages();
             List<ToolDefinition>? tools = null;
             string resolvedToolChoice = "auto";
@@ -193,8 +195,19 @@ public partial class AIAssistantViewModel
         }
         catch (Exception ex)
         {
-            AddMessage(ChatRole.Assistant,
-                $"I could not reach Ollama. Make sure it is running and the model is loaded. ({ex.Message})");
+            var msg = ex.Message;
+            // An unknown/uninstalled model returns a 404 with an explicit Ollama
+            // error body ("model 'x' not found"); surface that clearly instead of
+            // the misleading "could not reach Ollama".
+            var isModelError = msg.Contains("model", StringComparison.OrdinalIgnoreCase)
+                && (msg.Contains("not found", StringComparison.OrdinalIgnoreCase)
+                    || msg.Contains("does not exist", StringComparison.OrdinalIgnoreCase)
+                    || msg.Contains("404", StringComparison.OrdinalIgnoreCase));
+            var friendly = isModelError
+                ? $"The model '{selectedModel}' is not available on the Ollama server. " +
+                  "Install it (e.g. 'ollama pull <model>') or choose a different model in Settings."
+                : $"I could not reach Ollama. Make sure it is running and the model is loaded. ({msg})";
+            AddMessage(ChatRole.Assistant, friendly);
             StatusText = "Connection failed.";
         }
         finally

@@ -61,8 +61,8 @@ public partial class ToolExecutor : IDisposable
                 "get_storage_trend" => await GetStorageTrendAsync(GetInt(arguments, "limit", 20), ct),
                 "list_workflows" => ListWorkflows(),
                 "predict_storage" => await PredictStorageAsync(GetInt(arguments, "days_ahead", 30), ct),
-                "preview_impact" => await PreviewImpactAsync(GetString(arguments, "path")),
-                "move_to_trash" => await MoveToTrashAsync(GetString(arguments, "path")),
+                "preview_impact" => await PreviewImpactAsync(GetString(arguments, "path"), ct),
+                "move_to_trash" => await MoveToTrashAsync(GetString(arguments, "path"), ct),
                 "hardlink_duplicates" => await HardlinkDuplicatesPreviewAsync(GetString(arguments, "path"), ct),
                 "get_scan_summary" => await GetScanSummaryAsync(ct),
                 "get_file_type_breakdown" => await GetFileTypeBreakdownAsync(ct),
@@ -106,11 +106,28 @@ public partial class ToolExecutor : IDisposable
 
         try
         {
+            // Report real system memory, not the managed GC heap. Total physical
+            // memory comes from GC.GetGCMemoryInfo(); available memory comes from
+            // the OS performance counter, so used = total - available.
             var totalMemory = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
-            var usedMemory = GC.GetTotalMemory(false);
+            long availableBytes;
+            try
+            {
+                var availCounter = new PerformanceCounter("Memory", "Available MBytes");
+                availableBytes = (long)availCounter.NextValue() * 1024L * 1024L;
+            }
+            catch
+            {
+                availableBytes = -1;
+            }
+
+            var usedMemory = availableBytes >= 0 && totalMemory > availableBytes
+                ? totalMemory - availableBytes
+                : 0;
             data["total_memory_bytes"] = totalMemory;
+            data["available_memory_bytes"] = availableBytes;
             data["used_memory_bytes"] = usedMemory;
-            data["memory_usage_percent"] = totalMemory > 0
+            data["memory_usage_percent"] = totalMemory > 0 && availableBytes >= 0
                 ? Math.Round((double)usedMemory / totalMemory * 100, 1)
                 : -1;
         }
@@ -229,8 +246,9 @@ public partial class ToolExecutor : IDisposable
 
     // ── Destructive-action preview (read-only) ──
 
-    private static async Task<string> PreviewImpactAsync(string path)
+    private static async Task<string> PreviewImpactAsync(string path, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(path))
             return "Error: path is required";
 
@@ -263,7 +281,8 @@ public partial class ToolExecutor : IDisposable
             using var process = new Process { StartInfo = psi };
             process.Start();
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            await process.WaitForExitAsync(timeoutCts.Token);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+            await process.WaitForExitAsync(linkedCts.Token);
             var output = await process.StandardOutput.ReadToEndAsync();
             hardlinkCount = output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
         }
@@ -287,17 +306,18 @@ public partial class ToolExecutor : IDisposable
         }, s_json);
     }
 
-    private static Task<string> MoveToTrashAsync(string path)
+    private static async Task<string> MoveToTrashAsync(string path, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(path))
-            return Task.FromResult("Error: path is required");
+            return "Error: path is required";
 
         if (!File.Exists(path))
-            return Task.FromResult($"Error: file not found: {path}");
+            return $"Error: file not found: {path}";
 
         var info = new FileInfo(path);
         bool moved = FileOperations.SendToRecycleBin(info.FullName);
-        return Task.FromResult(JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(new
         {
             path = info.FullName,
             size_mb = Math.Round(info.Length / (1024.0 * 1024), 2),
@@ -305,7 +325,7 @@ public partial class ToolExecutor : IDisposable
             note = moved
                 ? "Moved to the Recycle Bin. You can restore it from there, or empty the Recycle Bin to reclaim the space."
                 : "Could not move to the Recycle Bin; nothing was deleted."
-        }, s_json));
+        }, s_json);
     }
 
     private async Task<string> HardlinkDuplicatesPreviewAsync(string path, CancellationToken ct)

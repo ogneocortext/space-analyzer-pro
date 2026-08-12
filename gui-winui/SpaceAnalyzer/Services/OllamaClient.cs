@@ -130,7 +130,23 @@ public class OllamaClient : IDisposable
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         var response = await _http.PostAsync("api/chat", content, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var status = (int)response.StatusCode;
+            var errBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            string detail = errBody;
+            try
+            {
+                using var doc = JsonDocument.Parse(errBody);
+                if (doc.RootElement.TryGetProperty("error", out var errEl))
+                    detail = errEl.GetString() ?? errBody;
+            }
+            catch { }
+            // Throw non-transient (OllamaApiException is not in IsTransientError)
+            // so SendChatMessageAsync fails fast instead of burning retries on a 4xx
+            // (e.g. unknown/invalid model).
+            throw new OllamaApiException($"Ollama returned {status}: {detail}");
+        }
 
         var responseJson = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         var chatResponse = JsonSerializer.Deserialize<ChatResponse>(responseJson, JsonOptions);
@@ -198,6 +214,16 @@ public class OllamaClient : IDisposable
 }
 
 // ── Request / Response DTOs ──
+
+/// <summary>
+/// Raised when the Ollama server returns a non-success HTTP status (e.g. 404 for an
+/// unknown model). Intentionally NOT transient, so <see cref="SendChatMessageAsync"/>
+/// surfaces it immediately instead of retrying.
+/// </summary>
+public class OllamaApiException : Exception
+{
+    public OllamaApiException(string message) : base(message) { }
+}
 
 /// <summary>
 /// Payload for <c>/api/tags</c>.

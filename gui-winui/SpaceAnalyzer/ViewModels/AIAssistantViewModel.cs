@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
@@ -28,6 +29,11 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
     private CancellationTokenSource _cts = new();
     private bool _disposed;
     private List<OllamaModelInfo> _installedModels = new();
+
+    // Periodic refresh so models installed mid-session (e.g. `ollama pull`) appear
+    // without the user navigating away and back. Guarded because the VM may be
+    // constructed on a thread with no DispatcherQueue (headless tests).
+    private readonly DispatcherQueueTimer? _modelRefreshTimer;
 
     // ── Display ──
 
@@ -137,6 +143,14 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
     {
         LoadSettings();
         _client = new OllamaClient(OllamaUrl);
+        SettingsStore.SettingsChanged += OnSettingsChanged;
+        _modelRefreshTimer = DispatcherQueue.GetForCurrentThread()?.CreateTimer();
+        if (_modelRefreshTimer is not null)
+        {
+            _modelRefreshTimer.Interval = TimeSpan.FromSeconds(30);
+            _modelRefreshTimer.Tick += ModelRefreshTick;
+            _modelRefreshTimer.Start();
+        }
         _ = RefreshInstalledModelsAsync();
         AddMessage(ChatRole.Assistant,
             "Hello! I am your AI assistant for Space Analyzer Pro. " +
@@ -167,7 +181,7 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
         try
         {
             _installedModels = await _client.GetInstalledModelsAsync();
-            if (_installedModels.Count == 0 || _client is null) return;
+            if (_installedModels.Count == 0) return;
 
             // Prefer tool-capable, then small models so fallback stays cheap.
             var fallbacks = _installedModels
@@ -183,6 +197,58 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
         catch
         {
             // Offline — keep the current list (possibly empty); primary model still tried.
+        }
+    }
+
+    /// <summary>
+    /// Periodic model-list refresh (driven by <see cref="_modelRefreshTimer"/>) so a
+    /// model installed mid-session (e.g. `ollama pull`) becomes selectable without a
+    /// page re-navigation.
+    /// </summary>
+    private void ModelRefreshTick(object? sender, object? e)
+    {
+        if (_disposed) return;
+        _ = RefreshInstalledModelsAsync();
+    }
+
+    /// <summary>
+    /// Reacts to settings edits made on the Settings page (the single source of truth)
+    /// so AI-assistant state — most importantly the Ollama enable toggle and the
+    /// installed-model list — updates live instead of only when the page is re-entered.
+    /// </summary>
+    private void OnSettingsChanged(object? sender, SettingsStore.SettingsChangedEventArgs e)
+    {
+        if (_disposed) return;
+        switch (e.Key)
+        {
+            case SettingKeys.OllamaUrl:
+                OnPropertyChanged(nameof(OllamaUrl));
+                RefreshOllamaClient();
+                _ = RefreshInstalledModelsAsync();
+                break;
+            case SettingKeys.OllamaModel:
+                OnPropertyChanged(nameof(OllamaModel));
+                _ = RefreshInstalledModelsAsync();
+                break;
+            case SettingKeys.ToolCallingModel:
+                OnPropertyChanged(nameof(ToolCallingModel));
+                _ = RefreshInstalledModelsAsync();
+                break;
+            case SettingKeys.OllamaEnabled:
+                OnPropertyChanged(nameof(OllamaEnabled));
+                break;
+            case SettingKeys.OllamaThink:
+                OnPropertyChanged(nameof(OllamaThink));
+                break;
+            case SettingKeys.AgenticToolsEnabled:
+                OnPropertyChanged(nameof(AgenticToolsEnabled));
+                break;
+            case SettingKeys.AutoModelSelection:
+                OnPropertyChanged(nameof(AutoModelSelection));
+                break;
+            case SettingKeys.ToolChoice:
+                OnPropertyChanged(nameof(ToolChoice));
+                break;
         }
     }
 
@@ -391,7 +457,7 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
                 Function = new ToolFunction
                 {
                     Name = "move_to_trash",
-                    Description = "PREVIEW ONLY: Returns an impact report for moving a file to trash. Cannot perform the action directly.",
+                    Description = "Move a file to the Recycle Bin (recoverable). The file is removed from its current location immediately but can be restored later from the Recycle Bin. Requires the 'path' argument.",
                     Parameters = new Dictionary<string, object>
                     {
                         ["type"] = "object",
@@ -408,7 +474,7 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
                 Function = new ToolFunction
                 {
                     Name = "hardlink_duplicates",
-                    Description = "PREVIEW ONLY: Returns a plan for hard-linking duplicate files in a directory.",
+                    Description = "Hard-link duplicate files in a directory so identical copies share a single inode, reclaiming disk space. No file content is deleted (hard-linking is safe). Requires the 'path' argument.",
                     Parameters = new Dictionary<string, object>
                     {
                         ["type"] = "object",
@@ -545,6 +611,12 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        SettingsStore.SettingsChanged -= OnSettingsChanged;
+        if (_modelRefreshTimer is not null)
+        {
+            _modelRefreshTimer.Tick -= ModelRefreshTick;
+            _modelRefreshTimer.Stop();
+        }
         _cts.Cancel();
         _cts.Dispose();
         _client?.Dispose();
