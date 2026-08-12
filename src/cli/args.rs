@@ -205,6 +205,14 @@ pub enum Commands {
         /// (off by default so interactive runs stay quiet)
         #[arg(long, conflicts_with = "stream")]
         progress_json: bool,
+
+        /// Include the full per-file list (`scanned_files`) in machine-readable
+        /// output. Off by default: for large trees that map can exceed the size of
+        /// every other field combined, so the summary (top directories, category
+        /// sizes, largest files, cleanup estimate) is emitted on its own. Turn this
+        /// on only when you need every individual path.
+        #[arg(long)]
+        files: bool,
     },
 
     /// Show disk space info as JSON: every volume, or just the one holding PATH

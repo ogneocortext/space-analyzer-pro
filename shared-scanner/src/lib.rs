@@ -609,7 +609,7 @@ impl FileScanner {
 
         let mut walk_entries = Vec::new();
         for entry in walker.into_iter().filter_entry(|e| {
-            if options.include_hidden {
+            if options.include_hidden || e.depth() == 0 {
                 return true;
             }
             if !e.file_type().is_dir() {
@@ -807,7 +807,7 @@ impl FileScanner {
         let walk_entries: Vec<walkdir::DirEntry> = walker
             .into_iter()
             .filter_entry(|e| {
-                if options.include_hidden {
+                if options.include_hidden || e.depth() == 0 {
                     return true;
                 }
                 if !e.file_type().is_dir() {

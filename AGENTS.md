@@ -215,6 +215,23 @@ Reviewed the Rust-core ↔ WinUI 3 boundary (see prior session's Findings). Impl
   ~7.97 GB reclaimable (e.g. BrowserOS, NVIDIA CUDA 12.4+13.3, Rust toolchains,
   Windows SDK, OpenCode, Python Launcher). WinUI GUI MSBuild build: 0 errors.
 
+### Scan performance / correctness fixes (2026-08-11)
+- **Bug: scanning a drive root (`C:\`) returned 0 files, 0 dirs, 0 errors.** The
+  walkdir `filter_entry` closure runs on the root too, and the Windows volume root
+  carries `FILE_ATTRIBUTE_HIDDEN`, so the whole tree was pruned. Fixed in
+  `shared-scanner/src/lib.rs` (both `scan_directory_sync` and `scan_with_progress_sync`):
+  `filter_entry` now always admits `e.depth() == 0`. Verified: `scan C:\ --shallow` now
+  reports the real root contents (pagefile.sys, hiberfil.sys, …).
+- **Improvement: `scan --format json` (and csv/md) used to serialize the entire
+  `scanned_files` map** — every file on the tree. On a whole drive that map dwarfs every
+  other field and made output slow to produce/parse. Added an opt-in `--files` flag
+  (`src/cli/args.rs`, wired through `mod.rs` → `scan.rs`); by default `scanned_files` is
+  cleared before serialization, while `top_directories` + `category_sizes` +
+  `largest_files` + `potential_cleanup_bytes` are always emitted. The streaming/GUI path
+  (`--progress-json`) never serialized it, so unaffected. Verified: deep `scan C:\`
+  (2.29M files / 554 GB) now emits **8.2 MB** JSON instead of hundreds of MB.
+- `cargo test -p shared-scanner --features gpu` → 4 passed (no regression).
+
 ### Review findings (still open, optional)
 - [1] Add `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md`, root `CODE_OF_CONDUCT.md` (none tracked).
 - [2] Set repo Description + Topics via `gh repo edit` (not a git op).

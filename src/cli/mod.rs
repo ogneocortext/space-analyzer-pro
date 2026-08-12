@@ -55,6 +55,7 @@ pub fn main() -> AppResult<()> {
             ask,
             stream,
             progress_json,
+            files,
             shallow,
         } => {
             let args = ScanArgs {
@@ -79,6 +80,7 @@ pub fn main() -> AppResult<()> {
                 ask,
                 stream,
                 progress_json,
+                files,
                 output_format,
                 top_n,
                 no_anim,
@@ -230,6 +232,7 @@ struct ScanArgs {
     ask: Option<String>,
     stream: bool,
     progress_json: bool,
+    files: bool,
     output_format: OutputFormat,
     top_n: usize,
     no_anim: bool,
@@ -296,6 +299,7 @@ fn handle_scan(args: ScanArgs) -> AppResult<()> {
         args.cache,
         args.stream,
         args.progress_json,
+        args.files,
     )?;
 
     if args.output_format == OutputFormat::Text && !args.no_anim && !args.stream {

@@ -26,6 +26,7 @@ pub fn scan_directory(
     cache: bool,
     stream: bool,
     progress_json: bool,
+    include_files: bool,
 ) -> AppResult<ScanResult> {
     // A `Path` that cannot be represented as UTF-8 cannot be handed to the
     // native scanner (which takes `&str`). Fail loudly instead of silently
@@ -174,6 +175,13 @@ pub fn scan_directory(
     result.path = super::helpers::display_path(path);
     result.errors = shared_result.errors;
     result.scanned_files = shared_result.scanned_files.clone();
+    // The per-file map can dwarf every other field on a large tree. The streaming
+    // path never serializes it (the Complete event omits `scanned_files`), and the
+    // one-shot JSON/CSV/MD summaries already carry top_directories + largest_files
+    // + category_sizes. Keep it only when the caller explicitly asks (`--files`).
+    if !include_files {
+        result.scanned_files.clear();
+    }
 
     for (ext, count) in shared_result.file_types {
         result.file_types.insert(ext, count as usize);
