@@ -342,6 +342,8 @@ config/                    # Tool configuration (non-secret)
 
 ## Versioning
 
+The Rust core (`src/`, root `Cargo.toml`) and the WinUI 3 frontend (`gui-winui/`) are versioned **independently**. The Rust core has the longer development history (currently `3.7.0`); the WinUI 3 frontend is `4.0.0`. They are designed to work as a combined system, but each can also be used on its own — the Rust core as a library/CLI, and the WinUI 3 app via subprocess calls to that CLI.
+
 **v4.0.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
 - Token-based WinUI 3 design system (App.xaml resource dictionary).
 - Critical bug fixes: settings-loss cascade in Load(), cancellation token leaks in all async ViewModels, ScannerService no-cancel-before-dispose, MainWindow ViewModel disposal, null-safe converters.
