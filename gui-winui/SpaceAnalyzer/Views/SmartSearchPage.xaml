@@ -6,6 +6,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:SpaceAnalyzer.ViewModels"
     xmlns:models="using:SpaceAnalyzer.Models"
+    x:Name="Root"
     mc:Ignorable="d"
     NavigationCacheMode="Required"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
@@ -43,9 +44,9 @@
                         <StackPanel Spacing="{StaticResource Space.SM}" Margin="0,8,0,0">
                             <TextBlock Text="Search Query" Style="{StaticResource Type.SubTitle}"/>
                              <TextBox Text="{x:Bind VM.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                      PlaceholderText="Enter file/folder name to search for..."
-                                      AutomationProperties.Name="Search query"
-                                      Style="{StaticResource FieldTextBox}"/>
+                                       PlaceholderText="Enter file/folder name to search for..."
+                                       AutomationProperties.Name="Search query"
+                                       Style="{StaticResource FieldTextBox}"/>
                         </StackPanel>
 
                         <Grid Margin="0,8,0,0" ColumnSpacing="{StaticResource Space.XXL}">
@@ -68,7 +69,7 @@
                                 </TextBox>
                                 <TextBlock Text="Max Results" Style="{StaticResource Type.Caption}" Opacity="0.8" Margin="0,4,0,0"/>
                                 <TextBox Text="{x:Bind VM.MaxResults, Mode=TwoWay}"
-                                         AutomationProperties.Name="Maximum number of results to keep">
+                                         AutomationProperties.Name="Maximum number of results to display">
                                     <TextBox.InputScope>
                                         <InputScope>
                                             <InputScope.Names>
@@ -91,16 +92,98 @@
                                     <CheckBox Content="Include hidden files"
                                               IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"
                                               Style="{StaticResource FieldCheckBox}"/>
-                                    <CheckBox Content="Group by folder"
-                                              IsChecked="{x:Bind VM.GroupByDirectory, Mode=TwoWay}"
-                                              Style="{StaticResource FieldCheckBox}"/>
                                 </StackPanel>
                             </Border>
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <!-- Tips (distinct advisory panel, visually separated from the form above) -->
+                <!-- Results view options -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="Results view" Style="{StaticResource Type.SubTitle}"/>
+                        <StackPanel Spacing="{StaticResource Space.XS}">
+                            <TextBlock Text="Group results by" Style="{StaticResource Type.Caption}" Opacity="0.85"/>
+                            <RadioButtons>
+                                <RadioButton Content="None (flat list)"
+                                             IsChecked="{x:Bind VM.GroupByMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=None}"/>
+                                <RadioButton Content="Folder"
+                                             IsChecked="{x:Bind VM.GroupByMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Folder}"/>
+                                <RadioButton Content="Category"
+                                             IsChecked="{x:Bind VM.GroupByMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Category}"/>
+                                <RadioButton Content="Extension"
+                                             IsChecked="{x:Bind VM.GroupByMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Extension}"/>
+                                <RadioButton Content="Date"
+                                             IsChecked="{x:Bind VM.GroupByMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Date}"/>
+                                <RadioButton Content="Size"
+                                             IsChecked="{x:Bind VM.GroupByMode, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Size}"/>
+                            </RadioButtons>
+                        </StackPanel>
+
+                        <!-- Advanced toggle + power-user options -->
+                        <ToggleSwitch Header="Advanced options"
+                                      IsOn="{x:Bind VM.IsAdvancedMode, Mode=TwoWay}"
+                                      OffContent="Show power-user controls"
+                                      OnContent="Power-user controls"/>
+
+                        <Border Visibility="{x:Bind VM.IsAdvancedMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"
+                                Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
+                            <StackPanel Spacing="{StaticResource Space.MD}">
+                                <StackPanel Spacing="{StaticResource Space.XS}">
+                                    <TextBlock Text="Sort by" Style="{StaticResource Type.FieldHeading}"/>
+                                    <RadioButtons>
+                                        <RadioButton Content="Name"
+                                                     IsChecked="{x:Bind VM.SortBy, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Name}"/>
+                                        <RadioButton Content="Size"
+                                                     IsChecked="{x:Bind VM.SortBy, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Size}"/>
+                                        <RadioButton Content="Date modified"
+                                                     IsChecked="{x:Bind VM.SortBy, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Date}"/>
+                                        <RadioButton Content="Full path"
+                                                     IsChecked="{x:Bind VM.SortBy, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Path}"/>
+                                        <RadioButton Content="Extension"
+                                                     IsChecked="{x:Bind VM.SortBy, Mode=TwoWay, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Extension}"/>
+                                    </RadioButtons>
+                                </StackPanel>
+
+                                <CheckBox Content="Show raw byte counts"
+                                          IsChecked="{x:Bind VM.ShowRawBytes, Mode=TwoWay}"
+                                          Style="{StaticResource FieldCheckBox}"/>
+                                <CheckBox Content="Compact density (tighter rows)"
+                                          IsChecked="{x:Bind VM.IsCompactDensity, Mode=TwoWay}"
+                                          Style="{StaticResource FieldCheckBox}"/>
+                                <CheckBox Content="Follow symlinks / junctions"
+                                          IsChecked="{x:Bind VM.FollowSymlinks, Mode=TwoWay}"
+                                          Style="{StaticResource FieldCheckBox}"/>
+                                <CheckBox Content="Collapse small groups into 'Other'"
+                                          IsChecked="{x:Bind VM.CollapseSmallGroups, Mode=TwoWay}"
+                                          Style="{StaticResource FieldCheckBox}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Visibility="{x:Bind VM.CollapseSmallGroups, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="Other threshold (MB)" Style="{StaticResource Type.Caption}" Opacity="0.8" VerticalAlignment="Center"/>
+                                    <TextBox Text="{x:Bind VM.OtherThresholdMb, Mode=TwoWay}" Width="100" AutomationProperties.Name="Other threshold in MB">
+                                        <TextBox.InputScope>
+                                            <InputScope>
+                                                <InputScope.Names>
+                                                    <InputScopeName NameValue="Number"/>
+                                                </InputScope.Names>
+                                            </InputScope>
+                                        </TextBox.InputScope>
+                                    </TextBox>
+                                </StackPanel>
+
+                                <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Export the current results as raw JSON." Style="{StaticResource Type.Hint}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Content="Copy results JSON" Click="ExportJson_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Copy results as JSON"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Tips -->
                 <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
                         BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
                         BorderThickness="1" CornerRadius="8"
@@ -110,7 +193,7 @@
                                   Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top"/>
                         <StackPanel Spacing="{StaticResource Space.XS}">
                             <TextBlock Text="Tips" Style="{StaticResource Type.SubTitle}"/>
-                            <TextBlock Text="Use * as a wildcard (e.g. *.log or report_*_2024.pdf). Leave Min Size at 0 to find all matches." Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                            <TextBlock Text="Use * as a wildcard (e.g. *.log or report_*_2024.pdf). Leave Min Size at 0 to find all matches. Group and Advanced options persist across sessions." Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -138,6 +221,18 @@
                                 <TextBlock Text="Drop matches below this similarity. Set to 0 to disable the floor (show all)."
                                            Style="{StaticResource Type.Hint}" TextWrapping="Wrap" Opacity="0.7"/>
                             </StackPanel>
+                            <StackPanel Spacing="{StaticResource Space.XS}" Visibility="{x:Bind VM.IsAdvancedMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Semantic top results (K)" Style="{StaticResource Type.Caption}" Opacity="0.85"/>
+                                <TextBox Text="{x:Bind VM.SemanticTopK, Mode=TwoWay}" Width="120" AutomationProperties.Name="Semantic top K">
+                                    <TextBox.InputScope>
+                                        <InputScope>
+                                            <InputScope.Names>
+                                                <InputScopeName NameValue="Number"/>
+                                            </InputScope.Names>
+                                        </InputScope>
+                                    </TextBox.InputScope>
+                                </TextBox>
+                            </StackPanel>
                             <Grid ColumnSpacing="{StaticResource Space.SM}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -162,36 +257,55 @@
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}"
                            Style="{StaticResource Type.Body}"/>
 
+                <!-- Show all / Load more -->
+                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}"
+                            Visibility="{x:Bind VM.HasMore, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                    <Button Content="Show all" Click="ShowAll_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Show all results"/>
+                    <Button Content="Load more" Click="LoadMore_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Load more results"/>
+                    <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.8" VerticalAlignment="Center"/>
+                    <TextBlock Text="total matches" Style="{StaticResource Type.Caption}" Opacity="0.8" VerticalAlignment="Center"/>
+                </StackPanel>
+
                 <!-- Results (flat list) -->
                 <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.XL}"
                         Visibility="{x:Bind VM.ShowFlatResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
-                        <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" Style="{StaticResource Type.CardTitle}"/>
-                        <TextBlock Text="results found" Style="{StaticResource Type.Body}" Opacity="0.8"/>
+                        <TextBlock Text="{x:Bind VM.ShownCount, Mode=OneWay}" Style="{StaticResource Type.CardTitle}"/>
+                        <TextBlock Text="results shown" Style="{StaticResource Type.Body}" Opacity="0.8"/>
 
-                        <ItemsRepeater ItemsSource="{x:Bind VM.Results, Mode=OneWay}">
+                        <ItemsRepeater ItemsSource="{x:Bind VM.DisplayResults, Mode=OneWay}">
                             <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.SM}"/>
+                                <StackLayout Orientation="Vertical" Spacing="{x:Bind VM.DensityItemSpacing, Mode=OneWay}"/>
                             </ItemsRepeater.Layout>
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="models:SmartSearchResult">
-                                    <Border Style="{StaticResource CompactItemCard}">
+                                    <Border Style="{StaticResource CompactItemCard}" Padding="{Binding ElementName=Root, Path=VM.DensityCardPadding, Mode=OneWay}">
                                         <Border.Transitions>
                                             <TransitionCollection>
                                                 <EntranceThemeTransition/>
                                             </TransitionCollection>
                                         </Border.Transitions>
-                                        <StackPanel Spacing="{StaticResource Space.XS}">
+                                        <StackPanel Spacing="{Binding ElementName=Root, Path=VM.DensityItemSpacing, Mode=OneWay}">
                                             <TextBlock Style="{StaticResource Type.SubTitle}"
                                                        Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                            <ProgressBar Value="{x:Bind SizeFraction, Mode=OneTime}" Maximum="1"
+                                                         Height="4" Background="Transparent"
+                                                         Foreground="{x:Bind BarBrush, Mode=OneTime}"/>
                                             <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8">
                                                 <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
                                                 <Run Text=" · "/>
                                                 <Run Text="{x:Bind Path, Mode=OneTime}" FontStyle="Italic"/>
                                             </TextBlock>
+                                            <TextBlock Visibility="{Binding ElementName=Root, Path=VM.ShowRawBytes, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"
+                                                       Style="{StaticResource Type.Tiny}" Opacity="0.6">
+                                                <Run Text="{x:Bind SizeRaw, Mode=OneTime}"/><Run Text=" bytes"/>
+                                            </TextBlock>
+                                            <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.6"
+                                                       Text="{x:Bind ModifiedDisplay, Mode=OneTime}"/>
                                             <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Margin="0,4,0,0">
                                                 <Button Content="Open" Click="OpenResultFile_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
                                                 <Button Content="Folder" Click="OpenResultFolder_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
+                                                <Button Content="Copy" Click="CopyPath_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
@@ -201,53 +315,71 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Results (grouped by folder) -->
+                <!-- Results (grouped by chosen dimension) -->
                 <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.XL}"
                         Visibility="{x:Bind VM.ShowGroupedResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
-                        <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" Style="{StaticResource Type.CardTitle}"/>
-                        <TextBlock Text="results found, grouped by folder" Style="{StaticResource Type.Body}" Opacity="0.8"/>
+                        <TextBlock Text="{x:Bind VM.ShownCount, Mode=OneWay}" Style="{StaticResource Type.CardTitle}"/>
+                        <TextBlock Text="results shown, grouped" Style="{StaticResource Type.Body}" Opacity="0.8"/>
 
                         <ItemsRepeater ItemsSource="{x:Bind VM.GroupedResults, Mode=OneWay}">
                             <ItemsRepeater.Layout>
-                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.MD}"/>
+                                <StackLayout Orientation="Vertical" Spacing="{x:Bind VM.DensityItemSpacing, Mode=OneWay}"/>
                             </ItemsRepeater.Layout>
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="models:SearchResultGroup">
-                                    <Border Style="{StaticResource CompactItemCard}">
-                                        <StackPanel Spacing="{StaticResource Space.XS}">
+                                    <Border Style="{StaticResource CompactItemCard}" Padding="{Binding ElementName=Root, Path=VM.DensityCardPadding, Mode=OneWay}">
+                                        <StackPanel Spacing="{Binding ElementName=Root, Path=VM.DensityItemSpacing, Mode=OneWay}">
                                             <Grid ColumnSpacing="{StaticResource Space.SM}">
                                                 <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Style="{StaticResource Type.SubTitle}"
-                                                           Text="{x:Bind Directory, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Grid.Column="1" Style="{StaticResource Type.Caption}" Opacity="0.85"
-                                                           Text="{x:Bind TotalDisplay, Mode=OneTime}" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="0" Content="{x:Bind IsExpanded, Mode=OneWay, Converter={StaticResource BoolToChevron}}"
+                                                        Click="ToggleGroup_Click" Tag="{x:Bind Key}" Style="{StaticResource SmallButton}" AutomationProperties.Name="Toggle group"/>
+                                                <StackPanel Grid.Column="1" Spacing="2">
+                                                    <TextBlock Style="{StaticResource Type.SubTitle}"
+                                                               Text="{x:Bind Label, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.7">
+                                                        <Run Text="{x:Bind Count, Mode=OneTime}"/><Run Text=" file(s) · "/><Run Text="{x:Bind TotalDisplay, Mode=OneTime}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                                <Button Grid.Column="2" Content="Search here"
+                                                        Click="DrillIntoGroup_Click" Tag="{x:Bind Key}"
+                                                        Style="{StaticResource SmallButton}"
+                                                        Visibility="{x:Bind CanDrill, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"
+                                                        AutomationProperties.Name="Search within group"/>
                                             </Grid>
-                                            <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.7">
-                                                <Run Text="{x:Bind Count, Mode=OneTime}"/>
-                                                <Run Text=" file(s)"/>
-                                            </TextBlock>
-                                            <ItemsRepeater ItemsSource="{x:Bind Items, Mode=OneTime}">
+                                            <ItemsRepeater ItemsSource="{x:Bind Items, Mode=OneTime}"
+                                                           Visibility="{x:Bind IsExpanded, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
                                                 <ItemsRepeater.Layout>
-                                                    <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.XS}"/>
+                                                    <StackLayout Orientation="Vertical" Spacing="{Binding ElementName=Root, Path=VM.DensityItemSpacing, Mode=OneWay}"/>
                                                 </ItemsRepeater.Layout>
                                                 <ItemsRepeater.ItemTemplate>
                                                     <DataTemplate x:DataType="models:SmartSearchResult">
-                                                        <Border Style="{StaticResource CompactItemCard}" Margin="0,0,0,0">
-                                                            <StackPanel Spacing="{StaticResource Space.XS}">
+                                                        <Border Style="{StaticResource CompactItemCard}" Padding="{Binding ElementName=Root, Path=VM.DensityCardPadding, Mode=OneWay}">
+                                                            <StackPanel Spacing="{Binding ElementName=Root, Path=VM.DensityItemSpacing, Mode=OneWay}">
                                                                 <TextBlock Style="{StaticResource Type.SubTitle}"
                                                                            Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                                <ProgressBar Value="{x:Bind SizeFraction, Mode=OneTime}" Maximum="1"
+                                                                             Height="4" Background="Transparent"
+                                                                             Foreground="{x:Bind BarBrush, Mode=OneTime}"/>
                                                                 <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8">
                                                                     <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
                                                                     <Run Text=" · "/>
                                                                     <Run Text="{x:Bind Path, Mode=OneTime}" FontStyle="Italic"/>
                                                                 </TextBlock>
+                                                                <TextBlock Visibility="{Binding ElementName=Root, Path=VM.ShowRawBytes, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"
+                                                                           Style="{StaticResource Type.Tiny}" Opacity="0.6">
+                                                                    <Run Text="{x:Bind SizeRaw, Mode=OneTime}"/><Run Text=" bytes"/>
+                                                                </TextBlock>
+                                                                <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.6"
+                                                                           Text="{x:Bind ModifiedDisplay, Mode=OneTime}"/>
                                                                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Margin="0,4,0,0">
                                                                     <Button Content="Open" Click="OpenResultFile_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
                                                                     <Button Content="Folder" Click="OpenResultFolder_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
+                                                                    <Button Content="Copy" Click="CopyPath_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
                                                                 </StackPanel>
                                                             </StackPanel>
                                                         </Border>
@@ -310,4 +442,3 @@
         </ScrollViewer>
     </Grid>
 </Page>
-

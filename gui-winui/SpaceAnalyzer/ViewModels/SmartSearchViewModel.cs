@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
@@ -14,8 +15,9 @@ using SpaceAnalyzer.Services;
 namespace SpaceAnalyzer.ViewModels;
 
 /// <summary>
-/// ViewModel for the Smart Search page. Performs an async recursive
-/// folder walk with name and size filters.
+/// ViewModel for the Smart Search page. Performs an async recursive folder walk
+/// with name, size, and grouping/sort options, and surfaces power-user controls
+/// (raw bytes, density, metadata, symlink handling) behind an Advanced toggle.
 /// </summary>
 public class SmartSearchViewModel : ViewModelBase, IDisposable
 {
@@ -23,6 +25,9 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
     private CancellationTokenSource _cts = new();
     private bool _disposed;
     private volatile bool _isSearchingFlag;
+
+    // Hard ceiling on kept results so a whole-drive query can never exhaust memory.
+    private const int HardCap = 20000;
 
     // ── Search criteria ──
 
@@ -66,27 +71,11 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
     public bool IncludeHidden
     {
         get => _includeHidden;
-        set { _includeHidden = value; OnPropertyChanged(); }
-    }
-
-    /// <summary>
-    /// Hard cap on the number of filename results kept (and shown). Results beyond
-    /// this are dropped and <see cref="ResultsTruncated"/> flips on so the UI can
-    /// surface a "showing top N" notice instead of freezing on millions of matches.
-    /// </summary>
-    private int _maxResults = 500;
-    public int MaxResults
-    {
-        get => _maxResults;
-        set { _maxResults = Math.Max(1, value); OnPropertyChanged(); }
+        set { _includeHidden = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKey.IncludeHidden, value); }
     }
 
     // ── Semantic (embedding) search ──
 
-    /// <summary>
-    /// When true, searches use semantic embeddings (the Rust <c>semantic-search</c>
-    /// subcommand) instead of literal name matching. Requires an index first.
-    /// </summary>
     private bool _isSemantic;
     public bool IsSemantic
     {
@@ -99,14 +88,11 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(ShowFilenameResults));
             OnPropertyChanged(nameof(ShowFilenameEmpty));
             OnPropertyChanged(nameof(ShowSemanticResults));
+            OnPropertyChanged(nameof(ShowFlatResults));
+            OnPropertyChanged(nameof(ShowGroupedResults));
         }
     }
 
-    /// <summary>
-    /// Minimum cosine-similarity threshold (0–100, shown as a percentage to the
-    /// user). 0 means "no floor". Converted to a 0..1 <c>min_score</c> when
-    /// calling the Rust <c>semantic-search</c> subcommand.
-    /// </summary>
     private double _minScorePercent;
     public double MinScorePercent
     {
@@ -119,18 +105,13 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         }
     }
 
-    /// <summary>Live label for the threshold slider, e.g. "Min similarity: 60%".</summary>
     public string MinScorePercentLabel =>
         _minScorePercent <= 0 ? "Min similarity: off" : $"Min similarity: {_minScorePercent:0}%";
 
-    /// <summary>Show the literal-name results panel only in filename mode with hits.</summary>
     public bool ShowFilenameResults => !_isSemantic && ResultCount > 0;
-    /// <summary>Show the filename empty-state panel only in filename mode with no hits.</summary>
     public bool ShowFilenameEmpty => !_isSemantic && ResultCount == 0;
-    /// <summary>Show the semantic results panel only in semantic mode with hits.</summary>
     public bool ShowSemanticResults => _isSemantic && SemanticResults.Count > 0;
 
-    /// <summary>True once a directory has been indexed with embeddings.</summary>
     public bool SemanticAvailable => _indexedScanId.HasValue;
     private long? _indexedScanId;
 
@@ -146,6 +127,14 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             OnPropertyChanged();
             OnPropertyChanged(nameof(ShowSemanticResults));
         }
+    }
+
+    // Semantic top-K (power-user). Persisted.
+    private int _semanticTopK = 50;
+    public int SemanticTopK
+    {
+        get => _semanticTopK;
+        set { _semanticTopK = Math.Max(1, value); OnPropertyChanged(); SettingsStore.Set(SettingKey.SemanticTopK, value.ToString()); }
     }
 
     private bool _isIndexing;
@@ -180,41 +169,15 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         set { _statusMessage = value; OnPropertyChanged(); }
     }
 
-    private ObservableCollection<SmartSearchResult> _results = new();
+    // Full result set (kept; not directly bound to a list view).
+    private readonly ObservableCollection<SmartSearchResult> _results = new();
     public ObservableCollection<SmartSearchResult> Results => _results;
 
-    /// <summary>
-    /// When true, filename results are regrouped by parent directory into
-    /// <see cref="GroupedResults"/> instead of shown as a flat list.
-    /// </summary>
-    private bool _groupByDirectory;
-    public bool GroupByDirectory
-    {
-        get => _groupByDirectory;
-        set
-        {
-            _groupByDirectory = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(ShowGroupedResults));
-            OnPropertyChanged(nameof(ShowFlatResults));
-            RebuildGroups();
-        }
-    }
+    // Display-limited flat view (bound to the flat ItemsRepeater).
+    public ObservableCollection<SmartSearchResult> DisplayResults { get; } = new();
 
-    /// <summary>Directory-grouped view of the current filename results.</summary>
+    // Display-limited grouped view (bound to the grouped ItemsRepeater).
     public ObservableCollection<SearchResultGroup> GroupedResults { get; } = new();
-
-    /// <summary>
-    /// Show the grouped results panel only in filename mode with hits and when
-    /// <see cref="GroupByDirectory"/> is on. Semantic results keep their own panel.
-    /// </summary>
-    public bool ShowGroupedResults => ShowFilenameResults && _groupByDirectory;
-
-    /// <summary>
-    /// Show the flat results list only in filename mode with hits and when
-    /// <see cref="GroupByDirectory"/> is off (the grouped panel shows instead).
-    /// </summary>
-    public bool ShowFlatResults => ShowFilenameResults && !_groupByDirectory;
 
     private int _resultCount;
     public int ResultCount
@@ -232,21 +195,155 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         }
     }
 
-    /// <summary>
-    /// Whether the result set was capped at <see cref="MaxResults"/> (more matches
-    /// existed than were kept). Drives a "showing top N" notice in the UI.
-    /// </summary>
-    private bool _resultsTruncated;
-    public bool ResultsTruncated
+    /// <summary>How many of the full results are currently shown (progressive load).</summary>
+    private int _displayCount = 500;
+    public int DisplayCount
     {
-        get => _resultsTruncated;
-        set { _resultsTruncated = value; OnPropertyChanged(); }
+        get => _displayCount;
+        set { _displayCount = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasMore)); OnPropertyChanged(nameof(ShownCount)); }
     }
 
-    /// <summary>
-    /// Whether at least one search result exists.
-    /// </summary>
+    /// <summary>True when more results exist beyond the currently displayed slice.</summary>
+    public bool HasMore => _results.Count > _displayCount;
+
+    /// <summary>Number of results actually displayed (min of display cap and total).</summary>
+    public int ShownCount => Math.Min(_displayCount, _results.Count);
+
+    /// <summary>Set when the full set hit the hard memory cap.</summary>
+    private bool _hardCapped;
+    public bool HardCapped
+    {
+        get => _hardCapped;
+        set { _hardCapped = value; OnPropertyChanged(); }
+    }
+
     public bool HasResults => _resultCount > 0;
+
+    // ── Grouping / sorting / view options ──
+
+    private GroupByMode _groupByMode = GroupByMode.None;
+    public GroupByMode GroupByMode
+    {
+        get => _groupByMode;
+        set
+        {
+            _groupByMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowGroupedResults));
+            OnPropertyChanged(nameof(ShowFlatResults));
+            SettingsStore.Set(SettingKey.GroupByMode, value.ToString());
+            ApplyDisplay();
+        }
+    }
+
+    /// <summary>Legacy convenience: true when grouping by folder (used only for simple gating).</summary>
+    public bool GroupByDirectory => _groupByMode == GroupByMode.Folder;
+    public bool ShowGroupedResults => ShowFilenameResults && _groupByMode != GroupByMode.None;
+    public bool ShowFlatResults => ShowFilenameResults && _groupByMode == GroupByMode.None;
+
+    private SortBy _sortBy = SortBy.Name;
+    public SortBy SortBy
+    {
+        get => _sortBy;
+        set
+        {
+            _sortBy = value;
+            OnPropertyChanged();
+            SettingsStore.Set(SettingKey.SortBy, value.ToString());
+            SortAndApply();
+        }
+    }
+
+    private bool _showRawBytes;
+    public bool ShowRawBytes
+    {
+        get => _showRawBytes;
+        set { _showRawBytes = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKey.ShowRawBytes, value); }
+    }
+
+    private bool _isCompactDensity;
+    public bool IsCompactDensity
+    {
+        get => _isCompactDensity;
+        set
+        {
+            _isCompactDensity = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(DensityItemSpacing));
+            OnPropertyChanged(nameof(DensityCardPadding));
+            SettingsStore.SetBool(SettingKey.CompactDensity, value);
+        }
+    }
+    public double DensityItemSpacing => _isCompactDensity ? 4 : 12;
+    public Thickness DensityCardPadding => _isCompactDensity ? new Thickness(8) : new Thickness(16);
+
+    private bool _followSymlinks;
+    public bool FollowSymlinks
+    {
+        get => _followSymlinks;
+        set { _followSymlinks = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKey.FollowSymlinks, value); }
+    }
+
+    private bool _collapseSmallGroups = true;
+    public bool CollapseSmallGroups
+    {
+        get => _collapseSmallGroups;
+        set { _collapseSmallGroups = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKey.CollapseSmallGroups, value); ApplyDisplay(); }
+    }
+
+    private int _otherThresholdMb = 1;
+    public int OtherThresholdMb
+    {
+        get => _otherThresholdMb;
+        set { _otherThresholdMb = Math.Max(0, value); OnPropertyChanged(); SettingsStore.Set(SettingKey.OtherThresholdMb, value.ToString()); ApplyDisplay(); }
+    }
+
+    private bool _isAdvancedMode;
+    public bool IsAdvancedMode
+    {
+        get => _isAdvancedMode;
+        set { _isAdvancedMode = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKey.AdvancedMode, value); }
+    }
+
+    private int _maxResults = 500;
+    public int MaxResults
+    {
+        get => _maxResults;
+        set
+        {
+            _maxResults = Math.Max(1, value);
+            OnPropertyChanged();
+            SettingsStore.Set(SettingKey.MaxResults, value.ToString());
+            // Re-anchor the display window to the new cap.
+            DisplayCount = Math.Min(_maxResults, _results.Count);
+            ApplyDisplay();
+        }
+    }
+
+    public SmartSearchViewModel()
+    {
+        LoadSettings();
+        _ = SettingsStore.EnsureLoadedAsync();
+    }
+
+    private void LoadSettings()
+    {
+        _includeHidden = SettingsStore.GetBool(SettingKey.IncludeHidden, false);
+        _maxResults = ParseInt(SettingsStore.Get(SettingKey.MaxResults), 500);
+        _displayCount = _maxResults;
+        _showRawBytes = SettingsStore.GetBool(SettingKey.ShowRawBytes, false);
+        _isCompactDensity = SettingsStore.GetBool(SettingKey.CompactDensity, false);
+        _followSymlinks = SettingsStore.GetBool(SettingKey.FollowSymlinks, false);
+        _collapseSmallGroups = SettingsStore.GetBool(SettingKey.CollapseSmallGroups, true);
+        _otherThresholdMb = ParseInt(SettingsStore.Get(SettingKey.OtherThresholdMb), 1);
+        _isAdvancedMode = SettingsStore.GetBool(SettingKey.AdvancedMode, false);
+        _semanticTopK = ParseInt(SettingsStore.Get(SettingKey.SemanticTopK), 50);
+        if (Enum.TryParse<GroupByMode>(SettingsStore.Get(SettingKey.GroupByMode), true, out var g)) _groupByMode = g;
+        if (Enum.TryParse<SortBy>(SettingsStore.Get(SettingKey.SortBy), true, out var s)) _sortBy = s;
+    }
+
+    private static int ParseInt(string? raw, int fallback)
+        => int.TryParse(raw, out var v) ? v : fallback;
 
     // ── Methods ──
 
@@ -262,17 +359,16 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         var ct = _cts.Token;
         IsSearching = true;
         StatusMessage = "Searching...";
-        Results.Clear();
+        _results.Clear();
+        DisplayResults.Clear();
         GroupedResults.Clear();
         ResultCount = 0;
-        ResultsTruncated = false;
+        HardCapped = false;
         SemanticResults.Clear();
         SemanticResultCount = 0;
 
         try
         {
-            // Validate the target path up front so we fail fast with a clear message
-            // instead of letting the scanner or a recursive walk throw on a bad path.
             if (string.IsNullOrWhiteSpace(SearchPath) || !Directory.Exists(SearchPath))
             {
                 StatusMessage = $"Path not found: {SearchPath}";
@@ -292,21 +388,18 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
                 await SearchWithManagedWalkAsync();
             }
 
-            // Only overwrite the status with the summary when no branch set a more
-            // specific message (e.g. "Semantic search requires the Rust scanner…").
             if (StatusMessage == "Searching...")
             {
                 if (_isSemantic)
                 {
-                    StatusMessage = ResultsTruncated
-                        ? $"Found {SemanticResults.Count} semantic match(es) shown (capped at {MaxResults})."
+                    StatusMessage = HardCapped
+                        ? $"Found {SemanticResults.Count} semantic match(es) shown (capped at {HardCap})."
                         : $"Found {SemanticResults.Count} semantic match(es).";
                 }
                 else
                 {
-                    StatusMessage = ResultsTruncated
-                        ? $"Found {ResultCount} match(es) shown (capped at {MaxResults})."
-                        : $"Found {ResultCount} match(es).";
+                    var more = HardCapped ? $" (capped at {HardCap})" : (HasMore ? " — Show all to reveal the rest" : "");
+                    StatusMessage = $"Showing {ShownCount} of {ResultCount} match(es){more}.";
                 }
             }
         }
@@ -324,10 +417,35 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         }
     }
 
-    /// <summary>
-    /// Cancel an in-progress search (filename or semantic). The running operation
-    /// observes <see cref="_cts"/> and will unwind; the UI returns to idle state.
-    /// </summary>
+    /// <summary>Re-scope the search to a specific folder (used by group drill-in).</summary>
+    public async Task DrillIntoAsync(string folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+            return;
+        SearchPath = folder;
+        await SearchAsync();
+    }
+
+    /// <summary>Re-scope the search to a grouped result bucket (Folder path or
+    /// Category/Extension query). Non-drillable buckets (Date/Size) just toggle.</summary>
+    public async Task DrillIntoGroupAsync(SearchResultGroup group)
+    {
+        if (group is null) return;
+        if (!string.IsNullOrEmpty(group.DrillPath))
+        {
+            await DrillIntoAsync(group.DrillPath);
+            return;
+        }
+        if (!string.IsNullOrEmpty(group.DrillQuery))
+        {
+            SearchQuery = group.DrillQuery;
+            UseWildcards = true;
+            await SearchAsync();
+            return;
+        }
+        group.IsExpanded = !group.IsExpanded;
+    }
+
     public void CancelSearch()
     {
         if (!IsSearching)
@@ -336,11 +454,6 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         StatusMessage = "Search cancelled.";
     }
 
-    /// <summary>
-    /// Index <see cref="SearchPath"/> with embeddings via the Rust <c>embed</c>
-    /// subcommand so semantic search becomes available. Re-indexing reuses the
-    /// same scan id so previous vectors are overwritten.
-    /// </summary>
     public async Task IndexAsync()
     {
         if (IsIndexing || string.IsNullOrWhiteSpace(SearchPath))
@@ -390,7 +503,6 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
     {
         if (!_indexedScanId.HasValue)
         {
-            // No index yet - build it, then search against it in one shot.
             await IndexAsync();
             if (!_indexedScanId.HasValue)
                 return;
@@ -403,10 +515,8 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         }
 
         double? minScore = _minScorePercent > 0 ? _minScorePercent / 100.0 : null;
-        // IndexAsync() above may have re-created _cts, so re-read the live token
-        // rather than the stale one captured before indexing began.
         var liveCt = _cts.Token;
-        var hits = await _scanner.SemanticSearchAsync(SearchQuery, _indexedScanId.Value, top: 50, minScore: minScore, liveCt);
+        var hits = await _scanner.SemanticSearchAsync(SearchQuery, _indexedScanId.Value, top: SemanticTopK, minScore: minScore, liveCt);
         if (hits == null)
         {
             StatusMessage = "Semantic search returned no results.";
@@ -415,7 +525,7 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
 
         foreach (var h in hits)
         {
-            if (SemanticResults.Count >= MaxResults) { ResultsTruncated = true; break; }
+            if (SemanticResults.Count >= HardCap) { HardCapped = true; break; }
             SemanticResults.Add(h);
         }
         SemanticResultCount = SemanticResults.Count;
@@ -429,9 +539,6 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             if (result is null)
                 return;
 
-            // The GUI scan summary omits the per-file map (scanned_files) by design,
-            // so the scanner result has no entries to name-match against. Fall back to
-            // the managed walk, which is what the scanner-unavailable path uses too.
             if (result.ScannedFiles.Count == 0)
             {
                 StatusMessage = "Indexing summary only; using local file walk for name search.";
@@ -446,32 +553,28 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
                     ? new Func<string, bool>(name => WildcardMatches(name, query))
                     : new Func<string, bool>(name => name.Contains(query, StringComparison.OrdinalIgnoreCase));
             var minSizeBytes = MinSizeMb * 1024 * 1024;
-            var collected = new List<SmartSearchResult>();
 
-            // Match against actual files (the scanner's scanned_files map), not just
-            // top-level directories, so a file-name query returns real hits.
             foreach (var kvp in result.ScannedFiles)
             {
+                if (_results.Count >= HardCap) { HardCapped = true; break; }
                 var name = Path.GetFileName(kvp.Key);
                 if (match(name) && kvp.Value.Size >= minSizeBytes)
                 {
-                    collected.Add(new SmartSearchResult
+                    var mtime = kvp.Value.Mtime;
+                    _results.Add(new SmartSearchResult
                     {
                         Path = kvp.Key,
                         Name = name,
                         SizeBytes = kvp.Value.Size,
-                        SizeDisplay = ByteFormatter.FormatBytes(kvp.Value.Size)
+                        SizeDisplay = ByteFormatter.FormatBytes(kvp.Value.Size),
+                        SizeRaw = kvp.Value.Size.ToString("N0"),
+                        ModifiedDisplay = FormatUnixSeconds(mtime),
+                        Mtime = mtime
                     });
                 }
             }
 
-            foreach (var r in collected)
-            {
-                if (Results.Count >= MaxResults) { ResultsTruncated = true; break; }
-                Results.Add(r);
-            }
-            ResultCount = Results.Count;
-            RebuildGroups();
+            FinalizeFilenameResults();
         }
         catch (Exception ex)
         {
@@ -493,17 +596,13 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
                 WalkDirectory(new DirectoryInfo(SearchPath), query, minSizeBytes, collected);
             }, _cts.Token);
 
-            var ui = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-            ui.TryEnqueue(() =>
+            foreach (var r in collected)
             {
-                foreach (var r in collected)
-                {
-                    if (Results.Count >= MaxResults) { ResultsTruncated = true; break; }
-                    Results.Add(r);
-                }
-                ResultCount = Results.Count;
-                RebuildGroups();
-            });
+                if (_results.Count >= HardCap) { HardCapped = true; break; }
+                _results.Add(r);
+            }
+
+            FinalizeFilenameResults();
         }
         catch (Exception ex)
         {
@@ -512,27 +611,106 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// Rebuild <see cref="GroupedResults"/> from the current flat <see cref="Results"/>
-    /// list, grouping by parent directory. Cheap enough to call on every result
-    /// change and on <see cref="GroupByDirectory"/> toggle. No-op payload when
-    /// grouping is off (the flat panel is shown instead).
+    /// Sort the full result set, compute size-bar metadata, then project the
+    /// display-limited flat + grouped views.
     /// </summary>
-    private void RebuildGroups()
+    private void FinalizeFilenameResults()
     {
+        SortResults(_results);
+        RecomputeBars();
+        ResultCount = _results.Count;
+        DisplayCount = Math.Min(_maxResults, _results.Count);
+        ApplyDisplay();
+    }
+
+    /// <summary>Re-sort and re-project after a sort change (no new search).</summary>
+    private void SortAndApply()
+    {
+        if (_results.Count == 0) return;
+        SortResults(_results);
+        RecomputeBars();
+        ApplyDisplay();
+    }
+
+    private void RecomputeBars()
+    {
+        ulong max = 0;
+        foreach (var r in _results)
+            if (r.SizeBytes > max) max = r.SizeBytes;
+        foreach (var r in _results)
+        {
+            r.SizeFraction = max > 0 ? (double)r.SizeBytes / max : 0;
+            r.BarBrush = FileCategory.CategoryBrush(FileCategory.CategoryForExtension(Path.GetExtension(r.Name)));
+        }
+    }
+
+    /// <summary>
+    /// Project the full results into the display-limited <see cref="DisplayResults"/>
+    /// and (when grouping) <see cref="GroupedResults"/> collections.
+    /// </summary>
+    private void ApplyDisplay()
+    {
+        DisplayResults.Clear();
+        foreach (var r in _results.Take(_displayCount))
+            DisplayResults.Add(r);
+
         GroupedResults.Clear();
-        if (!_groupByDirectory)
+        if (_groupByMode == GroupByMode.None)
             return;
 
-        foreach (var g in Results
-            .GroupBy(r => Path.GetDirectoryName(r.Path) ?? r.Path)
-            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+        var groups = _results.Take(_displayCount)
+            .GroupBy(GroupKey)
+            .Select(g => BuildGroup(g.Key, g.ToList()))
+            .ToList();
+
+        if (_collapseSmallGroups && _groupByMode is GroupByMode.Folder or GroupByMode.Category or GroupByMode.Extension)
         {
-            GroupedResults.Add(new SearchResultGroup
+            var threshold = (ulong)Math.Max(0, _otherThresholdMb) * 1024 * 1024;
+            var small = groups.Where(g => g.TotalBytes < threshold).ToList();
+            var keep = groups.Where(g => g.TotalBytes >= threshold).ToList();
+            if (small.Count > 0)
             {
-                Directory = g.Key,
-                Items = g.ToList()
-            });
+                keep.Add(BuildGroup("__other", small.SelectMany(g => g.Items).ToList(), $"Other ({small.Count} groups)"));
+                groups = keep;
+            }
         }
+
+        foreach (var g in OrderGroups(groups))
+            GroupedResults.Add(g);
+    }
+
+    /// <summary>Reveal the entire result set (drops the display cap).</summary>
+    public void ShowAll()
+    {
+        DisplayCount = _results.Count;
+        ApplyDisplay();
+        OnPropertyChanged(nameof(HasMore));
+        OnPropertyChanged(nameof(ShownCount));
+        OnPropertyChanged(nameof(ResultCount));
+    }
+
+    /// <summary>Append another page of results (one <see cref="MaxResults"/> step).</summary>
+    public void LoadMore()
+    {
+        DisplayCount = Math.Min(_results.Count, _displayCount + _maxResults);
+        ApplyDisplay();
+        OnPropertyChanged(nameof(HasMore));
+        OnPropertyChanged(nameof(ShownCount));
+        OnPropertyChanged(nameof(ResultCount));
+    }
+
+    public string ExportResultsJson()
+    {
+        var payload = _results.Select(r => new
+        {
+            r.Path,
+            r.Name,
+            r.SizeBytes,
+            r.SizeDisplay,
+            r.ModifiedDisplay,
+            Mtime = r.Mtime
+        });
+        return System.Text.Json.JsonSerializer.Serialize(payload, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
     }
 
     private void WalkDirectory(DirectoryInfo dir, string query, ulong minSizeBytes, List<SmartSearchResult> collected)
@@ -554,12 +732,16 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
                     {
                         if ((ulong)file.Length >= minSizeBytes)
                         {
+                            var mtime = new DateTimeOffset(file.LastWriteTimeUtc).ToUnixTimeSeconds();
                             collected.Add(new SmartSearchResult
                             {
                                 Path = file.FullName,
                                 Name = file.Name,
                                 SizeBytes = (ulong)file.Length,
-                                SizeDisplay = ByteFormatter.FormatBytes((ulong)file.Length)
+                                SizeDisplay = ByteFormatter.FormatBytes((ulong)file.Length),
+                                SizeRaw = ((ulong)file.Length).ToString("N0"),
+                                ModifiedDisplay = FormatUnixSeconds(mtime),
+                                Mtime = mtime
                             });
                         }
                     }
@@ -570,6 +752,9 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             {
                 if (IncludeHidden || (subdir.Attributes & FileAttributes.Hidden) == 0)
                 {
+                    // Skip reparse points (symlinks/junctions) unless explicitly following them.
+                    if (!_followSymlinks && (subdir.Attributes & FileAttributes.ReparsePoint) != 0)
+                        continue;
                     WalkDirectory(subdir, query, minSizeBytes, collected);
                 }
             }
@@ -577,8 +762,117 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[SmartSearchViewModel] WalkDirectory error: {ex}");
-            // Skip inaccessible directories
         }
+    }
+
+    // ── Grouping / sorting helpers ──
+
+    private SearchResultGroup BuildGroup(string key, List<SmartSearchResult> items, string? label = null)
+    {
+        string? drillPath = null;
+        string? drillQuery = null;
+        if (_groupByMode == GroupByMode.Folder && key != "__other")
+            drillPath = key;
+        else if (_groupByMode == GroupByMode.Extension && key != "__other" && key != "(no extension)")
+            drillQuery = "*" + key;
+        else if (_groupByMode == GroupByMode.Category && key != "__other")
+        {
+            var exts = FileCategory.ExtensionsForCategory(key);
+            if (exts.Count > 0)
+                drillQuery = string.Join("|", exts.Select(e => "*" + e));
+        }
+
+        return new SearchResultGroup
+        {
+            Key = key,
+            Label = label ?? key,
+            Items = SortItems(items),
+            DrillPath = drillPath,
+            DrillQuery = drillQuery
+        };
+    }
+
+    private string GroupKey(SmartSearchResult r)
+    {
+        var ext = Path.GetExtension(r.Name);
+        return _groupByMode switch
+        {
+            GroupByMode.Folder => Path.GetDirectoryName(r.Path) ?? r.Path,
+            GroupByMode.Extension => string.IsNullOrEmpty(ext) ? "(no extension)" : ext.ToLowerInvariant(),
+            GroupByMode.Category => FileCategory.CategoryForExtension(ext),
+            GroupByMode.Date => DateKey(r.Mtime),
+            GroupByMode.Size => SizeBand(r.SizeBytes),
+            _ => r.Path
+        };
+    }
+
+    private static string DateKey(long mtime)
+    {
+        if (mtime <= 0) return "Unknown date";
+        try
+        {
+            var dt = DateTimeOffset.FromUnixTimeSeconds(mtime);
+            return $"{dt.Year} / {dt.Month:00}";
+        }
+        catch { return "Unknown date"; }
+    }
+
+    private static string SizeBand(ulong size)
+    {
+        const ulong mb = 1024 * 1024;
+        const ulong gb = 1024 * mb;
+        if (size < mb) return "Under 1 MB";
+        if (size < 10 * mb) return "1 – 10 MB";
+        if (size < 100 * mb) return "10 – 100 MB";
+        if (size < gb) return "100 MB – 1 GB";
+        return "Over 1 GB";
+    }
+
+    private IEnumerable<SearchResultGroup> OrderGroups(List<SearchResultGroup> groups)
+    {
+        return _groupByMode switch
+        {
+            GroupByMode.Date => groups.OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase),
+            GroupByMode.Size => groups.OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase),
+            _ => groups.OrderByDescending(g => g.TotalBytes)
+        };
+    }
+
+    private void SortResults(IEnumerable<SmartSearchResult> items)
+    {
+        var sorted = SortItems(items as List<SmartSearchResult> ?? items.ToList());
+        _results.Clear();
+        foreach (var r in sorted) _results.Add(r);
+    }
+
+    private List<SmartSearchResult> SortItems(List<SmartSearchResult> items)
+    {
+        var list = new List<SmartSearchResult>(items);
+        switch (_sortBy)
+        {
+            case SortBy.Name:
+                list.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+                break;
+            case SortBy.Size:
+                list.Sort((a, b) => b.SizeBytes.CompareTo(a.SizeBytes));
+                break;
+            case SortBy.Date:
+                list.Sort((a, b) => b.Mtime.CompareTo(a.Mtime));
+                break;
+            case SortBy.Path:
+                list.Sort((a, b) => string.Compare(a.Path, b.Path, StringComparison.OrdinalIgnoreCase));
+                break;
+            case SortBy.Extension:
+                list.Sort((a, b) => string.Compare(Path.GetExtension(a.Name), Path.GetExtension(b.Name), StringComparison.OrdinalIgnoreCase));
+                break;
+        }
+        return list;
+    }
+
+    private static string FormatUnixSeconds(long secs)
+    {
+        try { return DateTimeOffset.FromUnixTimeSeconds(secs).ToString("yyyy-MM-dd HH:mm"); }
+        catch { return "-"; }
     }
 
     private static bool WildcardMatches(string input, string pattern)
@@ -586,9 +880,6 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         if (string.IsNullOrEmpty(pattern))
             return true;
 
-        // Support OR of multiple wildcard patterns: "*.jpg|*.png|*.gif" matches a
-        // file whose name satisfies ANY one pattern. Used by category drills that
-        // resolve to several extensions joined by '|'.
         if (pattern.Contains('|'))
         {
             foreach (var part in pattern.Split('|'))
@@ -652,18 +943,26 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    private static class SettingKey
+    {
+        public const string GroupByMode = "smartsearch.groupByMode";
+        public const string SortBy = "smartsearch.sortBy";
+        public const string MaxResults = "smartsearch.maxResults";
+        public const string IncludeHidden = "smartsearch.includeHidden";
+        public const string ShowRawBytes = "smartsearch.showRawBytes";
+        public const string CompactDensity = "smartsearch.compactDensity";
+        public const string FollowSymlinks = "smartsearch.followSymlinks";
+        public const string CollapseSmallGroups = "smartsearch.collapseSmallGroups";
+        public const string OtherThresholdMb = "smartsearch.otherThresholdMb";
+        public const string AdvancedMode = "smartsearch.advancedMode";
+        public const string SemanticTopK = "smartsearch.semanticTopK";
+    }
 }
 
 /// <summary>
-/// Drill-in preset passed when navigating to Smart Search from another page
-/// (e.g. the Dashboard file-type chart, or the History Library Composition donut).
+/// Drill-in preset passed when navigating to Smart Search from another page.
 /// Pre-fills the search box and path so the user lands one tap away from the
 /// results they were drilling toward. When <see cref="Category"/> is set (donut
 /// drill) it resolves to that category's extensions and runs an OR-wildcard search.
 /// </summary>
 public sealed record SmartSearchPreset(string? Query = null, string? Path = null, string? Category = null);
-
-
-
-
-

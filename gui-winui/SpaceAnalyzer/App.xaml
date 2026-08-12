@@ -64,6 +64,8 @@
             <helpers:DoubleToPercentTextConverter x:Key="DoubleToPercentText"/>
             <helpers:SourceToLabelConverter x:Key="SourceToLabel"/>
             <helpers:SourceToBrushConverter x:Key="SourceToBrush"/>
+            <helpers:EnumEqualsConverter x:Key="EnumEqualsConverter"/>
+            <helpers:BoolToChevronConverter x:Key="BoolToChevron"/>
 
             <!-- Spacing Tokens (Double) -->
             <x:Double x:Key="Space.XXL">32</x:Double>

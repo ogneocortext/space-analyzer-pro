@@ -6,6 +6,11 @@ using Microsoft.UI.Xaml.Navigation;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.ViewModels;
 using System;
+using System.Linq;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Storage;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
 
 namespace SpaceAnalyzer.Views;
 
@@ -102,6 +107,77 @@ public sealed partial class SmartSearchPage : Page
             {
                 UiHelper.OpenPath(parent);
             }
+        }
+    }
+
+    private void CopyPath_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("SmartSearchPage CopyPath_Click");
+        if (sender is Button btn && btn.Tag is string path && !string.IsNullOrEmpty(path))
+        {
+            var package = new DataPackage();
+            package.SetText(path);
+            Clipboard.SetContent(package);
+            AppNotifications.Success("Path copied", path);
+        }
+    }
+
+    private void ToggleGroup_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("SmartSearchPage ToggleGroup_Click");
+        if (sender is Button btn && btn.Tag is string key)
+        {
+            var group = VM.GroupedResults.FirstOrDefault(g => g.Key == key);
+            if (group != null) group.IsExpanded = !group.IsExpanded;
+        }
+    }
+
+    private async void DrillIntoGroup_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("SmartSearchPage DrillIntoGroup_Click");
+        if (sender is Button btn && btn.Tag is string key)
+        {
+            var group = VM.GroupedResults.FirstOrDefault(g => g.Key == key);
+            if (group != null) await VM.DrillIntoGroupAsync(group);
+        }
+    }
+
+    private void ShowAll_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("SmartSearchPage ShowAll_Click");
+        VM.ShowAll();
+    }
+
+    private void LoadMore_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("SmartSearchPage LoadMore_Click");
+        VM.LoadMore();
+    }
+
+    private async void ExportJson_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            AppLog.Action("SmartSearchPage ExportJson_Click");
+            var picker = new FileSavePicker();
+            picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+            picker.SuggestedFileName = $"smartsearch-{DateTime.Now:yyyy-MM-dd-HHmmss}.json";
+            picker.FileTypeChoices.Add("JSON", new[] { ".json" });
+
+            var window = MainWindow.Current as Window;
+            var hwnd = WindowNative.GetWindowHandle(window);
+            InitializeWithWindow.Initialize(picker, hwnd);
+
+            var file = await picker.PickSaveFileAsync();
+            if (file != null)
+            {
+                await FileIO.WriteTextAsync(file, VM.ExportResultsJson());
+                AppNotifications.Success("Export saved", file.Path);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("SmartSearchPage ExportJson_Click failed", ex);
         }
     }
 }
