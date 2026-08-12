@@ -27,6 +27,8 @@ pub fn scan_directory(
     stream: bool,
     progress_json: bool,
     include_files: bool,
+    top_n: usize,
+    save_history: bool,
 ) -> AppResult<ScanResult> {
     // A `Path` that cannot be represented as UTF-8 cannot be handed to the
     // native scanner (which takes `&str`). Fail loudly instead of silently
@@ -190,7 +192,14 @@ pub fn scan_directory(
     result.extension_sizes = shared_result.extension_sizes;
     result.category_sizes = shared_result.category_sizes.clone();
 
-    let scan_path_str = path.to_string_lossy().to_string();
+    // The subdirectory paths stored by the scanner have already had the Windows
+    // `\\?\` verbatim prefix stripped, so compare against a likewise-stripped
+    // root to keep the (aggregated) root group out of `top_directories`.
+    let scan_path_raw = path.to_string_lossy().to_string();
+    let scan_path_str = scan_path_raw
+        .strip_prefix(r"\\?\")
+        .unwrap_or(&scan_path_raw)
+        .to_string();
     let mut top_dirs: Vec<DirEntry> = shared_result
         .subdirectories
         .into_iter()
@@ -204,9 +213,12 @@ pub fn scan_directory(
         })
         .collect();
     top_dirs.sort_by_key(|b| std::cmp::Reverse(b.total_size));
-    result.top_directories = top_dirs;
+    // Bound the directory-heavy list to `--top` so whole-drive JSON stays small
+    // (the text/MD renderers already slice by `top`, this keeps the machine output
+    // consistent with it instead of serializing every subdirectory).
+    result.top_directories = top_dirs.into_iter().take(top_n).collect();
 
-    for file in shared_result.largest_files.into_iter().take(1000) {
+    for file in shared_result.largest_files.into_iter().take(top_n) {
         result.largest_files.push(LargestFileEntry {
             path: file.path,
             size: file.size,
@@ -238,6 +250,21 @@ pub fn scan_directory(
         let line = serde_json::to_string(&complete).unwrap_or_default();
         println!("{}", line);
         let _ = std::io::stdout().flush();
+    }
+
+    if save_history {
+        if let Ok(db) = Database::default_open() {
+            let max_scan_depth = max_depth.unwrap_or(5) as u32;
+            if let Ok(id) = db.save_scan(&result, deep, shallow, max_scan_depth) {
+                if stream {
+                    let saved = serde_json::json!({ "type": "saved", "id": id });
+                    if let Ok(line) = serde_json::to_string(&saved) {
+                        println!("{}", line);
+                        let _ = std::io::stdout().flush();
+                    }
+                }
+            }
+        }
     }
 
     Ok(result)

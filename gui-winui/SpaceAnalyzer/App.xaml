@@ -62,6 +62,8 @@
             <helpers:SelectedFlagBorderConverter x:Key="SelectedFlagBorder"/>
             <helpers:ScanTypeToBrushConverter x:Key="ScanTypeToBrush"/>
             <helpers:DoubleToPercentTextConverter x:Key="DoubleToPercentText"/>
+            <helpers:SourceToLabelConverter x:Key="SourceToLabel"/>
+            <helpers:SourceToBrushConverter x:Key="SourceToBrush"/>
 
             <!-- Spacing Tokens (Double) -->
             <x:Double x:Key="Space.XXL">32</x:Double>

@@ -37,6 +37,14 @@ public sealed partial class HistoryPage : Page
         // (NavigationCacheMode=Required), so the ctor runs once but OnNavigatedFrom
         // unsubscribes. Subscribing on every navigation keeps the trend chart in sync.
         VM.PropertyChanged += OnVmPropertyChanged;
+        if (e.Parameter is long id)
+        {
+            _ = VM.SelectRecordByIdAsync(id);
+        }
+        else
+        {
+            VM.BackToList();
+        }
         _ = ReloadCurrentPageAsync();
     }
 

@@ -78,10 +78,15 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
-                                                    <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind DisplayName, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
+                                                        <Border Background="{x:Bind Source, Converter={StaticResource SourceToBrush}, Mode=OneTime}"
+                                                                CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
+                                                            <TextBlock Style="{StaticResource Type.Tiny}" Foreground="White"
+                                                                       Text="{x:Bind Source, Converter={StaticResource SourceToLabel}, Mode=OneTime}"/>
+                                                        </Border>
+                                                        <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind DisplayName, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
                                                     <TextBlock Style="{StaticResource Type.Body}" Opacity="0.8">
-                                                        <Run Text="{x:Bind Source, Mode=OneTime}"/>
-                                                        <Run Text=" · "/>
                                                         <Run Text="{x:Bind TotalSizeDisplay, Mode=OneTime}"/>
                                                         <Run Text=" across "/>
                                                         <Run Text="{x:Bind DistinctLocations, Mode=OneTime}"/>
@@ -89,9 +94,88 @@
                                                     </TextBlock>
                                                 </StackPanel>
                                                 <Border Grid.Column="1" Background="{ThemeResource AccentFillColorDefaultBrush}"
-                                                        CornerRadius="4" Padding="8,4" VerticalAlignment="Center">
+                                                        CornerRadius="4" Padding="8,4" VerticalAlignment="Center"
+                                                        Visibility="{x:Bind HasRedundancyLabel, Converter={StaticResource BoolToVisibility}, Mode=OneTime}">
                                                     <TextBlock Style="{StaticResource Type.Tiny}" Foreground="White" Text="{x:Bind RedundancyLabel, Mode=OneTime}"/>
                                                 </Border>
+                                            </Grid>
+
+                                            <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.85" TextWrapping="Wrap">
+                                                <Run Text="Safety: "/>
+                                                <Run Text="{x:Bind Safety, Mode=OneTime}"/>
+                                                <Run Text=" · "/>
+                                                <Run Text="{x:Bind DeletionGuidance, Mode=OneTime}"/>
+                                            </TextBlock>
+
+                                            <ItemsRepeater ItemsSource="{x:Bind Instances, Mode=OneTime}">
+                                                <ItemsRepeater.Layout>
+                                                    <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.XS}"/>
+                                                </ItemsRepeater.Layout>
+                                                <ItemsRepeater.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:AppInstance">
+                                                        <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"
+                                                                       Text="{x:Bind VersionDisplay, Mode=OneTime}" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="1" Style="{StaticResource Type.Tiny}" Opacity="0.75"
+                                                                       Text="{x:Bind LocationDisplay, Mode=OneTime}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="2" Style="{StaticResource Type.Tiny}" Opacity="0.6"
+                                                                       Text="{x:Bind Drive, Mode=OneTime}" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="3" Style="{StaticResource Type.Tiny}" Opacity="0.6"
+                                                                       Text="{x:Bind SizeDisplay, Mode=OneTime}" VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsRepeater.ItemTemplate>
+                                            </ItemsRepeater>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Border>
+
+                <!-- Container & Notable Data (non-redundant but worth surfacing: Docker, large single installs) -->
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}"
+                        Visibility="{x:Bind VM.HasNotable, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Spacing="{StaticResource Space.LG}">
+                        <TextBlock Text="Container &amp; Notable Data" Style="{StaticResource Type.CardTitle}"/>
+                        <TextBlock Style="{StaticResource Type.Body}" Opacity="0.8"
+                                   Text="Installs that are not redundant but still consume meaningful space — e.g. Docker's WSL data volume, runtime VHDX and program-data folders." TextWrapping="Wrap"/>
+                        <ItemsRepeater ItemsSource="{x:Bind VM.NotableGroups, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.MD}"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:AppGroup">
+                                    <Border Style="{StaticResource ItemCard}">
+                                        <StackPanel Spacing="{StaticResource Space.SM}">
+                                            <Grid ColumnSpacing="{StaticResource Space.MD}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
+                                                        <Border Background="{x:Bind Source, Converter={StaticResource SourceToBrush}, Mode=OneTime}"
+                                                                CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
+                                                            <TextBlock Style="{StaticResource Type.Tiny}" Foreground="White"
+                                                                       Text="{x:Bind Source, Converter={StaticResource SourceToLabel}, Mode=OneTime}"/>
+                                                        </Border>
+                                                        <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind DisplayName, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                    <TextBlock Style="{StaticResource Type.Body}" Opacity="0.8">
+                                                        <Run Text="{x:Bind TotalSizeDisplay, Mode=OneTime}"/>
+                                                        <Run Text=" across "/>
+                                                        <Run Text="{x:Bind DistinctLocations, Mode=OneTime}"/>
+                                                        <Run Text=" location(s)"/>
+                                                    </TextBlock>
+                                                </StackPanel>
                                             </Grid>
 
                                             <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.85" TextWrapping="Wrap">

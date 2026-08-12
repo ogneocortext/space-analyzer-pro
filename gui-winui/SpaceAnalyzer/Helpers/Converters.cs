@@ -340,3 +340,56 @@ public sealed class DoubleToPercentTextConverter : IValueConverter
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => 0.0;
 }
+
+/// <summary>
+/// Maps an inventory <c>Source</c> token (registry, scoop, chocolatey, rustup,
+/// vscode-ext, wsl, docker) to a human-readable label for the Installed Apps page.
+/// Unknown tokens pass through unchanged.
+/// </summary>
+public sealed class SourceToLabelConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        string source = value?.ToString() ?? string.Empty;
+        return source switch
+        {
+            "registry" => "Registry",
+            "scoop" => "Scoop",
+            "chocolatey" => "Chocolatey",
+            "rustup" => "Rustup",
+            "vscode-ext" => "VS Code",
+            "wsl" => "WSL",
+            "docker" => "Docker",
+            _ => string.IsNullOrWhiteSpace(source) ? "Other" : source
+        };
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => null!;
+}
+
+/// <summary>
+/// Maps an inventory <c>Source</c> token to a theme-aware badge accent brush so
+/// each install group can show a color-coded source chip.
+/// </summary>
+public sealed class SourceToBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        string source = value?.ToString() ?? string.Empty;
+        string key = source switch
+        {
+            "registry" => "SystemFillColorImportantBrush",
+            "scoop" => "SystemFillColorSuccessBrush",
+            "chocolatey" => "SystemFillColorAttentionBrush",
+            "rustup" => "SystemFillColorCautionBrush",
+            "vscode-ext" => "SystemFillColorCautionBrush",
+            "wsl" => "SystemFillColorAttractionBrush",
+            "docker" => "SystemFillColorAttractionBrush",
+            _ => "TextFillColorSecondaryBrush"
+        };
+        return Application.Current.Resources[key] as SolidColorBrush
+            ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => null!;
+}

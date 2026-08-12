@@ -38,14 +38,16 @@ public class InstalledAppsViewModel : ViewModelBase, IDisposable
         {
             _lastResult = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(HasResult));
-            OnPropertyChanged(nameof(HasResultVisibility));
-            OnPropertyChanged(nameof(RedundantGroups));
-            OnPropertyChanged(nameof(TotalApps));
-            OnPropertyChanged(nameof(DuplicateLocationGroups));
-            OnPropertyChanged(nameof(MultiVersionGroups));
-            OnPropertyChanged(nameof(TotalWastedDisplay));
-            OnPropertyChanged(nameof(HasRedundancy));
+                OnPropertyChanged(nameof(HasResult));
+                OnPropertyChanged(nameof(HasResultVisibility));
+                OnPropertyChanged(nameof(RedundantGroups));
+                OnPropertyChanged(nameof(NotableGroups));
+                OnPropertyChanged(nameof(HasNotable));
+                OnPropertyChanged(nameof(TotalApps));
+                OnPropertyChanged(nameof(DuplicateLocationGroups));
+                OnPropertyChanged(nameof(MultiVersionGroups));
+                OnPropertyChanged(nameof(TotalWastedDisplay));
+                OnPropertyChanged(nameof(HasRedundancy));
         }
     }
     public bool HasResult => _lastResult != null;
@@ -58,6 +60,17 @@ public class InstalledAppsViewModel : ViewModelBase, IDisposable
     public string TotalWastedDisplay => _lastResult?.TotalWastedDisplay ?? "";
     public bool HasRedundancy => _lastResult?.HasRedundancy ?? false;
     public List<AppGroup> RedundantGroups => _lastResult?.RedundantGroups ?? new();
+
+    /// <summary>
+    /// Groups that are not flagged as redundant but are still worth surfacing:
+    /// container/runtime data (Docker) and any large single-location install
+    /// (>= 1 GB). The CLI intentionally reports Docker artifacts as distinct,
+    /// non-redundant groups, so without this they would never appear on the page.
+    /// </summary>
+    public List<AppGroup> NotableGroups =>
+        _lastResult?.Groups.Where(g => !g.HasRedundancy && (g.Source == "docker" || g.TotalSizeBytes >= 1_000_000_000)).ToList()
+        ?? new();
+    public bool HasNotable => NotableGroups.Count > 0;
 
     public async Task AnalyzeAsync()
     {

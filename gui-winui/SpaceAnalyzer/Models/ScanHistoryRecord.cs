@@ -91,6 +91,7 @@ public class ScanHistoryRecord
     public string DurationDisplay => $"{(int)DurationSecs / 60}m {(int)DurationSecs % 60}s";
     public string FilesDisplay => $"{TotalFiles:N0} files";
     public string PotentialCleanupDisplay => ByteFormatter.FormatBytes(PotentialCleanupBytes);
+    public bool HasPotentialCleanup => PotentialCleanupBytes > 0;
 
     /// <summary>
     /// Transient UI flag: true when this record's directory also appears

@@ -133,7 +133,7 @@ impl GpuScanProcessor {
         let mut largest: Vec<_> = processed
             .iter()
             .map(|(path, size, ext, _)| GpuFileInfo {
-                path: path.clone(),
+                path: strip_verbatim(path.clone()),
                 name: extract_filename(path),
                 size: *size,
                 extension: ext.clone(),
@@ -221,6 +221,17 @@ fn size_bucket(size: u64) -> String {
     }
 }
 
+/// Strip the Windows extended-length (verbatim) prefix (`\\?\`) that
+/// `std::fs::canonicalize` adds on Windows, so paths surfaced to callers and
+/// stored in history stay readable and comparable. Non-prefixed paths pass
+/// through unchanged.
+fn strip_verbatim(path: impl AsRef<std::path::Path>) -> String {
+    let text = path.as_ref().to_string_lossy().to_string();
+    text.strip_prefix(r"\\?\")
+        .unwrap_or(&text)
+        .to_string()
+}
+
 /// Count entries per parent directory from the filtered entry list.
 ///
 /// Note: this operates on the filtered `entries` slice, so directories
@@ -267,13 +278,36 @@ fn compute_subdirectories(entries: &[RawFileEntry], scan_root: Option<&Path>) ->
         let path = Path::new(&entry.path);
         let sub_name: String = match scan_root {
             Some(root) => match path.strip_prefix(root) {
-                Ok(rel) => match rel.components().next() {
-                    Some(first) => root
-                        .join(first.as_os_str())
-                        .to_string_lossy()
-                        .to_string(),
-                    None => root.to_string_lossy().to_string(),
-                },
+                Ok(rel) => {
+                    let rel_comps: Vec<_> = rel.components().collect();
+                    if rel_comps.len() <= 1 {
+                        // The scan root itself, or a direct child of it. A
+                        // direct-child *file* is not a directory and must roll
+                        // into the root group (filtered out downstream) instead
+                        // of being reported as its own "subdirectory". A
+                        // direct-child *directory* is a real subdirectory and
+                        // keeps its own group below.
+                        if rel_comps.is_empty() || !entry.is_dir {
+                            root.to_string_lossy().to_string()
+                        } else {
+                            match rel_comps.first() {
+                                Some(first) => root
+                                    .join(first.as_os_str())
+                                    .to_string_lossy()
+                                    .to_string(),
+                                None => root.to_string_lossy().to_string(),
+                            }
+                        }
+                    } else {
+                        match rel_comps.first() {
+                            Some(first) => root
+                                .join(first.as_os_str())
+                                .to_string_lossy()
+                                .to_string(),
+                            None => root.to_string_lossy().to_string(),
+                        }
+                    }
+                }
                 Err(_) => root.to_string_lossy().to_string(),
             },
             None => {
@@ -309,12 +343,13 @@ fn compute_subdirectories(entries: &[RawFileEntry], scan_root: Option<&Path>) ->
     let mut result: Vec<DirInfo> = all_names
         .into_iter()
         .map(|name| {
-            let basename = Path::new(&name)
+            let clean_path = strip_verbatim(name.clone());
+            let basename = Path::new(&clean_path)
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_else(|| name.clone());
+                .unwrap_or_else(|| clean_path.clone());
             DirInfo {
-                path: name.clone(),
+                path: clean_path,
                 name: basename,
                 total_size: dir_sizes.get(&name).copied().unwrap_or(0),
                 file_count: dir_file_counts.get(&name).copied().unwrap_or(0),
@@ -461,5 +496,46 @@ mod tests {
         assert_eq!(result.largest_files[0].path, "large.txt");
         assert_eq!(result.largest_files[1].path, "medium.txt");
         assert_eq!(result.largest_files[2].path, "small.txt");
+    }
+
+    #[test]
+    fn compute_subdirectories_excludes_root_level_files() {
+        // Mirror the smoke-test scenario: a single file sitting directly in the
+        // scan root must NOT be reported as its own "subdirectory". Only real
+        // subdirectories should appear, and the `\\?\` verbatim prefix must be
+        // stripped from stored paths.
+        let root = r"\\?\C:\Users\test\sa_smoke";
+        let entries = vec![
+            RawFileEntry {
+                path: r"\\?\C:\Users\test\sa_smoke\a.txt".to_string(),
+                size: 7,
+                is_dir: false,
+            },
+            RawFileEntry {
+                path: r"\\?\C:\Users\test\sa_smoke\sub".to_string(),
+                size: 0,
+                is_dir: true,
+            },
+            RawFileEntry {
+                path: r"\\?\C:\Users\test\sa_smoke\sub\big.bin".to_string(),
+                size: 4096,
+                is_dir: false,
+            },
+        ];
+        let dirs = compute_subdirectories(&entries, Some(std::path::Path::new(root)));
+        let names: Vec<&str> = dirs.iter().map(|d| d.name.as_str()).collect();
+        assert!(
+            !names.contains(&"a.txt"),
+            "root-level file must not appear as a subdirectory"
+        );
+        assert!(
+            names.contains(&"sub"),
+            "real subdirectory must be reported"
+        );
+        let sub = dirs.iter().find(|d| d.name == "sub").unwrap();
+        assert_eq!(sub.total_size, 4096);
+        assert_eq!(sub.file_count, 1);
+        assert!(sub.path.starts_with("C:\\Users\\test\\sa_smoke\\sub"));
+        assert!(!sub.path.starts_with(r"\\?\"));
     }
 }

@@ -75,7 +75,7 @@ impl Default for AppSettings {
             prompt_cache_ttl_seconds: 300,
             prompt_cache_max_memory_mb: 64,
             embedding_enabled: false,
-            embedding_model: "nomic-embed-text:latest".to_string(),
+            embedding_model: "nomic-embed-text:v1.5".to_string(),
             embedding_batch_size: 32,
             embedding_file_limit: 1000,
             auto_model_selection: true,

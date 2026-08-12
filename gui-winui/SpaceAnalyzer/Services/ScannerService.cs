@@ -380,6 +380,11 @@ public class ScannerService : IDisposable
             argList.Add("--include-hidden");
         if (!(useGpu ?? GpuAcceleration))
             argList.Add("--no-gpu");
+        // Bound the directory/file breakdown the CLI returns. The CLI now caps
+        // top_directories/largest_files to --top; the GUI wants a generous slice
+        // for its treemap/largest-files views, not the CLI's 20-item default.
+        argList.Add("--top");
+        argList.Add("250");
         if (progress is not null)
         {
             var scanCaps = await GetCapabilitiesAsync(ct);
@@ -413,6 +418,13 @@ public class ScannerService : IDisposable
     /// The <paramref name="onProgress"/> callback is invoked for every progress line,
     /// and the final ScanResult is returned when the "complete" line is received.
     /// </summary>
+    /// <summary>
+    /// The id of the scan-history record written by the most recent streaming
+    /// scan, when it was launched with <c>saveToHistory: true</c>. Null otherwise.
+    /// The GUI uses this to offer a "View in History" bridge after a scan.
+    /// </summary>
+    public long? LastSavedHistoryId { get; private set; }
+
     public async Task<ScanResult?> ScanDirectoryStreamingAsync(
         string path,
         DepthMode depthMode = DepthMode.Default,
@@ -420,7 +432,8 @@ public class ScannerService : IDisposable
         bool includeHidden = false,
         IProgress<StreamProgress>? onProgress = null,
         CancellationToken ct = default,
-        bool? useGpu = null)
+        bool? useGpu = null,
+        bool saveToHistory = false)
     {
         if (!IsAvailable)
             throw new FileNotFoundException(
@@ -444,6 +457,15 @@ public class ScannerService : IDisposable
             argList.Add("--include-hidden");
         if (!(useGpu ?? GpuAcceleration))
             argList.Add("--no-gpu");
+        // Bound the directory/file breakdown the CLI returns. The CLI now caps
+        // top_directories/largest_files to --top; the GUI wants a generous slice
+        // for its treemap/largest-files views, not the CLI's 20-item default.
+        argList.Add("--top");
+        argList.Add("250");
+
+        if (saveToHistory)
+            argList.Add("--save-history");
+        LastSavedHistoryId = null;
 
         int scanId = ScanActivityMonitor.Instance.BeginScan(path);
         var psi = new ProcessStartInfo
@@ -477,7 +499,10 @@ public class ScannerService : IDisposable
             throw new Exception($"Failed to start scanner: {ex.Message}", ex);
         }
 
-        _ = ReadStderrAsync(process.StandardError, ct);
+        // Drain stderr concurrently with stdout. ReadStderrAsync returns the
+        // full captured text (not just void), so a failed scan can report the
+        // real backend error instead of an empty message.
+        var stderrTask = ReadStderrAsync(process.StandardError, ct);
 
         var stdoutReader = process.StandardOutput;
         var finalResult = (ScanResult?)null;
@@ -506,6 +531,13 @@ public class ScannerService : IDisposable
                             var progress = JsonSerializer.Deserialize<StreamProgress>(line, s_jsonOptions);
                             if (progress != null)
                                 onProgress?.Report(progress);
+                        }
+                        else if (eventType == "saved")
+                        {
+                            if (root.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var savedId))
+                            {
+                                LastSavedHistoryId = savedId;
+                            }
                         }
                         else if (eventType == "complete")
                         {
@@ -573,28 +605,35 @@ public class ScannerService : IDisposable
 
         if (process.ExitCode != 0)
         {
-            var stderr = await process.StandardError.ReadToEndAsync(ct);
+            // stderr was already fully drained by the concurrent ReadStderrAsync
+            // task above; reuse its captured text rather than re-reading the
+            // (now exhausted) stream, which would return an empty string.
+            var stderr = await stderrTask;
             throw new Exception($"Scanner failed (exit {process.ExitCode}): {stderr}");
         }
 
         return finalResult;
     }
 
-    private static async Task ReadStderrAsync(
+    private static async Task<string> ReadStderrAsync(
         System.IO.StreamReader stderr,
         CancellationToken ct)
     {
         try
         {
-            while (await stderr.ReadLineAsync(ct) is not null)
+            var sb = new System.Text.StringBuilder();
+            while (await stderr.ReadLineAsync(ct) is { } line)
             {
+                sb.AppendLine(line);
                 if (ct.IsCancellationRequested)
                     break;
             }
+            return sb.ToString();
         }
         catch
         {
             // Ignore - stderr is not parsed in streaming mode
+            return string.Empty;
         }
     }
 

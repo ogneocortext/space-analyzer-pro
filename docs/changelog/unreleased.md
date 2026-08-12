@@ -163,3 +163,23 @@
 
 - Removed the duplicate pre-scan used only to estimate progress. Progress now adapts while the active traversal runs, avoiding a second directory walk and reducing startup I/O on large profiles.
 
+### CLI JSON Output — Curated Display Consistency
+
+- **Channel file reuses the curated projection** — `scan --channel` (`scan-channel.json`) previously hand-rolled a raw `serde_json::json!` dump (full f64 precision, no human sizes). It now calls `report::generate_json_pretty`, matching `scan --format json` exactly: stable field order, rounded `total_size_mb`/`duration_secs`, `total_size_human`/`potential_cleanup_human`, and omitted empty `scanned_files`.
+- **`disk-info --format json`** now emits additive `total_human`/`used_human`/`available_human` (`DiskInfo` + `disk_info_from`). The WinUI `DiskVolume` (`List<DiskVolume>`) ignores unknown members, so this is non-breaking.
+- **`settings get --format json`** now pretty-prints (`to_string_pretty`) instead of compact, matching every other JSON surface.
+- **`dedup --format json`** now emits additive `potential_savings_human` (all four construction sites: empty, apply-error, apply-success, dry-run).
+- **`app-inventory --format json`** now emits additive `total_wasted_human` (both Windows and non-Windows `build_inventory_report` arms).
+- Reshaping was limited to additive companion fields for any JSON the WinUI `ScannerService` deserializes (`disk-info`, `dedup`, `app-inventory`); the channel file is write-only, so it was fully migrated.
+
+### Smart Search / Embeddings (`nomic-embed-text`)
+
+- **Pinned the default embedding model** — `embedding_model` default changed from the floating `nomic-embed-text:latest` to `nomic-embed-text:v1.5`. `:latest` can silently shift underlying weights/dimensions and invalidate stored embeddings; the pinned tag is reproducible. User-overridden settings are untouched.
+- **Added asymmetric task prefixes for `nomic-embed-text`** — file descriptions are now tagged `search_document: ` (`embedding_service::file_to_description`) and queries `search_query: ` (`embed_query` and `semantic_search`). nomic-embed-text trains documents and queries in different subspaces; without the prefixes both collapse into the document space and query relevance degrades sharply. This is the single biggest semantic-search quality fix.
+- **Re-index after upgrade** — embeddings stored by a prior build (prefixless) are inconsistent with new prefixed queries. Rebuild the semantic index (Smart Search "Rebuild Index" / re-run a scan) once after upgrading; mismatched-dimension vectors already fall back to 0.0 similarity, so there is no crash.
+- **Added a dimension-mismatch guard in `semantic-search`** — `src/cli/semantic.rs::run_search` now compares the freshly-embedded query dimension against the stored index dimension before running `search_files`. A stale index built with a different model/version previously degraded every cosine similarity to `0.0` and silently returned empty results; it now returns a clear `Validation` error telling the user to re-run `embed`. (The `cosine_similarity` fallback of `0.0` on length mismatch is retained for individual bad vectors.)
+- **Stripped the `\\?\` UNC long-path prefix from embedded paths** — `collect_files` in `src/cli/semantic.rs` now stores the friendly `C:\…` form instead of walkdir's `\\?\C:\…`, so the Smart Search results list in the GUI shows clean, copy-pasteable paths.
+- **Made `save_embeddings` idempotent** — `src/database/embeddings.rs` now `DELETE`s a scan's existing vectors before inserting, so repeated `embed` runs / GUI "Rebuild Index" clicks no longer append duplicate rows (previously each rebuild doubled the vectors for a scan, bloating the table and producing duplicate results).
+- **Integration test (2026-08-12)** — end-to-end `embed` → `semantic-search` verified on `nomic-embed-text`. Natural-language queries rank the right file type at the top every time (e.g. "tax and invoice documents" → PDFs first; "videos of my holiday" → `.mp4` first; "computer programming source code" → `.rs` first). The dimension guard was validated live by truncating a stored vector's dimension: it returns the expected "re-run `embed`" error. Re-index idempotency confirmed (12 rows after a double `embed`, was 24 before the fix).
+- Updated the live `live_semantic_search` test and the AI Tools panel doc comment to reference `nomic-embed-text:v1.5`.
+

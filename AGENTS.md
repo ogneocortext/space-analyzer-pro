@@ -232,7 +232,102 @@ Reviewed the Rust-core ↔ WinUI 3 boundary (see prior session's Findings). Impl
   (2.29M files / 554 GB) now emits **8.2 MB** JSON instead of hundreds of MB.
 - `cargo test -p shared-scanner --features gpu` → 4 passed (no regression).
 
+### Scan JSON `--top` cap + Docker inventory (2026-08-11)
+- **`--top <N>` now bounds the machine-readable output, not just the text renderer.**
+  Previously `scan_directory` built `top_directories`/`largest_files` uncapped, so
+  `--format json` / `--stream` serialized *every* subdirectory (whole-drive scans
+  produced huge arrays). Threaded `top_n` into `scan_directory` (`src/cli/scan.rs`)
+  and `ScanArgs` (`src/cli/mod.rs`); both lists are now `.take(top_n)`. The global
+  `--top` default is still 20, so CLI JSON/stream stays bounded by default.
+- **GUI preserved:** `ScannerService.ScanDirectoryAsync`/`ScanDirectoryStreamingAsync`
+  now pass `--top 250` so the treemap/largest-files views keep a generous slice
+  instead of silently dropping to 20. Verified WinUI MSBuild build: 0 errors/0 warns.
+- **Docker inventory source added** (`src/app_inventory.rs::collect_docker`, source
+  `"docker"`). Docker's real disk footprint lives in WSL2 `ext4.vhdx` files, not the
+  registry program install, so it enumerates: (a) the `docker-desktop` / `docker-desktop-data`
+  VHDX via the `HKCU\...\Lxss` BasePath registry + `%LOCALAPPDATA%\Docker\wsl\{data,main}\ext4.vhdx`;
+  (b) the two program-data folders (`C:\ProgramData\DockerDesktop`, `%LOCALAPPDATA%\Docker`)
+  as distinct single-location groups (avoids a false "duplicate location" warning);
+  (c) best-effort compose/named **volume** enumeration via `docker volume ls`, run through
+  a thread+timeout (`run_with_timeout`) so a stopped/slow daemon never stalls the scan.
+  Docker groups get a dedicated deletion-guidance note (Clean/Reset or
+  `wsl --unregister docker-desktop-data`; never delete a live VHDX).
+- **Verified:** `cargo build --release --bin space-analyzer-cli` (1m49s) +
+  `app-inventory --format json` → 328 installs, 2 docker groups (user data ~25.9 MB +
+  program data ~67 KB, both `dup_loc False`). `--top 2` scan caps both arrays to 2.
+  `cargo test --bin space-analyzer-cli` → 29 passed.
+
+### Installed Apps GUI — surface Docker + humanize source (2026-08-11)
+- **Bug: Docker inventory was invisible in the GUI.** `InstalledAppsViewModel.RedundantGroups`
+  only exposed groups with `IsDuplicateLocation || HasMultipleVersions`, and the CLI
+  intentionally reports Docker artifacts as distinct, non-redundant groups — so they
+  never rendered (though `TotalApps` counted them). Added `NotableGroups` to the VM
+  (`!HasRedundancy && (source == "docker" || total_size_bytes >= 1 GB)`) and a
+  "Container & Notable Data" card section in `InstalledAppsPage.xaml` so Docker VHDX /
+  program-data / volumes now appear. A `HasNotable` flag drives the section's visibility.
+- **Source chips:** added `SourceToLabelConverter` + `SourceToBrushConverter`
+  (`Helpers/Converters.cs`, registered in `App.xaml`) mapping `registry/scoop/chocolatey/
+  rustup/vscode-ext/wsl/docker` → friendly label + theme-aware badge color. The page
+  header now shows a colored source chip instead of the raw `source` token. Added
+  `AppGroup.HasRedundancyLabel` so the redundancy badge only renders when there is one.
+- **Verified:** WinUI GUI MSBuild build → 0 errors / 0 warnings.
+
+### Scan result / history organization (2026-08-11)
+- **Gap: reclaimable space was hidden.** The Rust scanner already computes
+  `potential_cleanup_bytes`, surfaced as `ScanResult.PotentialCleanupBytes` /
+  `ScanHistoryRecord.PotentialCleanupBytes`, but the live scan result strip never
+  showed it and history detail showed it only as a tiny low-opacity caption. The
+  app's core purpose is finding space to reclaim, so the most actionable number was
+  buried.
+- **Fix (P1, done):** added a **"Reclaimable"** stat to the live scan result summary
+  strip (`ScanPage.xaml`, 7th column, success-colored, hidden when 0) gated by new
+  `ScanViewModel.HasPotentialCleanup`; and a reclaimable chip in the history
+  "Scan Details" header (`HistoryPage.xaml`) gated by new
+  `ScanHistoryRecord.HasPotentialCleanup`. Both use `BoolToVisibility`.
+- **Open follow-ups:** (2) **DONE** — "Saved to history · View details" bridge added
+  (see next bullet); (3) unify the live result layout with the history detail Pivot
+  (Overview / Categories / Largest Files / Folders / File Types) so the same data is
+  organized consistently — still open; (4) **DONE** — removed the dead FILES/SIZE/
+  DURATION/DEPTH column-header row on the history list (did not align with the cards).
+- **"Saved to history" bridge (done 2026-08-11):** a manual scan now persists to the
+  embedded DB and jumps to its details. Rust: new `--save-history` flag on `scan`
+  (`src/cli/args.rs`, `src/cli/scan.rs`, `src/cli/mod.rs`) calls `db.save_scan(...)` and
+  emits a final `{"type":"saved","id":<id>}` JSONL line (stream mode). C#: `ScannerService
+  .ScanDirectoryStreamingAsync` gained `saveToHistory` + `LastSavedHistoryId`; `ScanViewModel`
+  exposes `HasSavedHistory`/`HasSavedHistoryVisibility`; `ScanPage.xaml` shows a
+  "Saved to history · View details" bar that navigates (`Frame.Navigate(typeof(HistoryPage), id)`);
+  `HistoryViewModel.SelectRecordByIdAsync(long)` loads + selects the record; `HistoryPage
+  .xaml.cs` routes a long navigation param to it (and clears selection otherwise).
+- **Verified:** `cargo build --release --bin space-analyzer-cli` → OK; smoke test emitted
+  `{"id":3586,"type":"saved"}` and `history --id 3586` returned the record; WinUI GUI MSBuild
+  build → 0 errors / 0 warnings.
+
+
 ### Review findings (still open, optional)
 - [1] Add `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md`, root `CODE_OF_CONDUCT.md` (none tracked).
 - [2] Set repo Description + Topics via `gh repo edit` (not a git op).
 - No shared JSON schema between Rust CLI and C# models (convention-only; field mismatch silently defaults to zeros). Consider a contract test or generated models if drift recurs.
+
+### JSON output hardening (2026-08-12) — extended the curated `scan --format json` work to other JSON surfaces
+- **Evaluation:** audited every machine-readable JSON the CLI emits and classified each by who parses it.
+  GUI-parsed (must keep field names): `disk-info`, `history` (list/`--id`/`--trend`/`--category-totals`),
+  `dedup`, `app-inventory`, `db`, `settings get`. GUI-unparsed / additive-only: `scan --channel`
+  (`scan-channel.json`, written but never read), `settings get` (read as a generic `Dictionary`), and the
+  human-readable companion fields below (C# `System.Text.Json` ignores unknown members by default).
+- **`scan --channel` channel file (`src/cli/mod.rs`):** previously a raw `serde_json::json!` dump with full
+  f64 precision and no human sizes. Now reuses `report::generate_json_pretty(result)` so it matches
+  `scan --format json` exactly (curated field order, rounded floats, `total_size_human`/`potential_cleanup_human`).
+- **`disk-info --format json` (`src/cli/types.rs` `DiskInfo`, `src/cli/helpers.rs` `disk_info_from`):** added
+  additive `total_human`/`used_human`/`available_human` (via `shared_scanner::format_bytes`). GUI-safe (ignored by C#).
+- **`settings get --format json` (`src/cli/mod.rs`):** switched from compact `to_string` to
+  `to_string_pretty` for consistency with every other JSON output. GUI parses it as a generic dictionary, so safe.
+- **`dedup --format json` (`src/cli/dedup.rs` `DedupResult`):** added `potential_savings_human` (populated in all
+  three construction sites). GUI-safe (ignored by C# `DedupResult`).
+- **`app-inventory --format json` (`src/app_inventory.rs` `AppInventoryReport`):** added `total_wasted_human`
+  (via local `human_bytes`) in both `cfg(windows)` / `cfg(not(windows))` build paths. GUI-safe.
+- **Deliberately left raw (GUI-consumed, reshaping would break the contract):** `history --id` serializes
+  `ScanHistoryRecord` directly and the GUI deserializes it into `ScanHistoryRecord` via `GetScanDetailsAsync`;
+  `db --info` is already a curated object. These keep their exact field shapes.
+- **Verified:** `cargo build --bin space-analyzer-cli` → OK; `cargo test --bin space-analyzer-cli` → 31 passed
+  (was 29); smoke tests confirmed `total_human`/`used_human`/`available_human` in `disk-info`, pretty `settings get`,
+  curated `scan-channel.json`, and `total_wasted_human` (~7.4 GB) in `app-inventory`.

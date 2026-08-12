@@ -53,12 +53,16 @@ fn collect_files(
                 continue;
             }
         }
+        let raw = path.to_string_lossy().to_string();
+        // Strip the `\\?\` long-path prefix Windows/walkdir emits so the
+        // stored path is the friendly form the GUI should display.
+        let path_str = raw.strip_prefix(r"\\?\").unwrap_or(&raw).to_string();
         let ext = path
             .extension()
             .and_then(|s| s.to_str())
             .map(|s| s.to_lowercase())
             .unwrap_or_default();
-        files.push((path.to_string_lossy().to_string(), size, ext));
+        files.push((path_str, size, ext));
         if files.len() >= MAX_EMBED_FILES {
             break;
         }
@@ -98,11 +102,10 @@ pub fn run_embed(
         )));
     }
 
-    let settings = Database::default_open()
+    let db = Database::default_open()
         .ok()
-        .as_ref()
-        .map(|db| db.load_settings())
-        .unwrap_or_default();
+        .ok_or_else(|| AppError::Validation("Could not open embedded database".to_string()))?;
+    let settings = db.load_settings();
 
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| AppError::Validation(format!("Failed to start async runtime: {e}")))?;
@@ -119,10 +122,6 @@ pub fn run_embed(
     let embeddings = rt
         .block_on(embed_files(&client, &files))
         .map_err(|e| AppError::Validation(e))?;
-
-    let db = Database::default_open()
-        .ok()
-        .ok_or_else(|| AppError::Validation("Could not open embedded database".to_string()))?;
 
     let scan_id = match scan_id {
         Some(id) => id,
@@ -182,7 +181,19 @@ fn load_stored_embeddings(
 }
 
 /// Run the `semantic-search` subcommand.
-pub fn run_search(query: String, scan_id: i64, top: usize, format: OutputFormat) -> AppResult<()> {
+///
+/// `min_score` (when set) drops matches whose cosine similarity is below the
+/// floor. This suppresses the "central-document" noise that dominates when
+/// embedding scores are compressed into a narrow band: a query still returns
+/// its genuinely closest files, while a generic file that only scores mid-pack
+/// (e.g. a notes file that appears in every query) no longer pollutes the list.
+pub fn run_search(
+    query: String,
+    scan_id: i64,
+    top: usize,
+    min_score: Option<f32>,
+    format: OutputFormat,
+) -> AppResult<()> {
     let db = Database::default_open()
         .ok()
         .ok_or_else(|| AppError::Validation("Could not open embedded database".to_string()))?;
@@ -213,7 +224,28 @@ pub fn run_search(query: String, scan_id: i64, top: usize, format: OutputFormat)
         .block_on(embed_query(&client, &query))
         .map_err(|e| AppError::Validation(e))?;
 
-    let results = search_files(&query_embedding, &stored, top);
+    // Guard against a stale index built with a different model or version.
+    // Stored vectors and the live query must share a dimension; otherwise
+    // every cosine similarity degrades to 0.0 and the query silently returns
+    // nothing useful. Surface it instead of masking it.
+    if let Some(stored_dim) = stored.first().map(|(_, _, _, v)| v.len()) {
+        let query_dim = query_embedding.len();
+        if stored_dim != query_dim {
+            return Err(AppError::Validation(format!(
+                "The semantic index for scan #{scan_id} was built at dimension {stored_dim}, \
+                 but the current embedding model `{}` produces dimension {query_dim}. \
+                 Re-run `embed` to rebuild the index before searching.",
+                settings.embedding_model
+            )));
+        }
+    }
+
+    let mut results = search_files(&query_embedding, &stored, top);
+    if let Some(floor) = min_score {
+        // Clamp the floor to a sane range and drop sub-threshold matches.
+        let floor = floor.clamp(0.0, 1.0);
+        results.retain(|r| r.similarity >= floor);
+    }
 
     if format == OutputFormat::Json {
         let json_results: Vec<Value> = results
@@ -230,19 +262,28 @@ pub fn run_search(query: String, scan_id: i64, top: usize, format: OutputFormat)
         let response = serde_json::json!({
             "query": query,
             "scan_id": scan_id,
+            "min_score": min_score,
             "results": json_results,
         });
         println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
     } else {
-        println!("Top {} matches for: \"{}\"", results.len(), query);
-        for (i, r) in results.iter().enumerate() {
+        if results.is_empty() {
             println!(
-                "  {}. {} ({:.1}% similar) [{}]",
-                i + 1,
-                r.file_path,
-                r.similarity * 100.0,
-                r.file_extension
+                "No files matched the query{}",
+                min_score.map(|f| format!(" above the {:.0}% similarity floor", f * 100.0))
+                    .unwrap_or_default()
             );
+        } else {
+            println!("Top {} matches for: \"{}\"", results.len(), query);
+            for (i, r) in results.iter().enumerate() {
+                println!(
+                    "  {}. {} ({:.1}% similar) [{}]",
+                    i + 1,
+                    r.file_path,
+                    r.similarity * 100.0,
+                    r.file_extension
+                );
+            }
         }
     }
     Ok(())

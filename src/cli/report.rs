@@ -20,7 +20,7 @@ pub fn export_results(
     top_n: usize,
 ) -> AppResult<()> {
     let content = match format {
-        OutputFormat::Json => serde_json::to_string_pretty(result)?,
+        OutputFormat::Json => generate_json_pretty(result)?,
         OutputFormat::Jsonl => generate_jsonl(result)?,
         OutputFormat::Csv => render::build_csv(result),
         OutputFormat::Md | OutputFormat::Text => generate_report(result, &result.path, top_n),
@@ -46,6 +46,46 @@ pub fn export_results(
             e
         ))
     })
+}
+
+/// Render the scan as a stable, human-friendly JSON document.
+///
+/// Unlike serializing `ScanResult` directly, this curates the field order,
+/// rounds noisy floats (`total_size_mb`, `duration_secs`), adds human-readable
+/// size strings, and omits the per-file map unless it actually carries data.
+/// The GUI consumes the streaming JSONL event, not this document, so reshaping
+/// it cannot break the desktop app.
+pub fn generate_json_pretty(result: &ScanResult) -> AppResult<String> {
+    let mut value = serde_json::json!({
+        "path": result.path,
+        "total_files": result.total_files,
+        "total_dirs": result.total_dirs,
+        "total_size_bytes": result.total_size_bytes,
+        "total_size_human": format_bytes(result.total_size_bytes),
+        "total_size_mb": round2(result.total_size_mb),
+        "potential_cleanup_bytes": result.potential_cleanup_bytes,
+        "potential_cleanup_human": format_bytes(result.potential_cleanup_bytes),
+        "duration_secs": round2(result.duration_secs),
+        "errors": result.errors,
+        "file_types": result.file_types,
+        "extension_sizes": result.extension_sizes,
+        "category_sizes": result.category_sizes,
+        "top_directories": result.top_directories,
+        "largest_files": result.largest_files,
+        "timestamp": result.timestamp,
+    });
+    if !result.scanned_files.is_empty() {
+        value.as_object_mut().unwrap().insert(
+            "scanned_files".to_string(),
+            serde_json::to_value(&result.scanned_files)?,
+        );
+    }
+    Ok(serde_json::to_string_pretty(&value)?)
+}
+
+/// Round to two decimal places for display, avoiding full f64 precision noise.
+fn round2(value: f64) -> f64 {
+    (value * 100.0).round() / 100.0
 }
 
 /// Render the scan as genuine JSON Lines: one self-describing JSON object per
@@ -298,5 +338,43 @@ mod tests {
         let md = generate_report(&sample(), "C:/tmp", 20);
         assert!(md.contains("`(no ext)`"), "got:\n{md}");
         assert!(!md.contains("`.(no ext)`"));
+    }
+
+    #[test]
+    fn json_pretty_curates_shape_and_omits_empty_scanned_files() {
+        let json = generate_json_pretty(&sample()).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+        let obj = value.as_object().expect("a JSON object");
+
+        // Always-present, human-readable companions.
+        assert!(obj.contains_key("total_size_human"));
+        assert!(obj.contains_key("potential_cleanup_human"));
+
+        // The per-file map is omitted when empty (it dwarfs every other field
+        // and is only meaningful with `--files`).
+        assert!(
+            !obj.contains_key("scanned_files"),
+            "empty scanned_files must be omitted"
+        );
+
+        // Floats are rounded to two decimals, not dumped at full f64 precision.
+        let mb = obj["total_size_mb"].as_f64().expect("total_size_mb is a number");
+        assert!(
+            (mb * 100.0).fract().abs() < f64::EPSILON,
+            "total_size_mb should have at most 2 decimal places"
+        );
+    }
+
+    #[test]
+    fn json_pretty_includes_scanned_files_when_populated() {
+        let mut r = sample();
+        r.scanned_files
+            .insert("C:/tmp/a.rs".to_string(), (20, 0));
+        let json = generate_json_pretty(&r).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(
+            value.get("scanned_files").is_some(),
+            "populated scanned_files must be present"
+        );
     }
 }

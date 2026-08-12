@@ -48,7 +48,7 @@ impl SpaceAnalyzerApp {
     // ── 1. semantic_search (embedding) ─────────────────────────
 
     /// Run a semantic file search over the most recent scan.
-    /// Uses `embedding_model` from settings (default: `nomic-embed-text:latest`).
+    /// Uses `embedding_model` from settings (default: `nomic-embed-text:v1.5`).
     pub(crate) fn run_semantic_search(&mut self) {
         if !self.ai_tools_enabled() {
             return;

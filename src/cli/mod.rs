@@ -56,6 +56,7 @@ pub fn main() -> AppResult<()> {
             stream,
             progress_json,
             files,
+            save_history,
             shallow,
         } => {
             let args = ScanArgs {
@@ -81,6 +82,7 @@ pub fn main() -> AppResult<()> {
                 stream,
                 progress_json,
                 files,
+                save_history,
                 output_format,
                 top_n,
                 no_anim,
@@ -196,7 +198,8 @@ pub fn main() -> AppResult<()> {
             query,
             scan_id,
             top,
-        } => semantic::run_search(query, scan_id, top, output_format),
+            min_score,
+        } => semantic::run_search(query, scan_id, top, min_score, output_format),
         Commands::Usn { command } => usn::run(command, output_format),
         Commands::Bloat { scan_id, top } => {
             bloat::run(bloat::BloatArgs { scan_id, top }, output_format)
@@ -233,11 +236,11 @@ struct ScanArgs {
     stream: bool,
     progress_json: bool,
     files: bool,
+    save_history: bool,
     output_format: OutputFormat,
     top_n: usize,
     no_anim: bool,
 }
-
 fn handle_scan(args: ScanArgs) -> AppResult<()> {
     // When stdout must stay a single machine-readable document (any non-text
     // format) or is a streaming JSONL session, every human-facing notice is
@@ -300,6 +303,8 @@ fn handle_scan(args: ScanArgs) -> AppResult<()> {
         args.stream,
         args.progress_json,
         args.files,
+        args.top_n,
+        args.save_history,
     )?;
 
     if args.output_format == OutputFormat::Text && !args.no_anim && !args.stream {
@@ -323,24 +328,13 @@ fn handle_scan(args: ScanArgs) -> AppResult<()> {
     }
 
     if let Some(channel_dir) = &args.channel {
-        let payload = serde_json::json!({
-            "path": scan_path_display,
-            "total_files": result.total_files,
-            "total_size_bytes": result.total_size_bytes,
-            "total_size_mb": result.total_size_mb,
-            "duration_secs": result.duration_secs,
-            "file_types": result.file_types,
-            "extension_sizes": result.extension_sizes,
-            "top_directories": result.top_directories,
-            "largest_files": result.largest_files,
-        });
         let _ = fs::create_dir_all(channel_dir);
         let target = Path::new(channel_dir).join("scan-channel.json");
-        fs::write(
-            &target,
-            serde_json::to_string_pretty(&payload).unwrap_or_default(),
-        )
-        .map_err(|e| {
+        // Reuse the curated, stable projection (rounded floats + human-readable
+        // sizes) so the channel file matches `scan --format json` and stays
+        // friendly for any script that reads it.
+        let channel_payload = report::generate_json_pretty(&result)?;
+        fs::write(&target, channel_payload).map_err(|e| {
             space_analyzer_pro_desktop::error::AppError::Validation(format!(
                 "Could not write GUI channel file '{}': {}",
                 target.display(),
@@ -734,7 +728,7 @@ fn handle_settings(
                     if output_format == OutputFormat::Json {
                         let map: std::collections::BTreeMap<String, String> =
                             pairs.into_iter().collect();
-                        println!("{}", serde_json::to_string(&map).unwrap_or_default());
+                        println!("{}", serde_json::to_string_pretty(&map).unwrap_or_default());
                     } else {
                         for (k, v) in pairs {
                             println!("{} = {}", k, v);
@@ -957,7 +951,7 @@ fn output_results(
             output::print_text_results(result, top, verbose, no_animation, depth_label)
         }
         OutputFormat::Json => {
-            let json_output = serde_json::to_string_pretty(result).unwrap_or_default();
+            let json_output = report::generate_json_pretty(result)?;
             println!("{}", json_output);
         }
         OutputFormat::Jsonl => {

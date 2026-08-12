@@ -6,6 +6,14 @@
 use super::gui_common::formatting;
 use super::ollama::OllamaClient;
 
+/// nomic-embed-text is trained for asymmetric retrieval: documents and
+/// queries live in different subspaces and must be tagged with task
+/// prefixes so the model knows which side of the pair each string is.
+/// Omitting these prefixes collapses both into the same (document) space
+/// and badly degrades query relevance. See the nomic-embed-text model card.
+pub const EMBED_DOC_PREFIX: &str = "search_document: ";
+pub const EMBED_QUERY_PREFIX: &str = "search_query: ";
+
 /// A search result with similarity score
 #[derive(Debug, Clone)]
 pub struct SearchResult {
@@ -51,8 +59,8 @@ pub fn file_to_description(file_path: &str, file_size: u64, extension: &str) -> 
         .unwrap_or(file_path);
 
     format!(
-        "File: {} ({}) {} {}",
-        filename, extension, size_label, file_path
+        "{}{} ({}) {} {}",
+        EMBED_DOC_PREFIX, filename, extension, size_label, file_path
     )
 }
 
@@ -77,8 +85,9 @@ pub async fn embed_files(
 
 /// Embed a search query
 pub async fn embed_query(client: &OllamaClient, query: &str) -> Result<Vec<f32>, String> {
-    // nomic-embed-text 0.30+ lowercases inputs; normalize query to match stored embeddings
-    let normalized_query = query.to_lowercase();
+    // nomic-embed-text is asymmetric: tag the query with the matching
+    // task prefix and lowercase it (0.30+ lowercases inputs anyway).
+    let normalized_query = format!("{}{}", EMBED_QUERY_PREFIX, query.to_lowercase());
     let (embeddings, _) = client
         .embed(vec![normalized_query])
         .await

@@ -20,6 +20,9 @@ pub struct DedupResult {
     pub duplicate_groups: Vec<DuplicateGroup>,
     pub total_duplicate_files: usize,
     pub potential_savings_bytes: u64,
+    /// Human-readable companion for `potential_savings_bytes`, so a `--format json`
+    /// consumer gets a readable size without re-implementing byte formatting.
+    pub potential_savings_human: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub files_processed: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -88,6 +91,7 @@ pub fn run_clean_analysis(
                 duplicate_groups: vec![],
                 total_duplicate_files: 0,
                 potential_savings_bytes: 0,
+                potential_savings_human: format_bytes(0),
                 files_processed: None,
                 space_saved_bytes: None,
                 errors: None,
@@ -109,14 +113,15 @@ pub fn run_clean_analysis(
             Ok(r) => r,
             Err(e) => {
                 if output_format.is_machine_readable() {
-                    print_json(&DedupResult {
-                        duplicate_groups: vec![],
-                        total_duplicate_files: total_duplicates,
-                        potential_savings_bytes: 0,
-                        files_processed: None,
-                        space_saved_bytes: None,
-                        errors: Some(vec![e.to_string()]),
-                    });
+                print_json(&DedupResult {
+                    duplicate_groups: vec![],
+                    total_duplicate_files: total_duplicates,
+                    potential_savings_bytes: 0,
+                    potential_savings_human: format_bytes(0),
+                    files_processed: None,
+                    space_saved_bytes: None,
+                    errors: Some(vec![e.to_string()]),
+                });
                 } else {
                     eprintln!("   ❌ Deduplication failed: {e}");
                 }
@@ -133,6 +138,7 @@ pub fn run_clean_analysis(
                 duplicate_groups: vec![],
                 total_duplicate_files: total_duplicates,
                 potential_savings_bytes: dedup_result.space_saved,
+                potential_savings_human: format_bytes(dedup_result.space_saved),
                 files_processed: Some(dedup_result.files_processed),
                 space_saved_bytes: Some(dedup_result.space_saved),
                 errors,
@@ -174,14 +180,15 @@ pub fn run_clean_analysis(
             })
             .collect();
 
-        print_json(&DedupResult {
-            duplicate_groups: groups,
-            total_duplicate_files: total_duplicates,
-            potential_savings_bytes: dup_savings,
-            files_processed: None,
-            space_saved_bytes: None,
-            errors: None,
-        });
+            print_json(&DedupResult {
+                duplicate_groups: groups,
+                total_duplicate_files: total_duplicates,
+                potential_savings_bytes: dup_savings,
+                potential_savings_human: format_bytes(dup_savings),
+                files_processed: None,
+                space_saved_bytes: None,
+                errors: None,
+            });
     } else {
         hprintln!(
             "   Found {} duplicate groups ({} duplicate files)",

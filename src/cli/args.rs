@@ -213,6 +213,12 @@ pub enum Commands {
         /// on only when you need every individual path.
         #[arg(long)]
         files: bool,
+
+        /// Persist the scan result to the embedded scan-history database. When set,
+        /// a final `{"type":"saved","id":<id>}` JSON line is emitted on stdout (in
+        /// `--stream` mode) so a host UI can jump straight to the saved record.
+        #[arg(long)]
+        save_history: bool,
     },
 
     /// Show disk space info as JSON: every volume, or just the one holding PATH
@@ -422,6 +428,12 @@ pub enum Commands {
         /// Number of best matches to return (minimum 1)
         #[arg(long, default_value = "20", value_parser = parse_at_least_one)]
         top: usize,
+
+        /// Ignore matches whose cosine similarity is below this value (0..1).
+        /// Useful to drop irrelevant "central document" hits when embeddings
+        /// compress scores into a narrow band.
+        #[arg(long)]
+        min_score: Option<f32>,
     },
 
     /// Inspect NTFS USN change journals (incremental-scan support)

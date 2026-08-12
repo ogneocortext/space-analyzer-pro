@@ -24,7 +24,9 @@
 use chrono::Utc;
 use serde::Serialize;
 use std::collections::BTreeMap;
+use std::env;
 use std::path::PathBuf;
+use std::time::Duration;
 
 /// A single discovered installation (one registry entry, one package version,
 /// one toolchain, one extension).
@@ -91,6 +93,9 @@ pub struct AppInventoryReport {
     pub multi_version_groups: usize,
     /// Bytes that could be reclaimed by removing every detected older version.
     pub total_wasted_bytes: u64,
+    /// Human-readable companion for `total_wasted_bytes`, so a `--format json`
+    /// consumer gets a readable size without re-implementing byte formatting.
+    pub total_wasted_human: String,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,6 +113,7 @@ pub fn build_inventory_report() -> AppInventoryReport {
     apps.extend(collect_rustup_toolchains());
     apps.extend(collect_vscode_extensions());
     apps.extend(collect_wsl_distros());
+    apps.extend(collect_docker());
 
     let groups = analyze(apps);
     let duplicate_location_groups = groups.iter().filter(|g| g.is_duplicate_location).count();
@@ -124,6 +130,7 @@ pub fn build_inventory_report() -> AppInventoryReport {
         duplicate_location_groups,
         multi_version_groups,
         total_wasted_bytes,
+        total_wasted_human: human_bytes(total_wasted_bytes),
     }
 }
 
@@ -136,6 +143,7 @@ pub fn build_inventory_report() -> AppInventoryReport {
         duplicate_location_groups: 0,
         multi_version_groups: 0,
         total_wasted_bytes: 0,
+        total_wasted_human: human_bytes(0),
     }
 }
 
@@ -273,6 +281,8 @@ fn build_guidance(
     // folder directly (side-by-side components, services, start-menu entries).
     if instances.iter().any(|i| i.source == "registry") {
         g.push_str(" For registry-installed apps, prefer Settings ▸ Apps or the listed uninstall command over manual folder deletion.");
+    } else if instances.iter().any(|i| i.source == "docker") {
+        g.push_str(" Docker keeps images, containers and compose-project volumes in a WSL ext4.vhdx, not in the program folder; reclaim space via Docker Desktop ▸ Troubleshoot ▸ Clean/Reset, or by unregistering the data distro (`wsl --unregister docker-desktop-data`). Never delete the VHDX while the daemon is running.");
     } else if !g.is_empty() {
         g.push_str(" Dev-tool roots (Scoop/Chocolatey/rustup/VS Code) can usually be deleted directly and reinstalled.");
     }
@@ -593,6 +603,178 @@ fn collect_wsl_distros() -> Vec<AppInstance> {
         }
     }
     out
+}
+
+#[cfg(windows)]
+fn collect_docker() -> Vec<AppInstance> {
+    let mut out = Vec::new();
+
+    // Docker on WSL2 keeps its data in ext4.vhdx files. The `docker-desktop`
+    // distro VHDX holds the VM/runtime; `docker-desktop-data` holds images,
+    // containers and compose-project volumes. This is where Docker's real disk
+    // footprint lives (the registry "Docker Desktop" entry only reports the tiny
+    // program install), so enumerate the VHDX files directly.
+    for vhdx in docker_wsl_vhdx_paths() {
+        if let Some(size) = file_size(&vhdx) {
+            let path = vhdx.to_string_lossy().to_string();
+            let label = if path.to_lowercase().contains("data") {
+                "Docker (WSL data volume)"
+            } else {
+                "Docker (WSL runtime)"
+            };
+            out.push(AppInstance {
+                key: "docker wsl".to_string(),
+                display_name: label.to_string(),
+                version: None,
+                install_location: Some(path.clone()),
+                drive: drive_of(&path),
+                estimated_size_bytes: size,
+                publisher: None,
+                uninstall_string: Some("wsl --unregister docker-desktop-data".to_string()),
+                source: "docker".to_string(),
+            });
+        }
+    }
+
+    // Docker Desktop program-data folders (logs, settings, caches, crash dumps).
+    // These are two genuinely distinct locations (machine-wide vs per-user), so
+    // they get distinct grouping keys — merging them would falsely raise a
+    // "duplicate location" redundancy warning that does not apply here.
+    let program_data = PathBuf::from(r"C:\ProgramData\DockerDesktop");
+    if program_data.exists() {
+        let size = dir_size(&program_data);
+        if size > 0 {
+            let path = program_data.to_string_lossy().to_string();
+            out.push(AppInstance {
+                key: "docker programdata".to_string(),
+                display_name: "Docker Desktop (program data)".to_string(),
+                version: None,
+                install_location: Some(path.clone()),
+                drive: drive_of(&path),
+                estimated_size_bytes: size,
+                publisher: None,
+                uninstall_string: None,
+                source: "docker".to_string(),
+            });
+        }
+    }
+    let app_data = PathBuf::from(env::var("LOCALAPPDATA").unwrap_or_default()).join("Docker");
+    if app_data.exists() {
+        let size = dir_size(&app_data);
+        if size > 0 {
+            let path = app_data.to_string_lossy().to_string();
+            out.push(AppInstance {
+                key: "docker appdata".to_string(),
+                display_name: "Docker Desktop (user data)".to_string(),
+                version: None,
+                install_location: Some(path.clone()),
+                drive: drive_of(&path),
+                estimated_size_bytes: size,
+                publisher: None,
+                uninstall_string: None,
+                source: "docker".to_string(),
+            });
+        }
+    }
+
+    // Best-effort: enumerate named/compose-project volumes via the docker CLI.
+    // Requires Docker Desktop running; guarded by a timeout so a stopped daemon
+    // or slow start never blocks the inventory. Volumes live inside the data
+    // VHDX above (already counted), this just makes the named volumes visible.
+    if let Some(vols) =
+        run_with_timeout("docker", &["volume", "ls", "--format", "{{.Name}}"], Duration::from_secs(5))
+    {
+        for v in vols.lines() {
+            let name = v.trim().to_string();
+            if name.is_empty() {
+                continue;
+            }
+            out.push(AppInstance {
+                key: "docker volume".to_string(),
+                display_name: format!("Docker volume: {name}"),
+                version: None,
+                install_location: None,
+                drive: None,
+                estimated_size_bytes: 0,
+                publisher: None,
+                uninstall_string: Some(format!("docker volume rm {name}")),
+                source: "docker".to_string(),
+            });
+        }
+    }
+
+    out
+}
+
+/// Locate Docker's WSL2 ext4.vhdx files.
+///
+/// Two sources: the Lxss registry (authoritative BasePath per distro) and the
+/// legacy `%LOCALAPPDATA%\Docker\wsl\{data,main}\ext4.vhdx` layout.
+#[cfg(windows)]
+fn docker_wsl_vhdx_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    use winreg::enums::*;
+    use winreg::RegKey;
+    if let Ok(lxss) = RegKey::predef(HKEY_CURRENT_USER)
+        .open_subkey_with_flags(r"Software\Microsoft\Windows\CurrentVersion\Lxss", KEY_READ)
+    {
+        for name in lxss.enum_keys().filter_map(|r| r.ok()) {
+            if let Ok(sub) = lxss.open_subkey_with_flags(&name, KEY_READ) {
+                let distro: Option<String> = sub.get_value("DistributionName").ok();
+                if let Some(d) = distro {
+                    if d == "docker-desktop" || d == "docker-desktop-data" {
+                        if let Ok(base) = sub.get_value::<String, _>("BasePath") {
+                            let vhdx = PathBuf::from(base).join("ext4.vhdx");
+                            if vhdx.exists() {
+                                paths.push(vhdx);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(local) = env::var_os("LOCALAPPDATA") {
+        let wsl = PathBuf::from(local).join("Docker").join("wsl");
+        for sub in ["data", "main"] {
+            let vhdx = wsl.join(sub).join("ext4.vhdx");
+            if vhdx.exists() {
+                paths.push(vhdx);
+            }
+        }
+    }
+
+    paths
+}
+
+#[cfg(windows)]
+fn file_size(path: &std::path::Path) -> Option<u64> {
+    std::fs::metadata(path).ok().map(|m| m.len())
+}
+
+/// Run a command and return its stdout, or `None` if it fails or does not finish
+/// within `timeout`. Used so an unresponsive `docker` daemon can never stall the
+/// inventory scan.
+#[cfg(windows)]
+fn run_with_timeout(program: &str, args: &[&str], timeout: Duration) -> Option<String> {
+    use std::sync::mpsc;
+    let program = program.to_string();
+    let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let out = std::process::Command::new(&program)
+            .args(&args)
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok());
+        let _ = tx.send(out);
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(Some(s)) => Some(s),
+        _ => None,
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

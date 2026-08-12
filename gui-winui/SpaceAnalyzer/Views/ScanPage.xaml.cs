@@ -177,6 +177,15 @@ public sealed partial class ScanPage : Page
         }
     }
 
+    private void ViewSavedInHistory_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("ScanPage ViewSavedInHistory_Click");
+        if (VM.LastSavedHistoryId is long id)
+        {
+            Frame.Navigate(typeof(HistoryPage), id);
+        }
+    }
+
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("ScanPage OpenFolder_Click");

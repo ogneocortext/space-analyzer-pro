@@ -192,20 +192,6 @@
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HistoryListVisibility, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
                         <TextBlock Text="Recent Scans" Style="{StaticResource Type.CardTitle}"/>
-                        <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" CornerRadius="6" Padding="{StaticResource Thickness.LG}">
-                            <Grid ColumnSpacing="{StaticResource Space.XXL}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="FILES" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Opacity="0.7"/>
-                                <TextBlock Grid.Column="1" Text="SIZE" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Opacity="0.7"/>
-                                <TextBlock Grid.Column="2" Text="DURATION" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Opacity="0.7"/>
-                                <TextBlock Grid.Column="3" Text="DEPTH" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Opacity="0.7"/>
-                            </Grid>
-                        </Border>
                         <ItemsRepeater ItemsSource="{x:Bind VM.History, Mode=OneWay}">
                             <ItemsRepeater.Layout>
                                 <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.MD}"/>
@@ -311,7 +297,12 @@
                                 <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
                                     <TextBlock Text="{x:Bind VM.SelectedRecord.DepthDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.8"/>
                                 </Border>
-                                <TextBlock Text="{x:Bind VM.SelectedRecord.PotentialCleanupDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.6"/>
+                                <Border Background="{ThemeResource SystemFillColorSuccessBrush}" CornerRadius="4" Padding="6,2"
+                                        Visibility="{x:Bind VM.SelectedRecord.HasPotentialCleanup, Mode=OneTime, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="{x:Bind VM.SelectedRecord.PotentialCleanupDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                </Border>
+                                <TextBlock Text="reclaimable" Style="{StaticResource Type.Tiny}" Opacity="0.6"
+                                        Visibility="{x:Bind VM.SelectedRecord.HasPotentialCleanup, Mode=OneTime, Converter={StaticResource BoolToVisibility}}"/>
                             </StackPanel>
                         </StackPanel>
 

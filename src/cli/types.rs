@@ -66,6 +66,14 @@ pub struct DiskInfo {
     pub used_bytes: u64,
     pub available_bytes: u64,
     pub usage_percent: f32,
+    /// Human-readable companions, mirroring the curated `scan --format json`
+    /// output so a `--format json` consumer gets readable sizes for free.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_human: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub used_human: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub available_human: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -195,6 +195,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
                                 <TextBlock Text="{x:Bind VM.ResultFilesDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
@@ -220,6 +221,12 @@
                             <StackPanel Grid.Column="5" Spacing="{StaticResource Space.XS}">
                                 <TextBlock Text="{x:Bind VM.ResultDurationDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
                                 <TextBlock Text="Duration" Style="{StaticResource Type.StatLabel}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="6" Spacing="{StaticResource Space.XS}"
+                                        Visibility="{x:Bind VM.HasPotentialCleanup, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="{x:Bind VM.PotentialCleanupDisplay, Mode=OneWay}"
+                                           Style="{StaticResource Type.StatValue}" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                                <TextBlock Text="Reclaimable" Style="{StaticResource Type.StatLabel}"/>
                             </StackPanel>
                         </Grid>
 
@@ -333,6 +340,19 @@
                                     </ItemsRepeater>
                                 </StackPanel>
                             </Border>
+                        </Grid>
+
+                        <!-- Saved to history bridge -->
+                        <Grid ColumnSpacing="{StaticResource Space.SM}" Visibility="{x:Bind VM.HasSavedHistoryVisibility, Mode=OneWay}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE8B9;" FontSize="{StaticResource Icon.Small}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
+                                <TextBlock Text="Saved to history." Style="{StaticResource Type.Caption}" VerticalAlignment="Center"/>
+                                <Button Content="View details" Click="ViewSavedInHistory_Click" Tag="{x:Bind VM.LastSavedHistoryId, Mode=OneWay}" Style="{StaticResource SmallButton}" AutomationProperties.Name="View saved scan in history"/>
+                            </StackPanel>
                         </Grid>
 
                     </StackPanel>

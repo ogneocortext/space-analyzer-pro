@@ -270,8 +270,11 @@ public class ScanViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(EmptyDirs));
         OnPropertyChanged(nameof(EmptyDirsCount));
         OnPropertyChanged(nameof(HasEmptyDirs));
-        OnPropertyChanged(nameof(FilteredLargestFiles));
-    }
+            OnPropertyChanged(nameof(FilteredLargestFiles));
+            OnPropertyChanged(nameof(LastSavedHistoryId));
+            OnPropertyChanged(nameof(HasSavedHistory));
+            OnPropertyChanged(nameof(HasSavedHistoryVisibility));
+        }
 
     public ScanResult? LastResult
     {
@@ -436,6 +439,17 @@ public class ScanViewModel : ViewModelBase, IDisposable
         ? ByteFormatter.FormatBytes(ActiveResult.PotentialCleanupBytes)
         : "";
 
+    public bool HasPotentialCleanup => ActiveResult != null && ActiveResult.PotentialCleanupBytes > 0;
+
+    /// <summary>Id of the scan-history record written after the last scan, or null.</summary>
+    public long? LastSavedHistoryId { get; private set; }
+
+    /// <summary>True when the most recent scan was persisted to history.</summary>
+    public bool HasSavedHistory => LastSavedHistoryId.HasValue;
+
+    public Microsoft.UI.Xaml.Visibility HasSavedHistoryVisibility =>
+        HasSavedHistory ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
     public string ResultTimestampDisplay => ActiveResult != null && !string.IsNullOrEmpty(ActiveResult.Timestamp)
         ? $"Scanned at {ActiveResult.Timestamp}"
         : "";
@@ -578,6 +592,7 @@ public class ScanViewModel : ViewModelBase, IDisposable
             StatusMessage = "Scanning...";
             ScanProgress = 0;
             LastResult = null;
+            LastSavedHistoryId = null;
             _partialResult = null;
 
             var progress = new Progress<StreamProgress>(HandleStreamingProgress);
@@ -588,9 +603,11 @@ public class ScanViewModel : ViewModelBase, IDisposable
                 maxDepth: DepthInt,
                 includeHidden: IncludeHidden,
                 onProgress: progress,
-                ct);
+                ct: ct,
+                saveToHistory: true);
 
             LastResult = result;
+            LastSavedHistoryId = _scanner.LastSavedHistoryId;
             if (result != null)
             {
                 StatusMessage = $"Scan complete: {result.TotalFiles:N0} files, {result.TotalSizeMb:F1} MB, {result.DurationSecs:F1}s";

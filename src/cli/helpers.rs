@@ -1,6 +1,7 @@
 use space_analyzer_pro_desktop::error::{AppError, AppResult};
 use std::path::{Path, PathBuf};
 
+use shared_scanner::format_bytes;
 use super::types::DiskInfo;
 
 /// Parse a human-written size such as `512`, `500K`, `1MB` or `2.5 GB`.
@@ -158,6 +159,9 @@ fn disk_info_from(disk: &sysinfo::Disk) -> DiskInfo {
         used_bytes: used,
         available_bytes: available,
         usage_percent: usage,
+        total_human: Some(format_bytes(total)),
+        used_human: Some(format_bytes(used)),
+        available_human: Some(format_bytes(available)),
     }
 }
 

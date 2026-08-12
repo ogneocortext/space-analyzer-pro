@@ -96,7 +96,11 @@ pub async fn semantic_search(
 ) -> Result<SemanticSearchOutput, String> {
     let started = Instant::now();
 
-    let normalized_query = input.query.to_lowercase();
+    let normalized_query = format!(
+        "{}{}",
+        embedding_service::EMBED_QUERY_PREFIX,
+        input.query.to_lowercase()
+    );
 
     // Build descriptions for files (caller may have cached these too).
     let descriptions: Vec<String> = input
@@ -1034,7 +1038,7 @@ mod tests {
         skip_unless_ollama("http://127.0.0.1:11434").await;
         use crate::ollama::OllamaClient;
 
-        let client = OllamaClient::new("http://127.0.0.1:11434", "nomic-embed-text:latest")
+        let client = OllamaClient::new("http://127.0.0.1:11434", "nomic-embed-text:v1.5")
             .expect("client builder failed");
 
         let input = SemanticSearchInput {
@@ -1058,7 +1062,7 @@ mod tests {
             ],
             top_k: 2,
         };
-        let out = semantic_search(&client, "nomic-embed-text:latest", input)
+        let out = semantic_search(&client, "nomic-embed-text:v1.5", input)
             .await
             .expect("search should succeed");
         assert!(!out.matches.is_empty());

@@ -10,6 +10,13 @@ impl super::Database {
         let mut count = 0;
         let tx = self.conn.unchecked_transaction()?;
         {
+            // Rebuild is idempotent: drop any vectors already stored for this
+            // scan before inserting, otherwise repeated `embed` / "Rebuild
+            // Index" calls would append duplicate rows for the same files.
+            tx.execute(
+                "DELETE FROM file_embeddings WHERE scan_id = ?1",
+                params![scan_id],
+            )?;
             let mut stmt = tx.prepare(
                 "INSERT INTO file_embeddings (scan_id, file_path, file_size, file_extension, embedding, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
             )?;

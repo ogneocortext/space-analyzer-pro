@@ -48,6 +48,7 @@ public class AppGroup
 
     public string TotalSizeDisplay => ByteFormatter.FormatBytes(TotalSizeBytes);
     public bool HasRedundancy => IsDuplicateLocation || HasMultipleVersions;
+    public bool HasRedundancyLabel => !string.IsNullOrEmpty(RedundancyLabel);
     public string RedundancyLabel =>
         IsDuplicateLocation && HasMultipleVersions ? "DUPLICATE LOCATION + MULTIPLE VERSIONS"
         : IsDuplicateLocation ? "DUPLICATE LOCATION"

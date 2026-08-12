@@ -732,6 +732,36 @@ public class HistoryViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>Load a specific history record by id and open its details view.
+    /// Used by the "Saved to history · View details" bridge from the scan page.</summary>
+    public async Task SelectRecordByIdAsync(long id)
+    {
+        try
+        {
+            AppLog.Page($"SelectRecordByIdAsync id={id}");
+            IsLoading = true;
+            StatusMessage = "Loading details...";
+            var record = await _scanner.GetScanDetailsAsync(id);
+            if (record == null)
+            {
+                StatusMessage = $"Scan record {id} not found";
+                return;
+            }
+            var details = await _scanner.GetScanDetailsAsync(record.Id);
+            SelectedRecord = details ?? record;
+            StatusMessage = "Details loaded";
+        }
+        catch (Exception ex)
+        {
+            AppLog.Exception(ex, $"SelectRecordByIdAsync id={id}");
+            StatusMessage = $"Failed to load details: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
     public void BackToList()
     {
         SelectedRecord = null;
