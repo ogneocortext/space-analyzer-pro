@@ -114,6 +114,12 @@ The WinUI 3 `ScannerService` also supports scan cancellation via `StopScan()` (k
 - Do NOT create files under `scripts/temporary/`. If a temporary fix is needed, apply it inline to the target file.
 - **Screenshots / visual verification**: the assistant cannot analyze images directly. Any new screenshot (WinUI GUI, scan output, charts) must be submitted to the local gemma4 vision model (`gemma4:e2b-it-qat`) via the `vision-feedback`/`vision` tools for analysis rather than being inspected inline.
 
+## Git hygiene
+- Build artifacts and logs are gitignored — never commit them: `target/`, `**/obj/`, `**/bin/`, `*.log`, `TestJson/obj/`, `TestJson/bin/`, `@AutomationLog.txt`. The root `TestJson/` .NET test project keeps its `Program.cs`/`TestJson.csproj` tracked; only its build output is ignored.
+- Generated/runtime data is gitignored: `ux_issues.json`, screenshots (`*screenshot*.png`, `*-screenshot.png`, `*-base64.txt`, `*_base64.txt`), `loop_feedback/`, `ux-pipeline/analysis_history/`.
+- Agent/IDE state is gitignored: `.kilo/`, `.vscode/` (except curated `settings.json`/`tasks.json`/`launch.json`/`extensions.json`), `AGENTS.md`, agent md files (`HEARTBEAT.md`, `SOUL.md`, `USER.md`, `TOOLS.md`, etc.).
+- Keep `main` and `origin/main` in sync via explicit push; never force-push. Stage with explicit paths (never `git add -A`) so stray artifacts/out-of-scope edits are excluded.
+
 ## Testing
 - **WinUI 3 app** (`gui-winui/`): Playwright/browser-based testing is **not applicable** — this is a native desktop app, not a web app. No automated browser tests should be invoked for this GUI.
 - **Web version**: If a web version exists in a different directory/repo, Playwright testing is applicable there only.
@@ -158,3 +164,26 @@ Bugs found: ~15. Bugs fixed so far: 9 (build-verified, MSBuild 0 errors).
 | # | File | Issue | Severity |
 |---|------|-------|----------|
 | 15 | `ToolExecutor.cs` | `PreviewImpactAsync` hardcodes `fsutil hardlink list` which is Windows-only; the app is WinUI 3 so this is acceptable but undocumented | Info (wontfix — tracked in docs/issues.json) |
+
+## Architecture Review & WinUI/Rust Packaging Fix (2026-08-11)
+
+Reviewed the Rust-core ↔ WinUI 3 boundary (see prior session's Findings). Implemented the top recommendations:
+
+### Done
+- **Deployment gap (High) closed** in `gui-winui/SpaceAnalyzer/SpaceAnalyzer.csproj`:
+  - Added `CopyRustTools` target (`BeforeTargets="Build;Publish"`) that copies `space-analyzer-cli.exe` + `node_modules_cleaner.exe` from `<repo>/target/release` into `$(OutDir)`, and emits a high-priority **warning** when they are missing (instead of silently shipping a GUI with `IsAvailable=false`).
+  - Added `BuildRustScanner` target (`/t:BuildRustScanner`) running `cargo build --release --bin space-analyzer-cli --bin node_modules_cleaner`; optionally chained when `/p:BuildRustOnBuild=true`. `RustWorkspaceDir = $(MSBuildThisFileDirectory)..\..` (repo root).
+  - Verified csproj XML is well-formed.
+- **Capability/version probe (Medium)** added to `gui-winui/SpaceAnalyzer/Services/ScannerService.cs`:
+  - `ScannerVersion` property + `ProbeVersionAsync()` that runs `space-analyzer-cli --version`, parses `<name> <version>`, never throws. Closes the "no protocol-version negotiation" gap so the GUI can surface/version-gate the backend.
+  - `RunScannerAsync` was already robust (timeout + stderr drain + process-tree kill), so no change needed there.
+- **README** (`README.md`): documented the backend-bundling requirement under Quick Start (WinUI 3), fixed a stale "10 pages" → "11 pages" in the Stack table.
+- **Root `SECURITY.md`** added (GitHub security-policy tab was missing; referenced `docs/implementations/SECURITY.md` which does not exist — real one is `docs/archive/reports/SECURITY.md`). Local-first security model + private reporting.
+
+### Not built here
+- Rust `target/release` exes were **not** compiled in this session (full release build is heavy: `lto=true`, `codegen-units=1`). The copy target will pick them up once `cargo build --release` runs. Validate with `cargo build --release --bin space-analyzer-cli` then a VS MSBuild GUI build.
+
+### Review findings (still open, optional)
+- [1] Add `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md`, root `CODE_OF_CONDUCT.md` (none tracked).
+- [2] Set repo Description + Topics via `gh repo edit` (not a git op).
+- No shared JSON schema between Rust CLI and C# models (convention-only; field mismatch silently defaults to zeros). Consider a contract test or generated models if drift recurs.

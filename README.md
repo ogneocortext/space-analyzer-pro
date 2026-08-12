@@ -56,6 +56,15 @@ The **active GUI is WinUI 3** (C# / .NET 10 / Windows App SDK 2.3). A native **e
 dotnet run --project gui-winui/SpaceAnalyzer
 ```
 
+> **Backend requirement:** The WinUI 3 GUI drives the Rust scanner as a subprocess
+> (`space-analyzer-cli`). The `SpaceAnalyzer.csproj` build copies the two native
+> tools from `<repo>/target/release` into the app output (and warns if they are
+> missing). Build them first with `cargo build --release --bin space-analyzer-cli
+> --bin node_modules_cleaner` at the repo root, or on demand with
+> `dotnet build gui-winui/SpaceAnalyzer/SpaceAnalyzer.csproj /t:BuildRustScanner`.
+> At runtime you can also point the app at prebuilt binaries via the
+> `SPACE_ANALYZER_SCANNER` / `SPACE_ANALYZER_CLEANER` environment variables.
+
 **WinUI 3 state (v4.0.0):**
 - **Stable build** against Windows App SDK 2.3 / .NET 10
 - **All 11 pages implemented and fully functional:** Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, Duplicates, System, Cleanup, Settings, About
@@ -203,7 +212,7 @@ The core Rust library (`src/`) provides the database, Ollama integration, system
 | Component | Implementation | Notes |
 |---|---|---|
 | **GUI (egui)** | eframe 0.34 (native Rust) | Single window, 8 tabs |
-| **GUI (WinUI 3)** | Windows App SDK 2.3 (C#/.NET 10) | Fluent Design, Mica backdrop, 10 pages |
+| **GUI (WinUI 3)** | Windows App SDK 2.3 (C#/.NET 10) | Fluent Design, Mica backdrop, 11 pages |
 | **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
 | **File Scanner** | `shared-scanner` (rayon-parallel) | CPU mode default |
 | **GPU Acceleration** | `gpu-compute` crate (optional) | Auto-detects NVIDIA, falls back to CPU |

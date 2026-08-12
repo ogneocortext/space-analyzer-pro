@@ -22,4 +22,51 @@
     <PackageReference Include="LiveChartsCore.SkiaSharpView.WinUI" Version="2.0.0-rc6" />
   </ItemGroup>
 
+  <!--
+    Ship the Rust scanner CLI + native cleaner alongside the WinUI app so that
+    ScannerService.IsAvailable is true for packaged / Publish builds. The Rust
+    binaries are produced by a release `cargo build` at the repo root and live
+    in <repo>/target/release. We copy them into the build output; if they are
+    missing, emit a clear high-priority warning instead of silently shipping a
+    GUI with no backend.
+
+    Build them on demand with:
+      dotnet build gui-winui/SpaceAnalyzer/SpaceAnalyzer.csproj /t:BuildRustScanner
+    or enable automatic building on every build via:
+      /p:BuildRustOnBuild=true
+  -->
+  <PropertyGroup>
+    <RustWorkspaceDir>$(MSBuildThisFileDirectory)..\..</RustWorkspaceDir>
+    <RustReleaseDir>$(RustWorkspaceDir)\target\release</RustReleaseDir>
+  </PropertyGroup>
+
+  <Target Name="BuildRustScanner" Condition="Exists('$(RustWorkspaceDir)\Cargo.toml')">
+    <Message Text="Building Rust scanner CLI + cleaner from $(RustWorkspaceDir)" Importance="high" />
+    <Exec Command="cargo build --release --bin space-analyzer-cli --bin node_modules_cleaner"
+          WorkingDirectory="$(RustWorkspaceDir)"
+          EchoOff="true" />
+  </Target>
+
+  <Target Name="CopyRustTools"
+          BeforeTargets="Build;Publish"
+          Condition="'$(BuildRustOnBuild)' != 'true' Or Exists('$(RustWorkspaceDir)\Cargo.toml')">
+    <ItemGroup>
+      <RustTool Include="space-analyzer-cli.exe" />
+      <RustTool Include="node_modules_cleaner.exe" />
+    </ItemGroup>
+
+    <Message Condition="'$(BuildRustOnBuild)' == 'true' And Exists('$(RustWorkspaceDir)\Cargo.toml')"
+             Text="BuildRustOnBuild=true: compiling Rust tools first." Importance="high" />
+    <CallTarget Condition="'$(BuildRustOnBuild)' == 'true' And Exists('$(RustWorkspaceDir)\Cargo.toml')"
+                Targets="BuildRustScanner" />
+
+    <Message Condition="!Exists('$(RustReleaseDir)\%(RustTool.Identity)')"
+             Text="WARNING: %(RustTool.Identity) not found in $(RustReleaseDir). Build it with 'cargo build --release' at the repo root (or 'dotnet build /t:BuildRustScanner'), or set SPACE_ANALYZER_SCANNER / SPACE_ANALYZER_CLEANER at runtime to point at a prebuilt binary."
+             Importance="high" />
+    <Copy Condition="Exists('$(RustReleaseDir)\%(RustTool.Identity)')"
+          SourceFiles="$(RustReleaseDir)\%(RustTool.Identity)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

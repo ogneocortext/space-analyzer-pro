@@ -103,6 +103,55 @@ public class ScannerService : IDisposable
     public bool IsAvailable => File.Exists(_scannerPath);
 
     /// <summary>
+    /// Semantic version of the resolved scanner binary, probed via
+    /// <c>space-analyzer-cli --version</c>. Null until <see cref="ProbeVersionAsync"/>
+    /// runs (or if the CLI is unavailable). Lets the GUI surface the backend
+    /// version and gate features on CLI capability instead of silently degrading
+    /// when the bundled CLI is older/newer than the GUI expects.
+    /// </summary>
+    public string? ScannerVersion { get; private set; }
+
+    /// <summary>
+    /// Probes the scanner binary for its version string. Populates
+    /// <see cref="ScannerVersion"/> and returns true when the CLI is present and
+    /// responded. Safe to call on a background thread; never throws.
+    /// </summary>
+    public async Task<bool> ProbeVersionAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+        {
+            ScannerVersion = null;
+            return false;
+        }
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = _scannerPath,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            psi.ArgumentList.Add("--version");
+            using var process = new Process { StartInfo = psi };
+            process.Start();
+            var stdout = await process.StandardOutput.ReadToEndAsync(ct);
+            await process.WaitForExitAsync(ct);
+            var line = (stdout ?? string.Empty).Trim();
+            // clap prints "<package-name> <version>", e.g. "space-analyzer-pro-desktop 3.7.0".
+            var idx = line.LastIndexOf(' ');
+            ScannerVersion = idx >= 0 ? line[(idx + 1)..] : line;
+            return true;
+        }
+        catch
+        {
+            ScannerVersion = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Reads all key/value settings from the embedded database by
     /// invoking <c>space-analyzer-cli settings get --format json</c>.
     /// Returns an empty dictionary if the CLI is unavailable or the
