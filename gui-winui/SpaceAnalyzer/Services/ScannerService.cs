@@ -690,11 +690,23 @@ public class ScannerService : IDisposable
         sb.AppendLine("Path,SizeBytes,SizeDisplay,Modified");
         foreach (var kvp in (result.ScannedFiles ?? new()).OrderByDescending(kv => kv.Value.Size))
         {
-            var modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).ToString("o");
+            var modified = FormatUnixSeconds(kvp.Value.Mtime);
             var path = kvp.Key.Replace("\"", "\"\"");
             sb.AppendLine($"\"{path}\",{kvp.Value.Size},\"{ByteFormatter.FormatBytes(kvp.Value.Size)}\",\"{modified}\"");
         }
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Formats a Unix epoch-seconds timestamp, tolerating values outside the
+    /// <see cref="DateTimeOffset"/> range (the Rust backend stores mtime as an
+    /// <c>i64</c>, which can be negative or larger than year 9999). Returns an
+    /// empty string for unrepresentable values instead of throwing.
+    /// </summary>
+    private static string FormatUnixSeconds(long seconds)
+    {
+        try { return DateTimeOffset.FromUnixTimeSeconds(seconds).ToString("o"); }
+        catch (ArgumentOutOfRangeException) { return string.Empty; }
     }
 
     private static string SerializeToMarkdown(ScanResult result)

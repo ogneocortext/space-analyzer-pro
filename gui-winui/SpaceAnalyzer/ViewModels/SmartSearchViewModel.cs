@@ -206,9 +206,18 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         Results.Clear();
         ResultCount = 0;
         SemanticResults.Clear();
+        SemanticResultCount = 0;
 
         try
         {
+            // Validate the target path up front so we fail fast with a clear message
+            // instead of letting the scanner or a recursive walk throw on a bad path.
+            if (string.IsNullOrWhiteSpace(SearchPath) || !Directory.Exists(SearchPath))
+            {
+                StatusMessage = $"Path not found: {SearchPath}";
+                return;
+            }
+
             if (_isSemantic)
             {
                 await SearchSemanticAsync(ct);
@@ -221,9 +230,19 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             {
                 await SearchWithManagedWalkAsync();
             }
-            StatusMessage = _isSemantic
-                ? $"Found {SemanticResults.Count} semantic match(es)."
-                : $"Found {ResultCount} match(es).";
+
+            // Only overwrite the status with the summary when no branch set a more
+            // specific message (e.g. "Semantic search requires the Rust scanner…").
+            if (StatusMessage == "Searching...")
+            {
+                StatusMessage = _isSemantic
+                    ? $"Found {SemanticResults.Count} semantic match(es)."
+                    : $"Found {ResultCount} match(es).";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            StatusMessage = "Search cancelled.";
         }
         catch (Exception ex)
         {
@@ -233,6 +252,18 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         {
             IsSearching = false;
         }
+    }
+
+    /// <summary>
+    /// Cancel an in-progress search (filename or semantic). The running operation
+    /// observes <see cref="_cts"/> and will unwind; the UI returns to idle state.
+    /// </summary>
+    public void CancelSearch()
+    {
+        if (!IsSearching)
+            return;
+        try { _cts.Cancel(); } catch (ObjectDisposedException) { /* already torn down */ }
+        StatusMessage = "Search cancelled.";
     }
 
     /// <summary>
@@ -302,9 +333,15 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         }
 
         double? minScore = _minScorePercent > 0 ? _minScorePercent / 100.0 : null;
-        var hits = await _scanner.SemanticSearchAsync(SearchQuery, _indexedScanId.Value, top: 50, minScore: minScore, ct);
+        // IndexAsync() above may have re-created _cts, so re-read the live token
+        // rather than the stale one captured before indexing began.
+        var liveCt = _cts.Token;
+        var hits = await _scanner.SemanticSearchAsync(SearchQuery, _indexedScanId.Value, top: 50, minScore: minScore, liveCt);
         if (hits == null)
+        {
+            StatusMessage = "Semantic search returned no results.";
             return;
+        }
 
         foreach (var h in hits)
             SemanticResults.Add(h);
@@ -318,6 +355,16 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             var result = await _scanner.ScanDirectoryAsync(SearchPath, depthMode: ScannerService.DepthMode.Deep, ct: _cts.Token);
             if (result is null)
                 return;
+
+            // The GUI scan summary omits the per-file map (scanned_files) by design,
+            // so the scanner result has no entries to name-match against. Fall back to
+            // the managed walk, which is what the scanner-unavailable path uses too.
+            if (result.ScannedFiles.Count == 0)
+            {
+                StatusMessage = "Indexing summary only; using local file walk for name search.";
+                await SearchWithManagedWalkAsync();
+                return;
+            }
 
             var query = SearchQuery.ToLowerInvariant();
             var match = MatchExact
@@ -398,7 +445,7 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
                             ? WildcardMatches(file.Name, query)
                             : file.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (file.Length >= (long)minSizeBytes)
+                        if ((ulong)file.Length >= minSizeBytes)
                         {
                             collected.Add(new SmartSearchResult
                             {

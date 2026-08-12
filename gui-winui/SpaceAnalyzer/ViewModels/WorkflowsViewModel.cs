@@ -785,6 +785,7 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                     // Match individual files by size (not directories). The scanner emits a
                     // full scanned_files map, so this finds the actual large files rather
                     // than large folders.
+                    await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
                     foreach (var kvp in result.ScannedFiles)
                     {
                         if (kvp.Value.Size >= minBytes)
@@ -1011,6 +1012,59 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Fills <paramref name="result"/>.ScannedFiles from a managed directory walk when
+    /// the scanner summary omitted the per-file map. The GUI never requests
+    /// <c>--files</c>, so <c>ScanDirectoryAsync</c> returns an empty map and every
+    /// file-based workflow would otherwise report zero results. Populating the map
+    /// here lets the drills keep their normal scanner-branch logic (and keeps the
+    /// existing managed-walk fallback for when the scanner is unavailable/throws).
+    /// </summary>
+    private async Task EnsureScannedFilesAsync(ScanResult result, string path, CancellationToken ct)
+    {
+        if (result.ScannedFiles.Count > 0 || string.IsNullOrWhiteSpace(path))
+            return;
+        var map = await Task.Run(() => WalkFilesToMap(new DirectoryInfo(path), ct), ct);
+        foreach (var kvp in map)
+            result.ScannedFiles[kvp.Key] = kvp.Value;
+    }
+
+    private static Dictionary<string, ScannedFileEntry> WalkFilesToMap(DirectoryInfo dir, CancellationToken ct)
+    {
+        var map = new Dictionary<string, ScannedFileEntry>();
+        var stack = new Stack<DirectoryInfo>();
+        stack.Push(dir);
+        while (stack.Count > 0 && !ct.IsCancellationRequested)
+        {
+            var current = stack.Pop();
+            try
+            {
+                foreach (var file in current.GetFiles())
+                {
+                    if (ct.IsCancellationRequested) break;
+                    if ((file.Attributes & FileAttributes.Hidden) == 0)
+                    {
+                        map[file.FullName] = new ScannedFileEntry
+                        {
+                            Size = (ulong)file.Length,
+                            Mtime = new DateTimeOffset(file.LastWriteTimeUtc).ToUnixTimeSeconds()
+                        };
+                    }
+                }
+                foreach (var sub in current.GetDirectories())
+                {
+                    if ((sub.Attributes & FileAttributes.Hidden) == 0)
+                        stack.Push(sub);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WorkflowsViewModel] WalkFilesToMap error: {ex}");
+            }
+        }
+        return map;
+    }
+
         // ── New workflow methods ──
 
         private async Task RunFindZeroByteFilesAsync()
@@ -1023,7 +1077,8 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                     if (result is not null)
                     {
                         var collected = new List<SmartSearchResult>();
-                        foreach (var kvp in result.ScannedFiles)
+                        await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
+                    foreach (var kvp in result.ScannedFiles)
                         {
                             if (kvp.Value.Size == 0)
                             {
@@ -1097,7 +1152,8 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                     if (result is not null)
                     {
                         var collected = new List<SmartSearchResult>();
-                        foreach (var kvp in result.ScannedFiles)
+                        await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
+                    foreach (var kvp in result.ScannedFiles)
                         {
                             var ext = Path.GetExtension(kvp.Key).ToLowerInvariant();
                             if (WorkflowConstants.TempExtensions.Contains(ext) || WorkflowConstants.CacheExtensions.Contains(ext))
@@ -1174,7 +1230,8 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                     if (result is not null)
                     {
                         var collected = new List<SmartSearchResult>();
-                        foreach (var kvp in result.ScannedFiles)
+                        await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
+                    foreach (var kvp in result.ScannedFiles)
                         {
                             var lastModified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime;
                             if (lastModified < cutoff)
@@ -1250,7 +1307,8 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                     if (result is not null)
                     {
                         var collected = new List<SmartSearchResult>();
-                        foreach (var kvp in result.ScannedFiles)
+                        await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
+                    foreach (var kvp in result.ScannedFiles)
                         {
                             var lastModified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime;
                             if (lastModified >= cutoff)
@@ -1394,7 +1452,8 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                     var result = await _scanner.ScanDirectoryAsync(TargetPath, depthMode: ScannerService.DepthMode.Deep, ct: _cts.Token, progress: _scanProgress);
                     if (result is not null)
                     {
-                        var collected = result.ScannedFiles
+                        await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
+                    var collected = result.ScannedFiles
                             .OrderByDescending(kvp => kvp.Value.Size)
                             .Take(50)
                             .Select(kvp => new SmartSearchResult
@@ -1468,7 +1527,8 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                     var result = await _scanner.ScanDirectoryAsync(TargetPath, depthMode: ScannerService.DepthMode.Deep, ct: _cts.Token, progress: _scanProgress);
                     if (result is not null)
                     {
-                        var collected = result.ScannedFiles
+                        await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
+                    var collected = result.ScannedFiles
                             .Where(kvp => Path.GetExtension(kvp.Key).ToLowerInvariant() == ext)
                             .Select(kvp => new SmartSearchResult
                             {
@@ -1544,7 +1604,8 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                     var result = await _scanner.ScanDirectoryAsync(TargetPath, depthMode: ScannerService.DepthMode.Deep, ct: _cts.Token, progress: _scanProgress);
                     if (result is not null)
                     {
-                        var collected = result.ScannedFiles
+                        await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
+                    var collected = result.ScannedFiles
                             .Where(kvp => (long)kvp.Value.Size >= minBytes && (long)kvp.Value.Size <= maxBytes)
                             .Select(kvp => new SmartSearchResult
                             {
@@ -1615,7 +1676,8 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                     var result = await _scanner.ScanDirectoryAsync(TargetPath, depthMode: ScannerService.DepthMode.Deep, ct: _cts.Token, progress: _scanProgress);
                     if (result is not null)
                     {
-                        var collected = result.ScannedFiles
+                        await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
+                    var collected = result.ScannedFiles
                             .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime >= cutoff)
                             .Select(kvp => new SmartSearchResult
                             {
@@ -1685,7 +1747,8 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                     var result = await _scanner.ScanDirectoryAsync(TargetPath, depthMode: ScannerService.DepthMode.Deep, ct: _cts.Token, progress: _scanProgress);
                     if (result is not null)
                     {
-                        var collected = result.ScannedFiles
+                        await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
+                    var collected = result.ScannedFiles
                             .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime < cutoff)
                             .Select(kvp => new SmartSearchResult
                             {
@@ -1932,7 +1995,8 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                         var collected = new List<SmartSearchResult>();
                         var cutoff = DateTime.Now.AddDays(-DaysOld);
                         var minBytes = (long)MinSizeMb * 1024 * 1024;
-                        foreach (var kvp in result.ScannedFiles)
+                        await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
+                    foreach (var kvp in result.ScannedFiles)
                         {
                             if ((long)kvp.Value.Size >= minBytes || DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime < cutoff)
                             {
