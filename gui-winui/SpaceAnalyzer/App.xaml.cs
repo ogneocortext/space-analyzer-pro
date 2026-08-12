@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Services;
+using SpaceAnalyzer.Settings;
 using System;
 using System.Threading.Tasks;
 
@@ -52,7 +53,7 @@ public partial class App : Application
     {
         try
         {
-            Application.Current.RequestedTheme = ThemeHelper.ResolveTheme(SettingsStore.Get("theme"));
+            Application.Current.RequestedTheme = ThemeHelper.ResolveTheme(AppSettings.Theme);
         }
         catch { /* non-fatal */ }
     }

@@ -3,6 +3,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using SpaceAnalyzer.Helpers;
+using SpaceAnalyzer.Services;
 using SpaceAnalyzer.ViewModels;
 
 namespace SpaceAnalyzer.Views;
@@ -59,10 +60,12 @@ public sealed partial class SettingsPage : Page
         }
     }
 
-    private void Save_Click(object sender, RoutedEventArgs e)
+    private async void Save_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("SettingsPage Save_Click");
-        VM.Save();
+        // Settings auto-persist on every edit via AppSettings; flush immediately
+        // so the save is durable even if the app closes right after.
+        await SettingsStore.FlushAsync();
         AppNotifications.Success("Settings saved");
     }
 

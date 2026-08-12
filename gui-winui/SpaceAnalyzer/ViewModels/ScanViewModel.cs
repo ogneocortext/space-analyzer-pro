@@ -9,6 +9,7 @@ using SpaceAnalyzer.Helpers;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using SpaceAnalyzer.Settings;
 
 namespace SpaceAnalyzer.ViewModels;
 
@@ -23,7 +24,7 @@ public class ScanViewModel : ViewModelBase, IDisposable
         Load();
         InitializeQuickScanTargets();
         // Honor the global GPU-acceleration toggle (Settings → Advanced).
-        _scanner.GpuAcceleration = SettingsStore.GetBool("gpu_acceleration", true);
+        _scanner.GpuAcceleration = AppSettings.GpuAcceleration;
         // Keep GPU + hidden-files toggles in sync with the Settings page, which is
         // the single source of truth (these settings are shared across pages).
         SettingsStore.SettingsChanged += OnSettingsChanged;
@@ -39,7 +40,7 @@ public class ScanViewModel : ViewModelBase, IDisposable
     {
         if (!string.IsNullOrWhiteSpace(_scanPath) && Directory.Exists(_scanPath))
             return;
-        var raw = SettingsStore.Get("default_scan_paths");
+        var raw = AppSettings.DefaultScanPaths;
         if (string.IsNullOrWhiteSpace(raw)) return;
         var first = raw.Split(';', StringSplitOptions.RemoveEmptyEntries)
             .Select(p => p.Trim().Trim('"'))
@@ -56,10 +57,10 @@ public class ScanViewModel : ViewModelBase, IDisposable
     private void OnSettingsChanged(object? sender, SettingsStore.SettingsChangedEventArgs e)
     {
         if (_disposed) return;
-        if (e.Key == "include_hidden")
-            IncludeHidden = SettingsStore.GetBool("include_hidden");
-        else if (e.Key == "gpu_acceleration")
-            _scanner.GpuAcceleration = SettingsStore.GetBool("gpu_acceleration", true);
+        if (e.Key == SettingKeys.IncludeHidden)
+            IncludeHidden = AppSettings.IncludeHidden;
+        else if (e.Key == SettingKeys.GpuAcceleration)
+            _scanner.GpuAcceleration = AppSettings.GpuAcceleration;
     }
 
     // ── Scan options ──

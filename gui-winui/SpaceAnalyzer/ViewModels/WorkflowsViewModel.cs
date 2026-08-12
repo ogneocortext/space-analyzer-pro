@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
+using SpaceAnalyzer.Settings;
 
 namespace SpaceAnalyzer.ViewModels;
 
@@ -2225,9 +2226,9 @@ public class WorkflowsViewModel : ViewModelBase, IDisposable
                     OnUi(() => { ReportTitle = "AI Analysis"; Report = "No results to analyze. Run a file-finding workflow first."; });
                     return;
                 }
-                var url = SettingsStore.Get("ollama_url") ?? "http://localhost:11434";
-                var model = SettingsStore.Get("ollama_model") ?? "gemma3:1b";
-                if (!SettingsStore.GetBool("ollama_enabled", true))
+                var url = AppSettings.OllamaUrl;
+                var model = AppSettings.OllamaModel;
+                if (!AppSettings.OllamaEnabled)
                 {
                     OnUi(() => { ReportTitle = "AI Analysis"; Report = "Ollama is disabled in Settings."; });
                     return;

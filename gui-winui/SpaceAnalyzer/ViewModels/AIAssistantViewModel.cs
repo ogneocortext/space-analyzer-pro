@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
+using SpaceAnalyzer.Settings;
 
 namespace SpaceAnalyzer.ViewModels;
 
@@ -73,73 +74,69 @@ public class AIAssistantViewModel : ViewModelBase, IDisposable
 
     public bool ShowSuggestions => _messages.Count <= 2 && !IsBusy;
 
-    // ── Settings (from local settings) ──
+    // ── Settings ──
+    // These mirror <see cref="AppSettings"/>. The settings page is the single
+    // source of truth; this ViewModel only reads them (via AppSettings) and
+    // raises change notifications for its own bindings. No duplicated key or
+    // default literals live here anymore.
 
-    private string _ollamaUrl = "http://localhost:11434";
     public string OllamaUrl
     {
-        get => _ollamaUrl;
+        get => AppSettings.OllamaUrl;
         set
         {
-            _ollamaUrl = value;
+            AppSettings.OllamaUrl = value;
             OnPropertyChanged();
             RefreshOllamaClient();
         }
     }
 
-    private string _ollamaModel = "gemma3:1b";
     public string OllamaModel
     {
-        get => _ollamaModel;
-        set { _ollamaModel = value; OnPropertyChanged(); }
+        get => AppSettings.OllamaModel;
+        set { AppSettings.OllamaModel = value; OnPropertyChanged(); }
     }
 
-    private string _toolCallingModel = "qwen2.5-coder:7b";
     public string ToolCallingModel
     {
-        get => _toolCallingModel;
-        set { _toolCallingModel = value; OnPropertyChanged(); }
+        get => AppSettings.ToolCallingModel;
+        set { AppSettings.ToolCallingModel = value; OnPropertyChanged(); }
     }
 
-    private bool _agenticToolsEnabled = true;
     public bool AgenticToolsEnabled
     {
-        get => _agenticToolsEnabled;
-        set { _agenticToolsEnabled = value; OnPropertyChanged(); }
+        get => AppSettings.AgenticToolsEnabled;
+        set { AppSettings.AgenticToolsEnabled = value; OnPropertyChanged(); }
     }
 
-    private bool _autoModelSelection = true;
     public bool AutoModelSelection
     {
-        get => _autoModelSelection;
-        set { _autoModelSelection = value; OnPropertyChanged(); }
+        get => AppSettings.AutoModelSelection;
+        set { AppSettings.AutoModelSelection = value; OnPropertyChanged(); }
     }
 
-    private string _toolChoice = "auto";
     public string ToolChoice
     {
-        get => _toolChoice;
-        set { _toolChoice = value; OnPropertyChanged(); }
+        get => AppSettings.ToolChoice;
+        set { AppSettings.ToolChoice = value; OnPropertyChanged(); }
     }
 
-    private bool _ollamaEnabled = true;
     public bool OllamaEnabled
     {
-        get => _ollamaEnabled;
-        set { _ollamaEnabled = value; OnPropertyChanged(); }
+        get => AppSettings.OllamaEnabled;
+        set { AppSettings.OllamaEnabled = value; OnPropertyChanged(); }
     }
 
-    private bool _ollamaThink = true;
     public bool OllamaThink
     {
-        get => _ollamaThink;
-        set { _ollamaThink = value; OnPropertyChanged(); }
+        get => AppSettings.OllamaThink;
+        set { AppSettings.OllamaThink = value; OnPropertyChanged(); }
     }
 
     public AIAssistantViewModel()
     {
         LoadSettings();
-        _client = new OllamaClient(_ollamaUrl);
+        _client = new OllamaClient(OllamaUrl);
         _ = RefreshInstalledModelsAsync();
         AddMessage(ChatRole.Assistant,
             "Hello! I am your AI assistant for Space Analyzer Pro. " +
@@ -205,19 +202,17 @@ public class AIAssistantViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>
+    /// Re-reads shared settings and notifies the UI. Called when the page is
+    /// navigated to so changes made on the Settings page take effect without an
+    /// app restart. Model values are read live from <see cref="AppSettings"/>
+    /// (the single source of truth), so there is nothing to copy here beyond
+    /// refreshing the bindings.
+    /// </summary>
     private void LoadSettings()
     {
         try
         {
-            _ollamaUrl = SettingsStore.Get("ollama_url") ?? "http://localhost:11434";
-            _ollamaModel = SettingsStore.Get("ollama_model") ?? "gemma3:1b";
-            _toolCallingModel = SettingsStore.Get("tool_calling_model") ?? "qwen2.5-coder:7b";
-            _agenticToolsEnabled = SettingsStore.GetBool("agentic_tools_enabled", true);
-            _autoModelSelection = SettingsStore.GetBool("auto_model_selection", true);
-            _toolChoice = SettingsStore.Get("tool_choice") ?? "auto";
-            _ollamaEnabled = SettingsStore.GetBool("ollama_enabled", true);
-            _ollamaThink = SettingsStore.GetBool("ollama_think", true);
-
             OnPropertyChanged(nameof(OllamaUrl));
             OnPropertyChanged(nameof(OllamaModel));
             OnPropertyChanged(nameof(ToolCallingModel));

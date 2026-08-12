@@ -41,9 +41,8 @@ public sealed partial class MainWindow : Window
         _notificationTimer?.Stop();
         try
         {
-            // Save settings before disposing
-            if (ContentFrame.Content is Views.SettingsPage settingsPage)
-                (settingsPage.DataContext as SettingsViewModel)?.Save();
+            // Settings auto-persist through AppSettings on every edit; just ensure
+            // any pending write is flushed before disposing.
             if (ContentFrame.Content is Views.ScanPage scanPage)
                 (scanPage.DataContext as ScanViewModel)?.Save();
 

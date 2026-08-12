@@ -11,6 +11,7 @@ using Microsoft.UI.Xaml;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
+using SpaceAnalyzer.Settings;
 
 namespace SpaceAnalyzer.ViewModels;
 
@@ -71,7 +72,7 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
     public bool IncludeHidden
     {
         get => _includeHidden;
-        set { _includeHidden = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKey.IncludeHidden, value); }
+        set { _includeHidden = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKeys.SsIncludeHidden, value); }
     }
 
     // ── Semantic (embedding) search ──
@@ -134,7 +135,7 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
     public int SemanticTopK
     {
         get => _semanticTopK;
-        set { _semanticTopK = Math.Max(1, value); OnPropertyChanged(); SettingsStore.Set(SettingKey.SemanticTopK, value.ToString()); }
+        set { _semanticTopK = Math.Max(1, value); OnPropertyChanged(); SettingsStore.Set(SettingKeys.SsSemanticTopK, value.ToString()); }
     }
 
     private bool _isIndexing;
@@ -231,7 +232,7 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             OnPropertyChanged();
             OnPropertyChanged(nameof(ShowGroupedResults));
             OnPropertyChanged(nameof(ShowFlatResults));
-            SettingsStore.Set(SettingKey.GroupByMode, value.ToString());
+            SettingsStore.Set(SettingKeys.SsGroupByMode, value.ToString());
             ApplyDisplay();
         }
     }
@@ -249,7 +250,7 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         {
             _sortBy = value;
             OnPropertyChanged();
-            SettingsStore.Set(SettingKey.SortBy, value.ToString());
+            SettingsStore.Set(SettingKeys.SsSortBy, value.ToString());
             SortAndApply();
         }
     }
@@ -258,7 +259,7 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
     public bool ShowRawBytes
     {
         get => _showRawBytes;
-        set { _showRawBytes = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKey.ShowRawBytes, value); }
+        set { _showRawBytes = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKeys.SsShowRawBytes, value); }
     }
 
     private bool _isCompactDensity;
@@ -271,7 +272,7 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             OnPropertyChanged();
             OnPropertyChanged(nameof(DensityItemSpacing));
             OnPropertyChanged(nameof(DensityCardPadding));
-            SettingsStore.SetBool(SettingKey.CompactDensity, value);
+            SettingsStore.SetBool(SettingKeys.SsCompactDensity, value);
         }
     }
     public double DensityItemSpacing => _isCompactDensity ? 4 : 12;
@@ -281,28 +282,28 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
     public bool FollowSymlinks
     {
         get => _followSymlinks;
-        set { _followSymlinks = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKey.FollowSymlinks, value); }
+        set { _followSymlinks = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKeys.SsFollowSymlinks, value); }
     }
 
     private bool _collapseSmallGroups = true;
     public bool CollapseSmallGroups
     {
         get => _collapseSmallGroups;
-        set { _collapseSmallGroups = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKey.CollapseSmallGroups, value); ApplyDisplay(); }
+        set { _collapseSmallGroups = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKeys.SsCollapseSmallGroups, value); ApplyDisplay(); }
     }
 
     private int _otherThresholdMb = 1;
     public int OtherThresholdMb
     {
         get => _otherThresholdMb;
-        set { _otherThresholdMb = Math.Max(0, value); OnPropertyChanged(); SettingsStore.Set(SettingKey.OtherThresholdMb, value.ToString()); ApplyDisplay(); }
+        set { _otherThresholdMb = Math.Max(0, value); OnPropertyChanged(); SettingsStore.Set(SettingKeys.SsOtherThresholdMb, value.ToString()); ApplyDisplay(); }
     }
 
     private bool _isAdvancedMode;
     public bool IsAdvancedMode
     {
         get => _isAdvancedMode;
-        set { _isAdvancedMode = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKey.AdvancedMode, value); }
+        set { _isAdvancedMode = value; OnPropertyChanged(); SettingsStore.SetBool(SettingKeys.SsAdvancedMode, value); }
     }
 
     private int _maxResults = 500;
@@ -313,7 +314,7 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         {
             _maxResults = Math.Max(1, value);
             OnPropertyChanged();
-            SettingsStore.Set(SettingKey.MaxResults, value.ToString());
+            SettingsStore.Set(SettingKeys.SsMaxResults, value.ToString());
             // Re-anchor the display window to the new cap.
             DisplayCount = Math.Min(_maxResults, _results.Count);
             ApplyDisplay();
@@ -328,18 +329,18 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
 
     private void LoadSettings()
     {
-        _includeHidden = SettingsStore.GetBool(SettingKey.IncludeHidden, false);
-        _maxResults = ParseInt(SettingsStore.Get(SettingKey.MaxResults), 500);
+        _includeHidden = SettingsStore.GetBool(SettingKeys.SsIncludeHidden, false);
+        _maxResults = ParseInt(SettingsStore.Get(SettingKeys.SsMaxResults), 500);
         _displayCount = _maxResults;
-        _showRawBytes = SettingsStore.GetBool(SettingKey.ShowRawBytes, false);
-        _isCompactDensity = SettingsStore.GetBool(SettingKey.CompactDensity, false);
-        _followSymlinks = SettingsStore.GetBool(SettingKey.FollowSymlinks, false);
-        _collapseSmallGroups = SettingsStore.GetBool(SettingKey.CollapseSmallGroups, true);
-        _otherThresholdMb = ParseInt(SettingsStore.Get(SettingKey.OtherThresholdMb), 1);
-        _isAdvancedMode = SettingsStore.GetBool(SettingKey.AdvancedMode, false);
-        _semanticTopK = ParseInt(SettingsStore.Get(SettingKey.SemanticTopK), 50);
-        if (Enum.TryParse<GroupByMode>(SettingsStore.Get(SettingKey.GroupByMode), true, out var g)) _groupByMode = g;
-        if (Enum.TryParse<SortBy>(SettingsStore.Get(SettingKey.SortBy), true, out var s)) _sortBy = s;
+        _showRawBytes = SettingsStore.GetBool(SettingKeys.SsShowRawBytes, false);
+        _isCompactDensity = SettingsStore.GetBool(SettingKeys.SsCompactDensity, false);
+        _followSymlinks = SettingsStore.GetBool(SettingKeys.SsFollowSymlinks, false);
+        _collapseSmallGroups = SettingsStore.GetBool(SettingKeys.SsCollapseSmallGroups, true);
+        _otherThresholdMb = ParseInt(SettingsStore.Get(SettingKeys.SsOtherThresholdMb), 1);
+        _isAdvancedMode = SettingsStore.GetBool(SettingKeys.SsAdvancedMode, false);
+        _semanticTopK = ParseInt(SettingsStore.Get(SettingKeys.SsSemanticTopK), 50);
+        if (Enum.TryParse<GroupByMode>(SettingsStore.Get(SettingKeys.SsGroupByMode), true, out var g)) _groupByMode = g;
+        if (Enum.TryParse<SortBy>(SettingsStore.Get(SettingKeys.SsSortBy), true, out var s)) _sortBy = s;
     }
 
     private static int ParseInt(string? raw, int fallback)
@@ -941,21 +942,6 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         _cts.Dispose();
         _scanner.Dispose();
         GC.SuppressFinalize(this);
-    }
-
-    private static class SettingKey
-    {
-        public const string GroupByMode = "smartsearch.groupByMode";
-        public const string SortBy = "smartsearch.sortBy";
-        public const string MaxResults = "smartsearch.maxResults";
-        public const string IncludeHidden = "smartsearch.includeHidden";
-        public const string ShowRawBytes = "smartsearch.showRawBytes";
-        public const string CompactDensity = "smartsearch.compactDensity";
-        public const string FollowSymlinks = "smartsearch.followSymlinks";
-        public const string CollapseSmallGroups = "smartsearch.collapseSmallGroups";
-        public const string OtherThresholdMb = "smartsearch.otherThresholdMb";
-        public const string AdvancedMode = "smartsearch.advancedMode";
-        public const string SemanticTopK = "smartsearch.semanticTopK";
     }
 }
 

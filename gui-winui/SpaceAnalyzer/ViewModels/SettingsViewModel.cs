@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -11,14 +12,17 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Services;
+using SpaceAnalyzer.Settings;
 
 namespace SpaceAnalyzer.ViewModels;
 
 /// <summary>
-/// ViewModel for the Settings page. Persists theme, scanner path,
-/// and Ollama configuration to the embedded database via
-/// <see cref="SettingsStore"/>. Auto-saves on every change so settings
-/// survive rebuilds/restarts.
+/// ViewModel for the Settings page. Acts as the editable binding surface for
+/// <see cref="AppSettings"/> — the canonical, persisted source of truth. Each
+/// property reads/writes <see cref="AppSettings"/>, so values and their
+/// defaults are defined once and shared by every other feature in the app.
+/// Auto-saves on every change (the setter persists through
+/// <see cref="AppSettings"/>), so settings survive rebuilds/restarts.
 /// </summary>
 public class SettingsViewModel : ViewModelBase, IDisposable
 {
@@ -28,15 +32,14 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     // ── Appearance ──
 
-    private string _theme = "Dark";
     public string Theme
     {
-        get => _theme;
+        get => AppSettings.Theme;
         set
         {
-            _theme = value;
+            if (AppSettings.Theme == value) return;
+            AppSettings.Theme = value;
             OnPropertyChanged();
-            Save();
             ApplyTheme(value);
         }
     }
@@ -71,17 +74,23 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     // ── Scanner ──
 
-    private string _scannerPath = string.Empty;
     public string ScannerPath
     {
-        get => _scannerPath;
+        get
+        {
+            var stored = SettingsStore.Get(SettingKeys.ScannerPath);
+            if (!string.IsNullOrWhiteSpace(stored))
+                return stored;
+            // Fall back to the auto-discovered scanner binary when nothing is stored.
+            return _scanner.ScannerPath;
+        }
         set
         {
-            _scannerPath = value;
+            if (ScannerPath == value) return;
+            AppSettings.ScannerPath = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsScannerPathValid));
             OnPropertyChanged(nameof(ScannerPathStatus));
-            Save();
         }
     }
 
@@ -94,41 +103,38 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         _ => "Scanner not found at this path",
     };
 
-    private double _scanDepth = 5;
     public double ScanDepth
     {
-        get => _scanDepth;
-        set { _scanDepth = value; OnPropertyChanged(); Save(); }
+        get => AppSettings.ScanDepth;
+        set { if (AppSettings.ScanDepth == value) return; AppSettings.ScanDepth = value; OnPropertyChanged(); }
     }
 
-    private bool _includeHidden;
     public bool IncludeHidden
     {
-        get => _includeHidden;
-        set { _includeHidden = value; OnPropertyChanged(); Save(); }
+        get => AppSettings.IncludeHidden;
+        set { if (AppSettings.IncludeHidden == value) return; AppSettings.IncludeHidden = value; OnPropertyChanged(); }
     }
 
-    private bool _gpuAcceleration = true;
     public bool GpuAcceleration
     {
-        get => _gpuAcceleration;
-        set { _gpuAcceleration = value; OnPropertyChanged(); Save(); }
+        get => AppSettings.GpuAcceleration;
+        set { if (AppSettings.GpuAcceleration == value) return; AppSettings.GpuAcceleration = value; OnPropertyChanged(); }
     }
 
-    private string _defaultScanPaths = string.Empty;
     public string DefaultScanPaths
     {
-        get => _defaultScanPaths;
-        set { _defaultScanPaths = value; OnPropertyChanged(); Save(); }
+        get => AppSettings.DefaultScanPaths;
+        set { if (AppSettings.DefaultScanPaths == value) return; AppSettings.DefaultScanPaths = value; OnPropertyChanged(); }
     }
 
     public List<string> DefaultScanPathList
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(_defaultScanPaths))
+            var raw = AppSettings.DefaultScanPaths;
+            if (string.IsNullOrWhiteSpace(raw))
                 return new List<string>();
-            return _defaultScanPaths
+            return raw
                 .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(p => p.Trim())
                 .Where(p => !string.IsNullOrWhiteSpace(p))
@@ -138,89 +144,80 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     // ── Ollama ──
 
-    private string _ollamaUrl = "http://localhost:11434";
     public string OllamaUrl
     {
-        get => _ollamaUrl;
-        set { _ollamaUrl = value; OnPropertyChanged(); Save(); }
+        get => AppSettings.OllamaUrl;
+        set { if (AppSettings.OllamaUrl == value) return; AppSettings.OllamaUrl = value; OnPropertyChanged(); }
     }
 
-    private string _ollamaModel = "gemma3:1b";
     public string OllamaModel
     {
-        get => _ollamaModel;
-        set { _ollamaModel = value; OnPropertyChanged(); Save(); }
+        get => AppSettings.OllamaModel;
+        set { if (AppSettings.OllamaModel == value) return; AppSettings.OllamaModel = value; OnPropertyChanged(); }
     }
 
-    private bool _ollamaEnabled = true;
     public bool OllamaEnabled
     {
-        get => _ollamaEnabled;
+        get => AppSettings.OllamaEnabled;
         set
         {
-            _ollamaEnabled = value;
+            if (AppSettings.OllamaEnabled == value) return;
+            AppSettings.OllamaEnabled = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(OllamaOptionsEnabled));
             OnPropertyChanged(nameof(ManualModelEnabled));
             OnPropertyChanged(nameof(AgenticOptionsEnabled));
-            Save();
         }
     }
 
-    private bool _ollamaThink = true;
     public bool OllamaThink
     {
-        get => _ollamaThink;
-        set { _ollamaThink = value; OnPropertyChanged(); Save(); }
+        get => AppSettings.OllamaThink;
+        set { if (AppSettings.OllamaThink == value) return; AppSettings.OllamaThink = value; OnPropertyChanged(); }
     }
 
-    private bool _agenticToolsEnabled = true;
     public bool AgenticToolsEnabled
     {
-        get => _agenticToolsEnabled;
+        get => AppSettings.AgenticToolsEnabled;
         set
         {
-            _agenticToolsEnabled = value;
+            if (AppSettings.AgenticToolsEnabled == value) return;
+            AppSettings.AgenticToolsEnabled = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(AgenticOptionsEnabled));
-            Save();
         }
     }
 
-    private bool _autoModelSelection = true;
     public bool AutoModelSelection
     {
-        get => _autoModelSelection;
+        get => AppSettings.AutoModelSelection;
         set
         {
-            _autoModelSelection = value;
+            if (AppSettings.AutoModelSelection == value) return;
+            AppSettings.AutoModelSelection = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(ManualModelEnabled));
-            Save();
         }
     }
 
-    private string _toolCallingModel = "qwen2.5-coder:7b";
     public string ToolCallingModel
     {
-        get => _toolCallingModel;
-        set { _toolCallingModel = value; OnPropertyChanged(); Save(); }
+        get => AppSettings.ToolCallingModel;
+        set { if (AppSettings.ToolCallingModel == value) return; AppSettings.ToolCallingModel = value; OnPropertyChanged(); }
     }
 
-    private string _toolChoice = "auto";
     public string ToolChoice
     {
-        get => _toolChoice;
-        set { _toolChoice = value; OnPropertyChanged(); Save(); }
+        get => AppSettings.ToolChoice;
+        set { if (AppSettings.ToolChoice == value) return; AppSettings.ToolChoice = value; OnPropertyChanged(); }
     }
 
     // ── UI: Advanced mode ──
 
-    private bool _advancedMode;
     public bool AdvancedMode
     {
-        get => _advancedMode;
-        set { _advancedMode = value; OnPropertyChanged(); Save(); }
+        get => AppSettings.AdvancedMode;
+        set { if (AppSettings.AdvancedMode == value) return; AppSettings.AdvancedMode = value; OnPropertyChanged(); }
     }
 
     /// <summary>True when AI is enabled — gates the Connection and Chat model groups
@@ -343,83 +340,33 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     private async Task LoadAsync()
     {
         await SettingsStore.EnsureLoadedAsync();
-        LoadFromStore();
+        NotifyAll();
+        ApplyTheme(AppSettings.Theme);
     }
 
-    private void LoadFromStore()
+    /// <summary>Refreshes all bound properties after the settings cache has loaded.</summary>
+    private void NotifyAll()
     {
-        try
-        {
-            _theme = SettingsStore.Get("theme") ?? "Dark";
-            _scannerPath = SettingsStore.Get("scanner_path") ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(_scannerPath))
-                _scannerPath = _scanner.ScannerPath;
-            _scanDepth = double.TryParse(SettingsStore.Get("scan_depth"), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 5;
-            _includeHidden = SettingsStore.GetBool("include_hidden");
-            _gpuAcceleration = SettingsStore.GetBool("gpu_acceleration", true);
-            _defaultScanPaths = SettingsStore.Get("default_scan_paths") ?? string.Empty;
-            _ollamaUrl = SettingsStore.Get("ollama_url") ?? "http://localhost:11434";
-            _ollamaModel = SettingsStore.Get("ollama_model") ?? "gemma3:1b";
-            _ollamaEnabled = SettingsStore.GetBool("ollama_enabled", true);
-            _ollamaThink = SettingsStore.GetBool("ollama_think", true);
-            _agenticToolsEnabled = SettingsStore.GetBool("agentic_tools_enabled", true);
-            _autoModelSelection = SettingsStore.GetBool("auto_model_selection", true);
-            _toolCallingModel = SettingsStore.Get("tool_calling_model") ?? "qwen2.5-coder:7b";
-            _toolChoice = SettingsStore.Get("tool_choice") ?? "auto";
-            _advancedMode = SettingsStore.GetBool("advanced_mode");
-
-            OnPropertyChanged(nameof(Theme));
-            OnPropertyChanged(nameof(ScannerPath));
-            OnPropertyChanged(nameof(IsScannerPathValid));
-            OnPropertyChanged(nameof(ScannerPathStatus));
-            OnPropertyChanged(nameof(ScanDepth));
-            OnPropertyChanged(nameof(IncludeHidden));
-            OnPropertyChanged(nameof(GpuAcceleration));
-            OnPropertyChanged(nameof(DefaultScanPaths));
-            OnPropertyChanged(nameof(OllamaUrl));
-            OnPropertyChanged(nameof(OllamaModel));
-            OnPropertyChanged(nameof(OllamaEnabled));
-            OnPropertyChanged(nameof(OllamaThink));
-            OnPropertyChanged(nameof(AgenticToolsEnabled));
-            OnPropertyChanged(nameof(AutoModelSelection));
-            OnPropertyChanged(nameof(ToolCallingModel));
-            OnPropertyChanged(nameof(ToolChoice));
-            OnPropertyChanged(nameof(AdvancedMode));
-
-            // Reflect the restored theme on the live root so the picker matches
-            // what is actually rendered (independent of the startup-time apply).
-            ApplyTheme(_theme);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[SettingsViewModel] Load failed: {ex}");
-        }
-    }
-
-    public void Save()
-    {
-        try
-        {
-            SettingsStore.Set("theme", Theme);
-            SettingsStore.Set("scanner_path", ScannerPath);
-            SettingsStore.Set("scan_depth", ScanDepth.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            SettingsStore.SetBool("include_hidden", IncludeHidden);
-            SettingsStore.SetBool("gpu_acceleration", GpuAcceleration);
-            SettingsStore.Set("default_scan_paths", DefaultScanPaths);
-            SettingsStore.Set("ollama_url", OllamaUrl);
-            SettingsStore.Set("ollama_model", OllamaModel);
-            SettingsStore.SetBool("ollama_enabled", OllamaEnabled);
-            SettingsStore.SetBool("ollama_think", OllamaThink);
-            SettingsStore.SetBool("agentic_tools_enabled", AgenticToolsEnabled);
-            SettingsStore.SetBool("auto_model_selection", AutoModelSelection);
-            SettingsStore.Set("tool_calling_model", ToolCallingModel);
-            SettingsStore.Set("tool_choice", ToolChoice);
-            SettingsStore.SetBool("advanced_mode", AdvancedMode);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[SettingsViewModel] Save failed: {ex}");
-        }
+        OnPropertyChanged(nameof(Theme));
+        OnPropertyChanged(nameof(ScannerPath));
+        OnPropertyChanged(nameof(IsScannerPathValid));
+        OnPropertyChanged(nameof(ScannerPathStatus));
+        OnPropertyChanged(nameof(ScanDepth));
+        OnPropertyChanged(nameof(IncludeHidden));
+        OnPropertyChanged(nameof(GpuAcceleration));
+        OnPropertyChanged(nameof(DefaultScanPaths));
+        OnPropertyChanged(nameof(OllamaUrl));
+        OnPropertyChanged(nameof(OllamaModel));
+        OnPropertyChanged(nameof(OllamaEnabled));
+        OnPropertyChanged(nameof(OllamaThink));
+        OnPropertyChanged(nameof(AgenticToolsEnabled));
+        OnPropertyChanged(nameof(AutoModelSelection));
+        OnPropertyChanged(nameof(ToolCallingModel));
+        OnPropertyChanged(nameof(ToolChoice));
+        OnPropertyChanged(nameof(AdvancedMode));
+        OnPropertyChanged(nameof(OllamaOptionsEnabled));
+        OnPropertyChanged(nameof(ManualModelEnabled));
+        OnPropertyChanged(nameof(AgenticOptionsEnabled));
     }
 
     public void ResetToDefaults()
@@ -440,7 +387,6 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         ToolChoice = "auto";
         OllamaTestResult = string.Empty;
         OllamaTestBrush = GetThemeBrush("MutedBrush");
-        Save();
     }
 
     private static SolidColorBrush GetThemeBrush(string key)
