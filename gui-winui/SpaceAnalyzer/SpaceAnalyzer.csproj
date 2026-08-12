@@ -42,7 +42,7 @@
 
   <Target Name="BuildRustScanner" Condition="Exists('$(RustWorkspaceDir)\Cargo.toml')">
     <Message Text="Building Rust scanner CLI + cleaner from $(RustWorkspaceDir)" Importance="high" />
-    <Exec Command="cargo build --release --bin space-analyzer-cli --bin node_modules_cleaner"
+    <Exec Command="cargo build --release --bin space-analyzer-cli &amp;&amp; cargo build --release -p node_modules_cleaner"
           WorkingDirectory="$(RustWorkspaceDir)"
           EchoOff="true" />
   </Target>

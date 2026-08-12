@@ -42,7 +42,7 @@ Two GUI implementations exist side-by-side for comparison:
 ### Rust (cargo)
 - Build core: `cargo build --workspace`
 - Test core: `cargo test --workspace`
-- CLI: `cargo run --bin space-analyzer-pro`
+- CLI: `cargo run --bin space-analyzer-cli`
 - Build egui GUI: `cargo build -p space-analyzer-gui-egui`
 - Run egui GUI: `cargo run -p space-analyzer-gui-egui`
 
@@ -172,7 +172,7 @@ Reviewed the Rust-core ↔ WinUI 3 boundary (see prior session's Findings). Impl
 ### Done
 - **Deployment gap (High) closed** in `gui-winui/SpaceAnalyzer/SpaceAnalyzer.csproj`:
   - Added `CopyRustTools` target (`BeforeTargets="Build;Publish"`) that copies `space-analyzer-cli.exe` + `node_modules_cleaner.exe` from `<repo>/target/release` into `$(OutDir)`, and emits a high-priority **warning** when they are missing (instead of silently shipping a GUI with `IsAvailable=false`).
-  - Added `BuildRustScanner` target (`/t:BuildRustScanner`) running `cargo build --release --bin space-analyzer-cli --bin node_modules_cleaner`; optionally chained when `/p:BuildRustOnBuild=true`. `RustWorkspaceDir = $(MSBuildThisFileDirectory)..\..` (repo root).
+  - Added `BuildRustScanner` target (`/t:BuildRustScanner`) that runs `cargo build --release --bin space-analyzer-cli && cargo build --release -p node_modules_cleaner` (the two bins live in different workspace packages, so `node_modules_cleaner` must be built with `-p` — `--bin node_modules_cleaner` alone fails to resolve from the root package); optionally chained when `/p:BuildRustOnBuild=true`. `RustWorkspaceDir = $(MSBuildThisFileDirectory)..\..` (repo root).
   - Verified csproj XML is well-formed.
 - **Capability/version probe (Medium)** added to `gui-winui/SpaceAnalyzer/Services/ScannerService.cs`:
   - `ScannerVersion` property + `ProbeVersionAsync()` that runs `space-analyzer-cli --version`, parses `<name> <version>`, never throws. Closes the "no protocol-version negotiation" gap so the GUI can surface/version-gate the backend.
@@ -187,9 +187,12 @@ Reviewed the Rust-core ↔ WinUI 3 boundary (see prior session's Findings). Impl
 - **Schema/contract (P1) hardened** in `StreamEvent.cs`: `StreamComplete.FileTypes` changed `Dictionary<string,int>` → `Dictionary<string,long>`. The Rust CLI emits per-type byte totals as `u64`; the old `int` overflowed on large directories, throwing during JSON parse, which the streaming reader swallowed — silently dropping the final scan result (streaming scan returned null). `ScanResult.FileTypes` was already `long`, so the mapping is now type-stable.
   - **Corrected earlier note:** there was no `TotalSizeMb` precision loss — both `ScanResult`/`StreamComplete` use `double`, and the streaming `(long)` cast was `int`→`long` (safe). The real contract risk was the `int` overflow above.
 - **Contract test added** `gui-winui/SpaceAnalyzer.Tests/ScannerContractTests.cs` (xUnit, `net8.0`, headless) that includes the model + `ByteFormatter` sources via `<Compile Link>` and pins the snake_case JSON contract with the exact `ScannerService` serializer options. Covers full `ScanResult` mapping, the `scanned_files` `[size,mtime]` array converter, and the `StreamComplete.FileTypes` >int.MaxValue overflow case. `dotnet test` → 8 passed (5 existing + 3 contract).
+### Build verification (done, 2026-08-11)
 
-### Not built here
-- Rust `target/release` exes were **not** compiled in this session (full release build is heavy: `lto=true`, `codegen-units=1`). The copy target will pick them up once `cargo build --release` runs. Validate with `cargo build --release --bin space-analyzer-cli` then a VS MSBuild GUI build.
+- **Rust release binaries compiled** with VS MSBuild `D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe` (updated 8/11/2026): `cargo build --release --bin space-analyzer-cli` (lto, ~3m13s) + `cargo build --release -p node_modules_cleaner`. Produced `target/release/space-analyzer-cli.exe` (6.6 MB) and `node_modules_cleaner.exe` (663 KB).
+- **WinUI GUI MSBuild build: 0 errors, 0 warnings.** First build emitted the intended `CopyRustTools` warnings (binaries missing); after building the Rust tools, `CopyRustTools` copied both exes into `bin\x64\Debug\net10.0-windows10.0.22621.0\` with no warning.
+- **End-to-end `/p:BuildRustOnBuild=true -t:Build` verified:** GUI builds, `BuildRustScanner` re-runs the (now-fixed) `&&` cargo command (idempotent — `Finished` in seconds), `CopyRustTools` copies. Full chain works.
+- **Contract tests:** `dotnet test` (net8.0, headless) → 8 passed (5 existing `ViewModelBase` + 3 `ScannerContractTests`). No WinUI/Windows usings leaked into the linked model sources (`ScanResult.cs`/`StreamEvent.cs`/`ScanHistoryRecord.cs`/`ByteFormatter.cs`).
 
 ### Review findings (still open, optional)
 - [1] Add `.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md`, root `CODE_OF_CONDUCT.md` (none tracked).
