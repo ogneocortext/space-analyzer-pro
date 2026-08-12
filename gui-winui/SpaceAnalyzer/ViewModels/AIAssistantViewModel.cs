@@ -28,7 +28,30 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
     private ToolExecutor? _toolExecutor;
     private CancellationTokenSource _cts = new();
     private bool _disposed;
-    private List<OllamaModelInfo> _installedModels = new();
+    private readonly ObservableCollection<OllamaModelInfo> _installedModels = new();
+
+    /// <summary>
+    /// Models detected on the Ollama server, surfaced to the UI so the AI page can
+    /// show a "connected · N models" indicator and the actual installed model list
+    /// (refreshed live via <see cref="_modelRefreshTimer"/> and
+    /// <see cref="SettingsStore.SettingsChanged"/>).
+    /// </summary>
+    public ReadOnlyObservableCollection<OllamaModelInfo> InstalledModels { get; }
+
+    private bool _ollamaConnected;
+    public bool OllamaConnected
+    {
+        get => _ollamaConnected;
+        private set { if (_ollamaConnected == value) return; _ollamaConnected = value; OnPropertyChanged(); }
+    }
+
+    public int InstalledModelCount => _installedModels.Count;
+
+    public string ConnectionStatusText =>
+        !OllamaEnabled ? "AI disabled in Settings"
+        : _ollamaConnected
+            ? $"Ollama connected · {_installedModels.Count} model{(_installedModels.Count == 1 ? "" : "s")}"
+            : "Ollama offline — check the server/URL in Settings";
 
     // Periodic refresh so models installed mid-session (e.g. `ollama pull`) appear
     // without the user navigating away and back. Guarded because the VM may be
@@ -143,6 +166,7 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
     {
         LoadSettings();
         _client = new OllamaClient(OllamaUrl);
+        InstalledModels = new ReadOnlyObservableCollection<OllamaModelInfo>(_installedModels);
         SettingsStore.SettingsChanged += OnSettingsChanged;
         _modelRefreshTimer = DispatcherQueue.GetForCurrentThread()?.CreateTimer();
         if (_modelRefreshTimer is not null)
@@ -177,10 +201,13 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
     /// </summary>
     private async Task RefreshInstalledModelsAsync()
     {
-        if (_disposed || _client is null) return;
+        if (_disposed || _client is null) { OllamaConnected = false; return; }
         try
         {
-            _installedModels = await _client.GetInstalledModelsAsync();
+            var models = await _client.GetInstalledModelsAsync();
+            _installedModels.Clear();
+            foreach (var m in models) _installedModels.Add(m);
+            OllamaConnected = true;
             if (_installedModels.Count == 0) return;
 
             // Prefer tool-capable, then small models so fallback stays cheap.
@@ -197,6 +224,12 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
         catch
         {
             // Offline — keep the current list (possibly empty); primary model still tried.
+            OllamaConnected = false;
+        }
+        finally
+        {
+            OnPropertyChanged(nameof(InstalledModelCount));
+            OnPropertyChanged(nameof(ConnectionStatusText));
         }
     }
 
@@ -236,6 +269,8 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
                 break;
             case SettingKeys.OllamaEnabled:
                 OnPropertyChanged(nameof(OllamaEnabled));
+                OnPropertyChanged(nameof(ConnectionStatusText));
+                _ = RefreshInstalledModelsAsync();
                 break;
             case SettingKeys.OllamaThink:
                 OnPropertyChanged(nameof(OllamaThink));

@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:SpaceAnalyzer.ViewModels"
+    xmlns:svc="using:SpaceAnalyzer.Services"
     xmlns:controls="using:SpaceAnalyzer.Controls"
     mc:Ignorable="d"
     NavigationCacheMode="Required"
@@ -123,6 +124,33 @@
             <TextBlock Text="AI Assistant" Style="{StaticResource Type.PageTitle}"/>
             <TextBlock Text="Chat with your local Ollama AI to analyze disk usage."
                        Style="{StaticResource Type.Caption}" Opacity="0.85"/>
+
+            <!-- Live Ollama connection + installed-model status -->
+            <TextBlock Text="{x:Bind VM.ConnectionStatusText, Mode=OneWay}"
+                       Style="{StaticResource Type.Caption}" Opacity="0.85" Margin="0,4,0,0"/>
+
+            <ItemsControl ItemsSource="{x:Bind VM.InstalledModels, Mode=OneWay}"
+                          Visibility="{x:Bind VM.OllamaConnected, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"
+                          Margin="0,8,0,0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="6"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="svc:OllamaModelInfo">
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1" CornerRadius="12" Padding="8,4">
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE8EC;" FontSize="12" Opacity="0.7"/>
+                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource Type.Caption}"/>
+                                <TextBlock Text="{x:Bind SizeDisplay}" Style="{StaticResource Type.Tiny}" Opacity="0.55"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </StackPanel>
 
         <!-- Message list + suggestions -->
