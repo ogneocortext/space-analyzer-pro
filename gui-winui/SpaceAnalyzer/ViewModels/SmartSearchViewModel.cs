@@ -89,6 +89,27 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         }
     }
 
+    /// <summary>
+    /// Minimum cosine-similarity threshold (0–100, shown as a percentage to the
+    /// user). 0 means "no floor". Converted to a 0..1 <c>min_score</c> when
+    /// calling the Rust <c>semantic-search</c> subcommand.
+    /// </summary>
+    private double _minScorePercent;
+    public double MinScorePercent
+    {
+        get => _minScorePercent;
+        set
+        {
+            _minScorePercent = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(MinScorePercentLabel));
+        }
+    }
+
+    /// <summary>Live label for the threshold slider, e.g. "Min similarity: 60%".</summary>
+    public string MinScorePercentLabel =>
+        _minScorePercent <= 0 ? "Min similarity: off" : $"Min similarity: {_minScorePercent:0}%";
+
     /// <summary>Show the literal-name results panel only in filename mode with hits.</summary>
     public bool ShowFilenameResults => !_isSemantic && ResultCount > 0;
     /// <summary>Show the filename empty-state panel only in filename mode with no hits.</summary>
@@ -280,7 +301,8 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var hits = await _scanner.SemanticSearchAsync(SearchQuery, _indexedScanId.Value, top: 50, ct);
+        double? minScore = _minScorePercent > 0 ? _minScorePercent / 100.0 : null;
+        var hits = await _scanner.SemanticSearchAsync(SearchQuery, _indexedScanId.Value, top: 50, minScore: minScore, ct);
         if (hits == null)
             return;
 

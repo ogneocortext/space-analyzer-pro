@@ -116,6 +116,14 @@
                             <ToggleSwitch Grid.Column="1" IsOn="{x:Bind VM.IsSemantic, Mode=TwoWay}" VerticalAlignment="Center"/>
                         </Grid>
                         <StackPanel Visibility="{x:Bind VM.IsSemantic, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" Spacing="{StaticResource Space.SM}">
+                            <StackPanel Spacing="{StaticResource Space.XS}">
+                                <TextBlock Text="{x:Bind VM.MinScorePercentLabel, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.85"/>
+                                <Slider Minimum="0" Maximum="100" StepFrequency="1"
+                                        Value="{x:Bind VM.MinScorePercent, Mode=TwoWay}"
+                                        AutomationProperties.Name="Minimum similarity percentage"/>
+                                <TextBlock Text="Drop matches below this similarity. Set to 0 to disable the floor (show all)."
+                                           Style="{StaticResource Type.Hint}" TextWrapping="Wrap" Opacity="0.7"/>
+                            </StackPanel>
                             <Grid ColumnSpacing="{StaticResource Space.SM}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>

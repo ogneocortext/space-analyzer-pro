@@ -1470,12 +1470,18 @@ public class ScannerService : IDisposable
         string query,
         long scanId,
         int top = 20,
+        double? minScore = null,
         CancellationToken ct = default)
     {
         if (!IsAvailable)
             return null;
 
-        var output = await RunScannerAsync(new[] { "semantic-search", query, "--scan-id", scanId.ToString(), "--top", top.ToString(), "--format", "json" }, ct);
+        var args = new List<string> { "semantic-search", query, "--scan-id", scanId.ToString(), "--top", top.ToString(), "--format", "json" };
+        // Drop matches whose cosine similarity is below the requested floor.
+        // A 0 (or unset) floor is treated as "no threshold" so it never filters.
+        if (minScore is > 0.0)
+            args.AddRange(new[] { "--min-score", minScore.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) });
+        var output = await RunScannerAsync(args, ct);
         if (string.IsNullOrWhiteSpace(output))
             return null;
         try
