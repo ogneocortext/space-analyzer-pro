@@ -180,6 +180,14 @@ Reviewed the Rust-core ↔ WinUI 3 boundary (see prior session's Findings). Impl
 - **README** (`README.md`): documented the backend-bundling requirement under Quick Start (WinUI 3), fixed a stale "10 pages" → "11 pages" in the Stack table.
 - **Root `SECURITY.md`** added (GitHub security-policy tab was missing; referenced `docs/implementations/SECURITY.md` which does not exist — real one is `docs/archive/reports/SECURITY.md`). Local-first security model + private reporting.
 
+### Done (capability gating + contract hardening)
+- **Version/capability negotiation (P1) wired into feature gating** in `ScannerService.cs`:
+  - `ScannerCapabilities` class (all flags default `true`) + `GetCapabilitiesAsync()` (cached) that runs `space-analyzer-cli --version` and per-subcommand `--help` (`history`/`scan`/`db`) and clears a flag only when it is positively absent. So a version/help-format mismatch preserves current behavior instead of wrongly stripping features.
+  - Gated flags: `GetScanHistoryPageAsync` (`--sort-by`/`--search`/`--only-duplicates`), `GetCategoryHistoryAsync` (`--category-totals`, short-circuits when unsupported), `PruneRelativeScansAsync` (`--drop-relative`), `BackfillCategoriesAsync` (`--backfill-categories`), `PruneFileCacheAsync`/`PruneDiskSpaceAsync`, and `ScanDirectoryAsync` (`--progress-json`). Each returns a clean "unsupported" result rather than sending an unknown flag the CLI would reject.
+- **Schema/contract (P1) hardened** in `StreamEvent.cs`: `StreamComplete.FileTypes` changed `Dictionary<string,int>` → `Dictionary<string,long>`. The Rust CLI emits per-type byte totals as `u64`; the old `int` overflowed on large directories, throwing during JSON parse, which the streaming reader swallowed — silently dropping the final scan result (streaming scan returned null). `ScanResult.FileTypes` was already `long`, so the mapping is now type-stable.
+  - **Corrected earlier note:** there was no `TotalSizeMb` precision loss — both `ScanResult`/`StreamComplete` use `double`, and the streaming `(long)` cast was `int`→`long` (safe). The real contract risk was the `int` overflow above.
+- **Contract test added** `gui-winui/SpaceAnalyzer.Tests/ScannerContractTests.cs` (xUnit, `net8.0`, headless) that includes the model + `ByteFormatter` sources via `<Compile Link>` and pins the snake_case JSON contract with the exact `ScannerService` serializer options. Covers full `ScanResult` mapping, the `scanned_files` `[size,mtime]` array converter, and the `StreamComplete.FileTypes` >int.MaxValue overflow case. `dotnet test` → 8 passed (5 existing + 3 contract).
+
 ### Not built here
 - Rust `target/release` exes were **not** compiled in this session (full release build is heavy: `lto=true`, `codegen-units=1`). The copy target will pick them up once `cargo build --release` runs. Validate with `cargo build --release --bin space-analyzer-cli` then a VS MSBuild GUI build.
 

@@ -104,7 +104,7 @@ public class ScannerService : IDisposable
 
     /// <summary>
     /// Semantic version of the resolved scanner binary, probed via
-    /// <c>space-analyzer-cli --version</c>. Null until <see cref="ProbeVersionAsync"/>
+    /// <c>space-analyzer-cli --version</c>. Null until <see cref="GetCapabilitiesAsync"/>
     /// runs (or if the CLI is unavailable). Lets the GUI surface the backend
     /// version and gate features on CLI capability instead of silently degrading
     /// when the bundled CLI is older/newer than the GUI expects.
@@ -112,43 +112,115 @@ public class ScannerService : IDisposable
     public string? ScannerVersion { get; private set; }
 
     /// <summary>
-    /// Probes the scanner binary for its version string. Populates
-    /// <see cref="ScannerVersion"/> and returns true when the CLI is present and
-    /// responded. Safe to call on a background thread; never throws.
+    /// Detected CLI capabilities. Defaults to "all supported" so callers keep
+    /// current behavior until a positive absence is observed via <see cref="GetCapabilitiesAsync"/>.
+    /// </summary>
+    public ScannerCapabilities Capabilities { get; private set; } = new();
+
+    private Task<ScannerCapabilities>? _capTask;
+
+    /// <summary>
+    /// Probes the scanner once (cached) for its version and per-subcommand flag
+    /// support via <c>--help</c>. Capability flags start true and are only set
+    /// false when the flag is positively absent, so an unknown/changed help
+    /// format preserves the assume-supported default rather than stripping features.
+    /// </summary>
+    public Task<ScannerCapabilities> GetCapabilitiesAsync(CancellationToken ct = default)
+        => _capTask ??= ProbeCapabilitiesAsync(ct);
+
+    /// <summary>
+    /// Populates <see cref="ScannerVersion"/> and returns true when the CLI is
+    /// present and responded. Delegates to <see cref="GetCapabilitiesAsync"/>.
     /// </summary>
     public async Task<bool> ProbeVersionAsync(CancellationToken ct = default)
     {
+        var caps = await GetCapabilitiesAsync(ct);
+        return !string.IsNullOrEmpty(caps.Version);
+    }
+
+    private async Task<ScannerCapabilities> ProbeCapabilitiesAsync(CancellationToken ct)
+    {
+        var caps = new ScannerCapabilities();
+        Capabilities = caps; // publish defaults immediately (no spawn when unavailable)
         if (!IsAvailable)
+            return caps;
+
+        var version = await RunCliCaptureAsync(new[] { "--version" }, ct);
+        var vLine = (version ?? string.Empty).Trim();
+        var vIdx = vLine.LastIndexOf(' ');
+        ScannerVersion = vIdx >= 0 ? vLine[(vIdx + 1)..] : vLine;
+        caps.Version = ScannerVersion;
+
+        var historyHelp = await TryRunHelpAsync("history", ct);
+        if (historyHelp.Length > 0)
         {
-            ScannerVersion = null;
-            return false;
+            caps.HistorySortBy = historyHelp.Contains("--sort-by");
+            caps.HistorySearch = historyHelp.Contains("--search");
+            caps.HistoryOnlyDuplicates = historyHelp.Contains("--only-duplicates");
+            caps.HistoryCategoryTotals = historyHelp.Contains("--category-totals");
+            caps.HistoryDropRelative = historyHelp.Contains("--drop-relative");
+            caps.HistoryBackfillCategories = historyHelp.Contains("--backfill-categories");
         }
-        try
+
+        var scanHelp = await TryRunHelpAsync("scan", ct);
+        if (scanHelp.Length > 0)
+            caps.ScanProgressJson = scanHelp.Contains("--progress-json");
+
+        var dbHelp = await TryRunHelpAsync("db", ct);
+        if (dbHelp.Length > 0)
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = _scannerPath,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
-            psi.ArgumentList.Add("--version");
-            using var process = new Process { StartInfo = psi };
-            process.Start();
-            var stdout = await process.StandardOutput.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct);
-            var line = (stdout ?? string.Empty).Trim();
-            // clap prints "<package-name> <version>", e.g. "space-analyzer-pro-desktop 3.7.0".
-            var idx = line.LastIndexOf(' ');
-            ScannerVersion = idx >= 0 ? line[(idx + 1)..] : line;
-            return true;
+            caps.DbPruneFileCache = dbHelp.Contains("--prune-file-cache");
+            caps.DbPruneDiskSpace = dbHelp.Contains("--prune-disk-space");
         }
-        catch
+
+        return caps;
+    }
+
+    private async Task<string> RunCliCaptureAsync(IEnumerable<string> args, CancellationToken ct)
+    {
+        var psi = new ProcessStartInfo
         {
-            ScannerVersion = null;
-            return false;
-        }
+            FileName = _scannerPath,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        foreach (var a in args) psi.ArgumentList.Add(a);
+        using var process = new Process { StartInfo = psi };
+        process.Start();
+        var outTask = process.StandardOutput.ReadToEndAsync(ct);
+        var errTask = process.StandardError.ReadToEndAsync(ct);
+        try { await process.WaitForExitAsync(ct); }
+        catch { try { process.Kill(entireProcessTree: true); } catch { } }
+        return (await outTask) + (await errTask);
+    }
+
+    private async Task<string> TryRunHelpAsync(string subcommand, CancellationToken ct)
+    {
+        try { return await RunCliCaptureAsync(new[] { subcommand, "--help" }, ct); }
+        catch { return string.Empty; }
+    }
+
+    /// <summary>
+    /// Per-flag capability detection for the Rust CLI. Every flag defaults to
+    /// true (assume supported); <see cref="ProbeCapabilitiesAsync"/> only clears
+    /// a flag when a <c>--help</c> probe positively shows it is absent, so an
+    /// unknown/changed help format preserves current behavior instead of
+    /// wrongly stripping features.
+    /// </summary>
+    public sealed class ScannerCapabilities
+    {
+        public string? Version { get; set; }
+        public bool HistorySortBy { get; set; } = true;
+        public bool HistorySearch { get; set; } = true;
+        public bool HistoryOnlyDuplicates { get; set; } = true;
+        public bool HistoryCategoryTotals { get; set; } = true;
+        public bool HistoryDropRelative { get; set; } = true;
+        public bool HistoryBackfillCategories { get; set; } = true;
+        public bool ScanProgressJson { get; set; } = true;
+        public bool DbPruneFileCache { get; set; } = true;
+        public bool DbPruneDiskSpace { get; set; } = true;
     }
 
     /// <summary>
@@ -309,7 +381,11 @@ public class ScannerService : IDisposable
         if (!(useGpu ?? GpuAcceleration))
             argList.Add("--no-gpu");
         if (progress is not null)
-            argList.Add("--progress-json");
+        {
+            var scanCaps = await GetCapabilitiesAsync(ct);
+            if (scanCaps.ScanProgressJson)
+                argList.Add("--progress-json");
+        }
 
         int scanId = ScanActivityMonitor.Instance.BeginScan(path);
         try
@@ -700,10 +776,16 @@ public class ScannerService : IDisposable
         };
         var effectiveSortBy = allowedSort.Contains(sortBy) ? sortBy : "timestamp";
 
-        var argList = new List<string> { "history", "--limit", limit.ToString(), "--offset", offset.ToString(), "--sort-by", effectiveSortBy };
-        if (sortAsc) argList.Add("--sort-asc");
-        if (!string.IsNullOrWhiteSpace(search)) { argList.Add("--search"); argList.Add(search); }
-        if (onlyDuplicates) argList.Add("--only-duplicates");
+        var caps = await GetCapabilitiesAsync(ct);
+        var argList = new List<string> { "history", "--limit", limit.ToString(), "--offset", offset.ToString() };
+        if (caps.HistorySortBy)
+        {
+            argList.Add("--sort-by");
+            argList.Add(effectiveSortBy);
+            if (sortAsc) argList.Add("--sort-asc");
+        }
+        if (caps.HistorySearch && !string.IsNullOrWhiteSpace(search)) { argList.Add("--search"); argList.Add(search); }
+        if (caps.HistoryOnlyDuplicates && onlyDuplicates) argList.Add("--only-duplicates");
 
         var output = await RunScannerAsync(argList, ct);
         if (string.IsNullOrWhiteSpace(output))
@@ -764,6 +846,9 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return new Dictionary<string, ulong>();
 
+        var caps = await GetCapabilitiesAsync(ct);
+        if (!caps.HistoryCategoryTotals)
+            return new Dictionary<string, ulong>();
         var output = await RunScannerAsync(new[] { "history", "--category-totals", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return new Dictionary<string, ulong>();
@@ -913,6 +998,9 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
+        var caps = await GetCapabilitiesAsync(ct);
+        if (!caps.HistoryDropRelative)
+            return (false, 0, "Scanner does not support --drop-relative");
         var output = await RunScannerAsync(new[] { "history", "--prune", "--drop-relative", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
@@ -946,6 +1034,9 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
+        var caps = await GetCapabilitiesAsync(ct);
+        if (!caps.HistoryBackfillCategories)
+            return (false, 0, "Scanner does not support --backfill-categories");
         var output = await RunScannerAsync(new[] { "history", "--backfill-categories", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
@@ -979,6 +1070,9 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
+        var caps = await GetCapabilitiesAsync(ct);
+        if (!caps.DbPruneFileCache)
+            return (false, 0, "Scanner does not support --prune-file-cache");
         var output = await RunScannerAsync(new[] { "db", "--prune-file-cache", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
@@ -1011,6 +1105,9 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
+        var caps = await GetCapabilitiesAsync(ct);
+        if (!caps.DbPruneDiskSpace)
+            return (false, 0, "Scanner does not support --prune-disk-space");
         var output = await RunScannerAsync(new[] { "db", "--prune-disk-space", keepHours.ToString(), "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");

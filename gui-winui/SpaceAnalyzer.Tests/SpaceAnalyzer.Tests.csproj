@@ -22,6 +22,10 @@
 
   <ItemGroup>
     <Compile Include="..\SpaceAnalyzer\Helpers\ViewModelBase.cs" Link="ViewModelBase.cs" />
+    <Compile Include="..\SpaceAnalyzer\Helpers\ByteFormatter.cs" Link="Helpers\ByteFormatter.cs" />
+    <Compile Include="..\SpaceAnalyzer\Models\ScanResult.cs" Link="Models\ScanResult.cs" />
+    <Compile Include="..\SpaceAnalyzer\Models\StreamEvent.cs" Link="Models\StreamEvent.cs" />
+    <Compile Include="..\SpaceAnalyzer\Models\ScanHistoryRecord.cs" Link="Models\ScanHistoryRecord.cs" />
   </ItemGroup>
 
 </Project>

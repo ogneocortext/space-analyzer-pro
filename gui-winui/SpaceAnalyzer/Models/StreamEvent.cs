@@ -81,8 +81,11 @@ public class StreamComplete
     [JsonPropertyName("duration_secs")]
     public double DurationSecs { get; set; }
 
+    // Long (not int): the Rust CLI emits per-type byte totals as u64. An int
+    // here would overflow on large directories and throw during JSON parsing,
+    // which the streaming reader swallows — silently dropping the final result.
     [JsonPropertyName("file_types")]
-    public Dictionary<string, int> FileTypes { get; set; } = new();
+    public Dictionary<string, long> FileTypes { get; set; } = new();
 
     [JsonPropertyName("extension_sizes")]
     public Dictionary<string, ulong> ExtensionSizes { get; set; } = new();
