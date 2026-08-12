@@ -20,6 +20,17 @@
                                Style="{StaticResource Type.Body}"/>
                 </StackPanel>
 
+                <!-- Advanced mode -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
+                        <ToggleSwitch Header="Advanced settings"
+                                      IsOn="{x:Bind VM.AdvancedMode, Mode=TwoWay}"
+                                      AutomationProperties.Name="Advanced settings"/>
+                        <TextBlock Text="Show power-user options: hidden files, GPU acceleration, default scan paths, and the agentic-tool controls."
+                                   Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- Appearance -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
                     <StackPanel Spacing="{StaticResource Space.LG}">
@@ -83,122 +94,157 @@
                             <TextBlock Text="{x:Bind VM.ScanDepth, Mode=OneWay}"
                                         Style="{StaticResource Type.Caption}"/>
                         </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
+
+                        <!-- Advanced scanner options -->
+                        <StackPanel Spacing="{StaticResource Space.LG}"
+                                    Visibility="{x:Bind VM.AdvancedMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="Advanced scanner options" Style="{StaticResource Type.GroupHeading}"/>
                             <CheckBox Content="Include hidden files and folders by default"
                                       IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
-                        </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
                             <CheckBox Content="GPU acceleration"
                                       IsChecked="{x:Bind VM.GpuAcceleration, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
-                        </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Default scan paths" Style="{StaticResource Type.FieldHeading}"/>
-                            <TextBlock Text="Quick-access paths shown on the Scan page. One path per line."
-                                       Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
-                            <TextBox Text="{x:Bind VM.DefaultScanPaths, Mode=TwoWay}"
-                                     Height="80"
-                                     TextWrapping="Wrap"
-                                     AcceptsReturn="True"
-                                     AutomationProperties.Name="Default scan paths"/>
+                            <StackPanel Spacing="{StaticResource Space.MD}">
+                                <TextBlock Text="Default scan paths" Style="{StaticResource Type.FieldHeading}"/>
+                                <TextBlock Text="Quick-access paths shown on the Scan page. One path per line."
+                                           Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                                <TextBox Text="{x:Bind VM.DefaultScanPaths, Mode=TwoWay}"
+                                         Height="80"
+                                         TextWrapping="Wrap"
+                                         AcceptsReturn="True"
+                                         AutomationProperties.Name="Default scan paths"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </Border>
 
-                <!-- Ollama -->
+                <!-- Ollama AI -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
                     <StackPanel Spacing="{StaticResource Space.LG}">
                         <TextBlock Text="Ollama AI" Style="{StaticResource Type.SectionTitle}"/>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Server URL" Style="{StaticResource Type.FieldHeading}"/>
-                             <TextBox Text="{x:Bind VM.OllamaUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                      PlaceholderText="http://localhost:11434"
-                                      AutomationProperties.Name="Ollama server URL"
-                                      Style="{StaticResource FieldTextBox}"/>
+
+                        <!-- Master switch -->
+                        <StackPanel Spacing="{StaticResource Space.SM}">
+                            <ToggleSwitch Header="Enable Ollama AI"
+                                          IsOn="{x:Bind VM.OllamaEnabled, Mode=TwoWay}"
+                                          AutomationProperties.Name="Enable Ollama AI"/>
+                            <TextBlock Text="Turn on AI features (chat, analysis, and agentic tools). Requires a running Ollama server."
+                                       Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Model" Style="{StaticResource Type.FieldHeading}"/>
-                             <TextBox Text="{x:Bind VM.OllamaModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                      PlaceholderText="gemma3:1b (or model name)"
-                                      AutomationProperties.Name="Ollama model name"
-                                      Style="{StaticResource FieldTextBox}"/>
-                        </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
-                            <CheckBox Content="Enable Ollama AI"
-                                      IsChecked="{x:Bind VM.OllamaEnabled, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
-                        </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
-                            <CheckBox Content="Enable deep thinking / reasoning (Ollama 0.30+)"
-                                      IsChecked="{x:Bind VM.OllamaThink, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
-                        </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
+
+                        <!-- Connection -->
+                        <ContentControl IsEnabled="{x:Bind VM.OllamaOptionsEnabled, Mode=OneWay}" HorizontalContentAlignment="Stretch">
+                            <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Connection" Style="{StaticResource Type.GroupHeading}"/>
+                            <StackPanel Spacing="{StaticResource Space.MD}">
+                                <TextBlock Text="Server URL" Style="{StaticResource Type.FieldHeading}"/>
+                                <TextBox Text="{x:Bind VM.OllamaUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         PlaceholderText="http://localhost:11434"
+                                         AutomationProperties.Name="Ollama server URL"
+                                         Style="{StaticResource FieldTextBox}"/>
+                                <TextBlock Text="The address of your local Ollama server. The default works for a standard local install."
+                                           Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <StackPanel Spacing="{StaticResource Space.SM}">
+                                <Button Content="Test Connection" Click="TestOllama_Click"
+                                        HorizontalAlignment="Stretch" Style="{StaticResource SecondaryButton}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center"
+                                            Visibility="{x:Bind VM.OllamaTesting, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                    <ProgressRing IsActive="True" Width="16" Height="16"/>
+                                    <TextBlock Text="Testing..." Style="{StaticResource Type.Caption}" Opacity="0.8"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center"
+                                            Visibility="{x:Bind VM.OllamaTesting, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
+                                    <FontIcon Glyph="&#xE73E;"
+                                              Foreground="{x:Bind VM.OllamaTestBrush, Mode=OneWay}"
+                                              FontSize="{StaticResource Icon.Tiny}"/>
+                                    <TextBlock Text="{x:Bind VM.OllamaTestResult, Mode=OneWay}"
+                                               Style="{StaticResource Type.Caption}"
+                                               Foreground="{x:Bind VM.OllamaTestBrush, Mode=OneWay}"
+                                               Opacity="0.9"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Spacing="{StaticResource Space.SM}"
+                                        Visibility="{x:Bind VM.HasDetectedModels, Mode=OneWay}">
+                                <TextBlock Text="Installed models" Style="{StaticResource Type.FieldHeading}"/>
+                                <ItemsControl ItemsSource="{x:Bind VM.DetectedModels, Mode=OneWay}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ItemsWrapGrid Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="x:String">
+                                            <Border Background="{ThemeResource AccentSurfaceBrush}"
+                                                    CornerRadius="12"
+                                                    Padding="10,4"
+                                                    Margin="0,0,6,6">
+                                                <TextBlock Text="{x:Bind}" Style="{StaticResource Type.Caption}"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="{x:Bind VM.DetectedModelsSummary, Mode=OneWay}"
+                                            Style="{StaticResource Type.Caption}"/>
+                            </StackPanel>
+                            </StackPanel>
+                        </ContentControl>
+
+                        <!-- Chat model -->
+                        <ContentControl IsEnabled="{x:Bind VM.OllamaOptionsEnabled, Mode=OneWay}" HorizontalContentAlignment="Stretch">
+                            <StackPanel Spacing="{StaticResource Space.MD}">
+                            <TextBlock Text="Chat model" Style="{StaticResource Type.GroupHeading}"/>
+                            <StackPanel Spacing="{StaticResource Space.MD}">
+                                <TextBlock Text="Model" Style="{StaticResource Type.FieldHeading}"/>
+                                <TextBox Text="{x:Bind VM.OllamaModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         PlaceholderText="gemma3:1b (or model name)"
+                                         IsEnabled="{x:Bind VM.ManualModelEnabled, Mode=OneWay}"
+                                         AutomationProperties.Name="Ollama model name"
+                                         Style="{StaticResource FieldTextBox}"/>
+                                <TextBlock Text="The model used for chat and analysis, e.g. gemma3:1b. Must be installed on the server."
+                                           Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                                <TextBlock Text="Auto-select is on — the model above is ignored and a suitable installed model is chosen automatically."
+                                           Style="{StaticResource Type.Hint}" TextWrapping="Wrap"
+                                           Visibility="{x:Bind VM.AutoModelSelection, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+                            </StackPanel>
+                            <CheckBox Content="Auto-select model based on task"
+                                       IsChecked="{x:Bind VM.AutoModelSelection, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
+                            </StackPanel>
+                        </ContentControl>
+
+                        <!-- Agentic tools (Advanced) -->
+                        <ContentControl IsEnabled="{x:Bind VM.AgenticOptionsEnabled, Mode=OneWay}" HorizontalContentAlignment="Stretch">
+                            <StackPanel Spacing="{StaticResource Space.MD}"
+                                        Visibility="{x:Bind VM.AdvancedMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="Agentic tools" Style="{StaticResource Type.GroupHeading}"/>
+                            <TextBlock Text="Lets the assistant call tools (open files, run scans, query history) to answer questions."
+                                       Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
                             <CheckBox Content="Enable agentic tool calling"
                                       IsChecked="{x:Bind VM.AgenticToolsEnabled, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
-                        </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
-                            <CheckBox Content="Auto-select model based on task"
-                                      IsChecked="{x:Bind VM.AutoModelSelection, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
-                        </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Tool calling model" Style="{StaticResource Type.FieldHeading}"/>
-                             <TextBox Text="{x:Bind VM.ToolCallingModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                      PlaceholderText="qwen2.5-coder:7b (or model name)"
-                                      AutomationProperties.Name="Tool calling model name"
-                                      Style="{StaticResource FieldTextBox}"/>
-                        </StackPanel>
-                        <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Tool choice" Style="{StaticResource Type.FieldHeading}"/>
-                            <ComboBox SelectedItem="{x:Bind VM.ToolChoice, Mode=TwoWay}"
-                                      HorizontalAlignment="Stretch"
-                                      AutomationProperties.Name="Tool choice">
-                                <x:String>auto</x:String>
-                                <x:String>none</x:String>
-                                <x:String>required</x:String>
-                            </ComboBox>
-                        </StackPanel>
-                        <!-- Test connection -->
-                        <StackPanel Spacing="{StaticResource Space.SM}">
-                            <Button Content="Test Connection" Click="TestOllama_Click"
-                                    HorizontalAlignment="Stretch" Style="{StaticResource SecondaryButton}"/>
-                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center"
-                                        Visibility="{x:Bind VM.OllamaTesting, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
-                                <ProgressRing IsActive="True" Width="16" Height="16"/>
-                                <TextBlock Text="Testing..." Style="{StaticResource Type.Caption}" Opacity="0.8"/>
+                            <CheckBox Content="Enable deep thinking / reasoning (Ollama 0.30+)"
+                                      IsChecked="{x:Bind VM.OllamaThink, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
+                            <StackPanel Spacing="{StaticResource Space.MD}">
+                                <TextBlock Text="Tool calling model" Style="{StaticResource Type.FieldHeading}"/>
+                                <TextBox Text="{x:Bind VM.ToolCallingModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         PlaceholderText="qwen2.5-coder:7b (or model name)"
+                                         AutomationProperties.Name="Tool calling model name"
+                                         Style="{StaticResource FieldTextBox}"/>
+                                <TextBlock Text="A coding-focused model used when the assistant calls tools. Usually larger than the chat model."
+                                           Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center"
-                                        Visibility="{x:Bind VM.OllamaTesting, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
-                                <FontIcon Glyph="&#xE73E;"
-                                          Foreground="{x:Bind VM.OllamaTestBrush, Mode=OneWay}"
-                                          FontSize="{StaticResource Icon.Tiny}"/>
-                                <TextBlock Text="{x:Bind VM.OllamaTestResult, Mode=OneWay}"
-                                           Style="{StaticResource Type.Caption}"
-                                           Foreground="{x:Bind VM.OllamaTestBrush, Mode=OneWay}"
-                                           Opacity="0.9"/>
+                            <StackPanel Spacing="{StaticResource Space.MD}">
+                                <TextBlock Text="Tool choice" Style="{StaticResource Type.FieldHeading}"/>
+                                <ComboBox SelectedItem="{x:Bind VM.ToolChoice, Mode=TwoWay}"
+                                          HorizontalAlignment="Stretch"
+                                          AutomationProperties.Name="Tool choice">
+                                    <x:String>auto</x:String>
+                                    <x:String>none</x:String>
+                                    <x:String>required</x:String>
+                                </ComboBox>
+                                <TextBlock Text="Whether the assistant may use tools: Auto (its choice), None (chat only), Required (must use a tool)."
+                                            Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
                             </StackPanel>
-                        </StackPanel>
-                        <!-- Installed models (from /api/tags) -->
-                        <StackPanel Spacing="{StaticResource Space.SM}"
-                                    Visibility="{x:Bind VM.HasDetectedModels, Mode=OneWay}">
-                            <TextBlock Text="Installed models" Style="{StaticResource Type.FieldHeading}"/>
-                            <ItemsControl ItemsSource="{x:Bind VM.DetectedModels, Mode=OneWay}">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <ItemsWrapGrid Orientation="Horizontal"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="x:String">
-                                        <Border Background="{ThemeResource AccentSurfaceBrush}"
-                                                CornerRadius="12"
-                                                Padding="10,4"
-                                                Margin="0,0,6,6">
-                                            <TextBlock Text="{x:Bind}" Style="{StaticResource Type.Caption}"/>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <TextBlock Text="{x:Bind VM.DetectedModelsSummary, Mode=OneWay}"
-                                        Style="{StaticResource Type.Caption}"/>
-                        </StackPanel>
+                            </StackPanel>
+                        </ContentControl>
                     </StackPanel>
                 </Border>
 
@@ -219,4 +265,3 @@
         </ScrollViewer>
     </Grid>
 </Page>
-

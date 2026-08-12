@@ -156,7 +156,15 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     public bool OllamaEnabled
     {
         get => _ollamaEnabled;
-        set { _ollamaEnabled = value; OnPropertyChanged(); Save(); }
+        set
+        {
+            _ollamaEnabled = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(OllamaOptionsEnabled));
+            OnPropertyChanged(nameof(ManualModelEnabled));
+            OnPropertyChanged(nameof(AgenticOptionsEnabled));
+            Save();
+        }
     }
 
     private bool _ollamaThink = true;
@@ -170,14 +178,26 @@ public class SettingsViewModel : ViewModelBase, IDisposable
     public bool AgenticToolsEnabled
     {
         get => _agenticToolsEnabled;
-        set { _agenticToolsEnabled = value; OnPropertyChanged(); Save(); }
+        set
+        {
+            _agenticToolsEnabled = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AgenticOptionsEnabled));
+            Save();
+        }
     }
 
     private bool _autoModelSelection = true;
     public bool AutoModelSelection
     {
         get => _autoModelSelection;
-        set { _autoModelSelection = value; OnPropertyChanged(); Save(); }
+        set
+        {
+            _autoModelSelection = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ManualModelEnabled));
+            Save();
+        }
     }
 
     private string _toolCallingModel = "qwen2.5-coder:7b";
@@ -193,6 +213,28 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         get => _toolChoice;
         set { _toolChoice = value; OnPropertyChanged(); Save(); }
     }
+
+    // ── UI: Advanced mode ──
+
+    private bool _advancedMode;
+    public bool AdvancedMode
+    {
+        get => _advancedMode;
+        set { _advancedMode = value; OnPropertyChanged(); Save(); }
+    }
+
+    /// <summary>True when AI is enabled — gates the Connection and Chat model groups
+    /// so their controls grey out (and read as "needs AI on") instead of being
+    /// independently toggleable with no effect.</summary>
+    public bool OllamaOptionsEnabled => OllamaEnabled;
+
+    /// <summary>True when the manual chat model field is editable (AI on and
+    /// auto-select off). When auto-select is on the field is disabled with a note.</summary>
+    public bool ManualModelEnabled => OllamaEnabled && !AutoModelSelection;
+
+    /// <summary>True when the agentic-tool controls are editable (AI on and agentic
+    /// tools enabled).</summary>
+    public bool AgenticOptionsEnabled => OllamaEnabled && AgenticToolsEnabled;
 
     // ── Ollama connection test ──
 
@@ -324,6 +366,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             _autoModelSelection = SettingsStore.GetBool("auto_model_selection", true);
             _toolCallingModel = SettingsStore.Get("tool_calling_model") ?? "qwen2.5-coder:7b";
             _toolChoice = SettingsStore.Get("tool_choice") ?? "auto";
+            _advancedMode = SettingsStore.GetBool("advanced_mode");
 
             OnPropertyChanged(nameof(Theme));
             OnPropertyChanged(nameof(ScannerPath));
@@ -341,6 +384,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(AutoModelSelection));
             OnPropertyChanged(nameof(ToolCallingModel));
             OnPropertyChanged(nameof(ToolChoice));
+            OnPropertyChanged(nameof(AdvancedMode));
 
             // Reflect the restored theme on the live root so the picker matches
             // what is actually rendered (independent of the startup-time apply).
@@ -370,6 +414,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             SettingsStore.SetBool("auto_model_selection", AutoModelSelection);
             SettingsStore.Set("tool_calling_model", ToolCallingModel);
             SettingsStore.Set("tool_choice", ToolChoice);
+            SettingsStore.SetBool("advanced_mode", AdvancedMode);
         }
         catch (Exception ex)
         {
