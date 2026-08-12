@@ -1,7 +1,5 @@
 // Licensed under the MIT License.
 
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Linq;
 using System.Collections.ObjectModel;
 using Windows.Storage;
@@ -14,7 +12,7 @@ using System.IO;
 
 namespace SpaceAnalyzer.ViewModels;
 
-public class ScanViewModel : INotifyPropertyChanged, IDisposable
+public class ScanViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private bool _disposed;
@@ -296,14 +294,13 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(FileTypes));
             OnPropertyChanged(nameof(CategoryDistributions));
             OnPropertyChanged(nameof(LargestFiles));
-        OnPropertyChanged(nameof(PotentialCleanupDisplay));
-        OnPropertyChanged(nameof(ResultTimestampDisplay));
+            OnPropertyChanged(nameof(PotentialCleanupDisplay));
+            OnPropertyChanged(nameof(ResultTimestampDisplay));
             OnPropertyChanged(nameof(ScanErrors));
             OnPropertyChanged(nameof(HasScanErrors));
             OnPropertyChanged(nameof(EmptyDirs));
             OnPropertyChanged(nameof(EmptyDirsCount));
             OnPropertyChanged(nameof(HasEmptyDirs));
-            OnPropertyChanged(nameof(ResultSpeedDisplay));
             OnPropertyChanged(nameof(FilteredLargestFiles));
             OnPropertyChanged(nameof(LiveFilesDisplay));
             OnPropertyChanged(nameof(LiveSizeDisplay));
@@ -341,8 +338,8 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
             OnPropertyChanged(nameof(FileTypes));
             OnPropertyChanged(nameof(CategoryDistributions));
             OnPropertyChanged(nameof(LargestFiles));
-        OnPropertyChanged(nameof(PotentialCleanupDisplay));
-        OnPropertyChanged(nameof(ResultTimestampDisplay));
+            OnPropertyChanged(nameof(PotentialCleanupDisplay));
+            OnPropertyChanged(nameof(ResultTimestampDisplay));
             OnPropertyChanged(nameof(ScanErrors));
             OnPropertyChanged(nameof(HasScanErrors));
             OnPropertyChanged(nameof(EmptyDirs));
@@ -680,11 +677,8 @@ public class ScanViewModel : INotifyPropertyChanged, IDisposable
         _disposed = true;
         SettingsStore.SettingsChanged -= OnSettingsChanged;
         _scanner.StopScan();
+        _scanner.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

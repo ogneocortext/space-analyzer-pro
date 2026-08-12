@@ -1,16 +1,14 @@
 // Licensed under the MIT License.
 
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
-using System.Runtime.CompilerServices;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
 
 namespace SpaceAnalyzer.ViewModels;
 
-public class CleanupViewModel : INotifyPropertyChanged, IDisposable
+public class CleanupViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private bool _disposed;
@@ -296,11 +294,8 @@ public class CleanupViewModel : INotifyPropertyChanged, IDisposable
         _disposed = true;
         _cts.Cancel();
         _cts.Dispose();
+        _scanner.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

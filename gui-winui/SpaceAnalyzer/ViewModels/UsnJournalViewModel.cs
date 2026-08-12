@@ -1,8 +1,6 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using SpaceAnalyzer.Helpers;
@@ -15,7 +13,7 @@ namespace SpaceAnalyzer.ViewModels;
 /// ViewModel for the USN Journal page. Surfaces NTFS change-journal status and
 /// recent change records so the user can verify incremental-scan support.
 /// </summary>
-public class UsnJournalViewModel : INotifyPropertyChanged, IDisposable
+public class UsnJournalViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private CancellationTokenSource _cts = new();
@@ -170,11 +168,7 @@ public class UsnJournalViewModel : INotifyPropertyChanged, IDisposable
         _disposed = true;
         _cts.Cancel();
         _cts.Dispose();
+        _scanner.Dispose();
         GC.SuppressFinalize(this);
     }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

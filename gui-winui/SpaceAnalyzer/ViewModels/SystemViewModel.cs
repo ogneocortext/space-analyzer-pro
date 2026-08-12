@@ -2,10 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -19,7 +17,7 @@ namespace SpaceAnalyzer.ViewModels;
 /// ViewModel for the System Resources page: CPU usage, memory breakdown,
 /// disk volumes, and top processes by memory.
 /// </summary>
-public class SystemViewModel : INotifyPropertyChanged, IDisposable
+public class SystemViewModel : ViewModelBase, IDisposable
 {
     private readonly DispatcherTimer _refreshTimer;
     private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcherQueue;
@@ -283,8 +281,4 @@ public class SystemViewModel : INotifyPropertyChanged, IDisposable
         RefreshResources();
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

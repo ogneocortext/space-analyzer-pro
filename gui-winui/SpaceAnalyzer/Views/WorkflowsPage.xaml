@@ -22,11 +22,10 @@
                 </StackPanel>
 
                 <!-- ── Step 1: pick a workflow ────────────────────────────────────
-                     Data-driven over VM.Templates so every registered workflow is
-                     directly pickable. The previous three hardcoded Borders all
-                     defaulted to Grid.Column 0, so they rendered stacked on top of
-                     each other and the other 14 workflows were only reachable
-                     through a narrow, truncating ComboBox. -->
+                     Grouped by the five README workflow categories (5.1). Each
+                     category is a labelled section whose inner repeater renders the
+                     real, clickable template cards; selecting one drives the rest of
+                     the page exactly as before. -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
                         <StackPanel Spacing="{StaticResource Space.XS}">
@@ -35,54 +34,91 @@
                                        Style="{StaticResource Type.Caption}" Opacity="0.8" TextWrapping="Wrap"/>
                         </StackPanel>
 
-                        <ItemsRepeater ItemsSource="{x:Bind VM.Templates, Mode=OneWay}"
+                        <!-- Grouped by the five README workflow categories (5.1). Each section
+                             header carries its own icon + count, and the inner repeater renders
+                             the templates that belong to it. The cards are the same selectable
+                             buttons as before, so clicking still selects + runs the workflow. -->
+                        <ItemsRepeater ItemsSource="{x:Bind VM.Categories, Mode=OneWay}"
                                        HorizontalAlignment="Stretch">
                             <ItemsRepeater.Layout>
-                                <UniformGridLayout MinItemWidth="216"
-                                                   MinItemHeight="64"
-                                                   MinColumnSpacing="{StaticResource Space.MD}"
-                                                   MinRowSpacing="{StaticResource Space.MD}"
-                                                   ItemsStretch="Fill"/>
+                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.LG}"/>
                             </ItemsRepeater.Layout>
                             <ItemsRepeater.ItemTemplate>
-                                <DataTemplate x:DataType="vm:WorkflowTemplate">
-                                    <Button Style="{StaticResource SelectableCardButton}"
-                                            Tag="{x:Bind Id}"
-                                            Click="WorkflowCard_Click"
-                                            AutomationProperties.Name="{x:Bind Name}"
-                                            AutomationProperties.HelpText="{x:Bind Description}"
-                                            ToolTipService.ToolTip="{x:Bind Description}"
-                                            Background="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource SelectedFlagBrush}}"
-                                            BorderBrush="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource SelectedFlagBorder}}">
-                                        <Grid ColumnSpacing="{StaticResource Space.MD}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <FontIcon Grid.Column="0"
-                                                      Glyph="{x:Bind IconGlyph}"
-                                                      FontSize="{StaticResource Icon.Card}"
-                                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                                                      VerticalAlignment="Center"/>
-                                            <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center">
-                                                <TextBlock Text="{x:Bind Name}"
-                                                           Style="{StaticResource Type.Caption}"
-                                                           FontWeight="SemiBold"
-                                                           TextWrapping="Wrap"/>
-                                                <TextBlock Text="{x:Bind ShortDescription}"
-                                                           Style="{StaticResource Type.Tiny}"
-                                                           Opacity="0.7"
-                                                           TextWrapping="Wrap"/>
-                                            </StackPanel>
-                                            <FontIcon Grid.Column="2"
-                                                      Glyph="&#xE73E;"
+                                <DataTemplate x:DataType="models:WorkflowCategoryGroup">
+                                    <StackPanel Spacing="{StaticResource Space.MD}">
+                                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
+                                            <FontIcon Glyph="{x:Bind IconGlyph, Mode=OneTime}"
                                                       FontSize="{StaticResource Icon.Small}"
                                                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
-                                                      VerticalAlignment="Top"
-                                                      Visibility="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
-                                        </Grid>
-                                    </Button>
+                                                      VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind Title, Mode=OneTime}"
+                                                       Style="{StaticResource Type.SubTitle}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind Templates.Count, Mode=OneWay}"
+                                                       Style="{StaticResource Type.Caption}"
+                                                       Opacity="0.6"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Text="workflows"
+                                                       Style="{StaticResource Type.Caption}"
+                                                       Opacity="0.6"
+                                                       VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{x:Bind Description, Mode=OneTime}"
+                                                   Style="{StaticResource Type.Caption}"
+                                                   Opacity="0.7"
+                                                   TextWrapping="Wrap"/>
+
+                                        <ItemsRepeater ItemsSource="{x:Bind Templates, Mode=OneWay}" HorizontalAlignment="Stretch">
+                                            <ItemsRepeater.Layout>
+                                                <UniformGridLayout MinItemWidth="216"
+                                                                   MinItemHeight="64"
+                                                                   MinColumnSpacing="{StaticResource Space.MD}"
+                                                                   MinRowSpacing="{StaticResource Space.MD}"
+                                                                   ItemsStretch="Fill"/>
+                                            </ItemsRepeater.Layout>
+                                            <ItemsRepeater.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:WorkflowTemplate">
+                                                    <Button Style="{StaticResource SelectableCardButton}"
+                                                            Tag="{x:Bind Id, Mode=OneWay}"
+                                                            Click="WorkflowCard_Click"
+                                                            AutomationProperties.Name="{x:Bind Name, Mode=OneWay}"
+                                                            AutomationProperties.HelpText="{x:Bind Description, Mode=OneWay}"
+                                                            ToolTipService.ToolTip="{x:Bind Description, Mode=OneWay}"
+                                                            Background="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource SelectedFlagBrush}}"
+                                                            BorderBrush="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource SelectedFlagBorder}}">
+                                                        <Grid ColumnSpacing="{StaticResource Space.MD}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <FontIcon Grid.Column="0"
+                                                                      Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+                                                                      FontSize="{StaticResource Icon.Card}"
+                                                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                                      VerticalAlignment="Center"/>
+                                                            <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center">
+                                                                <TextBlock Text="{x:Bind Name, Mode=OneWay}"
+                                                                           Style="{StaticResource Type.Caption}"
+                                                                           FontWeight="SemiBold"
+                                                                           TextWrapping="Wrap"/>
+                                                                <TextBlock Text="{x:Bind ShortDescription, Mode=OneWay}"
+                                                                           Style="{StaticResource Type.Tiny}"
+                                                                           Opacity="0.7"
+                                                                           TextWrapping="Wrap"/>
+                                                            </StackPanel>
+                                                            <FontIcon Grid.Column="2"
+                                                                      Glyph="&#xE73E;"
+                                                                      FontSize="{StaticResource Icon.Small}"
+                                                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                                                      VerticalAlignment="Top"
+                                                                      Visibility="{x:Bind IsSelected, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
+                                                        </Grid>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsRepeater.ItemTemplate>
+                                        </ItemsRepeater>
+                                    </StackPanel>
                                 </DataTemplate>
                             </ItemsRepeater.ItemTemplate>
                         </ItemsRepeater>

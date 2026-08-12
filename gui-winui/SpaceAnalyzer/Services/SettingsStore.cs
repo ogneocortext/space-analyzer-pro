@@ -22,6 +22,7 @@ public static class SettingsStore
 {
     private static readonly Dictionary<string, string> s_values = new();
     private static bool s_loaded;
+    private static Task? s_loadTask;
     private static readonly object s_lock = new();
     private static DispatcherQueueTimer? s_saveTimer;
     private static CancellationTokenSource? s_saveCts;
@@ -48,35 +49,53 @@ public static class SettingsStore
     /// Ensures the in-memory cache is populated. Loads from the DB
     /// (<c>settings get --format json</c>), falling back to
     /// <see cref="ApplicationData"/> local settings, then defaults.
-    /// Safe to call multiple times; only the first call does I/O.
+    /// The first invocation kicks off the (single) load task; subsequent calls
+    /// await the same task, so concurrent callers can never double-load the DB.
     /// </summary>
-    public static async Task EnsureLoadedAsync()
+    public static Task EnsureLoadedAsync()
     {
-        if (s_loaded)
-            return;
-        await Task.Run(async () =>
+        if (s_loadTask is not null)
+            return s_loadTask;
+        lock (s_lock)
         {
-            lock (s_lock)
+            s_loadTask ??= Task.Run(LoadCoreAsync);
+        }
+        return s_loadTask;
+    }
+
+    private static async Task LoadCoreAsync()
+    {
+        var scanner = new ScannerService();
+        var dbValues = await scanner.GetSettingsAsync();
+        bool migrated = false;
+        lock (s_lock)
+        {
+            if (s_loaded)
+                return;
+            if (dbValues.Count > 0)
             {
-                if (s_loaded)
-                    return;
+                foreach (var kvp in dbValues)
+                    s_values[kvp.Key] = kvp.Value;
             }
-            var scanner = new ScannerService();
-            var dbValues = await scanner.GetSettingsAsync();
-            lock (s_lock)
+            else
             {
-                if (dbValues.Count > 0)
-                {
-                    foreach (var kvp in dbValues)
-                        s_values[kvp.Key] = kvp.Value;
-                }
-                else
-                {
-                    MigrateFromLocalSettings();
-                }
-                s_loaded = true;
+                MigrateFromLocalSettings();
+                migrated = true;
             }
-        });
+            s_loaded = true;
+        }
+
+        // When we migrated from LocalSettings, make the DB authoritative by writing
+        // the migrated snapshot back. If the scanner CLI is unavailable this is a
+        // no-op — LocalSettings stays as the mirror.
+        if (migrated)
+        {
+            try
+            {
+                await FlushCore(CancellationToken.None);
+            }
+            catch { /* non-fatal */ }
+        }
     }
 
     /// <summary>

@@ -118,16 +118,17 @@ public class ScannerService : IDisposable
             var psi = new ProcessStartInfo
             {
                 FileName = _scannerPath,
-                Arguments = "settings get --format json",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            psi.ArgumentList.Add("settings");
+            psi.ArgumentList.Add("get");
+            psi.ArgumentList.Add("--format");
+            psi.ArgumentList.Add("json");
             using var process = new Process { StartInfo = psi };
             process.Start();
-            // Drain stderr concurrently so the pipe buffer can never fill and block the
-            // process (which would deadlock WaitForExitAsync). stdout is read below.
             var stderrTask = process.StandardError.ReadToEndAsync(ct);
             var json = await process.StandardOutput.ReadToEndAsync();
             await process.WaitForExitAsync(ct);
@@ -170,15 +171,20 @@ public class ScannerService : IDisposable
             return;
         try
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = _scannerPath,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
             foreach (var kvp in values)
             {
-                psi.Arguments = $"settings set --key \"{kvp.Key}\" --value \"{kvp.Value}\"";
+                var psi = new ProcessStartInfo
+                {
+                    FileName = _scannerPath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                psi.ArgumentList.Add("settings");
+                psi.ArgumentList.Add("set");
+                psi.ArgumentList.Add("--key");
+                psi.ArgumentList.Add(kvp.Key);
+                psi.ArgumentList.Add("--value");
+                psi.ArgumentList.Add(kvp.Value);
                 using var process = new Process { StartInfo = psi };
                 process.Start();
 
@@ -239,28 +245,27 @@ public class ScannerService : IDisposable
         if (!Directory.Exists(path))
             throw new DirectoryNotFoundException($"Scan path does not exist: {path}");
 
-        var args = $"scan --path \"{path}\" --format json";
+        var argList = new List<string> { "scan", "--path", path, "--format", "json" };
         if (depthMode == DepthMode.Deep)
-            args += " --deep";
+            argList.Add("--deep");
         else if (depthMode == DepthMode.Shallow)
-            args += " --shallow";
+            argList.Add("--shallow");
         else if (depthMode == DepthMode.Custom)
-            args += $" --max-depth {maxDepth}";
+        {
+            argList.Add("--max-depth");
+            argList.Add(maxDepth.ToString());
+        }
         if (includeHidden)
-            args += " --include-hidden";
+            argList.Add("--include-hidden");
         if (!(useGpu ?? GpuAcceleration))
-            args += " --no-gpu";
-        // --progress-json makes the scanner emit a __PROGRESS__ line to stderr on every
-        // progress callback (currently scanned file + running counts) without changing the
-        // JSON result on stdout. Only added when a caller wants live updates, so other
-        // ScanDirectoryAsync callers are unaffected.
+            argList.Add("--no-gpu");
         if (progress is not null)
-            args += " --progress-json";
+            argList.Add("--progress-json");
 
         int scanId = ScanActivityMonitor.Instance.BeginScan(path);
         try
         {
-            var output = await RunScannerAsync(args, ct, progress);
+            var output = await RunScannerAsync(argList, ct, progress);
             try
             {
                 return JsonSerializer.Deserialize<ScanResult>(output, s_jsonOptions)
@@ -300,28 +305,31 @@ public class ScannerService : IDisposable
         if (!Directory.Exists(path))
             throw new DirectoryNotFoundException($"Scan path does not exist: {path}");
 
-        var args = $"scan --path \"{path}\" --format json --stream";
+        var argList = new List<string> { "scan", "--path", path, "--format", "json", "--stream" };
         if (depthMode == DepthMode.Deep)
-            args += " --deep";
+            argList.Add("--deep");
         else if (depthMode == DepthMode.Shallow)
-            args += " --shallow";
+            argList.Add("--shallow");
         else if (depthMode == DepthMode.Custom)
-            args += $" --max-depth {maxDepth}";
+        {
+            argList.Add("--max-depth");
+            argList.Add(maxDepth.ToString());
+        }
         if (includeHidden)
-            args += " --include-hidden";
+            argList.Add("--include-hidden");
         if (!(useGpu ?? GpuAcceleration))
-            args += " --no-gpu";
+            argList.Add("--no-gpu");
 
         int scanId = ScanActivityMonitor.Instance.BeginScan(path);
         var psi = new ProcessStartInfo
         {
             FileName = _scannerPath,
-            Arguments = args,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        foreach (var a in argList) psi.ArgumentList.Add(a);
 
         CancellationTokenSource stopCts;
         Process process;
@@ -578,7 +586,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return GetFallbackVolumes();
 
-        var output = await RunScannerAsync("disk-info --format json", ct);
+        var output = await RunScannerAsync(new[] { "disk-info", "--format", "json" }, ct);
         try
         {
             var volumes = JsonSerializer.Deserialize<List<DiskVolume>>(output, s_jsonOptions);
@@ -600,8 +608,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return new List<ScanHistoryRecord>();
 
-        var args = $"history --limit {limit} --format json";
-        var output = await RunScannerAsync(args, ct);
+        var output = await RunScannerAsync(new[] { "history", "--limit", limit.ToString(), "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return new();
         try
@@ -644,12 +651,12 @@ public class ScannerService : IDisposable
         };
         var effectiveSortBy = allowedSort.Contains(sortBy) ? sortBy : "timestamp";
 
-        var args = $"history --limit {limit} --offset {offset} --sort-by {effectiveSortBy}";
-        if (sortAsc) args += " --sort-asc";
-        if (!string.IsNullOrWhiteSpace(search)) args += $" --search \"{search}\"";
-        if (onlyDuplicates) args += " --only-duplicates";
+        var argList = new List<string> { "history", "--limit", limit.ToString(), "--offset", offset.ToString(), "--sort-by", effectiveSortBy };
+        if (sortAsc) argList.Add("--sort-asc");
+        if (!string.IsNullOrWhiteSpace(search)) { argList.Add("--search"); argList.Add(search); }
+        if (onlyDuplicates) argList.Add("--only-duplicates");
 
-        var output = await RunScannerAsync(args, ct);
+        var output = await RunScannerAsync(argList, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (new(), 0);
         try
@@ -682,7 +689,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return new();
 
-        var output = await RunScannerAsync("history --trend --format json", ct);
+        var output = await RunScannerAsync(new[] { "history", "--trend", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return new();
         try
@@ -708,7 +715,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return new Dictionary<string, ulong>();
 
-        var output = await RunScannerAsync("history --category-totals --format json", ct);
+        var output = await RunScannerAsync(new[] { "history", "--category-totals", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return new Dictionary<string, ulong>();
 
@@ -739,8 +746,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return null;
 
-        var args = $"history --id {id} --format json";
-        var output = await RunScannerAsync(args, ct);
+        var output = await RunScannerAsync(new[] { "history", "--id", id.ToString(), "--format", "json" }, ct);
         // "No scan found with id X" is printed to stderr with empty stdout; treat that as
         // a missing record rather than a parse error.
         if (string.IsNullOrWhiteSpace(output))
@@ -765,8 +771,7 @@ public class ScannerService : IDisposable
 
         try
         {
-            var args = $"history --delete {id} --format json";
-            var output = await RunScannerAsync(args, ct);
+            var output = await RunScannerAsync(new[] { "history", "--delete", id.ToString(), "--format", "json" }, ct);
             if (string.IsNullOrWhiteSpace(output))
                 return false;
             using var doc = JsonDocument.Parse(output);
@@ -788,21 +793,21 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return null;
 
-        var args = $"dedup --path \"{path}\" --format json";
+        var argList = new List<string> { "dedup", "--path", path, "--format", "json" };
         if (apply)
         {
-            args += " --apply";
+            argList.Add("--apply");
             // The backend refuses to modify any files without --yes in non-interactive
             // mode, so it must be supplied for an apply to actually create hard links.
-            args += " --yes";
+            argList.Add("--yes");
         }
         if (!(useGpu ?? GpuAcceleration))
-            args += " --no-gpu";
+            argList.Add("--no-gpu");
 
         int scanId = ScanActivityMonitor.Instance.BeginScan(path);
         try
         {
-            var output = await RunScannerAsync(args, ct);
+            var output = await RunScannerAsync(argList, ct);
             try
             {
                 return JsonSerializer.Deserialize<DedupResult>(output, s_jsonOptions);
@@ -827,7 +832,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
-        var output = await RunScannerAsync("history --prune-empty --format json", ct);
+        var output = await RunScannerAsync(new[] { "history", "--prune-empty", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
 
@@ -859,7 +864,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
-        var output = await RunScannerAsync("history --prune --drop-relative --format json", ct);
+        var output = await RunScannerAsync(new[] { "history", "--prune", "--drop-relative", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
 
@@ -892,7 +897,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
-        var output = await RunScannerAsync("history --backfill-categories --format json", ct);
+        var output = await RunScannerAsync(new[] { "history", "--backfill-categories", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
 
@@ -925,7 +930,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
-        var output = await RunScannerAsync("db --prune-file-cache --format json", ct);
+        var output = await RunScannerAsync(new[] { "db", "--prune-file-cache", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
 
@@ -957,7 +962,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
-        var output = await RunScannerAsync($"db --prune-disk-space {keepHours} --format json", ct);
+        var output = await RunScannerAsync(new[] { "db", "--prune-disk-space", keepHours.ToString(), "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
 
@@ -989,7 +994,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, "Scanner unavailable");
 
-        var output = await RunScannerAsync("db --vacuum --format json", ct);
+        var output = await RunScannerAsync(new[] { "db", "--vacuum", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, "Empty response from scanner");
 
@@ -1018,7 +1023,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return null;
 
-        var output = await RunScannerAsync("db --info --format json", ct);
+        var output = await RunScannerAsync(new[] { "db", "--info", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return null;
         try
@@ -1040,7 +1045,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
-        var output = await RunScannerAsync("history --clear --format json", ct);
+        var output = await RunScannerAsync(new[] { "history", "--clear", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
 
@@ -1072,8 +1077,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return (false, 0, 0, "Scanner unavailable");
 
-        var args = "history --prune --format json";
-        var output = await RunScannerAsync(args, ct);
+        var output = await RunScannerAsync(new[] { "history", "--prune", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, 0, "Empty response from scanner");
 
@@ -1115,19 +1119,22 @@ public class ScannerService : IDisposable
         var tempOutput = Path.Combine(Path.GetTempPath(), $"nm_clean_{Guid.NewGuid():N}.json");
         try
         {
-            var args = $"\"{path}\" --output \"{tempOutput}\"";
-            if (cleanup) args += " --cleanup";
-            args += $" --min-size {minSizeMb} --unused-days {unusedDays}";
+            var argList = new List<string> { path, "--output", tempOutput };
+            if (cleanup) argList.Add("--cleanup");
+            argList.Add("--min-size");
+            argList.Add(minSizeMb.ToString());
+            argList.Add("--unused-days");
+            argList.Add(unusedDays.ToString());
 
             var psi = new ProcessStartInfo
             {
                 FileName = cleanerPath,
-                Arguments = args,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            foreach (var a in argList) psi.ArgumentList.Add(a);
 
             _cleanerStopCts?.Cancel();
             _cleanerStopCts?.Dispose();
@@ -1201,7 +1208,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return null;
 
-        var output = await RunScannerAsync($"dependencies \"{path}\" --format json", ct);
+        var output = await RunScannerAsync(new[] { "dependencies", path, "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return null;
         try
@@ -1230,13 +1237,13 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return null;
 
-        var args = $"embed \"{path}\" --format json";
-        if (scanId.HasValue) args += $" --scan-id {scanId.Value}";
-        if (!string.IsNullOrWhiteSpace(minSize)) args += $" --min-size \"{minSize}\"";
-        if (!string.IsNullOrWhiteSpace(maxSize)) args += $" --max-size \"{maxSize}\"";
-        if (includeHidden) args += " --include-hidden";
+        var argList = new List<string> { "embed", path, "--format", "json" };
+        if (scanId.HasValue) { argList.Add("--scan-id"); argList.Add(scanId.Value.ToString()); }
+        if (!string.IsNullOrWhiteSpace(minSize)) { argList.Add("--min-size"); argList.Add(minSize); }
+        if (!string.IsNullOrWhiteSpace(maxSize)) { argList.Add("--max-size"); argList.Add(maxSize); }
+        if (includeHidden) argList.Add("--include-hidden");
 
-        var output = await RunScannerAsync(args, ct);
+        var output = await RunScannerAsync(argList, ct);
         if (string.IsNullOrWhiteSpace(output))
             return null;
         try
@@ -1262,8 +1269,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return null;
 
-        var args = $"semantic-search \"{query}\" --scan-id {scanId} --top {top} --format json";
-        var output = await RunScannerAsync(args, ct);
+        var output = await RunScannerAsync(new[] { "semantic-search", query, "--scan-id", scanId.ToString(), "--top", top.ToString(), "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return null;
         try
@@ -1289,7 +1295,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return new List<string>();
 
-        var output = await RunScannerAsync("usn volumes --format json", ct);
+        var output = await RunScannerAsync(new[] { "usn", "volumes", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return new List<string>();
         try
@@ -1310,9 +1316,9 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return null;
 
-        var args = "usn status --format json";
-        if (!string.IsNullOrWhiteSpace(drive)) args += $" \"{drive}\"";
-        var output = await RunScannerAsync(args, ct);
+        var argList = new List<string> { "usn", "status", "--format", "json" };
+        if (!string.IsNullOrWhiteSpace(drive)) argList.Add(drive);
+        var output = await RunScannerAsync(argList, ct);
         if (string.IsNullOrWhiteSpace(output))
             return null;
         try
@@ -1334,8 +1340,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return null;
 
-        var args = $"usn changes \"{drive}\" --max {max} --format json";
-        var output = await RunScannerAsync(args, ct);
+        var output = await RunScannerAsync(new[] { "usn", "changes", drive, "--max", max.ToString(), "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return null;
         try
@@ -1359,11 +1364,14 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return null;
 
-        var args = "bloat --format json";
+        var argList = new List<string> { "bloat", "--format", "json" };
         if (scanId.HasValue && scanId.Value > 0)
-            args += $" --scan-id {scanId.Value}";
+        {
+            argList.Add("--scan-id");
+            argList.Add(scanId.Value.ToString());
+        }
 
-        var output = await RunScannerAsync(args, ct);
+        var output = await RunScannerAsync(argList, ct);
         if (string.IsNullOrWhiteSpace(output))
             return null;
         try
@@ -1390,7 +1398,7 @@ public class ScannerService : IDisposable
         if (!IsAvailable)
             return null;
 
-        var output = await RunScannerAsync($"predict --days {days} --format json", ct);
+        var output = await RunScannerAsync(new[] { "predict", "--days", days.ToString(), "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return null;
         try
@@ -1410,18 +1418,19 @@ public class ScannerService : IDisposable
     /// Throws on non-zero exit codes.
     /// If progress is provided, parses __PROGRESS__ lines from stderr
     /// and reports percentage updates.
+    /// Uses ArgumentList to prevent argument injection via path values.
     /// </summary>
-    private async Task<string> RunScannerAsync(string args, CancellationToken ct, IProgress<StreamProgress>? progress = null)
+    private async Task<string> RunScannerAsync(IEnumerable<string> args, CancellationToken ct, IProgress<StreamProgress>? progress = null)
     {
         var psi = new ProcessStartInfo
         {
             FileName = _scannerPath,
-            Arguments = args,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        foreach (var a in args) psi.ArgumentList.Add(a);
 
         CancellationTokenSource stopCts;
         Process process;

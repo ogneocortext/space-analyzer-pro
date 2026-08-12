@@ -527,4 +527,57 @@ mod tests {
         assert!(!deduplicator.should_process_file(Path::new(".git/config")));
         assert!(deduplicator.should_process_file(Path::new("readme.md")));
     }
+
+    #[test]
+    fn test_no_duplicates_for_unique_files() {
+        let deduplicator = FileDeduplicator::with_config(DeduplicationConfig {
+            min_file_size: 0,
+            ..Default::default()
+        });
+        let temp_dir = TempDir::new().unwrap();
+
+        fs::write(temp_dir.path().join("a.txt"), "content A").unwrap();
+        fs::write(temp_dir.path().join("b.txt"), "content B").unwrap();
+        fs::write(temp_dir.path().join("c.txt"), "content C").unwrap();
+
+        let files = deduplicator.scan_directory(temp_dir.path()).unwrap();
+        let duplicate_groups = deduplicator.find_duplicates(files);
+
+        assert_eq!(duplicate_groups.len(), 0);
+    }
+
+    #[test]
+    fn test_empty_file_handling() {
+        let deduplicator = FileDeduplicator::with_config(DeduplicationConfig {
+            min_file_size: 0,
+            ..Default::default()
+        });
+        let temp_dir = TempDir::new().unwrap();
+
+        fs::write(temp_dir.path().join("empty1.txt"), "").unwrap();
+        fs::write(temp_dir.path().join("empty2.txt"), "").unwrap();
+
+        let files = deduplicator.scan_directory(temp_dir.path()).unwrap();
+        let duplicate_groups = deduplicator.find_duplicates(files);
+
+        assert_eq!(duplicate_groups.len(), 1);
+        assert_eq!(duplicate_groups[0].files.len(), 2);
+    }
+
+    #[test]
+    fn test_min_file_size_filters_small_files() {
+        let deduplicator = FileDeduplicator::with_config(DeduplicationConfig {
+            min_file_size: 100,
+            ..Default::default()
+        });
+        let temp_dir = TempDir::new().unwrap();
+
+        fs::write(temp_dir.path().join("small.txt"), "tiny").unwrap();
+        fs::write(temp_dir.path().join("large.txt"), "x".repeat(200)).unwrap();
+
+        let files = deduplicator.scan_directory(temp_dir.path()).unwrap();
+
+        assert!(!files.iter().any(|f| f.path.ends_with("small.txt")));
+        assert!(files.iter().any(|f| f.path.ends_with("large.txt")));
+    }
 }

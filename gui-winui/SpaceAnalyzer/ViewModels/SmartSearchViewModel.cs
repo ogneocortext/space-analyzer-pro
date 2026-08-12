@@ -3,9 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using SpaceAnalyzer.Helpers;
@@ -18,7 +16,7 @@ namespace SpaceAnalyzer.ViewModels;
 /// ViewModel for the Smart Search page. Performs an async recursive
 /// folder walk with name and size filters.
 /// </summary>
-public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
+public class SmartSearchViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private CancellationTokenSource _cts = new();
@@ -474,13 +472,10 @@ public class SmartSearchViewModel : INotifyPropertyChanged, IDisposable
         _disposed = true;
         _cts.Cancel();
         _cts.Dispose();
+        _scanner.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
 /// <summary>

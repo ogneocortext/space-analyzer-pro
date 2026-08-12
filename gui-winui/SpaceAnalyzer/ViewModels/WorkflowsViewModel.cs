@@ -3,10 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,7 +18,7 @@ namespace SpaceAnalyzer.ViewModels;
 /// ViewModel for the Workflows page. Supports predefined workflows
 /// such as "Find Large Files" and "Find Empty Directories".
 /// </summary>
-public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
+public class WorkflowsViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private CancellationTokenSource _cts = new();
@@ -117,8 +115,76 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
     private static readonly HashSet<string> ExtensionTemplates =
         new(StringComparer.OrdinalIgnoreCase) { "by-extension" };
 
+    /// <summary>Which of the five README categories each template id belongs to (gap 5.1).</summary>
+    private static readonly Dictionary<string, WorkflowCategory> TemplateCategory =
+        new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["empty-dirs"] = WorkflowCategory.Maintenance,
+        ["duplicate-files"] = WorkflowCategory.Maintenance,
+        ["zero-byte"] = WorkflowCategory.Maintenance,
+        ["temp-cache"] = WorkflowCategory.Maintenance,
+        ["downloads-bloat"] = WorkflowCategory.Maintenance,
+        ["orphaned-projects"] = WorkflowCategory.Maintenance,
+
+        ["large-files"] = WorkflowCategory.Optimization,
+        ["largest-dirs"] = WorkflowCategory.Optimization,
+        ["largest-single"] = WorkflowCategory.Optimization,
+        ["size-range"] = WorkflowCategory.Optimization,
+        ["cleanup-recommendations"] = WorkflowCategory.Optimization,
+        ["notify-results"] = WorkflowCategory.Optimization,
+
+        ["by-extension"] = WorkflowCategory.Organization,
+        ["old-files"] = WorkflowCategory.Organization,
+        ["recent-files"] = WorkflowCategory.Organization,
+        ["date-range"] = WorkflowCategory.Organization,
+        ["older-than"] = WorkflowCategory.Organization,
+        ["hidden-files"] = WorkflowCategory.Organization,
+        ["read-only"] = WorkflowCategory.Organization,
+
+        ["predict-storage"] = WorkflowCategory.Monitoring,
+        ["ai-analyze"] = WorkflowCategory.Monitoring,
+
+        ["export-results"] = WorkflowCategory.Custom,
+    };
+
+    /// <summary>Display metadata for each category section header.</summary>
+    private static readonly Dictionary<WorkflowCategory, (string Title, string Description, string Icon)> CategoryMeta = new()
+    {
+        [WorkflowCategory.Maintenance] = ("Maintenance", "Routine cleanup — find duplicates, temp files, and other removable clutter.", "\uE74D"),
+        [WorkflowCategory.Optimization] = ("Optimization", "Reclaim disk space by finding your biggest consumers.", "\uE8B7"),
+        [WorkflowCategory.Organization] = ("Organization", "Locate files by attribute to sort and triage.", "\uE70B"),
+        [WorkflowCategory.Monitoring] = ("Monitoring", "Forecast usage and analyze results over time.", "\uE773"),
+        [WorkflowCategory.Custom] = ("Custom", "Export and other user-driven output actions.", "\uE78E"),
+    };
+
+    /// <summary>Populates <see cref="_categories"/> from <see cref="_templates"/>, grouping each
+    /// template under its <see cref="WorkflowTemplate.Category"/> in README order.</summary>
+    private void BuildCategories()
+    {
+        foreach (var t in _templates)
+            if (TemplateCategory.TryGetValue(t.Id, out var cat))
+                t.Category = cat;
+
+        foreach (WorkflowCategory cat in Enum.GetValues<WorkflowCategory>())
+        {
+            if (!CategoryMeta.TryGetValue(cat, out var meta))
+                continue;
+            var group = new WorkflowCategoryGroup(cat, meta.Title, meta.Description, meta.Icon);
+            foreach (var t in _templates.Where(t => t.Category == cat))
+                group.Templates.Add(t);
+            if (group.Templates.Count > 0)
+                _categories.Add(group);
+        }
+    }
+
     private ObservableCollection<WorkflowTemplate> _templates = new();
     public ObservableCollection<WorkflowTemplate> Templates => _templates;
+
+    /// <summary>The five README workflow categories, each carrying its member templates.
+    /// The Workflows page renders this (not the flat <see cref="_templates"/> list) so the
+    /// templates group under Maintenance / Optimization / Organization / Monitoring / Custom.</summary>
+    private readonly ObservableCollection<WorkflowCategoryGroup> _categories = new();
+    public ObservableCollection<WorkflowCategoryGroup> Categories => _categories;
 
     private WorkflowTemplate? _selectedTemplate;
     public WorkflowTemplate? SelectedTemplate
@@ -475,6 +541,7 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
 
         SelectedTemplate = Templates[0];
 
+        BuildCategories();
         LoadHistory();
     }
 
@@ -932,16 +999,17 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-        // Extension and project-file sets are defined in WorkflowConstants (shared with ToolExecutor).
+    // Extension and project-file sets are defined in WorkflowConstants (shared with ToolExecutor).
 
-        public void Dispose()
-        {
-            if (_disposed) return;
-            _disposed = true;
-            _cts.Cancel();
-            _cts.Dispose();
-            GC.SuppressFinalize(this);
-        }
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _cts.Cancel();
+        _cts.Dispose();
+        _scanner.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
         // ── New workflow methods ──
 
@@ -2202,10 +2270,6 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
     /// <summary>True once at least one workflow run has been recorded.</summary>
     public bool HasHistory => _history.Count > 0;
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
 /// <summary>
@@ -2213,7 +2277,7 @@ public class WorkflowsViewModel : INotifyPropertyChanged, IDisposable
 /// Observable so the data-driven picker can highlight the active card without the view
 /// having to compare ids against the selected template.
 /// </summary>
-public class WorkflowTemplate : INotifyPropertyChanged
+public class WorkflowTemplate : ViewModelBase
 {
     public string Name { get; }
     public string Description { get; }
@@ -2228,6 +2292,9 @@ public class WorkflowTemplate : INotifyPropertyChanged
     /// <summary>Short label shown under the card title.</summary>
     public string ShortDescription { get; }
 
+    /// <summary>Which of the five README workflow categories this template belongs to.</summary>
+    public WorkflowCategory Category { get; internal set; } = WorkflowCategory.Maintenance;
+
     private bool _isSelected;
     public bool IsSelected
     {
@@ -2236,7 +2303,7 @@ public class WorkflowTemplate : INotifyPropertyChanged
         {
             if (_isSelected == value) return;
             _isSelected = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+            OnPropertyChanged(nameof(IsSelected));
         }
     }
 
@@ -2252,7 +2319,6 @@ public class WorkflowTemplate : INotifyPropertyChanged
         ActionType = actionType;
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
 }
 
 /// <summary>

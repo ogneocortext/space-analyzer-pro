@@ -52,33 +52,9 @@ public partial class App : Application
     {
         try
         {
-            var theme = SettingsStore.Get("theme");
-            var requested = theme switch
-            {
-                "Light" => Microsoft.UI.Xaml.ApplicationTheme.Light,
-                "System" => DetectSystemTheme(),
-                _ => Microsoft.UI.Xaml.ApplicationTheme.Dark,
-            };
-            Application.Current.RequestedTheme = requested;
+            Application.Current.RequestedTheme = ThemeHelper.ResolveTheme(SettingsStore.Get("theme"));
         }
         catch { /* non-fatal */ }
-    }
-
-    private static Microsoft.UI.Xaml.ApplicationTheme DetectSystemTheme()
-    {
-        try
-        {
-            var color = new Windows.UI.ViewManagement.UISettings()
-                .GetColorValue(Windows.UI.ViewManagement.UIColorType.Background);
-            var luminance = (color.R * 299 + color.G * 587 + color.B * 114) / 1000;
-            return luminance < 128
-                ? Microsoft.UI.Xaml.ApplicationTheme.Dark
-                : Microsoft.UI.Xaml.ApplicationTheme.Light;
-        }
-        catch
-        {
-            return Microsoft.UI.Xaml.ApplicationTheme.Dark;
-        }
     }
 
     public Window? MainWindow => m_window;

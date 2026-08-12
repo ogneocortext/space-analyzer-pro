@@ -16,6 +16,7 @@ public sealed partial class SettingsPage : Page
         InitializeComponent();
         VM = new SettingsViewModel();
         DataContext = VM;
+        ViewModelRegistry.Register(VM);
         AppLog.Page("SettingsPage ctor end");
     }
 

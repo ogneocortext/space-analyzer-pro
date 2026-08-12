@@ -62,7 +62,7 @@ public class ToolExecutor : IDisposable
                 "list_workflows" => ListWorkflows(),
                 "predict_storage" => await PredictStorageAsync(GetInt(arguments, "days_ahead", 30), ct),
                 "preview_impact" => await PreviewImpactAsync(GetString(arguments, "path")),
-                "move_to_trash" => await MoveToTrashPreviewAsync(GetString(arguments, "path")),
+                "move_to_trash" => await MoveToTrashAsync(GetString(arguments, "path")),
                 "hardlink_duplicates" => await HardlinkDuplicatesPreviewAsync(GetString(arguments, "path"), ct),
                 "get_scan_summary" => await GetScanSummaryAsync(ct),
                 "get_file_type_breakdown" => await GetFileTypeBreakdownAsync(ct),
@@ -253,11 +253,13 @@ public class ToolExecutor : IDisposable
             var psi = new ProcessStartInfo
             {
                 FileName = "fsutil",
-                Arguments = $"hardlink list \"{path}\"",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            psi.ArgumentList.Add("hardlink");
+            psi.ArgumentList.Add("list");
+            psi.ArgumentList.Add(path);
             using var process = new Process { StartInfo = psi };
             process.Start();
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -285,7 +287,7 @@ public class ToolExecutor : IDisposable
         }, s_json);
     }
 
-    private static Task<string> MoveToTrashPreviewAsync(string path)
+    private static Task<string> MoveToTrashAsync(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
             return Task.FromResult("Error: path is required");
@@ -294,9 +296,6 @@ public class ToolExecutor : IDisposable
             return Task.FromResult($"Error: file not found: {path}");
 
         var info = new FileInfo(path);
-        // Actually perform the removal via the Recycle Bin so the file stays
-        // recoverable. Anything an AI agent (or workflow) deletes intentionally
-        // lands here first, never a permanent delete.
         bool moved = FileOperations.SendToRecycleBin(info.FullName);
         return Task.FromResult(JsonSerializer.Serialize(new
         {
@@ -322,7 +321,7 @@ public class ToolExecutor : IDisposable
         // deletes data — identical copies collapse to one inode and the reclaimed
         // space is reported in the result. Nothing is sent to the Recycle Bin
         // because no file content is destroyed.
-        var dedupOutput = await RunCliAsync($"dedup --path \"{path}\" --apply --yes --format json", ct);
+        var dedupOutput = await RunCliAsync(new[] { "dedup", "--path", path, "--apply", "--yes", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(dedupOutput))
             return "No duplicate analysis available.";
 
@@ -374,7 +373,7 @@ public class ToolExecutor : IDisposable
         var path = await ResolveScanPathAsync(new Dictionary<string, object>(), ct);
         if (string.IsNullOrWhiteSpace(path))
             return "No scan results available. Run a scan first.";
-        var dedupOutput = await RunCliAsync($"dedup --path \"{path}\" --format json", ct);
+        var dedupOutput = await RunCliAsync(new[] { "dedup", "--path", path, "--format", "json" }, ct);
         return string.IsNullOrWhiteSpace(dedupOutput)
             ? "No pattern analysis available."
             : dedupOutput;
@@ -934,17 +933,17 @@ public class ToolExecutor : IDisposable
         return false;
     }
 
-    private async Task<string> RunCliAsync(string args, CancellationToken ct)
+    private async Task<string> RunCliAsync(IEnumerable<string> args, CancellationToken ct)
     {
         var psi = new ProcessStartInfo
         {
             FileName = _scanner.ScannerPath,
-            Arguments = args,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        foreach (var a in args) psi.ArgumentList.Add(a);
 
         using var process = new Process { StartInfo = psi };
         process.Start();

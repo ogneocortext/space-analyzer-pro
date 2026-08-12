@@ -3,10 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -22,7 +20,7 @@ namespace SpaceAnalyzer.ViewModels;
 /// Ollama server via <see cref="OllamaClient"/> and executes tools via
 /// <see cref="ToolExecutor"/> in an agentic loop.
 /// </summary>
-public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
+public class AIAssistantViewModel : ViewModelBase, IDisposable
 {
     private OllamaClient? _client;
     private ToolExecutor? _toolExecutor;
@@ -851,16 +849,12 @@ public class AIAssistantViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
 /// <summary>
 /// A single chat message for display in the AI Assistant UI.
 /// </summary>
-public class AIChatMessage : INotifyPropertyChanged
+public class AIChatMessage : ViewModelBase
 {
     private readonly ChatRole _role;
     private string _content;
@@ -894,8 +888,4 @@ public class AIChatMessage : INotifyPropertyChanged
         Timestamp = DateTime.Now;
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

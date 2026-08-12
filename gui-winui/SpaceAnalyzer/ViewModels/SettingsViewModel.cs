@@ -3,14 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Linq;
 using System.Net.Http;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Services;
 
 namespace SpaceAnalyzer.ViewModels;
@@ -21,10 +20,11 @@ namespace SpaceAnalyzer.ViewModels;
 /// <see cref="SettingsStore"/>. Auto-saves on every change so settings
 /// survive rebuilds/restarts.
 /// </summary>
-public class SettingsViewModel : INotifyPropertyChanged
+public class SettingsViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private static readonly HttpClient s_httpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private bool _disposed;
 
     // ── Appearance ──
 
@@ -45,12 +45,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     {
         try
         {
-            var requested = theme switch
-            {
-                "Light" => Microsoft.UI.Xaml.ApplicationTheme.Light,
-                "System" => DetectSystemTheme(),
-                _ => Microsoft.UI.Xaml.ApplicationTheme.Dark,
-            };
+            var requested = ThemeHelper.ResolveTheme(theme);
 
             // WinUI 3 only honours Application.RequestedTheme when set before the
             // first window content is created. After that it throws, so apply the
@@ -72,27 +67,6 @@ public class SettingsViewModel : INotifyPropertyChanged
             }
         }
         catch { /* non-fatal */ }
-    }
-
-    /// <summary>
-    /// Detect whether Windows is currently in dark or light mode by sampling the
-    /// system background color, so the "System" theme choice can be honored.
-    /// </summary>
-    private static Microsoft.UI.Xaml.ApplicationTheme DetectSystemTheme()
-    {
-        try
-        {
-            var color = new Windows.UI.ViewManagement.UISettings()
-                .GetColorValue(Windows.UI.ViewManagement.UIColorType.Background);
-            var luminance = (color.R * 299 + color.G * 587 + color.B * 114) / 1000;
-            return luminance < 128
-                ? Microsoft.UI.Xaml.ApplicationTheme.Dark
-                : Microsoft.UI.Xaml.ApplicationTheme.Light;
-        }
-        catch
-        {
-            return Microsoft.UI.Xaml.ApplicationTheme.Dark;
-        }
     }
 
     // ── Scanner ──
@@ -367,6 +341,10 @@ public class SettingsViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(AutoModelSelection));
             OnPropertyChanged(nameof(ToolCallingModel));
             OnPropertyChanged(nameof(ToolChoice));
+
+            // Reflect the restored theme on the live root so the picker matches
+            // what is actually rendered (independent of the startup-time apply).
+            ApplyTheme(_theme);
         }
         catch (Exception ex)
         {
@@ -406,6 +384,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         ScanDepth = 5;
         IncludeHidden = false;
         GpuAcceleration = true;
+        DefaultScanPaths = string.Empty;
         OllamaUrl = "http://localhost:11434";
         OllamaModel = "gemma3:1b";
         OllamaEnabled = true;
@@ -419,12 +398,15 @@ public class SettingsViewModel : INotifyPropertyChanged
         Save();
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-
     private static SolidColorBrush GetThemeBrush(string key)
         => Application.Current.Resources[key] as SolidColorBrush
            ?? new SolidColorBrush(Microsoft.UI.Colors.Gray);
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _scanner.Dispose();
+        GC.SuppressFinalize(this);
+    }
 }

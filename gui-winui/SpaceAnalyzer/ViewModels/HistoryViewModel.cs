@@ -1,15 +1,14 @@
 // Licensed under the MIT License.
 
-using System.ComponentModel;
+using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
 
 namespace SpaceAnalyzer.ViewModels;
 
-public class HistoryViewModel : INotifyPropertyChanged, IDisposable
+public class HistoryViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private bool _disposed;
@@ -1087,11 +1086,7 @@ public class HistoryViewModel : INotifyPropertyChanged, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _scanner.Dispose();
         GC.SuppressFinalize(this);
     }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

@@ -2,10 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using SpaceAnalyzer.Helpers;
@@ -18,7 +16,7 @@ namespace SpaceAnalyzer.ViewModels;
 /// ViewModel for the dashboard page: hero stat cards, disk volumes,
 /// and live system-resource monitors (CPU, memory, disk).
 /// </summary>
-public class DashboardViewModel : INotifyPropertyChanged, IDisposable
+public class DashboardViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private readonly DispatcherTimer _refreshTimer;
@@ -666,16 +664,11 @@ public class DashboardViewModel : INotifyPropertyChanged, IDisposable
         _refreshTimer.Stop();
         ScanActivityMonitor.Instance.StateChanged -= OnScanActivityChanged;
         _cpuCounter?.Dispose();
+        _scanner.Dispose();
         GC.SuppressFinalize(this);
     }
 
     public DispatcherTimer DispatcherTimer => _refreshTimer;
 
-    // ── INotifyPropertyChanged ──
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 

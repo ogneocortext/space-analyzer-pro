@@ -176,3 +176,33 @@ fn cli_scan_unicode_path_completes_without_panic() {
     assert!(out.status.success());
     info!("PASS");
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. Special-character path regression — guards argument injection via paths
+//    containing quotes, semicolons, or spaces that could break out of argument
+//    quoting if string interpolation were reintroduced.
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn cli_scan_special_char_path_does_not_inject_arguments() {
+    info!("Verifying path with spaces/special chars is handled safely");
+    let tmp = TempDir::new().unwrap();
+    let special_dir = tmp.path().join("dir with spaces & ampersand");
+    std::fs::create_dir(&special_dir).unwrap();
+    std::fs::write(special_dir.join("file.txt"), b"content").unwrap();
+
+    let out = cli()
+        .arg("scan")
+        .arg("-p")
+        .arg(special_dir.to_string_lossy().into_owned())
+        .output()
+        .expect("CLI must not crash on paths with special characters");
+
+    eprintln!("  exit_status={:?}", out.status);
+    assert!(
+        out.status.success(),
+        "Scanning a path with spaces/special characters must succeed. stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    info!("PASS");
+}

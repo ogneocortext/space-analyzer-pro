@@ -39,8 +39,21 @@ public class OllamaClient : IDisposable
     }
 
     /// <summary>
+    /// Returns true if the exception is transient and the request should be retried.
+    /// Non-transient errors (bad request, invalid model, auth) fail immediately.
+    /// </summary>
+    private static bool IsTransientError(Exception ex)
+    {
+        return ex is HttpRequestException
+            or TaskCanceledException
+            or TimeoutException
+            or InvalidOperationException;
+    }
+
+    /// <summary>
     /// Send a chat request and return the full <see cref="ChatResponse"/> (not just text).
     /// Includes tool_calls when the model requests them.
+    /// Retries only transient errors (network, timeout); fails immediately on bad input.
     /// </summary>
     public async Task<ChatResponse> SendChatMessageAsync(
         string model,
@@ -69,12 +82,16 @@ public class OllamaClient : IDisposable
                     return await SendChatRequestAsync(candidate, messages, tools, toolChoice, think, ct)
                         .ConfigureAwait(false);
                 }
+                catch (Exception ex) when (IsTransientError(ex) && attempt < MaxRetries)
+                {
+                    lastError = ex.Message;
+                    await Task.Delay(TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt)), ct)
+                        .ConfigureAwait(false);
+                }
                 catch (Exception ex)
                 {
                     lastError = ex.Message;
-                    if (attempt < MaxRetries)
-                        await Task.Delay(TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt)), ct)
-                            .ConfigureAwait(false);
+                    break;
                 }
             }
         }

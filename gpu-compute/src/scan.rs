@@ -86,14 +86,12 @@ impl GpuScanProcessor {
         self
     }
 
-    /// Process raw file entries with GPU acceleration (or CPU fallback)
+    /// Process raw file entries.
+    /// GPU acceleration is not yet implemented; this always uses CPU with rayon parallelism.
+    /// The use_gpu field is preserved for forward compatibility.
     pub fn process(&self, entries: &[RawFileEntry]) -> GpuScanResult {
         let start = std::time::Instant::now();
-        let mut result = if self.use_gpu && super::device::GpuInfo::is_available() {
-            self.process_gpu(entries)
-        } else {
-            self.process_cpu(entries)
-        };
+        let mut result = self.process_cpu(entries);
         result.processing_time_ms = start.elapsed().as_millis() as u64;
         result
     }
@@ -175,16 +173,6 @@ impl GpuScanProcessor {
         }
     }
 
-    /// GPU-accelerated processing
-    /// Transfers path/size arrays to GPU for parallel:
-    /// - Extension extraction (string processing kernel)
-    /// - Size bucket computation (reduction kernel)
-    /// - Top-N selection (parallel selection kernel)
-    fn process_gpu(&self, entries: &[RawFileEntry]) -> GpuScanResult {
-        // Fallback to CPU processing for now (GPU implementation incomplete)
-        // The GPU path was broken with undefined variables
-        self.process_cpu(entries)
-    }
 }
 
 impl Default for GpuScanProcessor {
@@ -363,7 +351,7 @@ pub fn benchmark_scan_processing(
         let gpu_processor = GpuScanProcessor::new().with_gpu(true);
         for _ in 0..iterations {
             let start = Instant::now();
-            gpu_processor.process_gpu(entries);
+            gpu_processor.process(entries);
             gpu_times.push(start.elapsed().as_micros() as u64);
         }
     }
@@ -395,4 +383,83 @@ pub struct ScanBenchmarkResult {
     pub cpu_avg_us: u64,
     pub gpu_avg_us: u64,
     pub speedup: f64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_extension_returns_lowercase() {
+        assert_eq!(extract_extension("file.TXT"), "txt");
+        assert_eq!(extract_extension("file.tar.gz"), "gz");
+        assert_eq!(extract_extension("file"), "");
+        assert_eq!(extract_extension(""), "");
+    }
+
+    #[test]
+    fn extract_filename_returns_basename() {
+        assert_eq!(extract_filename("C:/dir/file.txt"), "file.txt");
+        assert_eq!(extract_filename("file.txt"), "file.txt");
+        // Trailing slash behavior varies by platform; just verify it doesn't panic
+        let _ = extract_filename("C:/dir/");
+        let _ = extract_filename("");
+    }
+
+    #[test]
+    fn size_bucket_correct_ranges() {
+        assert_eq!(size_bucket(0), "0 B");
+        assert_eq!(size_bucket(1), "< 1 KB");
+        assert_eq!(size_bucket(1023), "< 1 KB");
+        assert_eq!(size_bucket(1024), "1-10 KB");
+        assert_eq!(size_bucket(10 * 1024), "10-100 KB");
+        assert_eq!(size_bucket(100 * 1024), "100 KB-1 MB");
+        assert_eq!(size_bucket(1024 * 1024), "1-10 MB");
+        assert_eq!(size_bucket(10 * 1024 * 1024), "10-100 MB");
+        assert_eq!(size_bucket(100 * 1024 * 1024), "100 MB-1 GB");
+        assert_eq!(size_bucket(1024 * 1024 * 1024), "> 1 GB");
+    }
+
+    #[test]
+    fn gpu_processor_uses_cpu_when_gpu_unavailable() {
+        let processor = GpuScanProcessor::new().with_gpu(true);
+        let entries = vec![
+            RawFileEntry {
+                path: "test.txt".to_string(),
+                size: 1024,
+                is_dir: false,
+            },
+        ];
+        let result = processor.process(&entries);
+        assert_eq!(result.device, "CPU (rayon)");
+        assert_eq!(result.total_files, 1);
+    }
+
+    #[test]
+    fn gpu_processor_aggregates_file_types() {
+        let processor = GpuScanProcessor::new();
+        let entries = vec![
+            RawFileEntry { path: "a.txt".to_string(), size: 100, is_dir: false },
+            RawFileEntry { path: "b.txt".to_string(), size: 200, is_dir: false },
+            RawFileEntry { path: "c.pdf".to_string(), size: 500, is_dir: false },
+        ];
+        let result = processor.process(&entries);
+        assert_eq!(result.file_types.get("txt"), Some(&2));
+        assert_eq!(result.file_types.get("pdf"), Some(&1));
+        assert_eq!(result.total_size, 800);
+    }
+
+    #[test]
+    fn gpu_processor_sorts_largest_files() {
+        let processor = GpuScanProcessor::new();
+        let entries = vec![
+            RawFileEntry { path: "small.txt".to_string(), size: 100, is_dir: false },
+            RawFileEntry { path: "large.txt".to_string(), size: 10000, is_dir: false },
+            RawFileEntry { path: "medium.txt".to_string(), size: 1000, is_dir: false },
+        ];
+        let result = processor.process(&entries);
+        assert_eq!(result.largest_files[0].path, "large.txt");
+        assert_eq!(result.largest_files[1].path, "medium.txt");
+        assert_eq!(result.largest_files[2].path, "small.txt");
+    }
 }

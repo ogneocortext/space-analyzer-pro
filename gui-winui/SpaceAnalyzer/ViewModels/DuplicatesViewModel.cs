@@ -1,14 +1,12 @@
 // Licensed under the MIT License.
 
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
 
 namespace SpaceAnalyzer.ViewModels;
 
-public class DuplicatesViewModel : INotifyPropertyChanged, IDisposable
+public class DuplicatesViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private bool _disposed;
@@ -281,14 +279,10 @@ public class DuplicatesViewModel : INotifyPropertyChanged, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _scanner.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>
-    /// Deletes the extra copies of every selected group (keeps the first file of each group),
-    /// then re-runs the analysis to refresh the view. Requires the user to have confirmed via
-    /// the UI ContentDialog first.
-    /// </summary>
     /// <summary>
     /// Fired after a non-zero number of files were sent to the Recycle Bin, so the
     /// host page can offer the user a chance to empty the bin (or restore files).
@@ -350,8 +344,4 @@ public class DuplicatesViewModel : INotifyPropertyChanged, IDisposable
         await AnalyzeAsync();
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
