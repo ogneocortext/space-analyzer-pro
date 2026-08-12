@@ -22,6 +22,7 @@ analysis_result.json
 build-log.txt
 reports/
 releases/
+ux_issues.json
 
 # Test artifacts
 test_results_*.json
@@ -29,8 +30,12 @@ test_report_*.txt
 test-results/
 test-screenshot*.png
 screenshot*.png
+*screenshot*.png
+*-screenshot.png
 screenshot*.jpg
 screenshot*_b64.txt
+*-base64.txt
+*_base64.txt
 screenshot_resized.png
 
 # Build artifacts
@@ -43,6 +48,9 @@ gui-winui/**/obj/
 scripts/csharp-analyzer/
 tools/csharp-analyzer/bin/
 tools/csharp-analyzer/obj/
+# Root-level .NET test project (source is tracked; build output is not)
+TestJson/obj/
+TestJson/bin/
 
 # User-specific configuration
 .env
@@ -51,6 +59,8 @@ build-env.ps1
 
 # Logs
 *.log
+@AutomationLog.txt
+AutomationLog*.txt
 
 # Databases
 *.sqlite
@@ -151,6 +161,7 @@ opencode.json
 # Python/type-checker caches
 .mypy_cache/
 .ruff_cache/
+.pytest_cache/
 
 # Node.js dependencies
 node_modules/
