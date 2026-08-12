@@ -42,16 +42,9 @@ Space Analyzer Pro is available in one mode:
 
 ## Quick Start
 
-```bash
-# Build the egui GUI (Rust)
-cargo build --release -p space-analyzer-gui-egui
-./gui-egui/target/release/space-analyzer-gui.exe
+The **active GUI is WinUI 3** (C# / .NET 10 / Windows App SDK 2.3). A native **egui (Rust)** GUI also exists but is archived for comparison — see [Architecture](#architecture).
 
-# Or use the task runner
-just run-gui
-```
-
-### WinUI 3 GUI (C#/.NET)
+### WinUI 3 GUI (C#/.NET) — recommended
 
 > **Note:** The WinUI 3 GUI requires Visual Studio 2022 MSBuild. `dotnet build` fails with WMC9999 on non-English Windows.
 
@@ -65,13 +58,23 @@ dotnet run --project gui-winui/SpaceAnalyzer
 
 **WinUI 3 state (v4.0.0):**
 - **Stable build** against Windows App SDK 2.3 / .NET 10
-- **All 10 pages implemented and fully functional:** Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, Duplicates, System, Cleanup, Settings, About
+- **All 11 pages implemented and fully functional:** Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, Duplicates, System, Cleanup, Settings, About
 - **Token-based design system** in `App.xaml` — spacing, typography, icon-size, card, button, and progress-bar resource dictionaries
 - **Dashboard stat cards** with live system resource refresh and resource-history canvas charts
 - **MVVM pattern** with `Helpers/`, `ViewModels/`, `Models/`, `Services/` separation
 - **Ollama integration** via `OllamaClient.cs` with `JsonStringEnumConverter` for correct `ChatRole` serialization
 - **Scan page:** Quick/Default/Deep radio depth modes, custom-depth slider, live filename streaming, Stop scan, path validation, scan errors display, file type distribution chart, largest files with filter, export results
 - **AppLog diagnostics** — file logger at `%LOCALAPPDATA%/SpaceAnalyzer/ui-actions.log` with NAV/PAGE/ACTION/ERROR categories
+
+### egui GUI (Rust) — archived for comparison
+
+The egui GUI is feature-complete but kept only for side-by-side comparison with WinUI 3; WinUI 3 is the actively developed frontend.
+
+```bash
+cargo build --release -p space-analyzer-gui-egui
+./gui-egui/target/release/space-analyzer-gui.exe
+# or: just run-gui
+```
 
 ### Prerequisites
 
@@ -276,7 +279,7 @@ gui-egui/                  # egui desktop GUI (archived for comparison)
 gui-winui/                 # WinUI 3 desktop GUI (active development)
   SpaceAnalyzer.sln        # Visual Studio solution
   SpaceAnalyzer/
-    SpaceAnalyzer.csproj   # .NET 8 + Windows App SDK
+    SpaceAnalyzer.csproj   # .NET 10 + Windows App SDK 2.3
     App.xaml(.cs)          # Application entry
     MainWindow.xaml(.cs)   # NavigationView shell
     Views/                 # XAML pages (Dashboard, Scan, Settings, etc.)
@@ -334,7 +337,6 @@ config/                    # Tool configuration (non-secret)
 - [Security](docs/implementations/SECURITY.md) — security model
 - [Changelog](docs/CHANGELOG.md) — release notes
 - [Contributing](CONTRIBUTING.md) — how to contribute
-- [Agent Guide](AGENTS.md) — for AI coding agents
 
 ---
 
