@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SpaceAnalyzer.Helpers;
@@ -66,6 +67,18 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
     {
         get => _includeHidden;
         set { _includeHidden = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Hard cap on the number of filename results kept (and shown). Results beyond
+    /// this are dropped and <see cref="ResultsTruncated"/> flips on so the UI can
+    /// surface a "showing top N" notice instead of freezing on millions of matches.
+    /// </summary>
+    private int _maxResults = 500;
+    public int MaxResults
+    {
+        get => _maxResults;
+        set { _maxResults = Math.Max(1, value); OnPropertyChanged(); }
     }
 
     // ── Semantic (embedding) search ──
@@ -170,6 +183,39 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
     private ObservableCollection<SmartSearchResult> _results = new();
     public ObservableCollection<SmartSearchResult> Results => _results;
 
+    /// <summary>
+    /// When true, filename results are regrouped by parent directory into
+    /// <see cref="GroupedResults"/> instead of shown as a flat list.
+    /// </summary>
+    private bool _groupByDirectory;
+    public bool GroupByDirectory
+    {
+        get => _groupByDirectory;
+        set
+        {
+            _groupByDirectory = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ShowGroupedResults));
+            OnPropertyChanged(nameof(ShowFlatResults));
+            RebuildGroups();
+        }
+    }
+
+    /// <summary>Directory-grouped view of the current filename results.</summary>
+    public ObservableCollection<SearchResultGroup> GroupedResults { get; } = new();
+
+    /// <summary>
+    /// Show the grouped results panel only in filename mode with hits and when
+    /// <see cref="GroupByDirectory"/> is on. Semantic results keep their own panel.
+    /// </summary>
+    public bool ShowGroupedResults => ShowFilenameResults && _groupByDirectory;
+
+    /// <summary>
+    /// Show the flat results list only in filename mode with hits and when
+    /// <see cref="GroupByDirectory"/> is off (the grouped panel shows instead).
+    /// </summary>
+    public bool ShowFlatResults => ShowFilenameResults && !_groupByDirectory;
+
     private int _resultCount;
     public int ResultCount
     {
@@ -181,7 +227,20 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(HasResults));
             OnPropertyChanged(nameof(ShowFilenameResults));
             OnPropertyChanged(nameof(ShowFilenameEmpty));
+            OnPropertyChanged(nameof(ShowGroupedResults));
+            OnPropertyChanged(nameof(ShowFlatResults));
         }
+    }
+
+    /// <summary>
+    /// Whether the result set was capped at <see cref="MaxResults"/> (more matches
+    /// existed than were kept). Drives a "showing top N" notice in the UI.
+    /// </summary>
+    private bool _resultsTruncated;
+    public bool ResultsTruncated
+    {
+        get => _resultsTruncated;
+        set { _resultsTruncated = value; OnPropertyChanged(); }
     }
 
     /// <summary>
@@ -204,7 +263,9 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         IsSearching = true;
         StatusMessage = "Searching...";
         Results.Clear();
+        GroupedResults.Clear();
         ResultCount = 0;
+        ResultsTruncated = false;
         SemanticResults.Clear();
         SemanticResultCount = 0;
 
@@ -235,9 +296,18 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             // specific message (e.g. "Semantic search requires the Rust scanner…").
             if (StatusMessage == "Searching...")
             {
-                StatusMessage = _isSemantic
-                    ? $"Found {SemanticResults.Count} semantic match(es)."
-                    : $"Found {ResultCount} match(es).";
+                if (_isSemantic)
+                {
+                    StatusMessage = ResultsTruncated
+                        ? $"Found {SemanticResults.Count} semantic match(es) shown (capped at {MaxResults})."
+                        : $"Found {SemanticResults.Count} semantic match(es).";
+                }
+                else
+                {
+                    StatusMessage = ResultsTruncated
+                        ? $"Found {ResultCount} match(es) shown (capped at {MaxResults})."
+                        : $"Found {ResultCount} match(es).";
+                }
             }
         }
         catch (OperationCanceledException)
@@ -344,7 +414,10 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         }
 
         foreach (var h in hits)
+        {
+            if (SemanticResults.Count >= MaxResults) { ResultsTruncated = true; break; }
             SemanticResults.Add(h);
+        }
         SemanticResultCount = SemanticResults.Count;
     }
 
@@ -392,8 +465,13 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            foreach (var r in collected) Results.Add(r);
+            foreach (var r in collected)
+            {
+                if (Results.Count >= MaxResults) { ResultsTruncated = true; break; }
+                Results.Add(r);
+            }
             ResultCount = Results.Count;
+            RebuildGroups();
         }
         catch (Exception ex)
         {
@@ -418,13 +496,42 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
             var ui = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
             ui.TryEnqueue(() =>
             {
-                foreach (var r in collected) Results.Add(r);
+                foreach (var r in collected)
+                {
+                    if (Results.Count >= MaxResults) { ResultsTruncated = true; break; }
+                    Results.Add(r);
+                }
                 ResultCount = Results.Count;
+                RebuildGroups();
             });
         }
         catch (Exception ex)
         {
             StatusMessage = $"Search error: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Rebuild <see cref="GroupedResults"/> from the current flat <see cref="Results"/>
+    /// list, grouping by parent directory. Cheap enough to call on every result
+    /// change and on <see cref="GroupByDirectory"/> toggle. No-op payload when
+    /// grouping is off (the flat panel is shown instead).
+    /// </summary>
+    private void RebuildGroups()
+    {
+        GroupedResults.Clear();
+        if (!_groupByDirectory)
+            return;
+
+        foreach (var g in Results
+            .GroupBy(r => Path.GetDirectoryName(r.Path) ?? r.Path)
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            GroupedResults.Add(new SearchResultGroup
+            {
+                Directory = g.Key,
+                Items = g.ToList()
+            });
         }
     }
 

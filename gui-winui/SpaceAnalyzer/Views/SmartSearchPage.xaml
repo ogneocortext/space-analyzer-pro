@@ -66,6 +66,17 @@
                                         </InputScope>
                                     </TextBox.InputScope>
                                 </TextBox>
+                                <TextBlock Text="Max Results" Style="{StaticResource Type.Caption}" Opacity="0.8" Margin="0,4,0,0"/>
+                                <TextBox Text="{x:Bind VM.MaxResults, Mode=TwoWay}"
+                                         AutomationProperties.Name="Maximum number of results to keep">
+                                    <TextBox.InputScope>
+                                        <InputScope>
+                                            <InputScope.Names>
+                                                <InputScopeName NameValue="Number"/>
+                                            </InputScope.Names>
+                                        </InputScope>
+                                    </TextBox.InputScope>
+                                </TextBox>
                             </StackPanel>
 
                             <Border Grid.Column="1" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
@@ -79,6 +90,9 @@
                                               Style="{StaticResource FieldCheckBox}"/>
                                     <CheckBox Content="Include hidden files"
                                               IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"
+                                              Style="{StaticResource FieldCheckBox}"/>
+                                    <CheckBox Content="Group by folder"
+                                              IsChecked="{x:Bind VM.GroupByDirectory, Mode=TwoWay}"
                                               Style="{StaticResource FieldCheckBox}"/>
                                 </StackPanel>
                             </Border>
@@ -148,9 +162,9 @@
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}"
                            Style="{StaticResource Type.Body}"/>
 
-                <!-- Results -->
+                <!-- Results (flat list) -->
                 <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.XL}"
-                        Visibility="{x:Bind VM.ShowFilenameResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
+                        Visibility="{x:Bind VM.ShowFlatResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
                         <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" Style="{StaticResource Type.CardTitle}"/>
                         <TextBlock Text="results found" Style="{StaticResource Type.Body}" Opacity="0.8"/>
@@ -179,6 +193,67 @@
                                                 <Button Content="Open" Click="OpenResultFile_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
                                                 <Button Content="Folder" Click="OpenResultFolder_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
                                             </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Border>
+
+                <!-- Results (grouped by folder) -->
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.XL}"
+                        Visibility="{x:Bind VM.ShowGroupedResults, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.MD}">
+                        <TextBlock Text="{x:Bind VM.ResultCount, Mode=OneWay}" Style="{StaticResource Type.CardTitle}"/>
+                        <TextBlock Text="results found, grouped by folder" Style="{StaticResource Type.Body}" Opacity="0.8"/>
+
+                        <ItemsRepeater ItemsSource="{x:Bind VM.GroupedResults, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.MD}"/>
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="models:SearchResultGroup">
+                                    <Border Style="{StaticResource CompactItemCard}">
+                                        <StackPanel Spacing="{StaticResource Space.XS}">
+                                            <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Style="{StaticResource Type.SubTitle}"
+                                                           Text="{x:Bind Directory, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1" Style="{StaticResource Type.Caption}" Opacity="0.85"
+                                                           Text="{x:Bind TotalDisplay, Mode=OneTime}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.7">
+                                                <Run Text="{x:Bind Count, Mode=OneTime}"/>
+                                                <Run Text=" file(s)"/>
+                                            </TextBlock>
+                                            <ItemsRepeater ItemsSource="{x:Bind Items, Mode=OneTime}">
+                                                <ItemsRepeater.Layout>
+                                                    <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.XS}"/>
+                                                </ItemsRepeater.Layout>
+                                                <ItemsRepeater.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:SmartSearchResult">
+                                                        <Border Style="{StaticResource CompactItemCard}" Margin="0,0,0,0">
+                                                            <StackPanel Spacing="{StaticResource Space.XS}">
+                                                                <TextBlock Style="{StaticResource Type.SubTitle}"
+                                                                           Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8">
+                                                                    <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
+                                                                    <Run Text=" · "/>
+                                                                    <Run Text="{x:Bind Path, Mode=OneTime}" FontStyle="Italic"/>
+                                                                </TextBlock>
+                                                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Margin="0,4,0,0">
+                                                                    <Button Content="Open" Click="OpenResultFile_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
+                                                                    <Button Content="Folder" Click="OpenResultFolder_Click" Style="{StaticResource SmallButton}" Tag="{x:Bind Path}"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsRepeater.ItemTemplate>
+                                            </ItemsRepeater>
                                         </StackPanel>
                                     </Border>
                                 </DataTemplate>
