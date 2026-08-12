@@ -5,8 +5,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
@@ -27,7 +25,6 @@ namespace SpaceAnalyzer.ViewModels;
 public class SettingsViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
-    private static readonly HttpClient s_httpClient = new() { Timeout = TimeSpan.FromSeconds(10) };
     private bool _disposed;
 
     // ── Appearance ──
@@ -267,18 +264,17 @@ public class SettingsViewModel : ViewModelBase, IDisposable
 
     /// <summary>
     /// Queries the Ollama server for installed models and populates
-    /// <see cref="DetectedModels"/>. Swallows failures when the server is offline.
+    /// <see cref="DetectedModels"/>, reusing <see cref="OllamaClient"/> so the
+    /// /api/tags fetch/parse logic lives in exactly one place. Swallows failures
+    /// when the server is offline.
     /// </summary>
     public async Task RefreshDetectedModelsAsync()
     {
         try
         {
-            var response = await s_httpClient.GetAsync($"{OllamaUrl.TrimEnd('/')}/api/tags");
-            if (!response.IsSuccessStatusCode)
-                return;
-            var json = await response.Content.ReadAsStringAsync();
-            var payload = JsonSerializer.Deserialize<TagsResponse>(json, OllamaClient.JsonOptions);
-            var names = (payload?.Models ?? new List<OllamaModelInfo>())
+            using var client = new OllamaClient(OllamaUrl);
+            var models = await client.GetInstalledModelsAsync();
+            var names = models
                 .Select(m => m.Name)
                 .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -303,8 +299,8 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         OllamaTestBrush = GetThemeBrush("MutedBrush");
         try
         {
-            var response = await s_httpClient.GetAsync($"{OllamaUrl.TrimEnd('/')}/api/tags");
-            if (response.IsSuccessStatusCode)
+            using var client = new OllamaClient(OllamaUrl);
+            if (await client.IsAvailableAsync())
             {
                 await RefreshDetectedModelsAsync();
                 OllamaTestResult = DetectedModels.Count == 0
@@ -314,7 +310,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
             }
             else
             {
-                OllamaTestResult = $"Error {(int)response.StatusCode}";
+                OllamaTestResult = "Ollama server not reachable";
                 OllamaTestBrush = GetThemeBrush("WarningBrush");
             }
         }
