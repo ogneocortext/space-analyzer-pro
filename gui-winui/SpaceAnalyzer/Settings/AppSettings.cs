@@ -33,7 +33,9 @@ public static class AppSettings
         public const bool GpuAcceleration = true;
         public const string DefaultScanPaths = "";
         public const string OllamaUrl = "http://localhost:11434";
-        public const string OllamaModel = "gemma3:1b";
+        // Empty string = "auto": when unset, the AI Assistant picks the best available
+        // model from the benchmark-derived ranking (see ModelPreferences) at runtime.
+        public const string OllamaModel = "";
         public const bool OllamaEnabled = true;
         public const bool OllamaThink = true;
         public const bool AgenticToolsEnabled = true;

@@ -248,6 +248,14 @@ public class OllamaModelInfo
     public List<string> Capabilities { get; set; } = new();
     public OllamaModelDetails? Details { get; set; }
 
+    /// <summary>
+    /// UI-only flag: true when this model matches the configured default model in
+    /// Settings, so the AI Assistant page can highlight it in the installed-model list.
+    /// Not serialized (it is derived by the ViewModel, not returned by Ollama).
+    /// </summary>
+    [JsonIgnore]
+    public bool IsDefault { get; set; }
+
     [JsonIgnore]
     public string SizeDisplay
     {

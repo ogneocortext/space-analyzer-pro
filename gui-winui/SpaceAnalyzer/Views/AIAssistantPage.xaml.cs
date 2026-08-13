@@ -23,8 +23,8 @@ public sealed partial class AIAssistantPage : Page
         ViewModelRegistry.Register(VM);
         AppLog.Page("AIAssistantPage ctor end");
         MessageScroll.SizeChanged += (_, _) => ScrollToBottom();
+        MessageScroll.ViewChanged += (_, _) => UpdateFollowTail();
         VM.Messages.CollectionChanged += (_, _) => ScrollToBottom();
-        VM.PropertyChanged += OnVMPropertyChanged;
     }
 
     /// <summary>
@@ -37,25 +37,32 @@ public sealed partial class AIAssistantPage : Page
         VM.ReloadSettings();
     }
 
-    private void OnVMPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    /// <summary>
+    /// Tracks whether the user is pinned to the bottom of the transcript. New messages
+    /// only auto-scroll when this is true, so reading history is never yanked away by an
+    /// incoming reply. Also drives the "New messages" jump button.
+    /// </summary>
+    private bool _followTail = true;
+
+    private void UpdateFollowTail()
     {
-        if (e.PropertyName == nameof(AIAssistantViewModel.IsThinking))
-        {
-            var isThinking = VM.IsThinking;
-            ThinkingIndicator.Visibility = isThinking ? Visibility.Visible : Visibility.Collapsed;
-            if (isThinking)
-                ThinkingText.Text = VM.ThinkingStatus;
-        }
-        else if (e.PropertyName == nameof(AIAssistantViewModel.ThinkingStatus))
-        {
-            if (VM.IsThinking)
-                ThinkingText.Text = VM.ThinkingStatus;
-        }
+        var sv = MessageScroll;
+        _followTail = sv.ScrollableHeight <= 0 || sv.VerticalOffset >= sv.ScrollableHeight - 24;
+        JumpToLatest.Visibility = _followTail ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void ScrollToBottom()
     {
+        if (_followTail)
+            MessageScroll.ChangeView(null, MessageScroll.ScrollableHeight, null);
+    }
+
+    private void JumpToLatest_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("AIAssistantPage JumpToLatest_Click");
+        _followTail = true;
         MessageScroll.ChangeView(null, MessageScroll.ScrollableHeight, null);
+        JumpToLatest.Visibility = Visibility.Collapsed;
     }
 
     private void Input_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -63,22 +70,29 @@ public sealed partial class AIAssistantPage : Page
         AppLog.Action("AIAssistantPage Input_KeyDown");
         if (e.Key == Windows.System.VirtualKey.Enter)
         {
-            // Ctrl+Enter sends; plain Enter inserts a newline.
-            var ctrl = Microsoft.UI.Input.InputKeyboardSource
-                .GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+            // Chat convention: Enter (or Ctrl+Enter) sends; Shift+Enter inserts a newline.
+            var shift = Microsoft.UI.Input.InputKeyboardSource
+                .GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
                 .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-            if (ctrl)
+            if (!shift)
             {
                 e.Handled = true;
-                _ = VM.SendMessageAsync();
+                _ = SendAsync();
             }
         }
+    }
+
+    private async Task SendAsync()
+    {
+        // User-initiated send: pin to the tail so their message and the reply stay in view.
+        _followTail = true;
+        await VM.SendMessageAsync();
     }
 
     private async void Send_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("AIAssistantPage Send_Click");
-        await VM.SendMessageAsync();
+        await SendAsync();
     }
 
     private void ClearChat_Click(object sender, RoutedEventArgs e)
@@ -89,6 +103,8 @@ public sealed partial class AIAssistantPage : Page
             "Hello! I am your AI assistant for Space Analyzer Pro. " +
             "I can help you understand your disk usage and find space-saving opportunities. " +
             "Ask me anything!");
+        _followTail = true;
+        ScrollToBottom();
     }
 
     private void Stop_Click(object sender, RoutedEventArgs e)
@@ -114,7 +130,13 @@ public sealed partial class AIAssistantPage : Page
         if (sender is Button btn && btn.Tag is string prompt)
         {
             VM.InputText = prompt;
-            await VM.SendMessageAsync();
+            await SendAsync();
         }
+    }
+
+    private void RetryConnection_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("AIAssistantPage RetryConnection_Click");
+        VM.RetryConnection();
     }
 }

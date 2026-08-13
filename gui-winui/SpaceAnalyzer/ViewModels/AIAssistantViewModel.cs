@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
 using SpaceAnalyzer.Settings;
@@ -29,6 +30,9 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
     private CancellationTokenSource _cts = new();
     private bool _disposed;
     private readonly ObservableCollection<OllamaModelInfo> _installedModels = new();
+    // Set while we persist an auto-selected default so the resulting SettingsChanged
+    // re-entrancy does not schedule a redundant model refresh.
+    private bool _autoSelectingDefault;
 
     /// <summary>
     /// Models detected on the Ollama server, surfaced to the UI so the AI page can
@@ -42,7 +46,7 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
     public bool OllamaConnected
     {
         get => _ollamaConnected;
-        private set { if (_ollamaConnected == value) return; _ollamaConnected = value; OnPropertyChanged(); }
+        private set { if (_ollamaConnected == value) return; _ollamaConnected = value; OnPropertyChanged(); RaiseConnectionProps(); }
     }
 
     public int InstalledModelCount => _installedModels.Count;
@@ -52,6 +56,54 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
         : _ollamaConnected
             ? $"Ollama connected · {_installedModels.Count} model{(_installedModels.Count == 1 ? "" : "s")}"
             : "Ollama offline — check the server/URL in Settings";
+
+    /// <summary>
+    /// Semantic brush for the connection status badge (green = connected, red =
+    /// offline, gray = disabled). Resolved from theme resources so it stays
+    /// correct in light/dark; guarded so headless (test) usage never throws.
+    /// </summary>
+    private static readonly SolidColorBrush s_fallbackStatusBrush = new(Microsoft.UI.Colors.Gray);
+    public Brush ConnectionStatusBrush
+    {
+        get
+        {
+            string key = !OllamaEnabled ? "MutedBrush" : _ollamaConnected ? "SuccessBrush" : "ErrorBrush";
+            try
+            {
+                return (Application.Current?.Resources[key] as SolidColorBrush) ?? s_fallbackStatusBrush;
+            }
+            catch
+            {
+                return s_fallbackStatusBrush;
+            }
+        }
+    }
+
+    /// <summary>Segoe MDL2 glyph for the connection status badge.</summary>
+    public string ConnectionStatusGlyph =>
+        !OllamaEnabled ? "\uE77F"   // Blocked
+        : _ollamaConnected ? "\uE930" // CheckMark
+        : "\uE7BA";                  // Warning
+
+    /// <summary>True when Ollama is enabled but unreachable, so a Retry button is offered.</summary>
+    public bool CanRetryConnection => OllamaEnabled && !_ollamaConnected;
+
+    /// <summary>True when connected but the server reports zero installed models.</summary>
+    public bool ShowNoModelsHint => _ollamaConnected && _installedModels.Count == 0;
+
+    /// <summary>
+    /// Raises every connection-derived property at once. Connection state can change
+    /// from several paths (refresh, settings edit, enable toggle), and all of these
+    /// bindings must refresh together to keep the status badge consistent.
+    /// </summary>
+    private void RaiseConnectionProps()
+    {
+        OnPropertyChanged(nameof(ConnectionStatusText));
+        OnPropertyChanged(nameof(ConnectionStatusBrush));
+        OnPropertyChanged(nameof(ConnectionStatusGlyph));
+        OnPropertyChanged(nameof(CanRetryConnection));
+        OnPropertyChanged(nameof(ShowNoModelsHint));
+    }
 
     // Periodic refresh so models installed mid-session (e.g. `ollama pull`) appear
     // without the user navigating away and back. Guarded because the VM may be
@@ -69,7 +121,7 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
     public string InputText
     {
         get => _inputText;
-        set { _inputText = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsInputValid)); }
+        set { _inputText = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsInputValid)); OnPropertyChanged(nameof(CanSend)); }
     }
     public bool IsInputValid => !string.IsNullOrWhiteSpace(InputText);
 
@@ -79,9 +131,12 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
     public bool IsBusy
     {
         get => _isBusy;
-        set { _isBusy = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotBusy)); }
+        set { _isBusy = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotBusy)); OnPropertyChanged(nameof(CanSend)); }
     }
     public bool IsNotBusy => !_isBusy;
+
+    /// <summary>Send is allowed only when idle and the input is non-empty.</summary>
+    public bool CanSend => IsNotBusy && IsInputValid;
 
     // ── Status ──
 
@@ -208,6 +263,25 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
             _installedModels.Clear();
             foreach (var m in models) _installedModels.Add(m);
             OllamaConnected = true;
+
+            // Auto-select the default model from the benchmark-driven ranking when the
+            // user has not explicitly chosen one (OllamaModel is the empty "auto"
+            // sentinel). This makes the default capability-aware instead of a fixed
+            // literal, and persists the pick so the Settings page reflects it.
+            if (string.IsNullOrWhiteSpace(OllamaModel) && _installedModels.Count > 0)
+            {
+                var recommended = ModelPreferences.PickRecommended(_installedModels);
+                if (!string.IsNullOrEmpty(recommended))
+                {
+                    _autoSelectingDefault = true;
+                    try { OllamaModel = recommended; }
+                    finally { _autoSelectingDefault = false; }
+                }
+            }
+
+            // Highlight the configured default model in the UI list.
+            foreach (var m in _installedModels)
+                m.IsDefault = string.Equals(m.Name, OllamaModel, StringComparison.OrdinalIgnoreCase);
             if (_installedModels.Count == 0) return;
 
             // Prefer tool-capable, then small models so fallback stays cheap.
@@ -229,8 +303,20 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
         finally
         {
             OnPropertyChanged(nameof(InstalledModelCount));
-            OnPropertyChanged(nameof(ConnectionStatusText));
+            RaiseConnectionProps();
         }
+    }
+
+    /// <summary>
+    /// Manually re-probes the Ollama server from the UI (Retry button). Lets the user
+    /// recover immediately after starting Ollama or fixing the URL without waiting for
+    /// the 30s auto-refresh tick.
+    /// </summary>
+    public void RetryConnection()
+    {
+        if (_disposed) return;
+        StatusText = "Reconnecting…";
+        _ = RefreshInstalledModelsAsync();
     }
 
     /// <summary>
@@ -261,15 +347,16 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
                 break;
             case SettingKeys.OllamaModel:
                 OnPropertyChanged(nameof(OllamaModel));
-                _ = RefreshInstalledModelsAsync();
+                // Skip the re-entrant refresh triggered by our own auto-selection.
+                if (!_autoSelectingDefault)
+                    _ = RefreshInstalledModelsAsync();
                 break;
             case SettingKeys.ToolCallingModel:
                 OnPropertyChanged(nameof(ToolCallingModel));
-                _ = RefreshInstalledModelsAsync();
                 break;
             case SettingKeys.OllamaEnabled:
                 OnPropertyChanged(nameof(OllamaEnabled));
-                OnPropertyChanged(nameof(ConnectionStatusText));
+                RaiseConnectionProps();
                 _ = RefreshInstalledModelsAsync();
                 break;
             case SettingKeys.OllamaThink:
@@ -354,16 +441,18 @@ public partial class AIAssistantViewModel : ViewModelBase, IDisposable
             return preferred;
 
         // Use the configured model when it is actually installed.
-        if (_installedModels.Any(m => string.Equals(m.Name, preferred, StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrWhiteSpace(preferred)
+            && _installedModels.Any(m => string.Equals(m.Name, preferred, StringComparison.OrdinalIgnoreCase)))
             return preferred;
 
-        // Otherwise resolve to an installed model: prefer tool-capable ones for
-        // tool tasks, then the smallest model to keep VRAM usage low.
-        var pick = _installedModels
-            .OrderByDescending(m => m.Capabilities.Contains("tools"))
-            .ThenBy(m => m.Size)
-            .FirstOrDefault();
-        return pick?.Name ?? preferred;
+        // Otherwise resolve to an installed model using the benchmark-derived ranking
+        // (code/reasoning), with tool capability and size as tie-breakers.
+        var pick = ModelPreferences.PickRecommended(_installedModels)
+                   ?? _installedModels
+                       .OrderByDescending(m => m.Capabilities.Contains("tools"))
+                       .ThenBy(m => m.Size)
+                       .FirstOrDefault()?.Name;
+        return pick ?? preferred;
     }
 
     private string ResolveToolChoice(string question, List<ToolDefinition> tools)

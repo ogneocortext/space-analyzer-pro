@@ -55,7 +55,7 @@
                             <Button Content="Copy" Click="CopyMessage_Click"
                                     Style="{StaticResource TinyButton}"
                                     Tag="{x:Bind Content}"
-                                    Visibility="{x:Bind IsUser, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
+                                    Visibility="{x:Bind IsTool, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -123,81 +123,133 @@
         <StackPanel Grid.Row="0" Spacing="{StaticResource Space.MD}" Margin="0,0,0,16">
             <TextBlock Text="AI Assistant" Style="{StaticResource Type.PageTitle}"/>
             <TextBlock Text="Chat with your local Ollama AI to analyze disk usage."
-                       Style="{StaticResource Type.Caption}" Opacity="0.85"/>
+                        Style="{StaticResource Type.Caption}" Opacity="0.85"/>
 
-            <!-- Live Ollama connection + installed-model status -->
-            <TextBlock Text="{x:Bind VM.ConnectionStatusText, Mode=OneWay}"
-                       Style="{StaticResource Type.Caption}" Opacity="0.85" Margin="0,4,0,0"/>
+            <!-- Live Ollama connection status + manual retry -->
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Margin="0,4,0,0">
+                <Border Style="{StaticResource StatusBadge}"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <FontIcon Glyph="{x:Bind VM.ConnectionStatusGlyph, Mode=OneWay}"
+                                  FontSize="{StaticResource Icon.Small}"
+                                  Foreground="{x:Bind VM.ConnectionStatusBrush, Mode=OneWay}"/>
+                        <TextBlock Text="{x:Bind VM.ConnectionStatusText, Mode=OneWay}"
+                                    Style="{StaticResource Type.Caption}"/>
+                    </StackPanel>
+                </Border>
 
-            <ItemsControl ItemsSource="{x:Bind VM.InstalledModels, Mode=OneWay}"
+                <Button Click="RetryConnection_Click"
+                        Style="{StaticResource TinyButton}"
+                        Visibility="{x:Bind VM.CanRetryConnection, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"
+                        AutomationProperties.Name="Retry Ollama connection">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE72C;" FontSize="{StaticResource Icon.Tiny}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Retry" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+
+            <!-- Installed models (wraps horizontally; never clipped) -->
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled"
                           Visibility="{x:Bind VM.OllamaConnected, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"
-                          Margin="0,8,0,0">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" Spacing="6"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="svc:OllamaModelInfo">
-                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                BorderThickness="1" CornerRadius="12" Padding="8,4">
-                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                <FontIcon Glyph="&#xE8EC;" FontSize="12" Opacity="0.7"/>
-                                <TextBlock Text="{x:Bind Name}" Style="{StaticResource Type.Caption}"/>
-                                <TextBlock Text="{x:Bind SizeDisplay}" Style="{StaticResource Type.Tiny}" Opacity="0.55"/>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                          Margin="0,4,0,0">
+                <ItemsControl ItemsSource="{x:Bind VM.InstalledModels, Mode=OneWay}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="6"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="svc:OllamaModelInfo">
+                            <Border Background="{x:Bind IsDefault, Mode=OneTime, Converter={StaticResource SelectedFlagBrush}}"
+                                    BorderBrush="{x:Bind IsDefault, Mode=OneTime, Converter={StaticResource SelectedFlagBorder}}"
+                                    BorderThickness="1" CornerRadius="12" Padding="8,4" Margin="0,0,2,0">
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <FontIcon Glyph="&#xE8EC;" FontSize="12" Opacity="0.7"/>
+                                    <TextBlock Text="{x:Bind Name}" Style="{StaticResource Type.Caption}"/>
+                                    <TextBlock Text="{x:Bind SizeDisplay}" Style="{StaticResource Type.Tiny}" Opacity="0.55"/>
+                                    <Border Visibility="{x:Bind IsDefault, Mode=OneTime, Converter={StaticResource BoolToVisibility}}"
+                                            Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="6"
+                                            Padding="4,1" Margin="2,0,0,0">
+                                        <TextBlock Text="default" Style="{StaticResource Type.Tiny}"
+                                                    Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <TextBlock Text="No models installed yet — pull one with 'ollama pull &lt;model&gt;'."
+                        Style="{StaticResource Type.Caption}" Opacity="0.7"
+                        Visibility="{x:Bind VM.ShowNoModelsHint, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
         </StackPanel>
 
         <!-- Message list + suggestions -->
-        <ScrollViewer x:Name="MessageScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
-            <StackPanel x:Name="MessageContainer" Spacing="{StaticResource Space.MD}">
-                <ItemsControl ItemsSource="{x:Bind VM.Messages, Mode=OneWay}"
-                              ItemTemplateSelector="{StaticResource ChatMessageTemplateSelector}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Spacing="{StaticResource Space.MD}"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                </ItemsControl>
+        <Grid Grid.Row="1">
+            <ScrollViewer x:Name="MessageScroll" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="MessageContainer" Spacing="{StaticResource Space.MD}">
+                    <ItemsControl ItemsSource="{x:Bind VM.Messages, Mode=OneWay}"
+                                  ItemTemplateSelector="{StaticResource ChatMessageTemplateSelector}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="{StaticResource Space.MD}"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
 
-                <!-- Typing indicator -->
-                <StackPanel x:Name="ThinkingIndicator"
-                            Orientation="Horizontal"
-                            Spacing="8"
-                            Margin="16,0,0,0"
-                            Visibility="Collapsed">
-                    <Border Padding="12,8" CornerRadius="12"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <ProgressRing IsActive="True" Width="16" Height="16"/>
-                            <TextBlock x:Name="ThinkingText" Style="{StaticResource Type.Body}" Opacity="0.7"/>
+                    <!-- Typing indicator -->
+                    <StackPanel x:Name="ThinkingIndicator"
+                                Orientation="Horizontal"
+                                Spacing="8"
+                                Margin="16,0,0,0"
+                                Visibility="{x:Bind VM.IsThinking, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                        <Border Padding="12,8" CornerRadius="12"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <ProgressRing IsActive="True" Width="16" Height="16"/>
+                                <TextBlock x:Name="ThinkingText" Text="{x:Bind VM.ThinkingStatus, Mode=OneWay}"
+                                           Style="{StaticResource Type.Body}" Opacity="0.7"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Suggested prompts -->
+                    <StackPanel Spacing="{StaticResource Space.SM}" Margin="0,0,0,12"
+                                Visibility="{x:Bind VM.ShowSuggestions, Mode=OneWay}">
+                        <TextBlock Text="Try asking:" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
+                            <Button Content="What takes up the most space?" Click="SuggestedPrompt_Click"
+                                    Style="{StaticResource SuggestionChip}" Tag="What takes up the most space?"/>
+                            <Button Content="Summarize my disk usage" Click="SuggestedPrompt_Click"
+                                    Style="{StaticResource SuggestionChip}" Tag="Summarize my disk usage"/>
+                            <Button Content="Find cleanup opportunities" Click="SuggestedPrompt_Click"
+                                    Style="{StaticResource SuggestionChip}" Tag="Find cleanup opportunities"/>
                         </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <!-- Suggested prompts -->
-                <StackPanel Spacing="{StaticResource Space.SM}" Margin="0,0,0,12"
-                            Visibility="{x:Bind VM.ShowSuggestions, Mode=OneWay}">
-                    <TextBlock Text="Try asking:" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
-                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
-                        <Button Content="What takes up the most space?" Click="SuggestedPrompt_Click"
-                                Style="{StaticResource SuggestionChip}" Tag="What takes up the most space?"/>
-                        <Button Content="Summarize my disk usage" Click="SuggestedPrompt_Click"
-                                Style="{StaticResource SuggestionChip}" Tag="Summarize my disk usage"/>
-                        <Button Content="Find cleanup opportunities" Click="SuggestedPrompt_Click"
-                                Style="{StaticResource SuggestionChip}" Tag="Find cleanup opportunities"/>
                     </StackPanel>
                 </StackPanel>
-            </StackPanel>
-        </ScrollViewer>
+            </ScrollViewer>
+
+            <!-- Jump to latest (only when scrolled up to read history) -->
+            <Button x:Name="JumpToLatest"
+                    Click="JumpToLatest_Click"
+                    Visibility="Collapsed"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Margin="0,0,12,12"
+                    Style="{StaticResource SecondaryButton}"
+                    AutomationProperties.Name="Scroll to latest message">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="&#x2193;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center"/>
+                    <TextBlock Text="New messages" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </Grid>
 
         <!-- Input area -->
         <Grid Grid.Row="2" Margin="0,12,0,0">
@@ -218,7 +270,7 @@
             <Button Grid.Column="1"
                     Content="Send"
                     Click="Send_Click"
-                    IsEnabled="{x:Bind VM.IsNotBusy, Mode=OneWay}"
+                    IsEnabled="{x:Bind VM.CanSend, Mode=OneWay}"
                     Style="{StaticResource PrimaryButton}"
                     Margin="8,0,0,0"
                     AutomationProperties.Name="Send message"/>
@@ -226,6 +278,7 @@
                     Click="ClearChat_Click"
                     Style="{StaticResource SecondaryButton}"
                     Margin="4,0,0,0"
+                    IsEnabled="{x:Bind VM.IsNotBusy, Mode=OneWay}"
                     AutomationProperties.Name="Clear chat">
                 <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                     <FontIcon Glyph="&#xE894;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center"/>

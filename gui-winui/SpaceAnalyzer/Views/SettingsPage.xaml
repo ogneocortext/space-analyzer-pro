@@ -196,12 +196,13 @@
                             <StackPanel Spacing="{StaticResource Space.MD}">
                                 <TextBlock Text="Model" Style="{StaticResource Type.FieldHeading}"/>
                                 <TextBox Text="{x:Bind VM.OllamaModel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="gemma3:1b (or model name)"
+                                         PlaceholderText="Auto (best available)"
                                          IsEnabled="{x:Bind VM.ManualModelEnabled, Mode=OneWay}"
                                          AutomationProperties.Name="Ollama model name"
                                          Style="{StaticResource FieldTextBox}"/>
-                                <TextBlock Text="The model used for chat and analysis, e.g. gemma3:1b. Must be installed on the server."
-                                           Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                                <TextBlock Text="The model used for chat and analysis. Leave blank to auto-select the best available model from the benchmark ranking; otherwise enter an installed model name."
+                                            Style="{StaticResource Type.Hint}" TextWrapping="Wrap"
+                                            Visibility="{x:Bind VM.ManualModelEnabled, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
                                 <TextBlock Text="Auto-select is on — the model above is ignored and a suitable installed model is chosen automatically."
                                            Style="{StaticResource Type.Hint}" TextWrapping="Wrap"
                                            Visibility="{x:Bind VM.AutoModelSelection, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>

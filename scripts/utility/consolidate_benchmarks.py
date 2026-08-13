@@ -123,14 +123,38 @@ def _extract_result_row(json_file: Path, data: dict[str, Any]) -> dict[str, Any]
         "winner": comp.get("winner", ""),
         "recommendations": "; ".join(comp.get("recommendations", [])),
         "json_file": json_file.name,
-        "md_file": json_file.name.replace(".json", "_report.md"),
+        "md_path": str(json_file.with_name(json_file.stem + "_report.md")),
+        "md_file": json_file.with_name(json_file.stem + "_report.md").name,
         "json_path": str(json_file),
-        "md_path": str(json_file).replace(".json", "_report.md"),
     }
 
     for task_key, field_name in TASK_SCORE_FIELDS.items():
         row[field_name] = round(gpu_tasks.get(task_key, 0), 1)
     return row
+
+
+def _parse_timestamp(value: Any) -> tuple[int, Any]:
+    """Return a sortable key for a timestamp, robust to mixed formats.
+
+    Both numeric epochs and ISO-8601 strings are normalized to a float epoch
+    so they compare on equal footing (recency wins); unparseable strings fall
+    back to a lexicographic tier that sorts after any parseable value; missing
+    or empty values sort last.
+
+    Args:
+        value: Timestamp as int/float, ISO string, or unknown.
+
+    Returns:
+        Tuple usable with standard comparison operators.
+    """
+    if isinstance(value, (int, float)):
+        return (0, float(value))
+    if isinstance(value, str) and value:
+        try:
+            return (0, datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp())
+        except ValueError:
+            return (1, value)
+    return (2, "")
 
 
 def load_benchmark_results(benchmark_dir: Path = BENCHMARK_DIR) -> list[dict[str, Any]]:
@@ -163,12 +187,12 @@ def load_benchmark_results(benchmark_dir: Path = BENCHMARK_DIR) -> list[dict[str
         if row is not None:
             all_results.append(row)
 
-    # Deduplicate: keep the latest run per model.
+    # Deduplicate: keep the latest run per model (timestamp-aware).
     best_per_model: dict[str, dict[str, Any]] = {}
     for result in all_results:
         model = result["model"]
         existing = best_per_model.get(model)
-        if existing is None or result["timestamp"] > existing["timestamp"]:
+        if existing is None or _parse_timestamp(result["timestamp"]) > _parse_timestamp(existing["timestamp"]):
             best_per_model[model] = result
     return sorted(best_per_model.values(), key=lambda r: r["model"])
 
@@ -217,6 +241,42 @@ def _get_installed_models(timeout: int = OLLAMA_LIST_TIMEOUT_S) -> set[str]:
         if parts:
             models.add(parts[0])
     return models
+
+
+def _get_nvidia_smi_gpu() -> str | None:
+    """Detect the local GPU name and total VRAM via ``nvidia-smi``.
+
+    Returns:
+        A human-readable description like
+        ``"NVIDIA GeForce RTX 4070 (12 GB VRAM)"``, or ``None`` when
+        ``nvidia-smi`` is unavailable or its output cannot be parsed.
+    """
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as e:
+        logger.debug("nvidia-smi unavailable: %s", e)
+        return None
+
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    lines = [ln.strip() for ln in result.stdout.strip().split("\n") if ln.strip()]
+    if not lines:
+        return None
+    parts = [p.strip() for p in lines[0].split(",")]
+    if len(parts) < 2:
+        return None
+    name, mem_mib = parts[0], parts[1]
+    try:
+        mem_gb = round(float(mem_mib) / 1024)
+    except ValueError:
+        mem_gb = 0
+    return f"{name} ({mem_gb} GB VRAM)"
 
 
 def _winner_label(winner: str) -> str:
@@ -326,7 +386,7 @@ def _recommendation_lines(results: list[dict[str, Any]], installed: set[str]) ->
         lines.append(f"- **Best reasoning**: `{best_reasoning['model']}` — quality {best_reasoning['gpu_quality_score']:.1f}")
     if installed:
         lines.append("")
-        lines.append(f"**Total disk usage:** {', '.join(sorted(installed))}")
+        lines.append(f"**Installed models:** {', '.join(sorted(installed))}")
     return lines
 
 
@@ -367,19 +427,26 @@ def write_markdown_report(
     results: list[dict[str, Any]],
     output_md: Path = OUTPUT_MD,
     gpu_name: str = GPU_NAME_DEFAULT,
+    fetch_installed: bool = True,
 ) -> None:
     """Write the consolidated markdown report.
 
     Args:
         results: All result rows.
         output_md: Destination markdown path.
-        gpu_name: GPU description for the header.
+        gpu_name: GPU description for the header (overridden by the real GPU
+            name found in the benchmark data when available).
+        fetch_installed: When True, run ``ollama list`` to mark installed models.
+            Set False to skip the subprocess (e.g. Ollama not installed).
     """
-    installed = _get_installed_models()
+    installed = _get_installed_models() if fetch_installed else set()
+    data_gpu = next((r.get("gpu_name") for r in results if r.get("gpu_name")), "")
+    # Precedence: real hardware (nvidia-smi) > benchmark data name > CLI arg.
+    gpu_name_resolved = _get_nvidia_smi_gpu() or data_gpu or gpu_name
     lines: list[str] = [
         "# Ollama GPU vs CPU Benchmark — Consolidated Results",
         f"Generated: {datetime.now().isoformat()}",
-        f"GPU: {gpu_name}",
+        f"GPU: {gpu_name_resolved}",
         f"Models Tested: {len(results)}",
         "",
         "## Quick Comparison",
@@ -462,6 +529,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-csv", default=str(OUTPUT_CSV), help="Output CSV path")
     parser.add_argument("--output-md", default=str(OUTPUT_MD), help="Output markdown path")
     parser.add_argument("--gpu-name", default=GPU_NAME_DEFAULT, help="GPU description for the report")
+    parser.add_argument("--no-ollama", action="store_true",
+                        help="Skip 'ollama list' (installed-status lookups)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable debug logging")
     return parser.parse_args(argv)
 
@@ -491,7 +560,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     write_csv(results, Path(args.output_csv))
-    write_markdown_report(results, Path(args.output_md), gpu_name=args.gpu_name)
+    write_markdown_report(
+        results,
+        Path(args.output_md),
+        gpu_name=args.gpu_name,
+        fetch_installed=not args.no_ollama,
+    )
     _print_summary(results)
     return 0
 

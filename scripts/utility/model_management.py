@@ -237,38 +237,63 @@ class ModelManager:
         logger.error("Failed to pull %s: %s", model_name, result.stderr.strip())
         return False
 
-    def _load_benchmark_scores(self, benchmark_file: str) -> dict[str, dict[str, Any]]:
-        """Load aggregated benchmark scores for installed models.
+    def _load_benchmark_scores(self, benchmark_dir: str | Path) -> dict[str, dict[str, Any]]:
+        """Load benchmark scores for installed models from the benchmark directory.
+
+        Reads the per-run ``ollama_gpu_benchmark_*.json`` files produced by the
+        benchmark collector (see ``consolidate_benchmarks.py``), which store scores
+        under ``mode_scores.gpu``. Deduplicates to the latest run per model.
 
         Args:
-            benchmark_file: Path to a benchmark results JSON file.
+            benchmark_dir: Directory containing the benchmark JSON files.
 
         Returns:
-            Mapping of model name to score dict.
+            Mapping of model name to a score dict with keys
+            ``weighted_total``, ``quality_score``, ``performance_score``, and
+            ``task_scores``.
         """
-        path = Path(benchmark_file)
-        if not path.exists():
-            return {}
-        try:
-            with path.open(encoding="utf-8") as f:
-                data = json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
-            logger.warning("Could not read benchmark file %s: %s", path, e)
+        directory = Path(benchmark_dir)
+        if not directory.is_dir():
             return {}
 
-        scores = data.get("scores", {})
-        if not isinstance(scores, dict):
-            return {}
+        scores: dict[str, dict[str, Any]] = {}
+        for json_file in sorted(directory.glob("ollama_gpu_benchmark_*.json")):
+            if "latest" in json_file.name:
+                continue
+            try:
+                with json_file.open(encoding="utf-8") as f:
+                    data = json.load(f)
+            except (OSError, json.JSONDecodeError) as e:
+                logger.warning("Could not read benchmark file %s: %s", json_file, e)
+                continue
+
+            model = data.get("model")
+            if not model:
+                continue
+
+            # Keep only the latest run per model.
+            timestamp = data.get("timestamp", "")
+            if model in scores and scores[model].get("_timestamp", "") >= timestamp:
+                continue
+
+            gpu = data.get("mode_scores", {}).get("gpu", {})
+            scores[model] = {
+                "weighted_total": gpu.get("weighted_total", 0),
+                "quality_score": gpu.get("quality_score", 0),
+                "performance_score": gpu.get("avg_latency_ms", 0),
+                "task_scores": gpu.get("task_scores", {}),
+                "_timestamp": timestamp,
+            }
         return scores
 
     def analyze_installed_models(
         self,
-        benchmark_file: str | None = None,
+        benchmark_dir: str | Path | None = None,
     ) -> list[dict[str, Any]]:
         """Analyze installed models against use case requirements.
 
         Args:
-            benchmark_file: Optional path to benchmark results JSON.
+            benchmark_dir: Optional directory containing benchmark JSON results.
 
         Returns:
             Per-model analysis entries with size, use case fit, and benchmark data.
@@ -278,7 +303,7 @@ class ModelManager:
             logger.info("No models found")
             return []
 
-        benchmark_scores = self._load_benchmark_scores(benchmark_file) if benchmark_file else {}
+        benchmark_scores = self._load_benchmark_scores(benchmark_dir) if benchmark_dir else {}
         analysis: list[dict[str, Any]] = []
 
         for model in installed:
@@ -329,7 +354,12 @@ class ModelManager:
         Returns:
             Plan dict with keep/delete entries and total space to free.
         """
-        installed = {m["name"]: m for m in self.list_installed_models()}
+        installed = {m.get("name"): m for m in self.list_installed_models()}
+        # Single list fetch; derive sizes locally instead of re-querying per model.
+        size_lookup = {
+            name: float(m.get("size", 0)) / (1024 * 1024)
+            for name, m in installed.items()
+        }
 
         plan: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
@@ -343,16 +373,16 @@ class ModelManager:
             if model_name in installed:
                 plan["keep"].append({
                     "model": model_name,
-                    "size_mb": self.get_model_size_mb(model_name),
+                    "size_mb": round(size_lookup.get(model_name, 0.0), 1),
                 })
 
         for model_name in delete_models:
             if model_name not in installed:
                 continue
-            size = self.get_model_size_mb(model_name)
+            size = size_lookup.get(model_name, 0.0)
             plan["delete"].append({
                 "model": model_name,
-                "size_mb": size,
+                "size_mb": round(size, 1),
             })
             plan["total_space_freed_mb"] += size
             if not dry_run:
@@ -364,35 +394,45 @@ class ModelManager:
         """Interactive cleanup wizard based on benchmark results.
 
         Args:
-            benchmark_dir: Directory containing benchmark JSON files.
+            benchmark_dir: Directory containing the per-run benchmark JSON files
+                (``ollama_gpu_benchmark_*.json``).
         """
-        latest = Path(benchmark_dir) / "latest.json"
-        if not latest.exists():
+        directory = Path(benchmark_dir)
+        scores = self._load_benchmark_scores(directory) if directory.is_dir() else {}
+        if not scores:
             logger.info("No benchmark results found in %s/", benchmark_dir)
-            logger.info("Run: python scripts/model_benchmark.py first")
-            return
+            logger.info("Run benchmark collection first (writes ollama_gpu_benchmark_*.json there).")
+            logger.info("You can still review installed models manually below.")
 
-        with latest.open(encoding="utf-8") as f:
-            data = json.load(f)
+        installed = self.list_installed_models()
+        installed_names = [m.get("name") for m in installed]
+        size_lookup = {
+            m.get("name"): float(m.get("size", 0)) / (1024 * 1024)
+            for m in installed
+        }
 
         logger.info("=" * 60)
         logger.info("MODEL CLEANUP WIZARD")
         logger.info("=" * 60)
 
-        installed_names = [m["name"] for m in self.list_installed_models()]
         keep: list[str] = []
         delete: list[str] = []
 
-        for rec in data.get("model_scores", {}):
-            if rec not in installed_names:
-                continue
-
-            size_mb = self.get_model_size_mb(rec)
-            action = input(f"  Model: {rec} (size: {size_mb:.0f} MB) — Keep/Delete/Skip? [k/d/s]: ").strip().lower()
+        for name in installed_names:
+            score = scores.get(name)
+            score_str = f" (benchmark weighted: {score['weighted_total']:.1f})" if score else ""
+            try:
+                action = input(
+                    f"  Model: {name} ({size_lookup.get(name, 0.0):.0f} MB){score_str} "
+                    f"— Keep/Delete/Skip? [k/d/s]: "
+                ).strip().lower()
+            except EOFError:
+                logger.warning("No interactive input available; stopping wizard.")
+                break
             if action == "d":
-                delete.append(rec)
+                delete.append(name)
             elif action == "k":
-                keep.append(rec)
+                keep.append(name)
 
         plan = self.generate_cleanup_plan(keep, delete, dry_run=True)
         logger.info(
@@ -402,7 +442,12 @@ class ModelManager:
             plan["total_space_freed_mb"],
         )
 
-        if input("Execute cleanup? [y/n]: ").strip().lower() == "y":
+        try:
+            confirm = input("Execute cleanup? [y/n]: ").strip().lower()
+        except EOFError:
+            logger.warning("No interactive input available; cancelling.")
+            confirm = "n"
+        if confirm == "y":
             plan = self.generate_cleanup_plan(keep, delete, dry_run=False)
             logger.info("Cleanup complete! Freed %.0f MB", plan["total_space_freed_mb"])
         else:
@@ -421,7 +466,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Ollama Model Management for Space Analyzer")
     parser.add_argument("--list", action="store_true", help="List installed models")
     parser.add_argument("--analyze", action="store_true", help="Analyze models against use cases")
-    parser.add_argument("--benchmark-file", default=None, help="Path to benchmark results JSON")
+    parser.add_argument("--benchmark-dir", default=None, help="Directory of benchmark results JSON (default: benchmark_results)")
     parser.add_argument("--cleanup", action="store_true", help="Interactive cleanup wizard")
     parser.add_argument("--rm", default=None, help="Remove a specific model")
     parser.add_argument("--pull", default=None, help="Pull a specific model")
@@ -459,16 +504,18 @@ def _print_installed_models(manager: ModelManager) -> None:
         print(f"  {model['name']:<40} {size_mb:>8.1f} MB")
 
 
-def _print_analysis(manager: ModelManager, benchmark_file: str | None) -> None:
+def _print_analysis(manager: ModelManager, benchmark_dir: str | None) -> None:
     """Print a formatted model analysis report.
 
     Args:
         manager: Initialized ModelManager.
-        benchmark_file: Optional benchmark file path.
+        benchmark_dir: Optional benchmark directory path.
     """
     print("\nModel Analysis:")
-    for item in manager.analyze_installed_models(benchmark_file):
+    for item in manager.analyze_installed_models(benchmark_dir):
         print(f"\n  {item['model']} ({item['size_mb']} MB)")
+        if item["benchmark_available"]:
+            print(f"    Benchmark: weighted={item['last_benchmark_weighted_total']}")
         if item["suitable_for"]:
             for uc in item["suitable_for"]:
                 print(f"    -> {uc['use_case']} [{uc['priority']}]")
@@ -514,8 +561,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.list:
         _print_installed_models(manager)
-    elif args.analyze:
-        _print_analysis(manager, args.benchmark_file)
+    if args.analyze:
+        _print_analysis(manager, args.benchmark_dir)
     elif args.use_cases:
         _print_use_cases()
     elif args.cleanup:
