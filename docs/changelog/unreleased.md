@@ -182,5 +182,31 @@
 - **Made `save_embeddings` idempotent** — `src/database/embeddings.rs` now `DELETE`s a scan's existing vectors before inserting, so repeated `embed` runs / GUI "Rebuild Index" clicks no longer append duplicate rows (previously each rebuild doubled the vectors for a scan, bloating the table and producing duplicate results).
 - **Integration test (2026-08-12)** — end-to-end `embed` → `semantic-search` verified on `nomic-embed-text`. Natural-language queries rank the right file type at the top every time (e.g. "tax and invoice documents" → PDFs first; "videos of my holiday" → `.mp4` first; "computer programming source code" → `.rs` first). The dimension guard was validated live by truncating a stored vector's dimension: it returns the expected "re-run `embed`" error. Re-index idempotency confirmed (12 rows after a double `embed`, was 24 before the fix).
 - Updated the live `live_semantic_search` test and the AI Tools panel doc comment to reference `nomic-embed-text:v1.5`.
-- **GUI `--min-score` threshold for semantic search** — the Smart Search page now exposes a "Minimum similarity" slider (0–100%, 0 = off) in semantic mode. `SmartSearchViewModel.MinScorePercent` passes a 0..1 `min_score` through `ScannerService.SemanticSearchAsync` → the Rust `semantic-search --min-score` flag, so users can drop mid-pack "central-document" noise directly from the UI.
+  - **GUI `--min-score` threshold for semantic search** — the Smart Search page now exposes a "Minimum similarity" slider (0–100%, 0 = off) in semantic mode. `SmartSearchViewModel.MinScorePercent` passes a 0..1 `min_score` through `ScannerService.SemanticSearchAsync` → the Rust `semantic-search --min-score` flag, so users can drop mid-pack "central-document" noise directly from the UI.
+
+### AI Assistant — Capability-Aware Model Auto-Selection & UX (this session)
+
+- **Default model is now benchmark-driven, not a hardcoded literal** — `AppSettings.OllamaModel` default changed from `gemma3:1b` (absent from rankings) to an empty "auto" sentinel. When the user has not explicitly chosen a model, `ModelPreferences.PickRecommended()` ranks the installed models by a benchmark-derived code/reasoning ranking (`qwen3.5:4b` → `deepseek-r1:7b` → `gemma4:e2b-it-qat` → `llama3.2:3b`), with tool-capability and size as tie-breakers; the chosen model is persisted to Settings and highlighted ("default" badge) in the installed-model list. Explicit selection still wins.
+- **Connection status badge + manual Retry** — `AIAssistantPage` shows a themed status badge (green connected / red offline / gray disabled) with a glyph; a Retry button re-probes Ollama immediately instead of waiting for the 30s auto-refresh tick.
+- **Transcript auto-scroll tail** — new `followTail` tracking keeps new messages in view only while the user is at the bottom; a "Jump to latest" button appears when scrolled up so reading history is never yanked away by an incoming reply.
+- **Enter to send** — Enter (or Ctrl+Enter) sends; Shift+Enter inserts a newline. Send is gated on `CanSend` (idle + non-empty input).
+- Added `OllamaModelInfo.IsDefault` (UI-only, `[JsonIgnore]`) so the assistant page can highlight the configured default model.
+
+### WinUI 3 — Timestamp Timezone Correctness (this session)
+
+- **Fixed UTC wall-clock vs local wall-clock bug in date-based workflows** — `ToolExecutor.Workflows` (`find_old_files`, `find_recently_modified`, `find_by_date_range`, `find_files_older_than`, `downloads_folder_bloat`) and `WorkflowsViewModel` partials (`AgeAndSize`, `Older`, `Specialized`) compared `DateTimeOffset.FromUnixTimeSeconds(mtime).DateTime` (UTC wall-clock) against local `DateTime.Now`/cutoff, so results were off by the machine timezone offset (Arizona MST UTC-7). All comparison/display sites now use `.LocalDateTime`.
+- **Fixed Smart Search timestamp display** — `SmartSearchViewModel.DateKey` (group-by month) and `FormatUnixSeconds` (result timestamp) now render local time via `.LocalDateTime` instead of UTC wall-clock.
+- **Removed redundant double-fetch** in `HistoryViewModel.SelectRecordByIdAsync` (no longer re-fetches the same record by id).
+
+### Rust — Package Rename, USN & App-Inventory Fixes (this session)
+
+- **Renamed workspace packages** — root crate `space-analyzer-pro-desktop` → `space-analyzer`; native scanner `space-analyzer` → `space-analyzer-scanner` (to avoid a name clash with the root). Updated `gui-egui/Cargo.toml` dep key and `Cargo.lock`; the `space_scanner` path dependency now points at `space-analyzer-scanner`. Validated via `cargo check`/`clippy`/`test` on all three crates.
+- **Fixed Scoop install `drive` attribution** — `app_inventory::collect_scoop_apps` was calling `drive_of(&app_name)` (the app display name) instead of `drive_of(&loc)` (the install location), so Scoop apps were filed under the wrong drive. Now uses the real install path.
+- **Fixed USN `to_volume_path`** — previously stripped the colon, producing `\\.\C` (invalid for `CreateFile`); now emits `\\.\C:` (retains the drive letter + colon), matching the Win32 volume-open API.
+- **Made Ollama `PromptCache` opt-in** — `OllamaClientBuilder` no longer builds a default cache unless `with_cache` was called; `chat_with_tools` doc corrected to return `(content, thinking, tool_calls, usage)`.
+
+### Scripts — Benchmark Tooling
+
+- **`model_management.py` reads a benchmark directory** — `_load_benchmark_scores` now loads per-run `ollama_gpu_benchmark_*.json` files (deduped to the latest run per model) instead of a single file, feeding the AI model auto-selection ranking.
+- **`consolidate_benchmarks.py` robustness** — timestamp-aware dedup (`_parse_timestamp` normalizes epoch + ISO-8601 on equal footing), correct `md_path`/`json_path` derivation, and `nvidia-smi` GPU name/VRAM detection for the consolidated report.
 
