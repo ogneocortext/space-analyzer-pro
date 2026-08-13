@@ -133,6 +133,32 @@ def apply_patch(issue: dict, patch: str) -> bool:
 
 def run_verify(cmd: str) -> bool:
     print(f"  [verify] {cmd}")
+    try:
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=600
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"  [verify error] {exc}")
+        return False
+    if result.returncode != 0:
+        print(f"  [verify failed] rc={result.returncode}")
+        out = (result.stdout or "") + (result.stderr or "")
+        if out.strip():
+            print(out.strip()[-2000:])
+        return False
+    print("  [verify ok]")
+    return True
+
+
+def revert_patch(patch: str) -> bool:
+    result = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "apply", "-R", "--whitespace=nowarn", "-"],
+        input=patch, capture_output=True, text=True, timeout=30
+    )
+    if result.returncode != 0:
+        print(f"  [revert failed] {result.stderr[:200]}")
+        return False
+    print("  [reverted] patch (verification failed)")
     return True
 
 
@@ -257,6 +283,7 @@ def run_loop(cfg: LoopConfig) -> None:
             else:
                 reason = f"Verification failed: {cfg.verify_cmd}"
                 bump_failure(tracker, iid, reason)
+                revert_patch(patch)
                 failed.add(iid)
                 state["failed"] = list(failed)
                 save_tracker(tracker)

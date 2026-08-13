@@ -156,8 +156,12 @@ def encode_image_for_vision(path: Path) -> bytes | None:
 def _parse_model_text(text: str) -> str:
     """Strip thinking traces and convert to plain text."""
     import re
-    text = re.sub(r"<think>.*?<\|channel\|>", "", text, flags=re.DOTALL | re.IGNORECASE)
-    text = re.sub(r"<think>.*?(?:\n|$)", "", text, flags=re.DOTALL | re.IGNORECASE)
+    # Drop full <think>...</think> reasoning blocks (tolerant of case).
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    # Drop any unterminated <think>... to end of string (model omitted close tag).
+    text = re.sub(r"<think>.*$", "", text, flags=re.DOTALL | re.IGNORECASE)
+    # Drop qwen channel-token artifacts.
+    text = re.sub(r"<\|channel\|>", "", text, flags=re.IGNORECASE)
     return text.strip()
 
 
@@ -170,7 +174,7 @@ def ask_ollama(
     json_schema: dict[str, Any] | None = None,
 ) -> str:
     client = client or OllamaClient()
-    effective_model = _pick_vision_model(client) if not client else model
+    effective_model = model
     image_b64 = encode_image_for_vision(image_path) if image_path else None
 
     if image_b64:
@@ -387,12 +391,14 @@ def _build_analysis_prompt(context: str) -> str:
 def _build_code_prompt(analysis: str) -> str:
     feedback = analysis[:MAX_FEEDBACK_CHARS] if analysis else "No analysis available"
     schema_hint = (
-        '{"changes":[{"file":"gui-egui/...","change":"...","why":"..."}]}'
+        '{"changes":[{"file":"gui-winui/SpaceAnalyzer/Views/ExamplePage.xaml","change":"...","why":"..."}]}'
     )
     return (
-        "Based on this UX feedback, suggest exactly 3 specific egui code changes.\n"
+        "Based on this UX feedback, suggest exactly 3 specific WinUI 3 code changes.\n"
         "Return ONLY a compact JSON object with no prose.\n"
-        "Each change targets one of: Visuals, Frame, Style, Layout.\n"
+        "Each change targets one of: XAML Layout, Styling/Resources, Data Binding, "
+        "Code-Behind (C#). Prefer editing files under gui-winui/SpaceAnalyzer/ "
+        "(Views/*.xaml, Views/*.xaml.cs, Services/*.cs, App.xaml resources).\n"
         f"FEEDBACK:\n{feedback}\n"
         f"{schema_hint}"
     )
@@ -507,13 +513,13 @@ def run_analysis(
     analysis_prompt = _build_analysis_prompt(context)
     print("\nAnalyzing with LLM (JSON schema)...", end=" ", flush=True)
     analysis = ask_ollama(
-        analysis_prompt, client=client, json_schema=ANALYSIS_SCHEMA, image_path=scan_image
+        analysis_prompt, model=picked_model, client=client, json_schema=ANALYSIS_SCHEMA, image_path=scan_image
     )
     print("OK")
 
     code_prompt = _build_code_prompt(analysis)
     print("\nGenerating code recommendations...", end=" ", flush=True)
-    code_recs = ask_ollama(code_prompt, client=client, json_schema=CODE_SCHEMA)
+    code_recs = ask_ollama(code_prompt, model=picked_model, client=client, json_schema=CODE_SCHEMA)
     print("OK")
 
     comparison, _ = compare_with_history(extracted, ts)

@@ -418,7 +418,7 @@ def _next_persona(order: list[str]) -> str:
 
 # --------------------------------------------------------------------------- #
 # Main loop
-def run(shots_dir: Path, model: str, persona_keys: list[str], out_dir: Path) -> int:
+def run(shots_dir: Path, model: str, persona_keys: list[str], out_dir: Path, max_dim: int) -> int:
     shots = _ordered_shots(shots_dir)
     if not shots:
         logger.error("No PNG screenshots in %s", shots_dir)
@@ -447,7 +447,7 @@ def run(shots_dir: Path, model: str, persona_keys: list[str], out_dir: Path) -> 
             for i, path in enumerate(shots, start=1):
                 stem = path.stem
                 context = SHOT_CONTEXT.get(stem, stem)
-                img = encode_image_for_vision(path)
+                img = encode_image_for_vision(path, max_dim=max_dim)
                 if img is None:
                     logger.error("skipping %s (encode failed)", stem)
                     continue
@@ -509,9 +509,6 @@ def main(argv: list[str] | None = None) -> int:
         format="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%H:%M:%S",
     )
-    global VISION_IMG_MAX
-    VISION_IMG_MAX = args.max_dim
-
     shots_dir = _resolve_shots_dir(Path(args.shots_root), args.shots_dir)
     if shots_dir is None:
         logger.error("Could not resolve a screenshots directory")
@@ -524,7 +521,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     out_dir = Path(args.out) if args.out else shots_dir.parent
-    return run(shots_dir, args.model, persona_keys, out_dir)
+    return run(shots_dir, args.model, persona_keys, out_dir, args.max_dim)
 
 
 if __name__ == "__main__":
