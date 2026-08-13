@@ -839,7 +839,7 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
         if (mtime <= 0) return "Unknown date";
         try
         {
-            var dt = DateTimeOffset.FromUnixTimeSeconds(mtime);
+            var dt = DateTimeOffset.FromUnixTimeSeconds(mtime).LocalDateTime;
             return $"{dt.Year} / {dt.Month:00}";
         }
         catch { return "Unknown date"; }
@@ -899,7 +899,7 @@ public class SmartSearchViewModel : ViewModelBase, IDisposable
 
     private static string FormatUnixSeconds(long secs)
     {
-        try { return DateTimeOffset.FromUnixTimeSeconds(secs).ToString("yyyy-MM-dd HH:mm"); }
+        try { return DateTimeOffset.FromUnixTimeSeconds(secs).LocalDateTime.ToString("yyyy-MM-dd HH:mm"); }
         catch { return "-"; }
     }
 

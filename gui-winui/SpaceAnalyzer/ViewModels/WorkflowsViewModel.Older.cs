@@ -106,7 +106,7 @@ public partial class WorkflowsViewModel
                     {
                         await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
                     var collected = result.ScannedFiles
-                            .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime >= cutoff)
+                            .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime >= cutoff)
                             .Select(kvp => new SmartSearchResult
                             {
                                 Path = kvp.Key,
@@ -177,7 +177,7 @@ public partial class WorkflowsViewModel
                     {
                         await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
                     var collected = result.ScannedFiles
-                            .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime < cutoff)
+                            .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime < cutoff)
                             .Select(kvp => new SmartSearchResult
                             {
                                 Path = kvp.Key,
@@ -426,7 +426,7 @@ public partial class WorkflowsViewModel
                         await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
                     foreach (var kvp in result.ScannedFiles)
                         {
-                            if ((long)kvp.Value.Size >= minBytes || DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime < cutoff)
+                            if ((long)kvp.Value.Size >= minBytes || DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime < cutoff)
                             {
                                 collected.Add(new SmartSearchResult
                                 {

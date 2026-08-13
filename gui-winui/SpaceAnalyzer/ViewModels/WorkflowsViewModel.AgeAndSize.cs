@@ -182,7 +182,7 @@ public partial class WorkflowsViewModel
                         await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
                     foreach (var kvp in result.ScannedFiles)
                         {
-                            var lastModified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime;
+                            var lastModified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime;
                             if (lastModified < cutoff)
                             {
                                 collected.Add(new SmartSearchResult
@@ -259,7 +259,7 @@ public partial class WorkflowsViewModel
                         await EnsureScannedFilesAsync(result, TargetPath, _cts.Token);
                     foreach (var kvp in result.ScannedFiles)
                         {
-                            var lastModified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime;
+                            var lastModified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime;
                             if (lastModified >= cutoff)
                             {
                                 collected.Add(new SmartSearchResult

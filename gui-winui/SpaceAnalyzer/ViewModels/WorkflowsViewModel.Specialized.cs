@@ -165,7 +165,6 @@ public partial class WorkflowsViewModel
                     return;
                 }
                 var url = AppSettings.OllamaUrl;
-                var model = AppSettings.OllamaModel;
                 if (!AppSettings.OllamaEnabled)
                 {
                     OnUi(() => { ReportTitle = "AI Analysis"; Report = "Ollama is disabled in Settings."; });
@@ -177,6 +176,19 @@ public partial class WorkflowsViewModel
                     OnUi(() => { ReportTitle = "AI Analysis"; Report = $"Ollama server at {url} is not reachable. Start Ollama and retry."; });
                     return;
                 }
+                // Resolve the model: explicit selection if set, otherwise the best
+                // available model from the benchmark ranking. If no models are
+                // installed at all, say so instead of sending to a missing model.
+                var installed = await client.GetInstalledModelsAsync(_cts.Token);
+                var recommended = ModelPreferences.PickRecommended(installed);
+                if (string.IsNullOrWhiteSpace(AppSettings.OllamaModel) && recommended is null)
+                {
+                    OnUi(() => { ReportTitle = "AI Analysis"; Report = "No Ollama models are installed. Pull a model (e.g. 'ollama pull qwen3.5:4b') to enable AI analysis."; });
+                    return;
+                }
+                var model = !string.IsNullOrWhiteSpace(AppSettings.OllamaModel)
+                    ? AppSettings.OllamaModel
+                    : recommended!;
                 var prompt = BuildAnalysisPrompt();
                 var messages = new List<ChatMessage>
                 {

@@ -80,8 +80,8 @@ public partial class ToolExecutor
             var result = await _scanner.ScanDirectoryAsync(path, depthMode: ScannerService.DepthMode.Deep, ct: ct);
             if (result is null) return "Scan returned no results.";
             var files = result.ScannedFiles
-                .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime < cutoff)
-                .Select(kvp => new { path = kvp.Key, name = Path.GetFileName(kvp.Key), size_bytes = kvp.Value.Size, size_display = ByteFormatter.FormatBytes(kvp.Value.Size), last_modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime.ToString("o") })
+                .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime < cutoff)
+                .Select(kvp => new { path = kvp.Key, name = Path.GetFileName(kvp.Key), size_bytes = kvp.Value.Size, size_display = ByteFormatter.FormatBytes(kvp.Value.Size), last_modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime.ToString("o") })
                 .OrderByDescending(x => x.size_bytes)
                 .ToList();
             return JsonSerializer.Serialize(new { workflow = "find_old_files", count = files.Count, results = files }, s_json);
@@ -94,8 +94,8 @@ public partial class ToolExecutor
             var result = await _scanner.ScanDirectoryAsync(path, depthMode: ScannerService.DepthMode.Deep, ct: ct);
             if (result is null) return "Scan returned no results.";
             var files = result.ScannedFiles
-                .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime >= cutoff)
-                .Select(kvp => new { path = kvp.Key, name = Path.GetFileName(kvp.Key), size_bytes = kvp.Value.Size, size_display = ByteFormatter.FormatBytes(kvp.Value.Size), last_modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime.ToString("o") })
+                .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime >= cutoff)
+                .Select(kvp => new { path = kvp.Key, name = Path.GetFileName(kvp.Key), size_bytes = kvp.Value.Size, size_display = ByteFormatter.FormatBytes(kvp.Value.Size), last_modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime.ToString("o") })
                 .OrderByDescending(x => x.size_bytes)
                 .ToList();
             return JsonSerializer.Serialize(new { workflow = "find_recently_modified", count = files.Count, results = files }, s_json);
@@ -171,12 +171,12 @@ public partial class ToolExecutor
 
             IEnumerable<KeyValuePair<string, ScannedFileEntry>> files = result.ScannedFiles;
             if (start.HasValue)
-                files = files.Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime >= start.Value);
+                files = files.Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime >= start.Value);
             if (end.HasValue)
-                files = files.Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime <= end.Value);
+                files = files.Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime <= end.Value);
 
             var list = files
-                .Select(kvp => new { path = kvp.Key, name = Path.GetFileName(kvp.Key), size_bytes = kvp.Value.Size, size_display = ByteFormatter.FormatBytes(kvp.Value.Size), last_modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime.ToString("o") })
+                .Select(kvp => new { path = kvp.Key, name = Path.GetFileName(kvp.Key), size_bytes = kvp.Value.Size, size_display = ByteFormatter.FormatBytes(kvp.Value.Size), last_modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime.ToString("o") })
                 .OrderByDescending(x => x.size_bytes)
                 .ToList();
             return JsonSerializer.Serialize(new { workflow = "find_by_date_range", start_date = startDate, end_date = endDate, count = list.Count, results = list }, s_json);
@@ -189,8 +189,8 @@ public partial class ToolExecutor
             var result = await _scanner.ScanDirectoryAsync(path, depthMode: ScannerService.DepthMode.Deep, ct: ct);
             if (result is null) return "Scan returned no results.";
             var files = result.ScannedFiles
-                .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime < cutoff)
-                .Select(kvp => new { path = kvp.Key, name = Path.GetFileName(kvp.Key), size_bytes = kvp.Value.Size, size_display = ByteFormatter.FormatBytes(kvp.Value.Size), last_modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime.ToString("o") })
+                .Where(kvp => DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime < cutoff)
+                .Select(kvp => new { path = kvp.Key, name = Path.GetFileName(kvp.Key), size_bytes = kvp.Value.Size, size_display = ByteFormatter.FormatBytes(kvp.Value.Size), last_modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime.ToString("o") })
                 .OrderByDescending(x => x.size_bytes)
                 .ToList();
             return JsonSerializer.Serialize(new { workflow = "find_files_older_than", days_old = daysOld, count = files.Count, results = files }, s_json);
@@ -253,8 +253,8 @@ public partial class ToolExecutor
             var result = await _scanner.ScanDirectoryAsync(path, depthMode: ScannerService.DepthMode.Deep, ct: ct);
             if (result is null) return "Scan returned no results.";
             var files = result.ScannedFiles
-                .Where(kvp => (long)kvp.Value.Size >= minBytes || DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime < cutoff)
-                .Select(kvp => new { path = kvp.Key, name = Path.GetFileName(kvp.Key), size_bytes = kvp.Value.Size, size_display = ByteFormatter.FormatBytes(kvp.Value.Size), last_modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).DateTime.ToString("o") })
+                .Where(kvp => (long)kvp.Value.Size >= minBytes || DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime < cutoff)
+                .Select(kvp => new { path = kvp.Key, name = Path.GetFileName(kvp.Key), size_bytes = kvp.Value.Size, size_display = ByteFormatter.FormatBytes(kvp.Value.Size), last_modified = DateTimeOffset.FromUnixTimeSeconds(kvp.Value.Mtime).LocalDateTime.ToString("o") })
                 .OrderByDescending(x => x.size_bytes)
                 .ToList();
             return JsonSerializer.Serialize(new { workflow = "downloads_folder_bloat", min_size_mb = minMb, days_old = daysOld, count = files.Count, results = files }, s_json);

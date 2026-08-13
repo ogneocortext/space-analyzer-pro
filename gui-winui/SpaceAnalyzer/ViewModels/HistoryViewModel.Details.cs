@@ -47,8 +47,7 @@ public partial class HistoryViewModel
                 StatusMessage = $"Scan record {id} not found";
                 return;
             }
-            var details = await _scanner.GetScanDetailsAsync(record.Id);
-            SelectedRecord = details ?? record;
+            SelectedRecord = record;
             StatusMessage = "Details loaded";
         }
         catch (Exception ex)
