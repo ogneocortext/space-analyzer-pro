@@ -13,8 +13,10 @@ fn is_transient_chat_error(err: &OllamaError) -> bool {
 }
 
 impl OllamaClient {
-    /// Send chat messages with optional tool definitions and tool_choice control
-    /// Returns (content, tool_calls, usage) - if tool_calls is Some, the model wants to call tools
+    /// Send chat messages with optional tool definitions and tool_choice control.
+    /// Returns `(content, thinking, tool_calls, usage)`:
+    /// - `thinking` is the model's reasoning trace (may be `None` when thinking is off)
+    /// - if `tool_calls` is `Some`, the model wants to call one or more tools
     pub async fn chat_with_tools(
         &self,
         messages: Vec<ChatMessage>,

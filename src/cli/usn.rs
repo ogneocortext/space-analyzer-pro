@@ -4,15 +4,16 @@ use crate::cli::args::{OutputFormat, UsnCommand};
 use space_analyzer_pro_desktop::error::{AppError, AppResult};
 
 /// Convert a user-supplied drive spec (`C:`, `C:\`, `C`, `c`) into the
-/// `\\.\X` volume path expected by the Win32 volume-open API.
+/// `\\.\X:` volume path expected by the Win32 volume-open API
+/// (`CreateFile("\\\\.\\C:")` opens the C: volume).
 fn to_volume_path(drive: &str) -> String {
     let letter = drive
         .trim()
-        .trim_end_matches([':', '\\', '/', '.', '\\', '/'])
         .chars()
-        .last()
-        .unwrap_or('C');
-    format!("\\\\.\\{}", letter)
+        .next()
+        .unwrap_or('C')
+        .to_ascii_uppercase();
+    format!("\\\\.\\{}:", letter)
 }
 
 /// Dispatch the `usn` subcommand. USN journals are Windows/NTFS only.

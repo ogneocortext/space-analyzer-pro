@@ -160,10 +160,11 @@ impl OllamaClientBuilder {
             .pool_max_idle_per_host(4)
             .build()?;
 
-        let cache = self
-            .cache_config
-            .map(PromptCache::new)
-            .or_else(|| Some(PromptCache::new(PromptCacheConfig::default())));
+        // Prompt caching is opt-in: only build a cache when `with_cache` was
+        // called. The default `None` keeps the client lean for callers that
+        // don't request caching (the cache is consulted by the request path only
+        // when present).
+        let cache = self.cache_config.map(PromptCache::new);
 
         let fallback_config = self.fallback_config.unwrap_or_default();
 

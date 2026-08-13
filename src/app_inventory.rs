@@ -466,7 +466,7 @@ fn collect_scoop_apps() -> Vec<AppInstance> {
                             display_name: app_name.clone(),
                             version: Some(version),
                             install_location: Some(loc.clone()),
-                            drive: drive_of(&app_name),
+                            drive: drive_of(&loc),
                             estimated_size_bytes: dir_size(&v.path()),
                             publisher: None,
                             uninstall_string: None,

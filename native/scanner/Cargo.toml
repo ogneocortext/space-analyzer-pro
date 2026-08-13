@@ -1,5 +1,5 @@
 [package]
-name = "space-analyzer"
+name = "space-analyzer-scanner"
 version = "1.0.0"
 edition = "2021"
 authors = ["Space Analyzer Team"]

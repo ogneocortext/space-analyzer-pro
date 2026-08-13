@@ -5306,66 +5306,6 @@ dependencies = [
 
 [[package]]
 name = "space-analyzer"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "crossbeam",
- "md5",
- "napi",
- "napi-build",
- "napi-derive",
- "num_cpus",
- "rayon",
- "regex",
- "serde",
- "serde_json",
- "temporal_rs",
- "tokio",
- "walkdir",
- "winapi",
-]
-
-[[package]]
-name = "space-analyzer-gui-egui"
-version = "3.7.0"
-dependencies = [
- "anyhow",
- "bytes",
- "bytesize",
- "chrono",
- "eframe",
- "egui",
- "egui-elegance",
- "egui-phosphor",
- "egui_extras",
- "egui_plot",
- "file-deduplicator",
- "futures",
- "humantime",
- "image",
- "num_cpus",
- "open",
- "regex",
- "reqwest",
- "rfd",
- "serde",
- "serde_json",
- "shared-scanner",
- "space-analyzer-pro-desktop",
- "sysinfo",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "uuid",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "space-analyzer-pro-desktop"
 version = "3.7.0"
 dependencies = [
  "anyhow",
@@ -5405,7 +5345,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "shared-scanner",
- "space-analyzer",
+ "space-analyzer-scanner",
  "sysinfo",
  "tar",
  "tempfile",
@@ -5423,6 +5363,66 @@ dependencies = [
  "windows-sys 0.61.2",
  "winreg",
  "zip",
+]
+
+[[package]]
+name = "space-analyzer-gui-egui"
+version = "3.7.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "bytesize",
+ "chrono",
+ "eframe",
+ "egui",
+ "egui-elegance",
+ "egui-phosphor",
+ "egui_extras",
+ "egui_plot",
+ "file-deduplicator",
+ "futures",
+ "humantime",
+ "image",
+ "num_cpus",
+ "open",
+ "regex",
+ "reqwest",
+ "rfd",
+ "serde",
+ "serde_json",
+ "shared-scanner",
+ "space-analyzer",
+ "sysinfo",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "space-analyzer-scanner"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "crossbeam",
+ "md5",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "num_cpus",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_json",
+ "temporal_rs",
+ "tokio",
+ "walkdir",
+ "winapi",
 ]
 
 [[package]]

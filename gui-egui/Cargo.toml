@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Core library (workspace root crate)
-space-analyzer-pro-desktop = { path = ".." }
+space-analyzer = { path = ".." }
 shared-scanner = { path = "../shared-scanner", features = ["gpu"] }
 file-deduplicator = { path = "../native/file_deduplicator" }
 
