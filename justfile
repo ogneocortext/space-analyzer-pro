@@ -316,4 +316,4 @@ build-winui-debug:
 # Full WinUI 3 release package: Rust CLI + cleaner + WinUI exe, no egui build.
 # VERSION defaults to the planned release; override with: just package-winui 4.0.0
 package-winui VERSION="4.0.0": build-release-cli build-winui
-    @powershell -Command "$v='{{VERSION}}'; $src='gui-winui/SpaceAnalyzer/bin/x64/Release/net10.0-windows10.0.22621.0'; $z=\"dist/space-analyzer-winui-$v-windows-x64.zip\"; if (-not (Test-Path dist)) { New-Item -ItemType Directory -Path dist | Out-Null }; if (Test-Path $z) { Remove-Item $z }; Compress-Archive -Path \"$src/*\" -DestinationPath $z; echo \"Package: $z\""
+    pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/package_winui.ps1 {{VERSION}}
