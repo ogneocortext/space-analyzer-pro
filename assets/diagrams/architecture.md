@@ -1,14 +1,14 @@
 ```mermaid
 graph TB
     subgraph Entry["Entry Points"]
-        GUI["space-analyzer-gui.exe<br/>(egui/eframe)"]
+        GUI["SpaceAnalyzer.exe<br/>(WinUI 3)"]
         CLI["space-analyzer-cli.exe<br/>(CLI Scanner)"]
         FTH["flow-test-harness.exe<br/>(Integration Tests)"]
     end
 
     subgraph App["Rust Application Core (src/)"]
         direction TB
-        Gui["gui/<br/>8 tabs · dashboard · scan · history ·<br/>smart search · workflows · AI chat ·<br/>system · settings"]
+        Gui["Views/<br/>11 pages · Dashboard · Scan · History ·<br/>Smart Search · Workflows · AI Assistant ·<br/>Duplicates · System · Cleanup · Settings · About"]
         Ollama["ollama/<br/>LLM client · chat · streaming ·<br/>embeddings · prompt cache"]
         DB["database/<br/>SQLite (rusqlite)<br/>scans · embeddings · workflows · settings"]
         WF["workflows/<br/>5 categories · 4 triggers · 7 actions"]

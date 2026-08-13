@@ -170,3 +170,12 @@ node_modules/
 archive/**/node_modules/
 docs/archive/state/
 docs/archive/ux-pipeline/
+
+# Stray root scratch file
+/test_json.cs
+
+# Runtime analysis dumps (not source)
+/analysis_history/
+
+# Archived egui GUI (not part of the public WinUI 3 release)
+gui-egui/

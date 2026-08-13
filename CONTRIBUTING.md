@@ -47,9 +47,6 @@ just verify
 # Run the Rust CLI
 cargo run --bin space-analyzer-cli -- scan --path . --format json
 
-# Run the egui GUI (legacy)
-cargo run -p space-analyzer-gui-egui
-
 # Run the WinUI 3 GUI (active — requires Visual Studio MSBuild)
 & "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
 dotnet run --project gui-winui/SpaceAnalyzer
@@ -66,10 +63,6 @@ space-analyzer-pro/
 │   ├── workflows/              # Analysis workflow engine
 │   ├── system_monitor.rs       # Disk/CPU/memory/GPU monitoring
 │   └── ...
-├── gui-egui/                   # egui GUI crate (legacy, preserved for comparison)
-│   └── src/gui/
-│       ├── mod.rs              # Binary entry
-│       └── ...
 ├── gui-winui/                  # WinUI 3 GUI (ACTIVE)
 │   └── SpaceAnalyzer/
 │       ├── SpaceAnalyzer.csproj

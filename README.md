@@ -1,6 +1,3 @@
-> **For AI agents:** Primary issue tracker is **`docs/issues.json`** (schema v1).
-> Quick reference: **`docs/ISSUES.md`** (~80 lines, token-efficient). Do not use `docs/CONSOLIDATED_ISSUE_TRACKER.csv` as source of truth.
-> Update workflow: find by `id:MAIN-XXX` tag in `tags[]` → fix code → update status in `issues.json` → `python docs/export_issues_to_csv.py`
 <p align="center">
   <img src="assets/banner/social-preview.svg" alt="Space Analyzer Pro — native Windows disk space analyzer with AI and GPU acceleration" width="800">
 </p>
@@ -12,6 +9,10 @@
 </p>
 
 <p align="center">
+  <strong>Space Analyzer Pro</strong> is a native Windows disk-space analyzer with an optional local AI assistant and optional NVIDIA GPU acceleration. No cloud, no telemetry, no accounts — scan your drives, find bloat and duplicates, and reclaim space with a single ~16&nbsp;MB desktop app.
+</p>
+
+<p align="center">
   <a href="#why-space-analyzer-pro">Why?</a> &nbsp;·&nbsp;
   <a href="#quick-start">Quick Start</a> &nbsp;·&nbsp;
   <a href="#features">Features</a> &nbsp;·&nbsp;
@@ -20,6 +21,15 @@
   <a href="#development">Development</a> &nbsp;·&nbsp;
   <a href="#documentation">Docs</a>
 </p>
+
+<details>
+<summary>For AI agents / automation working in this repo</summary>
+
+> Primary issue tracker is **`docs/issues.json`** (schema v1, local-only / gitignored).
+> Quick reference: **`docs/ISSUES.md`** (~80 lines, token-efficient). Do not use `docs/CONSOLIDATED_ISSUE_TRACKER.csv` as source of truth.
+> Update workflow: find by `id:MAIN-XXX` tag in `tags[]` → fix code → update status in `issues.json` → `python docs/export_issues_to_csv.py`
+
+</details>
 
 ---
 
@@ -42,7 +52,13 @@ Space Analyzer Pro is available in one mode:
 
 ## Quick Start
 
-The **active GUI is WinUI 3** (C# / .NET 10 / Windows App SDK 2.3). A native **egui (Rust)** GUI also exists but is archived for comparison — see [Architecture](#architecture).
+The **active and only GUI is WinUI 3** (C# / .NET 10 / Windows App SDK 2.3).
+
+### Get a prebuilt build (optional)
+
+Prebuilt Windows builds are published on the [Releases](https://github.com/ogneocortext/space-analyzer-pro/releases/latest) page when available. **Note:** the newest features land on the `main` branch first, so a tagged release may lag behind — to run the latest code, build from source using the steps below.
+
+> Runs on **Windows 10/11 x64**. Optional: install [Ollama](https://ollama.com) for the AI Assistant and Smart Search features; an NVIDIA GPU enables faster duplicate-hashing but is not required.
 
 ### WinUI 3 GUI (C#/.NET) — recommended
 
@@ -74,16 +90,6 @@ dotnet run --project gui-winui/SpaceAnalyzer
 - **Ollama integration** via `OllamaClient.cs` with `JsonStringEnumConverter` for correct `ChatRole` serialization
 - **Scan page:** Quick/Default/Deep radio depth modes, custom-depth slider, live filename streaming, Stop scan, path validation, scan errors display, file type distribution chart, largest files with filter, export results
 - **AppLog diagnostics** — file logger at `%LOCALAPPDATA%/SpaceAnalyzer/ui-actions.log` with NAV/PAGE/ACTION/ERROR categories
-
-### egui GUI (Rust) — archived for comparison
-
-The egui GUI is feature-complete but kept only for side-by-side comparison with WinUI 3; WinUI 3 is the actively developed frontend.
-
-```bash
-cargo build --release -p space-analyzer-gui-egui
-./gui-egui/target/release/space-analyzer-gui.exe
-# or: just run-gui
-```
 
 ### Prerequisites
 
@@ -182,14 +188,13 @@ cargo run --bin space-analyzer-cli -- dedup --path .
 
 ## Architecture
 
-Two GUI implementations exist side-by-side for comparison:
+The GUI is **WinUI 3** (`gui-winui/`, C# + Windows App SDK 2.3), the actively developed frontend.
 
 | GUI | Path | Stack | Status |
 |-----|------|-------|--------|
-| **egui** | `gui-egui/` | Rust + eframe/egui 0.34 | Feature-complete, archived for comparison |
-| **WinUI 3** | `gui-winui/` | C# + Windows App SDK | Active development |
+| **WinUI 3** | `gui-winui/` | C# + Windows App SDK 2.3 | Active development |
 
-The core Rust library (`src/`) provides the database, Ollama integration, system monitoring, and CLI. Both GUIs consume this library — egui directly as a Rust crate, WinUI 3 via subprocess calls to the CLI.
+The core Rust library (`src/`) provides the database, Ollama integration, system monitoring, and CLI. WinUI 3 consumes this library via subprocess calls to the CLI.
 
 ### Tabs
 
@@ -211,7 +216,6 @@ The core Rust library (`src/`) provides the database, Ollama integration, system
 
 | Component | Implementation | Notes |
 |---|---|---|
-| **GUI (egui)** | eframe 0.34 (native Rust) | Single window, 8 tabs |
 | **GUI (WinUI 3)** | Windows App SDK 2.3 (C#/.NET 10) | Fluent Design, Mica backdrop, 11 pages |
 | **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
 | **File Scanner** | `shared-scanner` (rayon-parallel) | CPU mode default |
@@ -224,13 +228,13 @@ The core Rust library (`src/`) provides the database, Ollama integration, system
 
 ## Screenshots
 
-> Screenshots below are from the actual Rust desktop GUI (egui). For more, see [`assets/screenshots/docs/`](assets/screenshots/docs/).
+The **WinUI 3** frontend (Fluent Design, Windows App SDK) is the actively developed GUI — the capture below is from the real app.
 
-| Dashboard | AI Assistant |
+| WinUI 3 — Dashboard | WinUI 3 — AI Assistant |
 |---|---|
-| <img src="assets/screenshots/dashboard.png" alt="Dashboard" width="400"> | <img src="assets/screenshots/ai-chat.png" alt="AI Assistant" width="400"> |
+| <img src="assets/screenshots/winui-dashboard.png" alt="WinUI 3 Dashboard" width="400"> | <img src="assets/screenshots/ai-chat.png" alt="AI Assistant" width="400"> |
 
-_To capture fresh screenshots, run `just test-gui` which uses the Win32 PrintWindow API to capture the actual GUI window._
+_To regenerate screenshots, run `just test-gui`, which uses the Win32 PrintWindow API to capture the actual GUI window._
 
 ---
 
@@ -275,15 +279,6 @@ just help          # Show all commands
   embedding_service.rs     # Semantic search via Ollama embeddings
   disk_monitor.rs          # Background disk space monitor
   gui_common.rs            # Shared types for GUI implementations
-
-gui-egui/                  # egui desktop GUI (archived for comparison)
-  Cargo.toml               # Depends on root crate
-  src/
-    main.rs                # GUI binary entry point
-    lib.rs                 # Re-exports gui module
-    gui/                   # egui GUI modules (8 tabs, dashboard, system, etc.)
-      ai/                  # AI Assistant chat interface
-    thumbnails.rs          # Image thumbnail cache
 
 gui-winui/                 # WinUI 3 desktop GUI (active development)
   SpaceAnalyzer.sln        # Visual Studio solution

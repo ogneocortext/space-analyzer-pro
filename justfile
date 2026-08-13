@@ -18,7 +18,7 @@ help:
     @echo "Build:"
     @echo "  just build               Build debug workspace"
     @echo "  just build-release       Build optimized release"
-    @echo "  just build-gui           Build GUI binary only"
+    @echo "  just build-gui           Build WinUI 3 GUI (Release)"
     @echo "  just build-cli           Build CLI binary only"
     @echo ""
     @echo "Test:"
@@ -40,12 +40,12 @@ help:
     @echo "  just setup               Install missing components"
     @echo ""
     @echo "Run:"
-    @echo "  just run-gui             Start the GUI application"
+    @echo "  just run-gui             Start WinUI 3 GUI (Debug)"
     @echo "  just run-cli             Run the CLI scanner"
     @echo "  just run-cli-scan PATH   Scan a directory (headless)"
     @echo ""
     @echo "Release:"
-    @echo "  just package             Build release + create zip"
+    @echo "  just package             Build WinUI 3 release + create zip"
     @echo "  just bench               Run criterion benchmarks"
     @echo ""
     @echo "Database:"
@@ -77,13 +77,18 @@ build:
 build-release:
     cargo build --workspace --release
 
-# Build GUI binary only
-build-gui:
-    cargo build -p space-analyzer-gui-egui
+# Build WinUI 3 GUI (Release) via MSBuild
+build-gui: build-winui
 
 # Build CLI binary only
 build-cli:
     cargo build --bin space-analyzer-cli
+
+# Build only the Rust binaries the WinUI app embeds (fast release path).
+# Avoids building the egui GUI + gpu-compute that the WinUI release does not ship.
+build-release-cli:
+    cargo build --release --bin space-analyzer-cli
+    cargo build --release -p node_modules_cleaner
 
 # ──────────────────────────────────────────────────────────────
 #  Test
@@ -159,9 +164,9 @@ setup:
 #  Run
 # ──────────────────────────────────────────────────────────────
 
-# Start the GUI application
-run-gui:
-    cargo run -p space-analyzer-gui-egui
+# Run the WinUI 3 GUI (Debug build)
+run-gui: build-winui-debug
+    Start-Process "gui-winui/SpaceAnalyzer/bin/x64/Debug/net10.0-windows10.0.22621.0/SpaceAnalyzer.exe"
 
 # Run the CLI scanner
 run-cli:
@@ -175,12 +180,8 @@ run-cli-scan PATH:
 #  Release
 # ──────────────────────────────────────────────────────────────
 
-# Build release + create distributable zip
-package:
-    @echo "Building release..."
-    cargo build --workspace --release
-    @echo "Creating package..."
-    @powershell -Command "$v = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version; $z = \"space-analyzer-cli-$v-windows-x64.zip\"; if (Test-Path $z) { Remove-Item $z }; 	Compress-Archive -Path 'gui-egui/target/release/space-analyzer-gui.exe','target/release/space-analyzer-cli.exe' -DestinationPath $z; echo \"Package: $z\""
+# Build release + create distributable WinUI 3 zip
+package: package-winui
 
 # Run criterion benchmarks
 bench:
@@ -290,24 +291,29 @@ dashboard:
 dashboard-server:
     @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/dashboard_server.ps1
 
-# Full Windows package (local only, no CI)
-package-full: build-release
-	@echo "Packaging for Windows x64..."
-	@$ErrorActionPreference='SilentlyContinue'; if (Test-Path dist) { Remove-Item dist -Recurse -Force }
-	New-Item -ItemType Directory -Path dist -Force | Out-Null
-	$v = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages[0].version
-	$out = "dist/space-analyzer-cli-$v-windows-x64"
-	New-Item -ItemType Directory -Path "$out/bin" -Force | Out-Null
-	Copy-Item "gui-egui/target/release/space-analyzer-gui.exe" "$out/bin/"
-	Copy-Item "target/release/space-analyzer-cli.exe" "$out/bin/"
-	if (Test-Path "target/release/*.dll") { Copy-Item "target/release/*.dll" "$out/bin/" }
-	New-Item -ItemType Directory -Path "$out/docs" -Force | Out-Null
-	Copy-Item docs/* "$out/docs/" -Recurse -ErrorAction SilentlyContinue
-	Set-Content -LiteralPath "$out/README.txt" -Value "Space Analyzer Pro v$v`nRun bin/space-analyzer-gui.exe`nDocs in docs/`n"
-	Compress-Archive -Path "$out/*" -DestinationPath "dist/space-analyzer-cli-$v-windows-x64.zip"
-	@echo "Package ready: dist/space-analyzer-cli-$v-windows-x64.zip"
+# Full Windows package (local only, no CI) — WinUI 3
+package-full: package-winui
 
 # Disable Defender false-positive warnings on target/
 defender-exclude:
-	@echo "Adding Defender exclusion for target/ (requires admin)..."
-	@powershell -Command "Start-Process powershell -ArgumentList '-NoProfile','-Command','Add-MpPreference -ExclusionPath ''E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer\target''' -Verb RunAs -Wait"
+    @echo "Adding Defender exclusion for target/ (requires admin)..."
+    @powershell -Command "Start-Process powershell -ArgumentList '-NoProfile','-Command','Add-MpPreference -ExclusionPath ''E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer\target''' -Verb RunAs -Wait"
+
+# ──────────────────────────────────────────────────────────────
+#  WinUI 3 Release (active GUI — local packaging, no CI)
+# ──────────────────────────────────────────────────────────────
+
+# Build the WinUI 3 solution in Release via Visual Studio MSBuild.
+# CopyRustTools runs BeforeTargets=Build and copies the Rust CLI + cleaner
+# (built by build-release-cli) into the output dir automatically.
+build-winui:
+    & "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Release -p:Platform=x64
+
+# Build the WinUI 3 solution in Debug (for run-gui / iterative dev)
+build-winui-debug:
+    & "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
+
+# Full WinUI 3 release package: Rust CLI + cleaner + WinUI exe, no egui build.
+# VERSION defaults to the planned release; override with: just package-winui 4.0.0
+package-winui VERSION="4.0.0": build-release-cli build-winui
+    @powershell -Command "$v='{{VERSION}}'; $src='gui-winui/SpaceAnalyzer/bin/x64/Release/net10.0-windows10.0.22621.0'; $z=\"dist/space-analyzer-winui-$v-windows-x64.zip\"; if (-not (Test-Path dist)) { New-Item -ItemType Directory -Path dist | Out-Null }; if (Test-Path $z) { Remove-Item $z }; Compress-Archive -Path \"$src/*\" -DestinationPath $z; echo \"Package: $z\""
