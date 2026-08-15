@@ -69,8 +69,12 @@ public class StreamComplete
     [JsonPropertyName("type")]
     public string Type { get; set; } = "complete";
 
+    // Long (not int): parallels ScanResult.TotalFiles. A streaming scan whose
+    // complete event reports more than int.MaxValue files would overflow an int
+    // during JSON parsing, which the streaming reader swallows — silently
+    // dropping the final result. Same class of bug as the file_types overflow.
     [JsonPropertyName("total_files")]
-    public int TotalFiles { get; set; }
+    public long TotalFiles { get; set; }
 
     [JsonPropertyName("total_size_bytes")]
     public ulong TotalSizeBytes { get; set; }

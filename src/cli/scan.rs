@@ -100,6 +100,7 @@ pub fn scan_directory(
         max_size,
         include_hidden,
         num_threads: threads,
+        top_n,
         file_cache,
         gpu_acceleration: !no_gpu,
         ..depth_mode

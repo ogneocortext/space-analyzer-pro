@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using SpaceAnalyzer.Controls;
+using SpaceAnalyzer.Controls.ScanBreakdown;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.ViewModels;
@@ -621,39 +622,12 @@ public sealed partial class HistoryPage : Page
         }
     }
 
-    // ── File Explorer ──
+    // ── File Explorer (Largest Files sort is delegated to the shared control) ──
 
-    private void ClearFileExplorerFilter_Click(object sender, RoutedEventArgs e)
+    private void OnLargestFilesSort(object sender, SortRequestedEventArgs e)
     {
-        AppLog.Action("HistoryPage ClearFileExplorerFilter_Click");
-        VM.FileExplorerFilter = string.Empty;
-    }
-
-    private void FileSizeHeader_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage FileSizeHeader_Click");
-        if (sender is Button button && button.Tag is string tag && int.TryParse(tag, out var col))
-        {
-            VM.ToggleFileSort(col);
-        }
-    }
-
-    private void FileNameHeader_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage FileNameHeader_Click");
-        if (sender is Button button && button.Tag is string tag && int.TryParse(tag, out var col))
-        {
-            VM.ToggleFileSort(col);
-        }
-    }
-
-    private void OpenFile_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage OpenFile_Click");
-        if (sender is Button btn && btn.Tag is string path && !string.IsNullOrEmpty(path))
-        {
-            UiHelper.OpenPath(path);
-        }
+        AppLog.Action($"HistoryPage OnLargestFilesSort column={e.Column}");
+        VM.ToggleFileSort(e.Column);
     }
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)

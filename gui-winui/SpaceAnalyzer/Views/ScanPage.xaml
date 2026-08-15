@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:SpaceAnalyzer.ViewModels"
     xmlns:models="using:SpaceAnalyzer.Models"
+    xmlns:breakdown="using:SpaceAnalyzer.Controls.ScanBreakdown"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
@@ -110,7 +111,7 @@
                                 Style="{StaticResource PrimaryButton}"/>
                         <Button Grid.Column="1" Content="Stop" Click="Scan_Click"
                                 AutomationProperties.Name="Stop Scan"
-                                Style="{StaticResource PrimaryButton}"
+                                Style="{StaticResource DangerButton}"
                                 IsEnabled="{x:Bind VM.CanStopScan, Mode=OneWay}"/>
                         <Button Grid.Column="2" Content="Export" Click="Export_Click"
                                 AutomationProperties.Name="Export Results"
@@ -235,8 +236,8 @@
                             <StackPanel Spacing="{StaticResource Space.XS}">
                                 <TextBlock Text="Distribution" Style="{StaticResource Type.CardTitle}"/>
                                 <TextBlock Text="File Types" Style="{StaticResource Type.SubTitle}" Margin="0,4,0,0"/>
-                                <ItemsRepeater ItemsSource="{x:Bind VM.FileTypes, Mode=OneWay}">
-                                    <ItemsRepeater.ItemTemplate>
+                                <breakdown:BreakdownListControl ItemsSource="{x:Bind VM.FileTypes, Mode=OneWay}">
+                                    <breakdown:BreakdownListControl.RowTemplate>
                                         <DataTemplate x:DataType="models:FileTypeDistribution">
                                             <Grid ColumnSpacing="{StaticResource Space.SM}">
                                                 <Grid.ColumnDefinitions>
@@ -251,11 +252,11 @@
                                                 <TextBlock Grid.Column="3" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
                                             </Grid>
                                         </DataTemplate>
-                                    </ItemsRepeater.ItemTemplate>
-                                </ItemsRepeater>
+                                    </breakdown:BreakdownListControl.RowTemplate>
+                                </breakdown:BreakdownListControl>
                                 <TextBlock Text="Storage by Category" Style="{StaticResource Type.SubTitle}" Margin="0,4,0,0"/>
-                                <ItemsRepeater ItemsSource="{x:Bind VM.CategoryDistributions, Mode=OneWay}">
-                                    <ItemsRepeater.ItemTemplate>
+                                <breakdown:BreakdownListControl ItemsSource="{x:Bind VM.CategoryDistributions, Mode=OneWay}">
+                                    <breakdown:BreakdownListControl.RowTemplate>
                                         <DataTemplate x:DataType="models:FileTypeDistribution">
                                             <Grid ColumnSpacing="{StaticResource Space.SM}">
                                                 <Grid.ColumnDefinitions>
@@ -268,8 +269,8 @@
                                                 <TextBlock Grid.Column="2" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}"/>
                                             </Grid>
                                         </DataTemplate>
-                                    </ItemsRepeater.ItemTemplate>
-                                </ItemsRepeater>
+                                    </breakdown:BreakdownListControl.RowTemplate>
+                                </breakdown:BreakdownListControl>
                             </StackPanel>
                         </Border>
 
@@ -284,35 +285,11 @@
                             <Border Grid.Column="0" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.SM}">
                                 <StackPanel Spacing="{StaticResource Space.XS}">
                                     <TextBlock Text="Largest Files" Style="{StaticResource Type.SubTitle}"/>
-                                    <Grid ColumnSpacing="{StaticResource Space.SM}">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" Text="{x:Bind VM.LargestFilesFilter, Mode=TwoWay}" PlaceholderText="Filter..." Style="{StaticResource Type.Caption.TextBox}"/>
-                                        <Button Grid.Column="1" Content="Clear" Click="ClearFilter_Click" Style="{StaticResource SmallButton}" Visibility="{x:Bind VM.HasLargestFilesFilter, Mode=OneWay}"/>
-                                    </Grid>
-                                    <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto">
-                                        <ItemsRepeater ItemsSource="{x:Bind VM.FilteredLargestFiles, Mode=OneWay}">
-                                            <ItemsRepeater.ItemTemplate>
-                                                <DataTemplate x:DataType="models:FileSizeEntry">
-                                                    <Grid ColumnSpacing="{StaticResource Space.SM}" Margin="0,2">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="Auto"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.FieldHeading}" Foreground="{ThemeResource SystemControlForegroundBaseHighBrush}"/>
-                                                        <TextBlock Grid.Column="1" Text="{x:Bind Path, Mode=OneTime}" Style="{StaticResource Type.Caption}" TextTrimming="CharacterEllipsis" Opacity="0.8"/>
-                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
-                                                            <Button Content="Open" Click="OpenFile_Click" Style="{StaticResource TinyButton}" Tag="{x:Bind Path}"/>
-                                                            <Button Content="Folder" Click="OpenFolder_Click" Style="{StaticResource TinyButton}" Tag="{x:Bind Path}"/>
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsRepeater.ItemTemplate>
-                                        </ItemsRepeater>
-                                    </ScrollViewer>
+                                    <breakdown:LargestFilesControl
+                                        ItemsSource="{x:Bind VM.FilteredLargestFiles, Mode=OneWay}"
+                                        Filter="{x:Bind VM.LargestFilesFilter, Mode=TwoWay}"
+                                        FilterPlaceholder="Filter..."
+                                        ListMaxHeight="160"/>
                                 </StackPanel>
                             </Border>
 
@@ -320,24 +297,7 @@
                             <Border Grid.Column="1" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.SM}">
                                 <StackPanel Spacing="{StaticResource Space.XS}">
                                     <TextBlock Text="Largest Directories" Style="{StaticResource Type.SubTitle}"/>
-                                    <ItemsRepeater ItemsSource="{x:Bind VM.TopDirectories, Mode=OneWay}">
-                                        <ItemsRepeater.Layout>
-                                            <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.SM}"/>
-                                        </ItemsRepeater.Layout>
-                                        <ItemsRepeater.ItemTemplate>
-                                            <DataTemplate x:DataType="models:DirEntry">
-                                                <StackPanel Spacing="{StaticResource Space.XS}">
-                                                    <TextBlock Style="{StaticResource Type.Body}" Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8">
-                                                        <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
-                                                        <Run Text=" · "/>
-                                                        <Run Text="{x:Bind FileCount, Mode=OneTime}"/>
-                                                        <Run Text=" files"/>
-                                                    </TextBlock>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ItemsRepeater.ItemTemplate>
-                                    </ItemsRepeater>
+                                    <breakdown:TopFoldersControl ItemsSource="{x:Bind VM.TopDirectories, Mode=OneWay}"/>
                                 </StackPanel>
                             </Border>
                         </Grid>

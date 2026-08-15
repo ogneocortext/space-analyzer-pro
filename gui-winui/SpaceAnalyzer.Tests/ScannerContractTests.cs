@@ -50,7 +50,7 @@ public class ScannerContractTests
         var result = JsonSerializer.Deserialize<ScanResult>(ScanJson, s_options);
 
         Assert.NotNull(result);
-        Assert.Equal(3, result!.TotalFiles);
+        Assert.Equal(3L, result!.TotalFiles);
         Assert.Equal(1500000UL, result.TotalSizeBytes);
         Assert.Equal(1.43, result.TotalSizeMb, 2);
         Assert.Equal("C:/", result.Path);
@@ -79,6 +79,41 @@ public class ScannerContractTests
         var entry = result.ScannedFiles["C:/a.jpg"];
         Assert.Equal(1000000UL, entry.Size);
         Assert.Equal(1700000000L, entry.Mtime);
+    }
+
+    [Fact]
+    public void StreamComplete_TotalFiles_DoesNotOverflow_OnLargeCounts()
+    {
+        // 3_000_000_000 exceeds int.MaxValue. With the old int property this threw
+        // during JSON parse and the streaming reader swallowed it, dropping the final
+        // scan result. Long must hold it (parity with ScanResult.TotalFiles).
+        const string completeJson = """
+        {
+          "type": "complete",
+          "total_files": 3000000000,
+          "total_size_bytes": 3000000000,
+          "total_size_mb": 2861.0,
+          "duration_secs": 1.0,
+          "file_types": { "big": 3000000000 },
+          "extension_sizes": { "big": 3000000000 },
+          "category_sizes": { "Other": 3000000000 },
+          "largest_files": [],
+          "errors": [],
+          "path": "C:/",
+          "total_dirs": 1,
+          "top_directories": [],
+          "empty_dirs": [],
+          "potential_cleanup_bytes": 0,
+          "timestamp": "2026-08-11T00:00:00Z"
+        }
+        """;
+
+        var complete = JsonSerializer.Deserialize<StreamComplete>(completeJson, s_options);
+
+        Assert.NotNull(complete);
+        Assert.Equal(3000000000L, complete!.TotalFiles);
+        Assert.Equal(3000000000L, complete.FileTypes["big"]);
+        Assert.Equal(3000000000UL, complete.TotalSizeBytes);
     }
 
     [Fact]
@@ -113,5 +148,67 @@ public class ScannerContractTests
         Assert.NotNull(complete);
         Assert.Equal(3000000000L, complete!.FileTypes["big"]);
         Assert.Equal(3000000000UL, complete.TotalSizeBytes);
+    }
+
+    [Fact]
+    public void ScanHistoryRecord_Deserializes_ScalarFields()
+    {
+        // Mirrors the snake_case JSON the Rust `history --id` subcommand emits, which
+        // ScannerService deserializes with s_jsonOptions. A field-name/type drift here
+        // would otherwise surface as all-default values on the history detail page.
+        const string recordJson = """
+        {
+          "id": 42,
+          "path": "C:/Users",
+          "total_files": 12345,
+          "total_size_bytes": 9000000000,
+          "total_size_mb": 8583.0,
+          "duration_secs": 12.5,
+          "file_types_json": "{\"jpg\":1000000}",
+          "extension_sizes_json": "{\"jpg\":1000000}",
+          "top_directories_json": "[{\"path\":\"C:/Users/sub\",\"name\":\"sub\",\"total_size\":1500000,\"file_count\":3,\"dir_count\":1}]",
+          "largest_files_json": "[{\"path\":\"C:/Users/a.jpg\",\"size\":1000000}]",
+          "category_sizes_json": "{\"Images\":1500000}",
+          "deep_scan": false,
+          "shallow_scan": false,
+          "max_scan_depth": 5,
+          "potential_cleanup_bytes": 250,
+          "timestamp": "2026-08-11T00:00:00Z"
+        }
+        """;
+
+        var record = JsonSerializer.Deserialize<ScanHistoryRecord>(recordJson, s_options);
+
+        Assert.NotNull(record);
+        Assert.Equal(42L, record!.Id);
+        Assert.Equal("C:/Users", record.Path);
+        Assert.Equal(12345L, record.TotalFiles);
+        Assert.Equal(9000000000UL, record.TotalSizeBytes);
+        Assert.Equal(250UL, record.PotentialCleanupBytes);
+        Assert.Equal("2026-08-11T00:00:00Z", record.Timestamp);
+    }
+
+    [Fact]
+    public void ScanHistoryRecord_Parses_NestedJsonContracts()
+    {
+        // The history record stores its breakdown data as embedded JSON strings that
+        // are lazily parsed with ScannerJsonOptions (snake_case). These guards catch a
+        // rename/type drift in the nested wire shape the history detail page renders.
+        var record = new ScanHistoryRecord
+        {
+            FileTypesJson = "{\"jpg\":1000000}",
+            ExtensionSizesJson = "{\"jpg\":1000000}",
+            CategorySizesJson = "{\"Images\":1500000}",
+            TopDirectoriesJson = "[{\"path\":\"C:/sub\",\"name\":\"sub\",\"total_size\":1500000,\"file_count\":3,\"dir_count\":1}]",
+            LargestFilesJson = "[{\"path\":\"C:/a.jpg\",\"size\":1000000}]",
+        };
+
+        Assert.Equal(1000000L, record.FileTypes["jpg"]);
+        Assert.Equal(1000000UL, record.ExtensionSizes["jpg"]);
+        Assert.Equal(1500000UL, record.CategorySizes["Images"]);
+        Assert.Single(record.TopDirectories);
+        Assert.Equal(1500000UL, record.TopDirectories[0].TotalSize);
+        Assert.Single(record.LargestFiles);
+        Assert.Equal(1000000UL, record.LargestFiles[0].Size);
     }
 }

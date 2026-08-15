@@ -162,40 +162,12 @@ public sealed partial class ScanPage : Page
         };
     }
 
-    private void ClearFilter_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("ScanPage ClearFilter_Click");
-        VM.LargestFilesFilter = string.Empty;
-    }
-
-    private void OpenFile_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("ScanPage OpenFile_Click");
-        if (sender is Button btn && btn.Tag is string path && !string.IsNullOrEmpty(path))
-        {
-            UiHelper.OpenPath(path);
-        }
-    }
-
     private void ViewSavedInHistory_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("ScanPage ViewSavedInHistory_Click");
         if (VM.LastSavedHistoryId is long id)
         {
             Frame.Navigate(typeof(HistoryPage), id);
-        }
-    }
-
-    private void OpenFolder_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("ScanPage OpenFolder_Click");
-        if (sender is Button btn && btn.Tag is string path && !string.IsNullOrEmpty(path))
-        {
-            var parent = System.IO.Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(parent))
-            {
-                UiHelper.OpenPath(parent);
-            }
         }
     }
 }

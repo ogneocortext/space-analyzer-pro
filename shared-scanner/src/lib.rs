@@ -3,7 +3,6 @@
 //! This crate provides a unified, high-performance file scanner
 //! that replaces the duplicate implementations across the project.
 
-use rayon::prelude::*;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -93,36 +92,54 @@ pub fn category_for_extension(ext: &str) -> &'static str {
     }
 }
 
+/// Return the lowercased directory-component names of a path (excluding the
+/// root/prefix and the file name itself). Used so path-based category overrides
+/// match whole directory names instead of arbitrary substrings.
+fn path_dir_names(path: &str) -> Vec<String> {
+    Path::new(path)
+        .components()
+        .filter_map(|c| match c {
+            std::path::Component::Normal(s) => s.to_str().map(|s| s.to_lowercase()),
+            _ => None,
+        })
+        .collect()
+}
+
 fn extension_to_category(ext: &str, path: &str) -> &'static str {
     // Path-based overrides take precedence so directory-shaped categories (which
-    // have no file extension of their own) are classified correctly.
-    let lower = path.to_lowercase();
-    if lower.contains("node_modules")
-        || lower.contains("\\venv\\")
-        || lower.contains("/venv/")
-        || lower.contains(".venv")
-        || lower.contains("site-packages")
-        || lower.contains("\\.cargo\\")
-        || lower.contains("/.cargo/")
-        || lower.contains("\\.rustup\\")
-        || lower.contains(".android")
-        || lower.contains("\\unity\\")
-        || lower.contains("/unity/")
-        || lower.contains("gradle")
-    {
-        return "Development";
-    }
-    if lower.contains("\\target\\") || lower.contains("/target/") {
-        if lower.contains("target\\debug")
-            || lower.contains("target/debug")
-            || lower.contains("target\\release")
-            || lower.contains("target/release")
-        {
-            return "Build Output";
+    // have no file extension of their own) are classified correctly. Match on
+    // whole path *components* (directory names), never on raw substrings — the
+    // previous `contains("unity")` rule wrongly bucketed any path containing
+    // "community"/"opportunity", and `contains(".android")` matched unrelated
+    // substrings.
+    let dirs = path_dir_names(path);
+
+    let mut saw_target = false;
+    for (i, d) in dirs.iter().enumerate() {
+        if d == "target" {
+            saw_target = true;
+            if let Some(next) = dirs.get(i + 1) {
+                if next == "debug" || next == "release" {
+                    return "Build Output";
+                }
+            }
         }
+    }
+    if saw_target {
         return "Development";
     }
-    if lower.contains(".git") {
+
+    if dirs.iter().any(|d| {
+        matches!(
+            d.as_str(),
+            "node_modules" | "venv" | ".venv" | "site-packages" | ".cargo" | ".rustup"
+                | ".android" | "unity" | "gradle"
+        )
+    }) {
+        return "Development";
+    }
+
+    if dirs.iter().any(|d| d == ".git") {
         return "VCS";
     }
 
@@ -175,6 +192,10 @@ pub struct ScanOptions {
     pub cuda_enabled: bool,
     /// Number of threads for parallel post-processing (0 = auto-detect)
     pub num_threads: usize,
+    /// Max number of largest files (and top items) to retain during
+    /// post-processing. Threaded into the GPU/CPU post-processor so `--top`
+    /// is honored for the largest-files list, not just the rendered output.
+    pub top_n: usize,
     /// Optional file cache (path -> (size, mtime_unix)) for skipping unchanged files
     pub file_cache: Option<HashMap<String, (u64, i64)>>,
 }
@@ -191,6 +212,7 @@ impl Default for ScanOptions {
             gpu_acceleration: true,
             cuda_enabled: false,
             num_threads: 0,
+            top_n: 100,
             file_cache: None,
         }
     }
@@ -316,150 +338,18 @@ impl FileScanner {
         Self
     }
 
-    /// Parallel SSD-optimized scan using Rayon thread pool.
-    /// On SATA SSDs: ~2-3x faster (13k → 30k+ files/sec).
-    /// On NVMe SSDs: ~3-5x faster (13k → 50k+ files/sec).
-    pub fn scan_directory_parallel(
-        &self,
-        path: &str,
-        options: ScanOptions,
-    ) -> anyhow::Result<ScanResult> {
-        let mut result = ScanResult {
-            total_files: 0,
-            total_directories: 0,
-            total_size: 0,
-            file_types: HashMap::new(),
-            extension_sizes: HashMap::new(),
-            size_distribution: HashMap::new(),
-            largest_files: Vec::new(),
-            empty_directories: Vec::new(),
-            errors: Vec::new(),
-            subdirectories: Vec::new(),
-            scanned_files: HashMap::new(),
-            category_sizes: HashMap::new(),
-        };
-
-        // Use physical cores for I/O-bound parallelism (hyperthreads add overhead).
-        // Respect options.num_threads if explicitly set.
-        let num_threads = if options.num_threads > 0 {
-            options.num_threads
-        } else {
-            num_cpus::get_physical().max(2)
-        };
-        let thread_pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(num_threads)
-            .build()
-            .unwrap();
-
-        let walk_entries: Vec<walkdir::DirEntry> = WalkDir::new(path)
-            .max_depth(options.max_depth.unwrap_or(usize::MAX))
-            .into_iter()
-            .filter_map(|e| e.ok())
-            .collect();
-
-        let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
-
-        type RawEntry = (String, u64, bool, Option<(u64, i64)>);
-        let raw_entries_data: Vec<RawEntry> = thread_pool.install(|| {
-            walk_entries
-                .into_par_iter()
-                .filter_map(|entry| {
-                    let entry_path = entry.path();
-                    let path_str = entry_path.to_string_lossy().to_string();
-                    let metadata = match entry.metadata() {
-                        Ok(m) => m,
-                        Err(_) => return None,
-                    };
-                    let is_dir = metadata.is_dir();
-                    let size = metadata.len();
-                    let mtime = Self::get_mtime_unix(&metadata);
-
-                    if !is_dir {
-                        if let Some(cache_map) = options.file_cache.as_ref() {
-                            if let Some(&(cached_size, cached_mtime)) = cache_map.get(&path_str) {
-                                if cached_size == size && cached_mtime == mtime {
-                                    return Some((
-                                        path_str,
-                                        cached_size,
-                                        is_dir,
-                                        Some((cached_size, cached_mtime)),
-                                    ));
-                                }
-                            }
-                        }
-                    }
-
-                    if !is_dir && !self.should_include_file(&metadata, entry_path, &options) {
-                        return None;
-                    }
-
-                    Some((path_str, size, is_dir, Some((size, mtime))))
-                })
-                .collect()
-        });
-
-        let mut scanned_files = HashMap::new();
-        let raw_entries: Vec<gpu_compute::scan::RawFileEntry> = raw_entries_data
-            .into_iter()
-            .map(|(path_str, size, is_dir, cache_info)| {
-                if let Some((size, mtime)) = cache_info {
-                    scanned_files.insert(path_str.clone(), (size, mtime));
-                }
-                gpu_compute::scan::RawFileEntry {
-                    path: path_str,
-                    size,
-                    is_dir,
-                }
-            })
-            .collect();
-
-        let use_gpu = options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
-        let processor = gpu_compute::scan::GpuScanProcessor::new()
-            .with_gpu(use_gpu)
-            .with_scan_root(path)
-            .with_top_n(100);
-
-        let gpu_result = processor.process(&raw_entries);
-
-        result.total_files = gpu_result.total_files;
-        result.total_size = gpu_result.total_size;
-        result.file_types = gpu_result.file_types;
-        result.extension_sizes = gpu_result.extension_sizes;
-        result.size_distribution = gpu_result.size_distribution;
-        result.empty_directories = true_empty_dirs;
-        result.subdirectories = gpu_result
-            .subdirectories
-            .into_iter()
-            .map(|d| DirInfo {
-                path: d.path,
-                name: d.name,
-                total_size: d.total_size,
-                file_count: d.file_count,
-                dir_count: d.dir_count,
-                largest_file_size: d.largest_file_size,
-            })
-            .collect();
-
-        result.total_directories = raw_entries.iter().filter(|e| e.is_dir).count() as u64;
-
-        result.scanned_files = scanned_files;
-
-        Ok(result)
-    }
-
     fn should_include_file(
         &self,
         metadata: &std::fs::Metadata,
         path: &Path,
         options: &ScanOptions,
     ) -> bool {
-        // Check hidden files
+        // Exclude OS-hidden entries (Windows FILE_ATTRIBUTE_HIDDEN or a leading-dot
+        // name) when the caller did not ask to include them. This must cover the
+        // attribute case, not just dotfiles, so hidden files are filtered the same
+        // way hidden directories already are during traversal.
         if !options.include_hidden && Self::is_hidden(path, metadata) {
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if name.starts_with('.') {
-                    return false;
-                }
-            }
+            return false;
         }
 
         let size = metadata.len();
@@ -647,6 +537,13 @@ impl FileScanner {
             let size = metadata.len();
             let mtime = Self::get_mtime_unix(&metadata);
 
+            // Apply filters during I/O phase (early rejection saves GPU transfer).
+            // This MUST run before the cache fast-path below, otherwise a cached
+            // entry would bypass the current size/hidden filters.
+            if !is_dir && !self.should_include_file(&metadata, entry_path, &options) {
+                continue;
+            }
+
             if !is_dir {
                 if let Some(cache_map) = options.file_cache.as_ref() {
                     if let Some(&(cached_size, cached_mtime)) = cache_map.get(&path_str) {
@@ -663,11 +560,6 @@ impl FileScanner {
                 }
             }
 
-            // Apply filters during I/O phase (early rejection saves GPU transfer)
-            if !is_dir && !self.should_include_file(&metadata, entry_path, &options) {
-                continue;
-            }
-
             scanned_files.insert(path_str.clone(), (size, mtime));
             raw_entries.push(gpu_compute::scan::RawFileEntry {
                 path: path_str,
@@ -681,7 +573,7 @@ impl FileScanner {
         let processor = gpu_compute::scan::GpuScanProcessor::new()
             .with_gpu(use_gpu)
             .with_scan_root(path)
-            .with_top_n(100);
+            .with_top_n(options.top_n);
 
         let gpu_result = processor.process(&raw_entries);
 
@@ -744,6 +636,25 @@ impl FileScanner {
 
         result.total_directories = raw_entries.iter().filter(|e| e.is_dir).count() as u64;
         result.scanned_files = scanned_files;
+
+        // Derive category sizes from the raw entries so `scan_directory_sync`
+        // (which does not run the live accumulator) reports the same breakdown
+        // as `scan_with_progress_sync`. Mirror the extension/category mapping
+        // used there.
+        let mut category_sizes_acc: HashMap<String, u64> = HashMap::new();
+        for entry in raw_entries {
+            if entry.is_dir {
+                continue;
+            }
+            let ext = Path::new(&entry.path)
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            let cat = extension_to_category(&ext, &entry.path);
+            *category_sizes_acc.entry(cat.to_string()).or_insert(0) += entry.size;
+        }
+        result.category_sizes = category_sizes_acc;
     }
 
     /// Synchronous scan with progress callbacks and cancellation support.
@@ -1089,7 +1000,7 @@ impl FileScanner {
         let processor = gpu_compute::scan::GpuScanProcessor::new()
             .with_gpu(use_gpu)
             .with_scan_root(path)
-            .with_top_n(100);
+            .with_top_n(options.top_n);
 
         let gpu_result = processor.process(&raw_entries);
 
@@ -1526,5 +1437,133 @@ mod tests {
 
         let deep = ScanOptions::deep();
         assert!(deep.max_depth.is_none());
+    }
+
+    /// Create a fresh, unique temporary directory for a scan test.
+    fn temp_scan_dir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sa_scan_test_{}_{}", name, std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// Write `content` to `rel` (relative to `dir`), creating parent dirs.
+    fn write_file(dir: &std::path::Path, rel: &str, content: &[u8]) {
+        let p = dir.join(rel);
+        if let Some(parent) = p.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(p, content).unwrap();
+    }
+
+    #[test]
+    fn scan_sums_are_consistent_and_categories_correct() {
+        let dir = temp_scan_dir("sums");
+        write_file(&dir, "a.txt", b"hello"); // 5 bytes
+        write_file(&dir, "sub/b.pdf", b"world!!"); // 7 bytes
+        write_file(&dir, "sub/node_modules/lib.js", b"x"); // 1 byte -> Development
+
+        let scanner = FileScanner::new();
+        let result = scanner
+            .scan_directory_sync(dir.to_str().unwrap(), ScanOptions::default())
+            .unwrap();
+
+        let sum_ext: u64 = result.extension_sizes.values().copied().sum();
+        let sum_cat: u64 = result.category_sizes.values().copied().sum();
+        assert_eq!(sum_ext, result.total_size, "Σ extension_sizes must equal total_size");
+        assert_eq!(sum_cat, result.total_size, "Σ category_sizes must equal total_size");
+        assert_eq!(result.total_size, 5 + 7 + 1);
+
+        // A file under node_modules must be bucketed as Development (path override),
+        // not Code (which its .js extension would otherwise imply).
+        let dev = result.category_sizes.get("Development").copied().unwrap_or(0);
+        assert_eq!(dev, 1, "node_modules file must be classified as Development");
+    }
+
+    #[test]
+    fn hidden_files_excluded_by_default() {
+        let dir = temp_scan_dir("hidden");
+        write_file(&dir, "visible.txt", b"data");
+        write_file(&dir, ".hidden", b"secret");
+
+        let scanner = FileScanner::new();
+
+        let excluded = scanner
+            .scan_directory_sync(dir.to_str().unwrap(), ScanOptions::default())
+            .unwrap();
+        assert_eq!(excluded.total_files, 1, "leading-dot file must be excluded by default");
+
+        let included = scanner
+            .scan_directory_sync(
+                dir.to_str().unwrap(),
+                ScanOptions {
+                    include_hidden: true,
+                    ..ScanOptions::default()
+                },
+            )
+            .unwrap();
+        assert_eq!(included.total_files, 2, "hidden file must be included when requested");
+    }
+
+    #[test]
+    fn cache_does_not_bypass_size_filter() {
+        let dir = temp_scan_dir("cache");
+        write_file(&dir, "small.txt", b"tiny"); // 4 bytes
+        write_file(&dir, "big.dat", b"muchlongercontent"); // 17 bytes
+
+        let scanner = FileScanner::new();
+        let full = scanner
+            .scan_directory_sync(dir.to_str().unwrap(), ScanOptions::default())
+            .unwrap();
+
+        let min_size = 10u64;
+        let with_cache = scanner
+            .scan_directory_sync(
+                dir.to_str().unwrap(),
+                ScanOptions {
+                    min_size: Some(min_size),
+                    file_cache: Some(full.scanned_files.clone()),
+                    ..ScanOptions::default()
+                },
+            )
+            .unwrap();
+        let without_cache = scanner
+            .scan_directory_sync(
+                dir.to_str().unwrap(),
+                ScanOptions {
+                    min_size: Some(min_size),
+                    ..ScanOptions::default()
+                },
+            )
+            .unwrap();
+
+        // The cache fast-path must still honor --min-size; it must not re-admit the
+        // 4-byte file that the size filter excludes.
+        assert_eq!(with_cache.total_files, without_cache.total_files);
+        assert_eq!(with_cache.total_size, without_cache.total_size);
+        assert_eq!(without_cache.total_files, 1, "only the >= 10 byte file passes");
+        assert_eq!(without_cache.total_size, 17);
+    }
+
+    #[test]
+    fn top_n_caps_largest_files() {
+        let dir = temp_scan_dir("topn");
+        for i in 0..5u32 {
+            write_file(&dir, &format!("f{}.bin", i), &vec![0u8; (i as usize) + 1]);
+        }
+
+        let scanner = FileScanner::new();
+        let result = scanner
+            .scan_directory_sync(
+                dir.to_str().unwrap(),
+                ScanOptions {
+                    top_n: 2,
+                    ..ScanOptions::default()
+                },
+            )
+            .unwrap();
+
+        assert!(result.largest_files.len() <= 2, "largest_files must be capped by top_n");
+        assert_eq!(result.largest_files.len(), 2, "top_n should cap the list to 2");
     }
 }
