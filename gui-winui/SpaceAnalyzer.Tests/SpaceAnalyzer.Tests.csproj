@@ -26,6 +26,8 @@
     <Compile Include="..\SpaceAnalyzer\Models\ScanResult.cs" Link="Models\ScanResult.cs" />
     <Compile Include="..\SpaceAnalyzer\Models\StreamEvent.cs" Link="Models\StreamEvent.cs" />
     <Compile Include="..\SpaceAnalyzer\Models\ScanHistoryRecord.cs" Link="Models\ScanHistoryRecord.cs" />
+    <Compile Include="..\SpaceAnalyzer\Models\DuplicateAnalysisRecord.cs" Link="Models\DuplicateAnalysisRecord.cs" />
+    <Compile Include="..\SpaceAnalyzer\Models\DedupModels.cs" Link="Models\DedupModels.cs" />
   </ItemGroup>
 
 </Project>
