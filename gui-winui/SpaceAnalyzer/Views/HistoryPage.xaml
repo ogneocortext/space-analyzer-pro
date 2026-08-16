@@ -182,6 +182,7 @@
                                 <Button Content="Recompute Categories" Click="Backfill_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Recompute categories"/>
                                 <Button Content="Compact Database" Click="Vacuum_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Compact database"/>
                                 <Button Content="Clear File Cache" Click="PruneFileCache_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Clear orphaned file cache"/>
+                                <Button Content="Prune Workflow History" Click="PruneWorkflows_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Prune workflow execution history"/>
                                 <Button Content="Prune Disk History" Click="PruneDiskSpace_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Prune disk space history"/>
                                 <Button Content="Clear All History" Click="ClearHistory_Click" Style="{StaticResource DangerButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Clear all history"/>
                             </StackPanel>

@@ -128,6 +128,8 @@
                             <Border Width="1" Margin="0,2,0,2" Background="{ThemeResource CardStrokeColorDefaultBrush}" Opacity="0.5"/>
                             <CheckBox Content="Hidden files" IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"
                                       Style="{StaticResource FieldCheckBox}"/>
+                            <CheckBox Content="Incremental cache" IsChecked="{x:Bind VM.UseFileCache, Mode=TwoWay}"
+                                      Style="{StaticResource FieldCheckBox}"/>
                         </StackPanel>
                     </Grid>
                 </Border>

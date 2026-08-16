@@ -103,6 +103,8 @@
                                       IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
                             <CheckBox Content="GPU acceleration"
                                       IsChecked="{x:Bind VM.GpuAcceleration, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
+                            <CheckBox Content="Incremental file cache"
+                                      IsChecked="{x:Bind VM.UseFileCache, Mode=TwoWay}" Style="{StaticResource FieldCheckBox}"/>
                             <StackPanel Spacing="{StaticResource Space.MD}">
                                 <TextBlock Text="Default scan paths" Style="{StaticResource Type.FieldHeading}"/>
                                 <TextBlock Text="Quick-access paths shown on the Scan page. One path per line."

@@ -118,6 +118,12 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         set { if (AppSettings.GpuAcceleration == value) return; AppSettings.GpuAcceleration = value; OnPropertyChanged(); }
     }
 
+    public bool UseFileCache
+    {
+        get => AppSettings.UseFileCache;
+        set { if (AppSettings.UseFileCache == value) return; AppSettings.UseFileCache = value; OnPropertyChanged(); }
+    }
+
     public string DefaultScanPaths
     {
         get => AppSettings.DefaultScanPaths;
@@ -350,6 +356,7 @@ public class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ScanDepth));
         OnPropertyChanged(nameof(IncludeHidden));
         OnPropertyChanged(nameof(GpuAcceleration));
+        OnPropertyChanged(nameof(UseFileCache));
         OnPropertyChanged(nameof(DefaultScanPaths));
         OnPropertyChanged(nameof(OllamaUrl));
         OnPropertyChanged(nameof(OllamaModel));

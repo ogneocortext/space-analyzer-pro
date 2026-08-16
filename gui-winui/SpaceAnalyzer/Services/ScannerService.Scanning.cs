@@ -18,7 +18,8 @@ public partial class ScannerService
         bool includeHidden = false,
         IProgress<StreamProgress>? progress = null,
         CancellationToken ct = default,
-        bool? useGpu = null)
+        bool? useGpu = null,
+        bool? useCache = null)
     {
         if (!IsAvailable)
             throw new FileNotFoundException(
@@ -42,6 +43,8 @@ public partial class ScannerService
             argList.Add("--include-hidden");
         if (!(useGpu ?? GpuAcceleration))
             argList.Add("--no-gpu");
+        if (useCache ?? UseFileCache)
+            argList.Add("--cache");
         // Bound the directory/file breakdown the CLI returns. The CLI now caps
         // top_directories/largest_files to --top; the GUI wants a generous slice
         // for its treemap/largest-files views, not the CLI's 20-item default.
@@ -95,6 +98,7 @@ public partial class ScannerService
         IProgress<StreamProgress>? onProgress = null,
         CancellationToken ct = default,
         bool? useGpu = null,
+        bool? useCache = null,
         bool saveToHistory = false)
     {
         if (!IsAvailable)
@@ -119,6 +123,8 @@ public partial class ScannerService
             argList.Add("--include-hidden");
         if (!(useGpu ?? GpuAcceleration))
             argList.Add("--no-gpu");
+        if (useCache ?? UseFileCache)
+            argList.Add("--cache");
         // Bound the directory/file breakdown the CLI returns. The CLI now caps
         // top_directories/largest_files to --top; the GUI wants a generous slice
         // for its treemap/largest-files views, not the CLI's 20-item default.

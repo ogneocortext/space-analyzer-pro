@@ -557,6 +557,12 @@ public sealed partial class HistoryPage : Page
         await VM.PruneFileCacheAsync();
     }
 
+    private async void PruneWorkflows_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage PruneWorkflows_Click");
+        await VM.PruneWorkflowsAsync();
+    }
+
     private async void PruneDiskSpace_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("HistoryPage PruneDiskSpace_Click");

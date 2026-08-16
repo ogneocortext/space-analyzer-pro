@@ -20,6 +20,7 @@ public static class SettingKeys
     public const string ScanDepth = "scan_depth";
     public const string IncludeHidden = "include_hidden";
     public const string GpuAcceleration = "gpu_acceleration";
+    public const string UseFileCache = "use_file_cache";
     public const string DefaultScanPaths = "default_scan_paths";
 
     // ── Ollama / AI ──

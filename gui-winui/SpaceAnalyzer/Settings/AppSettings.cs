@@ -31,6 +31,7 @@ public static class AppSettings
         public const double ScanDepth = 5;
         public const bool IncludeHidden = false;
         public const bool GpuAcceleration = true;
+        public const bool UseFileCache = false;
         public const string DefaultScanPaths = "";
         public const string OllamaUrl = "http://localhost:11434";
         // Empty string = "auto": when unset, the AI Assistant picks the best available
@@ -81,6 +82,12 @@ public static class AppSettings
     {
         get => SettingsStore.GetBool(SettingKeys.GpuAcceleration, Defaults.GpuAcceleration);
         set => SettingsStore.SetBool(SettingKeys.GpuAcceleration, value);
+    }
+
+    public static bool UseFileCache
+    {
+        get => SettingsStore.GetBool(SettingKeys.UseFileCache, Defaults.UseFileCache);
+        set => SettingsStore.SetBool(SettingKeys.UseFileCache, value);
     }
 
     public static string DefaultScanPaths
@@ -161,6 +168,7 @@ public static class AppSettings
         ScanDepth = Defaults.ScanDepth;
         IncludeHidden = Defaults.IncludeHidden;
         GpuAcceleration = Defaults.GpuAcceleration;
+        UseFileCache = Defaults.UseFileCache;
         DefaultScanPaths = Defaults.DefaultScanPaths;
         OllamaUrl = Defaults.OllamaUrl;
         OllamaModel = Defaults.OllamaModel;

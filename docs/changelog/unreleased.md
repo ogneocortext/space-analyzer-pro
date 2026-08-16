@@ -215,6 +215,11 @@
 - **WinUI `DuplicateAnalysisRecord.Groups` fix** — stored `duplicate_groups_json` uses the Rust `dedup::DuplicateGroup` snake_case wire shape (`hash`/`size`/`file_count`/`files`/`wasted_bytes`), but `Groups` deserialized with default options, so every group came back empty/zero. Now applies `JsonNamingPolicy.SnakeCaseLower`, caches the result, and returns an empty list on corrupt JSON instead of throwing. Added `DuplicateAnalysisRecordTests` (15/15 pass).
 - **Verification** — `cargo test --workspace` green (109 lib tests); release Rust CLI + `node_modules_cleaner` rebuilt and copied into the WinUI output dir (clears the `CopyRustTools` missing-binary warning); WinUI MSBuild Debug/x64 `Build succeeded` (0 errors, 0 warnings).
 
+### WinUI 3 — Backend Connection Gaps Closed (2026-08-16)
+
+- **Wired incremental file cache into scans** — added a global `use_file_cache` setting (default off) and pass `--cache` to `scan` (both streaming and non-streaming paths) when enabled, so re-scans of the same path skip unchanged files and actually exercise the previously-unused `save_file_cache`/`load_file_cache` path.
+- **Exposed `db --prune-workflows` in the History maintenance panel** — new "Prune Workflow History" button plus `ScannerService.PruneWorkflowsAsync` and `HistoryViewModel.PruneWorkflowsAsync`, parsing the backend's `{"pruned_workflows":N,"retention_limit":K}` response.
+
 ### Scripts — Benchmark Tooling
 
 - **`model_management.py` reads a benchmark directory** — `_load_benchmark_scores` now loads per-run `ollama_gpu_benchmark_*.json` files (deduped to the latest run per model) instead of a single file, feeding the AI model auto-selection ranking.

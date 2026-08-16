@@ -350,6 +350,10 @@ public partial class ScannerService : IDisposable
 
     /// <summary>When false, the scanner is told to run on CPU only (--no-gpu).</summary>
     public bool GpuAcceleration { get; set; } = true;
+
+    /// <summary>When true, the scanner reuses its incremental file cache (--cache)
+    /// to skip files unchanged since the previous scan of the same path.</summary>
+    public bool UseFileCache { get; set; } = false;
     // -- Internal helpers --
 
     /// <summary>

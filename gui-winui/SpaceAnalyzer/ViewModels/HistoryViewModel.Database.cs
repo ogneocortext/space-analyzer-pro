@@ -212,6 +212,40 @@ public partial class HistoryViewModel
         }
     }
 
+    public async Task PruneWorkflowsAsync(int keep = 50)
+    {
+        if (IsLoading) return;
+        try
+        {
+            IsLoading = true;
+            StatusMessage = "Pruning workflow history...";
+            var (success, removed, error) = await _scanner.PruneWorkflowsAsync(keep);
+            if (success)
+            {
+                var msg = removed > 0
+                    ? $"Removed {removed} workflow execution record(s) (kept newest {keep})."
+                    : "No workflow history to prune.";
+                StatusMessage = msg;
+                AppNotifications.Success("Workflow history pruned", msg);
+            }
+            else
+            {
+                StatusMessage = $"Prune failed: {error}";
+                AppNotifications.Error("Prune failed", error);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] Prune workflows failed: {ex}");
+            StatusMessage = $"Prune failed: {ex.Message}";
+            AppNotifications.Error("Prune failed", ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
     public async Task PruneFileCacheAsync()
     {
         if (IsLoading) return;

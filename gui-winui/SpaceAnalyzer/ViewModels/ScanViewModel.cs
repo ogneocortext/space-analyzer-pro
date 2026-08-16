@@ -61,6 +61,9 @@ public class ScanViewModel : ViewModelBase, IDisposable
             IncludeHidden = AppSettings.IncludeHidden;
         else if (e.Key == SettingKeys.GpuAcceleration)
             _scanner.GpuAcceleration = AppSettings.GpuAcceleration;
+        else if (e.Key == SettingKeys.UseFileCache)
+            _scanner.UseFileCache = AppSettings.UseFileCache;
+        _scanner.UseFileCache = AppSettings.UseFileCache;
     }
 
     // ── Scan options ──
@@ -164,6 +167,14 @@ public class ScanViewModel : ViewModelBase, IDisposable
     {
         get => _includeHidden;
         set { _includeHidden = value; OnPropertyChanged(); Save(); }
+    }
+
+    /// <summary>Reuse the scanner's incremental file cache (--cache) so re-scans of the
+    /// same path skip files unchanged since the previous scan. Persisted globally.</summary>
+    public bool UseFileCache
+    {
+        get => AppSettings.UseFileCache;
+        set { if (AppSettings.UseFileCache == value) return; AppSettings.UseFileCache = value; OnPropertyChanged(); }
     }
 
     // ── Scan state ──

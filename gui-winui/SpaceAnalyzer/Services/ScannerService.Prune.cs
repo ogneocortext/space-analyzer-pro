@@ -181,6 +181,38 @@ public partial class ScannerService
     }
 
     /// <summary>
+    /// Trim workflow execution history to the newest <paramref name="keep"/> records
+    /// via <c>db --prune-workflows N</c>. Returns the number of records removed.
+    /// </summary>
+    public async Task<(bool Success, int Removed, string Error)> PruneWorkflowsAsync(int keep, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return (false, 0, "Scanner unavailable");
+
+        var output = await RunScannerAsync(new[] { "db", "--prune-workflows", keep.ToString(), "--format", "json" }, ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return (false, 0, "Empty response from scanner");
+
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("pruned_workflows", out var pruned))
+            {
+                var removed = pruned.ValueKind == JsonValueKind.Number ? pruned.GetInt32() : 0;
+                return (true, removed, string.Empty);
+            }
+            if (root.TryGetProperty("error", out var err))
+                return (false, 0, err.GetString() ?? "Unknown error");
+            return (false, 0, "Unexpected prune response");
+        }
+        catch (JsonException jex)
+        {
+            return (false, 0, $"Failed to parse result: {jex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Compact the embedded database (VACUUM) to reclaim space left by deleted
     /// rows. Returns true on success.
     /// </summary>
