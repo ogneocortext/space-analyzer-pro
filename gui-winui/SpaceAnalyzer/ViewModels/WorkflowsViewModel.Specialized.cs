@@ -72,7 +72,24 @@ public partial class WorkflowsViewModel
                     OnUi(() => { ReportTitle = "Cleanup Recommendations"; Report = "No scan history available. Run a scan first."; });
                     return;
                 }
-                var recs = AnalysisEngine.GetRecommendations(latest);
+                List<Recommendation> recs;
+                if (_scanner.IsAvailable)
+                {
+                    try
+                    {
+                        recs = await _scanner.GetRecommendationsAsync(latest.Id, _cts.Token)
+                            ?? AnalysisEngine.GetRecommendations(latest);
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusMessage = $"Recommendations error: {ex.Message}. Using local heuristic.";
+                        recs = AnalysisEngine.GetRecommendations(latest);
+                    }
+                }
+                else
+                {
+                    recs = AnalysisEngine.GetRecommendations(latest);
+                }
                 string report;
                 if (recs.Count == 0)
                 {

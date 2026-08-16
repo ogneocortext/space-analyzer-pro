@@ -6,6 +6,7 @@ pub mod dependencies;
 pub mod helpers;
 pub mod live_scan;
 pub mod predict;
+pub mod recommend;
 pub mod semantic;
 pub mod sink;
 pub mod origins;
@@ -52,7 +53,6 @@ pub fn main() -> AppResult<()> {
             clean,
             cleanup_recommendations,
             trace_origins,
-            channel,
             ask,
             stream,
             progress_json,
@@ -78,7 +78,6 @@ pub fn main() -> AppResult<()> {
                 clean,
                 cleanup_recommendations,
                 trace_origins,
-                channel,
                 ask,
                 stream,
                 progress_json,
@@ -212,6 +211,9 @@ pub fn main() -> AppResult<()> {
         Commands::Predict { days, limit } => {
             predict::run(predict::PredictArgs { days, limit }, output_format)
         }
+        Commands::Recommend { scan_id, top } => {
+            recommend::run(recommend::RecommendArgs { scan_id, top }, output_format)
+        }
     }
 }
 
@@ -236,7 +238,6 @@ struct ScanArgs {
     clean: bool,
     cleanup_recommendations: bool,
     trace_origins: bool,
-    channel: Option<String>,
     ask: Option<String>,
     stream: bool,
     progress_json: bool,
@@ -331,23 +332,6 @@ fn handle_scan(args: ScanArgs) -> AppResult<()> {
                 effective_max_depth,
             ),
         )?;
-    }
-
-    if let Some(channel_dir) = &args.channel {
-        let _ = fs::create_dir_all(channel_dir);
-        let target = Path::new(channel_dir).join("scan-channel.json");
-        // Reuse the curated, stable projection (rounded floats + human-readable
-        // sizes) so the channel file matches `scan --format json` and stays
-        // friendly for any script that reads it.
-        let channel_payload = report::generate_json_pretty(&result)?;
-        fs::write(&target, channel_payload).map_err(|e| {
-            space_analyzer_pro_desktop::error::AppError::Validation(format!(
-                "Could not write GUI channel file '{}': {}",
-                target.display(),
-                e
-            ))
-        })?;
-        eprintln!("[CHANNEL] Scan result dropped to: {}", target.display());
     }
 
     if let Some(export_path) = &args.export {

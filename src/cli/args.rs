@@ -188,10 +188,6 @@ pub enum Commands {
         #[arg(long)]
         trace_origins: bool,
 
-        /// Drop scan JSON into a GUI channel dir
-        #[arg(long)]
-        channel: Option<String>,
-
         /// Ask an AI question about the scan results
         #[arg(long)]
         ask: Option<String>,
@@ -474,6 +470,17 @@ pub enum Commands {
         /// Maximum number of historical scans to use for the trend
         #[arg(long, default_value = "50")]
         limit: usize,
+    },
+
+    /// Surface cleanup recommendations for a stored scan (Rust rule engine)
+    Recommend {
+        /// Analyze a specific scan record by id (defaults to the most recent scan)
+        #[arg(long)]
+        scan_id: Option<i64>,
+
+        /// Maximum number of recommendations to return (sorted by priority)
+        #[arg(long, default_value = "50")]
+        top: usize,
     },
 
     /// Enumerate installed applications and dev tools, then flag installs that are

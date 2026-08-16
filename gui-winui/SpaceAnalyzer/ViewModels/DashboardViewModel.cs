@@ -110,6 +110,22 @@ public class DashboardViewModel : ViewModelBase, IDisposable
     }
     public bool HasForecast => _storageForecast.ScansUsed >= 1;
 
+    /// <summary>
+    /// True when one or more analysis panels (bloat / recommendations / forecast)
+    /// could not reach the Rust backend and fell back to the local C# heuristics.
+    /// Drives a transparency badge so the user knows the figures are best-effort
+    /// local derivations rather than the authoritative Rust classifier/predictor.
+    /// </summary>
+    public bool AnalysisUsingOfflineFallback
+    {
+        get => _analysisUsingOfflineFallback;
+        set { _analysisUsingOfflineFallback = value; OnPropertyChanged(); OnPropertyChanged(nameof(AnalysisUsingOfflineFallbackVisibility)); }
+    }
+    public Microsoft.UI.Xaml.Visibility AnalysisUsingOfflineFallbackVisibility =>
+        _analysisUsingOfflineFallback ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+    private bool _analysisUsingOfflineFallback;
+
     private int _duplicateCount;
     public int DuplicateCount
     {
@@ -413,13 +429,14 @@ public class DashboardViewModel : ViewModelBase, IDisposable
     /// </summary>
     private async Task LoadAnalysisPanelsAsync(List<ScanHistoryRecord> history)
     {
+        AnalysisUsingOfflineFallback = false;
         try
         {
             var latest = history.FirstOrDefault();
             if (latest != null)
             {
                 BloatFindings = await GetBloatFindingsWithFallbackAsync(latest);
-                Recommendations = AnalysisEngine.GetRecommendations(latest);
+                Recommendations = await GetRecommendationsWithFallbackAsync(latest);
             }
             else
             {
@@ -446,8 +463,25 @@ public class DashboardViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[DashboardViewModel] backend bloat failed: {ex}");
+            AnalysisUsingOfflineFallback = true;
         }
         return AnalysisEngine.GetBloatFindings(latest);
+    }
+
+    private async Task<List<Recommendation>> GetRecommendationsWithFallbackAsync(ScanHistoryRecord latest)
+    {
+        try
+        {
+            var backend = await _scanner.GetRecommendationsAsync(latest.Id);
+            if (backend is { Count: > 0 })
+                return backend;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DashboardViewModel] backend recommendations failed: {ex}");
+            AnalysisUsingOfflineFallback = true;
+        }
+        return AnalysisEngine.GetRecommendations(latest);
     }
 
     private async Task<StoragePrediction> GetForecastWithFallbackAsync(List<ScanHistoryRecord> history)
@@ -461,6 +495,7 @@ public class DashboardViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[DashboardViewModel] backend forecast failed: {ex}");
+            AnalysisUsingOfflineFallback = true;
         }
         return AnalysisEngine.PredictStorage(history, 30);
     }

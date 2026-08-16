@@ -165,12 +165,11 @@
 
 ### CLI JSON Output — Curated Display Consistency
 
-- **Channel file reuses the curated projection** — `scan --channel` (`scan-channel.json`) previously hand-rolled a raw `serde_json::json!` dump (full f64 precision, no human sizes). It now calls `report::generate_json_pretty`, matching `scan --format json` exactly: stable field order, rounded `total_size_mb`/`duration_secs`, `total_size_human`/`potential_cleanup_human`, and omitted empty `scanned_files`.
 - **`disk-info --format json`** now emits additive `total_human`/`used_human`/`available_human` (`DiskInfo` + `disk_info_from`). The WinUI `DiskVolume` (`List<DiskVolume>`) ignores unknown members, so this is non-breaking.
 - **`settings get --format json`** now pretty-prints (`to_string_pretty`) instead of compact, matching every other JSON surface.
 - **`dedup --format json`** now emits additive `potential_savings_human` (all four construction sites: empty, apply-error, apply-success, dry-run).
 - **`app-inventory --format json`** now emits additive `total_wasted_human` (both Windows and non-Windows `build_inventory_report` arms).
-- Reshaping was limited to additive companion fields for any JSON the WinUI `ScannerService` deserializes (`disk-info`, `dedup`, `app-inventory`); the channel file is write-only, so it was fully migrated.
+- Reshaping was limited to additive companion fields for any JSON the WinUI `ScannerService` deserializes (`disk-info`, `dedup`, `app-inventory`).
 
 ### Smart Search / Embeddings (`nomic-embed-text`)
 
@@ -219,6 +218,9 @@
 
 - **Wired incremental file cache into scans** — added a global `use_file_cache` setting (default off) and pass `--cache` to `scan` (both streaming and non-streaming paths) when enabled, so re-scans of the same path skip unchanged files and actually exercise the previously-unused `save_file_cache`/`load_file_cache` path.
 - **Exposed `db --prune-workflows` in the History maintenance panel** — new "Prune Workflow History" button plus `ScannerService.PruneWorkflowsAsync` and `HistoryViewModel.PruneWorkflowsAsync`, parsing the backend's `{"pruned_workflows":N,"retention_limit":K}` response.
+- **Unified cleanup recommendations on the Rust rule engine** — added a `recommend <scan_id>` CLI subcommand that reconstructs a `ScanReport` from the stored scan and runs the shared `render::build_recommendations` (the same ~10 rules powering `scan --cleanup-recommendations` and the report). `ScannerService.GetRecommendationsAsync` now consumes it (with `AnalysisEngine.GetRecommendations` kept only as the offline fallback), wired into both the Dashboard recommendations card and the `cleanup-recommendations` workflow — so the GUI and CLI no longer show divergent advice.
+- **Removed the dead `scan --channel` flag** — `scan --channel <dir>` wrote a `scan-channel.json` that nothing in the WinUI app ever read (the GUI uses the streaming / `--format json` contract, not a side-file). Dropped the flag, its `ScanArgs` field, and the writer in `src/cli/args.rs` / `src/cli/mod.rs`.
+- **Added an offline-analysis transparency badge** — `DashboardViewModel` now tracks when any analysis panel (bloat / recommendations / forecast) falls back from the Rust backend to the built-in C# heuristics (`AnalysisUsingOfflineFallback` + `AnalysisUsingOfflineFallbackVisibility`), and `DashboardPage` shows a banner so users know the figures are local best-effort derivations rather than the authoritative Rust classifier/predictor.
 
 ### Scripts — Benchmark Tooling
 
