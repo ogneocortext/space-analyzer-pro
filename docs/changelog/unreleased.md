@@ -205,6 +205,16 @@
 - **Fixed USN `to_volume_path`** — previously stripped the colon, producing `\\.\C` (invalid for `CreateFile`); now emits `\\.\C:` (retains the drive letter + colon), matching the Win32 volume-open API.
 - **Made Ollama `PromptCache` opt-in** — `OllamaClientBuilder` no longer builds a default cache unless `with_cache` was called; `chat_with_tools` doc corrected to return `(content, thinking, tool_calls, usage)`.
 
+### Database Bug Fixes & Duplicate-Analysis Retrieval (2026-08-16)
+
+- **Fixed `get_scan_history` / `get_scan_history_page` column-mapping off-by-one** — the SELECTs end at `timestamp` (idx 15) but the row mapping read `potential_cleanup_bytes` from the wrong index, shifting every later column so `potential_cleanup_bytes` read the TEXT `timestamp` as i64 (`InvalidColumnType`). Every `get_scan_history` call (including the AI `get_scan_history` tool) errored. Mapping now matches the shared 16-column order.
+- **Unified all three scan-history SELECTs to one column order** (so this class of bug can't recur): `id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp`.
+- **Fixed `save_file_cache` parameter-count mismatch** — the INSERT had 5 `?` placeholders but 6 params were bound (`InvalidParameterCount`); it runs on every scan, so file-cache saves silently failed. Changed the SQL to `?6` and bound the computed RFC3339 `now`.
+- **Added `duplicate_analysis` to the `table_row_count` allow-list** so the table can be counted.
+- **Duplicate-analysis retrieval + exact scan linkage** — added `get_duplicate_analysis(scan_id)`, `get_latest_scan_id_for_path`, `normalize_path_for_match`, and `DuplicateAnalysisRecord`. `dedup` persists with a caller-supplied `--scan-id` (verified via `get_scan_by_id`), else falls back to the most-recent scan of the same path, and is skipped when no match. The C# GUI gained `Models/DuplicateAnalysisRecord.cs`, `ScannerService.GetDuplicateAnalysisAsync`, a `HistoryDuplicateAnalysis` capability gate, the History "Duplicates" PivotItem, and `ScannerService.DedupInventory.RunDedupAnalysisAsync(scanId?)` which appends `--scan-id` — so "Run analysis" on a viewed scan reliably attaches results.
+- **WinUI `DuplicateAnalysisRecord.Groups` fix** — stored `duplicate_groups_json` uses the Rust `dedup::DuplicateGroup` snake_case wire shape (`hash`/`size`/`file_count`/`files`/`wasted_bytes`), but `Groups` deserialized with default options, so every group came back empty/zero. Now applies `JsonNamingPolicy.SnakeCaseLower`, caches the result, and returns an empty list on corrupt JSON instead of throwing. Added `DuplicateAnalysisRecordTests` (15/15 pass).
+- **Verification** — `cargo test --workspace` green (109 lib tests); release Rust CLI + `node_modules_cleaner` rebuilt and copied into the WinUI output dir (clears the `CopyRustTools` missing-binary warning); WinUI MSBuild Debug/x64 `Build succeeded` (0 errors, 0 warnings).
+
 ### Scripts — Benchmark Tooling
 
 - **`model_management.py` reads a benchmark directory** — `_load_benchmark_scores` now loads per-run `ollama_gpu_benchmark_*.json` files (deduped to the latest run per model) instead of a single file, feeding the AI model auto-selection ranking.
