@@ -158,6 +158,7 @@ public partial class ScannerService : IDisposable
             caps.HistorySearch = historyHelp.Contains("--search");
             caps.HistoryOnlyDuplicates = historyHelp.Contains("--only-duplicates");
             caps.HistoryCategoryTotals = historyHelp.Contains("--category-totals");
+            caps.HistoryDuplicateAnalysis = historyHelp.Contains("--duplicates");
             caps.HistoryDropRelative = historyHelp.Contains("--drop-relative");
             caps.HistoryBackfillCategories = historyHelp.Contains("--backfill-categories");
         }
@@ -216,6 +217,7 @@ public partial class ScannerService : IDisposable
         public bool HistorySearch { get; set; } = true;
         public bool HistoryOnlyDuplicates { get; set; } = true;
         public bool HistoryCategoryTotals { get; set; } = true;
+        public bool HistoryDuplicateAnalysis { get; set; } = true;
         public bool HistoryDropRelative { get; set; } = true;
         public bool HistoryBackfillCategories { get; set; } = true;
         public bool ScanProgressJson { get; set; } = true;

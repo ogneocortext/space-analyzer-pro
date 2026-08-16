@@ -126,7 +126,7 @@ def _to_numpy(img: Any):
         import array
 
         w, h = img.size
-        data = list(img.get_flattened_data())
+        data = list(img.getdata())
         flat = [v for px in data for v in px]
         return array.array("B", flat).tolist()  # type: ignore[return-value]
 

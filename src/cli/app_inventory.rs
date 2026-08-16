@@ -1,6 +1,6 @@
 //! CLI presentation for the installed-application / dev-tool inventory report.
 
-use shared_scanner::format_bytes;
+use scan_engine::format_bytes;
 use space_analyzer_pro_desktop::app_inventory::{self, AppInventoryReport};
 use space_analyzer_pro_desktop::error::AppResult;
 

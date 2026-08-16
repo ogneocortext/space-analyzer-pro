@@ -34,7 +34,7 @@ cargo test --workspace -- --nocapture
 cargo test test_name
 
 # Run tests for a specific crate
-cargo test -p shared-scanner
+cargo test -p scan-engine
 cargo test -p gpu-compute
 cargo test -p space-analyzer
 ```

@@ -96,7 +96,7 @@ dotnet run --project gui-winui/SpaceAnalyzer
 | Requirement | Required? | Notes |
 |---|---|---|
 | **Rust 1.95+** | ✅ Yes | [rustup.rs](https://rustup.rs) |
-| **Windows 10/11 x64** | ✅ Yes | Uses Win32 APIs in `native/scanner/` |
+| **Windows 10/11 x64** | ✅ Yes | Uses Win32 APIs in `native/win-usn/` |
 | **NVIDIA GPU** | ⚠️ Optional | For GPU-accelerated dedup; CPU fallback works |
 | **Ollama** | ⚠️ Optional | For AI Assistant and Smart Search tabs |
 
@@ -218,7 +218,7 @@ The core Rust library (`src/`) provides the database, Ollama integration, system
 |---|---|---|
 | **GUI (WinUI 3)** | Windows App SDK 2.3 (C#/.NET 10) | Fluent Design, Mica backdrop, 11 pages |
 | **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
-| **File Scanner** | `shared-scanner` (rayon-parallel) | CPU mode default |
+| **File Scanner** | `scan-engine` (rayon-parallel) | CPU mode default |
 | **GPU Acceleration** | `gpu-compute` crate (optional) | Auto-detects NVIDIA, falls back to CPU |
 | **AI Backend** | Ollama (HTTP, local-only) | Off by default; opt-in via Settings |
 | **Workflow Engine** | `src/workflows/` | Native Rust, no external scheduler |
@@ -299,7 +299,7 @@ native/                    # Standalone Rust binaries
   file_deduplicator/       # GPU-accelerated duplicate file finder
   node_modules_cleaner/    # Node.js dev-dependency cleanup tool
 
-shared-scanner/            # Shared scanning logic (used by GUI + CLI + dedup)
+scan-engine/            # Shared scanning logic (used by GUI + CLI + dedup)
 gpu-compute/               # Optional CUDA kernels (parallel hashing, dedup)
 
 assets/                    # Visual assets

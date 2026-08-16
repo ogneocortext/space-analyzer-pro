@@ -5,7 +5,7 @@
 //! the current application state.
 
 use super::database::Database;
-use super::gui_common::ScanResult;
+use super::gui_common::ScanReport;
 use super::ollama::{ToolCall, ToolDefinition, ToolParameters};
 use super::system_monitor::SystemMonitor;
 use super::workflows::WorkflowTemplates;
@@ -20,7 +20,7 @@ pub struct ToolRegistry {
 
 impl ToolRegistry {
     /// Create a new tool registry with all available tools
-    pub fn new(scan_result: Option<ScanResult>) -> Self {
+    pub fn new(scan_result: Option<ScanReport>) -> Self {
         let mut registry = Self {
             definitions: Vec::new(),
         };
@@ -55,7 +55,7 @@ mod tests {
     }
 
     /// Create a sample scan result for testing
-    fn sample_scan() -> ScanResult {
+    fn sample_scan() -> ScanReport {
         let mut file_types = std::collections::HashMap::new();
         file_types.insert("pdf".to_string(), 150);
         file_types.insert("txt".to_string(), 300);
@@ -69,7 +69,7 @@ mod tests {
         extension_sizes.insert("png".to_string(), 50);
         extension_sizes.insert("zip".to_string(), 20);
 
-        ScanResult {
+        ScanReport {
             total_files: 595,
             total_size_bytes: 2_500_000_000,
             total_size_mb: 2_500_000_000.0 / (1024.0 * 1024.0),

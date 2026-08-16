@@ -35,7 +35,7 @@ Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits" -Filter "kernel32.lib"
 If you have Visual Studio 2022 on D: drive:
 
 ```bash
-cd native/scanner
+cd native/win-usn
 .\build-with-vs2022.bat
 ```
 
@@ -54,7 +54,7 @@ $env:RUSTUP_TOOLCHAIN = 'stable-x86_64-pc-windows-msvc'
 $env:CARGO_TARGET_DIR = 'E:\rust-builds\scanner-target'
 
 # Build
-cd native/scanner
+cd native/win-usn
 cargo build --release --bin space-analyzer
 
 # Copy to project bin
@@ -66,7 +66,7 @@ Copy-Item "$env:CARGO_TARGET_DIR\release\space-analyzer.exe" "..\..\bin\space-an
 ```bash
 rustup toolchain install stable-gnu
 rustup default stable-gnu
-cd native/scanner
+cd native/win-usn
 cargo build --release --bin space-analyzer
 ```
 

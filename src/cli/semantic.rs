@@ -8,20 +8,20 @@ use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::database::FileEmbeddingRecord;
 use space_analyzer_pro_desktop::embedding_service::{embed_files, embed_query, search_files};
 use space_analyzer_pro_desktop::error::{AppError, AppResult};
-use space_analyzer_pro_desktop::gui_common::ScanResult;
+use space_analyzer_pro_desktop::gui_common::ScanReport;
 use space_analyzer_pro_desktop::ollama::client::OllamaClient;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
-const MAX_EMBED_FILES: usize = 100_000;
-
 /// Collect `(path, size, extension)` tuples for a directory, honoring the size
-/// window and the hidden-files toggle. Used to feed the embedding pipeline.
+/// window, the `file_limit` cap, and the hidden-files toggle. Used to feed the
+/// embedding pipeline.
 fn collect_files(
     root: &PathBuf,
     include_hidden: bool,
     min_size: Option<u64>,
     max_size: Option<u64>,
+    file_limit: usize,
 ) -> Vec<(String, u64, String)> {
     let mut files = Vec::new();
     for entry in WalkDir::new(root).into_iter().filter_map(|e| e.ok()) {
@@ -63,7 +63,7 @@ fn collect_files(
             .map(|s| s.to_lowercase())
             .unwrap_or_default();
         files.push((path_str, size, ext));
-        if files.len() >= MAX_EMBED_FILES {
+        if files.len() >= file_limit {
             break;
         }
     }
@@ -85,27 +85,47 @@ pub fn run_embed(
     let scan_path = helpers::resolve_scan_path(&raw_path)?;
     let display = helpers::display_path(&scan_path);
 
+    let db = Database::default_open()
+        .ok()
+        .ok_or_else(|| AppError::Validation("Could not open embedded database".to_string()))?;
+    let settings = db.load_settings();
+
     let min = min_size
         .as_ref()
         .map(|s| helpers::parse_size(s))
         .transpose()?;
-    let max = max_size
+    let mut max = max_size
         .as_ref()
         .map(|s| helpers::parse_size(s))
         .transpose()?;
+    // When the caller did not set an explicit upper bound, default to the
+    // configured large-file threshold so oversized binaries (which embed
+    // poorly and waste tokens) are skipped rather than sent to the model.
+    if max.is_none() && settings.large_file_threshold_mb > 0 {
+        let threshold = settings
+            .large_file_threshold_mb
+            .saturating_mul(1024)
+            .saturating_mul(1024);
+        max = Some(threshold);
+        eprintln!(
+            "[EMBED] Skipping files larger than {} MiB (large_file_threshold_mb)",
+            settings.large_file_threshold_mb
+        );
+    }
     helpers::validate_size_window(min, max)?;
 
-    let files = collect_files(&scan_path, include_hidden, min, max);
+    let files = collect_files(
+        &scan_path,
+        include_hidden,
+        min,
+        max,
+        settings.embedding_file_limit,
+    );
     if files.is_empty() {
         return Err(AppError::Validation(format!(
             "No files found under {display} matching the size criteria"
         )));
     }
-
-    let db = Database::default_open()
-        .ok()
-        .ok_or_else(|| AppError::Validation("Could not open embedded database".to_string()))?;
-    let settings = db.load_settings();
 
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| AppError::Validation(format!("Failed to start async runtime: {e}")))?;
@@ -115,18 +135,19 @@ pub fn run_embed(
         .map_err(|e| AppError::Validation(format!("Ollama client error: {e}")))?;
 
     eprintln!(
-        "[EMBED] Generating embeddings for {} file(s) via {}",
+        "[EMBED] Generating embeddings for {} file(s) via {} (batch size {})",
         files.len(),
-        settings.embedding_model
+        settings.embedding_model,
+        settings.embedding_batch_size
     );
     let embeddings = rt
-        .block_on(embed_files(&client, &files))
+        .block_on(embed_files(&client, &files, settings.embedding_batch_size))
         .map_err(|e| AppError::Validation(e))?;
 
     let scan_id = match scan_id {
         Some(id) => id,
         None => {
-            let mut result = ScanResult::new();
+            let mut result = ScanReport::new();
             result.path = display.clone();
             result.total_files = files.len();
             result.total_size_bytes = files.iter().map(|(_, s, _)| *s).sum();
@@ -287,4 +308,120 @@ pub fn run_search(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::collect_files;
+    use space_analyzer_pro_desktop::embedding_service::embed_files;
+    use space_analyzer_pro_desktop::ollama::client::OllamaClient;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static DIR_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    /// Each call gets a unique temp directory so tests can't contaminate each
+    /// other (a shared name plus a silently-failing `remove_dir_all` caused
+    /// earlier runs to accumulate files across tests).
+    fn make_temp_dir() -> PathBuf {
+        let seq = DIR_SEQ.fetch_add(1, Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!(
+            "sa_semtest_{}_{}",
+            std::process::id(),
+            seq
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("create temp dir");
+        dir
+    }
+
+    fn write_file(dir: &PathBuf, name: &str, size: usize) {
+        let path = dir.join(name);
+        if let Some(parent) = path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        fs::write(&path, vec![b'x'; size]).expect("write test file");
+    }
+
+    #[test]
+    fn collect_files_respects_file_limit() {
+        let dir = make_temp_dir();
+        for i in 0..5 {
+            write_file(&dir, &format!("f{}.txt", i), 10);
+        }
+        let files = collect_files(&dir, false, None, None, 99);
+        assert_eq!(files.len(), 5, "all files should be collected");
+
+        let limited = collect_files(&dir, false, None, None, 2);
+        assert_eq!(limited.len(), 2, "file_limit must cap the returned count");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn collect_files_respects_size_window() {
+        let dir = make_temp_dir();
+        write_file(&dir, "small.txt", 10);
+        write_file(&dir, "mid.txt", 100);
+        write_file(&dir, "big.txt", 1000);
+        // min=50, max=500 -> only the 100-byte file qualifies
+        let files = collect_files(&dir, false, Some(50), Some(500), 100);
+        assert_eq!(files.len(), 1, "only mid-sized file should pass the window");
+        assert_eq!(files[0].1, 100);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn collect_files_skips_dotfiles_when_hidden_disabled() {
+        let dir = make_temp_dir();
+        write_file(&dir, "visible.txt", 10);
+        write_file(&dir, ".hidden.txt", 10);
+        let files = collect_files(&dir, false, None, None, 100);
+        assert_eq!(
+            files.len(),
+            1,
+            "dotfile must be skipped when include_hidden=false"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    // Live test: requires a running Ollama with `nomic-embed-text:v1.5`.
+    // Run with `cargo test --bin space-analyzer-cli -- --ignored`.
+    #[test]
+    #[ignore]
+    fn embed_files_batches_without_losing_vectors() {
+        let dir = make_temp_dir();
+        let mut files: Vec<(String, u64, String)> = Vec::new();
+        for i in 0..5 {
+            let name = format!("doc{}.txt", i);
+            write_file(&dir, &name, 12 + i);
+            files.push((
+                dir.join(&name).to_string_lossy().to_string(),
+                (12 + i) as u64,
+                "txt".to_string(),
+            ));
+        }
+
+        let client = OllamaClient::new("http://127.0.0.1:11434", "nomic-embed-text:v1.5")
+            .expect("Ollama client build failed");
+
+        let rt = tokio::runtime::Runtime::new().expect("tokio runtime");
+        // Single large batch vs small batches: vector counts must match.
+        let single = rt
+            .block_on(embed_files(&client, &files, 1000))
+            .expect("embed (single batch)");
+        let batched = rt
+            .block_on(embed_files(&client, &files, 2))
+            .expect("embed (batched)");
+
+        assert_eq!(single.len(), 5, "single batch should return 5 vectors");
+        assert_eq!(batched.len(), 5, "batched path should return 5 vectors");
+        assert!(single[0].len() > 0, "vectors must be non-empty");
+        assert_eq!(
+            single[0].len(),
+            batched[0].len(),
+            "dimension must be consistent across batch sizes"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

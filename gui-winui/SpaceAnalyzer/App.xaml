@@ -1,4 +1,4 @@
-﻿<Application
+<Application
     x:Class="SpaceAnalyzer.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -391,10 +391,12 @@
             <Style x:Key="CompactProgressBar" TargetType="ProgressBar">
                 <Setter Property="Height" Value="6"/>
                 <Setter Property="CornerRadius" Value="3"/>
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorSecondaryBrush}"/>
             </Style>
             <Style x:Key="MinimalProgressBar" TargetType="ProgressBar">
                 <Setter Property="Height" Value="4"/>
                 <Setter Property="CornerRadius" Value="2"/>
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorSecondaryBrush}"/>
             </Style>
 
             <!-- ═══════════════════════════════════════════════════ -->

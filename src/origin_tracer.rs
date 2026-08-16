@@ -13,7 +13,7 @@ use serde::Serialize;
 use std::path::Path;
 
 use crate::file_relations;
-use crate::gui_common::{DirEntry, ScanResult};
+use crate::gui_common::{DirEntry, ScanReport};
 
 /// Deletion safety verdict.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -1226,7 +1226,7 @@ pub fn assess_file(path: &str, size: u64) -> OriginAssessment {
 ///
 /// Assesses the top directories and the largest individual files, then
 /// aggregates the safety verdicts into reclaimable-space totals.
-pub fn build_report(result: &ScanResult, max_dirs: usize, max_files: usize) -> OriginReport {
+pub fn build_report(result: &ScanReport, max_dirs: usize, max_files: usize) -> OriginReport {
     let mut assessments: Vec<OriginAssessment> = Vec::new();
 
     for dir in result.top_directories.iter().take(max_dirs) {
@@ -1398,7 +1398,7 @@ mod tests {
 
     #[test]
     fn build_report_aggregates_totals() {
-        let mut result = ScanResult::new();
+        let mut result = ScanReport::new();
         result.path = "C:\\test".to_string();
         result.top_directories.push(DirEntry {
             path: "C:\\test\\node_modules".to_string(),

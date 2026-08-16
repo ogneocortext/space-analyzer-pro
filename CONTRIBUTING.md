@@ -75,7 +75,7 @@ space-analyzer-pro/
 │   ├── scanner/                # File system scanner
 │   ├── file_deduplicator/      # Duplicate file finder
 │   └── node_modules_cleaner/   # Node.js cleanup tool
-├── shared-scanner/             # Shared scanning logic crate
+├── scan-engine/             # Shared scanning logic crate
 ├── gpu-compute/                # GPU-accelerated compute crate
 ├── tests/unit/                 # Rust unit tests
 ├── docs/                       # Documentation

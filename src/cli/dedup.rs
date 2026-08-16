@@ -1,6 +1,7 @@
 use file_deduplicator::{DeduplicationConfig, FileDeduplicator};
 use serde::Serialize;
-use shared_scanner::format_bytes;
+use scan_engine::format_bytes;
+use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::error::{AppError, AppResult};
 
 use crate::cli::args::OutputFormat;
@@ -45,6 +46,7 @@ pub fn run_clean_analysis(
     no_gpu: bool,
     apply: bool,
     yes: bool,
+    scan_id: Option<i64>,
 ) -> AppResult<()> {
     let action = if apply {
         "DEDUPLICATE (create hard links)"
@@ -107,6 +109,12 @@ pub fn run_clean_analysis(
         .iter()
         .map(|g| g.size * (g.files.len() as u64 - 1))
         .sum();
+
+    // Persist the analysis so it can be retrieved later via
+    // `history --id <id> --duplicates`. Linked to the caller-supplied scan when
+    // one is given (exact), otherwise to the most recent scan of this path;
+    // skipped (no write) when no matching scan exists.
+    persist_duplicate_analysis(path, &duplicate_groups, dup_savings, scan_id);
 
     if apply {
         let dedup_result = match deduplicator.deduplicate(&duplicate_groups, total_duplicates) {
@@ -235,6 +243,49 @@ fn print_json(result: &DedupResult) {
         "{}",
         serde_json::to_string_pretty(result).unwrap_or_default()
     );
+}
+
+/// Persist a duplicate analysis to the embedded DB. When `scan_id` is supplied
+/// (and that scan actually exists) the analysis is linked to it exactly;
+/// otherwise it is linked to the most recent scan of `path`. Best-effort: any
+/// failure (no DB, no matching scan, serialize error) is swallowed so analysis
+/// output is never blocked by storage.
+fn persist_duplicate_analysis(
+    path: &str,
+    groups: &[file_deduplicator::DuplicateGroup],
+    savings: u64,
+    scan_id: Option<i64>,
+) {
+    if let Ok(db) = Database::default_open() {
+        // Prefer an explicit, verified scan id; fall back to the latest scan of
+        // the same path. `None` is returned when there is no scan to attach to.
+        let resolved = match scan_id {
+            Some(id) => db.get_scan_by_id(id).ok().flatten().map(|r| r.id),
+            None => db.get_latest_scan_id_for_path(path).ok().flatten(),
+        };
+        if let Some(scan_id) = resolved {
+            // Re-shape into the canonical `dedup::DuplicateGroup` wire format so
+            // the stored JSON matches the `dedup` subcommand output and the C#
+            // `DuplicateGroup` model (files as paths, with file_count/wasted_bytes).
+            let canonical: Vec<DuplicateGroup> = groups
+                .iter()
+                .map(|g| DuplicateGroup {
+                    hash: g.hash.clone(),
+                    size: g.size,
+                    file_count: g.files.len(),
+                    files: g
+                        .files
+                        .iter()
+                        .map(|f| f.path.display().to_string())
+                        .collect(),
+                    wasted_bytes: g.size * (g.files.len() as u64 - 1),
+                })
+                .collect();
+            if let Ok(json) = serde_json::to_string(&canonical) {
+                let _ = db.save_duplicate_analysis(scan_id, &json, savings);
+            }
+        }
+    }
 }
 
 /// Ask the user to confirm a destructive deduplication. Reads a single line from

@@ -64,7 +64,7 @@ impl Default for AppSettings {
             dedup_use_gpu: true,
             ollama_enabled: true,
             ollama_url: "http://localhost:11434".to_string(),
-            ollama_model: "gemma3:4b".to_string(),
+            ollama_model: "gemma4:e2b-it-qat".to_string(),
             agentic_tools_enabled: true,
             tool_calling_model: "qwen2.5-coder:7b".to_string(),
             tool_choice: "auto".to_string(),
@@ -112,6 +112,8 @@ impl super::Database {
     pub fn load_settings(&self) -> AppSettings {
         let mut settings = AppSettings::default();
         let mut loaded_version: u32 = 0;
+        let mut read_ok = false;
+        let mut had_rows = false;
 
         let tx_result = self.conn.unchecked_transaction();
         if let Ok(tx) = tx_result {
@@ -120,16 +122,18 @@ impl super::Database {
                     Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
                 }) {
                     Ok(rows) => {
+                        read_ok = true;
                         for row in rows.flatten() {
+                            had_rows = true;
                             let (key, value) = row;
                             match key.as_str() {
                                 "default_scan_path" => settings.default_scan_path = value,
                                 "default_deep_scan" => settings.default_deep_scan = value == "true",
                                 "max_scan_depth" => {
-                                    settings.max_scan_depth = value.parse().unwrap_or(5)
+                                    settings.max_scan_depth = parse_positive(&value, 5, 1)
                                 }
                                 "large_file_threshold_mb" => {
-                                    settings.large_file_threshold_mb = value.parse().unwrap_or(100)
+                                    settings.large_file_threshold_mb = parse_positive(&value, 100, 1)
                                 }
                                 "gpu_acceleration" => settings.gpu_acceleration = value == "true",
                                 "cuda_enabled" => settings.cuda_enabled = value == "true",
@@ -148,22 +152,22 @@ impl super::Database {
                                     settings.prompt_cache_enabled = value == "true"
                                 }
                                 "prompt_cache_max_entries" => {
-                                    settings.prompt_cache_max_entries = value.parse().unwrap_or(100)
+                                    settings.prompt_cache_max_entries = parse_positive(&value, 100, 1)
                                 }
                                 "prompt_cache_ttl_seconds" => {
-                                    settings.prompt_cache_ttl_seconds = value.parse().unwrap_or(300)
+                                    settings.prompt_cache_ttl_seconds = parse_positive(&value, 300, 1)
                                 }
                                 "prompt_cache_max_memory_mb" => {
                                     settings.prompt_cache_max_memory_mb =
-                                        value.parse().unwrap_or(64)
+                                        parse_positive(&value, 64, 1)
                                 }
                                 "embedding_enabled" => settings.embedding_enabled = value == "true",
                                 "embedding_model" => settings.embedding_model = value,
                                 "embedding_batch_size" => {
-                                    settings.embedding_batch_size = value.parse().unwrap_or(32)
+                                    settings.embedding_batch_size = parse_positive(&value, 32, 1)
                                 }
                                 "embedding_file_limit" => {
-                                    settings.embedding_file_limit = value.parse().unwrap_or(1000)
+                                    settings.embedding_file_limit = parse_positive(&value, 1000, 1)
                                 }
                                 "auto_model_selection" => {
                                     settings.auto_model_selection = value == "true"
@@ -194,8 +198,15 @@ impl super::Database {
             eprintln!("Warning: Failed to create read transaction for settings (DB busy?)");
         }
 
+        // If the settings table could not be read, return the defaults WITHOUT
+        // persisting them. Writing defaults here would silently overwrite the
+        // user's stored configuration on a transient DB error.
+        if !read_ok {
+            return settings;
+        }
+
         // Apply versioned migrations before returning
-        settings = self.migrate_settings(settings, loaded_version);
+        settings = self.migrate_settings(settings, loaded_version, had_rows);
 
         if let Ok(env_url) = std::env::var("OLLAMA_HOST") {
             let env_url = env_url.trim();
@@ -208,17 +219,27 @@ impl super::Database {
 
     /// Apply versioned migrations to an already-loaded settings struct.
     /// Returns the migrated settings. Each migration step should be idempotent.
-    fn migrate_settings(&self, settings: AppSettings, from_version: u32) -> AppSettings {
-        let _current = AppSettings::CURRENT_SETTINGS_VERSION;
+    fn migrate_settings(
+        &self,
+        settings: AppSettings,
+        from_version: u32,
+        had_rows: bool,
+    ) -> AppSettings {
+        let current = AppSettings::CURRENT_SETTINGS_VERSION;
 
-        // Migration 1 -> 2: example placeholder for future schema changes.
-        // Add real migrations here as settings evolve.
-        if from_version < 2 {
-            // No-op for now; structure preserved for forward compatibility.
+        // Migration 1 -> 2 (and beyond): add real steps here as the schema
+        // evolves. Each step should be idempotent and keyed on `from_version`.
+        if from_version < current {
+            // No schema changes between v1 and the current version yet.
         }
 
-        // Always refresh the version marker so subsequent loads see current.
-        let _ = self.save_all_settings(&settings);
+        // Persist only when we actually changed something (a migration ran)
+        // or when the table was empty and needs first-run initialization.
+        // Writing on every read is wasteful and risks clobbering keys that
+        // other components (e.g. the GUI) manage independently.
+        if from_version < current || !had_rows {
+            let _ = self.save_all_settings(&settings);
+        }
         settings
     }
 
@@ -351,6 +372,23 @@ impl super::Database {
     }
 }
 
+/// Parse a numeric setting that must be strictly positive. Unparseable
+/// input falls back to `default`; a value that parses but is below `min`
+/// is corrected to `min`. This keeps the persisted-settings path in line
+/// with the CLI's `--max-depth` guard, where `0` would otherwise produce a
+/// silently empty scan or (for the embedding/batch settings) a latent
+/// divide-by-zero / `chunks(0)` panic once they are wired up.
+fn parse_positive<T>(value: &str, default: T, min: T) -> T
+where
+    T: std::str::FromStr + PartialOrd + Copy,
+{
+    match value.parse::<T>() {
+        Ok(n) if n >= min => n,
+        Ok(_) => min,
+        Err(_) => default,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -387,5 +425,56 @@ mod tests {
         let theme: Vec<_> = all.into_iter().filter(|(k, _)| k == "theme").collect();
         assert_eq!(theme.len(), 1);
         assert_eq!(theme[0].1, "Light");
+    }
+
+    #[test]
+    fn load_initializes_empty_db_and_persists_version() {
+        let db = test_db();
+        let loaded = db.load_settings();
+        assert_eq!(loaded.ollama_model, "gemma4:e2b-it-qat");
+        // A load on a fresh DB should persist the version marker.
+        let all = db.get_all_settings().unwrap();
+        let map: std::collections::HashMap<_, _> = all.into_iter().collect();
+        assert_eq!(
+            map.get(AppSettings::SETTINGS_VERSION_KEY),
+            Some(&AppSettings::CURRENT_SETTINGS_VERSION.to_string())
+        );
+    }
+
+    #[test]
+    fn load_preserves_unknown_keys() {
+        let db = test_db();
+        db.upsert_settings(&[("gui_only_flag", "1".to_string())])
+            .unwrap();
+        // load_settings must not delete keys it does not own.
+        let _ = db.load_settings();
+        let all = db.get_all_settings().unwrap();
+        let map: std::collections::HashMap<_, _> = all.into_iter().collect();
+        assert_eq!(map.get("gui_only_flag"), Some(&"1".to_string()));
+    }
+
+    #[test]
+    fn load_clamps_invalid_numeric_settings_to_minimum() {
+        let db = test_db();
+        db.upsert_settings(&[
+            ("max_scan_depth", "0".to_string()),
+            ("large_file_threshold_mb", "0".to_string()),
+            ("embedding_batch_size", "0".to_string()),
+            ("prompt_cache_max_entries", "0".to_string()),
+        ])
+        .unwrap();
+        let s = db.load_settings();
+        assert_eq!(s.max_scan_depth, 1, "depth 0 must clamp to 1, not empty scan");
+        assert_eq!(s.large_file_threshold_mb, 1);
+        assert_eq!(s.embedding_batch_size, 1);
+        assert_eq!(s.prompt_cache_max_entries, 1);
+    }
+
+    #[test]
+    fn load_accepts_valid_numeric_settings() {
+        let db = test_db();
+        db.upsert_settings(&[("max_scan_depth", "7".to_string())]).unwrap();
+        let s = db.load_settings();
+        assert_eq!(s.max_scan_depth, 7);
     }
 }

@@ -56,7 +56,7 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0" Spacing="{StaticResource Space.SM}">
-                                <TextBlock Text="Min Size (MB)" Style="{StaticResource Type.Caption}" Opacity="0.8"/>
+                                <TextBlock Text="Min Size (MB)" Style="{StaticResource Type.FieldHeading}"/>
                                 <TextBox Text="{x:Bind VM.MinSizeMb, Mode=TwoWay}"
                                          AutomationProperties.Name="Minimum file size in MB">
                                     <TextBox.InputScope>
@@ -67,7 +67,7 @@
                                         </InputScope>
                                     </TextBox.InputScope>
                                 </TextBox>
-                                <TextBlock Text="Max Results" Style="{StaticResource Type.Caption}" Opacity="0.8" Margin="0,4,0,0"/>
+                                <TextBlock Text="Max Results" Style="{StaticResource Type.FieldHeading}" Margin="0,4,0,0"/>
                                 <TextBox Text="{x:Bind VM.MaxResults, Mode=TwoWay}"
                                          AutomationProperties.Name="Maximum number of results to display">
                                     <TextBox.InputScope>

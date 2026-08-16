@@ -178,6 +178,36 @@ public partial class ScannerService
     }
 
     /// <summary>
+    /// Get the stored duplicate-file analyses for a scan by ID. Returns an empty
+    /// list when the scan has no linked analysis (or the backend lacks support).
+    /// The CLI emits a JSON array of <see cref="DuplicateAnalysisRecord"/>.
+    /// </summary>
+    public async Task<List<DuplicateAnalysisRecord>> GetDuplicateAnalysisAsync(long scanId, CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return new List<DuplicateAnalysisRecord>();
+
+        var caps = await GetCapabilitiesAsync(ct);
+        if (!caps.HistoryDuplicateAnalysis)
+            return new List<DuplicateAnalysisRecord>();
+
+        var output = await RunScannerAsync(new[] { "history", "--id", scanId.ToString(), "--duplicates", "--format", "json" }, ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return new List<DuplicateAnalysisRecord>();
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                return JsonSerializer.Deserialize<List<DuplicateAnalysisRecord>>(output, s_jsonOptions) ?? new List<DuplicateAnalysisRecord>();
+            return new List<DuplicateAnalysisRecord>();
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse duplicate analysis: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
     /// Delete a scan record by ID.
     /// </summary>
     public async Task<bool> DeleteScanAsync(long id, CancellationToken ct = default)

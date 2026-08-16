@@ -459,6 +459,62 @@
                                     </StackPanel>
                                 </StackPanel>
                             </PivotItem>
+
+                            <!-- Duplicates (stored duplicate-file analysis) -->
+                            <PivotItem Header="Duplicates">
+                                <StackPanel Spacing="{StaticResource Space.LG}" Margin="0,12,0,0">
+                                    <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Text="Duplicate Analysis" Style="{StaticResource Type.CardTitle}"/>
+                                            <TextBlock Text="{x:Bind VM.DuplicateAnalysisDisplay, Mode=OneWay}" Style="{StaticResource Type.Tiny}" Opacity="0.8"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="Run analysis" Click="RunDuplicateAnalysis_Click" Style="{StaticResource SmallButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Run duplicate analysis"/>
+                                    </Grid>
+
+                                    <!-- Stored groups -->
+                                    <StackPanel Spacing="{StaticResource Space.SM}" Visibility="{x:Bind VM.HasDuplicateAnalysis, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="Top duplicate groups" Style="{StaticResource Type.SubTitle}"/>
+                                        <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                                            <ItemsRepeater ItemsSource="{x:Bind VM.DuplicateGroups, Mode=OneWay}">
+                                                <ItemsRepeater.Layout>
+                                                    <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.SM}"/>
+                                                </ItemsRepeater.Layout>
+                                                <ItemsRepeater.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:DuplicateGroup">
+                                                        <Border Style="{StaticResource ItemCard}">
+                                                            <StackPanel Spacing="{StaticResource Space.XS}">
+                                                                <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <TextBlock Grid.Column="0" Text="{x:Bind PrimaryName, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock Grid.Column="1" Text="{x:Bind WastedDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                </Grid>
+                                                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Opacity="0.75">
+                                                                    <TextBlock Text="{x:Bind HashShort, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontFamily="Consolas"/>
+                                                                    <TextBlock Text="{x:Bind FileCount, Mode=OneTime}" Style="{StaticResource Type.Tiny}"/>
+                                                                    <TextBlock Text="copies" Style="{StaticResource Type.Tiny}"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsRepeater.ItemTemplate>
+                                            </ItemsRepeater>
+                                        </ScrollViewer>
+                                    </StackPanel>
+
+                                    <!-- Empty prompt -->
+                                    <StackPanel Spacing="{StaticResource Space.XS}" Visibility="{x:Bind VM.HasDuplicateAnalysis, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}">
+                                        <TextBlock Text="No duplicate analysis stored for this scan yet." Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                        <TextBlock Text="Run an analysis to find duplicate files and reclaim space." Style="{StaticResource Type.Tiny}" Opacity="0.6"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </PivotItem>
                         </Pivot>
 
                         <!-- Back button at bottom -->

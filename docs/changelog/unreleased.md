@@ -41,12 +41,12 @@
 
 ### Data Streaming — Real-time File Type & Category Distribution
 
-- **Streaming accumulators** — `shared-scanner` `ScanProgress` now carries `file_type_counts`, `extension_sizes`, and `category_sizes` HashMaps that are updated during the scan loop, enabling the WinUI frontend to display live file-type and storage-by-category breakdowns without waiting for the scan to complete.
+- **Streaming accumulators** — `scan-engine` `ScanProgress` now carries `file_type_counts`, `extension_sizes`, and `category_sizes` HashMaps that are updated during the scan loop, enabling the WinUI frontend to display live file-type and storage-by-category breakdowns without waiting for the scan to complete.
 - **CLI `--stream` NDJSON protocol** — `StreamEvent::Progress` and `StreamEvent::Complete` now include `file_types`, `extension_sizes`, and `category_sizes` fields; the CLI emits these as cumulative stats on every progress line.
 - **WinUI streaming display** — `ScannerService.ScanDirectoryStreamingAsync` deserializes the new fields into `StreamProgress`/`StreamComplete`; `ScanViewModel.UpdatePartialResult` now reads accumulators directly from the stream instead of recomputing from `LiveFiles`.
 - **Storage by Category panel** — new ItemsRepeater on `ScanPage.xaml` showing real-time category sizes with progress bars and formatted size labels, driven by the `CategoryDistributions` property on `ScanViewModel`.
 - **Pre-existing ScannerService fixes** — fixed `StreamReader` wrapping (`process.StandardOutput` is already a `StreamReader`), `Dictionary<string,int>` → `long` cast for `FileTypes` in `StreamComplete` → `ScanResult` mapping, and `timeoutCts` variable scoping (moved outside `try` block for `catch` accessibility).
-- **Category accumulator** — `extension_to_category()` helper in `shared-scanner` maps file extensions to high-level categories (Documents, Images, Videos, Audio, Archives, Code, Databases, Executables, System, Development, Games, Other).
+- **Category accumulator** — `extension_to_category()` helper in `scan-engine` maps file extensions to high-level categories (Documents, Images, Videos, Audio, Archives, Code, Databases, Executables, System, Development, Games, Other).
 - **Quick scan targets** — `ScanPage.xaml` now has a "Quick Targets" section with a ComboBox of preset directories (User Profile, Desktop, Documents, Downloads, Pictures, Local AppData, Temp). Selecting a target auto-fills the path textbox; the standalone "Scan" button triggers the scan — no manual address entry needed for testing.
 
 ### WinUI 3 — Scan Page Enhancements
@@ -114,9 +114,9 @@
 
 ### Rust — Shared Scanner Cleanup
 
-- **Eliminated duplicate `format_bytes`** implementations across `main.rs`, `system_monitor.rs`, and `workflows/mod.rs`; single canonical `shared_scanner::format_bytes` used everywhere.
+- **Eliminated duplicate `format_bytes`** implementations across `main.rs`, `system_monitor.rs`, and `workflows/mod.rs`; single canonical `scan_engine::format_bytes` used everywhere.
 - **Added `total_dirs` and `top_directories`** to `gui_common::ScanResult`; removed hardcoded empty arrays in database persistence.
-- **`shared-scanner/src/lib.rs`** — removed identity multiplication dead code; added `top_directories` reporting.
+- **`scan-engine/src/lib.rs`** — removed identity multiplication dead code; added `top_directories` reporting.
 
 ### Rust — Build & Dependency Updates
 
@@ -200,7 +200,7 @@
 
 ### Rust — Package Rename, USN & App-Inventory Fixes (this session)
 
-- **Renamed workspace packages** — root crate `space-analyzer-pro-desktop` → `space-analyzer`; native scanner `space-analyzer` → `space-analyzer-scanner` (to avoid a name clash with the root). Updated `gui-egui/Cargo.toml` dep key and `Cargo.lock`; the `space_scanner` path dependency now points at `space-analyzer-scanner`. Validated via `cargo check`/`clippy`/`test` on all three crates.
+- **Renamed workspace packages** — root crate `space-analyzer-pro-desktop` → `space-analyzer`; native scanner `space-analyzer` → `win-usn` (to avoid a name clash with the root). Updated `gui-egui/Cargo.toml` dep key and `Cargo.lock`; the `win_usn` path dependency now points at `win-usn`. Validated via `cargo check`/`clippy`/`test` on all three crates.
 - **Fixed Scoop install `drive` attribution** — `app_inventory::collect_scoop_apps` was calling `drive_of(&app_name)` (the app display name) instead of `drive_of(&loc)` (the install location), so Scoop apps were filed under the wrong drive. Now uses the real install path.
 - **Fixed USN `to_volume_path`** — previously stripped the colon, producing `\\.\C` (invalid for `CreateFile`); now emits `\\.\C:` (retains the drive letter + colon), matching the Win32 volume-open API.
 - **Made Ollama `PromptCache` opt-in** — `OllamaClientBuilder` no longer builds a default cache unless `with_cache` was called; `chat_with_tools` doc corrected to return `(content, thinking, tool_calls, usage)`.
@@ -208,5 +208,13 @@
 ### Scripts — Benchmark Tooling
 
 - **`model_management.py` reads a benchmark directory** — `_load_benchmark_scores` now loads per-run `ollama_gpu_benchmark_*.json` files (deduped to the latest run per model) instead of a single file, feeding the AI model auto-selection ranking.
-- **`consolidate_benchmarks.py` robustness** — timestamp-aware dedup (`_parse_timestamp` normalizes epoch + ISO-8601 on equal footing), correct `md_path`/`json_path` derivation, and `nvidia-smi` GPU name/VRAM detection for the consolidated report.
+  - **`consolidate_benchmarks.py` robustness** — timestamp-aware dedup (`_parse_timestamp` normalizes epoch + ISO-8601 on equal footing), correct `md_path`/`json_path` derivation, and `nvidia-smi` GPU name/VRAM detection for the consolidated report.
+
+### Scripts — Cleanup, Rename & Bug Fixes (2026-08-16)
+
+- **Renamed 5 confusingly-named scripts** (no behavior change): `scripts/utility/analyze_screenshot.py` → `analyze_single_screenshot.py`, `analyze_screenshots.py` → `analyze_ux_screenshots.py`, `screenshot_technical.py` → `technical_screenshot_analysis.py`, `rename_screenshot_files.py` → `normalize_screenshot_filenames.py`, `refactor_screenshot_folders.py` → `organize_screenshot_folders.py`. Updated all dependents (`scripts/README.md`, `scripts/utility/_common.py`, `scripts/utility/ollama_vision.py`, `ux-pipeline/pyproject.toml`, internal docstrings/usage).
+- **Portability — removed hardcoded absolute repo paths.** `prune_macro_logs.py` (`MACRO_LOGS`), `capture_winui3_screenshots.py` (`REPO`), `gallery_server.py` / `gallery_macro_logs.py` (`ROOT_DEFAULT`) now derive locations from `__file__`; `export_issues_to_csv.py` resolves `docs/issues.json` / `docs/issues_export.csv` instead of a non-existent `scripts/` path.
+- **Bug fixes across scripts:** `analyze_ux_screenshots.py` (`_parse_model_text` `NameError` → `parse_model_text` + fallback grounding image), `technical_screenshot_analysis.py` (context-manager `Image.open`), `analyze_single_screenshot.py` (renamed shadowing `tech` → `tech_report`), `organize_screenshot_folders.py` (skip image files in `relocate_leftovers`), `normalize_screenshot_filenames.py` (removed dead branch), `improvement_loop.py` (batch-skipping deadlock in `open_issues` — now excludes processed/failed so all open issues are reachable across iterations), `benchmark_models.py` (removed `or Path()` that inflated the written-file count with CWD), `analyze_design_feedback.py` (`is_dir` guard before `iterdir()`), `prune_macro_logs.py` (`_is_session` slice bug that never pruned `YYYYMMDD_HHMMSS` sessions).
+- **`agent_loop_regression.py` (agentic-loop regression harness):** replaced the dead `python -m src.tools.cli workflow run` / `search` invocations (no such module or scanner subcommand exists) with real scanner-CLI-backed equivalents where available (`find_duplicate_files` → `dedup`; `find_large_files` / `find_largest_*` → scan `largest_files` / `top_directories`); in-process-only workflows return an explicit "no CLI backend" error instead of invoking a phantom module.
+- **Repo hygiene:** moved 17 stray root-level `.log` files into an ignored `logs/` directory; hardened `.gitignore` (`benchmark_results/`, `browser-test/`, `gallery_b64.txt`, `gallery_page.png`); removed the dead empty `.github/.github.workflows.bak`. All `scripts/**/*.py` pass `py_compile`.
 

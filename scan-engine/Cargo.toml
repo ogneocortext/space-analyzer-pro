@@ -1,11 +1,11 @@
 [package]
-name = "shared-scanner"
+name = "scan-engine"
 version = "1.0.0"
 edition = "2021"
-description = "Shared file scanner library for Space Analyzer Pro"
+description = "Shared file scanner engine library for Space Analyzer Pro"
 
 [lib]
-name = "shared_scanner"
+name = "scan_engine"
 crate-type = ["rlib"]
 
 [dependencies]

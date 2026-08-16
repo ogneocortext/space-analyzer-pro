@@ -64,7 +64,9 @@
                         </StackPanel>
 
                         <!-- GPU -->
-                        <StackPanel Grid.Column="2" Spacing="{StaticResource Space.MD}">
+                        <StackPanel Grid.Column="2" Spacing="{StaticResource Space.MD}"
+                                    Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                    Padding="{StaticResource Thickness.MD}" CornerRadius="6">
                             <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
                                 <FontIcon Glyph="&#xF211;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center"
                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>

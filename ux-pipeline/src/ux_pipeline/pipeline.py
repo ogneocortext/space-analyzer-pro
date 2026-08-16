@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,9 +27,12 @@ from ._ollama_client import OllamaClient
 from ._pipeline_config import PipelineConfig, load_config
 from ._quality_history import QualityHistory, QualityRecord
 from ._screenshot_links import ScreenshotLinkStore
+from .model_selector import resolve_pipeline_vision_model
 logger = logging.getLogger("ux_pipeline.pipeline")
 
-DEFAULT_VISION_MODEL: str = "qwen3-vl:4b"
+#: Default vision model, resolved from benchmark recommendations (falls back
+#: to ``qwen3-vl:4b`` when the recommendations file is unavailable).
+DEFAULT_VISION_MODEL: str = resolve_pipeline_vision_model(default="qwen3-vl:4b")
 GENERATION_OPTIONS: dict[str, Any] = {"temperature": 0.2, "num_predict": 384}
 
 
@@ -63,14 +67,14 @@ def _extract(path: Path) -> dict[str, Any] | None:
         return None
     try:
         gray = img.convert("L")
-        pixels = list(gray.get_flattened_data())
+        pixels = list(gray.getdata())
         total = len(pixels)
         if total == 0:
             return None
         avg_bright = sum(pixels) / total
         dark_pct = sum(1 for p in pixels if p < 64) / total * 100
         edges = gray.filter(ImageFilter.FIND_EDGES)
-        edge_pct = sum(1 for p in list(edges.get_flattened_data()) if p > 128) / total * 100
+        edge_pct = sum(1 for p in list(edges.getdata()) if p > 128) / total * 100
         center = img.crop(
             (img.size[0] // 4, img.size[1] // 4, 3 * img.size[0] // 4, 3 * img.size[1] // 4)
         ).quantize(16)
@@ -79,17 +83,22 @@ def _extract(path: Path) -> dict[str, Any] | None:
             "bright": round(avg_bright, 1),
             "dark_pct": round(dark_pct, 1),
             "edge_pct": round(edge_pct, 1),
-            "center_colors": len(set(center.get_flattened_data())),
+            "center_colors": len(set(center.getdata())),
         }
     except (OSError, ValueError) as exc:
         logger.debug("Feature extraction failed for %s: %s", path, exc)
         return None
 
 
+# A capture directory is either a legacy ``screenshots_*`` folder or a thematic
+# ``YYYY-MM-DD__<origin>__<representation>`` bucket.
+_CAPTURE_DIR_RE = re.compile(r"^(screenshots_|\d{4}-\d{2}-\d{2}__.+__.+$)")
+
+
 def _latest_screenshots_dir(shots_root: Path) -> Path | None:
-    """Return the most recently modified ``screenshots_*`` directory, or ``None``."""
+    """Return the most recently modified capture directory, or ``None``."""
     candidates = sorted(
-        [p for p in shots_root.iterdir() if p.is_dir() and p.name.startswith("screenshots_")],
+        [p for p in shots_root.iterdir() if p.is_dir() and _CAPTURE_DIR_RE.match(p.name)],
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
@@ -320,7 +329,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--shots-root", default=None, help="Directory containing screenshots_* subdirs")
     parser.add_argument("--tracker", default=None, help="Path to the issue tracker JSON")
     parser.add_argument("--history", default=None, help="Path to the quality history JSONL")
-    parser.add_argument("--model", default=None, help="Ollama model name (default qwen3-vl:4b)")
+    parser.add_argument(
+        "--model",
+        default=None,
+        help=f"Ollama model name (default: benchmark pick {DEFAULT_VISION_MODEL})",
+    )
     parser.add_argument("--output", default="ux_report.md", help="Output path for --report")
     parser.add_argument("--status", default=None, help="Filter --list by status")
     parser.add_argument("--category", default=None, help="Filter --list by category")

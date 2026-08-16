@@ -1,8 +1,8 @@
 use crate::animation::{self, display_width, SECTION_WIDTH};
 use crate::cli::render::{self, format_extension, pct_of};
-use crate::cli::types::ScanResult;
+use crate::cli::types::ScanReport;
 use crate::hprintln;
-use shared_scanner::format_bytes;
+use scan_engine::format_bytes;
 
 /// Draw the report banner with both rules derived from one width constant so
 /// the box always closes squarely (the title row used to be one cell short).
@@ -23,7 +23,7 @@ fn print_banner() {
 }
 
 pub fn print_text_results(
-    result: &ScanResult,
+    result: &ScanReport,
     top_n: usize,
     verbose: bool,
     no_animation: bool,
@@ -218,12 +218,22 @@ pub fn print_text_results(
                 "Temp/Cache" => "🗑️",
                 "Development" => "🛠️",
                 "AI Models" => "🤖",
+                "Virtual" => "💿",
+                "Games" => "🎮",
                 "Videos" => "🎬",
                 "System" => "🔧",
                 "Build Output" => "🔨",
                 "VCS" => "📚",
                 "Cache" => "💰",
                 "Test Fixtures" => "🧪",
+                "Archives" => "🗜️",
+                "Documents" => "📄",
+                "Images" => "🖼️",
+                "Audio" => "🎵",
+                "Databases" => "🗄️",
+                "Executables" => "⚙️",
+                "Fonts" => "🔤",
+                "Other" => "❓",
                 _ => "📁",
             };
             hprintln!(
@@ -277,11 +287,11 @@ pub fn print_text_results(
     }
 }
 
-pub fn print_csv(result: &ScanResult) {
+pub fn print_csv(result: &ScanReport) {
     println!("{}", render::build_csv(result));
 }
 
-fn print_installer_inventory(result: &ScanResult, no_animation: bool) {
+fn print_installer_inventory(result: &ScanReport, no_animation: bool) {
     let groups = render::categorize_installers(result);
     if groups.is_empty() {
         return;

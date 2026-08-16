@@ -2877,6 +2877,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "scan-engine"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "chrono",
+ "crossbeam-channel",
+ "gpu-compute",
+ "num_cpus",
+ "proptest",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "walkdir",
+]
+
+[[package]]
 name = "schannel"
 version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3059,28 +3081,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shared-scanner"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "blake3",
- "chrono",
- "crossbeam-channel",
- "gpu-compute",
- "num_cpus",
- "proptest",
- "rayon",
- "regex",
- "serde",
- "serde_json",
- "sysinfo",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "walkdir",
-]
-
-[[package]]
 name = "shell-words"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3183,11 +3183,10 @@ dependencies = [
  "reqwest",
  "rusqlite",
  "rust-embed",
+ "scan-engine",
  "serde",
  "serde_json",
  "sha2 0.11.0",
- "shared-scanner",
- "space-analyzer-scanner",
  "sysinfo",
  "tar",
  "tempfile",
@@ -3202,32 +3201,10 @@ dependencies = [
  "trash",
  "walkdir",
  "which",
+ "win-usn",
  "windows-sys 0.61.2",
  "winreg",
  "zip",
-]
-
-[[package]]
-name = "space-analyzer-scanner"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "crossbeam",
- "md5",
- "napi",
- "napi-build",
- "napi-derive",
- "num_cpus",
- "rayon",
- "regex",
- "serde",
- "serde_json",
- "temporal_rs",
- "tokio",
- "walkdir",
- "winapi",
 ]
 
 [[package]]
@@ -4055,6 +4032,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48d7cd18d4acb58fb3cdfe9ea54e6cd96a4e7d4cc45c56338b236e82dad47248"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "win-usn"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap",
+ "crossbeam",
+ "md5",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "num_cpus",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_json",
+ "temporal_rs",
+ "tokio",
+ "walkdir",
+ "winapi",
 ]
 
 [[package]]

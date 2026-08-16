@@ -4,17 +4,17 @@
 **Legacy reference**: `docs/CONSOLIDATED_ISSUE_TRACKER.csv` (do not edit)
 
 <!--ISSUE_COUNTS_START-->
-## Open issue counts (2026-08-11)
+## Open issue counts (2026-08-14)
 
 | Scope | Count |
 |---|---|
-| Open | 29 |
-| Done | 176 |
+| Open | 0 |
+| Done | 207 |
 | Wontfix | 3 |
 | Blocked | 1 |
-| **Total** | **209** |
+| **Total** | **211** |
 
-**Open by category:** `layout` 11, `ui` 11, `color` 5, `ux` 2. All 29 open issues are UI/UX
+**Open by category:** . All 0 open issues are UI/UX
 polish — there are **no open issues** for backend, scanning, AI, settings, or workflow
 features.
 <!--ISSUE_COUNTS_END-->

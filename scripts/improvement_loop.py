@@ -1,7 +1,5 @@
 """Recursive self-improvement loop template for fixing issues."""
 
-from __future__ import annotations
-
 import argparse
 import json
 import os
@@ -11,7 +9,6 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TRACKER_PATH = REPO_ROOT / "docs" / "issues.json"
@@ -43,9 +40,11 @@ def save_tracker(data: dict, path: Path = TRACKER_PATH) -> None:
     path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def open_issues(data: dict, category=None, limit=None):
+def open_issues(data: dict, category=None, limit=None, exclude=None):
     issues = data.get("issues", [])
     out = [i for i in issues if i.get("status") == "open"]
+    if exclude:
+        out = [i for i in out if i.get("issue_id") not in exclude]
     if category:
         out = [i for i in out if i.get("category") == category.lower().replace(" ", "-")]
     if limit:
@@ -221,7 +220,7 @@ def run_loop(cfg: LoopConfig) -> None:
 
     for iteration in range(state.get("iteration", 0) + 1, cfg.max_iterations + 1):
         print(f"\n=== Iteration {iteration}/{cfg.max_iterations} ===")
-        issues = open_issues(tracker, category=cfg.category_filter, limit=cfg.issues_per_iteration)
+        issues = open_issues(tracker, category=cfg.category_filter, limit=cfg.issues_per_iteration, exclude=processed | failed)
         if not issues:
             print("No open issues remaining.")
             return

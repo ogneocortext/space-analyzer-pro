@@ -1,0 +1,79 @@
+<!-- Licensed under the MIT License. -->
+<UserControl
+    x:Class="SpaceAnalyzer.Controls.ScanBreakdown.TopFoldersControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:SpaceAnalyzer.Models">
+
+    <UserControl.Resources>
+        <!-- Compact: Scan page "Largest Directories" (name + size · file count) -->
+        <DataTemplate x:Key="CompactTemplate" x:DataType="models:DirEntry">
+            <StackPanel Spacing="{StaticResource Space.XS}">
+                <TextBlock Style="{StaticResource Type.Body}" Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.8">
+                    <Run Text="{x:Bind SizeDisplay, Mode=OneTime}"/>
+                    <Run Text=" · "/>
+                    <Run Text="{x:Bind FileCount, Mode=OneTime}"/>
+                    <Run Text=" files"/>
+                </TextBlock>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Detailed: History detail "Folders" (name/path/size/counts + open + bar) -->
+        <DataTemplate x:Key="DetailedTemplate" x:DataType="models:DirEntry">
+            <Grid ColumnSpacing="{StaticResource Space.SM}" Margin="0,4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0" ColumnSpacing="{StaticResource Space.SM}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                        <TextBlock Text="{x:Bind Name, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{x:Bind Path, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.6" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center" Opacity="0.7">
+                        <TextBlock Text="{x:Bind FileCount, Mode=OneTime}" Style="{StaticResource Type.Tiny}"/>
+                        <TextBlock Text="files" Style="{StaticResource Type.Tiny}"/>
+                        <TextBlock Text="{x:Bind DirCount, Mode=OneTime}" Style="{StaticResource Type.Tiny}"/>
+                        <TextBlock Text="dirs" Style="{StaticResource Type.Tiny}"/>
+                        <TextBlock Text="{x:Bind PercentDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Margin="4,0,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="3" Content="Open" Click="OpenFolder_Click" Style="{StaticResource TinyButton}" VerticalAlignment="Center"/>
+                </Grid>
+                <ProgressBar Grid.Row="1" Value="{x:Bind Percent, Mode=OneTime}" Maximum="100" Height="6" Margin="0,4,0,0" Foreground="{ThemeResource AccentFillColorDefaultBrush}"/>
+            </Grid>
+        </DataTemplate>
+
+        <!-- Rollup: History Overview "Top Folders" (name/path + size + proportion bar) -->
+        <DataTemplate x:Key="RollupTemplate" x:DataType="models:DirEntry">
+            <StackPanel Spacing="2" Margin="0,2">
+                <Grid ColumnSpacing="{StaticResource Space.SM}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                        <TextBlock Text="{x:Bind Name, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{x:Bind Path, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.6" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </Grid>
+                <ProgressBar Value="{x:Bind Percent, Mode=OneTime}" Maximum="100" Height="4"
+                             Foreground="{ThemeResource AccentFillColorDefaultBrush}"/>
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <ItemsRepeater x:Name="FolderRepeater" ItemsSource="{x:Bind ItemsSource, Mode=OneWay}">
+        <ItemsRepeater.Layout>
+            <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.SM}"/>
+        </ItemsRepeater.Layout>
+    </ItemsRepeater>
+</UserControl>

@@ -64,21 +64,35 @@ pub fn file_to_description(file_path: &str, file_size: u64, extension: &str) -> 
     )
 }
 
-/// Embed a batch of file descriptions using Ollama
+/// Embed a batch of file descriptions using Ollama.
+///
+/// Files are sent in chunks of `batch_size` rather than all at once, so a
+/// large corpus (the embed pipeline can collect up to `embedding_file_limit`
+/// entries) becomes many bounded requests instead of one unbounded payload.
+/// This keeps memory flat and turns an all-or-nothing failure into a
+/// per-chunk error with partial progress already persisted upstream.
 pub async fn embed_files(
     client: &OllamaClient,
     files: &[(String, u64, String)],
+    batch_size: usize,
 ) -> Result<Vec<Vec<f32>>, String> {
-    let descriptions: Vec<String> = files
-        .iter()
-        .map(|(path, size, ext)| file_to_description(path, *size, ext))
-        .map(|s| s.to_lowercase()) // nomic-embed-text 0.30+ lowercases inputs
-        .collect();
+    let batch_size = batch_size.max(1);
+    let mut embeddings: Vec<Vec<f32>> = Vec::with_capacity(files.len());
 
-    let (embeddings, _) = client
-        .embed(descriptions)
-        .await
-        .map_err(|e| format!("Embedding failed: {}", e))?;
+    for chunk in files.chunks(batch_size) {
+        let descriptions: Vec<String> = chunk
+            .iter()
+            .map(|(path, size, ext)| file_to_description(path, *size, ext))
+            .map(|s| s.to_lowercase()) // nomic-embed-text 0.30+ lowercases inputs
+            .collect();
+
+        let (chunk_embeddings, _) = client
+            .embed(descriptions)
+            .await
+            .map_err(|e| format!("Embedding failed: {}", e))?;
+
+        embeddings.extend(chunk_embeddings);
+    }
 
     Ok(embeddings)
 }

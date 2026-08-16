@@ -22,18 +22,18 @@
 From the project root directory:
 
 ```bash
-cd native/scanner
+cd native/win-usn
 cargo build --release
 ```
 
 The executable will be created at:
-- Windows: `native/scanner/target/release/space-analyzer.exe`
-- Linux/Mac: `native/scanner/target/release/space-analyzer`
+- Windows: `native/win-usn/target/release/space-analyzer.exe`
+- Linux/Mac: `native/win-usn/target/release/space-analyzer`
 
 ### Development Build
 
 ```bash
-cd native/scanner
+cd native/win-usn
 cargo build
 ```
 
@@ -57,8 +57,8 @@ cp target/release/space-analyzer ../../bin/
 
 The backend will automatically find the executable if it's in:
 - `bin/space-analyzer.exe`
-- `native/scanner/target/release/space-analyzer.exe`
-- `native/scanner/target/debug/space-analyzer.exe`
+- `native/win-usn/target/release/space-analyzer.exe`
+- `native/win-usn/target/debug/space-analyzer.exe`
 
 Run a quick test:
 ```bash

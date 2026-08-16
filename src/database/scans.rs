@@ -1,4 +1,4 @@
-use super::super::gui_common::ScanResult;
+use super::super::gui_common::ScanReport;
 use super::*;
 
 /// A compact, chart-friendly projection of a scan-history row. Used by the
@@ -13,6 +13,20 @@ pub struct HistoryTrendPoint {
     pub total_size_bytes: u64,
 }
 
+/// A stored duplicate-file analysis result, linked to the scan that produced it.
+///
+/// `duplicate_groups_json` holds the serialized `Vec<DuplicateGroup>` (the same
+/// shape emitted by the `dedup` subcommand), so the full group/file list can be
+/// reconstituted on retrieval without re-scanning.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DuplicateAnalysisRecord {
+    pub id: i64,
+    pub scan_id: i64,
+    pub duplicate_groups_json: String,
+    pub potential_savings_bytes: u64,
+    pub timestamp: String,
+}
+
 /// Maximum number of scan-history records kept per distinct path. Newer scans
 /// beyond this limit are removed on insert so the cache cannot grow unbounded.
 pub const MAX_SCANS_PER_PATH: usize = 20;
@@ -24,7 +38,7 @@ impl super::Database {
     /// [`MAX_SCANS_PER_PATH`] records for the scanned path.
     pub fn save_scan(
         &self,
-        result: &ScanResult,
+        result: &ScanReport,
         deep_scan: bool,
         shallow_scan: bool,
         max_scan_depth: u32,
@@ -154,7 +168,7 @@ impl super::Database {
     /// Get scan history, most recent first
     pub fn get_scan_history(&self, limit: usize) -> rusqlite::Result<Vec<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, category_sizes_json
+            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp
              FROM scan_history ORDER BY timestamp DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], |row| {
@@ -272,26 +286,26 @@ impl super::Database {
         let params = rusqlite::params_from_iter(bound.iter().map(|b| &**b));
         let rows = stmt
             .query_map(params, |row| {
-                Ok(ScanHistoryRecord {
-                    id: row.get(0)?,
-                    path: row.get(1)?,
-                    total_files: row.get::<_, i64>(2)? as usize,
-                    total_size_bytes: row.get::<_, i64>(3)? as u64,
-                    total_size_mb: row.get(4)?,
-                    duration_secs: row.get(5)?,
-                    file_types_json: row.get(6)?,
-                    extension_sizes_json: row.get(7)?,
-                    top_directories_json: row.get(8)?,
-                    largest_files_json: row.get(9)?,
-                    category_sizes_json: row.get(10)?,
-                    deep_scan: row.get(11)?,
-                    shallow_scan: row.get(12)?,
-                    max_scan_depth: row.get::<_, i64>(13)? as u32,
-                    potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
-                    timestamp: row.get(15)?,
-                })
-            })?
-            .collect::<rusqlite::Result<_>>()?;
+            Ok(ScanHistoryRecord {
+                id: row.get(0)?,
+                path: row.get(1)?,
+                total_files: row.get::<_, i64>(2)? as usize,
+                total_size_bytes: row.get::<_, i64>(3)? as u64,
+                total_size_mb: row.get(4)?,
+                duration_secs: row.get(5)?,
+                file_types_json: row.get(6)?,
+                extension_sizes_json: row.get(7)?,
+                top_directories_json: row.get(8)?,
+                largest_files_json: row.get(9)?,
+                category_sizes_json: row.get(10)?,
+                deep_scan: row.get(11)?,
+                shallow_scan: row.get(12)?,
+                max_scan_depth: row.get::<_, i64>(13)? as u32,
+                potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
+                timestamp: row.get(15)?,
+            })
+        })?
+        .collect::<rusqlite::Result<_>>()?;
 
         Ok((rows, total))
     }
@@ -343,6 +357,32 @@ impl super::Database {
         Ok(totals)
     }
 
+    /// Return every stored duplicate-file analysis for a scan, newest first.
+    ///
+    /// A scan may have several analyses saved over time (re-runs of `dedup`).
+    /// Returns an empty `Vec` when the scan has no linked analysis yet, so callers
+    /// can treat "none" and "error" uniformly. The heavy `duplicate_groups_json`
+    /// column is returned as-is; deserialize it on demand.
+    pub fn get_duplicate_analysis(
+        &self,
+        scan_id: i64,
+    ) -> rusqlite::Result<Vec<DuplicateAnalysisRecord>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, scan_id, duplicate_groups_json, potential_savings_bytes, timestamp
+             FROM duplicate_analysis WHERE scan_id = ?1 ORDER BY id DESC",
+        )?;
+        let rows = stmt.query_map(params![scan_id], |row| {
+            Ok(DuplicateAnalysisRecord {
+                id: row.get(0)?,
+                scan_id: row.get(1)?,
+                duplicate_groups_json: row.get(2)?,
+                potential_savings_bytes: row.get::<_, i64>(3)? as u64,
+                timestamp: row.get(4)?,
+            })
+        })?;
+        rows.collect()
+    }
+
     /// Get a specific scan by ID
     pub fn get_scan_by_id(&self, id: i64) -> rusqlite::Result<Option<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
@@ -374,6 +414,32 @@ impl super::Database {
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(e),
         }
+    }
+
+    /// Normalize a path for matching: unify separators to `/` and drop a trailing
+    /// separator so `C:\X`, `C:\X\`, and `C:/X` compare equal.
+    fn normalize_path_for_match(p: &str) -> String {
+        p.replace('\\', "/").trim_end_matches('/').to_string()
+    }
+
+    /// Find the most recent scan-history row whose (slash-normalized,
+    /// case-insensitive) path matches `path`. Used to link a `dedup` run back to
+    /// the scan it analyzed so the result can be persisted and later retrieved.
+    /// Returns `None` when no matching scan exists, so callers can skip persisting
+    /// rather than writing an orphaned analysis row.
+    pub fn get_latest_scan_id_for_path(&self, path: &str) -> rusqlite::Result<Option<i64>> {
+        let norm = Self::normalize_path_for_match(path);
+        let mut stmt =
+            self.conn
+                .prepare("SELECT id, path FROM scan_history ORDER BY timestamp DESC")?;
+        let rows = stmt.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))?;
+        for r in rows {
+            let (id, stored) = r?;
+            if Self::normalize_path_for_match(&stored).eq_ignore_ascii_case(&norm) {
+                return Ok(Some(id));
+            }
+        }
+        Ok(None)
     }
 
     /// Recompute `category_sizes_json` for any history record that lacks it.
@@ -411,7 +477,7 @@ impl super::Database {
             }
             let mut cats: HashMap<String, u64> = HashMap::new();
             for (ext, size) in &ext_map {
-                let cat = shared_scanner::category_for_extension(ext);
+                let cat = scan_engine::category_for_extension(ext);
                 *cats.entry(cat.to_string()).or_insert(0) += size;
             }
             let json = serde_json::to_string(&cats)
@@ -649,6 +715,66 @@ mod tests {
             .unwrap();
         assert_eq!(total_dupes, 2, "both re-scans of C:\\dup must be returned");
         assert!(dupes.iter().all(|r| r.path.eq_ignore_ascii_case("C:\\dup")));
+    }
+
+    #[test]
+    fn get_latest_scan_id_for_path_normalizes_separators_and_trailing_slash() {
+        let db = test_db();
+        let id = insert_scan(&db, "C:\\target", 1000, 10);
+        // Trailing backslash + mixed case must still resolve to the stored row.
+        assert_eq!(
+            db.get_latest_scan_id_for_path("c:\\target\\").unwrap(),
+            Some(id)
+        );
+        // Forward slashes are treated as equivalent too.
+        assert_eq!(
+            db.get_latest_scan_id_for_path("C:/target").unwrap(),
+            Some(id)
+        );
+        // An unrelated path has no match.
+        assert_eq!(
+            db.get_latest_scan_id_for_path("C:\\other").unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn save_and_get_duplicate_analysis_roundtrip() {
+        let db = test_db();
+        let scan_id = insert_scan(&db, "C:\\dupscan", 1000, 10);
+        assert_eq!(db.get_duplicate_analysis(scan_id).unwrap().len(), 0);
+
+        let groups = serde_json::json!([
+            {"hash":"abc","size":100,"file_count":2,"files":["a","b"],"wasted_bytes":100}
+        ])
+        .to_string();
+        let saved = db.save_duplicate_analysis(scan_id, &groups, 100).unwrap();
+        assert!(saved > 0);
+
+        let got = db.get_duplicate_analysis(scan_id).unwrap();
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].scan_id, scan_id);
+        assert_eq!(got[0].potential_savings_bytes, 100);
+        assert_eq!(got[0].duplicate_groups_json, groups);
+    }
+
+    #[test]
+    fn get_scan_history_maps_columns_without_off_by_one() {
+        let db = test_db();
+        // insert_scan stores deep_scan=0, shallow_scan=0, max_scan_depth=5,
+        // potential_cleanup_bytes=0, and a category_sizes_json DEFAULT of '{}'.
+        let _ = insert_scan(&db, "C:\\ordered", 1000, 10);
+
+        let rows = db.get_scan_history(10).unwrap();
+        assert_eq!(rows.len(), 1);
+        let r = &rows[0];
+        assert!(!r.deep_scan);
+        assert!(!r.shallow_scan);
+        assert_eq!(r.max_scan_depth, 5);
+        assert_eq!(r.potential_cleanup_bytes, 0);
+        assert_eq!(r.category_sizes_json, "{}");
+        // timestamp must be the stored RFC3339 string, not misread from an int column.
+        assert!(r.timestamp.starts_with("2026-08-03"));
     }
 
     #[test]

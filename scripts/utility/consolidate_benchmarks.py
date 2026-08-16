@@ -4,15 +4,13 @@ Consolidate all Ollama GPU benchmark results into a single CSV and summary repor
 Links each row to its corresponding JSON and MD files.
 """
 
-from __future__ import annotations
-
 import argparse
 import csv
 import json
 import logging
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +35,29 @@ TASK_SCORE_FIELDS: dict[str, str] = {
     "vision_ui_analysis": "task_vision_ui",
     "vision_element_detection": "task_vision_elements",
     "vision_speed": "task_vision_speed",
+}
+
+# Which app use case each task feeds (for the per-task recommendation table).
+TASK_USE_CASE: dict[str, str] = {
+    "vision_ui_analysis": "ui_screenshot_analysis",
+    "vision_element_detection": "ui_screenshot_analysis",
+    "vision_speed": "ui_screenshot_analysis",
+    "code_review": "code_analysis",
+    "file_categorization": "code_analysis",
+    "disk_analysis_quality": "cleanup_recommendations",
+    "reasoning": "cleanup_recommendations",
+    "structured_json": "documentation",
+    "generation_speed": "documentation",
+    "response_latency": "fast_chat",
+}
+
+# Per-use-case minimum quality threshold used to flag a model as viable.
+USE_CASE_MIN_QUALITY: dict[str, float] = {
+    "ui_screenshot_analysis": 6.0,
+    "code_analysis": 5.0,
+    "cleanup_recommendations": 5.0,
+    "documentation": 5.0,
+    "fast_chat": 4.0,
 }
 
 CSV_FIELDNAMES: list[str] = [
@@ -90,14 +111,16 @@ def _extract_result_row(json_file: Path, data: dict[str, Any]) -> dict[str, Any]
         data: Parsed JSON data.
 
     Returns:
-        Result row, or None if the entry has zero scores on both modes.
+        Result row, or None if there is no mode_scores data at all. A model that
+        benchmarked but scored zero (e.g. failed every task) is still a valid,
+        informative result and must not be dropped.
     """
     comp = data.get("comparison", {})
     gpu = data.get("mode_scores", {}).get("gpu", {})
     cpu = data.get("mode_scores", {}).get("cpu", {})
     gpu_tasks = gpu.get("task_scores", {})
 
-    if gpu.get("weighted_total", 0) == 0 and cpu.get("weighted_total", 0) == 0:
+    if not gpu and not cpu:
         return None
 
     row: dict[str, Any] = {
@@ -174,8 +197,6 @@ def load_benchmark_results(benchmark_dir: Path = BENCHMARK_DIR) -> list[dict[str
 
     all_results: list[dict[str, Any]] = []
     for json_file in sorted(benchmark_dir.glob("ollama_gpu_benchmark_*.json")):
-        if "latest" in json_file.name:
-            continue
         try:
             with json_file.open(encoding="utf-8") as fh:
                 data = json.load(fh)
@@ -423,6 +444,97 @@ def _file_reference_rows(results: list[dict[str, Any]]) -> list[str]:
     ]
 
 
+def compute_task_recommendations(
+    results: list[dict[str, Any]],
+    installed: set[str] | None = None,
+) -> dict[str, Any]:
+    """Pick the best installed model per task from GPU task scores.
+
+    Args:
+        results: Deduplicated result rows (one per model).
+        installed: Optional set of installed model names (filters recommendations).
+
+    Returns:
+        Dict with ``per_task`` (task -> best model entry) and
+        ``per_use_case`` (use case -> best viable model entry) mappings.
+    """
+    def _score_for(row: dict[str, Any], task_key: str) -> float:
+        field = TASK_SCORE_FIELDS.get(task_key)
+        return float(row.get(field, 0)) if field else 0.0
+
+    best_per_task: dict[str, dict[str, Any]] = {}
+    for task_key in TASK_SCORE_FIELDS:
+        candidates = [
+            {
+                "model": r["model"],
+                "score": _score_for(r, task_key),
+                "gpu_tok_s": r.get("gpu_tokens_per_sec", 0.0),
+                "gpu_latency_ms": r.get("gpu_avg_latency_ms", 0.0),
+            }
+            for r in results
+            if (installed is None or r["model"] in installed) and _score_for(r, task_key) > 0
+        ]
+        if not candidates:
+            continue
+        candidates.sort(key=lambda c: c["score"], reverse=True)
+        top = candidates[0]
+        best_per_task[task_key] = {
+            "model": top["model"],
+            "score": top["score"],
+            "gpu_tokens_per_sec": top["gpu_tok_s"],
+            "gpu_avg_latency_ms": top["gpu_latency_ms"],
+            "runner_up": candidates[1]["model"] if len(candidates) > 1 else None,
+        }
+
+    # Collapse tasks into use cases (best model among that use case's tasks).
+    per_use_case: dict[str, dict[str, Any]] = {}
+    for use_case, min_q in USE_CASE_MIN_QUALITY.items():
+        tasks = [k for k, uc in TASK_USE_CASE.items() if uc == use_case]
+        viable = [
+            best_per_task[t] for t in tasks
+            if t in best_per_task and best_per_task[t]["score"] >= min_q
+        ]
+        if not viable:
+            continue
+        viable.sort(key=lambda c: c["score"], reverse=True)
+        per_use_case[use_case] = {
+            "model": viable[0]["model"],
+            "score": viable[0]["score"],
+            "gpu_tokens_per_sec": viable[0]["gpu_tokens_per_sec"],
+            "gpu_avg_latency_ms": viable[0]["gpu_avg_latency_ms"],
+            "tasks_covered": tasks,
+        }
+
+    return {"per_task": best_per_task, "per_use_case": per_use_case}
+
+
+def _task_recommendation_rows(recs: dict[str, Any]) -> list[str]:
+    """Markdown rows for the per-task best-model table."""
+    rows: list[str] = []
+    for task_key, entry in sorted(recs.get("per_task", {}).items()):
+        uc = TASK_USE_CASE.get(task_key, "")
+        runner = entry.get("runner_up")
+        runner_s = f" (runner-up: `{runner}`)" if runner else ""
+        rows.append(
+            f"| {task_key} | `{entry['model']}` | {entry['score']:.1f} | "
+            f"{entry['gpu_tokens_per_sec']:.1f} | {entry['gpu_avg_latency_ms']:.0f} | "
+            f"{uc} |{runner_s}"
+        )
+    return rows
+
+
+def _use_case_rows(recs: dict[str, Any]) -> list[str]:
+    """Markdown rows for the per-use-case best-model table."""
+    rows: list[str] = []
+    for uc, entry in sorted(recs.get("per_use_case", {}).items()):
+        rows.append(
+            f"- **{uc}** -> `{entry['model']}` "
+            f"(score {entry['score']:.1f}, {entry['gpu_tokens_per_sec']:.1f} tok/s, "
+            f"{entry['gpu_avg_latency_ms']:.0f} ms) — covers {', '.join(entry['tasks_covered'])}"
+        )
+    return rows
+
+
 def write_markdown_report(
     results: list[dict[str, Any]],
     output_md: Path = OUTPUT_MD,
@@ -443,9 +555,10 @@ def write_markdown_report(
     data_gpu = next((r.get("gpu_name") for r in results if r.get("gpu_name")), "")
     # Precedence: real hardware (nvidia-smi) > benchmark data name > CLI arg.
     gpu_name_resolved = _get_nvidia_smi_gpu() or data_gpu or gpu_name
+    recs = compute_task_recommendations(results, installed if fetch_installed else None)
     lines: list[str] = [
         "# Ollama GPU vs CPU Benchmark — Consolidated Results",
-        f"Generated: {datetime.now().isoformat()}",
+        f"Generated: {datetime.now(timezone.utc).isoformat()}",
         f"GPU: {gpu_name_resolved}",
         f"Models Tested: {len(results)}",
         "",
@@ -475,6 +588,19 @@ def write_markdown_report(
         "",
         *_ranking_lines(results, "speedup_factor", "{value:.2f}x"),
         "",
+        "## Best Model per Task",
+        "",
+        "Picks the highest-scoring installed model for each benchmarked task "
+        "(quality score 0-10). Tasks that every model failed are omitted.",
+        "",
+        "| Task | Best Model | Score | GPU tok/s | Latency (ms) | Use Case |",
+        "|------|-----------|-------|-----------|-------------|----------|",
+        *_task_recommendation_rows(recs),
+        "",
+        "### Best Model per Use Case",
+        "",
+        *_use_case_rows(recs),
+        "",
         "## Recommendations for Space Analyzer Pro",
         "",
         "### Currently Installed Models",
@@ -496,6 +622,7 @@ def write_markdown_report(
     output_md.parent.mkdir(parents=True, exist_ok=True)
     output_md.write_text("\n".join(lines), encoding="utf-8")
     logger.info("Wrote consolidated report to %s", output_md)
+    return recs
 
 
 def _print_summary(results: list[dict[str, Any]]) -> None:
@@ -560,12 +687,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     write_csv(results, Path(args.output_csv))
-    write_markdown_report(
+    recs = write_markdown_report(
         results,
         Path(args.output_md),
         gpu_name=args.gpu_name,
         fetch_installed=not args.no_ollama,
     )
+    # Persist machine-readable per-task picks for model_management.py / automation.
+    rec_path = benchmark_dir / "task_recommendations.json"
+    rec_path.write_text(json.dumps(recs, indent=2), encoding="utf-8")
+    logger.info("Wrote task recommendations to %s", rec_path)
     _print_summary(results)
     return 0
 

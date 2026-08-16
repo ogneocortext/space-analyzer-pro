@@ -7,7 +7,7 @@
 #![cfg(test)]
 
 use space_analyzer_pro_desktop::database::AppSettings;
-use space_analyzer_pro_desktop::gui_common::{self, ScanResult};
+use space_analyzer_pro_desktop::gui_common::{self, ScanReport};
 use space_analyzer_pro_desktop::ollama::client::OllamaClient;
 use space_analyzer_pro_desktop::ollama::types::ClientMetrics;
 use space_analyzer_pro_desktop::system_monitor::SystemMonitor;
@@ -24,11 +24,11 @@ macro_rules! pass {
     };
 }
 
-// 1. ScanResult default must be internally coherent
+// 1. ScanReport default must be internally coherent
 #[test]
 fn scan_result_defaults_are_zeroed() {
-    say!("🔍 Test: ScanResult defaults are zeroed");
-    let r = ScanResult::new();
+    say!("🔍 Test: ScanReport defaults are zeroed");
+    let r = ScanReport::new();
     say!(
         "   Files: {} | Dirs: {} | Size: {} bytes",
         r.total_files,
@@ -86,11 +86,11 @@ fn format_bytes_units() {
     pass!();
 }
 
-/// 3. ScanResult::from_shared must convert shared_scanner types correctly
+/// 3. ScanReport::from_shared must convert scan_engine types correctly
 #[test]
 fn scan_result_from_shared_converts_fields() {
-    say!("🔍 Test: ScanResult::from_shared converts fields");
-    use shared_scanner::{FileInfo, ScanResult as SharedScanResult};
+    say!("🔍 Test: ScanReport::from_shared converts fields");
+    use scan_engine::{FileInfo, ScanResult as SharedScanResult};
     let shared = SharedScanResult {
         total_files: 5,
         total_directories: 2,
@@ -118,7 +118,7 @@ fn scan_result_from_shared_converts_fields() {
         shared.total_directories,
         shared.total_size
     );
-    let result = ScanResult::from_shared(&shared, "/tmp".into(), 1.0);
+    let result = ScanReport::from_shared(&shared, "/tmp".into(), 1.0);
     say!(
         "   Output: {} files, {} dirs, {} bytes",
         result.total_files,

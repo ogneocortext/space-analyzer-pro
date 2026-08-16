@@ -266,7 +266,7 @@
                         </Grid.ColumnDefinitions>
                          <TextBox Grid.Column="0" Text="{x:Bind VM.QuickScanPath, Mode=TwoWay}" PlaceholderText="Select a folder to scan..." AutomationProperties.Name="Quick scan path" Style="{StaticResource FieldTextBox}" />
                         <Button Grid.Column="1" Content="Browse" Click="QuickScanBrowse_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Quick scan browse" />
-                        <Button Grid.Column="2" Content="Scan Now" Click="QuickScan_Click" Style="{StaticResource SecondaryButton}" AutomationProperties.Name="Quick scan now" />
+                        <Button Grid.Column="2" Content="Scan Now" Click="QuickScan_Click" Style="{StaticResource PrimaryButton}" AutomationProperties.Name="Quick scan now" />
                     </Grid>
                     <TextBlock Text="Tip: Run a scan to populate the dashboard stats and history." Style="{StaticResource Type.Hint}" />
                     <TextBlock Text="{x:Bind VM.QuickScanStatus, Mode=OneWay}" Style="{StaticResource Type.Body}" />

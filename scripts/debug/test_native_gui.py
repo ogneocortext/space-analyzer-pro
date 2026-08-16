@@ -5,8 +5,6 @@ Tests binary integrity, process lifecycle, file output format,
 and AI system compatibility.
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import logging
@@ -14,7 +12,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -85,7 +83,7 @@ class SpaceAnalyzerTester:
             details: Optional details string.
         """
         result = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "test": test_name,
             "status": status,
             "details": details,
@@ -388,7 +386,7 @@ class SpaceAnalyzerTester:
                 for line in r["details"].split("; "):
                     print(f"       {line}")
 
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         self._save_text_report(ts)
         self._save_json_report(ts, total, passed, failed, skipped, rate)
 
@@ -425,7 +423,7 @@ class SpaceAnalyzerTester:
         }
         report_data = {
             "start_time": self.test_results[0]["timestamp"] if self.test_results else ts,
-            "end_time": datetime.now().isoformat(),
+            "end_time": datetime.now(timezone.utc).isoformat(),
             "tests": {r["test"]: {"status": r["status"], "details": r["details"]} for r in self.test_results},
             "analysis": analysis,
         }

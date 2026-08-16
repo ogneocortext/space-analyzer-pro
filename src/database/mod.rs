@@ -144,6 +144,7 @@ impl Database {
             "workflow_executions",
             "file_cache",
             "file_embeddings",
+            "duplicate_analysis",
         ];
         if !ALLOWED.contains(&table) {
             return Ok(0);
@@ -571,7 +572,7 @@ impl Database {
             )?;
             let mut stmt = tx.prepare(
                 "INSERT INTO file_cache (scan_path, file_path, size_bytes, mtime_unix, extension, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'))"
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
             )?;
             let now = chrono::Utc::now().to_rfc3339();
             for (file_path, size, mtime, ext) in entries {
@@ -614,5 +615,58 @@ impl Database {
             "DELETE FROM file_cache WHERE scan_path = ?1",
             params![scan_path],
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_db() -> Database {
+        Database::open(PathBuf::from(":memory:")).expect("in-memory db")
+    }
+
+    #[test]
+    fn save_and_load_file_cache_roundtrip() {
+        let db = test_db();
+        db.conn
+            .execute(
+                "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb,
+                                           duration_secs, file_types_json, extension_sizes_json,
+                                           top_directories_json, largest_files_json, deep_scan,
+                                           shallow_scan, max_scan_depth, potential_cleanup_bytes,
+                                           timestamp)
+                 VALUES ('C:\\cache', 1, 1, 0.0, 0.0, '{}', '{}', '[]', '[]', 0, 0, 5, 0, '2026-08-03T00:00:00Z')",
+                [],
+            )
+            .unwrap();
+
+        // Previously this call failed with InvalidParameterCount because the
+        // SQL had 5 placeholders but 6 values were bound.
+        db.save_file_cache(
+            "C:\\cache",
+            &[(
+                "C:\\cache\\a.txt".to_string(),
+                100u64,
+                123i64,
+                "txt".to_string(),
+            )],
+        )
+        .unwrap();
+
+        let map = db.load_file_cache("C:\\cache").unwrap();
+        assert_eq!(map.len(), 1);
+        let (size, mtime, ext) = map.get("C:\\cache\\a.txt").unwrap();
+        assert_eq!(*size, 100);
+        assert_eq!(*mtime, 123);
+        assert_eq!(ext, "txt");
+    }
+
+    #[test]
+    fn table_row_count_includes_duplicate_analysis() {
+        let db = test_db();
+        // Unknown tables are guarded; duplicate_analysis must be countable.
+        assert_eq!(db.table_row_count("not_a_table").unwrap(), 0);
+        assert_eq!(db.table_row_count("duplicate_analysis").unwrap(), 0);
     }
 }

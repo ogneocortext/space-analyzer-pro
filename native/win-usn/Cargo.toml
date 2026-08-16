@@ -1,13 +1,13 @@
 [package]
-name = "space-analyzer-scanner"
+name = "win-usn"
 version = "1.0.0"
 edition = "2021"
 authors = ["Space Analyzer Team"]
-description = "High-performance file analysis CLI for Space Analyzer Pro"
+description = "Windows-only native scanner bridge (USN journal / MFT) for Space Analyzer Pro"
 license = "MIT"
 
 [lib]
-name = "space_scanner"
+name = "win_usn"
 crate-type = ["cdylib", "lib"]
 path = "src/lib.rs"
 

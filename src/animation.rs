@@ -87,7 +87,7 @@ pub fn create_scan_spinner(path: &str) -> ProgressBar {
 /// Update the scan spinner with current progress stats.
 #[allow(dead_code)]
 pub fn update_scan_spinner(pb: &ProgressBar, file_count: usize, bytes_scanned: u64) {
-    let size_str = shared_scanner::format_bytes(bytes_scanned);
+    let size_str = scan_engine::format_bytes(bytes_scanned);
     pb.set_message(format!(
         "Scanning... {} files | {}",
         format_with_commas(file_count),

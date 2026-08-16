@@ -14,12 +14,15 @@ public partial class ScannerService
         string path,
         CancellationToken ct = default,
         bool apply = false,
-        bool? useGpu = null)
+        bool? useGpu = null,
+        long? linkScanId = null)
     {
         if (!IsAvailable)
             return null;
 
         var argList = new List<string> { "dedup", "--path", path, "--format", "json" };
+        if (linkScanId.HasValue)
+            argList.AddRange(new[] { "--scan-id", linkScanId.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) });
         if (apply)
         {
             argList.Add("--apply");

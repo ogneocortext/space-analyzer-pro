@@ -46,7 +46,7 @@ impl Default for OllamaOptions {
             top_p: None,
             min_p: None,
             top_k: None,
-            repeat_penalty: None,
+            repeat_penalty: Some(1.1),
             stop: None,
             seed: None,
             mirostat: None,

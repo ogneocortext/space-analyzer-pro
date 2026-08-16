@@ -4,7 +4,7 @@ Uses PIL + numpy to compute a structured, layout-oriented view of a UI
 screenshot: dimensions, luminance/contrast, dominant color palette, edge
 density, a content/whitespace signal, and panel detection.
 This is the *technical* counterpart to ollama_vision.py (semantic, slower).
-Both can be combined by analyze_screenshot.py for a faster + slower dual
+Both can be combined by analyze_single_screenshot.py for a faster + slower dual
 perspective.
 
 No external services required; runs locally.
@@ -17,8 +17,9 @@ from PIL import Image
 
 
 def _to_array(path):
-    img = Image.open(path).convert("RGB")
-    return np.asarray(img), img.size
+    with Image.open(path) as img:
+        rgb = np.asarray(img.convert("RGB"))
+    return rgb, (rgb.shape[1], rgb.shape[0])
 
 
 def hex_to_rgb(h):
@@ -216,7 +217,7 @@ def analyze(path, palette_n=8, min_panel=64):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("usage: python screenshot_technical.py <image> [palette_n] [min_panel]")
+        print("usage: python technical_screenshot_analysis.py <image> [palette_n] [min_panel]")
         sys.exit(1)
     pn = int(sys.argv[2]) if len(sys.argv) > 2 else 8
     mp = int(sys.argv[3]) if len(sys.argv) > 3 else 64

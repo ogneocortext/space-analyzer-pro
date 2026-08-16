@@ -1,4 +1,4 @@
-pub use gui_common::{DirEntry, ScanResult};
+pub use gui_common::{DirEntry, ScanReport};
 use space_analyzer_pro_desktop::gui_common;
 
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ pub struct FileInfoStreaming {
 /// Event emitted on stdout when --stream is active.
 ///
 /// - "progress" lines carry cumulative scan stats and a batch of live files.
-/// - "complete" lines carry the final [ScanResult] fields (minus scanned_files
+/// - "complete" lines carry the final [ScanReport] fields (minus scanned_files
 ///   which are not needed on the frontend).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]

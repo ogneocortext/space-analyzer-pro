@@ -5,8 +5,8 @@ use crate::cli::args::OutputFormat;
 use crate::cli::helpers;
 use crate::cli::origins;
 use crate::cli::render::{self, format_extension};
-use crate::cli::types::ScanResult;
-use shared_scanner::format_bytes;
+use crate::cli::types::ScanReport;
+use scan_engine::format_bytes;
 use space_analyzer_pro_desktop::error::{AppError, AppResult};
 
 /// Write the scan results to `export_path`, creating parent directories.
@@ -14,7 +14,7 @@ use space_analyzer_pro_desktop::error::{AppError, AppResult};
 /// Returns an error instead of only printing one, so the caller can set a
 /// non-zero exit code when an export silently fails.
 pub fn export_results(
-    result: &ScanResult,
+    result: &ScanReport,
     export_path: &str,
     format: OutputFormat,
     top_n: usize,
@@ -50,12 +50,12 @@ pub fn export_results(
 
 /// Render the scan as a stable, human-friendly JSON document.
 ///
-/// Unlike serializing `ScanResult` directly, this curates the field order,
+/// Unlike serializing `ScanReport` directly, this curates the field order,
 /// rounds noisy floats (`total_size_mb`, `duration_secs`), adds human-readable
 /// size strings, and omits the per-file map unless it actually carries data.
 /// The GUI consumes the streaming JSONL event, not this document, so reshaping
 /// it cannot break the desktop app.
-pub fn generate_json_pretty(result: &ScanResult) -> AppResult<String> {
+pub fn generate_json_pretty(result: &ScanReport) -> AppResult<String> {
     let mut value = serde_json::json!({
         "path": result.path,
         "total_files": result.total_files,
@@ -89,10 +89,10 @@ fn round2(value: f64) -> f64 {
 }
 
 /// Render the scan as genuine JSON Lines: one self-describing JSON object per
-/// line. The previous implementation serialized the whole `ScanResult` as a
+/// line. The previous implementation serialized the whole `ScanReport` as a
 /// single object, which was identical to `--format json` and not line
 /// delimited at all.
-pub fn generate_jsonl(result: &ScanResult) -> AppResult<String> {
+pub fn generate_jsonl(result: &ScanReport) -> AppResult<String> {
     let mut lines: Vec<String> = Vec::new();
 
     lines.push(serde_json::to_string(&serde_json::json!({
@@ -149,7 +149,7 @@ pub fn generate_jsonl(result: &ScanResult) -> AppResult<String> {
     Ok(lines.join("\n"))
 }
 
-pub fn generate_report(result: &ScanResult, path: &str, top_n: usize) -> String {
+pub fn generate_report(result: &ScanReport, path: &str, top_n: usize) -> String {
     let mut report = String::new();
     report.push_str("# Space Analyzer Pro — Disk Space Report\n\n");
     report.push_str(&format!(
@@ -273,8 +273,8 @@ mod tests {
     use super::*;
     use space_analyzer_pro_desktop::gui_common::LargestFileEntry;
 
-    fn sample() -> ScanResult {
-        let mut r = ScanResult::new();
+    fn sample() -> ScanReport {
+        let mut r = ScanReport::new();
         r.path = "C:/tmp".into();
         r.total_files = 2;
         r.total_size_bytes = 30;

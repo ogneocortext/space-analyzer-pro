@@ -33,9 +33,9 @@ pub fn run(command: UsnCommand, format: OutputFormat) -> AppResult<()> {
 
 #[cfg(windows)]
 fn run_windows(command: UsnCommand, format: OutputFormat) -> AppResult<()> {
-    use space_scanner::usn_journal_scanner::utils::format_change_type;
-    use space_scanner::usn_journal_scanner::utils::get_usn_journal_volumes;
-    use space_scanner::usn_journal_scanner::UsnJournalScanner;
+    use win_usn::usn_journal_scanner::utils::format_change_type;
+    use win_usn::usn_journal_scanner::utils::get_usn_journal_volumes;
+    use win_usn::usn_journal_scanner::UsnJournalScanner;
 
     let to_err = |e: String| AppError::Validation(e);
 

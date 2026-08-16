@@ -4,6 +4,7 @@ pub mod bloat;
 pub mod dedup;
 pub mod dependencies;
 pub mod helpers;
+pub mod live_scan;
 pub mod predict;
 pub mod semantic;
 pub mod sink;
@@ -106,6 +107,7 @@ pub fn main() -> AppResult<()> {
             only_duplicates,
             trend,
             category_totals,
+            duplicates,
         } => handle_history(
             limit,
             offset,
@@ -122,6 +124,7 @@ pub fn main() -> AppResult<()> {
             only_duplicates,
             trend,
             category_totals,
+            duplicates,
             output_format,
         ),
         Commands::Dedup {
@@ -131,6 +134,7 @@ pub fn main() -> AppResult<()> {
             max_size,
             no_gpu,
             apply,
+            scan_id,
         } => {
             sink::route_human_output_to_stderr(output_format.is_machine_readable());
             let path = path.or(path_flag).unwrap_or_else(|| ".".to_string());
@@ -151,6 +155,7 @@ pub fn main() -> AppResult<()> {
                 no_gpu,
                 apply,
                 yes,
+                scan_id,
             )
         }
         Commands::AppInventory => {
@@ -305,6 +310,7 @@ fn handle_scan(args: ScanArgs) -> AppResult<()> {
         args.files,
         args.top_n,
         args.save_history,
+        args.no_anim,
     )?;
 
     if args.output_format == OutputFormat::Text && !args.no_anim && !args.stream {
@@ -406,6 +412,7 @@ fn handle_scan(args: ScanArgs) -> AppResult<()> {
             false,
             false,
             true,
+            None,
         )?;
     }
 
@@ -466,6 +473,7 @@ fn handle_history(
     only_duplicates: bool,
     trend: bool,
     category_totals: bool,
+    duplicates: bool,
     output_format: OutputFormat,
 ) -> AppResult<()> {
     if let Ok(db) = Database::default_open() {
@@ -662,6 +670,28 @@ fn handle_history(
                 }
             }
         } else if let Some(scan_id) = id {
+            if duplicates {
+                match db.get_duplicate_analysis(scan_id) {
+                    Ok(records) => {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&records).unwrap_or_default()
+                        );
+                    }
+                    Err(e) => {
+                        if output_format == OutputFormat::Json {
+                            println!(
+                                "{}",
+                                serde_json::json!({"error": e.to_string()})
+                            );
+                        } else {
+                            return Err(space_analyzer_pro_desktop::error::AppError::Validation(
+                                format!("Failed to load duplicate analysis for scan {scan_id}: {e}"),
+                            ));
+                        }
+                    }
+                }
+            } else {
             match db.get_scan_by_id(scan_id) {
                 Ok(Some(record)) => {
                     println!(
@@ -687,6 +717,7 @@ fn handle_history(
                     ));
                 }
             }
+        }
         } else {
             match db.get_scan_history_page(limit, offset, search.as_deref(), &sort_by, sort_asc, only_duplicates) {
                 Ok((records, total)) => {
@@ -939,7 +970,7 @@ fn depth_label(deep: bool, shallow: bool, max_depth: Option<usize>) -> String {
 
 fn output_results(
     format: OutputFormat,
-    result: &space_analyzer_pro_desktop::gui_common::ScanResult,
+    result: &space_analyzer_pro_desktop::gui_common::ScanReport,
     path: &str,
     top: usize,
     verbose: bool,
@@ -969,7 +1000,7 @@ fn output_results(
 
 fn run_ai_question(
     question: &str,
-    result: space_analyzer_pro_desktop::gui_common::ScanResult,
+    result: space_analyzer_pro_desktop::gui_common::ScanReport,
 ) -> AppResult<()> {
     let settings = Database::default_open()
         .ok()
@@ -1026,7 +1057,8 @@ fn run_ai_question(
 
     let chat_client = probe
         .with_model(&model)
-        .expect("Failed to create Ollama client with selected model");
+        .expect("Failed to create Ollama client with selected model")
+        .with_cache(settings.to_prompt_cache_config());
     match rt.block_on(
         space_analyzer_pro_desktop::ollama::features::agentic_question(
             &chat_client,

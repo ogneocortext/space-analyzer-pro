@@ -4,15 +4,13 @@ Ollama Model Management - Keep/Delete/Replace based on benchmark results
 and Space Analyzer use cases.
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import logging
 import os
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -258,8 +256,6 @@ class ModelManager:
 
         scores: dict[str, dict[str, Any]] = {}
         for json_file in sorted(directory.glob("ollama_gpu_benchmark_*.json")):
-            if "latest" in json_file.name:
-                continue
             try:
                 with json_file.open(encoding="utf-8") as f:
                     data = json.load(f)
@@ -285,6 +281,85 @@ class ModelManager:
                 "_timestamp": timestamp,
             }
         return scores
+
+    def _load_task_recommendations(
+        self,
+        benchmark_dir: str | Path | None = None,
+    ) -> dict[str, Any]:
+        """Load the benchmark-derived per-task / per-use-case recommendations.
+
+        Reads ``task_recommendations.json`` produced by ``consolidate_benchmarks.py``.
+
+        Args:
+            benchmark_dir: Directory containing the recommendations JSON (defaults
+                to ``benchmark_results`` next to this script).
+
+        Returns:
+            Parsed mapping, or ``{}`` when the file is missing or unreadable.
+        """
+        directory = Path(benchmark_dir) if benchmark_dir else BENCHMARK_DIR
+        rec_path = directory / "task_recommendations.json"
+        if not rec_path.is_file():
+            return {}
+        try:
+            with rec_path.open(encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning("Could not read recommendations %s: %s", rec_path, e)
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def recommend_model_for_use_case(
+        self,
+        use_case: str,
+        benchmark_dir: str | Path | None = None,
+        installed: list[str] | None = None,
+    ) -> str | None:
+        """Return the benchmark-recommended model for a use case.
+
+        Args:
+            use_case: Use case key (e.g. ``"ui_screenshot_analysis"``).
+            benchmark_dir: Directory with the recommendations JSON.
+            installed: Optional list of installed model names; when provided,
+                falls back to the first matching preferred model if the top
+                pick is not installed.
+
+        Returns:
+            Recommended model name, or ``None`` when no recommendation exists.
+        """
+        recs = self._load_task_recommendations(benchmark_dir)
+        entry = recs.get("per_use_case", {}).get(use_case)
+        if entry and entry.get("model"):
+            model = entry["model"]
+            if installed is None or model in installed:
+                return model
+        uc = self.USE_CASES.get(use_case)
+        if uc and uc.preferred_models:
+            if installed is None:
+                return uc.preferred_models[0]
+            for preferred in uc.preferred_models:
+                if preferred in installed:
+                    return preferred
+        return None
+
+    def recommend_all_use_cases(
+        self,
+        benchmark_dir: str | Path | None = None,
+        installed: list[str] | None = None,
+    ) -> dict[str, str | None]:
+        """Return the recommended model for every known use case.
+
+        Args:
+            benchmark_dir: Directory with the recommendations JSON.
+            installed: Optional installed-model filter.
+
+        Returns:
+            Mapping of use case name to recommended model (or ``None``).
+        """
+        return {
+            use_case: self.recommend_model_for_use_case(use_case, benchmark_dir, installed)
+            for use_case in self.USE_CASES
+        }
 
     def analyze_installed_models(
         self,
@@ -362,7 +437,7 @@ class ModelManager:
         }
 
         plan: dict[str, Any] = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "keep": [],
             "delete": [],
             "total_space_freed_mb": 0.0,
@@ -466,6 +541,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Ollama Model Management for Space Analyzer")
     parser.add_argument("--list", action="store_true", help="List installed models")
     parser.add_argument("--analyze", action="store_true", help="Analyze models against use cases")
+    parser.add_argument("--recommend", action="store_true", help="Show benchmark-recommended model per use case")
     parser.add_argument("--benchmark-dir", default=None, help="Directory of benchmark results JSON (default: benchmark_results)")
     parser.add_argument("--cleanup", action="store_true", help="Interactive cleanup wizard")
     parser.add_argument("--rm", default=None, help="Remove a specific model")
@@ -523,6 +599,21 @@ def _print_analysis(manager: ModelManager, benchmark_dir: str | None) -> None:
             print("    -> No matching use cases")
 
 
+def _print_recommendations(manager: ModelManager, benchmark_dir: str | None) -> None:
+    """Print the benchmark-recommended model per use case.
+
+    Args:
+        manager: Initialized ModelManager.
+        benchmark_dir: Optional benchmark directory path.
+    """
+    installed = [m.get("name") for m in manager.list_installed_models()]
+    recs = manager.recommend_all_use_cases(benchmark_dir, installed=installed)
+    print("\nRecommended model per use case (from benchmark_results):")
+    for use_case, model in recs.items():
+        note = "" if model else " (no recommendation — keep preferred list)"
+        print(f"  {use_case:<24} -> {model or '—'}{note}")
+
+
 def _print_use_cases() -> None:
     """Print the supported use case definitions."""
     print("\nSupported Use Cases:")
@@ -559,23 +650,34 @@ def main(argv: list[str] | None = None) -> int:
     _setup_logging(args.verbose)
     manager = ModelManager(host=args.host)
 
+    ran = False
     if args.list:
         _print_installed_models(manager)
+        ran = True
+    if args.recommend:
+        _print_recommendations(manager, args.benchmark_dir)
+        ran = True
     if args.analyze:
         _print_analysis(manager, args.benchmark_dir)
-    elif args.use_cases:
+        ran = True
+    elif not ran and args.use_cases:
         _print_use_cases()
-    elif args.cleanup:
+        ran = True
+    elif not ran and args.cleanup:
         manager.interactive_cleanup()
-    elif args.rm:
+        ran = True
+    elif not ran and args.rm:
         manager.remove_model(args.rm)
-    elif args.pull:
+        ran = True
+    elif not ran and args.pull:
         manager.pull_model(args.pull)
-    elif args.keep or args.delete:
+        ran = True
+    elif not ran and (args.keep or args.delete):
         keep = [m.strip() for m in args.keep.split(",")] if args.keep else []
         delete = [m.strip() for m in args.delete.split(",")] if args.delete else []
         _print_plan(manager, keep, delete, args.dry_run)
-    else:
+        ran = True
+    if not ran:
         _parse_args(["--help"])
     return 0
 

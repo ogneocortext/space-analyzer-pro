@@ -605,7 +605,7 @@ pub struct StorageInsights;
 impl StorageInsights {
     /// Generate AI recommendations based on scan results
     pub fn generate_recommendations(
-        scan_result: &super::gui_common::ScanResult,
+        scan_result: &super::gui_common::ScanReport,
     ) -> Vec<AIRecommendation> {
         let mut recommendations = Vec::new();
 
@@ -674,7 +674,7 @@ impl StorageInsights {
                     title: "Very Large File Found".to_string(),
                     description: format!(
                         "File '{}' is {} in size. Consider moving to external storage or archiving.",
-                        path, shared_scanner::format_bytes(size)
+                        path, scan_engine::format_bytes(size)
                     ),
                     action: RecommendationAction::Archive,
                 });
@@ -725,7 +725,7 @@ pub enum RecommendationAction {
 /// Workflow execution context
 #[derive(Debug, Default)]
 pub struct WorkflowContext {
-    pub scan_results: Vec<super::gui_common::ScanResult>,
+    pub scan_results: Vec<super::gui_common::ScanReport>,
     pub duplicate_results: Vec<DuplicateResult>,
     pub notifications_sent: usize,
 }

@@ -39,7 +39,8 @@
                                 <FontIcon Glyph="&#xE74C;" FontSize="12" VerticalAlignment="Center"/>
                                 <TextBlock Text="{x:Bind ToolName, Mode=OneWay}"
                                            Style="{StaticResource Type.Caption}"
-                                           Foreground="White"/>
+                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                           FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
 
@@ -85,7 +86,8 @@
                                 <FontIcon Glyph="&#xE74C;" FontSize="12" VerticalAlignment="Center"/>
                                 <TextBlock Text="{x:Bind ToolName, Mode=OneWay}"
                                            Style="{StaticResource Type.Caption}"
-                                           Foreground="White"/>
+                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"
+                                           FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
 

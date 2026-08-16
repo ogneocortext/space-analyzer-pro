@@ -1,6 +1,6 @@
 //! CLI presentation for the origin-tracing / deletion-safety report.
 
-use shared_scanner::format_bytes;
+use scan_engine::format_bytes;
 use space_analyzer_pro_desktop::origin_tracer::{OriginAssessment, OriginReport, SafetyLevel};
 
 use crate::animation;

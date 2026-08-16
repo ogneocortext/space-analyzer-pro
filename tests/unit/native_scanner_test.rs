@@ -9,7 +9,7 @@
 #![cfg(test)]
 
 use proptest::prelude::*;
-use shared_scanner::{FileInfo, FileScanner, ScanOptions, ScanResult};
+use scan_engine::{FileInfo, FileScanner, ScanOptions, ScanResult};
 
 macro_rules! say {
     ($($arg:tt)*) => { eprintln!($($arg)*) };

@@ -115,7 +115,7 @@ pub fn path_based_category(path: &str) -> &'static str {
         return "AI Models";
     }
     if lower.contains("\\gemini\\") || lower.contains(".gemini\\") || lower.contains("/gemini/") {
-        return "AI Tools";
+        return "AI Models";
     }
     if lower.contains("huggingface") {
         return "AI Models";
@@ -131,6 +131,12 @@ pub fn path_based_category(path: &str) -> &'static str {
     if lower.contains("\\.cargo\\") || lower.contains("/.cargo/") || lower.contains("\\rustup\\") {
         return "Development";
     }
+    // Android emulator disk images (.qcow2/.img/.vhd under an avd) are virtual
+    // machine images, not development sources.
+    if lower.contains(".android\\avd") || lower.contains(".android/avd") {
+        return "Virtual";
+    }
+
     if lower.contains("\\.android\\") {
         return "Development";
     }
@@ -171,49 +177,79 @@ pub fn path_based_category(path: &str) -> &'static str {
 }
 
 /// File category definitions
-pub const FILE_CATEGORIES: [(&str, &[&str]); 12] = [
+pub const FILE_CATEGORIES: [(&str, &[&str]); 16] = [
     (
         "Documents",
         &[
             "txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "rtf",
-            "md", "csv",
+            "md", "csv", "epub", "mobi", "azw", "tex",
         ],
     ),
     (
         "Images",
         &[
             "jpg", "jpeg", "png", "gif", "bmp", "svg", "webp", "ico", "tiff", "tif",
+            "heic", "heif", "raw", "cr2", "nef", "arw", "dng", "psd",
         ],
     ),
     (
         "Videos",
         &[
             "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpeg", "mpg",
+            "3gp", "vob", "ogv", "m2ts", "mts",
         ],
     ),
-    ("Audio", &["mp3", "wav", "flac", "aac", "ogg", "wma", "m4a"]),
+    ("Audio", &["mp3", "wav", "flac", "aac", "ogg", "wma", "m4a", "aiff", "opus"]),
     (
         "Archives",
-        &["zip", "rar", "7z", "tar", "gz", "bz2", "xz", "iso", "cab"],
+        &[
+            "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "iso", "cab", "zst",
+            "jar", "nupkg", "asar", "tgz", "war", "ear", "lz4", "lz", "z", "msix", "appx",
+        ],
     ),
     (
         "Code",
         &[
             "js", "ts", "py", "java", "c", "cpp", "h", "hpp", "cs", "go", "rs", "php", "rb",
             "swift", "kt", "scala", "html", "css", "scss", "sass", "less", "json", "xml", "yaml",
-            "yml",
+            "yml", "toml", "ini", "cfg", "lock", "proto", "graphql", "vue", "pl", "lua", "r",
+            "dart", "hs", "clj", "groovy", "ex", "exs",
         ],
     ),
-    ("Databases", &["db", "sqlite", "sql", "mdb", "accdb"]),
+    ("Databases", &["db", "sqlite", "sql", "mdb", "accdb", "db3", "sqlite3", "duckdb"]),
     (
         "Executables",
         &[
             "exe", "msi", "bat", "cmd", "sh", "ps1", "app", "dmg", "deb", "rpm",
+            "scr", "com", "apk",
         ],
     ),
     (
         "System",
-        &["dll", "sys", "drv", "fon", "ttf", "otf", "log", "tmp"],
+        &["dll", "sys", "drv", "fon", "ttf", "otf", "log", "tmp", "cat", "mui"],
+    ),
+    (
+        "Fonts",
+        &["ttf", "otf", "fon", "woff", "woff2", "eot", "ttc"],
+    ),
+    (
+        "Build Output",
+        &["lib", "a", "pdb", "so", "dylib", "rlib", "rmeta", "o", "obj", "exp", "ilk", "wasm", "pyc", "pyd"],
+    ),
+    (
+        "Games",
+        &[
+            "sav", "save", "game", "pak", "wad", "mpq", "unity3d", "vpk", "bsa", "esm",
+            "uasset", "forge", "bundle", "asset",
+        ],
+    ),
+    (
+        "Virtual",
+        &["qcow2", "vhd", "vhdx", "vmdk", "vdi", "img", "wim", "esd"],
+    ),
+    (
+        "AI Models",
+        &["gguf", "safetensors", "onnx"],
     ),
     (
         "Development",
@@ -228,7 +264,6 @@ pub const FILE_CATEGORIES: [(&str, &[&str]); 12] = [
             "build",
         ],
     ),
-    ("Games", &["sav", "save", "game"]),
     ("Other", &[]), // Catch-all
 ];
 
@@ -289,6 +324,7 @@ pub fn category_color(category: &str) -> (u8, u8, u8) {
         "AppData Roaming" => (180, 200, 180), // Light green
         "Temp/Cache" => (200, 160, 80),       // Gold
         "Updater Cache" => (220, 180, 100),   // Brown-gold
+        "Virtual" => (150, 200, 235),          // Light blue
         "AI Models" => (180, 80, 200),        // Violet
         "Build Output" => (255, 140, 60),     // Orange
         "VCS" => (100, 200, 100),             // Green

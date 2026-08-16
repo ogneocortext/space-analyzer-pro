@@ -7,7 +7,7 @@ This guide explains how to build the high-performance native file scanners using
 Three native scanners are available:
 
 1. **C++ Native Scanner** (`src/cpp/native-scanner/`) - NAPI-based C++ scanner
-2. **Rust Native Scanner** (`native/scanner/`) - Primary Rust scanner with NAPI bindings
+2. **Rust Native Scanner** (`native/win-usn/`) - Primary Rust scanner with NAPI bindings
 
 ## Prerequisites
 

@@ -905,7 +905,7 @@ mod tests {
     #[test]
     fn chat_response_parses_without_thinking() {
         let json = r#"{
-            "model": "gemma3:4b",
+            "model": "gemma4:e2b-it-qat",
             "message": { "role": "assistant", "content": "Hi" },
             "done": true
         }"#;
@@ -957,7 +957,7 @@ mod tests {
     #[test]
     fn split_thinking_returns_none_for_empty_thinking() {
         let json = r#"{
-            "model": "gemma3:4b",
+            "model": "gemma4:e2b-it-qat",
             "message": { "role": "assistant", "content": "ok" },
             "done": true
         }"#;

@@ -8,8 +8,6 @@ Usage:
     python scripts/analyze_winui3_app.py --output reports/winui3-bugs.txt
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import os
@@ -19,7 +17,6 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WINUI_DIR = REPO_ROOT / "gui-winui" / "SpaceAnalyzer"
@@ -44,7 +41,7 @@ class Finding:
 @dataclass
 class FileReport:
     path: Path
-    findings: List[Finding] = field(default_factory=list)
+    findings: list[Finding] = field(default_factory=list)
 
 
 def rel(path: Path) -> str:
@@ -97,8 +94,8 @@ def run_roslyn_analyzer(root_dir: Path) -> dict[str, list[Finding]]:
 # XAML analysis
 # ---------------------------------------------------------------------------
 
-def analyze_xaml(content: str, path: Path) -> List[Finding]:
-    findings: List[Finding] = []
+def analyze_xaml(content: str, path: Path) -> list[Finding]:
+    findings: list[Finding] = []
     lines = content.splitlines()
 
     def add(severity: str, category: str, message: str, line_no: int | None = None, suggestion: str = ""):
@@ -226,8 +223,8 @@ def analyze_xaml(content: str, path: Path) -> List[Finding]:
 # .csproj analysis
 # ---------------------------------------------------------------------------
 
-def analyze_csproj(content: str, path: Path) -> List[Finding]:
-    findings: List[Finding] = []
+def analyze_csproj(content: str, path: Path) -> list[Finding]:
+    findings: list[Finding] = []
 
     if '<TargetFramework>net10' in content or '<TargetFramework>net9' in content:
         has_winappsdk = 'Microsoft.WindowsAppSDK' in content
@@ -286,8 +283,8 @@ def analyze_csproj(content: str, path: Path) -> List[Finding]:
 # Scan
 # ---------------------------------------------------------------------------
 
-def scan_directory(root: Path) -> List[FileReport]:
-    reports: List[FileReport] = []
+def scan_directory(root: Path) -> list[FileReport]:
+    reports: list[FileReport] = []
 
     # Run semantic C# analysis via Roslyn
     roslyn_findings = run_roslyn_analyzer(root)
@@ -325,18 +322,18 @@ def severity_sort_key(f: Finding) -> int:
     return {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}.get(f.severity, 5)
 
 
-def top_issues(reports: List[FileReport], limit: int = 15) -> List[Finding]:
-    flat: List[Finding] = []
+def top_issues(reports: list[FileReport], limit: int = 15) -> list[Finding]:
+    flat: list[Finding] = []
     for r in reports:
         flat.extend(r.findings)
     flat.sort(key=severity_sort_key)
     return flat[:limit]
 
 
-def write_report(reports: List[FileReport], output: Path) -> None:
+def write_report(reports: list[FileReport], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    all_findings: List[Finding] = []
+    all_findings: list[Finding] = []
     for r in reports:
         all_findings.extend(r.findings)
     all_findings.sort(key=severity_sort_key)

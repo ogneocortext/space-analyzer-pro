@@ -4,17 +4,17 @@
 //! Uses tempfile for auto-cleaning fixture directories and proptest for
 //! edge-case / property-based coverage (path safety, size counts).
 //!
-//! Run with:  cargo nextest run shared_scanner
+//! Run with:  cargo nextest run scan_engine
 //!
 
 #![cfg(test)]
 
 use proptest::prelude::*;
-use shared_scanner::{FileInfo, FileScanner, ScanOptions, ScanProgress, ScanResult};
+use scan_engine::{FileInfo, FileScanner, ScanOptions, ScanProgress, ScanResult};
 use std::sync::atomic::AtomicBool;
 
 macro_rules! info {
-    ($($arg:tt)*) => { eprintln!("[shared_scanner] {}", format!($($arg)*)) };
+    ($($arg:tt)*) => { eprintln!("[scan_engine] {}", format!($($arg)*)) };
 }
 
 // -----------------------------------------------------------------------------
@@ -25,7 +25,7 @@ macro_rules! info {
 /// zero, no file present, empty hashmaps.
 #[test]
 fn scan_result_defaults_are_zeroed() {
-    info!("Verifying shared_scanner::ScanResult defaults are zeroed");
+    info!("Verifying scan_engine::ScanResult defaults are zeroed");
     let r = ScanResult {
         total_files: 0,
         total_directories: 0,

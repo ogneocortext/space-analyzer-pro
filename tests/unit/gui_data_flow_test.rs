@@ -6,7 +6,7 @@
 
 #![cfg(test)]
 
-use space_analyzer_pro_desktop::gui_common::ScanResult;
+use space_analyzer_pro_desktop::gui_common::ScanReport;
 use space_analyzer_pro_desktop::tool_registry::ToolRegistry;
 use space_analyzer_pro_desktop::workflows::{self, Workflow, WorkflowAction};
 use std::collections::HashMap;
@@ -121,17 +121,17 @@ fn tool_execution_returns_result() {
 }
 
 // -----------------------------------------------------------------------------
-// 3. ScanResult construction
+// 3. ScanReport construction
 // -----------------------------------------------------------------------------
 
 #[test]
 fn scan_result_with_many_files_populates_types() {
-    say!("🔍 Test: ScanResult with populated file types");
+    say!("🔍 Test: ScanReport with populated file types");
     let mut file_types = HashMap::new();
     file_types.insert("log".to_string(), 15000);
     file_types.insert("tmp".to_string(), 5000);
 
-    let result = ScanResult {
+    let result = ScanReport {
         total_files: 20_000,
         total_size_bytes: 500 * 1024 * 1024,
         total_size_mb: 500.0,

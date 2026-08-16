@@ -28,11 +28,11 @@ Automated test suite for the native binary — verifies binary integrity, proces
 just test-native
 ```
 
-### utility/analyze_screenshots.py
+### utility/analyze_ux_screenshots.py
 PIL feature extraction + Ollama vision model analysis of macro screenshots. Tracks quality scores across runs. Generates `macro_logs/screenshots_*/ux_analysis_*.json`.
 
 ```bash
-python scripts/utility/analyze_screenshots.py
+python scripts/utility/analyze_ux_screenshots.py
 ```
 
 ### utility/consolidate_benchmarks.py

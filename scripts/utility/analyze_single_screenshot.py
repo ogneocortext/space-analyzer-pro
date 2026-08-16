@@ -1,6 +1,6 @@
 """Dual-perspective screenshot analysis: technical (fast) + semantic (Ollama).
 
-Runs the local Python technical analyzer (screenshot_technical.py) by default
+Runs the local Python technical analyzer (technical_screenshot_analysis.py) by default
 for an instant, layout-oriented view, and optionally the slower Ollama vision
 model (ollama_vision.py) for a natural-language semantic description. The two
 together give a faster technically-driven check plus a slower semantically-
@@ -10,9 +10,9 @@ If Ollama is unavailable or returns an error, the technical analysis is still
 emitted and the semantic field carries the error - the run never fails hard.
 
 Usage:
-    python analyze_screenshot.py <image>                 # technical only (fast)
-    python analyze_screenshot.py <image> --semantic      # + Ollama description
-    python analyze_screenshot.py <image> --semantic --out report.json
+    python analyze_single_screenshot.py <image>                 # technical only (fast)
+    python analyze_single_screenshot.py <image> --semantic      # + Ollama description
+    python analyze_single_screenshot.py <image> --semantic --out report.json
 """
 import sys
 import os
@@ -21,7 +21,7 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import screenshot_technical as tech
+import technical_screenshot_analysis as tech
 import ollama_vision as ollama
 
 
@@ -32,12 +32,12 @@ DEFAULT_PROMPT = (
 
 
 def build_verdict(report):
-    tech = report.get("technical", {})
+    tech_report = report.get("technical", {})
     sem = report.get("semantic")
     if not isinstance(sem, str):
         return None
-    layout = tech.get("layout", {})
-    content = tech.get("content", {})
+    layout = tech_report.get("layout", {})
+    content = tech_report.get("content", {})
     notes = []
     panels = layout.get("detected_panels", 0)
     low = sem.lower()

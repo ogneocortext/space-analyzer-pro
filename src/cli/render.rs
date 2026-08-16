@@ -1,8 +1,8 @@
 use crate::animation::{display_width, SECTION_WIDTH};
 use crate::cli::helpers;
-use crate::cli::types::{InstallerCategory, InstallerGroup, Recommendation, ScanResult};
+use crate::cli::types::{InstallerCategory, InstallerGroup, Recommendation, ScanReport};
 use crate::hprintln;
-use shared_scanner::format_bytes;
+use scan_engine::format_bytes;
 
 pub fn pct_of(part: u64, total: u64) -> f64 {
     if total > 0 {
@@ -34,7 +34,7 @@ pub fn format_extension(ext: &str) -> String {
     }
 }
 
-pub fn build_csv(result: &ScanResult) -> String {
+pub fn build_csv(result: &ScanReport) -> String {
     let mut out = String::new();
     out.push_str("section,key,value\n");
     out.push_str(&format!("summary,total_files,{}\n", result.total_files));
@@ -89,7 +89,7 @@ fn csv_escape(s: &str) -> String {
     }
 }
 
-pub fn categorize_installers(result: &ScanResult) -> Vec<InstallerGroup> {
+pub fn categorize_installers(result: &ScanReport) -> Vec<InstallerGroup> {
     let mut groups: std::collections::HashMap<InstallerCategory, Vec<(String, u64)>> =
         std::collections::HashMap::new();
 
@@ -126,7 +126,7 @@ pub fn categorize_installers(result: &ScanResult) -> Vec<InstallerGroup> {
 ///
 /// Shared by the recommendations block and the `--cleanup-recommendations`
 /// block so the two never report different numbers for the same thing.
-pub fn node_modules_bytes(result: &ScanResult) -> u64 {
+pub fn node_modules_bytes(result: &ScanReport) -> u64 {
     let from_dirs: u64 = result
         .top_directories
         .iter()
@@ -144,7 +144,7 @@ pub fn node_modules_bytes(result: &ScanResult) -> u64 {
         .sum()
 }
 
-pub fn build_recommendations(result: &ScanResult) -> Vec<Recommendation> {
+pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
     let mut recs = Vec::new();
 
     if let Some(disk) = helpers::get_disk_info(&result.path) {
@@ -480,7 +480,7 @@ pub fn render_installers_markdown(groups: &[InstallerGroup]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::types::ScanResult;
+    use crate::cli::types::ScanReport;
 
     #[test]
     fn extension_display_has_no_stray_dot() {
@@ -490,7 +490,7 @@ mod tests {
 
     #[test]
     fn csv_never_emits_a_bare_dot_row_and_escapes_separators() {
-        let mut result = ScanResult::new();
+        let mut result = ScanReport::new();
         result.extension_sizes.insert(String::new(), 10);
         result.file_types.insert(String::new(), 1);
         let csv = build_csv(&result);
@@ -522,7 +522,7 @@ mod tests {
 
     #[test]
     fn node_modules_total_is_computed_once_from_directories() {
-        let mut result = ScanResult::new();
+        let mut result = ScanReport::new();
         result.top_directories.push(crate::cli::types::DirEntry {
             path: r"C:\proj\node_modules".into(),
             name: "node_modules".into(),

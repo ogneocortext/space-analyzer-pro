@@ -1,15 +1,18 @@
-use shared_scanner::{FileScanner, ScanOptions, ScanProgress};
+use scan_engine::{FileScanner, ScanOptions, ScanProgress};
 use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::error::AppResult;
 use space_analyzer_pro_desktop::gui_common::LargestFileEntry;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
+use std::io::IsTerminal;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::time::Instant;
 
-use super::types::{DirEntry, FileInfoStreaming, ScanResult, StreamEvent};
+use super::types::{DirEntry, FileInfoStreaming, ScanReport, StreamEvent};
 use crate::animation;
+use super::live_scan::LiveProgress;
 
 #[allow(clippy::too_many_arguments)]
 pub fn scan_directory(
@@ -29,7 +32,8 @@ pub fn scan_directory(
     include_files: bool,
     top_n: usize,
     save_history: bool,
-) -> AppResult<ScanResult> {
+    no_animation: bool,
+) -> AppResult<ScanReport> {
     // A `Path` that cannot be represented as UTF-8 cannot be handed to the
     // native scanner (which takes `&str`). Fail loudly instead of silently
     // scanning "." via `unwrap_or(".")`, which would report the wrong tree.
@@ -39,7 +43,14 @@ pub fn scan_directory(
             path.display()
         ))
     })?;
-    let spinner = if verbose {
+    // Live, in-place progress for interactive runs. Only when stderr is a real
+    // terminal and the caller is not in a machine-output mode; otherwise it stays
+    // silent so redirected logs and `--stream`/`--progress-json` output stay clean.
+    let show_live =
+        !stream && !progress_json && !no_animation && (std::io::stderr().is_terminal() || std::env::var("SPACE_ANALYZER_FORCE_LIVE").is_ok());
+    let live = Arc::new(LiveProgress::new(show_live));
+
+    let spinner = if verbose && !show_live {
         let pb = animation::create_scan_spinner(&path.display().to_string());
         if deep {
             pb.set_message(format!("Scanning {} (deep mode)", path.display()));
@@ -49,7 +60,7 @@ pub fn scan_directory(
             pb.set_message(format!(
                 "Scanning {} (min: {})",
                 path.display(),
-                shared_scanner::format_bytes(ms)
+                scan_engine::format_bytes(ms)
             ));
         }
         Some(pb)
@@ -107,6 +118,7 @@ pub fn scan_directory(
     };
 
     let cancel_flag = AtomicBool::new(false);
+    let live_for_cb = Arc::clone(&live);
     let shared_result = scanner.scan_with_progress_sync(
         path_str,
         options,
@@ -141,6 +153,9 @@ pub fn scan_directory(
                 let json = serde_json::to_string(&progress).unwrap_or_default();
                 eprintln!("__PROGRESS__{json}");
                 let _ = std::io::stderr().flush();
+            } else {
+                // Interactive live view (stderr terminal, not a machine mode).
+                live_for_cb.render(&progress);
             }
         },
         &cancel_flag,
@@ -168,8 +183,10 @@ pub fn scan_directory(
     if let Some(ref pb) = spinner {
         animation::finish_scan_spinner(pb, shared_result.total_files, duration);
     }
+    // Clear the live frame so the final report starts on a clean line.
+    live.finish();
 
-    let mut result = ScanResult::new();
+    let mut result = ScanReport::new();
     result.total_files = shared_result.total_files as usize;
     result.total_dirs = shared_result.total_directories;
     result.total_size_bytes = shared_result.total_size;

@@ -20,6 +20,7 @@ from typing import Any
 
 from ._ollama_client import OllamaClient, OllamaError
 from ._vision_to_issues import VisionFinding, parse_model_findings
+from .model_selector import resolve_pipeline_vision_model
 
 logger = logging.getLogger("ux_pipeline.llm_enrich")
 
@@ -32,7 +33,9 @@ DEFAULT_PROMPT: str = (
     "empty JSON array. Do not include any other prose."
 )
 
-DEFAULT_VISION_MODEL: str = "qwen3-vl:4b"
+#: Default vision model, resolved from benchmark recommendations (falls back
+#: to ``qwen3-vl:4b`` when the recommendations file is unavailable).
+DEFAULT_VISION_MODEL: str = resolve_pipeline_vision_model(default="qwen3-vl:4b")
 
 
 def _read_image(path: Path) -> bytes:

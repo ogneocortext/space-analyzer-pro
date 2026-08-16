@@ -1,7 +1,7 @@
 use space_analyzer_pro_desktop::error::{AppError, AppResult};
 use std::path::{Path, PathBuf};
 
-use shared_scanner::format_bytes;
+use scan_engine::format_bytes;
 use super::types::DiskInfo;
 
 /// Parse a human-written size such as `512`, `500K`, `1MB` or `2.5 GB`.

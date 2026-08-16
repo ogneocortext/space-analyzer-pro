@@ -216,6 +216,16 @@ impl OllamaClient {
         }
     }
 
+    /// Enable prompt caching on an already-built client. Mirrors the
+    /// builder's `with_cache`: replaces the client's cache with one built
+    /// from `config`. Useful for callers that obtain a client via
+    /// `with_model` (which clones the source cache) and only decide on
+    /// caching afterward.
+    pub fn with_cache(mut self, config: PromptCacheConfig) -> Self {
+        self.cache = Arc::new(Mutex::new(Some(PromptCache::new(config))));
+        self
+    }
+
     /// Configure extended thinking for requests
     pub fn with_think(&self, think: Option<TopLevelThink>) -> Self {
         let mut client = self.clone();

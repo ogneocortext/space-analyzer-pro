@@ -305,6 +305,12 @@ pub enum Commands {
         /// re-scanning. Read-only.
         #[arg(long, conflicts_with = "prune", conflicts_with = "prune_empty", conflicts_with = "clear", conflicts_with = "backfill_categories", conflicts_with = "trend")]
         category_totals: bool,
+
+        /// Return the stored duplicate-file analysis for a scan. Requires --id;
+        /// prints the saved result (or an empty array when none exists) instead
+        /// of the scan record itself.
+        #[arg(long, requires = "id")]
+        duplicates: bool,
     },
 
     /// Run duplicate-file analysis on a directory and output JSON
@@ -333,6 +339,12 @@ pub enum Commands {
         /// Requires confirmation or --yes.
         #[arg(long)]
         apply: bool,
+
+        /// Link the persisted analysis to a specific scan-history record instead
+        /// of the most recent scan of the same path. Used by the GUI so the result
+        /// is attached to the scan the user is currently viewing.
+        #[arg(long)]
+        scan_id: Option<i64>,
     },
 
     /// Read or write settings in the embedded database as raw key/value pairs

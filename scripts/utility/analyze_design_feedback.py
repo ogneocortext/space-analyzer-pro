@@ -36,20 +36,19 @@ Usage
                                       [--out PATH] [--max-dim 1024]
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import logging
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 from _ollama_client import OllamaClient
+from _common import encode_image_for_vision
 
 # --------------------------------------------------------------------------- #
 # Config
@@ -162,27 +161,9 @@ OUTPUT_TEMPLATE = """### {index}. {stem} — {context}
 logger = logging.getLogger("design_feedback")
 
 
-# --------------------------------------------------------------------------- #
-# Helpers
-# --------------------------------------------------------------------------- #
-def encode_image_for_vision(path: Path, max_dim: int = VISION_IMG_MAX) -> bytes | None:
-    try:
-        from PIL import Image
-        import io
-
-        with Image.open(path) as img:
-            if img.mode != "RGB":
-                img = img.convert("RGB")
-            w, h = img.size
-            scale = max_dim / max(w, h)
-            if scale < 1.0:
-                img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
-            buf = io.BytesIO()
-            img.save(buf, format="PNG", optimize=True)
-            return buf.getvalue()
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Could not encode %s: %s", path, exc)
-        return None
+# A capture directory is either a legacy ``screenshots_*`` folder or a thematic
+# ``YYYY-MM-DD__<origin>__<representation>`` bucket.
+_CAPTURE_DIR_RE = re.compile(r"^(screenshots_|\d{4}-\d{2}-\d{2}__.+__.+$)")
 
 
 def _resolve_shots_dir(shots_root: Path, explicit: str | None) -> Path | None:
@@ -191,9 +172,11 @@ def _resolve_shots_dir(shots_root: Path, explicit: str | None) -> Path | None:
         if p.is_dir():
             return p
         return None
-    if shots_root.is_dir() and shots_root.name.startswith("screenshots_"):
+    if not shots_root.is_dir():
+        return None
+    if _CAPTURE_DIR_RE.match(shots_root.name):
         return shots_root
-    candidates = [d for d in shots_root.iterdir() if d.is_dir() and d.name.startswith("screenshots_")]
+    candidates = [d for d in shots_root.iterdir() if d.is_dir() and _CAPTURE_DIR_RE.match(d.name)]
     if not candidates:
         return None
     candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
@@ -425,14 +408,14 @@ def run(shots_dir: Path, model: str, persona_keys: list[str], out_dir: Path, max
         return 1
 
     client = OllamaClient(timeout=OLLAMA_TIMEOUT_S)
-    run_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     shots_ts = shots_dir.name.replace("screenshots_", "")
 
     total_appended = 0
     for pkey in persona_keys:
         pname, _ = PERSONA_FOCUS[pkey]
         memory: list[str] = []
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
         out_path = out_dir / f"design_feedback_{shots_ts}__{pkey}_{run_ts}.md"
         out_path.parent.mkdir(parents=True, exist_ok=True)
         new_items: list[dict] = []

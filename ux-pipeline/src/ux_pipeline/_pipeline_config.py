@@ -52,6 +52,20 @@ def _env_path(name: str, default: Path) -> Path:
     return Path(raw) if raw else default
 
 
+def _resolve_default_model() -> str:
+    """Pick the default Ollama model from benchmark recommendations.
+
+    Falls back to the legacy ``qwen3-vl:4b`` when the recommendations file is
+    absent, so the config is always import-safe and deterministic in tests.
+    """
+    from .model_selector import resolve_pipeline_vision_model
+
+    try:
+        return resolve_pipeline_vision_model(default="qwen3-vl:4b")
+    except Exception:  # pragma: no cover - defensive against any selector error
+        return "qwen3-vl:4b"
+
+
 @dataclass
 class PipelineConfig:
     """Runtime configuration for the UX pipeline.
@@ -135,7 +149,7 @@ def load_config() -> PipelineConfig:
     """
     return PipelineConfig(
         ollama_host=_env("OLLAMA_HOST", "http://localhost:11434") or "http://localhost:11434",
-        ollama_model=_env("MODEL", "qwen3-vl:4b") or "qwen3-vl:4b",
+        ollama_model=_env("MODEL") or _resolve_default_model(),
         ollama_timeout_s=_env_int("OLLAMA_TIMEOUT_S", 120),
         ollama_retries=_env_int("OLLAMA_RETRIES", 2),
         tracker_path=_env_path("TRACKER_PATH", _default_tracker_path()),

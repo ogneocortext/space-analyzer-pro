@@ -7,9 +7,9 @@ edition = "2021"
 
 [workspace]
 members = [
-    "shared-scanner",
+    "scan-engine",
     "gpu-compute",
-    "native/scanner",
+    "native/win-usn",
     "native/file_deduplicator",
     "native/node_modules_cleaner",
 ]
@@ -48,7 +48,7 @@ name = "ollama-demo"
 path = "src/bin/ollama-features.rs"
 
 [dependencies]
-shared-scanner = { path = "shared-scanner", features = ["gpu"] }
+scan-engine = { path = "scan-engine", features = ["gpu"] }
 gpu-compute = { path = "gpu-compute" }
 file-deduplicator = { path = "native/file_deduplicator" }
 # Core functionality (workspace-inherited)
@@ -125,7 +125,7 @@ winreg = "0.56"
 # Windows-only native scanner exposes the USN journal APIs used by the `usn`
 # CLI subcommand. It is feature-gated to Windows so non-Windows builds are
 # unaffected. The `napi` feature stays off (only the plain `lib` target links).
-space_scanner = { package = "space-analyzer-scanner", path = "native/scanner" }
+win_usn = { package = "win-usn", path = "native/win-usn" }
 windows-sys = { version = "0.61", features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_Foundation",

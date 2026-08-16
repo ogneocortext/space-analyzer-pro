@@ -21,18 +21,25 @@ public static class FileCategory
         { "xls", "Documents" }, { "xlsx", "Documents" }, { "ppt", "Documents" }, { "pptx", "Documents" },
         { "odt", "Documents" }, { "ods", "Documents" }, { "odp", "Documents" }, { "rtf", "Documents" },
         { "md", "Documents" }, { "csv", "Documents" }, { "log", "Documents" },
+        { "epub", "Documents" }, { "mobi", "Documents" }, { "azw", "Documents" }, { "tex", "Documents" },
         // Images
         { "jpg", "Images" }, { "jpeg", "Images" }, { "png", "Images" }, { "gif", "Images" }, { "bmp", "Images" },
         { "svg", "Images" }, { "webp", "Images" }, { "ico", "Images" }, { "tiff", "Images" }, { "tif", "Images" },
+        { "heic", "Images" }, { "heif", "Images" }, { "raw", "Images" }, { "cr2", "Images" },
+        { "nef", "Images" }, { "arw", "Images" }, { "dng", "Images" }, { "psd", "Images" },
         // Videos
         { "mp4", "Videos" }, { "avi", "Videos" }, { "mkv", "Videos" }, { "mov", "Videos" }, { "wmv", "Videos" },
         { "flv", "Videos" }, { "webm", "Videos" }, { "m4v", "Videos" }, { "mpeg", "Videos" }, { "mpg", "Videos" },
+        { "3gp", "Videos" }, { "vob", "Videos" }, { "ogv", "Videos" }, { "m2ts", "Videos" }, { "mts", "Videos" },
         // Audio
         { "mp3", "Audio" }, { "wav", "Audio" }, { "flac", "Audio" }, { "aac", "Audio" }, { "ogg", "Audio" },
-        { "wma", "Audio" }, { "m4a", "Audio" },
+        { "wma", "Audio" }, { "m4a", "Audio" }, { "aiff", "Audio" }, { "opus", "Audio" },
         // Archives
         { "zip", "Archives" }, { "rar", "Archives" }, { "7z", "Archives" }, { "tar", "Archives" }, { "gz", "Archives" },
         { "bz2", "Archives" }, { "xz", "Archives" }, { "iso", "Archives" }, { "cab", "Archives" }, { "zst", "Archives" },
+        { "jar", "Archives" }, { "nupkg", "Archives" }, { "asar", "Archives" }, { "tgz", "Archives" },
+        { "war", "Archives" }, { "ear", "Archives" }, { "lz4", "Archives" }, { "lz", "Archives" }, { "z", "Archives" },
+        { "msix", "Archives" }, { "appx", "Archives" },
         // Code
         { "js", "Code" }, { "ts", "Code" }, { "tsx", "Code" }, { "jsx", "Code" }, { "py", "Code" }, { "java", "Code" },
         { "c", "Code" }, { "cpp", "Code" }, { "h", "Code" }, { "hpp", "Code" }, { "cs", "Code" }, { "go", "Code" },
@@ -40,20 +47,39 @@ public static class FileCategory
         { "html", "Code" }, { "css", "Code" }, { "scss", "Code" }, { "sass", "Code" }, { "less", "Code" },
         { "json", "Code" }, { "xml", "Code" }, { "yaml", "Code" }, { "yml", "Code" }, { "toml", "Code" },
         { "ini", "Code" }, { "cfg", "Code" }, { "lock", "Code" },
+        { "proto", "Code" }, { "graphql", "Code" }, { "vue", "Code" }, { "pl", "Code" }, { "lua", "Code" },
+        { "r", "Code" }, { "dart", "Code" }, { "hs", "Code" }, { "clj", "Code" }, { "groovy", "Code" },
+        { "ex", "Code" }, { "exs", "Code" },
         // Databases
         { "db", "Databases" }, { "sqlite", "Databases" }, { "sql", "Databases" }, { "mdb", "Databases" }, { "accdb", "Databases" },
+        { "db3", "Databases" }, { "sqlite3", "Databases" }, { "duckdb", "Databases" },
         // Executables
         { "exe", "Executables" }, { "msi", "Executables" }, { "bat", "Executables" }, { "cmd", "Executables" },
         { "sh", "Executables" }, { "ps1", "Executables" }, { "app", "Executables" }, { "dmg", "Executables" },
-        { "deb", "Executables" }, { "rpm", "Executables" },
+        { "deb", "Executables" }, { "rpm", "Executables" }, { "scr", "Executables" }, { "com", "Executables" },
+        { "apk", "Executables" },
         // System
-        { "dll", "System" }, { "sys", "System" }, { "drv", "System" },
+        { "dll", "System" }, { "sys", "System" }, { "drv", "System" }, { "cat", "System" }, { "mui", "System" },
         // Fonts
         { "ttf", "Fonts" }, { "otf", "Fonts" }, { "fon", "Fonts" }, { "woff", "Fonts" }, { "woff2", "Fonts" },
+        { "eot", "Fonts" }, { "ttc", "Fonts" },
+        // Build Output (compiled/linker artifacts)
+        { "lib", "Build Output" }, { "a", "Build Output" }, { "pdb", "Build Output" }, { "so", "Build Output" },
+        { "dylib", "Build Output" }, { "rlib", "Build Output" }, { "rmeta", "Build Output" },
+        { "o", "Build Output" }, { "obj", "Build Output" }, { "exp", "Build Output" }, { "ilk", "Build Output" },
+        { "wasm", "Build Output" }, { "pyc", "Build Output" }, { "pyd", "Build Output" },
+        // Games (engine asset packages)
+        { "sav", "Games" }, { "save", "Games" }, { "game", "Games" },
+        { "pak", "Games" }, { "wad", "Games" }, { "mpq", "Games" }, { "unity3d", "Games" },
+        { "vpk", "Games" }, { "bsa", "Games" }, { "esm", "Games" }, { "uasset", "Games" },
+        { "forge", "Games" }, { "bundle", "Games" }, { "asset", "Games" },
+        // Virtual / disk images
+        { "qcow2", "Virtual" }, { "vhd", "Virtual" }, { "vhdx", "Virtual" }, { "vmdk", "Virtual" },
+        { "vdi", "Virtual" }, { "img", "Virtual" }, { "wim", "Virtual" }, { "esd", "Virtual" },
+        // AI model weights
+        { "gguf", "AI Models" }, { "safetensors", "AI Models" }, { "onnx", "AI Models" },
         // Temporary
         { "tmp", "Temporary" },
-        // Games
-        { "sav", "Games" }, { "save", "Games" }, { "game", "Games" },
     };
 
     private static readonly Dictionary<string, (byte R, byte G, byte B)> CategoryColors = new(StringComparer.OrdinalIgnoreCase)
@@ -73,6 +99,8 @@ public static class FileCategory
         { "Development", (200, 100, 255) },
         { "Build Output", (255, 140, 60) },
         { "VCS", (100, 200, 100) },
+        { "Virtual", (150, 200, 235) },
+        { "AI Models", (180, 80, 200) },
         { "Other", (180, 180, 180) },
     };
 

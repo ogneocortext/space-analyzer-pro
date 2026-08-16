@@ -7,7 +7,7 @@ impl ToolRegistry {
     pub fn execute_tool(
         &self,
         tool_call: &ToolCall,
-        scan_result: Option<&ScanResult>,
+        scan_result: Option<&ScanReport>,
         db: Option<&Database>,
     ) -> Result<String, AppError> {
         let function_name = &tool_call.function.name;
@@ -79,7 +79,7 @@ impl ToolRegistry {
         }).to_string()
     }
 
-    fn get_scan_summary(&self, scan_result: Option<&ScanResult>) -> String {
+    fn get_scan_summary(&self, scan_result: Option<&ScanReport>) -> String {
         if let Some(result) = scan_result {
             let file_types: Vec<serde_json::Value> = result
                 .file_types
@@ -228,7 +228,7 @@ impl ToolRegistry {
         serde_json::json!({"workflows": entries}).to_string()
     }
 
-    fn get_file_type_breakdown(&self, scan_result: Option<&ScanResult>) -> String {
+    fn get_file_type_breakdown(&self, scan_result: Option<&ScanReport>) -> String {
         if let Some(result) = scan_result {
             let total: usize = result.file_types.values().sum();
             let mut types_vec: Vec<_> = result.file_types.iter().collect();
@@ -339,7 +339,7 @@ impl ToolRegistry {
         }
     }
 
-    fn analyze_file_patterns(&self, scan_result: Option<&ScanResult>) -> String {
+    fn analyze_file_patterns(&self, scan_result: Option<&ScanReport>) -> String {
         if let Some(result) = scan_result {
             let total: usize = result.file_types.values().sum();
 
@@ -408,7 +408,7 @@ impl ToolRegistry {
         }
     }
 
-    fn search_files(&self, args: &serde_json::Value, scan_result: Option<&ScanResult>) -> String {
+    fn search_files(&self, args: &serde_json::Value, scan_result: Option<&ScanReport>) -> String {
         let Some(result) = scan_result else {
             return serde_json::json!({"error": "No scan results available. Please run a scan first."}).to_string();
         };
@@ -474,7 +474,7 @@ impl ToolRegistry {
     fn get_largest_files(
         &self,
         args: &serde_json::Value,
-        scan_result: Option<&ScanResult>,
+        scan_result: Option<&ScanReport>,
     ) -> String {
         let Some(result) = scan_result else {
             return serde_json::json!({"error": "No scan results available. Please run a scan first."}).to_string();

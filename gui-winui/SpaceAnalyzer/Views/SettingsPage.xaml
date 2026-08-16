@@ -255,7 +255,7 @@
                         <TextBlock Text="Actions" Style="{StaticResource Type.SectionTitle}"/>
                         <StackPanel Spacing="{StaticResource Space.MD}">
                             <Button Content="Save Settings" Click="Save_Click"
-                                    HorizontalAlignment="Stretch" Style="{StaticResource SecondaryButton}"/>
+                                    HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButton}"/>
                             <Button Content="Reset to Defaults" Click="Reset_Click"
                                     HorizontalAlignment="Stretch" Style="{StaticResource SecondaryButton}"/>
                         </StackPanel>

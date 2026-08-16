@@ -1,20 +1,19 @@
 """Export issues.json to CSV for spreadsheet viewing.
 
 Usage:
-    python docs/export_issues_to_csv.py
-    python docs/export_issues_to_csv.py --filter open
-    python docs/export_issues_to_csv.py --category architecture
+    python scripts/export_issues_to_csv.py
+    python scripts/export_issues_to_csv.py --filter open
+    python scripts/export_issues_to_csv.py --category architecture
 """
-
-from __future__ import annotations
 
 import argparse
 import csv
 import json
 from pathlib import Path
 
-JSON_PATH = Path(__file__).parent / "issues.json"
-CSV_PATH = Path(__file__).parent / "issues_export.csv"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+JSON_PATH = REPO_ROOT / "docs" / "issues.json"
+CSV_PATH = REPO_ROOT / "docs" / "issues_export.csv"
 
 HEADER = [
     "Issue_ID",
@@ -54,7 +53,7 @@ def flatten(issue: dict) -> list:
         ex.get("component", ""),
         ex.get("file", ""),
         ex.get("resolution", ""),
-        issue.get("first_seen", ""),
+        issue.get("last_seen", ""),
         ex.get("date_resolved", ""),
         ex.get("reporter", ""),
         ex.get("assignee", ""),

@@ -167,8 +167,8 @@ impl SystemMonitor {
         ));
         summary.push_str(&format!(
             "Memory: {} / {} ({:.1}%)\n",
-            shared_scanner::format_bytes(resources.memory_used_bytes),
-            shared_scanner::format_bytes(resources.memory_total_bytes),
+            scan_engine::format_bytes(resources.memory_used_bytes),
+            scan_engine::format_bytes(resources.memory_total_bytes),
             resources.memory_percent
         ));
 
@@ -177,8 +177,8 @@ impl SystemMonitor {
             summary.push_str(&format!(
                 "Disk ({}): {} / {} ({:.1}%)\n",
                 primary.mount_point,
-                shared_scanner::format_bytes(primary.used_bytes),
-                shared_scanner::format_bytes(primary.total_bytes),
+                scan_engine::format_bytes(primary.used_bytes),
+                scan_engine::format_bytes(primary.total_bytes),
                 primary.usage_percent
             ));
         }
@@ -188,7 +188,7 @@ impl SystemMonitor {
                 "GPU: {} ({})\n",
                 gpu.name.as_deref().unwrap_or("Unknown"),
                 gpu.vram_bytes
-                    .map(shared_scanner::format_bytes)
+                    .map(scan_engine::format_bytes)
                     .unwrap_or("Unknown".to_string())
             ));
         }

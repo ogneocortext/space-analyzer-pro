@@ -66,27 +66,43 @@ pub struct ScanProgress {
 pub fn category_for_extension(ext: &str) -> &'static str {
     match ext {
         "txt" | "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "odt" | "ods"
-        | "odp" | "rtf" | "md" | "csv" | "log" => "Documents",
-        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "svg" | "webp" | "ico" | "tiff" | "tif" => {
-            "Images"
+        | "odp" | "rtf" | "md" | "csv" | "log" | "epub" | "mobi" | "azw" | "tex" => "Documents",
+        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "svg" | "webp" | "ico" | "tiff" | "tif"
+        | "heic" | "heif" | "raw" | "cr2" | "nef" | "arw" | "dng" | "psd" => "Images",
+        "mp4" | "avi" | "mkv" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpeg" | "mpg"
+        | "3gp" | "vob" | "ogv" | "m2ts" | "mts" => "Videos",
+        "mp3" | "wav" | "flac" | "aac" | "ogg" | "wma" | "m4a" | "aiff" | "opus" => "Audio",
+        "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "iso" | "cab" | "zst" | "jar"
+        | "nupkg" | "asar" | "tgz" | "war" | "ear" | "lz4" | "lz" | "z" | "msix" | "appx" => {
+            "Archives"
         }
-        "mp4" | "avi" | "mkv" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpeg" | "mpg" => "Videos",
-        "mp3" | "wav" | "flac" | "aac" | "ogg" | "wma" | "m4a" => "Audio",
-        "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "iso" | "cab" | "zst" => "Archives",
         "js" | "ts" | "tsx" | "jsx" | "py" | "java" | "c" | "cpp" | "h" | "hpp" | "cs" | "go"
         | "rs" | "php" | "rb" | "swift" | "kt" | "scala" | "html" | "css" | "scss" | "sass"
-        | "less" | "json" | "xml" | "yaml" | "yml" | "toml" | "ini" | "cfg" | "lock" => "Code",
-        "db" | "sqlite" | "sql" | "mdb" | "accdb" => "Databases",
-        "exe" | "msi" | "bat" | "cmd" | "sh" | "ps1" | "app" | "dmg" | "deb" | "rpm" => {
-            "Executables"
-        }
+        | "less" | "json" | "xml" | "yaml" | "yml" | "toml" | "ini" | "cfg" | "lock" | "proto"
+        | "graphql" | "vue" | "pl" | "lua" | "r" | "dart" | "hs" | "clj" | "groovy" | "ex"
+        | "exs" => "Code",
+        "db" | "sqlite" | "sql" | "mdb" | "accdb" | "db3" | "sqlite3" | "duckdb" => "Databases",
+        "exe" | "msi" | "bat" | "cmd" | "sh" | "ps1" | "app" | "dmg" | "deb" | "rpm" | "scr"
+        | "com" | "apk" => "Executables",
         // System binaries only — fonts are their own category below.
-        "dll" | "sys" | "drv" => "System",
+        "dll" | "sys" | "drv" | "cat" | "mui" => "System",
         // Fonts were previously lumped into "System"; they are a distinct media
         // type and are now reported separately.
-        "ttf" | "otf" | "fon" | "woff" | "woff2" => "Fonts",
+        "ttf" | "otf" | "fon" | "woff" | "woff2" | "eot" | "ttc" => "Fonts",
+        // Compiled/linker artifacts: static & import libraries, object files, debug
+        // symbols, and native shared objects. These dominate build trees
+        // (cargo/mingw/MSVC) and were previously dumped into "Other".
+        "lib" | "a" | "pdb" | "so" | "dylib" | "rlib" | "rmeta" | "o" | "obj" | "exp" | "ilk"
+        | "wasm" | "pyc" | "pyd" => "Build Output",
+        // Game/engine asset packages.
+        "sav" | "save" | "game" | "pak" | "wad" | "mpq" | "unity3d" | "vpk" | "bsa" | "esm"
+        | "uasset" | "forge" | "bundle" | "asset" => "Games",
+        // Disk / virtual-machine images. Classified by extension because the same
+        // files appear under many different parent folders.
+        "qcow2" | "vhd" | "vhdx" | "vmdk" | "vdi" | "img" | "wim" | "esd" => "Virtual",
+        // Local AI model weights.
+        "gguf" | "safetensors" | "onnx" => "AI Models",
         "tmp" => "Temporary",
-        "sav" | "save" | "game" => "Games",
         "" => "Other",
         _ => "Other",
     }
@@ -113,6 +129,30 @@ fn extension_to_category(ext: &str, path: &str) -> &'static str {
     // "community"/"opportunity", and `contains(".android")` matched unrelated
     // substrings.
     let dirs = path_dir_names(path);
+    let lower = path.to_lowercase();
+
+    // Local AI model weights: usually extensionless blobs under a model cache, or
+    // explicit model formats. Path context wins over the extension fallback so a
+    // `.bin` weight under a model directory is not mis-bucketed as build output.
+    if lower.contains(".ollama")
+        || lower.contains("ollama/")
+        || lower.contains("ollama\\")
+        || lower.contains(".gemini")
+        || lower.contains("huggingface")
+        || lower.contains("models/blobs")
+        || lower.contains("models\\blobs")
+        || lower.contains("weights.bin")
+        || lower.contains("antigravity")
+    {
+        return "AI Models";
+    }
+
+    // Disk / VM images are classified by extension so an emulator's `.img`/`.qcow2`
+    // under `.android` is not swallowed by the "Development" rule below.
+    match ext {
+        "qcow2" | "vhd" | "vhdx" | "vmdk" | "vdi" | "img" | "wim" | "esd" => return "Virtual",
+        _ => {}
+    }
 
     let mut saw_target = false;
     for (i, d) in dirs.iter().enumerate() {
@@ -141,6 +181,12 @@ fn extension_to_category(ext: &str, path: &str) -> &'static str {
 
     if dirs.iter().any(|d| d == ".git") {
         return "VCS";
+    }
+
+    // Registry hives are extensionless and live under System32\config; they are
+    // large and belong under "System", not "Other".
+    if ext.is_empty() && (lower.contains("system32\\config") || lower.contains("system32/config")) {
+        return "System";
     }
 
     category_for_extension(ext)
@@ -324,6 +370,58 @@ pub fn format_duration(seconds: f64) -> String {
     }
 }
 
+/// Returns the on-disk *allocated* size of a file — the bytes it actually
+/// occupies on the volume — rather than its logical length. Disk-usage totals
+/// should reflect allocated size so sparse/compressed files (Android AVD
+/// images, VHDX, page/hibernation files) do not inflate the result far past
+/// the volume's real used space.
+///
+/// Directories return their logical length (0 on Windows, the directory entry
+/// size elsewhere); the scanner only sums file sizes, so this keeps directory
+/// accounting identical to the previous `metadata.len()` behaviour.
+fn allocated_size(metadata: &std::fs::Metadata, path: &Path) -> u64 {
+    if metadata.is_dir() {
+        return metadata.len();
+    }
+    allocated_size_of_file(metadata, path)
+}
+
+#[cfg(windows)]
+extern "system" {
+    fn GetCompressedFileSizeW(lpFileName: *const u16, lpFileSizeHigh: *mut u32) -> u32;
+}
+
+#[cfg(windows)]
+fn allocated_size_of_file(metadata: &std::fs::Metadata, path: &Path) -> u64 {
+    use std::os::windows::ffi::OsStrExt;
+    let wide: Vec<u16> = path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0u16))
+        .collect();
+    let mut high: u32 = 0;
+    let low = unsafe { GetCompressedFileSizeW(wide.as_ptr(), &mut high) };
+    if low != 0xFFFF_FFFF || std::io::Error::last_os_error().raw_os_error() == Some(0) {
+        // A low value of 0xFFFFFFFF is legitimate when GetLastError() == 0.
+        ((high as u64) << 32) | (low as u64)
+    } else {
+        // Fall back to logical length if the query fails.
+        metadata.len()
+    }
+}
+
+#[cfg(unix)]
+fn allocated_size_of_file(metadata: &std::fs::Metadata, _path: &Path) -> u64 {
+    use std::os::unix::fs::MetadataExt;
+    // st_blocks counts 512-byte blocks actually allocated on disk.
+    (metadata.st_blocks() as u64) * 512
+}
+
+#[cfg(not(any(unix, windows)))]
+fn allocated_size_of_file(metadata: &std::fs::Metadata, _path: &Path) -> u64 {
+    metadata.len()
+}
+
 /// File scanner implementation
 pub struct FileScanner;
 
@@ -352,7 +450,7 @@ impl FileScanner {
             return false;
         }
 
-        let size = metadata.len();
+        let size = allocated_size(metadata, path);
 
         // Check min size filter
         if let Some(min) = options.min_size {
@@ -534,7 +632,7 @@ impl FileScanner {
             };
 
             let is_dir = metadata.is_dir();
-            let size = metadata.len();
+            let size = allocated_size(&metadata, entry_path);
             let mtime = Self::get_mtime_unix(&metadata);
 
             // Apply filters during I/O phase (early rejection saves GPU transfer).
@@ -823,7 +921,7 @@ impl FileScanner {
             };
 
             let is_dir = metadata.is_dir();
-            let size = metadata.len();
+            let size = allocated_size(&metadata, entry_path);
             let mtime = Self::get_mtime_unix(&metadata);
 
             if !is_dir {
@@ -1117,7 +1215,7 @@ impl FileScanner {
 
             let is_file = metadata.is_file();
             let is_dir = metadata.is_dir();
-            let size = metadata.len();
+            let size = allocated_size(&metadata, path);
             let mtime = Self::get_mtime_unix(&metadata);
 
             if !is_dir {
@@ -1565,5 +1663,100 @@ mod tests {
 
         assert!(result.largest_files.len() <= 2, "largest_files must be capped by top_n");
         assert_eq!(result.largest_files.len(), 2, "top_n should cap the list to 2");
+    }
+
+    #[test]
+    fn extension_classification_covers_common_build_assets() {
+        // Previously "Other"-dominated extensions now land in concrete categories.
+        assert_eq!(category_for_extension("lib"), "Build Output");
+        assert_eq!(category_for_extension("a"), "Build Output");
+        assert_eq!(category_for_extension("pdb"), "Build Output");
+        assert_eq!(category_for_extension("so"), "Build Output");
+        assert_eq!(category_for_extension("dylib"), "Build Output");
+        assert_eq!(category_for_extension("rlib"), "Build Output");
+        assert_eq!(category_for_extension("rmeta"), "Build Output");
+        assert_eq!(category_for_extension("o"), "Build Output");
+        assert_eq!(category_for_extension("obj"), "Build Output");
+        assert_eq!(category_for_extension("wasm"), "Build Output");
+        assert_eq!(category_for_extension("pyc"), "Build Output");
+        assert_eq!(category_for_extension("pyd"), "Build Output");
+
+        assert_eq!(category_for_extension("jar"), "Archives");
+        assert_eq!(category_for_extension("nupkg"), "Archives");
+        assert_eq!(category_for_extension("asar"), "Archives");
+        assert_eq!(category_for_extension("tgz"), "Archives");
+        assert_eq!(category_for_extension("msix"), "Archives");
+        assert_eq!(category_for_extension("appx"), "Archives");
+
+        assert_eq!(category_for_extension("pak"), "Games");
+        assert_eq!(category_for_extension("wad"), "Games");
+        assert_eq!(category_for_extension("mpq"), "Games");
+
+        assert_eq!(category_for_extension("qcow2"), "Virtual");
+        assert_eq!(category_for_extension("vhd"), "Virtual");
+        assert_eq!(category_for_extension("vhdx"), "Virtual");
+        assert_eq!(category_for_extension("vmdk"), "Virtual");
+        assert_eq!(category_for_extension("vdi"), "Virtual");
+        assert_eq!(category_for_extension("img"), "Virtual");
+        assert_eq!(category_for_extension("wim"), "Virtual");
+        assert_eq!(category_for_extension("esd"), "Virtual");
+
+        assert_eq!(category_for_extension("gguf"), "AI Models");
+        assert_eq!(category_for_extension("safetensors"), "AI Models");
+        assert_eq!(category_for_extension("onnx"), "AI Models");
+
+        assert_eq!(category_for_extension("scr"), "Executables");
+        assert_eq!(category_for_extension("com"), "Executables");
+        assert_eq!(category_for_extension("apk"), "Executables");
+
+        assert_eq!(category_for_extension("cat"), "System");
+        assert_eq!(category_for_extension("mui"), "System");
+
+        assert_eq!(category_for_extension("eot"), "Fonts");
+        assert_eq!(category_for_extension("ttc"), "Fonts");
+
+        assert_eq!(category_for_extension("epub"), "Documents");
+        assert_eq!(category_for_extension("heic"), "Images");
+        assert_eq!(category_for_extension("opus"), "Audio");
+        assert_eq!(category_for_extension("3gp"), "Videos");
+        assert_eq!(category_for_extension("duckdb"), "Databases");
+    }
+
+    #[test]
+    fn path_overrides_classify_extensionless_and_disk_images() {
+        // Extensionless Ollama blobs are AI model weights, not "Other".
+        assert_eq!(
+            extension_to_category("", "C:\\Users\\me\\.ollama\\models\\blobs\\sha256-abc"),
+            "AI Models"
+        );
+        // A `.bin` weight under a model path is an AI model, not build output.
+        assert_eq!(
+            extension_to_category("bin", "C:\\Users\\me\\.gemini\\x\\weights.bin"),
+            "AI Models"
+        );
+        // A `.bin` with no model context stays in "Other" (too ambiguous to claim).
+        assert_eq!(
+            extension_to_category("bin", "C:\\build\\module.bin"),
+            "Other"
+        );
+        // Emulator disk images under .android must be Virtual, not Development.
+        assert_eq!(
+            extension_to_category("img", "C:\\Users\\me\\.android\\avd\\x.avd\\userdata-qemu.img"),
+            "Virtual"
+        );
+        assert_eq!(
+            extension_to_category("qcow2", "C:\\Users\\me\\.android\\avd\\x.avd\\disk.qcow2"),
+            "Virtual"
+        );
+        // Extensionless registry hives are System.
+        assert_eq!(
+            extension_to_category("", "C:\\Windows\\System32\\config\\SYSTEM"),
+            "System"
+        );
+        // node_modules still overrides extension.
+        assert_eq!(
+            extension_to_category("js", "C:\\proj\\node_modules\\x\\lib.js"),
+            "Development"
+        );
     }
 }

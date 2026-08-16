@@ -25,7 +25,7 @@ classifiers = [
     "Topic :: Software Development :: Quality Assurance",
 ]
 # The package is intentionally stdlib-first. Only ``Pillow`` is required for the
-# ``analyze_screenshots`` feature extraction path. PyTorch / CUDA is optional
+# ``analyze_ux_screenshots`` feature extraction path. PyTorch / CUDA is optional
 # and only consulted by ``gpu_vision_analyzer`` at runtime.
 dependencies = [
     "Pillow>=12.1.0",

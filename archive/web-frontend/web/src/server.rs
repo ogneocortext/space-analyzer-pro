@@ -12,7 +12,7 @@ use tower_http::services::ServeDir;
 use axum::serve;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc, NaiveDateTime};
-use shared_scanner::{FileScanner, ScanOptions, get_system_info, SystemInfo};
+use scan_engine::{FileScanner, ScanOptions, get_system_info, SystemInfo};
 use file_deduplicator::{FileDeduplicator, DeduplicationResult};
 use reqwest::Client as HttpClient;
 use tokio_stream::wrappers::ReceiverStream;
@@ -87,7 +87,7 @@ async fn get_system(_http_client: State<HttpClient>) -> axum::Json<SystemInfo> {
 async fn start_scan(
     _http_client: State<HttpClient>,
     Json(req): Json<ScanRequest>,
-) -> axum::Json<shared_scanner::ScanResult> {
+) -> axum::Json<scan_engine::ScanReport> {
     let options = ScanOptions {
         max_depth: req.max_depth,
         min_size: req.min_size,
@@ -105,7 +105,7 @@ async fn start_scan(
         Ok(scan_result) => axum::Json(scan_result),
         Err(e) => {
             tracing::error!("Scan failed: {}", e);
-            axum::Json(shared_scanner::ScanResult {
+            axum::Json(scan_engine::ScanReport {
                 total_files: 0,
                 total_directories: 0,
                 total_size: 0,
@@ -145,7 +145,7 @@ async fn stream_scan(
         {
             let progress_tx = tx.clone();
             let cancel_for_callback = cancel.clone();
-            let callback = move |progress: shared_scanner::ScanProgress| {
+            let callback = move |progress: scan_engine::ScanProgress| {
                 if progress_tx.is_closed() {
                     cancel_for_callback.store(true, std::sync::atomic::Ordering::Relaxed);
                     return;
@@ -253,7 +253,7 @@ async fn ai_chat(
 
 async fn get_large_files(
     Query(params): Query<LargeFilesQuery>,
-) -> axum::Json<Vec<shared_scanner::FileInfo>> {
+) -> axum::Json<Vec<scan_engine::FileInfo>> {
     let path = params.path.unwrap_or_else(|| {
         std::env::current_dir()
             .map(|p| p.to_string_lossy().to_string())
@@ -343,7 +343,7 @@ async fn get_cleanup_suggestions(
                 suggestions.push(format!(
                     "Found {} large files totaling {}. Consider moving old media to external storage.",
                     scan_result.largest_files.len(),
-                    shared_scanner::format_bytes(scan_result.largest_files.iter().map(|f| f.size).sum())
+                    scan_engine::format_bytes(scan_result.largest_files.iter().map(|f| f.size).sum())
                 ));
             }
 
@@ -362,10 +362,10 @@ async fn get_cleanup_suggestions(
                 suggestions.push(format!(
                     "Found {} files in temp/cache directories totaling {}.",
                     temp_path_files.len(),
-                    shared_scanner::format_bytes(total_temp_size)
+                    scan_engine::format_bytes(total_temp_size)
                 ));
                 for (path, size) in temp_path_files.iter().take(5) {
-                    suggestions.push(format!("  - {} ({})", path, shared_scanner::format_bytes(*size)));
+                    suggestions.push(format!("  - {} ({})", path, scan_engine::format_bytes(*size)));
                 }
             }
 
@@ -373,7 +373,7 @@ async fn get_cleanup_suggestions(
                 suggestions.push(format!(
                     "Found {} old files (not modified in 6+ months) totaling {} that may be archived or removed.",
                     old_file_count,
-                    shared_scanner::format_bytes(old_file_size)
+                    scan_engine::format_bytes(old_file_size)
                 ));
             }
 
@@ -382,7 +382,7 @@ async fn get_cleanup_suggestions(
                 suggestions.push(format!(
                     "Found {} log files totaling {}. Consider archiving or deleting old logs.",
                     log_files.len(),
-                    shared_scanner::format_bytes(total_log_size)
+                    scan_engine::format_bytes(total_log_size)
                 ));
             }
 

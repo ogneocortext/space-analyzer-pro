@@ -409,7 +409,7 @@ body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: var
       <div id="loop-config" class="loop-config">
         <div class="loop-cfg-row">
           <label>Model</label>
-          <select id="loop-model"><option value="qwen3-vl:4b">qwen3-vl:4b</option><option value="qwen3-vl:2b">qwen3-vl:2b</option><option value="qwen3.5:4b">qwen3.5:4b</option><option value="gemma4:e2b-it-qat">gemma4:e2b-it-qat</option></select>
+          <select id="loop-model"><option value="gemma4:e2b-it-qat" selected>gemma4:e2b-it-qat</option><option value="qwen3-vl:4b">qwen3-vl:4b</option><option value="qwen3-vl:2b">qwen3-vl:2b</option><option value="qwen3.5:4b">qwen3.5:4b</option></select>
         </div>
         <div class="loop-cfg-row">
           <label>Max Iters</label>
@@ -1718,8 +1718,9 @@ class _DashboardState:
             if p.exists():
                 return p
         if self.cfg.screenshots_root.is_dir():
+            capture_re = re.compile(r"^(screenshots_|\d{4}-\d{2}-\d{2}__.+__.+$)")
             for d in sorted(self.cfg.screenshots_root.iterdir(), reverse=True):
-                if d.is_dir() and d.name.startswith("screenshots_"):
+                if d.is_dir() and capture_re.match(d.name):
                     hit = d / filename
                     if hit.exists():
                         return hit
@@ -2455,7 +2456,9 @@ def _make_handler(state: _DashboardState) -> type[BaseHTTPRequestHandler]:
                     data = json.loads(body) if body else {}
                 except (json.JSONDecodeError, ValueError):
                     data = {}
-                model = (data.get("model") or "qwen3-vl:4b").strip()
+                from .model_selector import resolve_pipeline_vision_model
+
+                model = (data.get("model") or resolve_pipeline_vision_model(default="qwen3-vl:4b")).strip()
                 result = state.resolve_issue(issue_id, model)
                 if "error" in result:
                     self._write_json(HTTPStatus.BAD_REQUEST, result)

@@ -6,8 +6,6 @@ Usage:
     python docs/migrate_ux_tracker.py --source legacy.json     # custom source
 """
 
-from __future__ import annotations
-
 import argparse
 import hashlib
 import json

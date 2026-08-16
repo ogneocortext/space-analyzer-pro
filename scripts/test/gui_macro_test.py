@@ -33,8 +33,6 @@ Output (all in macro_logs/<run_id>/):
   history.jsonl      — append-only run history for trend analysis
 """
 
-from __future__ import annotations
-
 import ctypes
 import ctypes.wintypes
 import json
@@ -44,7 +42,7 @@ import subprocess
 import sys
 import time
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -476,14 +474,14 @@ class TestRun:
 
     def __init__(self, exe_path: Path, log_base: Path = Path("macro_logs")):
         self.exe_path = exe_path
-        self.run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         self.run_dir = log_base / self.run_id
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
         self.screenshot_dir = self.run_dir / "screenshots"
         self.screenshot_dir.mkdir(exist_ok=True)
 
-        self.start_time = datetime.now()
+        self.start_time = datetime.now(timezone.utc)
         self.phase_times: dict[str, float] = {}
         self.steps: list[dict[str, Any]] = []
         self.tests: list[dict[str, Any]] = []
@@ -500,7 +498,7 @@ class TestRun:
         self._log(f"Output: {self.run_dir}")
 
     def _log(self, msg: str) -> None:
-        ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        ts = datetime.now(timezone.utc).strftime("%H:%M:%S.%f")[:-3]
         line = f"[{ts}] {msg}"
         self._console_lines.append(line)
         logger.info("  %s", line)
@@ -524,7 +522,7 @@ class TestRun:
         self.step_counter += 1
         entry = {
             "step": self.step_counter,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "type": event_type,
             "detail": detail,
             "duration_ms": round(duration_ms, 1) if duration_ms is not None else None,
@@ -539,7 +537,7 @@ class TestRun:
             "passed": passed,
             "detail": detail,
             "elapsed_ms": round(elapsed_ms, 1) if elapsed_ms is not None else None,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         self.tests.append(entry)
         status = "PASS" if passed else "FAIL"
@@ -556,7 +554,7 @@ class TestRun:
             "name": label,
             "path": str(path.relative_to(self.run_dir)),
             "saved": saved,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         self.screenshots.append(entry)
         return str(path)
@@ -578,7 +576,7 @@ class TestRun:
     def save_report(self) -> Path:
         self.end_phase()
 
-        total_elapsed = (datetime.now() - self.start_time).total_seconds()
+        total_elapsed = (datetime.now(timezone.utc) - self.start_time).total_seconds()
         passed = sum(1 for t in self.tests if t["passed"])
         failed = sum(1 for t in self.tests if not t["passed"])
 

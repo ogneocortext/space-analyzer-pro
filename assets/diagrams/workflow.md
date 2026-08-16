@@ -1,6 +1,6 @@
 ```mermaid
 flowchart LR
-    Start([User: Configure<br/>paths & options]) --> Scan[Scan paths<br/>shared-scanner]
+    Start([User: Configure<br/>paths & options]) --> Scan[Scan paths<br/>scan-engine]
     Scan --> Cat[Categorize files<br/>category.rs]
     Scan --> Bloat[Detect bloat<br/>offline_ai.rs]
     Scan --> History[(Save to<br/>SQLite)]

@@ -1,0 +1,12 @@
+{
+  "name": "space-analyzer-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local tooling scripts for Space Analyzer Pro (vision helper, screenshot gallery server).",
+  "scripts": {
+    "vision": "node scripts/vision.mjs"
+  },
+  "dependencies": {
+    "sharp": "^0.34.5"
+  }
+}

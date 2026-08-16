@@ -6,16 +6,13 @@ Sends actual screenshots to local vision models (qwen3-vl:2b, etc.)
 for real visual analysis, not just text-only feature descriptions.
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import logging
 import os
-import platform
 import sys
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +20,13 @@ from PIL import Image, ImageFilter, UnidentifiedImageError
 
 sys.path.insert(0, str(Path(__file__).parent))
 from _ollama_client import OllamaClient
+from _common import (
+    configure_console,
+    encode_image_for_vision,
+    parse_model_text,
+    pick_vision_model,
+    find_latest_screenshots_dir,
+)
 
 MODEL: str = os.getenv("VISION_MODEL", "qwen3-vl:4b")
 ANALYSIS_HISTORY_DIR: Path = Path("analysis_history")
@@ -83,86 +87,7 @@ CODE_SCHEMA: dict[str, Any] = {
     "required": ["changes"],
 }
 
-logger = logging.getLogger("analyze_screenshots")
-VISION_MODEL_HINTS = ("qwen3-vl", "qwen3.5", "gemma4", "llava", "moondream", "idefics2", "paligemma")
-
-
-def _configure_console() -> None:
-    if platform.system() == "Windows":
-        try:
-            stdout = sys.stdout
-            reconfigure = getattr(stdout, "reconfigure", None)
-            if reconfigure is not None:
-                reconfigure(encoding="utf-8", errors="replace")
-        except (AttributeError, OSError) as e:
-            logger.debug("Could not reconfigure stdout: %s", e)
-
-
-def _find_latest_screenshots_dir(shots_root: Path) -> Path | None:
-    if not shots_root.is_dir():
-        return None
-    candidates = [
-        d for d in shots_root.iterdir() if d.is_dir() and d.name.startswith("screenshots_")
-    ]
-    if not candidates:
-        return None
-    # Sort by modification time (most recent first), NOT by name. A stale
-    # "screenshots_verify" dir otherwise sorts after timestamped dirs alphabetically
-    # (because 'v' > '2') and shadows the newest capture.
-    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    return candidates[0]
-
-
-def _detect_local_vision_models(client: OllamaClient) -> list[str]:
-    try:
-        models = client.list_models()
-        names = [m.get("name", "") for m in models if isinstance(m, dict)]
-        hits = [n for n in names if any(n.lower().startswith(h) for h in VISION_MODEL_HINTS)]
-        return hits or names[:3]
-    except Exception as exc:
-        logger.debug("Vision model detection failed: %s", exc)
-        return []
-
-
-def _pick_vision_model(client: OllamaClient) -> str:
-    available = _detect_local_vision_models(client)
-    if MODEL in available:
-        return MODEL
-    for candidate in available:
-        if candidate.startswith(VISION_MODEL_HINTS):
-            return candidate
-    return MODEL
-
-
-def encode_image_for_vision(path: Path) -> bytes | None:
-    """Resize an image for Ollama vision models and return raw bytes."""
-    try:
-        with Image.open(path) as img:
-            if img.mode != "RGB":
-                img = img.convert("RGB")
-            w, h = img.size
-            scale = VISION_IMG_MAX / max(w, h)
-            if scale < 1.0:
-                img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
-            import io
-            buf = io.BytesIO()
-            img.save(buf, format="PNG", optimize=True)
-            return buf.getvalue()
-    except Exception as exc:
-        logger.warning("Could not encode %s: %s", path, exc)
-        return None
-
-
-def _parse_model_text(text: str) -> str:
-    """Strip thinking traces and convert to plain text."""
-    import re
-    # Drop full <think>...</think> reasoning blocks (tolerant of case).
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
-    # Drop any unterminated <think>... to end of string (model omitted close tag).
-    text = re.sub(r"<think>.*$", "", text, flags=re.DOTALL | re.IGNORECASE)
-    # Drop qwen channel-token artifacts.
-    text = re.sub(r"<\|channel\|>", "", text, flags=re.IGNORECASE)
-    return text.strip()
+logger = logging.getLogger("analyze_ux_screenshots")
 
 
 def ask_ollama(
@@ -193,7 +118,7 @@ def ask_ollama(
                 think=False,
                 format=json_schema,
             )
-            return _parse_model_text(response)
+            return parse_model_text(response)
         except Exception as exc:
             logger.error("Vision Ollama call failed: %s", exc)
             return f"ERROR: {exc}"
@@ -216,7 +141,7 @@ def ask_ollama(
             think=False,
             format=json_schema,
         )
-        return _parse_model_text(response)
+        return parse_model_text(response)
     except Exception as exc:
         logger.error("Ollama call failed: %s", exc)
         return f"ERROR: {exc}"
@@ -227,25 +152,25 @@ def extract_features(path: Path) -> dict[str, Any]:
     w, h = img.size
     gray = img.convert("L")
 
-    pixels = list(gray.get_flattened_data())
+    pixels = list(gray.getdata())
     total = len(pixels)
     avg_bright = sum(pixels) / total
     dark_pct = sum(1 for p in pixels if p < 64) / total * 100
     light_pct = sum(1 for p in pixels if p > 192) / total * 100
 
     edges = gray.filter(ImageFilter.FIND_EDGES)
-    edge_pct = sum(1 for p in list(edges.get_flattened_data()) if p > 128) / total * 100
+    edge_pct = sum(1 for p in list(edges.getdata()) if p > 128) / total * 100
 
     reduced = img.quantize(32)
     palette = reduced.getpalette() or []
-    counts = Counter(reduced.get_flattened_data())
+    counts = Counter(reduced.getdata())
     top_colors = []
     for idx, _ in counts.most_common(5):
         r, g, b = palette[idx * 3 : idx * 3 + 3]
         top_colors.append(f"rgb({r},{g},{b})")
 
     center = img.crop((w // 4, h // 4, 3 * w // 4, 3 * h // 4)).quantize(16)
-    center_variety = len(set(center.get_flattened_data()))
+    center_variety = len(set(center.getdata()))
 
     return {
         "dim": f"{w}x{h}",
@@ -290,18 +215,7 @@ ALIASES: dict[str, str] = {
 
 
 def _resolve_screenshots_dir(shots_root: Path) -> Path | None:
-    if not shots_root.is_dir():
-        return None
-    if shots_root.name.startswith("screenshots_"):
-        return shots_root
-    candidates = [
-        d for d in shots_root.iterdir() if d.is_dir() and d.name.startswith("screenshots_")
-    ]
-    if not candidates:
-        return None
-    # Most-recently-modified first (see _find_latest_screenshots_dir for rationale).
-    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    return candidates[0]
+    return find_latest_screenshots_dir(shots_root)
 
 
 def _matching_screenshots(screenshots_dir: Path) -> dict[str, Path]:
@@ -452,7 +366,7 @@ def run_analysis(
 
     extracted: dict[str, dict[str, Any]] = {}
     client = OllamaClient()
-    picked_model = _pick_vision_model(client)
+    picked_model = pick_vision_model(client, default=MODEL)
     print(f"  Using vision model: {picked_model}")
 
     if not screenshots:
@@ -509,7 +423,7 @@ def run_analysis(
 
     # Ground the combined UX analysis in a real screenshot (the Scan page shows the
     # scanning parameters the user wants to verify) by passing it as the image.
-    scan_image = screenshots.get("02_tab_scan")
+    scan_image = screenshots.get("02_tab_scan") or next(iter(screenshots.values()), None)
     analysis_prompt = _build_analysis_prompt(context)
     print("\nAnalyzing with LLM (JSON schema)...", end=" ", flush=True)
     analysis = ask_ollama(
@@ -527,7 +441,7 @@ def run_analysis(
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report = {
         "model": picked_model,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "screenshots": extracted,
         "vision_analysis": vision_results,
         "ux_recommendations": analysis,
@@ -564,12 +478,17 @@ def main(argv: list[str] | None = None) -> int:
         format="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%H:%M:%S",
     )
-    _configure_console()
+    configure_console()
 
     shots_root = Path(args.shots_root)
-    latest = _resolve_screenshots_dir(shots_root)
-    if latest is None and args.shots_dir:
+    latest = None
+    # An explicit --shots-dir always wins over auto-resolving the newest
+    # screenshots_* dir under --shots-root (otherwise an empty/partial newest
+    # capture shadows the set the user actually asked to analyze).
+    if args.shots_dir:
         latest = _resolve_screenshots_dir(Path(args.shots_dir))
+    if latest is None:
+        latest = _resolve_screenshots_dir(shots_root)
     if latest is None:
         logger.error("No screenshot directories found in %s/", shots_root)
         return 1

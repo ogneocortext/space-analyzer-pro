@@ -1,10 +1,10 @@
 //! Common GUI types and utilities for Space Analyzer Pro
 //!
-//! Uses the shared-scanner crate for all scanning operations.
+//! Uses the scan-engine crate for all scanning operations.
 
 use clap::Parser;
 use serde::{Deserialize, Serialize};
-use shared_scanner::{FileScanner, ScanOptions};
+use scan_engine::{FileScanner, ScanOptions};
 use std::collections::HashMap;
 
 /// Common command-line interface for GUI applications
@@ -26,9 +26,9 @@ pub struct LargestFileEntry {
     pub size: u64,
 }
 
-/// Common scan result structure used across all GUI implementations
+/// Common scan report structure used across all GUI implementations
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ScanResult {
+pub struct ScanReport {
     pub total_files: usize,
     pub total_size_bytes: u64,
     pub total_size_mb: f64,
@@ -64,13 +64,13 @@ pub struct DirEntry {
     pub dir_count: u64,
 }
 
-impl Default for ScanResult {
+impl Default for ScanReport {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ScanResult {
+impl ScanReport {
     pub fn new() -> Self {
         Self {
             total_files: 0,
@@ -92,9 +92,9 @@ impl ScanResult {
         }
     }
 
-    /// Convert from shared-scanner ScanResult
+    /// Convert from scan-engine ScanResult
     pub fn from_shared(
-        result: &shared_scanner::ScanResult,
+        result: &scan_engine::ScanResult,
         path: String,
         duration_secs: f64,
     ) -> Self {
@@ -157,7 +157,7 @@ impl ScanResult {
 }
 
 /// Common scanning function used by GUI implementations
-pub fn scan_directory(path: &std::path::Path, deep: bool) -> Result<ScanResult, String> {
+pub fn scan_directory(path: &std::path::Path, deep: bool) -> Result<ScanReport, String> {
     let start_time = std::time::Instant::now();
 
     if !path.exists() {
@@ -176,7 +176,7 @@ pub fn scan_directory(path: &std::path::Path, deep: bool) -> Result<ScanResult, 
         .map_err(|e| e.to_string())?;
 
     let duration = start_time.elapsed().as_secs_f64();
-    Ok(ScanResult::from_shared(
+    Ok(ScanReport::from_shared(
         &app_result,
         path.to_string_lossy().to_string(),
         duration,
@@ -185,5 +185,5 @@ pub fn scan_directory(path: &std::path::Path, deep: bool) -> Result<ScanResult, 
 
 /// Common formatting utilities
 pub mod formatting {
-    pub use shared_scanner::format_bytes;
+    pub use scan_engine::format_bytes;
 }

@@ -13,10 +13,11 @@ NON-INTRUSIVE DESIGN (run on a separate screen without disrupting your work):
 
 CAPTURE POLICY (self-improvement loop — see analyze_design_feedback.py):
   Only run this script when a UI change has been made that would VISIBLY differ
-  from the screenshots already under macro_logs/screenshots_*. Do NOT re-capture
-  merely to get fresh feedback — instead re-run analyze_design_feedback.py, which
-  rotates through designer personas on the SAME images and accumulates a
-  categorized backlog. Re-capture only after an implemented change is visible.
+  from the screenshots already under macro_logs/<date>__<origin>__<representation>
+  buckets. Do NOT re-capture merely to get fresh feedback — instead re-run
+  analyze_design_feedback.py, which rotates through designer personas on the SAME
+  images and accumulates a categorized backlog. Re-capture only after an
+  implemented change is visible.
 
 The WinUI 3 NavigationView uses PaneDisplayMode="Top" (horizontal top bar, NOT a
 left sidebar). Keyboard navigation (Right+Enter) failed intermittently: focus
@@ -37,6 +38,9 @@ Key findings from UIA tree inspection:
 import argparse
 import ctypes
 import ctypes.wintypes
+import json
+import re
+import shutil
 import subprocess
 import sys
 import time
@@ -122,30 +126,88 @@ class BITMAPINFO(ctypes.Structure):
     ]
 
 
-REPO = Path(r"E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer")
-TS = time.strftime("%Y%m%d_%H%M%S")
-SHOTS = REPO / "macro_logs" / f"screenshots_{TS}"
-SHOTS.mkdir(parents=True, exist_ok=True)
+REPO = Path(__file__).resolve().parents[2]
+MACRO_LOGS = REPO / "macro_logs"
+META_FILE = "_gallery_meta.json"
 
-# Nav items in XAML order. (display_label, screenshot_stem)
+# Thematic bucketing. Each capture run lands in a "bucket" named
+#   <date>__<origin>__<representation>
+# so the gallery groups shots by the day they were taken, what produced them
+# (origin), and what they show (representation). The date is first, so a plain
+# alphabetical sort is also chronological. Repeated runs on the same day with the
+# same origin/representation append into the SAME bucket instead of spawning a new
+# per-run folder (that was the old, messy behaviour).
+DEFAULT_ORIGIN = "winui3-capture"
+DEFAULT_REPRESENTATION = "ui-pages"
+
+# Retention: keep only the most recent capture buckets so macro_logs cannot grow
+# without bound as re-captures accumulate.
+MAX_BUCKETS = 6
+
+# Nav items in XAML order: (display_label, slug).
 NAV_ITEMS = [
-    ("Dashboard",           "01_tab_dashboard"),
-    ("Scan",                "02_tab_scan"),
-    ("History",             "03_tab_history"),
-    ("Advanced Search",     "04_tab_smart_search"),
-    ("Automation Workflows","05_tab_workflows"),
-    ("AI Assistant",        "06_tab_ai_chat"),
-    ("Duplicates",          "07_tab_dedup"),
-    ("System",              "08_tab_system"),
-    ("Cleanup",             "10_tab_cleanup"),
-    ("Settings",            "09_tab_settings"),  # footer item
+    ("Dashboard",           "dashboard"),
+    ("Scan",                "scan"),
+    ("History",             "history"),
+    ("Advanced Search",     "smart-search"),
+    ("Automation Workflows","workflows"),
+    ("AI Assistant",        "ai-chat"),
+    ("Duplicates",          "dedup"),
+    ("System",              "system"),
+    ("Cleanup",             "cleanup"),
+    ("Settings",            "settings"),  # footer item
 ]
+
+# One-line human context written as the gallery note for each captured tab.
+TAB_NOTES = {
+    "dashboard":    "Home overview — disk-usage summary, drive health, and quick stats.",
+    "scan":         "Disk/folder scan results with treemap and the largest-files list.",
+    "history":      "Past scan history with trend charts and saved snapshots.",
+    "smart-search": "Smart search / filters across scans (content, size, date).",
+    "workflows":    "Automation workflow builder and saved routines.",
+    "ai-chat":      "AI assistant chat for natural-language queries and actions.",
+    "dedup":        "Duplicate-file finder results with reclaimable space.",
+    "system":       "System resources monitor (CPU / RAM / disk activity).",
+    "cleanup":      "Cleanup recommendations and safe-deletion actions.",
+    "settings":     "App settings and configuration.",
+}
 
 # UIA automation Name differs from the visible label for two tabs.
 AUTO_NAME = {
     "Advanced Search": "Search",
     "Automation Workflows": "Workflows",
 }
+
+# Set at runtime (main): the active bucket and its origin/representation.
+BUCKET: Path | None = None
+ORIGIN = DEFAULT_ORIGIN
+REPRESENTATION = DEFAULT_REPRESENTATION
+
+# A capture bucket is named <date>__<origin>__<representation>.
+CAPTURE_BUCKET_RE = re.compile(r"^\d{4}-\d{2}-\d{2}__.+__.+$")
+
+
+def load_meta(root: Path) -> dict:
+    f = root / META_FILE
+    if f.exists():
+        try:
+            return json.loads(f.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def save_meta(root: Path, meta: dict) -> None:
+    (root / META_FILE).write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+
+def write_note(image_path: Path, note: str) -> None:
+    meta = load_meta(MACRO_LOGS)
+    rel = image_path.relative_to(MACRO_LOGS).as_posix()
+    entry = meta.setdefault(rel, {})
+    entry["note"] = note
+    entry.setdefault("tags", [])
+    save_meta(MACRO_LOGS, meta)
 
 pyautogui.FAILSAFE = False  # we never move the cursor; no need for corner-abort
 auto.uiautomation.SetGlobalSearchTimeout(2)
@@ -249,8 +311,24 @@ def capture_window_png(hwnd, path: str) -> bool:
     return True
 
 
-def snap(name: str, hwnd) -> None:
-    path = SHOTS / f"{name}.png"
+def friendly_name(bucket: Path, slug: str, ext: str = "png") -> Path:
+    """Collision-free, human-friendly file name inside a bucket: <slug>.png, or
+    <slug>-2.png / <slug>-3.png for repeated captures of the same view. The
+    bucket already encodes the date, so the file itself only needs to say what
+    the shot shows."""
+    base = re.sub(r"[^a-z0-9]+", "-", slug.lower()).strip("-") or "image"
+    cand = bucket / f"{base}.{ext}"
+    i = 2
+    while cand.exists():
+        cand = bucket / f"{base}-{i}.{ext}"
+        i += 1
+    return cand
+
+
+def snap(slug: str, hwnd, label: str) -> None:
+    """Capture the current window into the active bucket as <slug>.png (or
+    <slug>-2.png on repeat) and record a human-readable note for the gallery."""
+    path = friendly_name(BUCKET, slug, "png")
     if hwnd:
         capture_window_png(hwnd, str(path))
     else:
@@ -258,6 +336,10 @@ def snap(name: str, hwnd) -> None:
         # the whole desktop, so avoid it whenever possible.
         img = pyautogui.screenshot()
         img.save(path)
+    note = (f"WinUI3 automated capture — {label} page. {TAB_NOTES.get(slug, '')} "
+            f"Captured {BUCKET.name.split('__')[0]} "
+            f"(origin: {ORIGIN}, representation: {REPRESENTATION}).")
+    write_note(path, note)
     print(f"saved {path.name}")
     time.sleep(0.3)
 
@@ -351,8 +433,6 @@ def find_binary() -> Path:
     candidates = [
         REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Release" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
         REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Debug" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
-        REPO / "target" / "release" / "space-analyzer-gui.exe",
-        REPO / "target" / "debug" / "space-analyzer-gui.exe",
     ]
     for p in candidates:
         if p.exists():
@@ -360,18 +440,48 @@ def find_binary() -> Path:
     return REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Debug" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe"
 
 
+def prune_old_buckets(root: Path, keep: int = MAX_BUCKETS) -> int:
+    """Delete all but the `keep` most-recent capture buckets.
+
+    Buckets are named `YYYY-MM-DD__<origin>__<representation>`; sorting by
+    modification time keeps the freshest days. Non-bucket entries (meta file,
+    legacy artifacts, generated HTML) are left untouched.
+    """
+    if keep < 1:
+        keep = 1
+    buckets = sorted(
+        (p for p in root.iterdir() if p.is_dir() and CAPTURE_BUCKET_RE.match(p.name)),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    removed = 0
+    for old in buckets[keep:]:
+        shutil.rmtree(old)
+        removed += 1
+    return removed
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Headed screenshot capture (non-intrusive, cursor-less).")
     ap.add_argument("--monitor", type=int, default=1,
                     help="Monitor index to pin the app to (0=primary, 1=secondary...). Default 1.")
     ap.add_argument("--exe", type=str, default=None, help="Explicit path to SpaceAnalyzer.exe")
-    ap.add_argument("--shots-dir", type=str, default=None, help="Override output directory")
+    ap.add_argument("--origin", type=str, default=DEFAULT_ORIGIN,
+                    help=f"What produced the shots (default {DEFAULT_ORIGIN}); recorded in the bucket + notes.")
+    ap.add_argument("--representation", type=str, default=DEFAULT_REPRESENTATION,
+                    help=f"What the shots show (default {DEFAULT_REPRESENTATION}); recorded in the bucket + notes.")
+    ap.add_argument("--keep", type=int, default=MAX_BUCKETS,
+                    help=f"Retain only the most recent N capture buckets (default {MAX_BUCKETS}).")
     args = ap.parse_args()
 
-    global SHOTS
-    if args.shots_dir:
-        SHOTS = Path(args.shots_dir)
-        SHOTS.mkdir(parents=True, exist_ok=True)
+    global BUCKET, ORIGIN, REPRESENTATION
+    ORIGIN = args.origin
+    REPRESENTATION = args.representation
+    date = time.strftime("%Y-%m-%d")
+    BUCKET = MACRO_LOGS / f"{date}__{ORIGIN}__{REPRESENTATION}"
+    # Reuse an existing bucket of the same day/origin/representation so repeated
+    # runs accumulate instead of spawning a new per-run folder.
+    BUCKET.mkdir(parents=True, exist_ok=True)
 
     EXE = Path(args.exe) if args.exe else find_binary()
     if not EXE.exists():
@@ -404,10 +514,10 @@ def main() -> int:
     pin_window_to_monitor(hwnd, args.monitor)
     maximize_window(hwnd)
     time.sleep(0.5)
-    snap("01_launched", hwnd)
+    snap("launched", hwnd, "App launch")
 
     print(f"  found window: title={window.Name!r}")
-    for label, stem in NAV_ITEMS:
+    for label, slug in NAV_ITEMS:
         print(f"  navigating to '{label}'...")
         try:
             window, hwnd = find_window()
@@ -423,10 +533,10 @@ def main() -> int:
             if not ok:
                 print(f"    WARNING: could not select '{label}'")
             time.sleep(1.0)
-            snap(stem, hwnd)
+            snap(slug, hwnd, label)
         except Exception as exc:
             print(f"    select failed for '{label}': {exc}")
-            snap(stem, hwnd)
+            snap(slug, hwnd, label)
 
     # Close
     proc.terminate()
@@ -435,7 +545,10 @@ def main() -> int:
     except subprocess.TimeoutExpired:
         proc.kill()
 
-    print(f"screenshots saved to {SHOTS}")
+    print(f"screenshots saved to {BUCKET}")
+    removed = prune_old_buckets(MACRO_LOGS, args.keep)
+    if removed:
+        print(f"retention: removed {removed} old bucket(s), keeping latest {args.keep}")
     return 0
 
 

@@ -177,5 +177,11 @@ docs/archive/ux-pipeline/
 # Runtime analysis dumps (not source)
 /analysis_history/
 
+# Generated benchmark / gallery / browser-test artifacts (not source)
+benchmark_results/
+browser-test/
+gallery_b64.txt
+gallery_page.png
+
 # Archived egui GUI (not part of the public WinUI 3 release)
 gui-egui/

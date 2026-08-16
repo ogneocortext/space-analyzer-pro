@@ -218,6 +218,17 @@ public sealed partial class HistoryPage : Page
         }
     }
 
+    private async void RunDuplicateAnalysis_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage RunDuplicateAnalysis_Click");
+        if (VM.SelectedRecord == null)
+        {
+            AppNotifications.Show("No scan selected", "Open a scan's details first.");
+            return;
+        }
+        await VM.RunDuplicateAnalysisAsync();
+    }
+
     // ── Pagination ──
 
     private async void PrevPage_Click(object sender, RoutedEventArgs e)
