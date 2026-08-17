@@ -35,6 +35,7 @@ public static class SettingKeys
 
     // ── Global UI ──
     public const string AdvancedMode = "advanced_mode";
+    public const string NotificationsEnabled = "notifications_enabled";
 
     // ── Smart Search (feature-scoped, namespaced to avoid colliding with the
     //    general keys above) ──

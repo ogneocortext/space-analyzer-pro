@@ -38,11 +38,8 @@ param(
     [switch]$Dashboard
 )
 
+#Requires -Version 7
 $ErrorActionPreference = 'Continue'
-
-# Increase HTTP connection limit (default is 2, causes hangs after many requests)
-[System.Net.ServicePointManager]::DefaultConnectionLimit = 20
-[System.Net.ServicePointManager]::MaxServicePoints = 20
 
 # ── Version Comparison ────────────────────────────────────────
 
@@ -66,19 +63,13 @@ function Compare-Versions {
     } catch { return 'unknown' }
 }
 
-# ── HTTP Helper (PS 7.x) ────────────────────────────────────
+# ── HTTP Helper (PowerShell 7) ──────────────────────────────
 
 function Invoke-SafeApi {
     param([string]$Url)
     try {
-        $wc = New-Object System.Net.WebClient
-        $wc.Headers.Add('User-Agent', 'SpaceAnalyzer/1.0')
-        $json = $wc.DownloadString($Url)
-        $wc.Dispose()
-        if ($json) { return ($json | ConvertFrom-Json) }
-        return $null
+        return Invoke-RestMethod -Uri $Url -TimeoutSec 20 -UserAgent 'SpaceAnalyzer/1.0' -ErrorAction Stop
     } catch {
-        try { if ($wc) { $wc.Dispose() } } catch {}
         return $null
     }
 }

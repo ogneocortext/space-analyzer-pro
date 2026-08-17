@@ -66,6 +66,8 @@
             <helpers:SourceToBrushConverter x:Key="SourceToBrush"/>
             <helpers:EnumEqualsConverter x:Key="EnumEqualsConverter"/>
             <helpers:BoolToChevronConverter x:Key="BoolToChevron"/>
+            <helpers:BoolToAccentBackgroundConverter x:Key="BoolToAccentBackground"/>
+            <helpers:BoolToAccentForegroundConverter x:Key="BoolToAccentForeground"/>
 
             <!-- Spacing Tokens (Double) -->
             <x:Double x:Key="Space.XXL">32</x:Double>

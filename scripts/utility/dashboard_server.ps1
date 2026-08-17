@@ -78,7 +78,7 @@ function Run-Update {
 
     try {
         $psi = [System.Diagnostics.ProcessStartInfo]::new()
-        $psi.FileName = 'powershell.exe'
+        $psi.FileName = 'pwsh.exe'
         $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"& { $cmd } 2>&1 | ForEach-Object { Write-Output `"`$_`" }`""
         $psi.RedirectStandardOutput = $true
         $psi.RedirectStandardError = $true
@@ -135,7 +135,7 @@ function Run-BulkUpdate {
         Write-Sse $Context 'bulk_progress' @{ name = $item.name; cmd = $item.cmd; success = $null }
 
         try {
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& { $($item.cmd) } 2>&1" 2>$null
+            $output = & pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command "& { $($item.cmd) } 2>&1" 2>$null
             $exitCode = $LASTEXITCODE
 
             if ($exitCode -eq 0) {
@@ -196,7 +196,7 @@ try {
                 Run-BulkUpdate $Context $body
             }
             '^/api/scan$' {
-                $out = & pwsh -NoProfile -ExecutionPolicy Bypass -Command "& 'E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer\scripts\utility\check_updates.ps1' -SkipPortable -SkipWinget -OutputFormat json" 2>$null
+                $out = & pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command "& 'E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer\scripts\utility\check_updates.ps1' -SkipPortable -SkipWinget -OutputFormat json" 2>$null
                 try { $json = $out | ConvertFrom-Json } catch { $json = @() }
                 Send-Json $Context @{ packages = $json; timestamp = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') }
             }

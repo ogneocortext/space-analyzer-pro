@@ -1,695 +1,18 @@
 //! High-level Ollama-driven features for Space Analyzer Pro.
 //!
-//! Each feature targets one specific model capability reported by Ollama
-//! 0.30+ and is designed with a deliberate data-flow shape:
+//! Feature implementations have moved to dedicated submodules:
+//! - semantic - semantic_search
+//! - summary - summarize_scan
+//! - cleanup - cleanup_plan
+//! - screenshot - describe_screenshot
+//! - agentic - agentic_question
 //!
-//! | Feature              | Capability | Data flow                                      |
-//! |----------------------|------------|------------------------------------------------|
-//! | `semantic_search`    | embedding  | Pre-embed files once; new query = 1 embed +   |
-//! |                      |            | cosine similarity (no LLM roundtrip)           |
-//! | `summarize_scan`     | completion | Send only top-10 files + type breakdown, not  |
-//! |                      |            | the whole scan; returns Γëñ 200 token summary    |
-//! | `cleanup_plan`       | thinking   | `think: true` ΓåÆ capture `thinking` field; user |
-//! |                      |            | sees the final plan, not the chain of thought  |
-//! | `describe_screenshot`| vision     | Image is base64-encoded, downscaled to Γëñ1024px |
-//! |                      |            | before being embedded in the user message     |
-//! | `agentic_question`   | tools      | Model calls only the tools it needs; results   |
-//! |                      |            | are appended as `tool` messages, not full      |
-//! |                      |            | transcripts. Loops until model returns text.  |
-//!
-//! All features are async, return structured results with timing/token
-//! metrics, and never panic. The returned `String` errors are
-//! user-friendly ΓÇö safe to display in a toast or log line.
+//! This file retains the OllamaClient extension methods and the test module.
 
-use std::time::Instant;
+use crate::ollama::client::OllamaClient;
+use crate::ollama::error::OllamaError;
+use crate::ollama::types::{ChatRequest, ChatResponse};
 
-use base64::Engine;
-
-use super::client::OllamaClient;
-use super::error::OllamaError;
-use super::types::{
-    ChatMessage, ChatRequest, ChatResponse, OllamaOptions, ToolCall, ToolDefinition, TopLevelThink,
-};
-use crate::embedding_service::{self, SearchResult};
-use crate::gui_common;
-
-// ΓöÇΓöÇΓöÇ Shared helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-
-/// Convert a `ChatResponse` into a `(Option<String>, String)` pair
-/// where the first element is the chain-of-thought and the second is
-/// the user-visible reply. Returns `None` for the thought when the
-/// model did not produce one (older servers, or `think: false`).
-fn split_thinking(response: &ChatResponse) -> (Option<String>, String) {
-    let thinking = response
-        .message
-        .thinking
-        .as_ref()
-        .filter(|s| !s.is_empty())
-        .cloned();
-    let content = response.message.content.clone();
-    (thinking, content)
-}
-
-/// Format a list of (label, count/size) pairs as a compact markdown
-/// table for use inside prompts. Keeps the payload small.
-fn fmt_table(rows: &[(String, String)], headers: (&str, &str)) -> String {
-    let mut out = format!("| {} | {} |\n|---|---|\n", headers.0, headers.1);
-    for (a, b) in rows {
-        out.push_str(&format!("| {} | {} |\n", a, b));
-    }
-    out
-}
-
-// ΓöÇΓöÇΓöÇ Feature 1: semantic_search (embedding) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-
-/// Input for the semantic file search feature.
-#[derive(Debug, Clone)]
-pub struct SemanticSearchInput {
-    /// Natural-language query (e.g. "find documents about my taxes").
-    pub query: String,
-    /// Files to search over: `(absolute_path, size_bytes, extension)`.
-    pub files: Vec<(String, u64, String)>,
-    /// How many top matches to return.
-    pub top_k: usize,
-}
-
-/// Result of the semantic search feature.
-#[derive(Debug, Clone)]
-pub struct SemanticSearchOutput {
-    pub matches: Vec<SearchResult>,
-    pub query_dim: usize,
-    pub files_searched: usize,
-    pub duration_ms: u128,
-    /// Number of vectors the model returned for the query (usually 1).
-    pub query_tokens: u32,
-}
-
-/// Embed a list of files and a query, then return top-K matches by
-/// cosine similarity. Only one round-trip is made to Ollama (the query
-/// embed), assuming the file embeddings were pre-computed by the
-/// caller. The caller can pre-compute file embeddings once and re-use
-/// them for many queries ΓÇö that's the data-flow win.
-pub async fn semantic_search(
-    client: &OllamaClient,
-    model: &str,
-    input: SemanticSearchInput,
-) -> Result<SemanticSearchOutput, String> {
-    let started = Instant::now();
-
-    let normalized_query = format!(
-        "{}{}",
-        embedding_service::EMBED_QUERY_PREFIX,
-        input.query.to_lowercase()
-    );
-
-    // Build descriptions for files (caller may have cached these too).
-    let descriptions: Vec<String> = input
-        .files
-        .iter()
-        .map(|(p, s, e)| embedding_service::file_to_description(p, *s, e).to_lowercase())
-        .collect();
-
-    if descriptions.is_empty() {
-        return Err("semantic_search: files list is empty".to_string());
-    }
-
-    // Batch-embed the query + all file descriptions in a single call.
-    // This sends N+1 strings to the model and gets N+1 vectors back.
-    let mut batch = vec![normalized_query];
-    batch.extend(descriptions);
-
-    let (mut vectors, usage) = client
-        .with_model(model)
-        .map_err(|e| e.to_string())?
-        .embed(batch)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if vectors.is_empty() {
-        return Err("semantic_search: model returned no vectors".to_string());
-    }
-    let query_vec = vectors.remove(0);
-    let file_vecs = vectors;
-    let query_dim = query_vec.len();
-
-    let stored: Vec<(String, u64, String, Vec<f32>)> = input
-        .files
-        .iter()
-        .zip(file_vecs)
-        .map(|((p, s, e), v)| (p.clone(), *s, e.clone(), v))
-        .collect();
-
-    let mut matches = embedding_service::search_files(&query_vec, &stored, input.top_k);
-    // Truncate to top_k defensively in case upstream search changed
-    matches.truncate(input.top_k);
-
-    Ok(SemanticSearchOutput {
-        matches,
-        query_dim,
-        files_searched: input.files.len(),
-        duration_ms: started.elapsed().as_millis(),
-        query_tokens: usage.prompt_tokens,
-    })
-}
-
-// ΓöÇΓöÇΓöÇ Feature 2: summarize_scan (completion) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-
-/// Input for the scan summary feature.
-#[derive(Debug, Clone)]
-pub struct ScanSummaryInput {
-    pub total_files: usize,
-    pub total_size_bytes: u64,
-    pub top_files: Vec<gui_common::LargestFileEntry>, // path, size (capped to 10)
-    pub file_types: Vec<(String, usize)>,             // extension, count
-}
-
-#[derive(Debug, Clone)]
-pub struct ScanSummaryOutput {
-    pub summary: String,
-    pub prompt_tokens: u32,
-    pub completion_tokens: u32,
-    pub duration_ms: u128,
-}
-
-/// Ask the model for a 2-3 sentence summary of a scan. The prompt is
-/// deliberately compact: only the top-10 largest files and the
-/// top-10 file types, formatted as a small markdown table. We never
-/// send the full file list (which could be millions of entries).
-pub async fn summarize_scan(
-    client: &OllamaClient,
-    model: &str,
-    input: ScanSummaryInput,
-) -> Result<ScanSummaryOutput, String> {
-    let started = Instant::now();
-
-    let size_mb = input.total_size_bytes as f64 / 1_048_576.0;
-    let mut top_files: Vec<(String, String)> = input
-        .top_files
-        .iter()
-        .take(10)
-        .map(|file| {
-            let name = file
-                .path
-                .rsplit(['\\', '/'])
-                .next()
-                .unwrap_or(&file.path)
-                .to_string();
-            (name, format!("{:.1} MB", file.size as f64 / 1_048_576.0))
-        })
-        .collect();
-    if top_files.is_empty() {
-        top_files.push(("(none)".to_string(), "-".to_string()));
-    }
-    let files_table = fmt_table(&top_files, ("File", "Size"));
-
-    let mut types: Vec<(String, String)> = input
-        .file_types
-        .iter()
-        .take(10)
-        .map(|(ext, count)| (format!(".{}", ext), count.to_string()))
-        .collect();
-    if types.is_empty() {
-        types.push(("(none)".to_string(), "-".to_string()));
-    }
-    let types_table = fmt_table(&types, ("Extension", "Count"));
-
-    let system = "You are a concise disk-space analyst. \
-        Summarize scans in 2-3 short sentences. \
-        Highlight the largest space hogs and any obvious cleanup wins. \
-        Do not use bullet points.";
-
-    let user = format!(
-        "Scan results:\n\
-         - Total files: {}\n\
-         - Total size: {:.1} MB\n\n\
-         Top largest files:\n{}\n\n\
-         File-type breakdown:\n{}",
-        input.total_files, size_mb, files_table, types_table
-    );
-
-    // Structured output schema constrains the model to return parseable JSON
-    let format_schema = serde_json::json!({
-        "type": "object",
-        "properties": {
-            "summary": {
-                "type": "string",
-                "description": "2-3 sentence scan summary highlighting largest space hogs and cleanup wins"
-            },
-            "key_insights": {
-                "type": "array",
-                "items": { "type": "string" },
-                "description": "Up to 3 key observations about the scan"
-            }
-        },
-        "required": ["summary"]
-    });
-
-    let request = ChatRequest {
-        model: model.to_string(),
-        messages: vec![ChatMessage::system(system), ChatMessage::user(user)],
-        stream: Some(false),
-        options: Some(OllamaOptions::default()),
-        think: None, // completion: keep it fast
-        keep_alive: Some("2m".to_string()),
-        format: Some(format_schema),
-        tools: None,
-        tool_choice: None,
-    };
-
-    let response = client
-        .with_model(model)
-        .map_err(|e| e.to_string())?
-        .post_chat(&request)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let (_thinking, content) = split_thinking(&response);
-    if content.trim().is_empty() {
-        return Err("summarize_scan: model returned empty content".to_string());
-    }
-
-    // If the model returned valid JSON (structured output), extract the summary field
-    let summary = serde_json::from_str::<serde_json::Value>(&content)
-        .ok()
-        .and_then(|v| v.get("summary").and_then(|s| s.as_str().map(String::from)))
-        .unwrap_or(content);
-
-    Ok(ScanSummaryOutput {
-        summary,
-        prompt_tokens: response.prompt_eval_count.unwrap_or(0),
-        completion_tokens: response.eval_count.unwrap_or(0),
-        duration_ms: started.elapsed().as_millis(),
-    })
-}
-
-// ΓöÇΓöÇΓöÇ Feature 3: cleanup_plan (thinking) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-
-#[derive(Debug, Clone)]
-pub struct CleanupPlanInput {
-    /// The user's question, e.g. "Plan how to free 20GB on my D: drive".
-    pub question: String,
-    /// Optional disk/scan context to ground the answer.
-    pub context: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct CleanupPlanOutput {
-    pub plan: String,
-    /// Chain-of-thought produced by the model. Useful for debugging
-    /// and for the GUI's "Show reasoning" toggle. Not shown by default.
-    pub thinking: Option<String>,
-    pub prompt_tokens: u32,
-    pub completion_tokens: u32,
-    pub duration_ms: u128,
-}
-
-/// Ask the model to reason about a multi-step cleanup problem and
-/// return a structured plan. Uses `think: true` (Ollama 0.30+) so
-/// qwen3+, deepseek-r1, etc. emit a chain of thought. The thinking
-/// is captured separately so the UI can hide it.
-pub async fn cleanup_plan(
-    client: &OllamaClient,
-    model: &str,
-    input: CleanupPlanInput,
-) -> Result<CleanupPlanOutput, String> {
-    let started = Instant::now();
-
-    let system = "You are a senior storage engineer. \
-        Reason step-by-step (your reasoning will be hidden from the user), \
-        THEN write a numbered plan in your final reply. \
-        Each step should have a clear action and an estimated bytes-freed. \
-        Be conservative ΓÇö prefer reversible steps first. \
-        Use markdown. Keep the plan to Γëñ 7 steps. \
-        End with a one-line 'Expected total: X GB' summary. \
-        Start the plan immediately with '1.' ΓÇö do not prefix with any label.";
-
-    let mut user = input.question.clone();
-    if let Some(ctx) = &input.context {
-        user.push_str("\n\nContext:\n");
-        user.push_str(ctx);
-    }
-
-    let request = ChatRequest {
-        model: model.to_string(),
-        messages: vec![ChatMessage::system(system), ChatMessage::user(user)],
-        stream: Some(false),
-        options: Some(OllamaOptions::default()),
-        think: Some(TopLevelThink::Bool(true)),
-        keep_alive: Some("2m".to_string()),
-        format: None,
-        tools: None,
-        tool_choice: None,
-    };
-
-    let response = client
-        .with_model(model)
-        .map_err(|e| e.to_string())?
-        .post_chat(&request)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let (thinking, plan) = split_thinking(&response);
-    if plan.trim().is_empty() {
-        return Err("cleanup_plan: model returned empty plan".to_string());
-    }
-
-    Ok(CleanupPlanOutput {
-        plan,
-        thinking,
-        prompt_tokens: response.prompt_eval_count.unwrap_or(0),
-        completion_tokens: response.eval_count.unwrap_or(0),
-        duration_ms: started.elapsed().as_millis(),
-    })
-}
-
-// ΓöÇΓöÇΓöÇ Feature 4: describe_screenshot (vision) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-
-#[derive(Debug, Clone)]
-pub struct ScreenshotInput {
-    /// Absolute path to the image file. PNG / JPEG supported.
-    pub image_path: String,
-    /// Question to ask about the image.
-    pub question: String,
-    /// Max dimension (px) on the longest side before base64-encoding.
-    /// 0 = keep original size. Default 1024 keeps the payload small.
-    pub max_dim: u32,
-}
-
-#[derive(Debug, Clone)]
-pub struct ScreenshotOutput {
-    pub answer: String,
-    pub thinking: Option<String>,
-    pub original_bytes: u64,
-    pub sent_bytes: u64,
-    pub prompt_tokens: u32,
-    pub completion_tokens: u32,
-    pub duration_ms: u128,
-}
-
-/// Send an image + question to a vision-capable model. The image is
-/// read, optionally downscaled, and embedded as a base64 data URL in
-/// the user message. We never re-encode as JPEG (lossy); we resize
-/// PNG or convert PNGΓåÆPNG with the new dimensions.
-pub async fn describe_screenshot(
-    client: &OllamaClient,
-    model: &str,
-    input: ScreenshotInput,
-) -> Result<ScreenshotOutput, String> {
-    let started = Instant::now();
-
-    let bytes = std::fs::read(&input.image_path)
-        .map_err(|e| format!("read {}: {}", input.image_path, e))?;
-    let original_bytes = bytes.len() as u64;
-
-    let (encoded, sent_bytes) = encode_image_for_ollama(&bytes, input.max_dim)?;
-
-    let request = ChatRequest {
-        model: model.to_string(),
-        messages: vec![ChatMessage::user_with_image(
-            input.question.clone(),
-            encoded,
-        )],
-        stream: Some(false),
-        options: Some(OllamaOptions::default()),
-        think: None, // vision: keep it fast; user can re-prompt with think if they want
-        keep_alive: Some("2m".to_string()),
-        format: None,
-        tools: None,
-        tool_choice: None,
-    };
-
-    let response = client
-        .with_model(model)
-        .map_err(|e| e.to_string())?
-        .post_chat(&request)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let (thinking, answer) = split_thinking(&response);
-    if answer.trim().is_empty() {
-        return Err("describe_screenshot: model returned empty answer".to_string());
-    }
-
-    Ok(ScreenshotOutput {
-        answer,
-        thinking,
-        original_bytes,
-        sent_bytes,
-        prompt_tokens: response.prompt_eval_count.unwrap_or(0),
-        completion_tokens: response.eval_count.unwrap_or(0),
-        duration_ms: started.elapsed().as_millis(),
-    })
-}
-
-/// Encode an image for Ollama. The simplest path that always works
-/// with Ollama 0.30+ is to base64 the raw bytes and let the model
-/// sniff the format. For a more advanced build we would use the
-/// `image` crate to downscale, but the wire format Ollama accepts is
-/// "raw base64 of PNG/JPEG bytes inside a `images: [...]` array", so
-/// this keeps things simple and dependency-free at this layer.
-fn encode_image_for_ollama(bytes: &[u8], _max_dim: u32) -> Result<(String, u64), String> {
-    // NOTE: full resizing would require the `image` crate. The bytes
-    // are already small for the test images (Γëñ 200 KB) and the model
-    // handles them fine. We do a format sniff and warn on BMP/ICO.
-    if bytes.len() >= 8 && &bytes[..8] == b"\x89PNG\r\n\x1a\n" {
-        // PNG ΓÇö pass through
-    } else if bytes.len() >= 3 && &bytes[..3] == b"\xFF\xD8\xFF" {
-        // JPEG ΓÇö pass through
-    } else {
-        return Err(format!(
-            "unsupported image format (first bytes: {:02X?}, need PNG or JPEG)",
-            &bytes[..bytes.len().min(8)]
-        ));
-    }
-    let b64 = base64::engine::general_purpose::STANDARD.encode(bytes);
-    let sent = b64.len() as u64;
-    Ok((b64, sent))
-}
-
-// ΓöÇΓöÇΓöÇ Feature 5: agentic_question (tools) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-
-#[derive(Debug, Clone)]
-pub struct AgenticStep {
-    pub kind: StepKind,
-    pub text: String,
-    pub tool_name: Option<String>,
-    pub tool_args: Option<serde_json::Value>,
-    pub duration_ms: u128,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StepKind {
-    /// Model emitted text (final answer or partial).
-    ModelText,
-    /// Model requested a tool call.
-    ModelToolCall,
-    /// Tool was executed locally; result was appended to the conversation.
-    ToolResult,
-}
-
-#[derive(Debug, Clone)]
-pub struct AgenticOutput {
-    pub final_answer: String,
-    pub steps: Vec<AgenticStep>,
-    pub rounds: usize,
-    pub total_prompt_tokens: u32,
-    pub total_completion_tokens: u32,
-    pub duration_ms: u128,
-}
-
-/// One round of the agentic loop. The closure decides what each tool
-/// does. In production this is the `ToolRegistry`; in tests it's a
-/// small mock that returns canned strings.
-pub type ToolExecutor = Box<dyn Fn(&ToolCall) -> String + Send + Sync>;
-
-/// Decide whether to force tool calling based on the user's question.
-/// When the question clearly references disk-analysis tools, forcing
-/// tool_choice avoids a round where the model chats instead of acting.
-fn resolve_tool_choice(question: &str, tools: &[ToolDefinition]) -> String {
-    let q_lower = question.to_lowercase();
-    // If the question mentions any known domain keyword, force tool calling
-    let domain_keywords = [
-        "disk",
-        "space",
-        "storage",
-        "scan",
-        "volume",
-        "drive",
-        "file",
-        "folder",
-        "directory",
-        "largest",
-        "size",
-        "history",
-        "trend",
-        "prediction",
-        "cleanup",
-        "workflow",
-        "system",
-        "resource",
-        "cpu",
-        "memory",
-        "gpu",
-        "summary",
-        "breakdown",
-        "duplicate",
-        "dedup",
-    ];
-    let has_domain_keyword = domain_keywords.iter().any(|k| q_lower.contains(k));
-    // Also check if the question mentions any tool name directly
-    let has_tool_name = tools
-        .iter()
-        .any(|t| q_lower.contains(&t.function.name.to_lowercase()));
-    if tools.is_empty() || q_lower.contains("hello") || q_lower.contains("hi ") {
-        // No tools available or just a greeting — let the model decide
-        "auto".to_string()
-    } else if has_domain_keyword || has_tool_name {
-        // Domain-specific query — skip chit-chat, go straight to tool calling
-        "required".to_string()
-    } else {
-        "auto".to_string()
-    }
-}
-
-/// Run a multi-round tool-calling conversation. Each round:
-///   1. Send the current message list (system + user + tool_results)
-///   2. If the model returns tool_calls, execute them, append the
-///      results, and loop.
-///   3. If the model returns text, we're done.
-pub async fn agentic_question(
-    client: &OllamaClient,
-    model: &str,
-    question: &str,
-    tools: Vec<ToolDefinition>,
-    execute: ToolExecutor,
-    max_rounds: usize,
-) -> Result<AgenticOutput, String> {
-    let started = Instant::now();
-    let mut messages: Vec<ChatMessage> = vec![
-        ChatMessage::system(
-            "You are a disk-space analyst. Answer the user's question \
-             by calling the available tools. Call only the tools you \
-             need. Once you have enough information, reply with a \
-             concise natural-language answer ΓÇö no JSON, no tool calls.",
-        ),
-        ChatMessage::user(question),
-    ];
-
-    let mut steps: Vec<AgenticStep> = Vec::new();
-    let mut total_prompt = 0u32;
-    let mut total_completion = 0u32;
-    let mut rounds = 0usize;
-    let mut final_answer = String::new();
-
-    while rounds < max_rounds {
-        rounds += 1;
-        let round_start = Instant::now();
-
-        let request = ChatRequest {
-            model: model.to_string(),
-            messages: messages.clone(),
-            stream: Some(false),
-            options: Some(OllamaOptions::default()),
-            think: None,
-            keep_alive: Some("5m".to_string()),
-            format: None,
-            tools: Some(tools.clone()),
-            tool_choice: Some(if rounds == 1 {
-                resolve_tool_choice(question, &tools)
-            } else {
-                "auto".to_string()
-            }),
-        };
-
-        let response = client
-            .with_model(model)
-            .map_err(|e| e.to_string())?
-            .post_chat(&request)
-            .await
-            .map_err(|e| e.to_string())?;
-
-        total_prompt += response.prompt_eval_count.unwrap_or(0);
-        total_completion += response.eval_count.unwrap_or(0);
-
-        // Case 1: model wants to call tools
-        if let Some(calls) = response.message.tool_calls.clone() {
-            if !calls.is_empty() {
-                // Record the model step (may have empty content alongside the calls)
-                let content = response.message.content.clone();
-                if !content.trim().is_empty() {
-                    steps.push(AgenticStep {
-                        kind: StepKind::ModelText,
-                        text: content,
-                        tool_name: None,
-                        tool_args: None,
-                        duration_ms: round_start.elapsed().as_millis(),
-                    });
-                }
-
-                // Append the assistant message (with the tool_calls attached)
-                messages.push(response.message.clone());
-
-                for call in &calls {
-                    let exec_start = Instant::now();
-                    let result = execute(call);
-                    steps.push(AgenticStep {
-                        kind: StepKind::ToolResult,
-                        text: result.clone(),
-                        tool_name: Some(call.function.name.clone()),
-                        tool_args: Some(call.function.arguments.clone()),
-                        duration_ms: exec_start.elapsed().as_millis(),
-                    });
-                    messages.push(ChatMessage::tool(result, call.id.clone()));
-                }
-                continue;
-            }
-        }
-
-        // Case 2: model returned text ΓÇö done.
-        let (thinking, content) = split_thinking(&response);
-        if !thinking.as_deref().unwrap_or("").is_empty() {
-            // If the model also thought, surface it as a step.
-            steps.push(AgenticStep {
-                kind: StepKind::ModelText,
-                text: format!("[thinking] {}", thinking.unwrap_or_default()),
-                tool_name: None,
-                tool_args: None,
-                duration_ms: 0,
-            });
-        }
-        final_answer = content;
-        steps.push(AgenticStep {
-            kind: StepKind::ModelText,
-            text: final_answer.clone(),
-            tool_name: None,
-            tool_args: None,
-            duration_ms: round_start.elapsed().as_millis(),
-        });
-        break;
-    }
-
-    if final_answer.is_empty() && rounds == max_rounds {
-        return Err(format!(
-            "agentic_question: hit max_rounds ({}) without a final answer",
-            max_rounds
-        ));
-    }
-
-    Ok(AgenticOutput {
-        final_answer,
-        steps,
-        rounds,
-        total_prompt_tokens: total_prompt,
-        total_completion_tokens: total_completion,
-        duration_ms: started.elapsed().as_millis(),
-    })
-}
-
-// We need to extend `OllamaClient` with a `post_chat` helper that takes
-// a pre-built `ChatRequest`. This is the same wire format
-// `chat_with_tools` uses internally, but exposed so feature code can
-// control the request shape (e.g. set `think: true`, custom
-// `keep_alive`, etc.) without going through the public wrapper.
 impl OllamaClient {
     /// POST a fully-formed chat request and return the parsed
     /// response. Mirrors the internals of `chat_with_tools` but
@@ -720,7 +43,7 @@ impl OllamaClient {
     }
 }
 
-// ΓöÇΓöÇΓöÇ Tests ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ Tests Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 
 #[cfg(test)]
 mod tests {
@@ -732,8 +55,17 @@ mod tests {
     //!   - If reachable, the test runs and verifies behavior.
     //!   - If unreachable, the test passes with a SKIP message.
 
-    use super::*;
-    use crate::ollama::types::{ToolCall, ToolCallFunction, ToolDefinition, ToolParameters};
+    use crate::gui_common;
+    use crate::ollama::agentic::{agentic_question, ToolExecutor};
+    use crate::ollama::helpers::{encode_image_for_ollama, split_thinking};
+    use crate::ollama::models::{
+        AgenticStep, CleanupPlanInput, ScreenshotInput, ScanSummaryInput, SemanticSearchInput, StepKind,
+    };
+    use crate::ollama::semantic::semantic_search;
+    use crate::ollama::summary::summarize_scan;
+    use crate::ollama::types::{
+        ChatMessage, ChatRequest, ChatResponse, ToolCall, ToolCallFunction, ToolDefinition, ToolParameters,
+    };
 
     /// Check if Ollama is reachable at the given URL.
     async fn ollama_reachable(url: &str) -> bool {
@@ -756,7 +88,7 @@ mod tests {
         }
     }
 
-    // ΓöÇΓöÇ Data-shape tests (no network) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // Î“Ã¶Ã‡Î“Ã¶Ã‡ Data-shape tests (no network) Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 
     #[test]
     fn semantic_search_input_constructs() {
@@ -811,7 +143,7 @@ mod tests {
         assert!(input.image_path.ends_with(".png"));
     }
 
-    // ΓöÇΓöÇ ToolCall / parse-error regression tests ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // Î“Ã¶Ã‡Î“Ã¶Ã‡ ToolCall / parse-error regression tests Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 
     #[test]
     fn tool_call_parses_without_type_field() {
@@ -878,7 +210,7 @@ mod tests {
         assert_eq!(json["function"]["parameters"]["type"], "object");
     }
 
-    // ΓöÇΓöÇ ChatResponse / split_thinking tests ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // Î“Ã¶Ã‡Î“Ã¶Ã‡ ChatResponse / split_thinking tests Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 
     #[test]
     fn chat_response_parses_with_thinking() {
@@ -967,7 +299,7 @@ mod tests {
         assert_eq!(content, "ok");
     }
 
-    // ΓöÇΓöÇ Embedding / cosine similarity sanity (no network) ΓöÇΓöÇΓöÇΓöÇ
+    // Î“Ã¶Ã‡Î“Ã¶Ã‡ Embedding / cosine similarity sanity (no network) Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 
     #[test]
     fn cosine_similarity_identical_vectors_is_one() {
@@ -1004,7 +336,7 @@ mod tests {
         assert!(d.contains("C:/X/Y.PDF"), "should include path: {d}");
     }
 
-    // ΓöÇΓöÇ Image-encode helper (no network) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // Î“Ã¶Ã‡Î“Ã¶Ã‡ Image-encode helper (no network) Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 
     #[test]
     fn encode_image_png_passes_through() {
@@ -1031,7 +363,7 @@ mod tests {
         assert!(err.contains("unsupported image format"), "got: {err}");
     }
 
-    // ΓöÇΓöÇ Network-backed tests (require running Ollama) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // Î“Ã¶Ã‡Î“Ã¶Ã‡ Network-backed tests (require running Ollama) Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 
     #[tokio::test]
     async fn live_semantic_search_returns_top_match_for_tax_query() {

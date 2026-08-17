@@ -1,0 +1,71 @@
+﻿<UserControl
+    x:Class="SpaceAnalyzer.Views.MaintenancePanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:SpaceAnalyzer.Models"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    mc:Ignorable="d">
+                <Expander IsExpanded="False" HorizontalAlignment="Stretch" Padding="{StaticResource Thickness.MD}">
+                    <Expander.Header>
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="Cache &amp; Database" Style="{StaticResource Type.SubTitle}"/>
+                            <TextBlock Text="Maintenance, cleanup, and database tools." Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                        </StackPanel>
+                    </Expander.Header>
+                    <StackPanel Spacing="{StaticResource Space.SM}">
+                        <Grid ColumnSpacing="{StaticResource Space.SM}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{x:Bind VM.DbInfoSummary, Mode=OneWay}" Style="{StaticResource Type.Tiny}" Opacity="0.7" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="Refresh" Click="RefreshDbInfo_Click" Style="{StaticResource SmallButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Refresh database info"/>
+                        </Grid>
+
+                        <!-- Cleanup & Prune -->
+                        <Expander IsExpanded="False" HorizontalAlignment="Stretch" Padding="{StaticResource Thickness.SM}">
+                            <Expander.Header>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Cleanup &amp; Prune" Style="{StaticResource Type.SubTitle}"/>
+                                    <TextBlock Text="Remove redundant, empty, or stale scan records." Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Padding="0,4">
+                                <Button Content="Remove Empty Scans" Click="PruneEmpty_Click" Style="{StaticResource DangerButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Remove empty scans"/>
+                                <Button Content="Remove Invalid Paths" Click="PruneRelative_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Remove scans with invalid paths"/>
+                                <Button Content="Prune Workflow History" Click="PruneWorkflows_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Prune workflow execution history"/>
+                                <Button Content="Prune Disk History" Click="PruneDiskSpace_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Prune disk space history"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- Database -->
+                        <Expander IsExpanded="False" HorizontalAlignment="Stretch" Padding="{StaticResource Thickness.SM}">
+                            <Expander.Header>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Database" Style="{StaticResource Type.SubTitle}"/>
+                                    <TextBlock Text="Recompute, compact, and clear cached data." Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" Padding="0,4">
+                                <Button Content="Recompute Categories" Click="Backfill_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Recompute categories"/>
+                                <Button Content="Compact Database" Click="Vacuum_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Compact database"/>
+                                <Button Content="Clear File Cache" Click="PruneFileCache_Click" Style="{StaticResource SecondaryButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Clear orphaned file cache"/>
+                            </StackPanel>
+                        </Expander>
+
+                        <!-- Danger Zone -->
+                        <Expander IsExpanded="False" HorizontalAlignment="Stretch" Padding="{StaticResource Thickness.SM}">
+                            <Expander.Header>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Danger Zone" Style="{StaticResource Type.SubTitle}" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                    <TextBlock Text="Irreversible: permanently clears all scan history." Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <StackPanel Padding="0,4">
+                                <Button Content="Clear All History" Click="ClearHistory_Click" Style="{StaticResource DangerButton}" IsEnabled="{x:Bind VM.IsNotLoading, Mode=OneWay}" AutomationProperties.Name="Clear all history"/>
+                            </StackPanel>
+                        </Expander>
+                    </StackPanel>
+                </Expander>
+</UserControl>

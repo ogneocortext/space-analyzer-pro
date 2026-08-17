@@ -38,6 +38,7 @@ pub struct DedupResult {
 /// it lands on stderr when stdout must stay a single JSON document (e.g. when
 /// `--clean` is called from a `scan --format json` run). Returns an error
 /// instead of only printing one, so the caller can exit non-zero.
+#[allow(clippy::too_many_arguments)]
 pub fn run_clean_analysis(
     path: &str,
     output_format: OutputFormat,

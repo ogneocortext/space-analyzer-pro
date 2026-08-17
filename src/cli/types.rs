@@ -40,7 +40,7 @@ pub enum StreamEvent {
         total_size_bytes: u64,
         total_size_mb: f64,
         duration_secs: f64,
-        file_types: std::collections::HashMap<String, usize>,
+        file_types: std::collections::HashMap<String, u64>,
         extension_sizes: std::collections::HashMap<String, u64>,
         largest_files: Vec<gui_common::LargestFileEntry>,
         errors: Vec<String>,

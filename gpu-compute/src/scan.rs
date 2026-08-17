@@ -326,6 +326,7 @@ fn compute_subdirectories(entries: &[RawFileEntry], scan_root: Option<&Path>) ->
             if entry.path != sub_name {
                 *dir_dir_counts.entry(sub_name.clone()).or_insert(0) += 1;
             }
+            *dir_sizes.entry(sub_name.clone()).or_insert(0) += entry.size;
         } else {
             *dir_sizes.entry(sub_name.clone()).or_insert(0) += entry.size;
             *dir_file_counts.entry(sub_name.clone()).or_insert(0) += 1;

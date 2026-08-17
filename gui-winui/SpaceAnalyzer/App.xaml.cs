@@ -45,8 +45,65 @@ public partial class App : Application
 
         await SettingsStore.EnsureLoadedAsync();
         ApplySavedTheme();
-        m_window = new MainWindow();
+
+        var initialPage = ParseInitialPage(Environment.GetCommandLineArgs());
+
+        var mainWindow = new MainWindow();
+        if (!string.IsNullOrEmpty(initialPage))
+            mainWindow.InitialPage = initialPage;
+        m_window = mainWindow;
         m_window.Activate();
+    }
+
+    /// <summary>
+    /// Parse the optional <c>--page &lt;tag&gt;</c> / <c>--page=&lt;tag&gt;</c> launch
+    /// argument so the app can open directly on a given tab (used for automated
+    /// capture/verification where UI Automation is unavailable). Matching is
+    /// case-insensitive against the known navigation tags.
+    /// </summary>
+    private static readonly Dictionary<string, string> s_pageAliases =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["dashboard"] = "Dashboard",
+            ["scan"] = "Scan",
+            ["history"] = "History",
+            ["smartsearch"] = "SmartSearch",
+            ["advancedsearch"] = "AdvancedSearch",
+            ["search"] = "SmartSearch",
+            ["workflows"] = "Workflows",
+            ["automationworkflows"] = "AutomationWorkflows",
+            ["aichat"] = "AIChat",
+            ["chat"] = "AIChat",
+            ["dedup"] = "Dedup",
+            ["duplicates"] = "Dedup",
+            ["installedapps"] = "InstalledApps",
+            ["apps"] = "InstalledApps",
+            ["system"] = "System",
+            ["cleanup"] = "Cleanup",
+            ["usnjournal"] = "UsnJournal",
+            ["usn"] = "UsnJournal",
+            ["settings"] = "Settings",
+            ["about"] = "About",
+        };
+
+    private static string? ParseInitialPage(string[] argv)
+    {
+        string? raw = null;
+        for (int i = 0; i < argv.Length; i++)
+        {
+            var a = argv[i];
+            if (a.Equals("--page", StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 < argv.Length) { raw = argv[i + 1]; break; }
+            }
+            else if (a.StartsWith("--page=", StringComparison.OrdinalIgnoreCase))
+            {
+                raw = a.Substring("--page=".Length);
+                break;
+            }
+        }
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        return s_pageAliases.TryGetValue(raw.Trim(), out var canonical) ? canonical : null;
     }
 
     private static void ApplySavedTheme()

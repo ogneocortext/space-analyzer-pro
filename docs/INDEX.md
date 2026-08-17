@@ -4,7 +4,7 @@
 > build commands. This file tells you **what each doc is and whether it reflects current
 > status**, so you don't waste time on stale material.
 
-## Project Status (as of 2026-08-11)
+## Project Status (as of 2026-08-16)
 
 - **What this is:** Space Analyzer Pro — a disk-space analysis tool. Core is Rust
   (`src/`); the active desktop app is **WinUI 3 (C#)** in `gui-winui/`.

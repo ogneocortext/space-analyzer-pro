@@ -20,6 +20,17 @@
                                Style="{StaticResource Type.Body}"/>
                 </StackPanel>
 
+                <!-- Notifications -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
+                        <ToggleSwitch Header="Notifications"
+                                      IsOn="{x:Bind VM.NotificationsEnabled, Mode=TwoWay}"
+                                      AutomationProperties.Name="Enable notifications"/>
+                        <TextBlock Text="Show routine alerts (scan complete, cleanup finished, workflow results). Warnings and errors are always shown so failures are never hidden."
+                                   Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- Advanced mode -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.XL}">
                     <StackPanel Spacing="{StaticResource Space.SM}">

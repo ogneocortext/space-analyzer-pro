@@ -51,6 +51,66 @@ public class ScanHistoryRecord
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
     };
 
+    /// <summary>Folder name (last path segment) for prominent display in the list.</summary>
+    public string LeafName
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Path)) return "(unknown)";
+            var trimmed = Path.TrimEnd('\\', '/');
+            var idx = Math.Max(trimmed.LastIndexOf('\\'), trimmed.LastIndexOf('/'));
+            return idx < 0 ? trimmed : trimmed[(idx + 1)..];
+        }
+    }
+
+    /// <summary>Parent path (everything before the folder name), shown as secondary text.</summary>
+    public string ParentPath
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Path)) return string.Empty;
+            var trimmed = Path.TrimEnd('\\', '/');
+            var idx = Math.Max(trimmed.LastIndexOf('\\'), trimmed.LastIndexOf('/'));
+            return idx < 0 ? string.Empty : trimmed[..idx];
+        }
+    }
+
+    /// <summary>Human-friendly relative age, e.g. "just now", "3d ago", "2mo ago".</summary>
+    public string RelativeDateDisplay
+    {
+        get
+        {
+            if (ScanDate == DateTime.MinValue) return "Unknown";
+            var diff = DateTime.Now - ScanDate;
+            if (diff.TotalSeconds < 60) return "just now";
+            if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
+            if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
+            if (diff.TotalDays < 2) return "yesterday";
+            if (diff.TotalDays < 7) return $"{(int)diff.TotalDays}d ago";
+            if (diff.TotalDays < 30) return $"{(int)(diff.TotalDays / 7)}w ago";
+            if (diff.TotalDays < 365) return $"{(int)(diff.TotalDays / 30)}mo ago";
+            return $"{(int)(diff.TotalDays / 365)}y ago";
+        }
+    }
+
+    /// <summary>Largest category by byte size (null when no category data).</summary>
+    public string? TopCategory
+    {
+        get
+        {
+            string? best = null;
+            ulong bestSize = 0;
+            foreach (var kv in CategorySizes)
+            {
+                if (kv.Value > bestSize) { bestSize = kv.Value; best = kv.Key; }
+            }
+            return best;
+        }
+    }
+
+    public bool HasCategory => TopCategory != null;
+    public string TopCategoryDisplay => TopCategory ?? "No categories";
+
     public string DepthDisplay
     {
         get

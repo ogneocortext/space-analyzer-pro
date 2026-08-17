@@ -69,8 +69,9 @@ pub fn file_to_description(file_path: &str, file_size: u64, extension: &str) -> 
 /// Files are sent in chunks of `batch_size` rather than all at once, so a
 /// large corpus (the embed pipeline can collect up to `embedding_file_limit`
 /// entries) becomes many bounded requests instead of one unbounded payload.
-/// This keeps memory flat and turns an all-or-nothing failure into a
-/// per-chunk error with partial progress already persisted upstream.
+/// This keeps memory flat and bounds each request, so a model error surfaces
+/// per chunk rather than on the entire corpus. The caller persists the
+/// returned vectors (the CLI commits them per `embed` run).
 pub async fn embed_files(
     client: &OllamaClient,
     files: &[(String, u64, String)],
@@ -90,6 +91,18 @@ pub async fn embed_files(
             .embed(descriptions)
             .await
             .map_err(|e| format!("Embedding failed: {}", e))?;
+
+        // Ollama returns one vector per input. A mismatch means the batch was
+        // truncated/reordered and the vectors would no longer align 1:1 with
+        // `files` when zipped upstream — fail loudly instead of silently
+        // mislabeling embeddings.
+        if chunk_embeddings.len() != chunk.len() {
+            return Err(format!(
+                "Embedding failed: model returned {} vectors for {} inputs",
+                chunk_embeddings.len(),
+                chunk.len()
+            ));
+        }
 
         embeddings.extend(chunk_embeddings);
     }

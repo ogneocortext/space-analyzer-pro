@@ -156,10 +156,14 @@ public partial class AIAssistantViewModel
                         var toolCallId = !string.IsNullOrWhiteSpace(toolCall.Id)
                             ? toolCall.Id
                             : $"call_{Guid.NewGuid():N}";
+                        // Cap the result fed back into the model context so a
+                        // large tool payload (e.g. a full scan JSON) cannot blow
+                        // up the prompt over a long agentic conversation. The
+                        // display message keeps the shorter 500-char preview.
                         apiMessages.Add(new ChatMessage
                         {
                             Role = ChatRole.Tool,
-                            Content = result,
+                            Content = TruncateResult(result, ToolResultApiMaxChars),
                             ToolCallId = toolCallId,
                         });
 
@@ -306,5 +310,13 @@ public partial class AIAssistantViewModel
     {
         return result.Length <= maxLen ? result : result[..maxLen] + "...";
     }
+
+    /// <summary>
+    /// Maximum characters of a tool result fed back into the model context.
+    /// Large payloads (e.g. a full scan JSON) are truncated here to keep the
+    /// prompt bounded over long agentic conversations; the UI display uses the
+    /// shorter 500-char <see cref="TruncateResult"/> default.
+    /// </summary>
+    private const int ToolResultApiMaxChars = 12000;
 
 }

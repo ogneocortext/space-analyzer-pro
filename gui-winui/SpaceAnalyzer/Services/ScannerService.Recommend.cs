@@ -40,7 +40,16 @@ public partial class ScannerService
                 {
                     result.Add(new Recommendation
                     {
-                        Priority = dto.Priority,
+                        // Rust ranks severity 3 = most urgent (CRITICAL) … 1 = lowest,
+                        // while the C# Recommendation.PriorityLabel treats 1 = High.
+                        // Invert on ingest so the shared label/sort/colour stay correct.
+                        Priority = dto.Priority switch
+                        {
+                            3 => 1,
+                            2 => 2,
+                            1 => 3,
+                            _ => 2,
+                        },
                         Title = dto.Message,
                         Detail = dto.Message,
                     });
@@ -51,7 +60,10 @@ public partial class ScannerService
         }
         catch (JsonException jex)
         {
-            throw new Exception($"Failed to parse recommendations: {jex.Message}. Output: {Truncate(output)}", jex);
+            // Malformed backend output is treated as "no recommendations" so the
+            // caller falls back to local heuristics (per the method contract).
+            Console.Error.WriteLine($"[ScannerService] Failed to parse recommendations: {jex.Message}");
+            return null;
         }
     }
 

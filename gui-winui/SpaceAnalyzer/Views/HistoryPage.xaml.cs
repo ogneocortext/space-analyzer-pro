@@ -1,4 +1,4 @@
-// Licensed under the MIT License.
+﻿// Licensed under the MIT License.
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -6,7 +6,6 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using SpaceAnalyzer.Controls;
-using SpaceAnalyzer.Controls.ScanBreakdown;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.ViewModels;
@@ -178,7 +177,7 @@ public sealed partial class HistoryPage : Page
             MainWindow.Current.NavigateToPage("SmartSearch", new SmartSearchPreset(Path: path, Category: category));
     }
 
-    // ── Trend export (parity with the egui trend chart) ──
+    // â”€â”€ Trend export (parity with the egui trend chart) â”€â”€
 
     private async void ExportTrend_Click(object sender, RoutedEventArgs e)
     {
@@ -218,18 +217,8 @@ public sealed partial class HistoryPage : Page
         }
     }
 
-    private async void RunDuplicateAnalysis_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage RunDuplicateAnalysis_Click");
-        if (VM.SelectedRecord == null)
-        {
-            AppNotifications.Show("No scan selected", "Open a scan's details first.");
-            return;
-        }
-        await VM.RunDuplicateAnalysisAsync();
-    }
 
-    // ── Pagination ──
+    // â”€â”€ Pagination â”€â”€
 
     private async void PrevPage_Click(object sender, RoutedEventArgs e)
     {
@@ -243,7 +232,7 @@ public sealed partial class HistoryPage : Page
         await VM.NextPageAsync();
     }
 
-    // ── Search ──
+    // â”€â”€ Search â”€â”€
 
     private async void Search_Click(object sender, RoutedEventArgs e)
     {
@@ -266,7 +255,7 @@ public sealed partial class HistoryPage : Page
         }
     }
 
-    // ── Sort ──
+    // â”€â”€ Sort â”€â”€
 
     private void SortDate_Click(object sender, RoutedEventArgs e)
     {
@@ -298,7 +287,7 @@ public sealed partial class HistoryPage : Page
         VM.ToggleOnlyDuplicates();
     }
 
-    // ── Multi-select comparison ──
+    // â”€â”€ Multi-select comparison â”€â”€
 
     private void CompareCheck_Changed(object sender, RoutedEventArgs e)
     {
@@ -324,7 +313,7 @@ public sealed partial class HistoryPage : Page
         VM.ClearComparison();
     }
 
-    // ── Comparison bar chart ─
+    // â”€â”€ Comparison bar chart â”€
 
     private enum ComparisonMetric { Size, Files, Duration }
     private ComparisonMetric _comparisonMetric = ComparisonMetric.Size;
@@ -406,14 +395,14 @@ public sealed partial class HistoryPage : Page
 
         ComparisonChartGrid.Children.Add(LiveChartsFactory.CreateBarChart(items, yLabeler: yLabeler, onIndexClick: idx =>
         {
-            // Tapping a compared scan's bar opens its details — the comparison
+            // Tapping a compared scan's bar opens its details â€” the comparison
             // chart and the Scan Details panel are the same data, surfaced two ways.
             if (idx >= 0 && idx < cards.Count)
                 _ = VM.LoadDetailsAsync(cards[idx].Record);
         }));
     }
 
-    // ── Navigation ──
+    // â”€â”€ Navigation â”€â”€
 
     private async void Refresh_Click(object sender, RoutedEventArgs e)
     {
@@ -495,115 +484,17 @@ public sealed partial class HistoryPage : Page
         }
     }
 
-    // ── Cache & Database management ──
+    // â”€â”€ Cache & Database management â”€â”€
 
-    private async void RefreshDbInfo_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage RefreshDbInfo_Click");
-        await VM.LoadDatabaseInfoAsync();
-    }
 
-    private async void PruneEmpty_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage PruneEmpty_Click");
-        var dialog = new ContentDialog
-        {
-            Title = "Remove empty scans",
-            Content = "Delete all scan records that captured zero files (e.g. temporary directories)? This cannot be undone.",
-            PrimaryButtonText = "Remove",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close
-        };
-        dialog.XamlRoot = this.XamlRoot;
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-            return;
 
-        await VM.PruneEmptyScansAsync();
-    }
 
-    private async void PruneRelative_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage PruneRelative_Click");
-        var dialog = new ContentDialog
-        {
-            Title = "Remove invalid-path scans",
-            Content = "Delete scan records whose path is not absolute (relative scans that don't resolve to a real directory)? This cannot be undone.",
-            PrimaryButtonText = "Remove",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close
-        };
-        dialog.XamlRoot = this.XamlRoot;
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-            return;
 
-        await VM.PruneRelativeScansAsync();
-    }
 
-    private async void Backfill_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage Backfill_Click");
-        await VM.BackfillCategoriesAsync();
-    }
 
-    private async void Vacuum_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage Vacuum_Click");
-        await VM.VacuumDatabaseAsync();
-    }
 
-    private async void PruneFileCache_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage PruneFileCache_Click");
-        await VM.PruneFileCacheAsync();
-    }
 
-    private async void PruneWorkflows_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage PruneWorkflows_Click");
-        await VM.PruneWorkflowsAsync();
-    }
 
-    private async void PruneDiskSpace_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage PruneDiskSpace_Click");
-        var dialog = new ContentDialog
-        {
-            Title = "Prune disk-space history",
-            Content = "Delete disk-space snapshots older than 24 hours? Recent snapshots are kept so the storage-trend chart still works. This cannot be undone.",
-            PrimaryButtonText = "Prune",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close
-        };
-        dialog.XamlRoot = this.XamlRoot;
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-            return;
-
-        await VM.PruneDiskSpaceAsync(24);
-    }
-
-    private async void ClearHistory_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage ClearHistory_Click");
-        var dialog = new ContentDialog
-        {
-            Title = "Clear all history",
-            Content = "Delete EVERY scan record, including their embedded metrics and analysis? This cannot be undone.",
-            PrimaryButtonText = "Clear Everything",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close
-        };
-        dialog.XamlRoot = this.XamlRoot;
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-            return;
-
-        await VM.ClearHistoryAsync();
-    }
-
-    private void BackToList_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage BackToList_Click");
-        VM.BackToList();
-    }
 
     private void Escape_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
@@ -614,38 +505,9 @@ public sealed partial class HistoryPage : Page
         }
     }
 
-    private void CopyPath_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage CopyPath_Click");
-        if (sender is not Button { Tag: string path } || string.IsNullOrEmpty(path))
-            return;
 
-        var data = new Windows.ApplicationModel.DataTransfer.DataPackage();
-        data.SetText(path);
-        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(data);
-        AppNotifications.Success("Path copied", path);
-    }
+    // â”€â”€ File Explorer (Largest Files sort is delegated to the shared control) â”€â”€
 
-    private async void ScanCard_Tapped(object sender, TappedRoutedEventArgs e)
-    {
-        if (sender is not Border border || border.Tag is not long id)
-            return;
-
-        AppLog.Action($"HistoryPage ScanCard_Tapped Id={id}");
-        var record = VM.History.FirstOrDefault(r => r.Id == id);
-        if (record != null)
-        {
-            await VM.LoadDetailsAsync(record);
-        }
-    }
-
-    // ── File Explorer (Largest Files sort is delegated to the shared control) ──
-
-    private void OnLargestFilesSort(object sender, SortRequestedEventArgs e)
-    {
-        AppLog.Action($"HistoryPage OnLargestFilesSort column={e.Column}");
-        VM.ToggleFileSort(e.Column);
-    }
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
     {

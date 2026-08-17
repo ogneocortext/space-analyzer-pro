@@ -71,6 +71,9 @@ pub struct FileEmbeddingRecord {
     pub file_extension: String,
     pub embedding_json: String,
     pub created_at: String,
+    /// Embedding model that produced the vector. `None` for rows written
+    /// before model stamping existed; used to detect index/model drift.
+    pub model: Option<String>,
 }
 
 mod embeddings;
@@ -79,6 +82,7 @@ mod settings;
 mod workflows;
 
 pub use settings::*;
+pub use scans::*;
 
 impl Database {
     /// Create or open database at the given path
@@ -381,6 +385,39 @@ impl Database {
                 }
             }
         }
+        if user_version < 7 {
+            let table_exists: bool = self
+                .conn
+                .query_row(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='file_embeddings'",
+                    [],
+                    |_| Ok(true),
+                )
+                .unwrap_or(false);
+
+            if table_exists {
+                self.conn.execute_batch("BEGIN IMMEDIATE")?;
+                let migration_result = (|| -> rusqlite::Result<()> {
+                    let columns: Vec<String> = self.conn.prepare(
+                        "SELECT name FROM pragma_table_info('file_embeddings') WHERE name IN ('model')"
+                    )?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+
+                    if !columns.contains(&"model".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE file_embeddings ADD COLUMN model TEXT;",
+                        )?;
+                    }
+                    self.conn.execute("PRAGMA user_version = 7", [])?;
+                    Ok(())
+                })();
+                if migration_result.is_err() {
+                    let _ = self.conn.execute_batch("ROLLBACK");
+                    migration_result?;
+                } else {
+                    self.conn.execute_batch("COMMIT")?;
+                }
+            }
+        }
         Ok(())
     }
 
@@ -447,6 +484,7 @@ impl Database {
                 file_extension TEXT NOT NULL,
                 embedding TEXT NOT NULL,
                 created_at TEXT NOT NULL,
+                model TEXT,
                 FOREIGN KEY (scan_id) REFERENCES scan_history(id)
             );
             CREATE INDEX IF NOT EXISTS idx_file_embeddings_scan_id ON file_embeddings(scan_id);

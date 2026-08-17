@@ -1,10 +1,12 @@
 use super::*;
+use rusqlite::OptionalExtension;
 
 impl super::Database {
     /// Save a batch of file embeddings for a scan
     pub fn save_embeddings(
         &self,
         scan_id: i64,
+        model: &str,
         embeddings: &[(String, u64, String, Vec<f32>)],
     ) -> rusqlite::Result<usize> {
         let mut count = 0;
@@ -18,7 +20,7 @@ impl super::Database {
                 params![scan_id],
             )?;
             let mut stmt = tx.prepare(
-                "INSERT INTO file_embeddings (scan_id, file_path, file_size, file_extension, embedding, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
+                "INSERT INTO file_embeddings (scan_id, file_path, file_size, file_extension, embedding, created_at, model) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"
             )?;
             let created_at = chrono::Utc::now().to_rfc3339();
             for (path, size, ext, vec) in embeddings {
@@ -30,7 +32,8 @@ impl super::Database {
                     *size as i64,
                     ext,
                     embedding_json,
-                    created_at
+                    created_at,
+                    model
                 ])?;
                 count += 1;
             }
@@ -45,7 +48,7 @@ impl super::Database {
         scan_id: i64,
     ) -> rusqlite::Result<Vec<FileEmbeddingRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, scan_id, file_path, file_size, file_extension, embedding, created_at FROM file_embeddings WHERE scan_id = ?1 ORDER BY file_path"
+            "SELECT id, scan_id, file_path, file_size, file_extension, embedding, created_at, model FROM file_embeddings WHERE scan_id = ?1 ORDER BY file_path"
         )?;
         let rows = stmt.query_map(params![scan_id], |row| {
             Ok(FileEmbeddingRecord {
@@ -56,9 +59,23 @@ impl super::Database {
                 file_extension: row.get(4)?,
                 embedding_json: row.get(5)?,
                 created_at: row.get(6)?,
+                model: row.get(7)?,
             })
         })?;
         rows.collect()
+    }
+
+    /// Return the embedding model stamped on this scan's index, if any.
+    /// Used to detect index/model drift before a search (a different model
+    /// than the one currently configured silently degrades similarity).
+    pub fn get_embedding_model(&self, scan_id: i64) -> rusqlite::Result<Option<String>> {
+        self.conn
+            .query_row(
+                "SELECT model FROM file_embeddings WHERE scan_id = ?1 AND model IS NOT NULL LIMIT 1",
+                params![scan_id],
+                |row| row.get(0),
+            )
+            .optional()
     }
 
     /// Delete embeddings for a scan

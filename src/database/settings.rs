@@ -89,7 +89,7 @@ impl Default for AppSettings {
 
 impl AppSettings {
     pub const SETTINGS_VERSION_KEY: &'static str = "settings_version";
-    pub const CURRENT_SETTINGS_VERSION: u32 = 1;
+    pub const CURRENT_SETTINGS_VERSION: u32 = 2;
 
     pub fn to_prompt_cache_config(&self) -> super::super::ollama::PromptCacheConfig {
         super::super::ollama::PromptCacheConfig {
@@ -221,23 +221,38 @@ impl super::Database {
     /// Returns the migrated settings. Each migration step should be idempotent.
     fn migrate_settings(
         &self,
-        settings: AppSettings,
+        mut settings: AppSettings,
         from_version: u32,
         had_rows: bool,
     ) -> AppSettings {
         let current = AppSettings::CURRENT_SETTINGS_VERSION;
+        let mut changed = false;
 
-        // Migration 1 -> 2 (and beyond): add real steps here as the schema
-        // evolves. Each step should be idempotent and keyed on `from_version`.
-        if from_version < current {
-            // No schema changes between v1 and the current version yet.
+        // Pin the floating `nomic-embed-text:latest` tag to the reproducible
+        // `nomic-embed-text:v1.5`. This must NOT be gated on `(from_version < 2)`:
+        // a database can already be at the current settings version while still
+        // storing the old `latest` default (it was written before the default
+        // was pinned), so a version-gated migration would never correct it and
+        // the value would persist forever. `latest` is a server-side floating
+        // tag that is not reliably installed, whereas `v1.5` is a concrete,
+        // reproducible model — so pinning on load is always safe.
+        if settings.embedding_model == "nomic-embed-text:latest" {
+            settings.embedding_model = "nomic-embed-text:v1.5".to_string();
+            changed = true;
         }
 
-        // Persist only when we actually changed something (a migration ran)
-        // or when the table was empty and needs first-run initialization.
-        // Writing on every read is wasteful and risks clobbering keys that
-        // other components (e.g. the GUI) manage independently.
-        if from_version < current || !had_rows {
+        // Future versioned migration steps go here, each keyed on
+        // `from_version` and flipping `changed` when it touches the struct.
+        if from_version < current {
+            // (no-op placeholder; add real steps as the schema evolves)
+        }
+
+        // Persist when a migration/normalization actually changed something,
+        // when the stored schema version is behind, or when the table was empty
+        // and needs first-run initialization. Writing on every read is wasteful
+        // and risks clobbering keys that other components (e.g. the GUI) manage
+        // independently, so only write when strictly necessary.
+        if changed || from_version < current || !had_rows {
             let _ = self.save_all_settings(&settings);
         }
         settings

@@ -368,6 +368,41 @@ public sealed class SourceToLabelConverter : IValueConverter
 }
 
 /// <summary>
+/// Active sort-button surface: accent fill when the bound sort/option is active,
+/// otherwise a subtle secondary fill. Highlights the currently-applied history
+/// sort so users can see which ordering is in effect at a glance.
+/// </summary>
+public sealed class BoolToAccentBackgroundConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool active = value is bool b && b;
+        var key = active ? "AccentButtonBackground" : "CardBackgroundFillColorSecondaryBrush";
+        return Application.Current.Resources[key] as SolidColorBrush
+            ?? new SolidColorBrush(active ? Microsoft.UI.Colors.DodgerBlue : Microsoft.UI.Colors.Gray);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => null!;
+}
+
+/// <summary>
+/// Active sort-button foreground: on-accent text when active, otherwise the
+/// default primary text. Pairs with <see cref="BoolToAccentBackgroundConverter"/>.
+/// </summary>
+public sealed class BoolToAccentForegroundConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool active = value is bool b && b;
+        var key = active ? "TextOnAccentFillColorPrimaryBrush" : "TextFillColorPrimaryBrush";
+        return Application.Current.Resources[key] as SolidColorBrush
+            ?? new SolidColorBrush(Microsoft.UI.Colors.White);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => null!;
+}
+
+/// <summary>
 /// Maps an inventory <c>Source</c> token to a theme-aware badge accent brush so
 /// each install group can show a color-coded source chip.
 /// </summary>

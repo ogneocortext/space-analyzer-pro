@@ -13,6 +13,8 @@ use space_analyzer_pro_desktop::ollama::client::OllamaClient;
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
+type EmbeddedFile = (String, u64, String, Vec<f32>);
+
 /// Collect `(path, size, extension)` tuples for a directory, honoring the size
 /// window, the `file_limit` cap, and the hidden-files toggle. Used to feed the
 /// embedding pipeline.
@@ -142,7 +144,7 @@ pub fn run_embed(
     );
     let embeddings = rt
         .block_on(embed_files(&client, &files, settings.embedding_batch_size))
-        .map_err(|e| AppError::Validation(e))?;
+        .map_err(AppError::Validation)?;
 
     let scan_id = match scan_id {
         Some(id) => id,
@@ -157,14 +159,14 @@ pub fn run_embed(
         }
     };
 
-    let records: Vec<(String, u64, String, Vec<f32>)> = files
+    let records: Vec<EmbeddedFile> = files
         .into_iter()
         .zip(embeddings)
         .map(|((p, s, e), v)| (p, s, e, v))
         .collect();
 
     let count = db
-        .save_embeddings(scan_id, &records)
+        .save_embeddings(scan_id, &settings.embedding_model, &records)
         .map_err(|e| AppError::Validation(format!("Failed to store embeddings: {e}")))?;
 
     if format == OutputFormat::Json {
@@ -188,7 +190,7 @@ pub fn run_embed(
 fn load_stored_embeddings(
     db: &Database,
     scan_id: i64,
-) -> AppResult<Vec<(String, u64, String, Vec<f32>)>> {
+) -> AppResult<Vec<EmbeddedFile>> {
     let rows: Vec<FileEmbeddingRecord> = db.get_embeddings_for_scan(scan_id).map_err(|e| {
         AppError::Validation(format!("Failed to load embeddings for scan #{scan_id}: {e}"))
     })?;
@@ -232,8 +234,24 @@ pub fn run_search(
         )));
     }
 
-    let settings = db
-        .load_settings();
+    let settings = db.load_settings();
+
+    // Detect index/model drift before embedding the query. Comparing the
+    // stamped model (not just vector dimension) catches the case where the
+    // configured model changed but still produces the same dimension, which
+    // would otherwise silently degrade every similarity score.
+    if let Some(stored_model) = db
+        .get_embedding_model(scan_id)
+        .map_err(|e| AppError::Validation(format!("Failed to read embedding model: {e}")))?
+    {
+        if stored_model != settings.embedding_model {
+            return Err(AppError::Validation(format!(
+                "The semantic index for scan #{scan_id} was built with embedding model `{}`, \
+                 but the current model is `{}`. Re-run `embed` to rebuild the index before searching.",
+                stored_model, settings.embedding_model
+            )));
+        }
+    }
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| AppError::Validation(format!("Failed to start async runtime: {e}")))?;
     let client = OllamaClient::new(&settings.ollama_url, &settings.embedding_model)
@@ -243,7 +261,7 @@ pub fn run_search(
 
     let query_embedding = rt
         .block_on(embed_query(&client, &query))
-        .map_err(|e| AppError::Validation(e))?;
+        .map_err(AppError::Validation)?;
 
     // Guard against a stale index built with a different model or version.
     // Stored vectors and the live query must share a dimension; otherwise

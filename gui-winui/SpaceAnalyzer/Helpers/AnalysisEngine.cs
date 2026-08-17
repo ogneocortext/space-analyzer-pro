@@ -27,6 +27,11 @@ public static class AnalysisEngine
 
     public static List<Recommendation> GetRecommendations(ScanHistoryRecord scan)
     {
+        // Priority uses the same convention as Recommendation.PriorityLabel:
+        // 1 = High (most urgent), 2 = Medium, 3 = Low. The Rust backend
+        // (render::build_recommendations) ranks severity 3 = most urgent and
+        // ScannerService.Recommend.cs inverts it on ingest to 1 = High, so this
+        // local fallback must agree or urgent items would sort last / show as Low.
         var actions = new List<(int Priority, Recommendation Rec)>();
 
         foreach (var dir in scan.TopDirectories)
@@ -34,9 +39,9 @@ public static class AnalysisEngine
             var lower = dir.Path.ToLowerInvariant();
             if (lower.Contains("cache") || lower.Contains("temp") || lower.Contains("tmp"))
             {
-                actions.Add((3, new Recommendation
+                actions.Add((1, new Recommendation
                 {
-                    Priority = 3,
+                    Priority = 1,
                     Title = "Clear cache / temp folder",
                     Detail = $"{dir.Path} ({dir.FileCount:N0} files) — safe to clear via disk cleanup or app settings",
                     EstimatedSavingsBytes = dir.TotalSize,
@@ -49,9 +54,9 @@ public static class AnalysisEngine
                         && f.Size > HundredMb)
             .Sum(f => (double)f.Size);
         if (installerSize > HundredMb)
-            actions.Add((3, new Recommendation
+            actions.Add((1, new Recommendation
             {
-                Priority = 3,
+                Priority = 1,
                 Title = "Remove old installers",
                 Detail = "Old installer files can be deleted after confirming the apps still work",
                 EstimatedSavingsBytes = installerSize,
@@ -85,9 +90,9 @@ public static class AnalysisEngine
             .Where(f => f.Path.ToLowerInvariant().Contains("node_modules"))
             .Sum(f => (double)f.Size);
         if (nodeModulesSize > HundredMb)
-            actions.Add((1, new Recommendation
+            actions.Add((3, new Recommendation
             {
-                Priority = 1,
+                Priority = 3,
                 Title = "Trim node_modules",
                 Detail = "Dependency folders can be deleted in build directories and reinstalled with `npm ci`",
                 EstimatedSavingsBytes = nodeModulesSize,

@@ -86,7 +86,7 @@ pub fn run(args: BloatArgs, output_format: OutputFormat) -> AppResult<()> {
         }
     }
 
-    findings.sort_by(|a, b| b.size.cmp(&a.size));
+    findings.sort_by_key(|b| std::cmp::Reverse(b.size));
     findings.truncate(args.top);
 
     let response = serde_json::json!({

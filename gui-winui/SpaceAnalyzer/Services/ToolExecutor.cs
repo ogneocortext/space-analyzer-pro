@@ -62,8 +62,13 @@ public partial class ToolExecutor : IDisposable
                 "list_workflows" => ListWorkflows(),
                 "predict_storage" => await PredictStorageAsync(GetInt(arguments, "days_ahead", 30), ct),
                 "preview_impact" => await PreviewImpactAsync(GetString(arguments, "path"), ct),
+                // NOTE: `move_to_trash` and `hardlink_duplicates` are intentionally
+                // NOT exposed to the autonomous agentic loop (see GetToolDefinitions
+                // in AIAssistantViewModel). Project policy keeps destructive
+                // filesystem changes on hold; these remain callable for explicit,
+                // user-initiated UI actions only.
                 "move_to_trash" => await MoveToTrashAsync(GetString(arguments, "path"), ct),
-                "hardlink_duplicates" => await HardlinkDuplicatesPreviewAsync(GetString(arguments, "path"), ct),
+                "hardlink_duplicates" => await HardlinkDuplicatesAsync(GetString(arguments, "path"), ct),
                 "get_scan_summary" => await GetScanSummaryAsync(ct),
                 "get_file_type_breakdown" => await GetFileTypeBreakdownAsync(ct),
                 "analyze_file_patterns" => await AnalyzeFilePatternsAsync(ct),
@@ -328,7 +333,7 @@ public partial class ToolExecutor : IDisposable
         }, s_json);
     }
 
-    private async Task<string> HardlinkDuplicatesPreviewAsync(string path, CancellationToken ct)
+    private async Task<string> HardlinkDuplicatesAsync(string path, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(path))
             return "Error: path is required";
@@ -339,8 +344,9 @@ public partial class ToolExecutor : IDisposable
         // Apply hard-links now (the backend requires --yes for non-interactive
         // apply, and refuses to modify files without it). Hard-linking never
         // deletes data — identical copies collapse to one inode and the reclaimed
-        // space is reported in the result. Nothing is sent to the Recycle Bin
-        // because no file content is destroyed.
+        // space is reported in the result. This mutates the filesystem, so it is
+        // only invoked for explicit, user-initiated actions (not the autonomous
+        // agentic loop).
         var dedupOutput = await RunCliAsync(new[] { "dedup", "--path", path, "--apply", "--yes", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(dedupOutput))
             return "No duplicate analysis available.";

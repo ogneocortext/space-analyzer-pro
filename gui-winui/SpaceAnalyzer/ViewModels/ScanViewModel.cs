@@ -1,19 +1,21 @@
 // Licensed under the MIT License.
 
-using System.Linq;
-using System.Collections.ObjectModel;
-using Windows.Storage;
-using SpaceAnalyzer.Models;
-using SpaceAnalyzer.Services;
-using SpaceAnalyzer.Helpers;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
+using SpaceAnalyzer.Helpers;
+using SpaceAnalyzer.Models;
+using SpaceAnalyzer.Services;
 using SpaceAnalyzer.Settings;
+using Windows.Storage;
 
 namespace SpaceAnalyzer.ViewModels;
 
-public class ScanViewModel : ViewModelBase, IDisposable
+public partial class ScanViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private bool _disposed;
@@ -23,25 +25,17 @@ public class ScanViewModel : ViewModelBase, IDisposable
     {
         Load();
         InitializeQuickScanTargets();
-        // Honor the global GPU-acceleration toggle (Settings → Advanced).
         _scanner.GpuAcceleration = AppSettings.GpuAcceleration;
-        // Keep GPU + hidden-files toggles in sync with the Settings page, which is
-        // the single source of truth (these settings are shared across pages).
         SettingsStore.SettingsChanged += OnSettingsChanged;
         ApplyDefaultScanPath();
     }
 
-    /// <summary>
-    /// If no scan path has been set manually, fall back to the first entry of the
-    /// user's configured default scan paths (Settings → Advanced). Gives the README
-    /// "default scan paths" setting a concrete effect instead of being cosmetic.
-    /// </summary>
     private void ApplyDefaultScanPath()
     {
         if (!string.IsNullOrWhiteSpace(_scanPath) && Directory.Exists(_scanPath))
             return;
         var raw = AppSettings.DefaultScanPaths;
-        if (string.IsNullOrWhiteSpace(raw)) return;
+        if (string.IsNullOrEmpty(raw)) return;
         var first = raw.Split(';', StringSplitOptions.RemoveEmptyEntries)
             .Select(p => p.Trim().Trim('"'))
             .FirstOrDefault(p => !string.IsNullOrWhiteSpace(p) && Directory.Exists(p));
@@ -65,8 +59,6 @@ public class ScanViewModel : ViewModelBase, IDisposable
             _scanner.UseFileCache = AppSettings.UseFileCache;
         _scanner.UseFileCache = AppSettings.UseFileCache;
     }
-
-    // ── Scan options ──
 
     private string _scanPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     public string ScanPath
@@ -107,9 +99,6 @@ public class ScanViewModel : ViewModelBase, IDisposable
         set
         {
             _depthValue = value;
-            // Keep the remembered custom depth in sync while the user is dragging the
-            // slider in Custom mode. Without this, switching to Default/Deep and back to
-            // Custom discards the value and resets to the stale _customMaxDepth.
             if (SelectedDepthMode == ScannerService.DepthMode.Custom)
                 _customMaxDepth = DepthInt;
             OnPropertyChanged();
@@ -169,15 +158,11 @@ public class ScanViewModel : ViewModelBase, IDisposable
         set { _includeHidden = value; OnPropertyChanged(); Save(); }
     }
 
-    /// <summary>Reuse the scanner's incremental file cache (--cache) so re-scans of the
-    /// same path skip files unchanged since the previous scan. Persisted globally.</summary>
     public bool UseFileCache
     {
         get => AppSettings.UseFileCache;
         set { if (AppSettings.UseFileCache == value) return; AppSettings.UseFileCache = value; OnPropertyChanged(); }
     }
-
-    // ── Scan state ──
 
     private bool _isScanning;
     public bool IsScanning
@@ -207,127 +192,9 @@ public class ScanViewModel : ViewModelBase, IDisposable
 
     private ScanResult? _lastResult;
     private DateTime _lastProgressUpdate;
-
-    private void HandleStreamingProgress(StreamProgress progress)
-    {
-        // Throttle UI churn: the scanner emits one line per file, so surface at most
-        // ~7 updates/sec and skip lines that advance progress by less than 1%. This
-        // avoids re-sorting live files and raising ~30 PropertyChanged events per file.
-        var now = DateTime.UtcNow;
-        if (_lastProgressUpdate != default
-            && now - _lastProgressUpdate < TimeSpan.FromMilliseconds(150)
-            && Math.Abs(progress.Percentage - _scanProgress) < 1.0)
-            return;
-        _lastProgressUpdate = now;
-
-        StatusMessage = $"Scanning: {progress.CurrentFile}";
-        UpdatePartialResult(progress);
-    }
-
     private ScanResult? _partialResult;
     private string _currentFile = string.Empty;
     private DateTime _scanStartTime;
-
-    private void UpdatePartialResult(StreamProgress progress)
-    {
-        if (!_isStreaming)
-            return;
-
-        ScanProgress = progress.Percentage;
-        _currentFile = progress.CurrentFile;
-        var elapsed = (DateTime.UtcNow - _scanStartTime).TotalSeconds;
-
-        var partial = new ScanResult
-        {
-            TotalFiles = (long)progress.FilesScanned,
-            TotalSizeBytes = progress.TotalSize,
-            TotalSizeMb = progress.TotalSize / (1024.0 * 1024.0),
-            DurationSecs = elapsed,
-            Path = ScanPath,
-            TotalDirs = progress.DirectoriesScanned,
-            Errors = new List<string>(),
-            FileTypes = progress.FileTypes.ToDictionary(kvp => kvp.Key, kvp => (long)kvp.Value),
-            ExtensionSizes = new Dictionary<string, ulong>(progress.ExtensionSizes),
-            CategorySizes = new Dictionary<string, ulong>(progress.CategorySizes),
-        };
-
-        // Live largest files (already sorted by size from the scanner)
-        partial.LargestFiles = progress.LiveFiles
-            .OrderByDescending(f => f.Size)
-            .Select(f => new FileSizeEntry { Path = f.Path, Size = f.Size })
-            .ToList();
-
-        _partialResult = partial;
-
-        OnPropertyChanged(nameof(ActiveResult));
-        OnPropertyChanged(nameof(HasActiveResult));
-        OnPropertyChanged(nameof(HasActiveResultVisibility));
-        OnPropertyChanged(nameof(LiveFilesDisplay));
-        OnPropertyChanged(nameof(LiveSizeDisplay));
-        OnPropertyChanged(nameof(ResultFilesDisplay));
-        OnPropertyChanged(nameof(ResultSizeDisplay));
-        OnPropertyChanged(nameof(ResultDurationDisplay));
-        OnPropertyChanged(nameof(ResultDirsDisplay));
-        OnPropertyChanged(nameof(ResultAvgFileSizeDisplay));
-        OnPropertyChanged(nameof(ResultSpeedDisplay));
-        OnPropertyChanged(nameof(ResultSpeedMbDisplay));
-        OnPropertyChanged(nameof(ResultErrorsDisplay));
-        OnPropertyChanged(nameof(TopDirectories));
-        OnPropertyChanged(nameof(FileTypes));
-        OnPropertyChanged(nameof(CategoryDistributions));
-        OnPropertyChanged(nameof(LargestFiles));
-        OnPropertyChanged(nameof(PotentialCleanupDisplay));
-        OnPropertyChanged(nameof(ResultTimestampDisplay));
-        OnPropertyChanged(nameof(HasScanErrors));
-        OnPropertyChanged(nameof(EmptyDirs));
-        OnPropertyChanged(nameof(EmptyDirsCount));
-        OnPropertyChanged(nameof(HasEmptyDirs));
-            OnPropertyChanged(nameof(FilteredLargestFiles));
-            OnPropertyChanged(nameof(LastSavedHistoryId));
-            OnPropertyChanged(nameof(HasSavedHistory));
-            OnPropertyChanged(nameof(HasSavedHistoryVisibility));
-        }
-
-    public ScanResult? LastResult
-    {
-        get => _lastResult;
-        set
-        {
-            _lastResult = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(HasResult));
-            OnPropertyChanged(nameof(HasResultVisibility));
-            OnPropertyChanged(nameof(ResultFilesDisplay));
-            OnPropertyChanged(nameof(ResultSizeDisplay));
-            OnPropertyChanged(nameof(ResultDurationDisplay));
-            OnPropertyChanged(nameof(ResultDirsDisplay));
-            OnPropertyChanged(nameof(ResultAvgFileSizeDisplay));
-            OnPropertyChanged(nameof(ResultSpeedDisplay));
-            OnPropertyChanged(nameof(ResultSpeedMbDisplay));
-            OnPropertyChanged(nameof(ResultErrorsDisplay));
-            OnPropertyChanged(nameof(TopDirectories));
-            OnPropertyChanged(nameof(FileTypes));
-            OnPropertyChanged(nameof(CategoryDistributions));
-            OnPropertyChanged(nameof(LargestFiles));
-            OnPropertyChanged(nameof(PotentialCleanupDisplay));
-            OnPropertyChanged(nameof(ResultTimestampDisplay));
-            OnPropertyChanged(nameof(ScanErrors));
-            OnPropertyChanged(nameof(HasScanErrors));
-            OnPropertyChanged(nameof(EmptyDirs));
-            OnPropertyChanged(nameof(EmptyDirsCount));
-            OnPropertyChanged(nameof(HasEmptyDirs));
-            OnPropertyChanged(nameof(FilteredLargestFiles));
-            OnPropertyChanged(nameof(LiveFilesDisplay));
-            OnPropertyChanged(nameof(LiveSizeDisplay));
-        }
-    }
-
-    public bool HasResult => _lastResult != null;
-    public bool HasActiveResult => ActiveResult != null;
-    public Microsoft.UI.Xaml.Visibility HasResultVisibility => HasResult ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
-    public Microsoft.UI.Xaml.Visibility HasActiveResultVisibility => HasActiveResult ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
-
-    // ── Streaming state ──
 
     private bool _isStreaming;
     public bool IsStreaming
@@ -373,7 +240,6 @@ public class ScanViewModel : ViewModelBase, IDisposable
         ? $"{_partialResult.TotalSizeMb:F1} MB"
         : "";
 
-    // Returns partial result during streaming, final result otherwise.
     private ScanResult? ActiveResult => IsStreaming ? (_partialResult ?? _lastResult) : _lastResult;
     public string ResultFilesDisplay => ActiveResult != null ? $"{ActiveResult.TotalFiles:N0} files" : "";
     public string ResultSizeDisplay => ActiveResult != null ? $"{ActiveResult.TotalSizeMb:F1} MB" : "";
@@ -453,10 +319,8 @@ public class ScanViewModel : ViewModelBase, IDisposable
 
     public bool HasPotentialCleanup => ActiveResult != null && ActiveResult.PotentialCleanupBytes > 0;
 
-    /// <summary>Id of the scan-history record written after the last scan, or null.</summary>
     public long? LastSavedHistoryId { get; private set; }
 
-    /// <summary>True when the most recent scan was persisted to history.</summary>
     public bool HasSavedHistory => LastSavedHistoryId.HasValue;
 
     public Microsoft.UI.Xaml.Visibility HasSavedHistoryVisibility =>
@@ -502,156 +366,15 @@ public class ScanViewModel : ViewModelBase, IDisposable
     public int EmptyDirsCount => ActiveResult?.EmptyDirs.Count ?? 0;
     public List<string> EmptyDirs => ActiveResult?.EmptyDirs ?? new();
 
-    // ── Persistence ──
-
-    private void Load()
+    public ScanResult? LastResult
     {
-        try
+        get => _lastResult;
+        set
         {
-            var container = ApplicationData.Current.LocalSettings
-                .CreateContainer(LocalSettingsKey, ApplicationDataCreateDisposition.Always);
-
-            if (container.Values.TryGetValue("DepthValue", out var v) && v is double d)
-                _depthValue = d;
-            if (container.Values.TryGetValue("CustomMaxDepth", out v) && v is double cmd)
-                _customMaxDepth = cmd;
-            // NB: IncludeHidden is owned by SettingsStore (Settings page), not this
-            // local ApplicationData container, so it is no longer read/written here.
-            if (container.Values.TryGetValue("ScanPath", out v))
-                _scanPath = v?.ToString() ?? _scanPath;
-
-            // Fire change notifications so the UI reflects loaded values
-            // without triggering Save() from each property setter.
-            OnPropertyChanged(nameof(DepthValue));
-            OnPropertyChanged(nameof(SelectedDepthMode));
-            OnPropertyChanged(nameof(ResultDepthDisplay));
-            OnPropertyChanged(nameof(DeepScan));
-            OnPropertyChanged(nameof(ShallowScan));
-            OnPropertyChanged(nameof(DepthInt));
-            OnPropertyChanged(nameof(ShowCustomDepthSlider));
-            OnPropertyChanged(nameof(IncludeHidden));
-            OnPropertyChanged(nameof(ScanPath));
-            OnPropertyChanged(nameof(PathExists));
-            OnPropertyChanged(nameof(PathValidationMessage));
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[ScanViewModel] Load failed: {ex}");
-        }
-    }
-
-    public void Save()
-    {
-        try
-        {
-            var container = ApplicationData.Current.LocalSettings
-                .CreateContainer(LocalSettingsKey, ApplicationDataCreateDisposition.Always);
-
-            container.Values["DepthValue"] = DepthValue;
-            container.Values["CustomMaxDepth"] = _customMaxDepth;
-            container.Values["ScanPath"] = ScanPath;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[ScanViewModel] Save failed: {ex}");
-        }
-    }
-
-    private void InitializeQuickScanTargets()
-    {
-        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-
-        QuickScanTargets.Add(new QuickScanTarget { Name = "User Profile", Path = userProfile });
-        QuickScanTargets.Add(new QuickScanTarget { Name = "Desktop", Path = Environment.GetFolderPath(Environment.SpecialFolder.Desktop) });
-        QuickScanTargets.Add(new QuickScanTarget { Name = "Documents", Path = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) });
-        QuickScanTargets.Add(new QuickScanTarget { Name = "Downloads", Path = Path.Combine(userProfile, "Downloads") });
-        QuickScanTargets.Add(new QuickScanTarget { Name = "Pictures", Path = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures) });
-        QuickScanTargets.Add(new QuickScanTarget { Name = "Local AppData", Path = localAppData });
-        QuickScanTargets.Add(new QuickScanTarget { Name = "Temp", Path = Path.GetTempPath() });
-
-        _selectedQuickScanTarget = QuickScanTargets[0];
-        ScanPath = userProfile;
-    }
-
-    // ── Methods ──
-
-    public async Task ScanAsync(CancellationToken ct = default)
-    {
-        if (IsScanning)
-        {
-            StatusMessage = "Scan already in progress";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(ScanPath))
-        {
-            StatusMessage = "No path specified";
-            return;
-        }
-
-        if (!Directory.Exists(ScanPath))
-        {
-            StatusMessage = $"Scan path does not exist: {ScanPath}";
-            return;
-        }
-
-        try
-        {
-            IsScanning = true;
-            IsStreaming = true;
-            _scanStartTime = DateTime.UtcNow;
-            StatusMessage = "Scanning...";
-            ScanProgress = 0;
-            LastResult = null;
-            LastSavedHistoryId = null;
-            _partialResult = null;
-
-            var progress = new Progress<StreamProgress>(HandleStreamingProgress);
-
-            var result = await _scanner.ScanDirectoryStreamingAsync(
-                ScanPath,
-                depthMode: SelectedDepthMode,
-                maxDepth: DepthInt,
-                includeHidden: IncludeHidden,
-                onProgress: progress,
-                ct: ct,
-                saveToHistory: true);
-
-            LastResult = result;
-            LastSavedHistoryId = _scanner.LastSavedHistoryId;
-            if (result != null)
-            {
-                StatusMessage = $"Scan complete: {result.TotalFiles:N0} files, {result.TotalSizeMb:F1} MB, {result.DurationSecs:F1}s";
-            }
-            else
-            {
-                StatusMessage = "Scan completed with no result.";
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            StatusMessage = "Scan cancelled.";
-            LastResult = null;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[ScanViewModel] Scan failed: {ex}");
-            StatusMessage = $"Scan failed: {ex.Message}";
-        }
-        finally
-        {
-            IsScanning = false;
-            IsStreaming = false;
-            ScanProgress = 0;
-            _partialResult = null;
-            _currentFile = string.Empty;
-            _scanStartTime = default;
-            OnPropertyChanged(nameof(ActiveResult));
-            OnPropertyChanged(nameof(HasActiveResult));
-            OnPropertyChanged(nameof(HasActiveResultVisibility));
-            OnPropertyChanged(nameof(LiveFilesDisplay));
-            OnPropertyChanged(nameof(LiveSizeDisplay));
+            _lastResult = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasResult));
+            OnPropertyChanged(nameof(HasResultVisibility));
             OnPropertyChanged(nameof(ResultFilesDisplay));
             OnPropertyChanged(nameof(ResultSizeDisplay));
             OnPropertyChanged(nameof(ResultDurationDisplay));
@@ -664,41 +387,23 @@ public class ScanViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(FileTypes));
             OnPropertyChanged(nameof(CategoryDistributions));
             OnPropertyChanged(nameof(LargestFiles));
-        OnPropertyChanged(nameof(PotentialCleanupDisplay));
-        OnPropertyChanged(nameof(ResultTimestampDisplay));
+            OnPropertyChanged(nameof(PotentialCleanupDisplay));
+            OnPropertyChanged(nameof(ResultTimestampDisplay));
+            OnPropertyChanged(nameof(ScanErrors));
             OnPropertyChanged(nameof(HasScanErrors));
             OnPropertyChanged(nameof(EmptyDirs));
             OnPropertyChanged(nameof(EmptyDirsCount));
             OnPropertyChanged(nameof(HasEmptyDirs));
             OnPropertyChanged(nameof(FilteredLargestFiles));
+            OnPropertyChanged(nameof(LiveFilesDisplay));
+            OnPropertyChanged(nameof(LiveSizeDisplay));
         }
     }
 
-    public void StopScan()
-    {
-        if (!IsScanning) return;
-        _scanner.StopScan();
-        StatusMessage = "Stopping scan...";
-    }
-
-    public async Task<string> ExportResultsAsync(string outputPath, CancellationToken ct = default)
-    {
-        if (LastResult == null)
-            throw new InvalidOperationException("No scan result to export.");
-
-        return await _scanner.ExportScanResultAsync(LastResult, outputPath, ExportFormat, ct);
-    }
-
-    private string _exportFormat = "json";
-    public string ExportFormat
-    {
-        get => _exportFormat;
-        set { _exportFormat = value; OnPropertyChanged(); }
-    }
-
-    public ObservableCollection<string> ExportFormats { get; } = new() { "json", "csv", "md", "html" };
-
-    public string ExportFormatDisplay => ExportFormat.ToUpperInvariant();
+    public bool HasResult => _lastResult != null;
+    public bool HasActiveResult => ActiveResult != null;
+    public Microsoft.UI.Xaml.Visibility HasResultVisibility => HasResult ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+    public Microsoft.UI.Xaml.Visibility HasActiveResultVisibility => HasActiveResult ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
 
     public void Dispose()
     {
@@ -709,5 +414,4 @@ public class ScanViewModel : ViewModelBase, IDisposable
         _scanner.Dispose();
         GC.SuppressFinalize(this);
     }
-
 }

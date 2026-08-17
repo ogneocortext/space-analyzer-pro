@@ -44,6 +44,7 @@ public static class AppSettings
         public const string ToolCallingModel = "qwen2.5-coder:7b";
         public const string ToolChoice = "auto";
         public const bool AdvancedMode = false;
+        public const bool NotificationsEnabled = true;
     }
 
     // ── Appearance ──
@@ -155,6 +156,16 @@ public static class AppSettings
     }
 
     /// <summary>
+    /// Master switch for routine (success / informational) toast notifications.
+    /// Warnings and errors are always shown so failures can never be hidden.
+    /// </summary>
+    public static bool NotificationsEnabled
+    {
+        get => SettingsStore.GetBool(SettingKeys.NotificationsEnabled, Defaults.NotificationsEnabled);
+        set => SettingsStore.SetBool(SettingKeys.NotificationsEnabled, value);
+    }
+
+    /// <summary>
     /// Resets every setting to its canonical default (see <see cref="Defaults"/>).
     /// Each assignment persists immediately and raises
     /// <see cref="SettingsStore.SettingsChanged"/> so all consumers react. Because
@@ -179,5 +190,6 @@ public static class AppSettings
         ToolCallingModel = Defaults.ToolCallingModel;
         ToolChoice = Defaults.ToolChoice;
         AdvancedMode = Defaults.AdvancedMode;
+        NotificationsEnabled = Defaults.NotificationsEnabled;
     }
 }

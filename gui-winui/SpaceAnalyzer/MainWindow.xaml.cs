@@ -18,6 +18,12 @@ public sealed partial class MainWindow : Window
     public static new MainWindow? Current { get; private set; }
     private bool _isNavigating;
 
+    /// <summary>
+    /// Optional tab to open on first launch (set from the <c>--page</c> argument).
+    /// Consumed once by <see cref="NavView_Loaded"/>; falls back to Dashboard.
+    /// </summary>
+    public string? InitialPage { get; set; }
+
     public MainWindow()
     {
         InitializeComponent();
@@ -58,16 +64,21 @@ public sealed partial class MainWindow : Window
 
     private DispatcherTimer? _notificationTimer;
     private bool _isClosed;
+    private Action? _notificationAction;
 
     /// <summary>
     /// Show a transient notification in the global InfoBar. Auto-hides after
     /// <paramref name="durationSeconds"/> (a new notification resets the timer).
+    /// When <paramref name="actionButtonText"/> and <paramref name="action"/> are
+    /// supplied, a clickable button is rendered on the toast that invokes the callback.
     /// </summary>
     public void ShowNotification(
         string title,
         string? message = null,
         InfoBarSeverity severity = InfoBarSeverity.Informational,
-        double durationSeconds = 6)
+        double durationSeconds = 6,
+        string? actionButtonText = null,
+        Action? action = null)
     {
         if (_isClosed) return;
 
@@ -75,6 +86,19 @@ public sealed partial class MainWindow : Window
         GlobalInfoBar.Message = message;
         GlobalInfoBar.Severity = severity;
         GlobalInfoBar.IsOpen = true;
+
+        ClearNotificationAction();
+        if (!string.IsNullOrEmpty(actionButtonText) && action is not null)
+        {
+            _notificationAction = action;
+            var btn = new Button
+            {
+                Content = actionButtonText,
+                Style = (Microsoft.UI.Xaml.Style?)Application.Current.Resources["SecondaryButton"],
+            };
+            btn.Click += OnNotificationActionClick;
+            GlobalInfoBar.ActionButton = btn;
+        }
 
         _notificationTimer?.Stop();
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(Math.Max(2, durationSeconds)) };
@@ -84,8 +108,25 @@ public sealed partial class MainWindow : Window
             timer.Stop();
             if (_isClosed) return;
             GlobalInfoBar.IsOpen = false;
+            ClearNotificationAction();
         };
         timer.Start();
+    }
+
+    private void OnNotificationActionClick(object sender, RoutedEventArgs e)
+    {
+        // Fire once, then detach so a stale handler can't outlive its toast.
+        var action = _notificationAction;
+        ClearNotificationAction();
+        action?.Invoke();
+    }
+
+    private void ClearNotificationAction()
+    {
+        _notificationAction = null;
+        if (GlobalInfoBar.ActionButton is Button prev)
+            prev.Click -= OnNotificationActionClick;
+        GlobalInfoBar.ActionButton = null;
     }
 
     private void NavView_Loaded(object sender, RoutedEventArgs e)
@@ -93,8 +134,8 @@ public sealed partial class MainWindow : Window
         try
         {
             AppLog.Nav("NavView_Loaded start");
-            NavView.SelectedItem = NavView.MenuItems.OfType<NavigationViewItem>().First();
-            NavigateToPage("Dashboard");
+            var target = InitialPage ?? "Dashboard";
+            NavigateToPage(target);
             AppLog.Nav("NavView_Loaded end");
         }
         catch (Exception ex)

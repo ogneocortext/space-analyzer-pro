@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using SpaceAnalyzer.Helpers;
@@ -15,30 +14,15 @@ using SpaceAnalyzer.Settings;
 
 namespace SpaceAnalyzer.ViewModels;
 
-/// <summary>
-/// ViewModel for the Workflows page. Supports predefined workflows
-/// such as "Find Large Files" and "Find Empty Directories".
-/// </summary>
 public partial class WorkflowsViewModel : ViewModelBase, IDisposable
 {
     private readonly ScannerService _scanner = new();
     private CancellationTokenSource _cts = new();
     private bool _disposed;
 
-    /// <summary>
-    /// Dispatcher queue captured at construction (the UI thread). Used by <see cref="OnUi"/>
-    /// so background walkers can marshal back without every call site re-resolving it.
-    /// </summary>
     private readonly Microsoft.UI.Dispatching.DispatcherQueue? _ui =
         Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
 
-    /// <summary>
-    /// Runs <paramref name="action"/> on the UI thread. Executes SYNCHRONOUSLY when the caller
-    /// is already on the UI thread — <c>TryEnqueue</c> would otherwise defer the work past the
-    /// end of <see cref="RunAsync"/>, so <see cref="ResultCount"/> was still 0 when the status
-    /// message and history entry were written ("Completed. Found 0 result(s)." for every
-    /// workflow that populates results through <see cref="AddResults"/>).
-    /// </summary>
     private void OnUi(Action action)
     {
         if (_ui is null || _ui.HasThreadAccess)
@@ -49,9 +33,6 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
         _ui.TryEnqueue(() => action());
     }
 
-    // ── Live scan progress ──
-    // Driven by StreamProgress reported from the Rust scanner's --progress-json
-    // (__PROGRESS__ stderr lines). Throttled so a chatty scan doesn't flood the UI thread.
     private readonly System.Diagnostics.Stopwatch _progressSw = new();
     private readonly IProgress<StreamProgress> _scanProgress;
 
@@ -63,14 +44,12 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
     public ulong FilesScanned { get; private set; }
     public ulong DirectoriesScanned { get; private set; }
     public ulong BytesScanned { get; private set; }
-    /// <summary>0-100 when known, or &lt;0 for an indeterminate scan (e.g. managed fallback).</summary>
     public double ProgressPercent { get; private set; } = -1;
     public bool IsProgressIndeterminate => ProgressPercent < 0;
     public string ScannedBytesDisplay => ByteFormatter.FormatBytes(BytesScanned);
 
     private void OnScanProgress(StreamProgress p)
     {
-        // Update at most ~12x/second; always honor the final tick (percentage == 100).
         if (_progressSw.IsRunning && _progressSw.ElapsedMilliseconds < 80 && p.Percentage < 100)
             return;
         _progressSw.Restart();
@@ -99,24 +78,19 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
 
     // ── Workflow templates ──
 
-    /// <summary>Template ids whose results are filtered by <see cref="MinSizeMb"/>.</summary>
     private static readonly HashSet<string> MinSizeTemplates =
         new(StringComparer.OrdinalIgnoreCase) { "large-files", "size-range", "downloads-bloat" };
 
-    /// <summary>Template ids whose results are filtered by <see cref="MaxSizeMb"/>.</summary>
     private static readonly HashSet<string> MaxSizeTemplates =
         new(StringComparer.OrdinalIgnoreCase) { "size-range" };
 
-    /// <summary>Template ids whose results are filtered by <see cref="DaysOld"/>.</summary>
     private static readonly HashSet<string> DaysTemplates =
         new(StringComparer.OrdinalIgnoreCase)
         { "old-files", "recent-files", "date-range", "older-than", "downloads-bloat" };
 
-    /// <summary>Template ids whose results are filtered by <see cref="ExtensionFilter"/>.</summary>
     private static readonly HashSet<string> ExtensionTemplates =
         new(StringComparer.OrdinalIgnoreCase) { "by-extension" };
 
-    /// <summary>Which of the five README categories each template id belongs to (gap 5.1).</summary>
     private static readonly Dictionary<string, WorkflowCategory> TemplateCategory =
         new(StringComparer.OrdinalIgnoreCase)
     {
@@ -126,14 +100,12 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
         ["temp-cache"] = WorkflowCategory.Maintenance,
         ["downloads-bloat"] = WorkflowCategory.Maintenance,
         ["orphaned-projects"] = WorkflowCategory.Maintenance,
-
         ["large-files"] = WorkflowCategory.Optimization,
         ["largest-dirs"] = WorkflowCategory.Optimization,
         ["largest-single"] = WorkflowCategory.Optimization,
         ["size-range"] = WorkflowCategory.Optimization,
         ["cleanup-recommendations"] = WorkflowCategory.Optimization,
         ["notify-results"] = WorkflowCategory.Optimization,
-
         ["by-extension"] = WorkflowCategory.Organization,
         ["old-files"] = WorkflowCategory.Organization,
         ["recent-files"] = WorkflowCategory.Organization,
@@ -141,14 +113,11 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
         ["older-than"] = WorkflowCategory.Organization,
         ["hidden-files"] = WorkflowCategory.Organization,
         ["read-only"] = WorkflowCategory.Organization,
-
         ["predict-storage"] = WorkflowCategory.Monitoring,
         ["ai-analyze"] = WorkflowCategory.Monitoring,
-
         ["export-results"] = WorkflowCategory.Custom,
     };
 
-    /// <summary>Display metadata for each category section header.</summary>
     private static readonly Dictionary<WorkflowCategory, (string Title, string Description, string Icon)> CategoryMeta = new()
     {
         [WorkflowCategory.Maintenance] = ("Maintenance", "Routine cleanup — find duplicates, temp files, and other removable clutter.", "\uE74D"),
@@ -158,8 +127,6 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
         [WorkflowCategory.Custom] = ("Custom", "Export and other user-driven output actions.", "\uE78E"),
     };
 
-    /// <summary>Populates <see cref="_categories"/> from <see cref="_templates"/>, grouping each
-    /// template under its <see cref="WorkflowTemplate.Category"/> in README order.</summary>
     private void BuildCategories()
     {
         foreach (var t in _templates)
@@ -181,9 +148,6 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
     private ObservableCollection<WorkflowTemplate> _templates = new();
     public ObservableCollection<WorkflowTemplate> Templates => _templates;
 
-    /// <summary>The five README workflow categories, each carrying its member templates.
-    /// The Workflows page renders this (not the flat <see cref="_templates"/> list) so the
-    /// templates group under Maintenance / Optimization / Organization / Monitoring / Custom.</summary>
     private readonly ObservableCollection<WorkflowCategoryGroup> _categories = new();
     public ObservableCollection<WorkflowCategoryGroup> Categories => _categories;
 
@@ -195,8 +159,6 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
         {
             if (ReferenceEquals(_selectedTemplate, value)) return;
             _selectedTemplate = value;
-            // The picker is data-driven (ItemsRepeater over Templates), so each card renders
-            // its own selection chrome from IsSelected rather than comparing ids in the view.
             foreach (var t in _templates)
                 t.IsSelected = ReferenceEquals(t, value);
             OnPropertyChanged();
@@ -254,10 +216,6 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
         set { _extensionFilter = value; OnPropertyChanged(); }
     }
 
-    // NumberBox binds to double. These proxies keep the typed backing fields authoritative
-    // while giving the view a validated numeric control instead of a free-text TextBox
-    // (a non-numeric keystroke previously left the ulong binding silently unset).
-
     public double MinSizeMbValue
     {
         get => _minSizeMb;
@@ -276,10 +234,6 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
         set => DaysOld = double.IsNaN(value) || value < 1 ? 1 : (int)value;
     }
 
-    // Which parameter editors apply to the selected workflow. Every workflow used to show
-    // "Min Size (MB)" and nothing else, so the 14 workflows driven by Max Size / Days /
-    // Extension silently ran against hardcoded defaults the user could never change.
-
     public bool ShowMinSize => _selectedTemplate is not null && MinSizeTemplates.Contains(_selectedTemplate.Id);
     public bool ShowMaxSize => _selectedTemplate is not null && MaxSizeTemplates.Contains(_selectedTemplate.Id);
     public bool ShowDays => _selectedTemplate is not null && DaysTemplates.Contains(_selectedTemplate.Id);
@@ -287,7 +241,6 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
     public bool HasParameters => ShowMinSize || ShowMaxSize || ShowDays || ShowExtension;
     public bool HasNoParameters => !HasParameters;
 
-    /// <summary>"Days" means "older than" for some workflows and "within the last" for others.</summary>
     public string DaysLabel => _selectedTemplate?.Id switch
     {
         "recent-files" or "date-range" => "Modified within (days)",
@@ -323,11 +276,6 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
     }
     public bool IsNotRunning => !_isRunning;
 
-    /// <summary>
-    /// Run was previously enabled even with an invalid target directory or no selection —
-    /// the user only found out after clicking. Gate the button on the same preconditions
-    /// <see cref="RunAsync"/> enforces.
-    /// </summary>
     public bool CanRun => !_isRunning && HasSelectedTemplate && (!RequiresPath || IsTargetPathValid);
 
     private string _statusMessage = "Select a workflow and click Run.";
@@ -357,10 +305,13 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
     }
     public bool HasResults => _resultCount > 0;
 
-    /// <summary>
-    /// True once a workflow has finished at least once, so the empty state can distinguish
-    /// "you haven't run anything yet" from "that run genuinely matched nothing".
-    /// </summary>
+    private ulong ComputeTotalBytes()
+    {
+        ulong total = 0;
+        foreach (var r in _results) total += r.SizeBytes;
+        return total;
+    }
+
     private bool _hasRun;
     public bool HasRun
     {
@@ -380,7 +331,6 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
         ? $"'{SelectedTemplateName}' finished without matching anything in this folder. Try a different folder or loosen the parameters above."
         : "Pick a workflow above, choose a target directory, then click Run Workflow.";
 
-    /// <summary>Count plus reclaimable/total size — a disk tool should surface bytes, not just a row count.</summary>
     public string ResultsSummary
     {
         get
@@ -393,22 +343,11 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    // ── Action types & path requirement ──
-    // File-discovery workflows (Scan / FindDuplicates) need a target directory; the analytical
-    // action types (PredictStorage, GenerateRecommendations, Export, Notify, AIAnalyze) act on
-    // stored history or the current result set and run without one. Hiding the path editor for
-    // the latter keeps the form honest instead of demanding a folder that is never read.
-
-    /// <summary>True when the selected template needs a target directory to run.</summary>
     public bool RequiresPath =>
         _selectedTemplate is null ||
         _selectedTemplate.ActionType is WorkflowActionType.Scan or WorkflowActionType.FindDuplicates;
 
     public bool ShowTargetPath => RequiresPath;
-
-    // ── Report panel ──
-    // Analytical action types (forecast, recommendations, AI analysis, export summary) produce a
-    // text report rather than a file list, so surface it in its own scrollable panel.
 
     private string _reportTitle = string.Empty;
     public string ReportTitle
@@ -425,15 +364,8 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
     }
 
     public bool HasReport => !string.IsNullOrWhiteSpace(_report);
-
-    /// <summary>True when neither a file list nor a report is showing, so the empty-state
-    /// placeholder is appropriate. Suppresses the misleading "No matches found" card that the
-    /// report-only action types would otherwise trigger.</summary>
     public bool ShowEmptyState => !HasResults && !HasReport && !IsRunning;
 
-    // ── Results sorting ──
-    // Lets the user reorder the final result list by Size / Name / Path, in either direction,
-    // instead of being stuck with the single size-descending order the scan produced.
     private string _sortKey = "size";
     public string SortKey
     {
@@ -503,7 +435,7 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
             "Find files within a specified size range.",
             "\uE747", "size-range", "Between min and max"));
         Templates.Add(new WorkflowTemplate("Find by Date Range",
-            "Find files modified within the last N days (recency filter). For an explicit start/end range, use the Smart Search page.",
+            "Find files modified within the last N days (recency filter).",
             "\uE787", "date-range", "Within a recency window"));
         Templates.Add(new WorkflowTemplate("Find Files Older Than",
             "Find files older than a specified number of days.",
@@ -521,9 +453,6 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
             "Analyze the Downloads folder for large or old files.",
             "\uE74E", "downloads-bloat", "Large or stale downloads"));
 
-        // ── Action-type workflows (gap 5.3) ──
-        // These expose the remaining README action types as runnable workflows. They act on stored
-        // scan history or the current result set and do not need a target directory.
         Templates.Add(new WorkflowTemplate("Predict Storage",
             "Forecast disk usage from the historical scan trend (linear regression).",
             "\uE773", "predict-storage", "Forecast from history", WorkflowActionType.PredictStorage));
@@ -567,17 +496,12 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
         if (IsRunning || SelectedTemplate is null)
             return;
 
-        // File-discovery workflows need a target directory; analytical action types act on stored
-        // history or the current result set and run without one.
         if (RequiresPath && (string.IsNullOrWhiteSpace(TargetPath) || !Directory.Exists(TargetPath)))
         {
             StatusMessage = "Please select a valid target directory.";
             return;
         }
 
-        // Only size-based workflows require a minimum size. Blocking extension / hidden /
-        // read-only / orphaned workflows when MinSizeMb is 0 would wrongly prevent them
-        // from running (0 is a valid "no minimum" for those).
         var sizeBasedTemplates = new HashSet<string> { "large-files", "size-range", "downloads-bloat" };
         if (sizeBasedTemplates.Contains(SelectedTemplate.Id) && MinSizeMb == 0)
         {
@@ -710,18 +634,27 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
                     ? $"Completed. {SelectedTemplate.Name} found no matches."
                     : $"Completed. Found {ResultCount} result(s).";
             }
-            AppNotifications.Success("Workflow completed",
-                HasReport ? $"{SelectedTemplate.Name} produced a report." : $"{SelectedTemplate.Name} found {ResultCount} result(s)");
+            if (SelectedTemplate.Id != "notify-results")
+            {
+                var total = ComputeTotalBytes();
+                var sizePart = total > 0 ? $" · {ByteFormatter.FormatBytes(total)} total" : "";
+                AppNotifications.Success("Workflow completed",
+                    $"{SelectedTemplate.Name}: {ResultCount} result(s){sizePart}",
+                    "View results", () => MainWindow.Current?.NavigateToPage("Workflows"));
+            }
             AddHistoryEntry(SelectedTemplate.Name, ResultCount, "Completed", SelectedTemplate.ActionType.ToString());
         }
         catch (OperationCanceledException)
         {
             StatusMessage = "Cancelled.";
+            AppNotifications.Warning("Workflow cancelled",
+                $"{SelectedTemplate?.Name ?? "Workflow"} was cancelled before finishing.");
             AddHistoryEntry(SelectedTemplate?.Name ?? "Unknown", 0, "Cancelled", SelectedTemplate?.ActionType.ToString() ?? "Unknown");
         }
         catch (Exception ex)
         {
             StatusMessage = $"Error: {ex.Message}";
+            AppNotifications.Error("Workflow failed", ex.Message);
             AddHistoryEntry(SelectedTemplate?.Name ?? "Unknown", 0, $"Error: {ex.Message}", SelectedTemplate?.ActionType.ToString() ?? "Unknown");
         }
         finally
@@ -834,62 +767,54 @@ public partial class WorkflowsViewModel : ViewModelBase, IDisposable
         return map;
     }
 
-        // ── New workflow methods ──
-
-        private void AddResults(List<SmartSearchResult> newResults)
+    private void AddResults(List<SmartSearchResult> newResults)
+    {
+        OnUi(() =>
         {
-            OnUi(() =>
-            {
-                foreach (var r in newResults) Results.Add(r);
-                ResultCount = newResults.Count;
-                SortResults();
-            });
-        }
+            foreach (var r in newResults) Results.Add(r);
+            ResultCount = newResults.Count;
+            SortResults();
+        });
+    }
 
-        // ── Action-type workflows (gap 5.3) ──
-        // These expose the remaining README action types as runnable workflows. They do not scan a
-        // target directory; they act on stored scan history or the current result set and surface
-        // their output in the report panel rather than the file list.
-
-        private void LoadHistory()
+    private void LoadHistory()
+    {
+        try
         {
-            try
-            {
-                var path = HistoryFilePath;
-                if (!File.Exists(path))
-                    return;
-                var json = File.ReadAllText(path);
-                if (string.IsNullOrWhiteSpace(json))
-                    return;
-                var loaded = JsonSerializer.Deserialize<List<WorkflowHistoryEntry>>(json);
-                if (loaded is null)
-                    return;
-                foreach (var entry in loaded)
-                    _history.Add(entry);
-                OnPropertyChanged(nameof(HasHistory));
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[WorkflowsViewModel] LoadHistory failed: {ex.Message}");
-            }
+            var path = HistoryFilePath;
+            if (!File.Exists(path))
+                return;
+            var json = File.ReadAllText(path);
+            if (string.IsNullOrWhiteSpace(json))
+                return;
+            var loaded = System.Text.Json.JsonSerializer.Deserialize<List<WorkflowHistoryEntry>>(json);
+            if (loaded is null)
+                return;
+            foreach (var entry in loaded)
+                _history.Add(entry);
+            OnPropertyChanged(nameof(HasHistory));
         }
-
-        private void SaveHistory()
+        catch (Exception ex)
         {
-            try
-            {
-                var json = JsonSerializer.Serialize(_history.ToList());
-                File.WriteAllText(HistoryFilePath, json);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[WorkflowsViewModel] SaveHistory failed: {ex.Message}");
-            }
+            System.Diagnostics.Debug.WriteLine($"[WorkflowsViewModel] LoadHistory failed: {ex.Message}");
         }
+    }
+
+    private void SaveHistory()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_history.ToList());
+            File.WriteAllText(HistoryFilePath, json);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[WorkflowsViewModel] SaveHistory failed: {ex.Message}");
+        }
+    }
 
     /// <summary>True once at least one workflow run has been recorded.</summary>
     public bool HasHistory => _history.Count > 0;
-
 }
 
 /// <summary>
@@ -938,7 +863,6 @@ public class WorkflowTemplate : ViewModelBase
         ShortDescription = shortDescription ?? description;
         ActionType = actionType;
     }
-
 }
 
 /// <summary>

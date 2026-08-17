@@ -156,14 +156,35 @@ public partial class WorkflowsViewModel
 
         private Task RunNotifyAsync()
         {
-            ulong total = 0;
-            foreach (var r in _results) total += r.SizeBytes;
-            var sizeText = total > 0 ? ByteFormatter.FormatBytes(total) : "—";
             var name = SelectedTemplate?.Name ?? "Workflow";
-            var summary = _results.Count > 0
-                ? $"'{name}' completed with {_results.Count} result(s) ({sizeText})."
-                : $"'{name}' completed (no file results).";
-            AppNotifications.Show("Workflow notification", summary);
+            if (_results.Count == 0)
+            {
+                var msg = "No results to notify. Run a file-finding workflow first.";
+                AppNotifications.Warning("Nothing to notify", msg);
+                OnUi(() =>
+                {
+                    ReportTitle = "Notify";
+                    Report = msg;
+                });
+                return Task.CompletedTask;
+            }
+
+            ulong total = 0;
+            string? topName = null;
+            ulong topSize = 0;
+            foreach (var r in _results)
+            {
+                total += r.SizeBytes;
+                if (r.SizeBytes > topSize) { topSize = r.SizeBytes; topName = r.Name; }
+            }
+            var sizeText = total > 0 ? ByteFormatter.FormatBytes(total) : "—";
+            var topText = topName is not null
+                ? $"Largest: {topName} ({ByteFormatter.FormatBytes(topSize)})."
+                : string.Empty;
+            var summary = $"'{name}' found {_results.Count} result(s) · {sizeText}. {topText}";
+
+            AppNotifications.Success("Workflow results", summary,
+                "View results", () => MainWindow.Current?.NavigateToPage("Workflows"));
             OnUi(() =>
             {
                 ReportTitle = "Notify";

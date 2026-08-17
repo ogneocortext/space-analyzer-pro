@@ -88,7 +88,7 @@ pub fn scan_directory(
 
     // Key the incremental file cache by the canonical display path (not the raw
     // CLI string) so "." resolves to an absolute directory and repeated scans of
-    // the same directory — via different spellings — share the cache. This also
+    // the same directory â€” via different spellings â€” share the cache. This also
     // matches scan_history.path, which lets orphan pruning find stale caches.
     let cache_key = super::helpers::display_path(path);
     let file_cache: Option<HashMap<String, (u64, i64)>> = if cache {
@@ -221,7 +221,7 @@ pub fn scan_directory(
     let mut top_dirs: Vec<DirEntry> = shared_result
         .subdirectories
         .into_iter()
-        .filter(|d| d.total_size > 0 && d.path != scan_path_str)
+        .filter(|d| d.path != scan_path_str)
         .map(|d| DirEntry {
             path: d.path,
             name: d.name,
@@ -253,7 +253,11 @@ pub fn scan_directory(
             total_size_bytes: result.total_size_bytes,
             total_size_mb: result.total_size_mb,
             duration_secs: result.duration_secs,
-            file_types: result.file_types.clone(),
+            file_types: result
+                .file_types
+                .iter()
+                .map(|(k, v)| (k.clone(), *v as u64))
+                .collect(),
             extension_sizes: result.extension_sizes.clone(),
             largest_files: result.largest_files.clone(),
             errors: result.errors.clone(),

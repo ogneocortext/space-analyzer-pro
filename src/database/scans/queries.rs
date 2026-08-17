@@ -1,37 +1,13 @@
-use super::super::gui_common::ScanReport;
-use super::*;
+//! Scan history and duplicate-analysis queries.
+//!
+//! This module contains the `Database` implementation methods for saving,
+//! retrieving, pruning, and backfilling scan history and duplicate analysis data.
 
-/// A compact, chart-friendly projection of a scan-history row. Used by the
-/// "Size Trend" graph so the UI can plot every scan over time without pulling
-/// the heavy per-scan JSON payloads (top directories, largest files, …) into
-/// memory.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HistoryTrendPoint {
-    pub id: i64,
-    pub path: String,
-    pub timestamp: String,
-    pub total_size_bytes: u64,
-}
+use crate::gui_common::ScanReport;
+use super::super::*;
+use super::models::*;
 
-/// A stored duplicate-file analysis result, linked to the scan that produced it.
-///
-/// `duplicate_groups_json` holds the serialized `Vec<DuplicateGroup>` (the same
-/// shape emitted by the `dedup` subcommand), so the full group/file list can be
-/// reconstituted on retrieval without re-scanning.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DuplicateAnalysisRecord {
-    pub id: i64,
-    pub scan_id: i64,
-    pub duplicate_groups_json: String,
-    pub potential_savings_bytes: u64,
-    pub timestamp: String,
-}
-
-/// Maximum number of scan-history records kept per distinct path. Newer scans
-/// beyond this limit are removed on insert so the cache cannot grow unbounded.
-pub const MAX_SCANS_PER_PATH: usize = 20;
-
-impl super::Database {
+impl Database {
     /// Save a scan result to history with extended data.
     ///
     /// After inserting, the history is trimmed to the most recent
@@ -222,12 +198,6 @@ impl super::Database {
                      file_types_json, extension_sizes_json, top_directories_json, largest_files_json, \
                      category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp";
 
-        // Build the query with the search pattern bound as a parameter rather
-        // than interpolated. The `order`/`direction` values are whitelisted
-        // above, so only the search term is user-controlled and it is now bound.
-        //
-        // `only_duplicates` adds a sub-query that keeps only folders scanned more
-        // than once. The two optional conditions are combined with AND.
         let dup_clause = "path IN (SELECT path FROM scan_history GROUP BY path HAVING COUNT(*) > 1)";
         let (count_sql, query_sql, bound) = match (search, only_duplicates) {
             (Some(s), true) => {
@@ -286,26 +256,26 @@ impl super::Database {
         let params = rusqlite::params_from_iter(bound.iter().map(|b| &**b));
         let rows = stmt
             .query_map(params, |row| {
-            Ok(ScanHistoryRecord {
-                id: row.get(0)?,
-                path: row.get(1)?,
-                total_files: row.get::<_, i64>(2)? as usize,
-                total_size_bytes: row.get::<_, i64>(3)? as u64,
-                total_size_mb: row.get(4)?,
-                duration_secs: row.get(5)?,
-                file_types_json: row.get(6)?,
-                extension_sizes_json: row.get(7)?,
-                top_directories_json: row.get(8)?,
-                largest_files_json: row.get(9)?,
-                category_sizes_json: row.get(10)?,
-                deep_scan: row.get(11)?,
-                shallow_scan: row.get(12)?,
-                max_scan_depth: row.get::<_, i64>(13)? as u32,
-                potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
-                timestamp: row.get(15)?,
-            })
-        })?
-        .collect::<rusqlite::Result<_>>()?;
+                Ok(ScanHistoryRecord {
+                    id: row.get(0)?,
+                    path: row.get(1)?,
+                    total_files: row.get::<_, i64>(2)? as usize,
+                    total_size_bytes: row.get::<_, i64>(3)? as u64,
+                    total_size_mb: row.get(4)?,
+                    duration_secs: row.get(5)?,
+                    file_types_json: row.get(6)?,
+                    extension_sizes_json: row.get(7)?,
+                    top_directories_json: row.get(8)?,
+                    largest_files_json: row.get(9)?,
+                    category_sizes_json: row.get(10)?,
+                    deep_scan: row.get(11)?,
+                    shallow_scan: row.get(12)?,
+                    max_scan_depth: row.get::<_, i64>(13)? as u32,
+                    potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
+                    timestamp: row.get(15)?,
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?;
 
         Ok((rows, total))
     }
@@ -537,7 +507,7 @@ impl super::Database {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::super::super::*;
 
     fn test_db() -> Database {
         Database::open(PathBuf::from(":memory:")).expect("in-memory db")
@@ -572,11 +542,9 @@ mod tests {
     #[test]
     fn prune_duplicates_keeps_newest_per_content() {
         let db = test_db();
-        // Same path + same content signature, three inserts (older first).
         insert_scan(&db, "C:\\app", 1000, 10);
         insert_scan(&db, "C:\\app", 1000, 10);
         insert_scan(&db, "C:\\app", 1000, 10);
-        // Different content for the same path — must be preserved.
         let newest_id = insert_scan(&db, "C:\\app", 2000, 20);
 
         assert_eq!(count(&db), 4);
@@ -592,7 +560,6 @@ mod tests {
             .unwrap()
             .collect::<rusqlite::Result<_>>()
             .unwrap();
-        // The distinct-content record and the newest of the duplicate group survive.
         assert!(
             remaining.contains(&newest_id),
             "distinct-content scan must be kept"
@@ -617,7 +584,6 @@ mod tests {
     #[test]
     fn backfill_recomputes_category_sizes_from_extension_sizes() {
         let db = test_db();
-        // A legacy record: extension sizes are present, category breakdown absent.
         db.conn
             .execute(
                 "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb,
@@ -648,7 +614,6 @@ mod tests {
         assert_eq!(cats.get("Documents").copied(), Some(424));
         assert_eq!(cats.get("Fonts").copied(), Some(1000));
 
-        // Idempotent: a second run must not touch already-populated rows.
         assert_eq!(db.backfill_category_sizes().unwrap(), 0);
     }
 
@@ -656,7 +621,6 @@ mod tests {
     fn prune_orphaned_file_cache_removes_unmatched_paths() {
         let db = test_db();
         let _ = insert_scan(&db, "C:\\keep", 500, 5);
-        // file_cache rows for a path that still has history, and one that does not.
         db.conn
             .execute(
                 "INSERT INTO file_cache (scan_path, file_path, size_bytes, mtime_unix, extension, updated_at)
@@ -690,7 +654,6 @@ mod tests {
         }
         insert_scan(&db, "D:\\other", 500, 5);
 
-        // insert_scan bypasses save_scan trimming; verify the trim helper works.
         assert_eq!(count(&db), max + 6);
         db.prune_path_overflow("C:\\grow").unwrap();
         assert_eq!(count(&db), max + 1);
@@ -699,7 +662,6 @@ mod tests {
     #[test]
     fn get_scan_history_page_only_duplicates() {
         let db = test_db();
-        // Two scans of the same folder -> duplicates; one unique folder.
         insert_scan(&db, "C:\\dup", 100, 5);
         insert_scan(&db, "C:\\dup", 200, 6);
         insert_scan(&db, "C:\\unique", 300, 7);
@@ -721,17 +683,14 @@ mod tests {
     fn get_latest_scan_id_for_path_normalizes_separators_and_trailing_slash() {
         let db = test_db();
         let id = insert_scan(&db, "C:\\target", 1000, 10);
-        // Trailing backslash + mixed case must still resolve to the stored row.
         assert_eq!(
             db.get_latest_scan_id_for_path("c:\\target\\").unwrap(),
             Some(id)
         );
-        // Forward slashes are treated as equivalent too.
         assert_eq!(
             db.get_latest_scan_id_for_path("C:/target").unwrap(),
             Some(id)
         );
-        // An unrelated path has no match.
         assert_eq!(
             db.get_latest_scan_id_for_path("C:\\other").unwrap(),
             None
@@ -761,8 +720,6 @@ mod tests {
     #[test]
     fn get_scan_history_maps_columns_without_off_by_one() {
         let db = test_db();
-        // insert_scan stores deep_scan=0, shallow_scan=0, max_scan_depth=5,
-        // potential_cleanup_bytes=0, and a category_sizes_json DEFAULT of '{}'.
         let _ = insert_scan(&db, "C:\\ordered", 1000, 10);
 
         let rows = db.get_scan_history(10).unwrap();
@@ -773,7 +730,6 @@ mod tests {
         assert_eq!(r.max_scan_depth, 5);
         assert_eq!(r.potential_cleanup_bytes, 0);
         assert_eq!(r.category_sizes_json, "{}");
-        // timestamp must be the stored RFC3339 string, not misread from an int column.
         assert!(r.timestamp.starts_with("2026-08-03"));
     }
 
@@ -785,7 +741,6 @@ mod tests {
 
         let points = db.get_scan_history_trend().unwrap();
         assert_eq!(points.len(), 2);
-        // timestamp ASC -> first inserted (C:\a) comes first.
         assert!(points[0].path.eq_ignore_ascii_case("C:\\a"));
         assert_eq!(points[1].total_size_bytes, 200);
     }
