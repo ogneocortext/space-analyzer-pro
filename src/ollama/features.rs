@@ -110,6 +110,8 @@ mod tests {
         let input = ScanSummaryInput {
             total_files: 0,
             total_size_bytes: 0,
+            potential_cleanup_bytes: Some(0),
+            path: Some(String::new()),
             top_files: vec![],
             file_types: vec![],
         };
@@ -412,23 +414,26 @@ mod tests {
         use crate::ollama::OllamaClient;
 
         let model =
-            std::env::var("OLLAMA_SUMMARIZE_MODEL").unwrap_or_else(|_| "llama3.2:3b".into());
+            std::env::var("OLLAMA_SUMMARIZE_MODEL").unwrap_or_else(|_| "qwen3.5:4b".into());
         let client =
             OllamaClient::new("http://127.0.0.1:11434", &model).expect("client builder failed");
         let input = ScanSummaryInput {
             total_files: 100,
             total_size_bytes: 1_000_000_000,
+            potential_cleanup_bytes: Some(150_000_000),
+            path: Some("C:/Users".to_string()),
             top_files: vec![gui_common::LargestFileEntry {
                 path: "C:/big.bin".to_string(),
                 size: 500_000_000,
             }],
-            file_types: vec![("bin".to_string(), 50)],
+            file_types: vec![("bin".to_string(), 600_000_000)],
         };
         let out = summarize_scan(&client, &model, input)
             .await
             .expect("summarize should succeed");
         assert!(!out.summary.is_empty());
         assert!(out.completion_tokens > 10);
+        assert!(out.key_insights.len() <= 3);
     }
 
     #[tokio::test]

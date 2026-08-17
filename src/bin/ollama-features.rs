@@ -231,6 +231,8 @@ async fn feature_summarize_scan(app: &App) {
     let input = space_analyzer_pro_desktop::ollama::models::ScanSummaryInput {
         total_files: 14_523,
         total_size_bytes: 487_000_000_000, // ~454 GB
+        potential_cleanup_bytes: Some(42_000_000_000), // ~39 GB reclaimable
+        path: Some("C:\\Users\\me".to_string()),
         top_files: vec![
             space_analyzer_pro_desktop::gui_common::LargestFileEntry {
                 path: "C:\\Users\\me\\Videos\\birthday_party.mp4".to_string(),
@@ -254,17 +256,19 @@ async fn feature_summarize_scan(app: &App) {
             },
         ],
         file_types: vec![
-            ("mp4".to_string(), 23),
-            ("exe".to_string(), 47),
-            ("pdf".to_string(), 612),
-            ("jpg".to_string(), 4_100),
-            ("tmp".to_string(), 1_240),
+            ("mp4".to_string(), 180_000_000_000),
+            ("exe".to_string(), 24_000_000_000),
+            ("pdf".to_string(), 3_200_000_000),
+            ("jpg".to_string(), 1_100_000_000),
+            ("tmp".to_string(), 850_000_000),
         ],
     };
 
     let payload_bytes = serde_json::to_string(&serde_json::json!({
         "total_files": input.total_files,
         "total_size_bytes": input.total_size_bytes,
+        "potential_cleanup_bytes": input.potential_cleanup_bytes,
+        "path": input.path,
         "top_files": input.top_files,
         "file_types": input.file_types,
     }))
@@ -291,6 +295,12 @@ async fn feature_summarize_scan(app: &App) {
     println!("Duration: {} ms", out.duration_ms);
     println!("--- summary ---");
     println!("{}", out.summary);
+    if !out.key_insights.is_empty() {
+        println!("--- key insights ---");
+        for insight in &out.key_insights {
+            println!("• {insight}");
+        }
+    }
     println!("--- end ---");
 }
 

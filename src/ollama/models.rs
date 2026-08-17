@@ -22,12 +22,15 @@ pub struct SemanticSearchOutput {
 pub struct ScanSummaryInput {
     pub total_files: usize,
     pub total_size_bytes: u64,
-    pub top_files: Vec<gui_common::LargestFileEntry>, // path, size (capped to 10)
-    pub file_types: Vec<(String, usize)>,             // extension, count
+    pub potential_cleanup_bytes: Option<u64>,
+    pub path: Option<String>,
+    pub top_files: Vec<gui_common::LargestFileEntry>,
+    pub file_types: Vec<(String, u64)>,
 }
 
 pub struct ScanSummaryOutput {
     pub summary: String,
+    pub key_insights: Vec<String>,
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub duration_ms: u128,

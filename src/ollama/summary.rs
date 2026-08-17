@@ -19,6 +19,8 @@ pub async fn summarize_scan(
     let started = Instant::now();
 
     let size_mb = input.total_size_bytes as f64 / 1_048_576.0;
+    let reclaimable_mb = input.potential_cleanup_bytes.unwrap_or(0) as f64 / 1_048_576.0;
+    let scan_path = input.path.as_deref().unwrap_or("(unknown)");
     let mut top_files: Vec<(String, String)> = input
         .top_files
         .iter()
@@ -42,25 +44,27 @@ pub async fn summarize_scan(
         .file_types
         .iter()
         .take(10)
-        .map(|(ext, count)| (format!(".{}", ext), count.to_string()))
+        .map(|(ext, bytes)| (format!(".{}", ext), format!("{:.1} MB", *bytes as f64 / 1_048_576.0)))
         .collect();
     if types.is_empty() {
         types.push(("(none)".to_string(), "-".to_string()));
     }
-    let types_table = fmt_table(&types, ("Extension", "Count"));
+    let types_table = fmt_table(&types, ("Extension", "Size"));
 
     let system = "You are a concise disk-space analyst. \
         Summarize scans in 2-3 short sentences. \
         Highlight the largest space hogs and any obvious cleanup wins. \
-        Do not use bullet points.";
+        Provide up to 3 key insights as a JSON array. \
+        Do not use bullet points in the summary text.";
 
     let user = format!(
-        "Scan results:\n\
+        "Scan of: {}\n\
          - Total files: {}\n\
-         - Total size: {:.1} MB\n\n\
+         - Total size: {:.1} MB\n\
+         - Reclaimable: {:.1} MB\n\n\
          Top largest files:\n{}\n\n\
-         File-type breakdown:\n{}",
-        input.total_files, size_mb, files_table, types_table
+         File-type breakdown by size:\n{}",
+        scan_path, input.total_files, size_mb, reclaimable_mb, files_table, types_table
     );
 
     // Structured output schema constrains the model to return parseable JSON
@@ -88,7 +92,7 @@ pub async fn summarize_scan(
         ],
         stream: Some(false),
         options: Some(crate::ollama::types::OllamaOptions::default()),
-        think: None,
+        think: Some(crate::ollama::types::TopLevelThink::Bool(true)),
         keep_alive: Some("2m".to_string()),
         format: Some(format_schema),
         tools: None,
@@ -107,14 +111,25 @@ pub async fn summarize_scan(
         return Err("summarize_scan: model returned empty content".to_string());
     }
 
-    // If the model returned valid JSON (structured output), extract the summary field
-    let summary = serde_json::from_str::<serde_json::Value>(&content)
-        .ok()
+    let parsed = serde_json::from_str::<serde_json::Value>(&content).ok();
+    let summary = parsed
+        .as_ref()
         .and_then(|v| v.get("summary").and_then(|s| s.as_str().map(String::from)))
         .unwrap_or(content);
+    let key_insights = parsed
+        .as_ref()
+        .and_then(|v| v.get("key_insights"))
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
 
     Ok(ScanSummaryOutput {
         summary,
+        key_insights,
         prompt_tokens: response.prompt_eval_count.unwrap_or(0),
         completion_tokens: response.eval_count.unwrap_or(0),
         duration_ms: started.elapsed().as_millis(),
