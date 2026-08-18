@@ -67,12 +67,12 @@
   }
   /* Status strip below the header — consolidated live run indicators */
   .statusbar {
-    display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch;
-    padding: 10px 20px; background: var(--panel2); border-bottom: 1px solid var(--line);
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch;
+    padding: 8px 20px; background: var(--panel2); border-bottom: 1px solid var(--line);
   }
   .sttile {
     background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-    padding: 6px 12px; min-width: 92px; display: flex; flex-direction: column; gap: 2px;
+    padding: 5px 11px; min-width: 84px; display: flex; flex-direction: column; gap: 1px;
     transition: border-color .3s ease, box-shadow .3s ease;
   }
   .sttile.grow { flex: 1 1 240px; min-width: 200px; }
@@ -90,6 +90,8 @@
   .st-minibar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,var(--accent),var(--busy)); transition: width .4s ease; }
   .sttile.running .st-minibar > i { background-size: 200% 100%; background-image: linear-gradient(90deg, var(--accent), var(--busy), var(--accent)); animation: shimmer 1.6s linear infinite; }
   main { padding: 20px; display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start; }
+  .control-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; grid-column: 1 / -1; align-items: start; }
+  @media (max-width: 1100px) { .control-grid { grid-template-columns: 1fr; } }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
   .card {
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px;
@@ -312,14 +314,14 @@
   <div class="sttile" id="st-model"><span class="stk">Model</span><span class="stv" id="model">—</span></div>
   <div class="sttile" id="st-phase"><span class="stk">Phase</span><span class="stv" id="phase-tile">—</span></div>
   <div class="sttile" id="st-prog"><span class="stk">Progress</span><span class="stv" id="pct-tile">0%</span><div class="st-minibar"><i id="st-bar"></i></div></div>
-  <div class="sttile"><span class="stk">Elapsed</span><span class="stv" id="elapsed">0s</span></div>
-  <div class="sttile"><span class="stk">ETA</span><span class="stv" id="eta">—</span></div>
-  <div class="sttile"><span class="stk">Rate</span><span class="stv" id="s-rate">—</span></div>
+  <div class="sttile" id="st-time"><span class="stk">Elapsed · ETA</span><span class="stv" id="time">0s · —</span></div>
+  <div class="sttile" id="st-rate" style="display:none"><span class="stk">Rate</span><span class="stv" id="s-rate">—</span></div>
   <div class="sttile grow" id="st-msg"><span class="stk">Status</span><span class="stv" id="msg">waiting for run…</span></div>
 </div>
 
 <main>
-  <section class="card" id="run-card" style="grid-column:1/-1">
+  <div class="control-grid">
+  <section class="card" id="run-card">
     <h2>Run New Analysis</h2>
     <div class="run-row">
       <label>Screenshot set
@@ -360,6 +362,7 @@
     </div>
     <div id="loop-status" class="current" style="display:none"></div>
   </section>
+  </div>
 
   <section class="card" id="issue-tracker" style="grid-column:1/-1">
     <h2>Issue Tracker <span class="brand-tag" style="margin-left:8px">docs/issues.json — shared by analysis &amp; loop</span></h2>
@@ -604,6 +607,8 @@ async function poll() {
     if (d.status === "idle") {
       setStatus("idle");
       setTileState("idle");
+      document.getElementById("time").textContent = "0s · —";
+      document.getElementById("st-rate").style.display = "none";
       document.getElementById("model").textContent = "—";
       document.getElementById("phase-tile").textContent = "—";
       document.getElementById("pct-tile").textContent = "0%";
@@ -654,7 +659,6 @@ async function poll() {
       const rate = done / elapsedMs;
       eta = fmtElapsed((total3 - done) / rate);
     }
-    document.getElementById("eta").textContent = eta;
     // Only re-baseline ratePrev when a step actually completes, so the rate is
     // measured across real completion intervals (tens of seconds) instead of
     // being reset on every 1s poll (which made it never update).
@@ -732,11 +736,13 @@ async function poll() {
       document.getElementById("load-report").style.display = "inline-block";
       document.getElementById("open-report-tab").style.display = "inline-block";
     }
+    const now = Date.now();
+    const el = fmtElapsed(startedAt ? now - startedAt : null);
+    document.getElementById("time").textContent = el + " · " + eta;
+    document.getElementById("st-rate").style.display = (d.status === "running") ? "" : "none";
   } catch (e) {
     document.getElementById("msg").textContent = "polling error: " + e.message;
   }
-  const now = Date.now();
-  document.getElementById("elapsed").textContent = fmtElapsed(startedAt ? now - startedAt : null);
 }
 
 async function loadRunSets() {
@@ -1111,10 +1117,6 @@ setInterval(loadIssues, 8000);
 
 poll();
 setInterval(poll, 1000);
-setInterval(() => {
-  const base = startedAt ? Date.now() - startedAt : 0;
-  document.getElementById("elapsed").textContent = fmtElapsed(base);
-}, 1000);
 </script>
 </body>
 </html>
