@@ -29,10 +29,20 @@ just test-native
 ```
 
 ### utility/analyze_ux_screenshots.py
-PIL feature extraction + Ollama vision model analysis of macro screenshots. Tracks quality scores across runs. Generates `macro_logs/screenshots_*/ux_analysis_*.json`.
+PIL feature extraction + Ollama vision model analysis of macro screenshots. Tracks quality scores across runs. Writes `macro_logs/ux_analysis_*.json` + `*.html` and **persists each completed report to the SQLite database** (`macro_logs/ux_reports.db`) for easy retrieval by the self-improvement loop.
 
 ```bash
 python scripts/utility/analyze_ux_screenshots.py
+```
+
+### utility/ux_reports_db.py
+SQLite store (`ReportsStore`) for UX analysis reports — `macro_logs/ux_reports.db`. Persists the full report JSON + rendered HTML plus queryable metadata (model, screenshot set, severity tallies, issue/recommendation counts). Supports upsert, list (filter by model/set), search, and idempotent file→DB migration (`migrate_files`) of existing `ux_analysis_*.json`/`*.html`.
+
+### utility/live_progress_server.py
+Live dashboard + screenshot gallery + **report browser** for `analyze_ux_screenshots.py`. Serves `/report` and `/api/report` from the database (with file fallback) and accepts `?id=<report_key>` to fetch any specific report. New endpoints: `GET /api/reports` (list/search) and `GET /reports` (HTML listing). Restart the server after deploying changes (it hosts the analyzer subprocess).
+
+```bash
+python scripts/utility/live_progress_server.py        # http://127.0.0.1:8777/  (+ /reports)
 ```
 
 ### utility/consolidate_benchmarks.py

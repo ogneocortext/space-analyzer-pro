@@ -245,6 +245,14 @@
 - **`agent_loop_regression.py` (agentic-loop regression harness):** replaced the dead `python -m src.tools.cli workflow run` / `search` invocations (no such module or scanner subcommand exists) with real scanner-CLI-backed equivalents where available (`find_duplicate_files` → `dedup`; `find_large_files` / `find_largest_*` → scan `largest_files` / `top_directories`); in-process-only workflows return an explicit "no CLI backend" error instead of invoking a phantom module.
 - **Repo hygiene:** moved 17 stray root-level `.log` files into an ignored `logs/` directory; hardened `.gitignore` (`benchmark_results/`, `browser-test/`, `gallery_b64.txt`, `gallery_page.png`); removed the dead empty `.github/.github.workflows.bak`. All `scripts/**/*.py` pass `py_compile`.
 
+### Scripts — UX Analysis Report Database Persistence (2026-08-18)
+
+- **New `scripts/utility/ux_reports_db.py` (`ReportsStore`)** — a stdlib-`sqlite3`, WAL-mode store (`macro_logs/ux_reports.db`) that persists each completed UX analysis report as queryable rows (model, screenshot set, status, timestamp, severity tallies, issue/recommendation counts) plus the full report JSON and rendered HTML. Mirrors the project's `ux_pipeline` SQLite conventions (row factory, indexed `reports` table keyed by `report_key`).
+- **Analyzer now persists to the database** — `analyze_ux_screenshots.py` upserts every finished report into `ux_reports.db` (best-effort, never fails the run). On-disk `ux_analysis_*.json`/`*.html` artifacts remain as a portable backup; the DB is now the canonical, easily-retrievable store for the self-improvement loop.
+- **DB-backed retrieval in `live_progress_server.py`** — `/report` and `/api/report` now serve from the database (with file fallback) and accept `?id=<report_key>` to fetch any specific report. New endpoints: `GET /api/reports` (list/filter by `model`/`set`/`q`) and `GET /reports` (a browsable HTML listing with live search, each row linking to `/report?id=<key>`).
+- **"Reports" nav link** added to `live_progress.html`, pointing at `/reports`.
+- **Idempotent file→DB migration** — `ReportsStore.migrate_files()` imports existing `ux_analysis_*.json` + companion `*.html` into the database (safe to re-run; `report_key` wins on conflict). Handles both current (`per_shot_data`/`deduped`) and legacy (`per_screenshot` raw-JSON) report shapes.
+
 ### Embedding Subsystem — Model Stamping & Re-embed Defect Fixes (2026-08-16)
 
 - **Embedding model-version stamping** — `file_embeddings` gained a `model TEXT` column (new DB `user_version < 7` migration adds it to existing databases) carrying the embedding model used for each stored vector. `save_embeddings` now persists the model, `get_embeddings_for_scan`/`get_embedding_model` read it back, and `FileEmbeddingRecord.model` is `Option<String>` so pre-migration rows (NULL) stay readable.
