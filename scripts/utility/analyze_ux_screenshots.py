@@ -398,6 +398,13 @@ def _build_deduped_view(
             g["best_score"] = score
 
     for base, g in groups.items():
+        if g["best_key"].endswith("_pre"):
+            non_pre = [c for c in g["captures"] if not c["key"].endswith("_pre")]
+            if non_pre:
+                g["best_key"] = non_pre[0]["key"]
+                g["best_score"] = non_pre[0]["score"]
+
+    for base, g in groups.items():
         g["captures"].sort(key=lambda c: (-c["score"], c["key"]))
         g["dup_count"] = len(g["captures"]) - 1
         best = g["best_key"]
@@ -1258,7 +1265,6 @@ def run_analysis(
     screenshots_dir: Path,
     report_path: Path,
     ts: str,
-    ollama_url: str | None = None,
 ) -> int:
     print("Extracting visual features...")
     logger.info("run_analysis start: screenshots_dir=%s", screenshots_dir)
@@ -1303,6 +1309,7 @@ def run_analysis(
             now = time.monotonic()
             if now - _last_stream_emit["t"] >= 0.3:
                 _last_stream_emit["t"] = now
+                _emit_progress()
         _emit_progress()
         return on_token
 
@@ -1342,15 +1349,10 @@ def run_analysis(
         _emit_progress()
         print(f"ok quality={features['quality_score']}/100", flush=True)
 
-    import sys as _sys
-    _sys.stderr.write(f"PROBE before extracted-check: len(screenshots)={len(screenshots)} len(extracted)={len(extracted)}\n")
-    _sys.stderr.flush()
     if not extracted:
         logger.error("No key screenshots found in %s", screenshots_dir)
         _emit_progress(status="error", phase="done", message="No extractable screenshots found")
         return 1
-    _sys.stderr.write("PROBE extracted non-empty, continuing to vision\n")
-    _sys.stderr.flush()
 
     # Per-screenshot vision pass: send each screenshot's ACTUAL image to the vision
     # model so it can read visible UI text/labels/controls. PIL features alone ("dark;
@@ -1661,7 +1663,6 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Analyze macro screenshots via PIL + Ollama")
     parser.add_argument("--shots-root", default=str(DEFAULT_SHOTS_ROOT), help="Directory containing screenshots_* subdirs")
     parser.add_argument("--shots-dir", default=None, help="Direct path to a screenshots directory (named or unnamed)")
-    parser.add_argument("--ollama-url", default=None, help="Full URL to Ollama /api/generate")
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable debug logging")
     return parser.parse_args(argv)
 
@@ -1714,7 +1715,7 @@ def main(argv: list[str] | None = None) -> int:
     if not report_path.parent.exists():
         report_path = latest.parent / f"ux_analysis_{report_ts}.json"
     try:
-        return run_analysis(latest, report_path, report_ts, ollama_url=args.ollama_url)
+        return run_analysis(latest, report_path, report_ts)
     except BaseException:  # noqa: BLE001 - catch SystemExit too (not an Exception)
         logger.exception("run_analysis terminated (BaseException)")
         exc = sys.exc_info()[1]
