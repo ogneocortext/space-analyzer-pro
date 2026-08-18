@@ -890,6 +890,111 @@ def _stop_improvement_loop(root_base: Path) -> dict:
     return {"ok": True, "status": "stopped", "pid": proc_pid}
 
 
+# ---------------------------------------------------------------------------
+# Shared navigation shell
+#
+# The dashboard (live_progress.html) carries its own header nav. The sub-pages
+# (/gallery, /reports, /report) used to render separately with no shared
+# navigation, no active-page indication, and no breadcrumbs — so once a user
+# opened the gallery or a report there was no obvious way back. _inject_shared_nav
+# wraps any served HTML document with the same header nav (consistent links +
+# active state) plus a breadcrumb trail, giving every page one navigation system.
+# ---------------------------------------------------------------------------
+
+_SHARED_NAV_CSS = """
+<style id="snav-style">
+:root{--bg:#0f1419;--panel:#161c23;--panel2:#1d2630;--line:#2a3542;--txt:#e6edf3;--muted:#8b98a5;--accent:#4aa3ff;--ok:#3fb950;--warn:#d29922;--err:#f85149;--busy:#a371f7;}
+*{box-sizing:border-box;}
+header.snav{position:sticky;top:0;z-index:30;background:linear-gradient(180deg,rgba(22,28,35,.97),rgba(29,38,48,.97));backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.snav .brand{display:flex;align-items:center;gap:12px;min-width:0;}
+.snav .brand-mark{width:30px;height:30px;border-radius:9px;flex:none;background:linear-gradient(135deg,var(--accent),var(--busy));box-shadow:0 0 0 1px rgba(74,163,255,.4),0 4px 12px rgba(74,163,255,.25);}
+.snav h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
+.snav .brand-sub{color:var(--muted);font-weight:500;}
+.snav .nav{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap;}
+.snav .nav-sep{width:1px;height:22px;background:var(--line);}
+.nav-link{display:inline-flex;align-items:center;justify-content:center;height:30px;padding:0 12px;line-height:1;font-size:13px;font-weight:600;text-decoration:none;border-radius:999px;border:1px solid var(--accent);background:rgba(74,163,255,.12);color:var(--accent);white-space:nowrap;cursor:pointer;appearance:none;-webkit-appearance:none;transition:background .15s ease,transform .12s ease,box-shadow .15s ease;font-family:inherit;}
+.nav-link:hover{background:rgba(74,163,255,.22);transform:translateY(-1px);box-shadow:0 2px 8px rgba(74,163,255,.18);}
+.nav-link.active{background:rgba(74,163,255,.30);border-color:#fff;color:#fff;}
+.breadcrumb{display:flex;gap:8px;align-items:center;padding:8px 20px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);}
+.breadcrumb a{color:var(--accent);text-decoration:none;}
+.breadcrumb a:hover{text-decoration:underline;}
+.breadcrumb .sep{opacity:.6;}
+</style>
+"""
+
+
+def _render_shared_nav(active):
+    def cls(key):
+        return " nav-link active" if active == key else " nav-link"
+
+    return (
+        '<header class="snav">'
+        '<div class="brand"><span class="brand-mark"></span>'
+        '<h1>UX Analysis <span class="brand-sub">— Live Progress</span></h1></div>'
+        '<nav class="nav">'
+        '<a class="' + cls("dashboard").strip() + '" href="/">Dashboard</a>'
+        '<span class="nav-sep"></span>'
+        '<a class="' + cls("gallery").strip() + '" href="/gallery">Screenshot Gallery</a>'
+        '<a class="' + cls("reports").strip() + '" href="/reports">Reports</a>'
+        '<a class="' + cls("report").strip() + '" href="/report">View Report</a>'
+        '<a class="nav-link" href="/#issue-tracker">Issue Tracker</a>'
+        '<button class="nav-link" id="launch-gui" type="button" title="Open the latest built Space Analyzer GUI">Launch GUI</button>'
+        '<button class="nav-link refresh-link" id="refresh-sub" type="button" title="Reload this page">Refresh</button>'
+        '</nav></header>'
+    )
+
+
+def _render_breadcrumb(crumbs):
+    if not crumbs:
+        return ""
+    parts = []
+    for i, (href, label) in enumerate(crumbs):
+        if i:
+            parts.append('<span class="sep">›</span>')
+        if href:
+            parts.append('<a href="' + html.escape(href) + '">' + html.escape(label) + '</a>')
+        else:
+            parts.append('<span>' + html.escape(label) + '</span>')
+    return '<nav class="breadcrumb">' + ''.join(parts) + '</nav>'
+
+
+def _inject_shared_nav(doc, active, crumbs=None, push_toolbar=False):
+    if isinstance(doc, (bytes, bytearray)):
+        doc = doc.decode("utf-8", "replace")
+    nav = _render_shared_nav(active)
+    crumb = _render_breadcrumb(crumbs)
+    head = _SHARED_NAV_CSS
+    if push_toolbar:
+        # Gallery has its own sticky toolbar; push it below the global nav.
+        head = head.replace("</style>", ".toolbar{top:52px!important;}\n</style>", 1)
+    if "</head>" in doc:
+        doc = doc.replace("</head>", head + "</head>", 1)
+    else:
+        doc = head + doc
+    bi = doc.find("<body")
+    if bi != -1:
+        be = doc.find(">", bi)
+        if be != -1:
+            doc = doc[:be + 1] + nav + crumb + doc[be + 1:]
+    else:
+        doc = nav + crumb + doc
+    script = (
+        '<script>(function(){'
+        "var b=document.getElementById('launch-gui');"
+        "if(b){b.addEventListener('click',function(){var t=b.textContent;b.disabled=true;b.textContent='Launching…';"
+        "fetch('/api/launch-gui',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})"
+        ".then(function(r){return r.json();}).then(function(d){if(!d.ok)alert('Could not launch GUI: '+(d.message||'unknown error'));})"
+        ".catch(function(e){alert('Launch failed: '+e.message);}).finally(function(){b.disabled=false;b.textContent=t;});});}"
+        "var r=document.getElementById('refresh-sub');if(r){r.addEventListener('click',function(){location.reload();});}"
+        "})();</script>"
+    )
+    if "</body>" in doc:
+        doc = doc.replace("</body>", script + "</body>", 1)
+    else:
+        doc = doc + script
+    return doc
+
+
 def _render_reports_list_page(rows: list[dict]) -> str:
     """Render a browsable list of stored reports for easy retrieval.
 
@@ -1080,7 +1185,12 @@ def build_handler(root_base: Path):
                 if not GALLERY_HTML_PATH.exists():
                     self._send(404, b"screenshot_gallery.html not found", "text/plain")
                     return
-                self._send(200, GALLERY_HTML_PATH.read_bytes(), "text/html; charset=utf-8")
+                wrapped = _inject_shared_nav(
+                    GALLERY_HTML_PATH.read_bytes(), "gallery",
+                    crumbs=[("/", "Dashboard"), (None, "Screenshot Gallery")],
+                    push_toolbar=True,
+                )
+                self._send(200, wrapped.encode("utf-8"), "text/html; charset=utf-8")
                 return
             if route == "/api/progress":
                 progress = _read_json(root_base / "analysis_progress.json")
@@ -1219,52 +1329,58 @@ def build_handler(root_base: Path):
             if route == "/reports":
                 store = _get_store(root_base)
                 rows = store.list_reports(limit=200) if store else []
-                self._send(200, _render_reports_list_page(rows).encode("utf-8"), "text/html; charset=utf-8")
+                wrapped = _inject_shared_nav(
+                    _render_reports_list_page(rows), "reports",
+                    crumbs=[("/", "Dashboard"), (None, "Reports")],
+                )
+                self._send(200, wrapped.encode("utf-8"), "text/html; charset=utf-8")
                 return
             if route == "/report":
                 q = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
                 report_key = (q.get("id") or [None])[0]
                 store = _get_store(root_base)
+                final_html = None
                 if store is not None:
                     rep = store.get(report_key) if report_key else store.get_latest()
                     if rep is not None:
                         if rep.get("html"):
-                            self._send(200, _inject_report_enhancements(rep["html"]).encode("utf-8"), "text/html; charset=utf-8")
-                            return
-                        report = rep.get("report") or {}
-                        if _HAVE_FULL_RENDER:
-                            self._send(200, _inject_report_enhancements(_render_full_report(report)).encode("utf-8"), "text/html; charset=utf-8")
-                            return
-                        self._send(200, _inject_report_enhancements(_render_report_html(report, rep.get("report_key", "report"))).encode("utf-8"), "text/html; charset=utf-8")
-                        return
-                # Fallback: file-based latest report (pre-database runs).
-                candidates = sorted(
-                    root_base.glob("ux_analysis_*.html"), key=lambda p: p.stat().st_mtime, reverse=True
-                )
-                if candidates:
-                    self._send(200, _inject_report_enhancements(candidates[0].read_bytes()).encode("utf-8"), "text/html; charset=utf-8")
-                    return
-                # Older/partial runs may have written JSON without an HTML
-                # companion. Keep the report link useful by rendering a safe
-                # readable fallback instead of returning a confusing 404.
-                json_reports = sorted(
-                    root_base.glob("ux_analysis_*.json"),
-                    key=lambda p: p.stat().st_mtime,
-                    reverse=True,
-                )
-                if not json_reports:
+                            final_html = _inject_report_enhancements(rep["html"])
+                        else:
+                            report = rep.get("report") or {}
+                            final_html = _inject_report_enhancements(
+                                _render_full_report(report) if _HAVE_FULL_RENDER
+                                else _render_report_html(report, rep.get("report_key", "report"))
+                            )
+                if final_html is None:
+                    candidates = sorted(
+                        root_base.glob("ux_analysis_*.html"),
+                        key=lambda p: p.stat().st_mtime, reverse=True,
+                    )
+                    if candidates:
+                        final_html = _inject_report_enhancements(candidates[0].read_bytes())
+                if final_html is None:
+                    # Older/partial runs may have written JSON without an HTML
+                    # companion. Keep the report link useful by rendering a safe
+                    # readable fallback instead of returning a confusing 404.
+                    json_reports = sorted(
+                        root_base.glob("ux_analysis_*.json"),
+                        key=lambda p: p.stat().st_mtime, reverse=True,
+                    )
+                    if json_reports:
+                        report = _read_json(json_reports[0]) or {}
+                        final_html = _inject_report_enhancements(
+                            _render_full_report(report) if _HAVE_FULL_RENDER
+                            else _render_report_html(report, json_reports[0].name)
+                        )
+                if final_html is None:
                     self._send(404, b"No analysis report generated yet", "text/plain")
                     return
-                report = _read_json(json_reports[0]) or {}
-                if _HAVE_FULL_RENDER:
-                    # Same engine as the analyzer's companion .html: deduped
-                    # grouping, embedded screenshots, quality cards, health
-                    # badges, and the filter/search/sort toolbar.
-                    self._send(200, _inject_report_enhancements(_render_full_report(report)).encode("utf-8"), "text/html; charset=utf-8")
-                    return
-                self._send(200, _inject_report_enhancements(_render_report_html(report, json_reports[0].name)).encode("utf-8"), "text/html; charset=utf-8")
-                return
-                self._send(200, _render_report_html(report, json_reports[0].name), "text/html; charset=utf-8")
+                wrapped = _inject_shared_nav(
+                    final_html, "report",
+                    crumbs=[("/", "Dashboard"), (None, "Report")],
+                    push_toolbar=True,
+                )
+                self._send(200, wrapped.encode("utf-8"), "text/html; charset=utf-8")
                 return
             if route == "/api/roots":
                 self._json({"roots": _discover_roots(root_base)})

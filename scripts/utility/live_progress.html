@@ -253,6 +253,7 @@
     appearance: none; -webkit-appearance: none;
     transition: background .15s ease, transform .12s ease, box-shadow .15s ease;
   }
+  .nav-link.active { background: rgba(74,163,255,.30); border-color: #fff; color: #fff; }
   .nav-link:hover { background: rgba(74,163,255,.22); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(74,163,255,.18); }
   .refresh-link { color: var(--accent); }
   .refresh-link:active { transform: translateY(1px); }
@@ -299,12 +300,13 @@
     </div>
   </div>
   <nav class="nav">
+    <a class="nav-link active" href="/" title="Dashboard home">Dashboard</a>
     <span class="nav-sep" aria-hidden="true"></span>
     <a class="nav-link" href="/gallery" title="View and de-duplicate screenshots">Screenshot Gallery</a>
     <a class="nav-link" href="/reports" title="Browse all stored analysis reports (database)">Reports</a>
-    <button class="nav-link" id="launch-gui" type="button" title="Open the latest built Space Analyzer GUI">Launch GUI</button>
-    <a class="nav-link" href="#issue-tracker" title="Triage the shared issue tracker (docs/issues.json)">Issue Tracker</a>
     <a class="nav-link" href="/report" title="Open the latest finished HTML report">View Report</a>
+    <a class="nav-link" href="#issue-tracker" title="Triage the shared issue tracker (docs/issues.json)">Issue Tracker</a>
+    <button class="nav-link" id="launch-gui" type="button" title="Open the latest built Space Analyzer GUI">Launch GUI</button>
     <button class="nav-link refresh-link" id="refresh-dashboard" type="button" title="Refresh dashboard data">Refresh</button>
     <span id="status" class="badge idle">idle</span>
   </nav>
