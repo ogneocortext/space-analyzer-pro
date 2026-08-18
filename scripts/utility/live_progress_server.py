@@ -781,7 +781,8 @@ def _stop_analysis(root_base: Path) -> dict:
     return {"ok": True, "status": "stopped", "pid": proc_pid}
 
 
-def _run_improvement_loop(root_base: Path, model: str | None = None, max_iterations: int | None = None) -> dict:
+def _run_improvement_loop(root_base: Path, model: str | None = None, max_iterations: int | None = None,
+                          category: str | None = None, dry_run: bool = False) -> dict:
     """Launch scripts/improvement_loop.py as a subprocess (dashboard "Run Loop" button).
 
     Returns a status dict and refuses to start a second concurrent loop.
@@ -799,6 +800,10 @@ def _run_improvement_loop(root_base: Path, model: str | None = None, max_iterati
         cmd += ["--model", model]
     if max_iterations:
         cmd += ["--max-iterations", str(max_iterations)]
+    if category:
+        cmd += ["--category", category]
+    if dry_run:
+        cmd += ["--dry-run"]
     log_path = root_base / "loop_run.log"
     try:
         log_f = open(log_path, "w", encoding="utf-8")
@@ -820,6 +825,7 @@ def _run_improvement_loop(root_base: Path, model: str | None = None, max_iterati
         _LOOP_STATE = {
             "proc": proc, "log_f": log_f, "log": log_path, "cmd": cmd,
             "model": model, "max_iterations": max_iterations,
+            "category": category, "dry_run": dry_run,
             "started": datetime.now(timezone.utc).isoformat(),
         }
     return {"ok": True, "pid": proc.pid, "log": str(log_path)}
@@ -1211,6 +1217,13 @@ def build_handler(root_base: Path):
             if route == "/api/loop-status":
                 st = _loop_status(root_base)
                 st["state"] = _read_loop_state_file()
+                if _LOOP_STATE is not None:
+                    st["config"] = {
+                        "model": _LOOP_STATE.get("model"),
+                        "category": _LOOP_STATE.get("category"),
+                        "dry_run": _LOOP_STATE.get("dry_run", False),
+                        "max_iterations": _LOOP_STATE.get("max_iterations"),
+                    }
                 self._json(st)
                 return
             if route == "/api/gui":
@@ -1239,6 +1252,13 @@ def build_handler(root_base: Path):
                 log = root_base / "analyze_run.log"
                 if not log.exists():
                     self._send(404, b"No run log yet", "text/plain")
+                    return
+                self._send(200, log.read_bytes(), "text/plain; charset=utf-8")
+                return
+            if route == "/api/loop-log":
+                log = root_base / "loop_run.log"
+                if not log.exists():
+                    self._send(404, b"No loop log yet", "text/plain")
                     return
                 self._send(200, log.read_bytes(), "text/plain; charset=utf-8")
                 return
@@ -1438,6 +1458,8 @@ def build_handler(root_base: Path):
                     root_base,
                     model=(body.get("model") or "").strip() or None,
                     max_iterations=body.get("max_iterations") or None,
+                    category=(body.get("category") or "").strip() or None,
+                    dry_run=bool(body.get("dry_run")),
                 )
                 code = 200 if (res.get("ok") or res.get("status") == "already_running") else 400
                 self._json(res, code=code)
