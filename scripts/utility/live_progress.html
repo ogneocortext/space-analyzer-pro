@@ -84,6 +84,8 @@
   .sttile.done .stv { color: var(--ok); }
   .sttile.error { border-color: rgba(248,81,73,.5); }
   .sttile.error .stv { color: var(--err); }
+  .sttile #msg a { color: var(--accent); text-decoration: underline; font-weight: 600; }
+  .sttile #msg a:hover { color: #fff; }
   .st-minibar { height: 4px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin-top: 4px; border: 1px solid var(--line); }
   .st-minibar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,var(--accent),var(--busy)); transition: width .4s ease; }
   .sttile.running .st-minibar > i { background-size: 200% 100%; background-image: linear-gradient(90deg, var(--accent), var(--busy), var(--accent)); animation: shimmer 1.6s linear infinite; }
@@ -237,6 +239,7 @@
   .run-row select:hover { border-color: var(--accent); }
   .run-row select:focus, .run-row input:focus { outline: 2px solid rgba(74,163,255,.35); outline-offset: 1px; border-color: var(--accent); }
   .run-row option { background: var(--panel2); color: var(--txt); }
+  .model-info { font-size: 11.5px; color: var(--muted); align-self: center; white-space: nowrap; }
   .run-row button { margin-top: 0; }
   a { color: var(--accent); }
   .nav-link {
@@ -335,6 +338,7 @@
         </select>
         <input id="run-model-custom" placeholder="Installed model name" style="display:none" />
       </label>
+      <span id="run-model-info" class="model-info" aria-live="polite"></span>
       <button id="run-btn" onclick="startRun()">Start Analysis</button>
       <button class="danger" id="stop-btn" onclick="stopRun()" disabled>Stop Analysis</button>
       <button class="secondary" id="run-log-btn" style="display:none" onclick="window.open('/api/run-log','_blank')">View run log</button>
@@ -371,6 +375,13 @@
         <option value="wontfix">Wontfix</option>
       </select>
       <select id="iss-category" title="Filter by category"><option value="">All categories</option></select>
+      <select id="iss-severity" title="Filter by severity">
+        <option value="">All severities</option>
+        <option value="critical">Critical</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
       <input id="iss-q" type="search" placeholder="Search title, notes, id, file…" />
       <button class="secondary" id="iss-refresh" type="button">Refresh</button>
     </div>
@@ -468,6 +479,28 @@ function setStatus(s) {
   const el = document.getElementById("status");
   el.className = "badge " + s;
   el.textContent = s;
+}
+
+function renderRunMessage(d) {
+  const msgEl = document.getElementById("msg");
+  if (d.status === "error") {
+    const body = d.message || "Analysis failed";
+    msgEl.innerHTML = escapeHtml(body)
+      + ' · <a href="/api/run-log" target="_blank" rel="noopener">view run log &rarr;</a>';
+    return;
+  }
+  if (d.status === "running") {
+    const parts = [];
+    if (d.phase) parts.push(d.phase.charAt(0).toUpperCase() + d.phase.slice(1));
+    if (d.model) parts.push(d.model);
+    const done = (d.features_done || 0) + (d.vision_done || 0) + (d.analysis_done || 0);
+    const total3 = (d.total || 0) * 3;
+    if (total3) parts.push(done + "/" + total3 + " steps");
+    if (d.current) parts.push("on " + d.current);
+    msgEl.textContent = parts.join(" · ");
+    return;
+  }
+  msgEl.textContent = d.message || "";
 }
 
 function setTileState(st) {
@@ -595,7 +628,7 @@ async function poll() {
     // user should still be able to request a stop while work is progressing.
     document.getElementById("stop-btn").disabled = d.status !== "running";
     document.getElementById("model").textContent = d.model || "—";
-    document.getElementById("msg").textContent = d.message || "";
+    renderRunMessage(d);
     const total = d.total || 1;
     const feat = Math.round((d.features_done || 0) / total * 33);
     const vis = Math.round((d.vision_done || 0) / total * 33);
@@ -902,10 +935,12 @@ function debounce(fn, ms) {
 async function loadIssues() {
   const status = document.getElementById("iss-status").value;
   const category = document.getElementById("iss-category").value;
+  const severity = document.getElementById("iss-severity").value;
   const q = document.getElementById("iss-q").value.trim();
   const params = new URLSearchParams();
   if (status) params.set("status", status);
   if (category) params.set("category", category);
+  if (severity) params.set("severity", severity);
   if (q) params.set("q", q);
   try {
     const res = await fetch("/api/issues?" + params.toString(), { cache: "no-store" });
@@ -993,16 +1028,30 @@ async function updateIssue(btn) {
   }
 }
 
+const MODEL_INFO = {
+  "qwen3-vl:4b": "Balanced vision + language · 4B",
+  "qwen3-vl:2b": "Faster, lighter · 2B",
+  "gemma4:e2b-it-qat": "Detailed, strong reasoning · 4B",
+};
+function updateModelInfo() {
+  const sel = document.getElementById("run-model");
+  const info = document.getElementById("run-model-info");
+  const v = sel.value;
+  info.textContent = (v === "__custom__") ? "custom installed model" : (MODEL_INFO[v] || "");
+}
+
 document.getElementById("run-model").addEventListener("change", (event) => {
   const custom = document.getElementById("run-model-custom");
   custom.style.display = event.target.value === "__custom__" ? "inline-block" : "none";
   if (event.target.value === "__custom__") custom.focus();
+  updateModelInfo();
 });
 document.getElementById("refresh-dashboard").addEventListener("click", refreshDashboard);
 document.getElementById("launch-gui").addEventListener("click", launchGui);
 document.getElementById("iss-refresh").addEventListener("click", loadIssues);
 document.getElementById("iss-status").addEventListener("change", loadIssues);
 document.getElementById("iss-category").addEventListener("change", loadIssues);
+document.getElementById("iss-severity").addEventListener("change", loadIssues);
 document.getElementById("iss-q").addEventListener("input", debounce(loadIssues, 300));
 document.getElementById("clear-output").addEventListener("click", () => {
   outputCleared = true;
@@ -1055,6 +1104,7 @@ async function refreshRunStatus() {
 
 loadRunSets();
 loadIssues();
+updateModelInfo();
 setInterval(refreshRunStatus, 3000);
 setInterval(refreshLoopStatus, 3000);
 setInterval(loadIssues, 8000);

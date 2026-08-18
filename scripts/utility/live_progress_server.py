@@ -216,7 +216,7 @@ def _issue_counts(issues: list[dict]) -> dict[str, int]:
     return out
 
 
-def _build_issues_payload(status=None, category=None, q=None, limit=200) -> dict:
+def _build_issues_payload(status=None, category=None, q=None, severity=None, limit=200) -> dict:
     data = _read_tracker()
     issues = data.get("issues", [])
     out: list[dict] = []
@@ -225,6 +225,8 @@ def _build_issues_payload(status=None, category=None, q=None, limit=200) -> dict
         if status and it.get("status") != status:
             continue
         if category and it.get("category") != category:
+            continue
+        if severity and it.get("severity") != severity:
             continue
         if ql:
             extra = it.get("extra") or {}
@@ -271,7 +273,7 @@ def _render_report_html(report: dict, source_name: str) -> bytes:
             body = f"<pre>{esc(raw)}</pre>"
         else:
             issues = []
-            for issue in data.get("issues") or []:
+            for fi, issue in enumerate(data.get("issues") or [], 1):
                 category = esc(str(issue.get("category", "uncategorized")).replace("_", " "))
                 severity = esc(issue.get("severity", "low"))
                 finding = esc(issue.get("finding"))
@@ -279,7 +281,7 @@ def _render_report_html(report: dict, source_name: str) -> bytes:
                 evidence = esc(issue.get("evidence"))
                 recommendation = esc(issue.get("recommendation"))
                 issues.append(
-                    f"<li data-category='{category}' data-severity='{severity}'>"
+                    f"<li id='f{fi}' data-category='{category}' data-severity='{severity}'>"
                     f"<span class='category'>{category}</span> "
                     f"<span class='severity {severity}'>{severity}</span> <b>{finding}</b>"
                     f"<div class='muted'>{location}</div>"
@@ -304,9 +306,10 @@ def _render_report_html(report: dict, source_name: str) -> bytes:
 header{{padding:24px 30px;background:#23232a;border-bottom:1px solid #3a3a42}}h1{{margin:0 0 8px;font-size:24px}}
 main{{max-width:1100px;margin:auto;padding:24px}}.meta{{color:#aab4c2;margin-right:18px}}
 .status{{display:inline-block;padding:3px 9px;border-radius:999px;background:#245b3a;color:#b8f0c8}}
-.shot{{background:#20242a;border:1px solid #353b45;border-radius:10px;padding:18px;margin:18px 0;box-shadow:0 8px 24px #0003}}
-h2{{margin:0;color:#8ec7ff;font-size:18px}}h3{{color:#c9d5e3;margin-bottom:6px}}li{{margin:9px 0}}
-.category,.severity{{display:inline-block;padding:2px 7px;border-radius:5px;font-size:11px;text-transform:uppercase;font-weight:700}}
+.shot{{background:#20242a;border:1px solid #353b45;border-radius:10px;padding:20px;margin:26px 0;box-shadow:0 8px 24px #0003}}
+h2{{margin:0 0 6px;color:#8ec7ff;font-size:18px}}h3{{color:#c9d5e3;margin:22px 0 8px}}li{{margin:11px 0}}
+.category,.severity{{display:inline-block;padding:2px 7px;border-radius:5px;font-size:11px;text-transform:uppercase;font-weight:700;cursor:pointer}}
+.category:hover,.severity:hover{{outline:2px solid #4aa3ff55;outline-offset:1px}}
 .category{{background:#303946;color:#b9c8da}}.severity.high{{background:#6b2525;color:#ffd0cc}}.severity.medium{{background:#634d1d;color:#ffe5a3}}.severity.low{{background:#253d58;color:#b9dcff}}
 .muted{{color:#94a0ad;font-size:12px}}.fix{{color:#a9e2b2;margin-top:4px}}pre{{white-space:pre-wrap;background:#181a1f;padding:12px;border-radius:6px;overflow:auto}}
 .summary{{background:#1c2820;border-left:4px solid #3fb950;padding:14px;margin:18px 0}}
@@ -349,9 +352,54 @@ document.getElementById('collapse').addEventListener('click', event => {{
   cards.forEach(card => card.classList.toggle('collapsed', collapse));
   event.target.textContent = collapse ? 'Expand all' : 'Collapse all';
 }});
+// Clicking a severity/category chip filters the report to that group and
+// scrolls to the first matching screenshot section (jump-to-group).
+document.querySelectorAll('.severity,.category').forEach(el => {{
+  el.title = 'Click to filter by ' + el.textContent.trim();
+  el.addEventListener('click', () => {{
+    const sel = el.classList.contains('severity') ? severity : category;
+    sel.value = el.textContent.trim().toLowerCase();
+    applyFilters();
+    const first = document.querySelector('.shot:not(.hidden)');
+    if (first) first.scrollIntoView({{behavior: 'smooth', block: 'start'}});
+  }});
+}});
 applyFilters();
 </script></body></html>"""
     return doc.encode("utf-8")
+
+
+def _inject_report_enhancements(html_text):
+    """Add a little extra vertical rhythm and make the severity/category badges
+    in the analysis report clickable to filter (jump-to-group). Applied to every
+    served report (analyzer HTML, full render, or fallback)."""
+    if not isinstance(html_text, str):
+        html_text = html_text.decode("utf-8", "replace")
+    style = (
+        "<style id='kb-report-enh'>"
+        "section,.shot,.qcard,.issues{margin-top:22px!important;margin-bottom:22px!important}"
+        "h2,h3{margin-top:20px!important;margin-bottom:8px!important}"
+        ".finding,.issue{margin:12px 0!important}"
+        ".sev-badge,.cat-badge{cursor:pointer}"
+        ".sev-badge:hover,.cat-badge:hover{outline:2px solid #4aa3ff55;outline-offset:1px}"
+        "</style>"
+    )
+    script = (
+        "<script id='kb-report-enh'>"
+        "document.querySelectorAll('.sev-badge,.cat-badge').forEach(function(el){"
+        "el.title='Click to filter by '+(el.textContent||'').trim();"
+        "el.addEventListener('click',function(){"
+        "var q=document.getElementById('q');"
+        "if(q){q.value=(el.textContent||'').trim().toLowerCase();"
+        "q.dispatchEvent(new Event('input',{bubbles:true}));"
+        "var first=document.querySelector('.shot,.finding,.issue');"
+        "if(first)first.scrollIntoView({behavior:'smooth',block:'start'});}"
+        "});});"
+        "</script>"
+    )
+    if "</body>" in html_text:
+        return html_text.replace("</body>", style + script + "</body>", 1)
+    return html_text + style + script
 
 
 def _render_vision_preview(raw: str, key: str) -> str:
@@ -1068,12 +1116,14 @@ def build_handler(root_base: Path):
                 status = (q.get("status") or [None])[0]
                 category = (q.get("category") or [None])[0]
                 search = (q.get("q") or [None])[0]
+                severity = (q.get("severity") or [None])[0]
                 try:
                     limit = int((q.get("limit") or ["300"])[0])
                 except ValueError:
                     limit = 300
                 self._json(_build_issues_payload(
-                    status=status, category=category, q=search, limit=limit))
+                    status=status, category=category, q=search,
+                    severity=severity, limit=limit))
                 return
             if route == "/api/run-log":
                 log = root_base / "analyze_run.log"
@@ -1179,20 +1229,20 @@ def build_handler(root_base: Path):
                     rep = store.get(report_key) if report_key else store.get_latest()
                     if rep is not None:
                         if rep.get("html"):
-                            self._send(200, rep["html"].encode("utf-8"), "text/html; charset=utf-8")
+                            self._send(200, _inject_report_enhancements(rep["html"]).encode("utf-8"), "text/html; charset=utf-8")
                             return
                         report = rep.get("report") or {}
                         if _HAVE_FULL_RENDER:
-                            self._send(200, _render_full_report(report).encode("utf-8"), "text/html; charset=utf-8")
+                            self._send(200, _inject_report_enhancements(_render_full_report(report)).encode("utf-8"), "text/html; charset=utf-8")
                             return
-                        self._send(200, _render_report_html(report, rep.get("report_key", "report")).encode("utf-8"), "text/html; charset=utf-8")
+                        self._send(200, _inject_report_enhancements(_render_report_html(report, rep.get("report_key", "report"))).encode("utf-8"), "text/html; charset=utf-8")
                         return
                 # Fallback: file-based latest report (pre-database runs).
                 candidates = sorted(
                     root_base.glob("ux_analysis_*.html"), key=lambda p: p.stat().st_mtime, reverse=True
                 )
                 if candidates:
-                    self._send(200, candidates[0].read_bytes(), "text/html; charset=utf-8")
+                    self._send(200, _inject_report_enhancements(candidates[0].read_bytes()).encode("utf-8"), "text/html; charset=utf-8")
                     return
                 # Older/partial runs may have written JSON without an HTML
                 # companion. Keep the report link useful by rendering a safe
@@ -1210,8 +1260,10 @@ def build_handler(root_base: Path):
                     # Same engine as the analyzer's companion .html: deduped
                     # grouping, embedded screenshots, quality cards, health
                     # badges, and the filter/search/sort toolbar.
-                    self._send(200, _render_full_report(report).encode("utf-8"), "text/html; charset=utf-8")
+                    self._send(200, _inject_report_enhancements(_render_full_report(report)).encode("utf-8"), "text/html; charset=utf-8")
                     return
+                self._send(200, _inject_report_enhancements(_render_report_html(report, json_reports[0].name)).encode("utf-8"), "text/html; charset=utf-8")
+                return
                 self._send(200, _render_report_html(report, json_reports[0].name), "text/html; charset=utf-8")
                 return
             if route == "/api/roots":
