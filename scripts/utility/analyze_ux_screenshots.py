@@ -968,9 +968,17 @@ def _render_html_report(report: dict[str, Any]) -> str:
             )
         shots_html = "\n".join(tab_rows)
 
-    # Global severity tally across all tabs for the summary stats row.
+    # Global severity tally across the tabs actually rendered below (the
+    # deduped representative set), not every capture — otherwise the stats
+    # would double-count the 22 duplicate captures and not match what the
+    # reader sees.
     g_sev = {"high": 0, "medium": 0, "low": 0}
-    for _raw in per_shot.values():
+    if use_groups:
+        rendered_keys = [g.get("best_key") or b for b, g in groups.items()]
+    else:
+        rendered_keys = list(screens.keys())
+    for _k in rendered_keys:
+        _raw = per_shot.get(_k)
         if not _raw:
             continue
         try:
