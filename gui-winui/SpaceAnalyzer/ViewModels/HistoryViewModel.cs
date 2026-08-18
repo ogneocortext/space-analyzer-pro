@@ -1,5 +1,7 @@
 // Licensed under the MIT License.
 
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using SpaceAnalyzer.Helpers;
@@ -21,6 +23,53 @@ public partial class HistoryViewModel : ViewModelBase, IDisposable
     // ── History list ──
 
     private List<ScanHistoryRecord> _history = new();
+
+    private List<ScanFolderGroup> _groupedHistory = new();
+    public List<ScanFolderGroup> GroupedHistory
+    {
+        get => _groupedHistory;
+        private set { _groupedHistory = value; OnPropertyChanged(); }
+    }
+
+    private bool _isGroupedView;
+    public bool IsGroupedView
+    {
+        get => _isGroupedView;
+        set { _isGroupedView = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowFlatView)); OnPropertyChanged(nameof(ShowGroupedView)); }
+    }
+
+    public bool ShowFlatView => !_isGroupedView;
+    public bool ShowGroupedView => _isGroupedView;
+
+    private void BuildGroupedHistory()
+    {
+        if (_history.Count == 0)
+        {
+            GroupedHistory = new List<ScanFolderGroup>();
+            return;
+        }
+
+        var groups = _history
+            .GroupBy(r => NormalizePath(r.Path), StringComparer.OrdinalIgnoreCase)
+            .Select(g =>
+            {
+                var ordered = g.OrderByDescending(r => r.ScanDate).ThenByDescending(r => r.Id).ToList();
+                var first = ordered[0];
+                return new ScanFolderGroup
+                {
+                    NormalizedPath = g.Key,
+                    Path = first.Path,
+                    LeafName = first.LeafName,
+                    ParentPath = first.ParentPath,
+                    Scans = ordered,
+                };
+            })
+            .OrderByDescending(g => g.LatestScan.ScanDate)
+            .ThenByDescending(g => g.LatestScan.Id)
+            .ToList();
+
+        GroupedHistory = groups;
+    }
 
     private List<HistoryTrendPoint> _trendRecords = new();
     public List<HistoryTrendPoint> TrendRecords
@@ -94,6 +143,7 @@ public partial class HistoryViewModel : ViewModelBase, IDisposable
                 r.IsDuplicateView = counts.TryGetValue(NormalizePath(r.Path), out var c) && c > 1;
             foreach (var r in _history)
                 r.IsCompareSelected = false;
+            BuildGroupedHistory();
             OnPropertyChanged();
             OnPropertyChanged(nameof(HasHistory));
             OnPropertyChanged(nameof(HasHistoryVisibility));
@@ -125,6 +175,29 @@ public partial class HistoryViewModel : ViewModelBase, IDisposable
     public bool HasHistory => _history.Any();
     public Microsoft.UI.Xaml.Visibility HasHistoryVisibility => HasHistory ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public Microsoft.UI.Xaml.Visibility HasNoHistoryVisibility => HasHistory ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
+
+    // ── Sort options ──
+
+    public ObservableCollection<string> SortOptions { get; } = new() { "Date", "Size", "Files", "Duplicates" };
+
+    private string _selectedSortOption = "Date";
+    public string SelectedSortOption
+    {
+        get => _selectedSortOption;
+        set
+        {
+            _selectedSortOption = value;
+            OnPropertyChanged();
+            var column = value switch
+            {
+                "Size" => "total_size_bytes",
+                "Files" => "total_files",
+                "Duplicates" => "duplicate",
+                _ => "timestamp"
+            };
+            ToggleSort(column);
+        }
+    }
 
     // ── Multi-select comparison ──
 

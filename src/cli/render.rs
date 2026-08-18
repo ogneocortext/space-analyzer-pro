@@ -403,7 +403,11 @@ pub fn render_recommendations_markdown(recs: &[Recommendation]) -> String {
 /// Total bytes and file count across every installer group.
 pub fn installer_totals(groups: &[InstallerGroup]) -> (u64, usize) {
     (
-        groups.iter().flat_map(|g| &g.entries).map(|(_, s)| *s).sum(),
+        groups
+            .iter()
+            .flat_map(|g| &g.entries)
+            .map(|(_, s)| *s)
+            .sum(),
         groups.iter().map(|g| g.entries.len()).sum(),
     )
 }

@@ -14,32 +14,33 @@
 //! - `prompt_cache` — LRU prompt cache with token budget tracking
 //! - `features` — High-level features: semantic_search, summarize_scan, cleanup_plan, describe_screenshot, agentic_question
 
+pub mod agentic;
+pub mod cleanup;
 pub mod client;
 pub mod error;
 pub mod features;
 pub mod helpers;
-pub mod models;
-pub mod semantic;
-pub mod summary;
-pub mod cleanup;
-pub mod screenshot;
-pub mod agentic;
 pub mod json_utils;
+pub mod models;
 pub mod prompt_cache;
 pub mod prompts;
+pub mod screenshot;
+pub mod semantic;
 pub mod stream;
+pub mod summary;
 pub mod types;
 
 // Re-export everything at module root for backward compatibility.
 pub use agentic::agentic_question;
-pub use client::{OllamaClient, OllamaClientBuilder};
 pub use cleanup::cleanup_plan;
+pub use client::{OllamaClient, OllamaClientBuilder};
 pub use error::{OllamaError, OllamaResult};
 pub use helpers::{encode_image_for_ollama, resolve_tool_choice, split_thinking};
 pub use json_utils::{extract_and_validate, parse_with_repair, repair_json, validate_json};
 pub use models::{
-    AgenticOutput, AgenticStep, CleanupPlanInput, CleanupPlanOutput, ScreenshotInput,
-    ScreenshotOutput, ScanSummaryInput, ScanSummaryOutput, SemanticSearchInput, SemanticSearchOutput,
+    AgenticOutput, AgenticStep, CleanupPlanInput, CleanupPlanOutput, ScanSummaryInput,
+    ScanSummaryOutput, ScreenshotInput, ScreenshotOutput, SemanticSearchInput,
+    SemanticSearchOutput,
 };
 pub use prompt_cache::{CacheStats, ModelTokenBudget, PromptCache, PromptCacheConfig};
 pub use prompts::*;

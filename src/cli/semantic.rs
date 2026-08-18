@@ -153,9 +153,8 @@ pub fn run_embed(
             result.path = display.clone();
             result.total_files = files.len();
             result.total_size_bytes = files.iter().map(|(_, s, _)| *s).sum();
-            db.save_scan(&result, false, false, 5).map_err(|e| {
-                AppError::Validation(format!("Failed to create scan record: {e}"))
-            })?
+            db.save_scan(&result, false, false, 5)
+                .map_err(|e| AppError::Validation(format!("Failed to create scan record: {e}")))?
         }
     };
 
@@ -176,7 +175,10 @@ pub fn run_embed(
             "model": settings.embedding_model,
             "path": display,
         });
-        println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
     } else {
         println!(
             "Embedded {count} file(s) for scan #{scan_id} ({display}) using {}",
@@ -187,12 +189,11 @@ pub fn run_embed(
 }
 
 /// Deserialize stored embedding vectors and run a cosine-similarity search.
-fn load_stored_embeddings(
-    db: &Database,
-    scan_id: i64,
-) -> AppResult<Vec<EmbeddedFile>> {
+fn load_stored_embeddings(db: &Database, scan_id: i64) -> AppResult<Vec<EmbeddedFile>> {
     let rows: Vec<FileEmbeddingRecord> = db.get_embeddings_for_scan(scan_id).map_err(|e| {
-        AppError::Validation(format!("Failed to load embeddings for scan #{scan_id}: {e}"))
+        AppError::Validation(format!(
+            "Failed to load embeddings for scan #{scan_id}: {e}"
+        ))
     })?;
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
@@ -221,7 +222,11 @@ pub fn run_search(
         .ok()
         .ok_or_else(|| AppError::Validation("Could not open embedded database".to_string()))?;
 
-    if db.get_scan_by_id(scan_id).map_err(|e| AppError::Validation(e.to_string()))?.is_none() {
+    if db
+        .get_scan_by_id(scan_id)
+        .map_err(|e| AppError::Validation(e.to_string()))?
+        .is_none()
+    {
         return Err(AppError::Validation(format!(
             "No scan record found with id {scan_id}"
         )));
@@ -304,12 +309,16 @@ pub fn run_search(
             "min_score": min_score,
             "results": json_results,
         });
-        println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
     } else {
         if results.is_empty() {
             println!(
                 "No files matched the query{}",
-                min_score.map(|f| format!(" above the {:.0}% similarity floor", f * 100.0))
+                min_score
+                    .map(|f| format!(" above the {:.0}% similarity floor", f * 100.0))
                     .unwrap_or_default()
             );
         } else {
@@ -334,7 +343,7 @@ mod tests {
     use space_analyzer_pro_desktop::embedding_service::embed_files;
     use space_analyzer_pro_desktop::ollama::client::OllamaClient;
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static DIR_SEQ: AtomicU64 = AtomicU64::new(0);
@@ -344,17 +353,13 @@ mod tests {
     /// earlier runs to accumulate files across tests).
     fn make_temp_dir() -> PathBuf {
         let seq = DIR_SEQ.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!(
-            "sa_semtest_{}_{}",
-            std::process::id(),
-            seq
-        ));
+        let dir = std::env::temp_dir().join(format!("sa_semtest_{}_{}", std::process::id(), seq));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("create temp dir");
         dir
     }
 
-    fn write_file(dir: &PathBuf, name: &str, size: usize) {
+    fn write_file(dir: &Path, name: &str, size: usize) {
         let path = dir.join(name);
         if let Some(parent) = path.parent() {
             let _ = fs::create_dir_all(parent);
@@ -434,7 +439,7 @@ mod tests {
 
         assert_eq!(single.len(), 5, "single batch should return 5 vectors");
         assert_eq!(batched.len(), 5, "batched path should return 5 vectors");
-        assert!(single[0].len() > 0, "vectors must be non-empty");
+        assert!(!single[0].is_empty(), "vectors must be non-empty");
         assert_eq!(
             single[0].len(),
             batched[0].len(),

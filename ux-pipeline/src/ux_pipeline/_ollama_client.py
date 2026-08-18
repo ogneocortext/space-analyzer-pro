@@ -17,7 +17,7 @@ import os
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 logger = logging.getLogger("ux_pipeline.ollama_client")
 
@@ -136,6 +136,74 @@ class OllamaClient:
         if not response:
             response = str(payload.get("thinking", ""))
         return response
+
+    def stream_generate(
+        self,
+        model: str,
+        prompt: str,
+        *,
+        think: bool | None = None,
+        format: str | dict[str, Any] | None = None,
+        options: dict[str, Any] | None = None,
+        images: Iterable[bytes] | None = None,
+        on_chunk: "Callable[[str], None] | None" = None,
+    ) -> str:
+        """Stream ``/api/generate`` NDJSON, invoking ``on_chunk`` per text piece.
+
+        Returns the full concatenated response text so callers can parse it
+        exactly like :meth:`generate`. Network errors raise ``OllamaError``;
+        a stream cut short still returns whatever text was accumulated.
+        """
+        import base64
+
+        body: dict[str, Any] = {
+            "model": model,
+            "prompt": prompt,
+            "stream": True,
+        }
+        if think is not None:
+            body["think"] = bool(think)
+        if format is not None:
+            body["format"] = format
+        if options:
+            body["options"] = dict(options)
+        if images:
+            body["images"] = [base64.b64encode(img).decode("ascii") for img in images]
+
+        data = json.dumps(body).encode("utf-8")
+        req = urllib.request.Request(
+            self._url("/api/generate"),
+            data=data,
+            headers={"User-Agent": USER_AGENT, "Content-Type": "application/json"},
+            method="POST",
+        )
+        pieces: list[str] = []
+        thinking_pieces: list[str] = []
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                for raw in resp:
+                    raw = raw.strip()
+                    if not raw:
+                        continue
+                    try:
+                        obj = json.loads(raw)
+                    except (ValueError, json.JSONDecodeError):
+                        continue
+                    # qwen3-vl streams reasoning into "thinking" (even with
+                    # think=False) and only fills "response" at the end, so we
+                    # surface whichever field carries text for live visibility.
+                    piece = str(obj.get("response", "")) or str(obj.get("thinking", ""))
+                    if obj.get("response", ""):
+                        pieces.append(str(obj.get("response", "")))
+                    elif obj.get("thinking", ""):
+                        thinking_pieces.append(str(obj.get("thinking", "")))
+                    if piece and on_chunk is not None:
+                        on_chunk(piece)
+                    if obj.get("done"):
+                        break
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise OllamaError(f"stream_generate({model!r}) failed: {exc}") from exc
+        return "".join(pieces) or "".join(thinking_pieces)
 
     def generate_json(
         self,

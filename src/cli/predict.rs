@@ -114,7 +114,10 @@ pub fn run(args: PredictArgs, output_format: OutputFormat) -> AppResult<()> {
     };
 
     if output_format == OutputFormat::Json {
-        println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
     } else if response["has_enough_data"].as_bool().unwrap_or(false) {
         println!(
             "Current: {:.1} GB | In {} days: {:.1} GB | Trend: {:.2} GB/day",

@@ -120,14 +120,22 @@
                                                          Style="{StaticResource StandardProgressBar}"
                                                          Foreground="{x:Bind UsageBrush, Mode=OneTime}"
                                                          ToolTipService.ToolTip="Color shows usage level: green under 70%, amber 70–90%, red above 90%." />
-                                            <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource Type.Body}">
-                                                <Run Text="{x:Bind UsedDisplay, Mode=OneTime}" FontWeight="SemiBold" />
-                                                <Run Text=" used of " />
-                                                <Run Text="{x:Bind TotalDisplay, Mode=OneTime}" />
-                                                <Run Text="  ·  " />
-                                                <Run Text="{x:Bind AvailableDisplay, Mode=OneTime}" />
-                                                <Run Text=" free" />
-                                            </TextBlock>
+                                             <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Style="{StaticResource Type.Body}">
+                                                 <Run Text="{x:Bind UsedDisplay, Mode=OneTime}" FontWeight="SemiBold" />
+                                                 <Run Text=" used of " />
+                                                 <Run Text="{x:Bind TotalDisplay, Mode=OneTime}" />
+                                                 <Run Text="  ·  " />
+                                                 <Run Text="{x:Bind AvailableDisplay, Mode=OneTime}" />
+                                                 <Run Text=" free" />
+                                             </TextBlock>
+                                             <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
+                                                     Style="{StaticResource Type.Caption}" Opacity="0.7"
+                                                     Visibility="{x:Bind HasTbDisplay, Mode=OneTime, Converter={StaticResource BoolToVisibility}}">
+                                                 <Run Text="{x:Bind UsedDisplayTb, Mode=OneTime}" FontWeight="SemiBold" />
+                                                 <Run Text=" used of " />
+                                                 <Run Text="{x:Bind TotalDisplayTb, Mode=OneTime}" />
+                                                 <Run Text=" total" />
+                                             </TextBlock>
                                             <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2"
                                                     Height="1" Margin="0,8,0,0"
                                                     Background="{ThemeResource CardStrokeColorDefaultBrush}" Opacity="0.4" />
@@ -220,18 +228,16 @@
                             <FontIcon Glyph="&#xE964;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                             <TextBlock Text="CPU" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center" />
                         </StackPanel>
-                        <ProgressBar x:Name="CpuBar" Value="{x:Bind VM.CpuUsage, Mode=OneWay}" Maximum="100" Style="{StaticResource StandardProgressBar}" Foreground="{x:Bind VM.CpuBrush, Mode=OneWay}" />
-                        <TextBlock Text="{x:Bind VM.CpuUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Current usage" Style="{StaticResource Type.Tiny}" HorizontalAlignment="Center" />
+                         <ProgressBar x:Name="CpuBar" Value="{x:Bind VM.CpuUsage, Mode=OneWay}" Maximum="100" Style="{StaticResource StandardProgressBar}" Foreground="{x:Bind VM.CpuBrush, Mode=OneWay}" />
+                         <TextBlock Text="{x:Bind VM.CpuUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" HorizontalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="{StaticResource Space.SM}">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
                             <FontIcon Glyph="&#xE9F9;" FontSize="{StaticResource Icon.Small}" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                             <TextBlock Text="Memory" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center" />
                         </StackPanel>
-                        <ProgressBar x:Name="MemBar" Value="{x:Bind VM.MemoryUsage, Mode=OneWay}" Maximum="100" Style="{StaticResource StandardProgressBar}" Foreground="{x:Bind VM.MemoryBrush, Mode=OneWay}" />
-                        <TextBlock Text="{x:Bind VM.MemoryUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Current usage" Style="{StaticResource Type.Tiny}" HorizontalAlignment="Center" />
+                         <ProgressBar x:Name="MemBar" Value="{x:Bind VM.MemoryUsage, Mode=OneWay}" Maximum="100" Style="{StaticResource StandardProgressBar}" Foreground="{x:Bind VM.MemoryBrush, Mode=OneWay}" />
+                         <TextBlock Text="{x:Bind VM.MemoryUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}" HorizontalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="{StaticResource Space.SM}">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
@@ -293,48 +299,48 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <Border Grid.Column="0" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.MD}">
-                    <StackPanel Spacing="{StaticResource Space.XS}">
+                <Border Grid.Column="0" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
                             <FontIcon Glyph="&#xE964;" FontSize="{StaticResource Icon.Small}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                             <TextBlock Text="CPU" Style="{StaticResource Type.SubTitle}" />
                         </StackPanel>
-                        <Grid x:Name="CpuChartGrid" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-                        <TextBlock Text="{x:Bind VM.CpuUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" />
-                        <TextBlock x:Name="CpuPeakAvg" Style="{StaticResource Type.Tiny}" HorizontalAlignment="Center" Opacity="0.6" />
+                        <Grid x:Name="CpuChartGrid" Height="100" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <TextBlock Text="{x:Bind VM.CpuUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="CpuPeakAvg" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" Opacity="0.8" />
                     </StackPanel>
                 </Border>
-                <Border Grid.Column="1" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.MD}">
-                    <StackPanel Spacing="{StaticResource Space.XS}">
+                <Border Grid.Column="1" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
                             <FontIcon Glyph="&#xE9F9;" FontSize="{StaticResource Icon.Small}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                             <TextBlock Text="Memory" Style="{StaticResource Type.SubTitle}" />
                         </StackPanel>
-                        <Grid x:Name="MemChartGrid" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-                        <TextBlock Text="{x:Bind VM.MemoryUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" />
-                        <TextBlock x:Name="MemPeakAvg" Style="{StaticResource Type.Tiny}" HorizontalAlignment="Center" Opacity="0.6" />
+                        <Grid x:Name="MemChartGrid" Height="100" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <TextBlock Text="{x:Bind VM.MemoryUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="MemPeakAvg" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" Opacity="0.8" />
                     </StackPanel>
                 </Border>
-                <Border Grid.Column="2" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.MD}">
-                    <StackPanel Spacing="{StaticResource Space.XS}">
+                <Border Grid.Column="2" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
                             <FontIcon Glyph="&#xF211;" FontSize="{StaticResource Icon.Small}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                             <TextBlock Text="GPU" Style="{StaticResource Type.SubTitle}" />
                         </StackPanel>
-                        <Grid x:Name="GpuChartGrid" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-                        <TextBlock Text="{x:Bind VM.GpuUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" />
-                        <TextBlock x:Name="GpuPeakAvg" Style="{StaticResource Type.Tiny}" HorizontalAlignment="Center" Opacity="0.6" />
+                        <Grid x:Name="GpuChartGrid" Height="100" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <TextBlock Text="{x:Bind VM.GpuUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="GpuPeakAvg" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" Opacity="0.8" />
                     </StackPanel>
                 </Border>
-                <Border Grid.Column="3" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.MD}">
-                    <StackPanel Spacing="{StaticResource Space.XS}">
+                <Border Grid.Column="3" Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.XS}">
                             <FontIcon Glyph="&#xE950;" FontSize="{StaticResource Icon.Small}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
                             <TextBlock Text="Disk" Style="{StaticResource Type.SubTitle}" />
                         </StackPanel>
-                        <Grid x:Name="DiskChartGrid" Height="72" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-                        <TextBlock Text="{x:Bind VM.DiskUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" />
-                        <TextBlock x:Name="DiskPeakAvg" Style="{StaticResource Type.Tiny}" HorizontalAlignment="Center" Opacity="0.6" />
+                        <Grid x:Name="DiskChartGrid" Height="100" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <TextBlock Text="{x:Bind VM.DiskUsageDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="DiskPeakAvg" Style="{StaticResource Type.Caption}" HorizontalAlignment="Center" Opacity="0.8" />
                     </StackPanel>
                 </Border>
             </Grid>
@@ -449,6 +455,7 @@
                         Not enough history yet — run at least two scans to project growth.
                     </TextBlock>
                     <TextBlock Text="{x:Bind VM.StorageForecast.LastScan, Mode=OneWay}" Style="{StaticResource Type.Tiny}" Opacity="0.6" />
+                    <Grid x:Name="ForecastChartGrid" Height="160" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Margin="0,4,0,0" />
                 </StackPanel>
             </Border>
 

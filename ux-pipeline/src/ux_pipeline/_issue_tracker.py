@@ -174,18 +174,33 @@ class IssueTracker:
     # Loading / persistence
     # ------------------------------------------------------------------ #
     def load(self) -> None:
-        """Read the tracker file from disk. Missing files are not an error."""
+        """Read the tracker file from disk. Missing files are not an error.
+
+        Encoding is tolerant: we try UTF-8 first (the canonical encoding used
+        by :meth:`save`), then fall back to cp1252 so a file that was written
+        with the platform default encoding can still be parsed. If the file
+        exists but cannot be decoded/parsed at all, we *raise* rather than
+        silently resetting to an empty store -- that way a caller that would
+        otherwise :meth:`save` over the file cannot wipe data it failed to read.
+        """
         self._loaded = True
         if not self.path.exists():
             self._issues = {}
             return
-        try:
-            with self.path.open(encoding="utf-8") as fh:
-                data = json.load(fh)
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("Could not read tracker %s: %s", self.path, exc)
-            self._issues = {}
-            return
+        raw = self.path.read_bytes()
+        data = None
+        last_exc: Exception | None = None
+        for enc in ("utf-8", "cp1252"):
+            try:
+                data = json.loads(raw.decode(enc))
+                break
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:  # pragma: no cover - defensive
+                last_exc = exc
+                continue
+        if data is None:
+            raise ValueError(f"Could not decode tracker {self.path}: {last_exc}")
+        if not isinstance(data, dict):
+            raise ValueError(f"Tracker {self.path} is not a JSON object")
         issues = data.get("issues", [])
         out: dict[str, IssueRow] = {}
         for entry in issues:

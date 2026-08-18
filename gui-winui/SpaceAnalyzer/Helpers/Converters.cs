@@ -428,3 +428,36 @@ public sealed class SourceToBrushConverter : IValueConverter
 
     public object ConvertBack(object value, Type targetType, object parameter, string language) => null!;
 }
+
+/// <summary>
+/// Returns "Group by folder" when <paramref name="value"/> is <c>false</c>,
+/// and "Show flat list" when <c>true</c>, for the history view toggle button.
+/// </summary>
+public sealed class BoolToGroupViewLabelConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool grouped = value is bool b && b;
+        return grouped ? "Show flat list" : "Group by folder";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => null!;
+}
+
+/// <summary>
+/// Maps a bool (e.g. a "ready" state) to a success/positive brush when true
+/// and the default primary text brush when false. Used to tint the Scan page's
+/// idle "Ready to scan" status so it reads as a clear, positive state.
+/// </summary>
+public sealed class BoolToSuccessBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        bool success = value is bool b && b;
+        var key = success ? "SystemFillColorSuccessBrush" : "TextFillColorPrimaryBrush";
+        return Application.Current.Resources[key] as SolidColorBrush
+            ?? new SolidColorBrush(success ? Microsoft.UI.Colors.Green : Microsoft.UI.Colors.Black);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => null!;
+}

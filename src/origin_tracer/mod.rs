@@ -1,15 +1,15 @@
-pub mod safety;
 pub mod classifiers;
+pub mod safety;
 pub mod tracer;
 
-pub use safety::{Classification, Ctx, OriginAssessment, OriginReport, SafetyLevel};
 pub use classifiers::{any_app_installed, classify_path, is_project_root};
+pub use safety::{Classification, Ctx, OriginAssessment, OriginReport, SafetyLevel};
 pub use tracer::{assess_directory, assess_file, build_report};
 
 mod tests {
     #![allow(unused_imports)]
-    use crate::gui_common::{DirEntry, ScanReport};
     use super::*;
+    use crate::gui_common::{DirEntry, ScanReport};
 
     #[test]
     fn classifies_credentials_as_do_not_delete() {

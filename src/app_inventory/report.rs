@@ -1,11 +1,11 @@
-use crate::app_inventory::models::{AppGroup, AppInstance, AppInventoryReport};
-use crate::app_inventory::utils::{cmp_version, human_bytes};
 use crate::app_inventory::collectors::{
     collect_chocolatey_apps, collect_docker, collect_registry_apps, collect_rustup_toolchains,
     collect_scoop_apps, collect_vscode_extensions, collect_wsl_distros,
 };
-use std::collections::BTreeMap;
+use crate::app_inventory::models::{AppGroup, AppInstance, AppInventoryReport};
+use crate::app_inventory::utils::{cmp_version, human_bytes};
 use chrono::Utc;
+use std::collections::BTreeMap;
 
 #[cfg(windows)]
 pub fn build_inventory_report() -> AppInventoryReport {
@@ -127,8 +127,16 @@ pub fn analyze(mut apps: Vec<AppInstance>) -> Vec<AppGroup> {
     // Surface the most actionable groups first: cross-drive duplicates, then
     // multi-version, then largest.
     groups.sort_by(|a, b| {
-        (b.is_duplicate_location as u8, b.has_multiple_versions as u8, b.total_size_bytes)
-            .cmp(&(a.is_duplicate_location as u8, a.has_multiple_versions as u8, a.total_size_bytes))
+        (
+            b.is_duplicate_location as u8,
+            b.has_multiple_versions as u8,
+            b.total_size_bytes,
+        )
+            .cmp(&(
+                a.is_duplicate_location as u8,
+                a.has_multiple_versions as u8,
+                a.total_size_bytes,
+            ))
     });
     groups
 }

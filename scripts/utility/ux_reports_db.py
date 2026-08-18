@@ -39,7 +39,8 @@ CREATE TABLE IF NOT EXISTS reports (
     severity_counts TEXT,
     num_issues INTEGER,
     num_recommendations INTEGER,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT
 );
 """
 
@@ -153,6 +154,11 @@ class ReportsStore:
         cur = self._conn.cursor()
         for stmt in SCHEMA_STMTS:
             cur.execute(stmt)
+        # Backward-compatible migration: add updated_at to databases created
+        # before this column existed.
+        existing = {r[1] for r in cur.execute("PRAGMA table_info(reports)").fetchall()}
+        if "updated_at" not in existing:
+            cur.execute("ALTER TABLE reports ADD COLUMN updated_at TEXT")
         self._conn.commit()
 
     # ------------------------------------------------------------------ #
@@ -182,15 +188,15 @@ class ReportsStore:
         code_recs = report.get("code_recommendations")
 
         if screenshot_set is None:
-            screenshot_set = self._derive_set(report_key)
+            screenshot_set = self._derive_set(report_key, model)
 
         cur = self._conn.cursor()
         cur.execute(
             """INSERT OR REPLACE INTO reports
             (report_key, screenshot_set, model, status, timestamp,
              report_json, html, summary_text, code_recs,
-             severity_counts, num_issues, num_recommendations)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             severity_counts, num_issues, num_recommendations, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
             (
                 report_key,
                 screenshot_set,
@@ -234,8 +240,8 @@ class ReportsStore:
                 """INSERT INTO reports
                 (report_key, screenshot_set, model, status, timestamp,
                  report_json, html, summary_text, code_recs,
-                 severity_counts, num_issues, num_recommendations)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                 severity_counts, num_issues, num_recommendations, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))""",
                 (
                     report_key,
                     screenshot_set,
@@ -271,6 +277,8 @@ class ReportsStore:
                 if val is not None:
                     updates.append(f"{col} = ?")
                     params.append(val)
+            # Always refresh the import timestamp on an existing row.
+            updates.append("updated_at = datetime('now')")
             if updates:
                 params.append(report_key)
                 cur.execute(
@@ -431,9 +439,32 @@ class ReportsStore:
         return f"{ts}__{model}" if ts else model
 
     @staticmethod
-    def _derive_set(report_key: str) -> str:
-        # report_key looks like "<set>__<model>"; strip the trailing model segment.
-        return report_key.rsplit("__", 1)[0] if "__" in report_key else report_key
+    def _sanitize_model(model: str) -> str:
+        # Keys use a filesystem-safe slug (e.g. "qwen3-vl-4b"); the report JSON
+        # stores the model with a colon ("qwen3-vl:4b").  Normalize to the slug
+        # form so the trailing key segment can be matched against the model.
+        return model.replace(":", "-")
+
+    @staticmethod
+    def _derive_set(report_key: str, model: str | None = None) -> str:
+        # report_key is "<screenshot_set>__<model>".  The set name may itself
+        # contain "__" (e.g. "2026-08-17__winui3-capture__ui-pages"), so we only
+        # strip a trailing model segment when it actually matches the report's
+        # model.  Otherwise the whole key is the set (covers legacy reports that
+        # carry no model suffix and would otherwise lose their last set segment).
+        if model:
+            suffix = "__" + ReportsStore._sanitize_model(model)
+            if report_key.endswith(suffix):
+                return report_key[: -len(suffix)]
+        if "__" in report_key:
+            head, tail = report_key.rsplit("__", 1)
+            # Heuristic fallback (only when the model is unknown): a trailing
+            # segment is a model id if it carries a colon, or a token with a
+            # digit (e.g. "qwen3-vl-4b").  Plain set-name tails like "ui-pages"
+            # have no digit and are kept.
+            if ":" in tail or (("-" in tail or "_" in tail) and any(ch.isdigit() for ch in tail)):
+                return head
+        return report_key
 
     def _row_to_dict(self, row: sqlite3.Row, include_payload: bool = True) -> dict[str, Any]:
         out = dict(row)

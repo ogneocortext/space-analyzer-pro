@@ -121,7 +121,12 @@ pub enum Commands {
         path: Option<String>,
 
         /// Directory to scan; flag form of the positional PATH argument
-        #[arg(short = 'p', long = "path", value_name = "PATH", conflicts_with = "path")]
+        #[arg(
+            short = 'p',
+            long = "path",
+            value_name = "PATH",
+            conflicts_with = "path"
+        )]
         path_flag: Option<String>,
 
         /// Show extra sections: scan throughput and empty directories
@@ -292,14 +297,27 @@ pub enum Commands {
         /// (id, path, timestamp, total size) for trend charts. The response
         /// carries no per-scan JSON payload, so it stays cheap for large
         /// history. Mutually exclusive in intent with the other mutating flags.
-        #[arg(long, conflicts_with = "prune", conflicts_with = "prune_empty", conflicts_with = "clear", conflicts_with = "backfill_categories")]
+        #[arg(
+            long,
+            conflicts_with = "prune",
+            conflicts_with = "prune_empty",
+            conflicts_with = "clear",
+            conflicts_with = "backfill_categories"
+        )]
         trend: bool,
 
         /// Aggregate the per-category size breakdown across every scan-history
         /// record and return the summed bytes per category as a JSON object.
         /// Powers the "Library Composition" donut on the History page without
         /// re-scanning. Read-only.
-        #[arg(long, conflicts_with = "prune", conflicts_with = "prune_empty", conflicts_with = "clear", conflicts_with = "backfill_categories", conflicts_with = "trend")]
+        #[arg(
+            long,
+            conflicts_with = "prune",
+            conflicts_with = "prune_empty",
+            conflicts_with = "clear",
+            conflicts_with = "backfill_categories",
+            conflicts_with = "trend"
+        )]
         category_totals: bool,
 
         /// Return the stored duplicate-file analysis for a scan. Requires --id;
@@ -307,6 +325,11 @@ pub enum Commands {
         /// of the scan record itself.
         #[arg(long, requires = "id")]
         duplicates: bool,
+
+        /// Ask the local Ollama model to produce a 2-3 sentence AI summary of
+        /// the most recent (or --id) scan. Requires Ollama running.
+        #[arg(long)]
+        summarize: bool,
     },
 
     /// Run duplicate-file analysis on a directory and output JSON
@@ -316,7 +339,12 @@ pub enum Commands {
         path: Option<String>,
 
         /// Directory to analyze; flag form of the positional PATH argument
-        #[arg(short = 'p', long = "path", value_name = "PATH", conflicts_with = "path")]
+        #[arg(
+            short = 'p',
+            long = "path",
+            value_name = "PATH",
+            conflicts_with = "path"
+        )]
         path_flag: Option<String>,
 
         /// Minimum file size to consider (e.g. 1M, 500K, 1GB)

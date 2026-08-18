@@ -3,16 +3,16 @@ use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::error::AppResult;
 use space_analyzer_pro_desktop::gui_common::LargestFileEntry;
 use std::collections::HashMap;
+use std::io::IsTerminal;
 use std::io::Write;
 use std::path::Path;
-use std::io::IsTerminal;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::Instant;
 
+use super::live_scan::LiveProgress;
 use super::types::{DirEntry, FileInfoStreaming, ScanReport, StreamEvent};
 use crate::animation;
-use super::live_scan::LiveProgress;
 
 #[allow(clippy::too_many_arguments)]
 pub fn scan_directory(
@@ -46,8 +46,10 @@ pub fn scan_directory(
     // Live, in-place progress for interactive runs. Only when stderr is a real
     // terminal and the caller is not in a machine-output mode; otherwise it stays
     // silent so redirected logs and `--stream`/`--progress-json` output stay clean.
-    let show_live =
-        !stream && !progress_json && !no_animation && (std::io::stderr().is_terminal() || std::env::var("SPACE_ANALYZER_FORCE_LIVE").is_ok());
+    let show_live = !stream
+        && !progress_json
+        && !no_animation
+        && (std::io::stderr().is_terminal() || std::env::var("SPACE_ANALYZER_FORCE_LIVE").is_ok());
     let live = Arc::new(LiveProgress::new(show_live));
 
     let spinner = if verbose && !show_live {
@@ -93,14 +95,12 @@ pub fn scan_directory(
     let cache_key = super::helpers::display_path(path);
     let file_cache: Option<HashMap<String, (u64, i64)>> = if cache {
         Database::default_open().ok().and_then(|db| {
-            db.load_file_cache(&cache_key)
-                .ok()
-                .map(|entries| {
-                    entries
-                        .into_iter()
-                        .map(|(k, (s, m, _))| (k, (s, m)))
-                        .collect()
-                })
+            db.load_file_cache(&cache_key).ok().map(|entries| {
+                entries
+                    .into_iter()
+                    .map(|(k, (s, m, _))| (k, (s, m)))
+                    .collect()
+            })
         })
     } else {
         None

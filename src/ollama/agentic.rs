@@ -3,8 +3,8 @@
 use std::time::Instant;
 
 use super::client::OllamaClient;
-use crate::ollama::helpers::split_thinking;
 use crate::ollama::helpers::resolve_tool_choice;
+use crate::ollama::helpers::split_thinking;
 use crate::ollama::models::{AgenticOutput, AgenticStep, StepKind};
 use crate::ollama::types::{ChatMessage, ChatRequest, ToolCall, ToolDefinition};
 

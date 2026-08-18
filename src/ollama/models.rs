@@ -99,4 +99,3 @@ pub struct AgenticOutput {
     pub total_completion_tokens: u32,
     pub duration_ms: u128,
 }
-

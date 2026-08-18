@@ -252,6 +252,7 @@
 - **DB-backed retrieval in `live_progress_server.py`** — `/report` and `/api/report` now serve from the database (with file fallback) and accept `?id=<report_key>` to fetch any specific report. New endpoints: `GET /api/reports` (list/filter by `model`/`set`/`q`) and `GET /reports` (a browsable HTML listing with live search, each row linking to `/report?id=<key>`).
 - **"Reports" nav link** added to `live_progress.html`, pointing at `/reports`.
 - **Idempotent file→DB migration** — `ReportsStore.migrate_files()` imports existing `ux_analysis_*.json` + companion `*.html` into the database (safe to re-run; `report_key` wins on conflict). Handles both current (`per_shot_data`/`deduped`) and legacy (`per_screenshot` raw-JSON) report shapes.
+- **Fixed `screenshot_set` derivation** — `ReportsStore._derive_set()` previously stripped the last `__…` segment of every `report_key` as the model, which corrupted keys whose set name itself contains `__` (e.g. legacy `2026-08-17__winui3-capture__ui-pages` lost `ui-pages`, breaking set-based filtering). It now strips a trailing model segment only when it matches the report's actual model, falling back to a model-id heuristic. Added an `updated_at` column (backward-compatible `ALTER`) so refreshes are timestamped. Re-migrated the existing DB; all four reports now resolve to the correct set.
 
 ### Embedding Subsystem — Model Stamping & Re-embed Defect Fixes (2026-08-16)
 

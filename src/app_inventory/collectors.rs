@@ -1,7 +1,8 @@
 use crate::app_inventory::models::AppInstance;
 use crate::app_inventory::utils::{
-    dir_size, docker_wsl_vhdx_paths, drive_of, extract_version_token, file_size, home, normalize_key,
-    reg_estimated_size, reg_str, reg_u32, run_with_timeout, split_extension, split_pkg_version,
+    dir_size, docker_wsl_vhdx_paths, drive_of, extract_version_token, file_size, home,
+    normalize_key, reg_estimated_size, reg_str, reg_u32, run_with_timeout, split_extension,
+    split_pkg_version,
 };
 use std::env;
 use std::path::PathBuf;
@@ -308,9 +309,11 @@ pub fn collect_docker() -> Vec<AppInstance> {
     // Requires Docker Desktop running; guarded by a timeout so a stopped daemon
     // or slow start never blocks the inventory. Volumes live inside the data
     // VHDX above (already counted), this just makes the named volumes visible.
-    if let Some(vols) =
-        run_with_timeout("docker", &["volume", "ls", "--format", "{{.Name}}"], Duration::from_secs(5))
-    {
+    if let Some(vols) = run_with_timeout(
+        "docker",
+        &["volume", "ls", "--format", "{{.Name}}"],
+        Duration::from_secs(5),
+    ) {
         for v in vols.lines() {
             let name = v.trim().to_string();
             if name.is_empty() {

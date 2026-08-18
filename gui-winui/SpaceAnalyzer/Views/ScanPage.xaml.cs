@@ -1,4 +1,4 @@
-﻿// Licensed under the MIT License.
+// Licensed under the MIT License.
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -61,6 +61,11 @@ public sealed partial class ScanPage : Page
             }
         }
     }
+
+    private void ResultTabSummary_Click(object sender, RoutedEventArgs e) => VM.ActiveResultTab = ScanViewModel.ResultTab.Summary;
+    private void ResultTabDistribution_Click(object sender, RoutedEventArgs e) => VM.ActiveResultTab = ScanViewModel.ResultTab.Distribution;
+    private void ResultTabLargestFiles_Click(object sender, RoutedEventArgs e) => VM.ActiveResultTab = ScanViewModel.ResultTab.LargestFiles;
+    private void ResultTabLargestDirectories_Click(object sender, RoutedEventArgs e) => VM.ActiveResultTab = ScanViewModel.ResultTab.LargestDirectories;
 
     // ── Drag & drop a folder onto the page to set the scan path ──
 
@@ -145,21 +150,6 @@ public sealed partial class ScanPage : Page
         {
             AppLog.Error("ScanPage Export_Click failed", ex);
         }
-    }
-
-    private void DepthRadio_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("ScanPage DepthRadio_Click");
-        if (sender is not RadioButton rb) return;
-
-        VM.SelectedDepthMode = rb.Tag?.ToString() switch
-        {
-            "Quick"   => ScannerService.DepthMode.Shallow,
-            "Default" => ScannerService.DepthMode.Default,
-            "Deep"    => ScannerService.DepthMode.Deep,
-            "Custom"  => ScannerService.DepthMode.Custom,
-            _         => VM.SelectedDepthMode
-        };
     }
 
     private void ViewSavedInHistory_Click(object sender, RoutedEventArgs e)

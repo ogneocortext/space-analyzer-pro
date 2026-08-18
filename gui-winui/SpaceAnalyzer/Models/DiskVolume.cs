@@ -26,6 +26,9 @@ public class DiskVolume
     public string UsedDisplay => ByteFormatter.FormatBytes(UsedBytes);
     public string TotalDisplay => ByteFormatter.FormatBytes(TotalBytes);
     public string AvailableDisplay => ByteFormatter.FormatBytes(AvailableBytes);
+    public string UsedDisplayTb => UsedBytes >= 1UL << 40 ? $"{UsedBytes / (double)(1UL << 40):F2} TB" : string.Empty;
+    public string TotalDisplayTb => TotalBytes >= 1UL << 40 ? $"{TotalBytes / (double)(1UL << 40):F2} TB" : string.Empty;
+    public bool HasTbDisplay => UsedBytes >= 1UL << 40 || TotalBytes >= 1UL << 40;
     public string UsagePercentDisplay => $"{UsagePercent:F1}%";
     public SolidColorBrush UsageBrush => UiHelper.GetUsageBrush(UsagePercent);
 

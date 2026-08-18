@@ -9,7 +9,10 @@ pub fn run(path: String, format: OutputFormat) -> AppResult<()> {
     let report = analyze_file_dependencies(&path);
     match format {
         OutputFormat::Json => {
-            println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&report).unwrap_or_default()
+            );
         }
         _ => {
             println!("{}", report.summary);

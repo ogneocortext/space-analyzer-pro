@@ -325,23 +325,28 @@ def friendly_name(bucket: Path, slug: str, ext: str = "png") -> Path:
     return cand
 
 
-def snap(slug: str, hwnd, label: str) -> None:
+def snap(slug: str, hwnd, label: str) -> bool:
     """Capture the current window into the active bucket as <slug>.png (or
     <slug>-2.png on repeat) and record a human-readable note for the gallery."""
     path = friendly_name(BUCKET, slug, "png")
     if hwnd:
-        capture_window_png(hwnd, str(path))
+        saved = capture_window_png(hwnd, str(path))
     else:
         # Only if we somehow have no HWND: this is the one case that captures
         # the whole desktop, so avoid it whenever possible.
         img = pyautogui.screenshot()
         img.save(path)
+        saved = True
+    if not saved:
+        print(f"ERROR: failed to capture '{label}'")
+        return False
     note = (f"WinUI3 automated capture — {label} page. {TAB_NOTES.get(slug, '')} "
             f"Captured {BUCKET.name.split('__')[0]} "
             f"(origin: {ORIGIN}, representation: {REPRESENTATION}).")
     write_note(path, note)
     print(f"saved {path.name}")
     time.sleep(0.3)
+    return True
 
 
 # Cached HWND - set on first successful find, reused for all subsequent
@@ -391,20 +396,22 @@ def _select_tab(window: auto.Control, label: str) -> bool:
     """Select a nav tab via the UIA SelectionItemPattern.Select().
 
     This performs the real tab switch programmatically and does NOT move the
-    system cursor. Falls back to a MenuItemControl (overflow flyout) and then
-    to Invoke() if the SelectionItemPattern is unavailable. Retries with a
+    system cursor. Falls back through ButtonControl/MenuItemControl when a
+    TabItemControl lacks both SelectionItemPattern and Invoke. Retries with a
     settle delay because the NavigationView can rebuild after the prior
-    navigation and the TabItemControl may not be ready immediately.
+    navigation and the control may not be ready immediately.
     """
     name = AUTO_NAME.get(label, label)
-    for attempt in range(2):
-        auto.uiautomation.SetGlobalSearchTimeout(4)
-        time.sleep(0.8)  # let the previous navigation settle
+    for attempt in range(3):
+        auto.uiautomation.SetGlobalSearchTimeout(6)
+        time.sleep(1.2)  # let the previous navigation settle
         item = None
-        for ctrl_cls in (auto.TabItemControl, auto.MenuItemControl):
+        for ctrl_cls in (auto.TabItemControl, auto.ButtonControl, auto.MenuItemControl):
             try:
-                item = ctrl_cls(searchDepth=20, Name=name)
-                break
+                candidate = ctrl_cls(searchDepth=20, Name=name)
+                if candidate:
+                    item = candidate
+                    break
             except Exception:
                 continue
         if item is None:
@@ -415,14 +422,18 @@ def _select_tab(window: auto.Control, label: str) -> bool:
                 item.SetFocus()
             except Exception:
                 pass
-            pat = item.GetSelectionItemPattern()
-            if pat is not None:
-                pat.Select()
-                print(f"    [select] '{label}' via SelectionItemPattern")
+            try:
+                pat = item.GetSelectionItemPattern()
+                if pat is not None:
+                    pat.Select()
+                    print(f"    [select] '{label}' via SelectionItemPattern")
+                    return True
+            except Exception:
+                pass
+            if hasattr(item, "Invoke") and callable(getattr(item, "Invoke", None)):
+                item.Invoke()
+                print(f"    [select] '{label}' via Invoke")
                 return True
-            item.Invoke()
-            print(f"    [select] '{label}' via Invoke")
-            return True
         except Exception as exc:
             print(f"    [select] '{label}' attempt {attempt + 1} failed: {exc}")
     print(f"    [select] '{label}' failed after retries")
@@ -532,7 +543,10 @@ def main() -> int:
             ok = _select_tab(window, label)
             if not ok:
                 print(f"    WARNING: could not select '{label}'")
-            time.sleep(1.0)
+            # WinUI can report the selection before the destination page has
+            # finished constructing its visual tree. Give it time to render
+            # before PrintWindow snapshots the window surface.
+            time.sleep(2.0)
             snap(slug, hwnd, label)
         except Exception as exc:
             print(f"    select failed for '{label}': {exc}")

@@ -79,7 +79,10 @@ pub fn run(args: RecommendArgs, output_format: OutputFormat) -> AppResult<()> {
     });
 
     if output_format == OutputFormat::Json {
-        println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
     } else if recommendations.is_empty() {
         println!("No cleanup recommendations.");
     } else {

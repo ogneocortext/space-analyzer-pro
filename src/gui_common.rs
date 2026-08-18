@@ -3,8 +3,8 @@
 //! Uses the scan-engine crate for all scanning operations.
 
 use clap::Parser;
-use serde::{Deserialize, Serialize};
 use scan_engine::{FileScanner, ScanOptions};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Common command-line interface for GUI applications
@@ -93,11 +93,7 @@ impl ScanReport {
     }
 
     /// Convert from scan-engine ScanResult
-    pub fn from_shared(
-        result: &scan_engine::ScanResult,
-        path: String,
-        duration_secs: f64,
-    ) -> Self {
+    pub fn from_shared(result: &scan_engine::ScanResult, path: String, duration_secs: f64) -> Self {
         let mut scan_result = Self::new();
         scan_result.total_files = result.total_files as usize;
         scan_result.total_size_bytes = result.total_size;

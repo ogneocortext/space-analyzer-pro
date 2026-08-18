@@ -188,23 +188,28 @@ pub const FILE_CATEGORIES: [(&str, &[&str]); 16] = [
     (
         "Images",
         &[
-            "jpg", "jpeg", "png", "gif", "bmp", "svg", "webp", "ico", "tiff", "tif",
-            "heic", "heif", "raw", "cr2", "nef", "arw", "dng", "psd",
+            "jpg", "jpeg", "png", "gif", "bmp", "svg", "webp", "ico", "tiff", "tif", "heic",
+            "heif", "raw", "cr2", "nef", "arw", "dng", "psd",
         ],
     ),
     (
         "Videos",
         &[
-            "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpeg", "mpg",
-            "3gp", "vob", "ogv", "m2ts", "mts",
+            "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "m4v", "mpeg", "mpg", "3gp", "vob",
+            "ogv", "m2ts", "mts",
         ],
     ),
-    ("Audio", &["mp3", "wav", "flac", "aac", "ogg", "wma", "m4a", "aiff", "opus"]),
+    (
+        "Audio",
+        &[
+            "mp3", "wav", "flac", "aac", "ogg", "wma", "m4a", "aiff", "opus",
+        ],
+    ),
     (
         "Archives",
         &[
-            "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "iso", "cab", "zst",
-            "jar", "nupkg", "asar", "tgz", "war", "ear", "lz4", "lz", "z", "msix", "appx",
+            "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "iso", "cab", "zst", "jar", "nupkg",
+            "asar", "tgz", "war", "ear", "lz4", "lz", "z", "msix", "appx",
         ],
     ),
     (
@@ -216,17 +221,24 @@ pub const FILE_CATEGORIES: [(&str, &[&str]); 16] = [
             "dart", "hs", "clj", "groovy", "ex", "exs",
         ],
     ),
-    ("Databases", &["db", "sqlite", "sql", "mdb", "accdb", "db3", "sqlite3", "duckdb"]),
+    (
+        "Databases",
+        &[
+            "db", "sqlite", "sql", "mdb", "accdb", "db3", "sqlite3", "duckdb",
+        ],
+    ),
     (
         "Executables",
         &[
-            "exe", "msi", "bat", "cmd", "sh", "ps1", "app", "dmg", "deb", "rpm",
-            "scr", "com", "apk",
+            "exe", "msi", "bat", "cmd", "sh", "ps1", "app", "dmg", "deb", "rpm", "scr", "com",
+            "apk",
         ],
     ),
     (
         "System",
-        &["dll", "sys", "drv", "fon", "ttf", "otf", "log", "tmp", "cat", "mui"],
+        &[
+            "dll", "sys", "drv", "fon", "ttf", "otf", "log", "tmp", "cat", "mui",
+        ],
     ),
     (
         "Fonts",
@@ -234,23 +246,23 @@ pub const FILE_CATEGORIES: [(&str, &[&str]); 16] = [
     ),
     (
         "Build Output",
-        &["lib", "a", "pdb", "so", "dylib", "rlib", "rmeta", "o", "obj", "exp", "ilk", "wasm", "pyc", "pyd"],
+        &[
+            "lib", "a", "pdb", "so", "dylib", "rlib", "rmeta", "o", "obj", "exp", "ilk", "wasm",
+            "pyc", "pyd",
+        ],
     ),
     (
         "Games",
         &[
-            "sav", "save", "game", "pak", "wad", "mpq", "unity3d", "vpk", "bsa", "esm",
-            "uasset", "forge", "bundle", "asset",
+            "sav", "save", "game", "pak", "wad", "mpq", "unity3d", "vpk", "bsa", "esm", "uasset",
+            "forge", "bundle", "asset",
         ],
     ),
     (
         "Virtual",
         &["qcow2", "vhd", "vhdx", "vmdk", "vdi", "img", "wim", "esd"],
     ),
-    (
-        "AI Models",
-        &["gguf", "safetensors", "onnx"],
-    ),
+    ("AI Models", &["gguf", "safetensors", "onnx"]),
     (
         "Development",
         &[
@@ -324,7 +336,7 @@ pub fn category_color(category: &str) -> (u8, u8, u8) {
         "AppData Roaming" => (180, 200, 180), // Light green
         "Temp/Cache" => (200, 160, 80),       // Gold
         "Updater Cache" => (220, 180, 100),   // Brown-gold
-        "Virtual" => (150, 200, 235),          // Light blue
+        "Virtual" => (150, 200, 235),         // Light blue
         "AI Models" => (180, 80, 200),        // Violet
         "Build Output" => (255, 140, 60),     // Orange
         "VCS" => (100, 200, 100),             // Green

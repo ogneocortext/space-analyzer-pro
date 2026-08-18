@@ -56,36 +56,10 @@
                         <StackPanel Spacing="{StaticResource Space.MD}">
                             <TextBlock Text="Scan Depth" Style="{StaticResource Type.SubTitle}" />
                             <TextBlock Text="How deep to scan." Style="{StaticResource Type.Hint}" />
-                            <StackPanel Spacing="{StaticResource Space.MD}">
-                                <RadioButton GroupName="ScanDepth" Tag="Quick" Padding="10,6"
-                                             IsChecked="{x:Bind VM.ShallowScan, Mode=OneWay}" Click="DepthRadio_Click">
-                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
-                                        <TextBlock Text="Quick" Style="{StaticResource Type.FieldHeading}"/>
-                                        <TextBlock Text="depth 1" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
-                                    </StackPanel>
-                                </RadioButton>
-                                <RadioButton GroupName="ScanDepth" Tag="Default" Padding="10,6"
-                                             IsChecked="{x:Bind VM.DefaultScan, Mode=OneWay}" Click="DepthRadio_Click">
-                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
-                                        <TextBlock Text="Default" Style="{StaticResource Type.FieldHeading}"/>
-                                        <TextBlock Text="depth 5" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
-                                    </StackPanel>
-                                </RadioButton>
-                                <RadioButton GroupName="ScanDepth" Tag="Deep" Padding="10,6"
-                                             IsChecked="{x:Bind VM.DeepScan, Mode=OneWay}" Click="DepthRadio_Click">
-                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
-                                        <TextBlock Text="Deep" Style="{StaticResource Type.FieldHeading}"/>
-                                        <TextBlock Text="unlimited" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
-                                    </StackPanel>
-                                </RadioButton>
-                                <RadioButton GroupName="ScanDepth" Tag="Custom" Padding="10,6"
-                                             IsChecked="{x:Bind VM.CustomScan, Mode=OneWay}" Click="DepthRadio_Click">
-                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}" VerticalAlignment="Center">
-                                        <TextBlock Text="Custom" Style="{StaticResource Type.FieldHeading}"/>
-                                        <TextBlock Text="1-20 levels" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
-                                    </StackPanel>
-                                </RadioButton>
-                            </StackPanel>
+                            <ComboBox Header="Depth"
+                                      SelectedItem="{x:Bind VM.SelectedDepthMode, Mode=TwoWay}"
+                                      ItemsSource="{x:Bind VM.DepthModes, Mode=OneWay}"
+                                      AutomationProperties.Name="Scan depth"/>
                             <Slider Header="Custom depth" Minimum="1" Maximum="20" TickFrequency="1"
                                     Value="{x:Bind VM.DepthValue, Mode=TwoWay}"
                                     Visibility="{x:Bind VM.ShowCustomDepthSlider, Mode=OneWay}"
@@ -95,48 +69,51 @@
                     </Border>
                 </Grid>
 
-                <!-- Scan Controls Bar -->
+                <!-- Primary Scan Controls -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
-                    <Grid ColumnSpacing="{StaticResource Space.MD}">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" Content="{x:Bind VM.IsScanning, Mode=OneWay, Converter={StaticResource BoolToScanButtonText}}"
-                                Click="Scan_Click" AutomationProperties.Name="Start Scan"
-                                Style="{StaticResource PrimaryButton}"/>
-                        <Button Grid.Column="1" Content="Stop" Click="Scan_Click"
-                                AutomationProperties.Name="Stop Scan"
-                                Style="{StaticResource DangerButton}"
-                                IsEnabled="{x:Bind VM.CanStopScan, Mode=OneWay}"/>
-                        <Button Grid.Column="2" Content="Export" Click="Export_Click"
-                                AutomationProperties.Name="Export Results"
-                                Style="{StaticResource SecondaryButton}"
-                                IsEnabled="{x:Bind VM.HasResult, Mode=OneWay}"/>
-                        <ComboBox Grid.Column="3" Width="70" SelectedItem="{x:Bind VM.ExportFormat, Mode=TwoWay}"
-                                  ItemsSource="{x:Bind VM.ExportFormats, Mode=OneWay}"
-                                  VerticalAlignment="Center"
-                                  AutomationProperties.Name="Export format"/>
-                        <TextBlock Grid.Column="4" Text="{x:Bind VM.StatusMessage, Mode=OneWay}"
-                                   Style="{StaticResource Type.Caption}" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" Opacity="0.7"/>
-                        <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center">
-                            <Border Width="1" Margin="0,2,0,2" Background="{ThemeResource CardStrokeColorDefaultBrush}" Opacity="0.5"/>
-                            <CheckBox Content="Hidden files" IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"
+                    <StackPanel Spacing="{StaticResource Space.SM}">
+                        <Grid ColumnSpacing="{StaticResource Space.MD}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" Content="{x:Bind VM.IsScanning, Mode=OneWay, Converter={StaticResource BoolToScanButtonText}}"
+                                    Click="Scan_Click" AutomationProperties.Name="Start Scan"
+                                    Style="{StaticResource PrimaryButton}"/>
+                            <Button Grid.Column="1" Content="Stop" Click="Scan_Click"
+                                    AutomationProperties.Name="Stop Scan"
+                                    Style="{StaticResource DangerButton}"
+                                    IsEnabled="{x:Bind VM.CanStopScan, Mode=OneWay}"/>
+                            <Button Grid.Column="2" Content="Export" Click="Export_Click"
+                                    AutomationProperties.Name="Export Results"
+                                    Style="{StaticResource SecondaryButton}"
+                                    IsEnabled="{x:Bind VM.HasResult, Mode=OneWay}"/>
+                            <ComboBox Grid.Column="3" Width="70" SelectedItem="{x:Bind VM.ExportFormat, Mode=TwoWay}"
+                                      ItemsSource="{x:Bind VM.ExportFormats, Mode=OneWay}"
+                                      VerticalAlignment="Center"
+                                      AutomationProperties.Name="Export format"/>
+                            <TextBlock Grid.Column="4" Text="{x:Bind VM.LiveStatusDisplay, Mode=OneWay}"
+                                       Style="{StaticResource Type.Caption}" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" Opacity="0.7"/>
+                        </Grid>
+                        <Grid ColumnSpacing="{StaticResource Space.MD}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0" Content="Hidden files" IsChecked="{x:Bind VM.IncludeHidden, Mode=TwoWay}"
                                       Style="{StaticResource FieldCheckBox}"/>
-                            <CheckBox Content="Incremental cache" IsChecked="{x:Bind VM.UseFileCache, Mode=TwoWay}"
+                            <CheckBox Grid.Column="1" Content="Incremental cache" IsChecked="{x:Bind VM.UseFileCache, Mode=TwoWay}"
                                       Style="{StaticResource FieldCheckBox}"/>
-                        </StackPanel>
-                    </Grid>
+                            <TextBlock Grid.Column="2" Text="Hidden and system files (e.g. AppData) are skipped unless this is enabled."
+                                       Style="{StaticResource Type.Caption}" Opacity="0.7" VerticalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
                 </Border>
-
-                <!-- Hidden files helper -->
-                <TextBlock Text="Hidden and system files (e.g. AppData) are skipped unless this is enabled."
-                           Style="{StaticResource Type.Caption}" Opacity="0.7"/>
 
                 <!-- Progress -->
                 <StackPanel Spacing="{StaticResource Space.XS}" Visibility="{x:Bind VM.IsScanningVisibility, Mode=OneWay}">
@@ -145,9 +122,10 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}"
                             Visibility="{x:Bind VM.IsNotScanningVisibility, Mode=OneWay}">
-                    <FontIcon Glyph="&#xE768;" FontSize="{StaticResource Icon.Small}"
-                              Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                    <FontIcon Glyph="{x:Bind VM.StatusIcon, Mode=OneWay}" FontSize="{StaticResource Icon.Small}"
+                              Foreground="{x:Bind VM.IsReady, Mode=OneWay, Converter={StaticResource BoolToSuccessBrush}}" VerticalAlignment="Center"/>
                     <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}" Style="{StaticResource Type.Body}"
+                               Foreground="{x:Bind VM.IsReady, Mode=OneWay, Converter={StaticResource BoolToSuccessBrush}}"
                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                 </StackPanel>
 
@@ -185,124 +163,186 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Scan Summary Banner -->
+                <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasScanSummaryVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
+                        <TextBlock Text="Scan Complete" Style="{StaticResource Type.CardTitle}" />
+                        <TextBlock Text="{x:Bind VM.ScanSummaryDisplay, Mode=OneWay}" Style="{StaticResource Type.Body}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- Results -->
                 <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasActiveResultVisibility, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.MD}">
                         <TextBlock Text="Scan Results" Style="{StaticResource Type.CardTitle}" />
-                        <!-- Summary Strip -->
-                        <Grid ColumnSpacing="{StaticResource Space.LG}" Visibility="{x:Bind VM.HasResult, Mode=OneWay}">
+
+                        <!-- Result Tabs -->
+                        <Grid ColumnSpacing="{StaticResource Space.XS}">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
-                                <TextBlock Text="{x:Bind VM.ResultFilesDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
-                                <TextBlock Text="Files" Style="{StaticResource Type.StatLabel}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
-                                <TextBlock Text="{x:Bind VM.ResultSizeDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
-                                <TextBlock Text="Total Size" Style="{StaticResource Type.StatLabel}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="2" Spacing="{StaticResource Space.XS}">
-                                <TextBlock Text="{x:Bind VM.ResultDirsDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
-                                <TextBlock Text="Directories" Style="{StaticResource Type.StatLabel}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="3" Spacing="{StaticResource Space.XS}">
-                                <TextBlock Text="{x:Bind VM.ResultAvgFileSizeDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
-                                <TextBlock Text="Avg File Size" Style="{StaticResource Type.StatLabel}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="4" Spacing="{StaticResource Space.XS}">
-                                <TextBlock Text="{x:Bind VM.ResultSpeedDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
-                                <TextBlock Text="Speed" Style="{StaticResource Type.StatLabel}"/>
-                                <TextBlock Text="{x:Bind VM.ResultSpeedMbDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="5" Spacing="{StaticResource Space.XS}">
-                                <TextBlock Text="{x:Bind VM.ResultDurationDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
-                                <TextBlock Text="Duration" Style="{StaticResource Type.StatLabel}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="6" Spacing="{StaticResource Space.XS}"
-                                        Visibility="{x:Bind VM.HasPotentialCleanup, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
-                                <TextBlock Text="{x:Bind VM.PotentialCleanupDisplay, Mode=OneWay}"
-                                           Style="{StaticResource Type.StatValue}" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
-                                <TextBlock Text="Reclaimable" Style="{StaticResource Type.StatLabel}"/>
-                            </StackPanel>
+                            <Button Grid.Column="0" Content="Summary" Click="ResultTabSummary_Click"
+                                    Style="{StaticResource SmallButton}"
+                                    Background="{x:Bind VM.ShowSummaryTab, Mode=OneWay, Converter={StaticResource BoolToAccentBackground}}"
+                                    Foreground="{x:Bind VM.ShowSummaryTab, Mode=OneWay, Converter={StaticResource BoolToAccentForeground}}"/>
+                            <Button Grid.Column="1" Content="Distribution" Click="ResultTabDistribution_Click"
+                                    Style="{StaticResource SmallButton}"
+                                    Background="{x:Bind VM.ShowDistributionTab, Mode=OneWay, Converter={StaticResource BoolToAccentBackground}}"
+                                    Foreground="{x:Bind VM.ShowDistributionTab, Mode=OneWay, Converter={StaticResource BoolToAccentForeground}}"/>
+                            <Button Grid.Column="2" Content="Largest Files" Click="ResultTabLargestFiles_Click"
+                                    Style="{StaticResource SmallButton}"
+                                    Background="{x:Bind VM.ShowLargestFilesTab, Mode=OneWay, Converter={StaticResource BoolToAccentBackground}}"
+                                    Foreground="{x:Bind VM.ShowLargestFilesTab, Mode=OneWay, Converter={StaticResource BoolToAccentForeground}}"/>
+                            <Button Grid.Column="3" Content="Largest Dirs" Click="ResultTabLargestDirectories_Click"
+                                    Style="{StaticResource SmallButton}"
+                                    Background="{x:Bind VM.ShowLargestDirectoriesTab, Mode=OneWay, Converter={StaticResource BoolToAccentBackground}}"
+                                    Foreground="{x:Bind VM.ShowLargestDirectoriesTab, Mode=OneWay, Converter={StaticResource BoolToAccentForeground}}"/>
                         </Grid>
 
-                        <!-- Distribution -->
-                        <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.SM}">
-                            <StackPanel Spacing="{StaticResource Space.XS}">
-                                <TextBlock Text="Distribution" Style="{StaticResource Type.CardTitle}"/>
-                                <TextBlock Text="File Types" Style="{StaticResource Type.SubTitle}" Margin="0,4,0,0"/>
-                                <breakdown:BreakdownListControl ItemsSource="{x:Bind VM.FileTypes, Mode=OneWay}">
-                                    <breakdown:BreakdownListControl.RowTemplate>
-                                        <DataTemplate x:DataType="models:FileTypeDistribution">
-                                            <Grid ColumnSpacing="{StaticResource Space.SM}">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
-                                                <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Style="{StaticResource MinimalProgressBar}" Margin="8,0"/>
-                                                <TextBlock Grid.Column="2" Text="{x:Bind CountDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}"/>
-                                                <TextBlock Grid.Column="3" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </breakdown:BreakdownListControl.RowTemplate>
-                                </breakdown:BreakdownListControl>
-                                <TextBlock Text="Storage by Category" Style="{StaticResource Type.SubTitle}" Margin="0,4,0,0"/>
-                                <breakdown:BreakdownListControl ItemsSource="{x:Bind VM.CategoryDistributions, Mode=OneWay}">
-                                    <breakdown:BreakdownListControl.RowTemplate>
-                                        <DataTemplate x:DataType="models:FileTypeDistribution">
-                                            <Grid ColumnSpacing="{StaticResource Space.SM}">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" Style="{StaticResource Type.FieldHeading}"/>
-                                                <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Style="{StaticResource MinimalProgressBar}" Margin="8,0"/>
-                                                <TextBlock Grid.Column="2" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}"/>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </breakdown:BreakdownListControl.RowTemplate>
-                                </breakdown:BreakdownListControl>
+                        <!-- Summary Tab -->
+                        <StackPanel Spacing="{StaticResource Space.SM}" Visibility="{x:Bind VM.ShowSummaryTab, Mode=OneWay}">
+                            <StackPanel Orientation="Vertical" Spacing="{StaticResource Space.SM}" Visibility="{x:Bind VM.HasResult, Mode=OneWay}">
+                                <Border Style="{StaticResource ItemCard}" Padding="{StaticResource Thickness.MD}">
+                                    <Grid ColumnSpacing="{StaticResource Space.LG}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Text="{x:Bind VM.ResultFilesDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                            <TextBlock Text="Files" Style="{StaticResource Type.StatLabel}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Text="{x:Bind VM.ResultSizeDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                            <TextBlock Text="Total Size" Style="{StaticResource Type.StatLabel}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <Border Style="{StaticResource ItemCard}" Padding="{StaticResource Thickness.MD}">
+                                    <Grid ColumnSpacing="{StaticResource Space.LG}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Text="{x:Bind VM.ResultDirsDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                            <TextBlock Text="Directories" Style="{StaticResource Type.StatLabel}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Text="{x:Bind VM.ResultAvgFileSizeDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                            <TextBlock Text="Avg File Size" Style="{StaticResource Type.StatLabel}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <Border Style="{StaticResource ItemCard}" Padding="{StaticResource Thickness.MD}">
+                                    <Grid ColumnSpacing="{StaticResource Space.LG}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Text="{x:Bind VM.ResultSpeedDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                            <TextBlock Text="Speed" Style="{StaticResource Type.StatLabel}"/>
+                                            <TextBlock Text="{x:Bind VM.ResultSpeedMbDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Text="{x:Bind VM.ResultDurationDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
+                                            <TextBlock Text="Duration" Style="{StaticResource Type.StatLabel}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <Border Style="{StaticResource ItemCard}" Padding="{StaticResource Thickness.MD}"
+                                        Visibility="{x:Bind VM.HasPotentialCleanup, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                    <Grid ColumnSpacing="{StaticResource Space.LG}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Text="{x:Bind VM.PotentialCleanupDisplay, Mode=OneWay}"
+                                                       Style="{StaticResource Type.StatValue}" Foreground="{ThemeResource SystemFillColorSuccessBrush}"/>
+                                            <TextBlock Text="Reclaimable" Style="{StaticResource Type.StatLabel}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
+                                            <TextBlock Text="{x:Bind VM.ResultTimestampDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
-                        </Border>
+                        </StackPanel>
 
-                        <!-- Details -->
-                        <Grid ColumnSpacing="{StaticResource Space.MD}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
+                        <!-- Distribution Tab -->
+                        <StackPanel Spacing="{StaticResource Space.SM}" Visibility="{x:Bind VM.ShowDistributionTab, Mode=OneWay}">
+                            <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.SM}">
+                                <StackPanel Spacing="{StaticResource Space.XS}">
+                                    <TextBlock Text="Distribution" Style="{StaticResource Type.CardTitle}"/>
+                                    <TextBlock Text="File Types" Style="{StaticResource Type.SubTitle}" Margin="0,4,0,0"/>
+                                    <breakdown:BreakdownListControl ItemsSource="{x:Bind VM.FileTypes, Mode=OneWay}">
+                                        <breakdown:BreakdownListControl.RowTemplate>
+                                            <DataTemplate x:DataType="models:FileTypeDistribution">
+                                                <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                                    <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Style="{StaticResource MinimalProgressBar}" Margin="8,0"/>
+                                                    <TextBlock Grid.Column="2" Text="{x:Bind CountDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}"/>
+                                                    <TextBlock Grid.Column="3" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </breakdown:BreakdownListControl.RowTemplate>
+                                    </breakdown:BreakdownListControl>
+                                    <TextBlock Text="Storage by Category" Style="{StaticResource Type.SubTitle}" Margin="0,4,0,0"/>
+                                    <breakdown:BreakdownListControl ItemsSource="{x:Bind VM.CategoryDistributions, Mode=OneWay}">
+                                        <breakdown:BreakdownListControl.RowTemplate>
+                                            <DataTemplate x:DataType="models:FileTypeDistribution">
+                                                <Grid ColumnSpacing="{StaticResource Space.SM}">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" Style="{StaticResource Type.FieldHeading}"/>
+                                                    <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Style="{StaticResource MinimalProgressBar}" Margin="8,0"/>
+                                                    <TextBlock Grid.Column="2" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </breakdown:BreakdownListControl.RowTemplate>
+                                    </breakdown:BreakdownListControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
 
-                            <!-- Largest Files -->
-                            <Border Grid.Column="0" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.SM}">
+                        <!-- Largest Files Tab -->
+                        <StackPanel Spacing="{StaticResource Space.SM}" Visibility="{x:Bind VM.ShowLargestFilesTab, Mode=OneWay}">
+                            <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.SM}">
                                 <StackPanel Spacing="{StaticResource Space.XS}">
                                     <TextBlock Text="Largest Files" Style="{StaticResource Type.SubTitle}"/>
                                     <breakdown:LargestFilesControl
                                         ItemsSource="{x:Bind VM.FilteredLargestFiles, Mode=OneWay}"
                                         Filter="{x:Bind VM.LargestFilesFilter, Mode=TwoWay}"
                                         FilterPlaceholder="Filter..."
-                                        ListMaxHeight="160"/>
+                                        ListMaxHeight="400"/>
                                 </StackPanel>
                             </Border>
+                        </StackPanel>
 
-                            <!-- Largest Directories -->
-                            <Border Grid.Column="1" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.SM}">
+                        <!-- Largest Directories Tab -->
+                        <StackPanel Spacing="{StaticResource Space.SM}" Visibility="{x:Bind VM.ShowLargestDirectoriesTab, Mode=OneWay}">
+                            <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.SM}">
                                 <StackPanel Spacing="{StaticResource Space.XS}">
                                     <TextBlock Text="Largest Directories" Style="{StaticResource Type.SubTitle}"/>
                                     <breakdown:TopFoldersControl ItemsSource="{x:Bind VM.TopDirectories, Mode=OneWay}"/>
                                 </StackPanel>
                             </Border>
-                        </Grid>
+                        </StackPanel>
 
                         <!-- Saved to history bridge -->
                         <Grid ColumnSpacing="{StaticResource Space.SM}" Visibility="{x:Bind VM.HasSavedHistoryVisibility, Mode=OneWay}">

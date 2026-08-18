@@ -64,7 +64,10 @@ fn run_windows(command: UsnCommand, format: OutputFormat) -> AppResult<()> {
                 .cloned()
                 .ok_or_else(|| AppError::Validation("Could not read journal info".to_string()))?;
             if format == OutputFormat::Json {
-                println!("{}", serde_json::to_string_pretty(&info).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&info).unwrap_or_default()
+                );
             } else {
                 println!("Volume:            {}", info.volume_path);
                 println!("Journal ID:        {}", info.usn_journal_id);

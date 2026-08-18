@@ -133,7 +133,8 @@ impl super::Database {
                                     settings.max_scan_depth = parse_positive(&value, 5, 1)
                                 }
                                 "large_file_threshold_mb" => {
-                                    settings.large_file_threshold_mb = parse_positive(&value, 100, 1)
+                                    settings.large_file_threshold_mb =
+                                        parse_positive(&value, 100, 1)
                                 }
                                 "gpu_acceleration" => settings.gpu_acceleration = value == "true",
                                 "cuda_enabled" => settings.cuda_enabled = value == "true",
@@ -152,10 +153,12 @@ impl super::Database {
                                     settings.prompt_cache_enabled = value == "true"
                                 }
                                 "prompt_cache_max_entries" => {
-                                    settings.prompt_cache_max_entries = parse_positive(&value, 100, 1)
+                                    settings.prompt_cache_max_entries =
+                                        parse_positive(&value, 100, 1)
                                 }
                                 "prompt_cache_ttl_seconds" => {
-                                    settings.prompt_cache_ttl_seconds = parse_positive(&value, 300, 1)
+                                    settings.prompt_cache_ttl_seconds =
+                                        parse_positive(&value, 300, 1)
                                 }
                                 "prompt_cache_max_memory_mb" => {
                                     settings.prompt_cache_max_memory_mb =
@@ -479,7 +482,10 @@ mod tests {
         ])
         .unwrap();
         let s = db.load_settings();
-        assert_eq!(s.max_scan_depth, 1, "depth 0 must clamp to 1, not empty scan");
+        assert_eq!(
+            s.max_scan_depth, 1,
+            "depth 0 must clamp to 1, not empty scan"
+        );
         assert_eq!(s.large_file_threshold_mb, 1);
         assert_eq!(s.embedding_batch_size, 1);
         assert_eq!(s.prompt_cache_max_entries, 1);
@@ -488,7 +494,8 @@ mod tests {
     #[test]
     fn load_accepts_valid_numeric_settings() {
         let db = test_db();
-        db.upsert_settings(&[("max_scan_depth", "7".to_string())]).unwrap();
+        db.upsert_settings(&[("max_scan_depth", "7".to_string())])
+            .unwrap();
         let s = db.load_settings();
         assert_eq!(s.max_scan_depth, 7);
     }

@@ -1,5 +1,5 @@
-pub mod models;
 pub mod collectors;
+pub mod models;
 pub mod report;
 pub mod utils;
 

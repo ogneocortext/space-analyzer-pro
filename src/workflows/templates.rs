@@ -83,11 +83,15 @@ impl WorkflowTemplates {
 
     /// Startup scan workflow
     pub fn startup_scan() -> Workflow {
-        Workflow::new("startup-scan", "Startup Scan", crate::workflows::types::WorkflowCategory::Monitoring)
-            .with_scan(".", false)
-            .with_trigger(crate::workflows::types::WorkflowTrigger::OnStartup)
-            .with_description("Quick scan on application startup to show recent changes.")
-            .set_enabled(false)
+        Workflow::new(
+            "startup-scan",
+            "Startup Scan",
+            crate::workflows::types::WorkflowCategory::Monitoring,
+        )
+        .with_scan(".", false)
+        .with_trigger(crate::workflows::types::WorkflowTrigger::OnStartup)
+        .with_description("Quick scan on application startup to show recent changes.")
+        .set_enabled(false)
     }
 
     /// AI-powered analysis workflow

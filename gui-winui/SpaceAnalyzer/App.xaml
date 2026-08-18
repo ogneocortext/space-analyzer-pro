@@ -68,6 +68,8 @@
             <helpers:BoolToChevronConverter x:Key="BoolToChevron"/>
             <helpers:BoolToAccentBackgroundConverter x:Key="BoolToAccentBackground"/>
             <helpers:BoolToAccentForegroundConverter x:Key="BoolToAccentForeground"/>
+            <helpers:BoolToSuccessBrushConverter x:Key="BoolToSuccessBrush"/>
+            <helpers:BoolToGroupViewLabelConverter x:Key="BoolToGroupViewLabel"/>
 
             <!-- Spacing Tokens (Double) -->
             <x:Double x:Key="Space.XXL">32</x:Double>

@@ -73,7 +73,10 @@ impl LiveProgress {
         let mut cats: Vec<(&String, &u64)> = p.category_sizes.iter().collect();
         cats.sort_by_key(|(_, v)| std::cmp::Reverse(**v));
         if !cats.is_empty() {
-            frame.push_str(&format!("\x1b[2m  Top categories ({}):\x1b[0m\n", cats.len()));
+            frame.push_str(&format!(
+                "\x1b[2m  Top categories ({}):\x1b[0m\n",
+                cats.len()
+            ));
             for (k, v) in cats.iter().take(6) {
                 frame.push_str(&format!(
                     "    \x1b[32m{:>11}\x1b[0m {}\n",
@@ -86,7 +89,10 @@ impl LiveProgress {
         let mut files: Vec<_> = p.live_files.iter().collect();
         files.sort_by_key(|f| std::cmp::Reverse(f.size));
         if !files.is_empty() {
-            frame.push_str(&format!("\x1b[2m  Largest so far ({}):\x1b[0m\n", files.len()));
+            frame.push_str(&format!(
+                "\x1b[2m  Largest so far ({}):\x1b[0m\n",
+                files.len()
+            ));
             for f in files.iter().take(5) {
                 frame.push_str(&format!(
                     "    \x1b[35m{:>11}\x1b[0m {}\n",

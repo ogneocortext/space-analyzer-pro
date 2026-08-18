@@ -3,9 +3,9 @@
 //! This module contains the `Database` implementation methods for saving,
 //! retrieving, pruning, and backfilling scan history and duplicate analysis data.
 
-use crate::gui_common::ScanReport;
 use super::super::*;
 use super::models::*;
+use crate::gui_common::ScanReport;
 
 impl Database {
     /// Save a scan result to history with extended data.
@@ -102,10 +102,9 @@ impl Database {
     /// metrics. Also removes orphaned duplicate-analysis/embedding rows for the
     /// deleted scans. Returns the number of scan-history records deleted.
     pub fn prune_empty_scans(&self) -> rusqlite::Result<usize> {
-        let removed = self.conn.execute(
-            "DELETE FROM scan_history WHERE total_files = 0",
-            [],
-        )?;
+        let removed = self
+            .conn
+            .execute("DELETE FROM scan_history WHERE total_files = 0", [])?;
         self.cleanup_orphaned_scan_data()?;
         Ok(removed)
     }
@@ -198,7 +197,8 @@ impl Database {
                      file_types_json, extension_sizes_json, top_directories_json, largest_files_json, \
                      category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp";
 
-        let dup_clause = "path IN (SELECT path FROM scan_history GROUP BY path HAVING COUNT(*) > 1)";
+        let dup_clause =
+            "path IN (SELECT path FROM scan_history GROUP BY path HAVING COUNT(*) > 1)";
         let (count_sql, query_sql, bound) = match (search, only_duplicates) {
             (Some(s), true) => {
                 let pattern = format!("%{}%", s.replace('\'', "''"));
@@ -399,10 +399,12 @@ impl Database {
     /// rather than writing an orphaned analysis row.
     pub fn get_latest_scan_id_for_path(&self, path: &str) -> rusqlite::Result<Option<i64>> {
         let norm = Self::normalize_path_for_match(path);
-        let mut stmt =
-            self.conn
-                .prepare("SELECT id, path FROM scan_history ORDER BY timestamp DESC")?;
-        let rows = stmt.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, path FROM scan_history ORDER BY timestamp DESC")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        })?;
         for r in rows {
             let (id, stored) = r?;
             if Self::normalize_path_for_match(&stored).eq_ignore_ascii_case(&norm) {
@@ -598,7 +600,10 @@ mod tests {
             .unwrap();
 
         let updated = db.backfill_category_sizes().unwrap();
-        assert_eq!(updated, 1, "exactly one legacy record should be back-filled");
+        assert_eq!(
+            updated, 1,
+            "exactly one legacy record should be back-filled"
+        );
 
         let json: String = db
             .conn
@@ -608,8 +613,7 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        let cats: std::collections::HashMap<String, u64> =
-            serde_json::from_str(&json).unwrap();
+        let cats: std::collections::HashMap<String, u64> = serde_json::from_str(&json).unwrap();
         assert_eq!(cats.get("Code").copied(), Some(600));
         assert_eq!(cats.get("Documents").copied(), Some(424));
         assert_eq!(cats.get("Fonts").copied(), Some(1000));
@@ -691,10 +695,7 @@ mod tests {
             db.get_latest_scan_id_for_path("C:/target").unwrap(),
             Some(id)
         );
-        assert_eq!(
-            db.get_latest_scan_id_for_path("C:\\other").unwrap(),
-            None
-        );
+        assert_eq!(db.get_latest_scan_id_for_path("C:\\other").unwrap(), None);
     }
 
     #[test]

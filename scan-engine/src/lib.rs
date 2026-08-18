@@ -3,16 +3,16 @@
 //! This crate provides a unified, high-performance file scanner
 //! that replaces the duplicate implementations across the project.
 
-pub mod types;
 pub mod categories;
 pub mod formatting;
 pub mod scanner;
+pub mod types;
 
-pub use types::{DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SystemInfo};
-pub use scanner::FileScanner;
 pub use categories::{category_for_extension, extension_to_category};
 pub use formatting::{format_bytes, format_duration, size_bucket};
 pub use scanner::get_system_info;
+pub use scanner::FileScanner;
+pub use types::{DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SystemInfo};
 
 #[cfg(test)]
 mod tests {
@@ -56,7 +56,8 @@ mod tests {
     }
 
     fn temp_scan_dir(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("sa_scan_test_{}_{}", name, std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("sa_scan_test_{}_{}", name, std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -88,7 +89,11 @@ mod tests {
         assert_eq!(sum_cat, result.total_size);
         assert_eq!(result.total_size, 5 + 7 + 1);
 
-        let dev = result.category_sizes.get("Development").copied().unwrap_or(0);
+        let dev = result
+            .category_sizes
+            .get("Development")
+            .copied()
+            .unwrap_or(0);
         assert_eq!(dev, 1);
     }
 
@@ -248,7 +253,10 @@ mod tests {
             "Other"
         );
         assert_eq!(
-            extension_to_category("img", "C:\\Users\\me\\.android\\avd\\x.avd\\userdata-qemu.img"),
+            extension_to_category(
+                "img",
+                "C:\\Users\\me\\.android\\avd\\x.avd\\userdata-qemu.img"
+            ),
             "Virtual"
         );
         assert_eq!(

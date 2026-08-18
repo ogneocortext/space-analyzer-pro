@@ -230,7 +230,7 @@ async fn feature_summarize_scan(app: &App) {
 
     let input = space_analyzer_pro_desktop::ollama::models::ScanSummaryInput {
         total_files: 14_523,
-        total_size_bytes: 487_000_000_000, // ~454 GB
+        total_size_bytes: 487_000_000_000,             // ~454 GB
         potential_cleanup_bytes: Some(42_000_000_000), // ~39 GB reclaimable
         path: Some("C:\\Users\\me".to_string()),
         top_files: vec![

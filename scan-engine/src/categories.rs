@@ -26,8 +26,8 @@ pub fn category_for_extension(ext: &str) -> &'static str {
         | "odp" | "rtf" | "md" | "csv" | "log" | "epub" | "mobi" | "azw" | "tex" => "Documents",
         "jpg" | "jpeg" | "png" | "gif" | "bmp" | "svg" | "webp" | "ico" | "tiff" | "tif"
         | "heic" | "heif" | "raw" | "cr2" | "nef" | "arw" | "dng" | "psd" => "Images",
-        "mp4" | "avi" | "mkv" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpeg" | "mpg"
-        | "3gp" | "vob" | "ogv" | "m2ts" | "mts" => "Videos",
+        "mp4" | "avi" | "mkv" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpeg" | "mpg" | "3gp"
+        | "vob" | "ogv" | "m2ts" | "mts" => "Videos",
         "mp3" | "wav" | "flac" | "aac" | "ogg" | "wma" | "m4a" | "aiff" | "opus" => "Audio",
         "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "iso" | "cab" | "zst" | "jar"
         | "nupkg" | "asar" | "tgz" | "war" | "ear" | "lz4" | "lz" | "z" | "msix" | "appx" => {
@@ -95,8 +95,15 @@ pub fn extension_to_category(ext: &str, path: &str) -> &'static str {
     if dirs.iter().any(|d| {
         matches!(
             d.as_str(),
-            "node_modules" | "venv" | ".venv" | "site-packages" | ".cargo" | ".rustup"
-                | ".android" | "unity" | "gradle"
+            "node_modules"
+                | "venv"
+                | ".venv"
+                | "site-packages"
+                | ".cargo"
+                | ".rustup"
+                | ".android"
+                | "unity"
+                | "gradle"
         )
     }) {
         return "Development";

@@ -8,18 +8,18 @@ pub mod dependencies;
 pub mod helpers;
 pub mod history_command;
 pub mod live_scan;
-pub mod predict;
-pub mod recommend;
-pub mod scan;
-pub mod scan_command;
-pub mod semantic;
-pub mod sink;
 pub mod origins;
 pub mod output;
+pub mod predict;
+pub mod recommend;
 pub mod recommendations;
 pub mod render;
 pub mod report;
+pub mod scan;
+pub mod scan_command;
+pub mod semantic;
 pub mod settings_command;
+pub mod sink;
 pub mod types;
 pub mod usn;
 
@@ -107,6 +107,7 @@ pub fn main() -> AppResult<()> {
             trend,
             category_totals,
             duplicates,
+            summarize,
         } => history_command::handle_history(
             limit,
             offset,
@@ -124,6 +125,7 @@ pub fn main() -> AppResult<()> {
             trend,
             category_totals,
             duplicates,
+            summarize,
             output_format,
         ),
         Commands::Dedup {

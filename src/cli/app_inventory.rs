@@ -65,7 +65,11 @@ fn print_human(report: &AppInventoryReport) {
         hprintln!(
             "    safety: {} · {}",
             g.safety,
-            if g.recoverable { "reinstallable" } else { "not reinstallable" }
+            if g.recoverable {
+                "reinstallable"
+            } else {
+                "not reinstallable"
+            }
         );
         hprintln!("    {}", g.deletion_guidance);
         for inst in &g.instances {
@@ -76,7 +80,11 @@ fn print_human(report: &AppInventoryReport) {
             let ver = inst.version.clone().unwrap_or_else(|| "?".to_string());
             let drive = inst.drive.clone().unwrap_or_default();
             let size = format_bytes(inst.estimated_size_bytes);
-            let older = if g.older_versions.iter().any(|o| o.install_location == inst.install_location) {
+            let older = if g
+                .older_versions
+                .iter()
+                .any(|o| o.install_location == inst.install_location)
+            {
                 " (older)"
             } else {
                 ""

@@ -27,7 +27,11 @@ async fn ollama_reachable(url: &str) -> bool {
     else {
         return false;
     };
-    let Ok(resp) = client.get(&format!("{}/api/tags", url.trim_end_matches('/'))).send().await else {
+    let Ok(resp) = client
+        .get(format!("{}/api/tags", url.trim_end_matches('/')))
+        .send()
+        .await
+    else {
         return false;
     };
     resp.status().is_success()
@@ -36,7 +40,10 @@ async fn ollama_reachable(url: &str) -> bool {
 /// Skip the test (pass with message) unless Ollama is reachable.
 async fn skip_unless_ollama(url: &str) {
     if !ollama_reachable(url).await {
-        eprintln!("  SKIP: Ollama not reachable at {} (start it to run this test)", url);
+        eprintln!(
+            "  SKIP: Ollama not reachable at {} (start it to run this test)",
+            url
+        );
     }
 }
 

@@ -51,12 +51,11 @@ pub fn run_ai_question(
     let registry = ToolRegistry::new(Some(result.clone()));
     let tools = registry.get_definitions().to_vec();
 
-    let executor: ToolExecutor =
-        Box::new(move |call| {
-            let local_db = Database::default_open().ok();
-            let r = registry.execute_tool(call, Some(&result), local_db.as_ref());
-            r.unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}).to_string())
-        });
+    let executor: ToolExecutor = Box::new(move |call| {
+        let local_db = Database::default_open().ok();
+        let r = registry.execute_tool(call, Some(&result), local_db.as_ref());
+        r.unwrap_or_else(|e| serde_json::json!({"error": e.to_string()}).to_string())
+    });
 
     let chat_client = probe
         .with_model(&model)
@@ -86,9 +85,7 @@ pub fn handle_disk_info(path: Option<String>) -> AppResult<()> {
             let resolved = helpers::resolve_scan_path(p).ok();
             let target = resolved.as_deref().map(helpers::display_path);
             match target {
-                Some(t) => helpers::get_disk_info(&t)
-                    .into_iter()
-                    .collect::<Vec<_>>(),
+                Some(t) => helpers::get_disk_info(&t).into_iter().collect::<Vec<_>>(),
                 None => Vec::new(),
             }
         }

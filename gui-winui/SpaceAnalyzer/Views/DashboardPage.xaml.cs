@@ -104,6 +104,7 @@ public sealed partial class DashboardPage : Page
         UpdateSparklineValues();
         DrawDiskUsageDonut();
         DrawFileTypeBars();
+        DrawForecastChart();
     }
 
     private static void CreateSparklineIfNeeded(
@@ -145,7 +146,7 @@ public sealed partial class DashboardPage : Page
         chart = new CartesianChart
         {
             Series = [band, warn, crit, series],
-            Height = 72,
+            Height = 100,
             XAxes = [new Axis { IsVisible = false }],
             YAxes =
             [
@@ -274,6 +275,27 @@ public sealed partial class DashboardPage : Page
             .ToList();
         var chart = LiveChartsFactory.CreateFileTypeBarChart(top, DrillToFileType);
         FileTypeBarsGrid.Children.Add(chart);
+    }
+
+    private void DrawForecastChart()
+    {
+        ForecastChartGrid.Children.Clear();
+        var forecast = VM.StorageForecast;
+        if (forecast == null || !forecast.HasEnoughData)
+        {
+            ForecastChartGrid.Children.Add(new TextBlock
+            {
+                Text = "Need at least 2 scans to forecast",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 11,
+                Opacity = 0.5
+            });
+            return;
+        }
+
+        var chart = LiveChartsFactory.CreateForecastChart(forecast.CurrentSizeGb, forecast.PredictedSizeGb, forecast.DaysAhead);
+        ForecastChartGrid.Children.Add(chart);
     }
 
     // ── Click-to-drill navigation from the storage-breakdown charts ──

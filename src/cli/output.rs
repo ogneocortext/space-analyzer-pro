@@ -13,12 +13,7 @@ fn print_banner() {
     let left = inner.saturating_sub(title_width) / 2;
     let right = inner.saturating_sub(left + title_width);
     hprintln!("╔{}╗", "═".repeat(inner));
-    hprintln!(
-        "║{}{}{}║",
-        " ".repeat(left),
-        title,
-        " ".repeat(right)
-    );
+    hprintln!("║{}{}{}║", " ".repeat(left), title, " ".repeat(right));
     hprintln!("╚{}╝", "═".repeat(inner));
 }
 

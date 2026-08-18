@@ -1,4 +1,4 @@
-﻿// Licensed under the MIT License.
+// Licensed under the MIT License.
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -33,9 +33,6 @@ public sealed partial class HistoryPage : Page
     {
         base.OnNavigatedTo(e);
         AppLog.Page("HistoryPage OnNavigatedTo");
-        // (Re)subscribe here rather than in the ctor: the page is cached
-        // (NavigationCacheMode=Required), so the ctor runs once but OnNavigatedFrom
-        // unsubscribes. Subscribing on every navigation keeps the trend chart in sync.
         VM.PropertyChanged += OnVmPropertyChanged;
         if (e.Parameter is long id)
         {
@@ -66,8 +63,6 @@ public sealed partial class HistoryPage : Page
     /// </summary>
     private async Task ReloadCurrentPageAsync()
     {
-        // OnNavigatedTo and Loaded both invoke this on first visit; skip the overlap
-        // so only one LoadPageAsync (one scanner subprocess) runs.
         if (VM.IsLoading) return;
         if (!VM.HasHistory)
         {
@@ -77,15 +72,10 @@ public sealed partial class HistoryPage : Page
         else
         {
             await VM.LoadPageAsync();
-            // Keep the full-history trend + duplicate summary in sync on revisit.
             await VM.LoadTrendAsync();
             await VM.LoadCategoryHistoryAsync();
-            // The reloaded history invalidates any open comparison: its cards still
-            // reference the previous History instances, so reset the comparison view
-            // to avoid showing detached/stale scan data.
             VM.ClearComparison();
         }
-        // Refresh cache stats (independent of the history list).
         await VM.LoadDatabaseInfoAsync();
     }
 
@@ -111,8 +101,6 @@ public sealed partial class HistoryPage : Page
     private void DrawTrendChart()
     {
         TrendChartGrid.Children.Clear();
-        // The trend always spans the FULL scan history (loaded independently of
-        // the paginated list), so it no longer jumps around when paging/searching.
         var trend = VM.TrendRecords;
         if (trend == null || trend.Count < 2)
         {
@@ -161,11 +149,6 @@ public sealed partial class HistoryPage : Page
         CategoryDonutGrid.Children.Add(LiveChartsFactory.CreateDonutChart(items, onDrillKeyClick: OnCategoryDrill));
     }
 
-    /// <summary>
-    /// Drill from a Library Composition donut slice: navigate to Smart Search scoped
-    /// to the latest scanned library root, pre-filled with the category's extensions
-    /// so the user lands on the actual files of that category.
-    /// </summary>
     private void OnCategoryDrill(string category)
     {
         AppLog.Action($"HistoryPage CategoryDrill category={category}");
@@ -176,8 +159,6 @@ public sealed partial class HistoryPage : Page
         if (MainWindow.Current is not null)
             MainWindow.Current.NavigateToPage("SmartSearch", new SmartSearchPreset(Path: path, Category: category));
     }
-
-    // â”€â”€ Trend export (parity with the egui trend chart) â”€â”€
 
     private async void ExportTrend_Click(object sender, RoutedEventArgs e)
     {
@@ -217,9 +198,6 @@ public sealed partial class HistoryPage : Page
         }
     }
 
-
-    // â”€â”€ Pagination â”€â”€
-
     private async void PrevPage_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("HistoryPage PrevPage_Click");
@@ -231,8 +209,6 @@ public sealed partial class HistoryPage : Page
         AppLog.Action("HistoryPage NextPage_Click");
         await VM.NextPageAsync();
     }
-
-    // â”€â”€ Search â”€â”€
 
     private async void Search_Click(object sender, RoutedEventArgs e)
     {
@@ -255,26 +231,6 @@ public sealed partial class HistoryPage : Page
         }
     }
 
-    // â”€â”€ Sort â”€â”€
-
-    private void SortDate_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage SortDate_Click");
-        VM.ToggleSort("timestamp");
-    }
-
-    private void SortSize_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage SortSize_Click");
-        VM.ToggleSort("total_size_bytes");
-    }
-
-    private void SortFiles_Click(object sender, RoutedEventArgs e)
-    {
-        AppLog.Action("HistoryPage SortFiles_Click");
-        VM.ToggleSort("total_files");
-    }
-
     private void SortDuplicates_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("HistoryPage SortDuplicates_Click");
@@ -287,8 +243,6 @@ public sealed partial class HistoryPage : Page
         VM.ToggleOnlyDuplicates();
     }
 
-    // â”€â”€ Multi-select comparison â”€â”€
-
     private void CompareCheck_Changed(object sender, RoutedEventArgs e)
     {
         AppLog.Action("HistoryPage CompareCheck_Changed");
@@ -297,7 +251,6 @@ public sealed partial class HistoryPage : Page
 
     private void CompareCheck_Tapped(object sender, TappedRoutedEventArgs e)
     {
-        // Stop the tap from bubbling to the card Border (which opens details).
         e.Handled = true;
     }
 
@@ -312,8 +265,6 @@ public sealed partial class HistoryPage : Page
         AppLog.Action("HistoryPage ClearComparison_Click");
         VM.ClearComparison();
     }
-
-    // â”€â”€ Comparison bar chart â”€
 
     private enum ComparisonMetric { Size, Files, Duration }
     private ComparisonMetric _comparisonMetric = ComparisonMetric.Size;
@@ -395,25 +346,27 @@ public sealed partial class HistoryPage : Page
 
         ComparisonChartGrid.Children.Add(LiveChartsFactory.CreateBarChart(items, yLabeler: yLabeler, onIndexClick: idx =>
         {
-            // Tapping a compared scan's bar opens its details â€” the comparison
-            // chart and the Scan Details panel are the same data, surfaced two ways.
             if (idx >= 0 && idx < cards.Count)
                 _ = VM.LoadDetailsAsync(cards[idx].Record);
         }));
     }
 
-    // â”€â”€ Navigation â”€â”€
-
-    private async void Refresh_Click(object sender, RoutedEventArgs e)
+    private void Refresh_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("HistoryPage Refresh_Click");
-        await VM.LoadHistoryAsync();
+        _ = VM.LoadHistoryAsync();
     }
 
     private void NewScan_Click(object sender, RoutedEventArgs e)
     {
         AppLog.Action("HistoryPage NewScan_Click");
         if (MainWindow.Current is not null) MainWindow.Current.NavigateToPage("Scan");
+    }
+
+    private void ToggleView_Click(object sender, RoutedEventArgs e)
+    {
+        AppLog.Action("HistoryPage ToggleView_Click");
+        VM.IsGroupedView = !VM.IsGroupedView;
     }
 
     private void Rescan_Click(object sender, RoutedEventArgs e)
@@ -484,18 +437,6 @@ public sealed partial class HistoryPage : Page
         }
     }
 
-    // â”€â”€ Cache & Database management â”€â”€
-
-
-
-
-
-
-
-
-
-
-
     private void Escape_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         if (VM.HasSelectedRecord)
@@ -504,10 +445,6 @@ public sealed partial class HistoryPage : Page
             VM.BackToList();
         }
     }
-
-
-    // â”€â”€ File Explorer (Largest Files sort is delegated to the shared control) â”€â”€
-
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
     {

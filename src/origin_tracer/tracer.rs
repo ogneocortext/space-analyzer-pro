@@ -161,4 +161,3 @@ pub fn build_report(result: &ScanReport, max_dirs: usize, max_files: usize) -> O
         assessments,
     }
 }
-

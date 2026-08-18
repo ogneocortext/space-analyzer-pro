@@ -45,6 +45,10 @@ _RUN_STATE = None
 _RUN_LOCK = threading.Lock()
 MAX_POST_BYTES = 1 * 1024 * 1024
 
+# Subprocess state for the "Self-Improvement Loop" launched from the dashboard.
+_LOOP_STATE = None
+_LOOP_LOCK = threading.Lock()
+
 try:
     from PIL import Image
     _HAVE_PIL = True
@@ -55,6 +59,8 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_SHOTS_ROOT = Path("macro_logs")
 HTML_PATH = HERE / "live_progress.html"
 GALLERY_HTML_PATH = HERE / "screenshot_gallery.html"
+LOOP_SCRIPT = HERE.parent / "improvement_loop.py"
+LOOP_STATE_FILE = HERE.parent.parent / "docs" / ".loop_state.json"
 
 # Parity: when a run produced JSON without a companion .html, render it with the
 # same engine the analyzer uses (deduped grouping, embedded screenshots, quality
@@ -112,6 +118,137 @@ def _latest_report(shots_root: Path) -> dict | None:
         if data:
             return data
     return None
+
+
+# --- GUI launcher ---------------------------------------------------------
+# The WinUI 3 GUI lives under gui-winui/ and is built to bin/<arch>/<Config>/<tfm>/.
+# A "Launch GUI" shortcut on the dashboard opens the newest built SpaceAnalyzer.exe
+# directly (the server runs on the same Windows host), so the user can jump from the
+# analysis dashboard into the real application without hunting through build output.
+REPO_ROOT = HERE.parent.parent
+_GUI_GLOB = "gui-winui/**/bin/**/SpaceAnalyzer.exe"
+
+
+def _latest_gui_exe() -> Path | None:
+    """Return the most recently built SpaceAnalyzer.exe, or None if not built."""
+    matches = list(REPO_ROOT.glob(_GUI_GLOB))
+    if not matches:
+        return None
+    return max(matches, key=lambda p: p.stat().st_mtime)
+
+
+def _launch_gui() -> dict:
+    exe = _latest_gui_exe()
+    if exe is None or not exe.is_file():
+        return {
+            "ok": False,
+            "message": "No SpaceAnalyzer.exe build found. Build the WinUI project first.",
+        }
+    try:
+        flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(
+            subprocess, "CREATE_NEW_PROCESS_GROUP", 0
+        )
+        # Redirect the std handles so the GUI does not inherit the server's console
+        # pipe, and use a new process group so it survives server restarts.
+        subprocess.Popen(
+            [str(exe)],
+            creationflags=flags,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+        )
+        return {"ok": True, "path": str(exe), "message": "Launched Space Analyzer GUI."}
+    except (OSError, ValueError) as exc:
+        return {"ok": False, "path": str(exe), "message": f"Failed to launch: {exc}"}
+
+
+# --- Issue tracker integration -------------------------------------------
+# The canonical, shared issue store is docs/issues.json. Surfacing it here makes
+# the dashboard the single hub for every dev tool: the UX analysis pipes findings
+# in, the self-improvement loop reads from it, and this panel lets you triage /
+# update issues without leaving the dashboard.
+TRACKER_PATH = REPO_ROOT / "docs" / "issues.json"
+
+
+def _read_tracker() -> dict:
+    """Read the canonical issue tracker (docs/issues.json). Missing/empty -> empty store."""
+    if TRACKER_PATH.exists():
+        raw = TRACKER_PATH.read_bytes()
+        data = None
+        for enc in ("utf-8", "cp1252"):
+            try:
+                data = json.loads(raw.decode(enc))
+                break
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                continue
+        if isinstance(data, dict):
+            data.setdefault("issues", [])
+            return data
+    return {"schema_version": 1, "issues": []}
+
+
+def _write_tracker(data: dict) -> None:
+    """Write the issue tracker (same shape as the pipeline store)."""
+    TRACKER_PATH.parent.mkdir(parents=True, exist_ok=True)
+    TRACKER_PATH.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+
+
+_VALID_STATUSES = {"open", "in_progress", "done", "wontfix", "blocked", "pending"}
+
+
+def _norm_status(value: str) -> str:
+    """Coerce a status string (plus friendly aliases) into a valid tracker status."""
+    if not value:
+        return "open"
+    v = str(value).strip().lower()
+    aliases = {"completed": "done", "closed": "done", "resolved": "done",
+               "working": "in_progress", "skip": "wontfix", "ignore": "wontfix"}
+    if v in _VALID_STATUSES:
+        return v
+    return aliases.get(v, "open")
+
+
+def _issue_counts(issues: list[dict]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for it in issues:
+        s = it.get("status") or "open"
+        out[s] = out.get(s, 0) + 1
+    return out
+
+
+def _build_issues_payload(status=None, category=None, q=None, limit=200) -> dict:
+    data = _read_tracker()
+    issues = data.get("issues", [])
+    out: list[dict] = []
+    ql = (q or "").strip().lower()
+    for it in issues:
+        if status and it.get("status") != status:
+            continue
+        if category and it.get("category") != category:
+            continue
+        if ql:
+            extra = it.get("extra") or {}
+            hay = " ".join([
+                str(it.get("title", "")), str(it.get("notes", "")),
+                str(it.get("issue_id", "")),
+                " ".join(it.get("tags", []) if isinstance(it.get("tags"), list) else []),
+                str(extra.get("file", "")), str(extra.get("source_set", "")),
+            ]).lower()
+            if ql not in hay:
+                continue
+        out.append(it)
+    counts = _issue_counts(issues)
+    categories = sorted({it.get("category") for it in issues if it.get("category")})
+    sev_rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    out.sort(key=lambda i: (
+        0 if i.get("status") in ("open", "in_progress") else 1,
+        sev_rank.get(i.get("severity"), 9),
+        (i.get("last_seen") or ""),
+    ))
+    if limit:
+        out = out[:limit]
+    return {"status": "ok", "counts": counts, "categories": categories,
+            "total": len(issues), "issues": out}
 
 
 def _render_report_html(report: dict, source_name: str) -> bytes:
@@ -596,6 +733,115 @@ def _stop_analysis(root_base: Path) -> dict:
     return {"ok": True, "status": "stopped", "pid": proc_pid}
 
 
+def _run_improvement_loop(root_base: Path, model: str | None = None, max_iterations: int | None = None) -> dict:
+    """Launch scripts/improvement_loop.py as a subprocess (dashboard "Run Loop" button).
+
+    Returns a status dict and refuses to start a second concurrent loop.
+    """
+    global _LOOP_STATE
+    with _LOOP_LOCK:
+        if _LOOP_STATE is not None and _LOOP_STATE["proc"].poll() is None:
+            return {"ok": False, "status": "already_running", "pid": _LOOP_STATE["proc"].pid}
+    script = LOOP_SCRIPT
+    if not script.exists():
+        return {"ok": False, "error": f"improvement loop script not found: {script}"}
+    repo_root = HERE.parent.parent
+    cmd = [sys.executable, str(script)]
+    if model:
+        cmd += ["--model", model]
+    if max_iterations:
+        cmd += ["--max-iterations", str(max_iterations)]
+    log_path = root_base / "loop_run.log"
+    try:
+        log_f = open(log_path, "w", encoding="utf-8")
+    except OSError as exc:
+        return {"ok": False, "error": f"cannot open loop log: {exc}"}
+    try:
+        proc = subprocess.Popen(
+            cmd, stdout=log_f, stderr=subprocess.STDOUT,
+            cwd=str(repo_root), text=True,
+        )
+    except Exception as exc:  # pragma: no cover - environment failure
+        log_f.close()
+        return {"ok": False, "error": str(exc)}
+    with _LOOP_LOCK:
+        if _LOOP_STATE is not None and _LOOP_STATE["proc"].poll() is None:
+            proc.terminate()
+            log_f.close()
+            return {"ok": False, "status": "already_running", "pid": _LOOP_STATE["proc"].pid}
+        _LOOP_STATE = {
+            "proc": proc, "log_f": log_f, "log": log_path, "cmd": cmd,
+            "model": model, "max_iterations": max_iterations,
+            "started": datetime.now(timezone.utc).isoformat(),
+        }
+    return {"ok": True, "pid": proc.pid, "log": str(log_path)}
+
+
+def _loop_status(root_base: Path) -> dict:
+    """Return the current/finished loop state plus a tail of the loop log."""
+    if _LOOP_STATE is None:
+        return {"running": False, "finished": False}
+    proc = _LOOP_STATE["proc"]
+    tail = ""
+    log = _LOOP_STATE.get("log")
+    if log and Path(log).exists():
+        try:
+            lines = Path(log).read_text(encoding="utf-8", errors="replace").splitlines()
+            tail = "\n".join(lines[-20:])
+        except OSError:
+            tail = ""
+    poll = proc.poll()
+    base = {"started": _LOOP_STATE["started"], "tail": tail}
+    if poll is None:
+        base.update({"running": True, "finished": False, "pid": proc.pid})
+    else:
+        if _LOOP_STATE.get("log_f") and not _LOOP_STATE.get("_closed"):
+            try:
+                _LOOP_STATE["log_f"].close()
+            except Exception:
+                pass
+            _LOOP_STATE["_closed"] = True
+        base.update({"running": False, "finished": True, "pid": proc.pid, "exit_code": poll})
+    return base
+
+
+def _read_loop_state_file() -> dict:
+    """Read the loop's persisted state (docs/.loop_state.json) for the dashboard."""
+    try:
+        return _read_json(LOOP_STATE_FILE) or {}
+    except Exception:
+        return {}
+
+
+def _stop_improvement_loop(root_base: Path) -> dict:
+    """Stop the active improvement loop and its child processes, if any."""
+    global _LOOP_STATE
+    with _LOOP_LOCK:
+        proc = _LOOP_STATE["proc"] if _LOOP_STATE is not None else None
+        if proc is None or proc.poll() is not None:
+            return {"ok": False, "status": "not_running"}
+        proc_pid = proc.pid
+        try:
+            if os.name == "nt":
+                subprocess.run(
+                    ["taskkill", "/PID", str(proc_pid), "/T", "/F"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    check=False,
+                )
+            else:
+                proc.terminate()
+            proc.wait(timeout=5)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return {"ok": False, "error": f"could not stop process: {exc}"}
+        if _LOOP_STATE.get("log_f") and not _LOOP_STATE.get("_closed"):
+            try:
+                _LOOP_STATE["log_f"].close()
+            except OSError:
+                pass
+            _LOOP_STATE["_closed"] = True
+    return {"ok": True, "status": "stopped", "pid": proc_pid}
+
+
 def _render_reports_list_page(rows: list[dict]) -> str:
     """Render a browsable list of stored reports for easy retrieval.
 
@@ -804,6 +1050,31 @@ def build_handler(root_base: Path):
             if route == "/api/analysis-sets":
                 self._json(_analysis_sets(root_base))
                 return
+            if route == "/api/loop-status":
+                st = _loop_status(root_base)
+                st["state"] = _read_loop_state_file()
+                self._json(st)
+                return
+            if route == "/api/gui":
+                exe = _latest_gui_exe()
+                self._json({
+                    "available": bool(exe and exe.is_file()),
+                    "path": str(exe) if exe else None,
+                    "mtime": exe.stat().st_mtime if exe and exe.is_file() else None,
+                })
+                return
+            if route == "/api/issues":
+                q = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
+                status = (q.get("status") or [None])[0]
+                category = (q.get("category") or [None])[0]
+                search = (q.get("q") or [None])[0]
+                try:
+                    limit = int((q.get("limit") or ["300"])[0])
+                except ValueError:
+                    limit = 300
+                self._json(_build_issues_payload(
+                    status=status, category=category, q=search, limit=limit))
+                return
             if route == "/api/run-log":
                 log = root_base / "analyze_run.log"
                 if not log.exists():
@@ -994,8 +1265,53 @@ def build_handler(root_base: Path):
                 code = 200 if (res.get("ok") or res.get("status") == "already_running") else 400
                 self._json(res, code=code)
                 return
+            if route == "/api/run-loop":
+                res = _run_improvement_loop(
+                    root_base,
+                    model=(body.get("model") or "").strip() or None,
+                    max_iterations=body.get("max_iterations") or None,
+                )
+                code = 200 if (res.get("ok") or res.get("status") == "already_running") else 400
+                self._json(res, code=code)
+                return
+            if route == "/api/issues/update":
+                issue_id = (body.get("issue_id") or "").strip()
+                new_status = (body.get("status") or "").strip()
+                resolution = (body.get("resolution") or "").strip()
+                if not issue_id:
+                    self._json({"status": "error", "message": "issue_id required"}, code=400)
+                    return
+                data = _read_tracker()
+                found = None
+                for it in data.get("issues", []):
+                    if it.get("issue_id") == issue_id:
+                        found = it
+                        break
+                if found is None:
+                    self._json({"status": "error", "message": "issue not found"}, code=404)
+                    return
+                if new_status:
+                    found["status"] = _norm_status(new_status)
+                found["last_seen"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                if resolution:
+                    extra = found.get("extra")
+                    if not isinstance(extra, dict):
+                        extra = {}
+                        found["extra"] = extra
+                    extra["resolution"] = resolution
+                _write_tracker(data)
+                self._json({"status": "ok", "issue": found})
+                return
+            if route == "/api/launch-gui":
+                res = _launch_gui()
+                self._json(res, code=200 if res.get("ok") else 409)
+                return
             if route == "/api/stop":
                 res = _stop_analysis(root_base)
+                self._json(res, code=200 if res.get("ok") else 409)
+                return
+            if route == "/api/stop-loop":
+                res = _stop_improvement_loop(root_base)
                 self._json(res, code=200 if res.get("ok") else 409)
                 return
             if route == "/api/delete-many":

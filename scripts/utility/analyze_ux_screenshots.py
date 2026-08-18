@@ -162,20 +162,6 @@ def _mark_fatal(exc: Exception) -> None:
         pass
 
 
-_DIAG_PATH = Path("macro_logs") / "diag_markers.txt"
-
-
-def _diag_file(tag: str, msg: str) -> None:
-    """Append a diagnostic marker to a file (immune to stdout/stderr capture
-    quirks) so we can tell kill vs normal-exit vs exception unambiguously."""
-    try:
-        _DIAG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with _DIAG_PATH.open("a", encoding="utf-8") as f:
-            f.write(f"{datetime.now(timezone.utc).isoformat()} [{tag}] {msg}\n")
-    except OSError:
-        pass
-
-
 def ask_ollama(
     prompt: str,
     model: str = MODEL,
@@ -1379,8 +1365,6 @@ def run_analysis(
     per_shot_analysis: dict[str, str] = {}
     per_shot_data: dict[str, dict | None] = {}
     per_shot_status: dict[str, str] = {}
-    logger.info("vision pass: dicts initialised; about to define write_checkpoint")
-    _diag_file("probe", "reached point where write_checkpoint used to be defined")
 
     _emit_progress(phase="vision", message="Running per-screenshot vision analysis")
     logger.info("Starting vision loop over %d screenshots.", len(screenshots))
@@ -1595,6 +1579,61 @@ def run_analysis(
     except Exception as exc:  # pragma: no cover - persistence is best-effort
         logger.warning("Could not persist report to database: %s", exc)
 
+    # --- Issue tracker sync --------------------------------------------------
+    # Mirror the per-screenshot UX findings into the canonical docs/issues.json so
+    # the self-improvement loop and the dashboard's Issue Tracker panel all operate
+    # on one shared store. Re-runs dedupe on the stable issue_id (category + title
+    # + screenshot hash), preserving history/status; only the first "open"
+    # occurrence seeds a row, later runs just bump occurrences. Best-effort: a
+    # missing ux_pipeline install or a write failure must never fail the analysis.
+    try:
+        from ux_pipeline._issue_tracker import (
+            IssueTracker, IssueRow, make_issue_id,
+        )
+        set_name = screenshots_dir.name
+        tracker = IssueTracker(Path("docs") / "issues.json")
+        tracker.load()
+        synced = 0
+        for k, data in per_shot_data.items():
+            if not isinstance(data, dict):
+                continue
+            for it in (data.get("issues") or []):
+                if not isinstance(it, dict):
+                    continue
+                title = (it.get("finding") or it.get("title") or "").strip()
+                if not title:
+                    continue
+                category = (it.get("category") or "ui").strip().lower() or "ui"
+                severity = (it.get("severity") or "medium").strip().lower() or "medium"
+                location = it.get("location") or ""
+                evidence = it.get("evidence") or ""
+                recommendation = it.get("recommendation") or ""
+                issue_id = make_issue_id(category, title, k)
+                row = IssueRow(
+                    issue_id=issue_id,
+                    title=title,
+                    category=category,
+                    severity=severity,
+                    screenshot=k,
+                    notes=recommendation or evidence,
+                    tags=["ux-analysis", f"set:{set_name}"],
+                    extra={
+                        "screenshot_key": k,
+                        "shot_label": KEY_SHOTS.get(k, k),
+                        "location": location,
+                        "evidence": evidence,
+                        "recommendation": recommendation,
+                        "source_set": set_name,
+                    },
+                )
+                tracker.upsert(row)
+                synced += 1
+        if synced:
+            tracker.save()
+            logger.info("Synced %d UX findings into issue tracker (%s)", synced, tracker.path)
+    except Exception as exc:  # pragma: no cover - tracker sync is best-effort
+        logger.warning("Could not sync findings to issue tracker: %s", exc)
+
     _emit_progress(status="done", phase="done", report_path=str(report_path),
                    html_report_path=str(html_path), message="Analysis complete", live_output="")
     logger.info("Analysis complete. Report: %s | HTML: %s", report_path, html_path)
@@ -1654,28 +1693,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     configure_console()
 
-    # Diagnostics: report HOW the process leaves, so an external kill (which a
-    # try/except cannot catch) is still visible in the run log instead of
-    # silently freezing the dashboard on status:"running".
-    import atexit
-    import signal as _signal
-
-    def _on_signal(signum, _frame):
-        logger.error("Received signal %s — process being terminated externally.", signum)
-        try:
-            _mark_fatal(RuntimeError(f"received signal {signum}"))
-        except Exception:
-            pass
-
-    for _s in (getattr(_signal, "SIGTERM", None), getattr(_signal, "SIGINT", None),
-               getattr(_signal, "SIGBREAK", None)):
-        if _s is not None:
-            try:
-                _signal.signal(_s, _on_signal)
-            except (ValueError, OSError, RuntimeError):
-                pass
-    atexit.register(lambda: _diag_file("atexit", "process ending normally"))
-
     shots_root = Path(args.shots_root)
     latest = None
     # An explicit --shots-dir always wins over auto-resolving the newest
@@ -1700,8 +1717,6 @@ def main(argv: list[str] | None = None) -> int:
         return run_analysis(latest, report_path, report_ts, ollama_url=args.ollama_url)
     except BaseException:  # noqa: BLE001 - catch SystemExit too (not an Exception)
         logger.exception("run_analysis terminated (BaseException)")
-        import traceback as _tb
-        _diag_file("exception", "run_analysis terminated:\n" + "".join(_tb.format_exception(*sys.exc_info())))
         exc = sys.exc_info()[1]
         _mark_fatal(exc if exc is not None else RuntimeError("unknown error"))
         return 1

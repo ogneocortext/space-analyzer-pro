@@ -1,8 +1,8 @@
 use space_analyzer_pro_desktop::error::{AppError, AppResult};
 use std::path::{Path, PathBuf};
 
-use scan_engine::format_bytes;
 use super::types::DiskInfo;
+use scan_engine::format_bytes;
 
 /// Parse a human-written size such as `512`, `500K`, `1MB` or `2.5 GB`.
 ///
@@ -78,11 +78,7 @@ pub fn resolve_scan_path(path: &str) -> AppResult<PathBuf> {
 
     let requested = Path::new(path);
     let canonical = std::fs::canonicalize(requested).map_err(|e| {
-        AppError::Validation(format!(
-            "Cannot open path '{}': {}",
-            requested.display(),
-            e
-        ))
+        AppError::Validation(format!("Cannot open path '{}': {}", requested.display(), e))
     })?;
 
     if !canonical.is_dir() {
@@ -203,7 +199,10 @@ mod tests {
 
     #[test]
     fn is_case_and_whitespace_insensitive() {
-        assert_eq!(parse_size(" 2.5 gb ").unwrap(), (2.5 * 1024.0 * 1024.0 * 1024.0) as u64);
+        assert_eq!(
+            parse_size(" 2.5 gb ").unwrap(),
+            (2.5 * 1024.0 * 1024.0 * 1024.0) as u64
+        );
         assert_eq!(parse_size("10mb").unwrap(), 10 * 1024 * 1024);
     }
 
@@ -229,7 +228,8 @@ mod tests {
         let err = resolve_scan_path(r"C:\__space_analyzer_definitely_missing__")
             .expect_err("missing path must be rejected");
         assert!(
-            err.to_string().contains("__space_analyzer_definitely_missing__"),
+            err.to_string()
+                .contains("__space_analyzer_definitely_missing__"),
             "the error must name the offending path, got: {err}"
         );
 

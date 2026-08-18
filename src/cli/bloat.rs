@@ -97,17 +97,15 @@ pub fn run(args: BloatArgs, output_format: OutputFormat) -> AppResult<()> {
     });
 
     if output_format == OutputFormat::Json {
-        println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&response).unwrap_or_default()
+        );
     } else if findings.is_empty() {
         println!("No bloat candidates detected.");
     } else {
         for finding in &findings {
-            println!(
-                "[{}] {} ({})",
-                finding.category,
-                finding.path,
-                finding.size
-            );
+            println!("[{}] {} ({})", finding.category, finding.path, finding.size);
         }
     }
 

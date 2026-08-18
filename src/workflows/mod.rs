@@ -4,14 +4,14 @@
 //! and native Rust workflow execution (no external orchestrator needed).
 #![allow(dead_code)] // Some workflow methods are only used by modular gui and tests
 
-pub mod types;
+pub mod insights;
 pub mod models;
 pub mod templates;
-pub mod insights;
+pub mod types;
 
-pub use types::*;
 pub use models::*;
 pub use templates::*;
+pub use types::*;
 
 use chrono::{DateTime, Local};
 

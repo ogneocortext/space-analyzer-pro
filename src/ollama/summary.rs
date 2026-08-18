@@ -44,7 +44,12 @@ pub async fn summarize_scan(
         .file_types
         .iter()
         .take(10)
-        .map(|(ext, bytes)| (format!(".{}", ext), format!("{:.1} MB", *bytes as f64 / 1_048_576.0)))
+        .map(|(ext, bytes)| {
+            (
+                format!(".{}", ext),
+                format!("{:.1} MB", *bytes as f64 / 1_048_576.0),
+            )
+        })
         .collect();
     if types.is_empty() {
         types.push(("(none)".to_string(), "-".to_string()));

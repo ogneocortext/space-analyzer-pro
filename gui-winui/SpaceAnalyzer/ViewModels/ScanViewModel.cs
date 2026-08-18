@@ -64,10 +64,30 @@ public partial class ScanViewModel : ViewModelBase, IDisposable
     public string ScanPath
     {
         get => _scanPath;
-        set { _scanPath = value; OnPropertyChanged(); OnPropertyChanged(nameof(PathExists)); OnPropertyChanged(nameof(PathValidationMessage)); }
+        set
+        {
+            var normalized = (value ?? string.Empty).Trim();
+            // Normalize directory separators to backslash (forward slashes are
+            // treated as separators on Windows) without altering legitimate
+            // backslashes in the path.
+            normalized = normalized.Replace('/', '\\');
+            if (_scanPath == normalized) return;
+            _scanPath = normalized;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(PathExists));
+            OnPropertyChanged(nameof(PathValidationMessage));
+        }
     }
 
     public ObservableCollection<QuickScanTarget> QuickScanTargets { get; } = new();
+
+    public ObservableCollection<ScannerService.DepthMode> DepthModes { get; } = new()
+    {
+        ScannerService.DepthMode.Shallow,
+        ScannerService.DepthMode.Default,
+        ScannerService.DepthMode.Deep,
+        ScannerService.DepthMode.Custom,
+    };
 
     private QuickScanTarget? _selectedQuickScanTarget;
     public QuickScanTarget? SelectedQuickScanTarget
@@ -183,12 +203,37 @@ public partial class ScanViewModel : ViewModelBase, IDisposable
     }
     public string ScanProgressDisplay => $"{ScanProgress:F0}%";
 
+    private bool _isLoading;
+    public bool IsLoading
+    {
+        get => _isLoading;
+        set { _isLoading = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotLoading)); OnPropertyChanged(nameof(LoadingVisibility)); }
+    }
+    public bool IsNotLoading => !_isLoading;
+    public Microsoft.UI.Xaml.Visibility LoadingVisibility => _isLoading ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
     private string _statusMessage = "Ready to scan";
     public string StatusMessage
     {
         get => _statusMessage;
-        set { _statusMessage = value; OnPropertyChanged(); }
+        set
+        {
+            _statusMessage = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsReady));
+            OnPropertyChanged(nameof(StatusIcon));
+        }
     }
+
+    /// <summary>True when the scan is idle and ready to start (no active/completed run).</summary>
+    public bool IsReady => _statusMessage == "Ready to scan";
+
+    /// <summary>Segoe MDL2 glyph for the status indicator: a green checkmark when ready, a play glyph otherwise.</summary>
+    public string StatusIcon => IsReady ? "\uE73E" : "\uE768";
+
+    public string LiveStatusDisplay => IsStreaming && _partialResult != null
+        ? $"Scanning: {_currentFile}"
+        : StatusMessage;
 
     private ScanResult? _lastResult;
     private DateTime _lastProgressUpdate;
@@ -240,6 +285,13 @@ public partial class ScanViewModel : ViewModelBase, IDisposable
         ? $"{_partialResult.TotalSizeMb:F1} MB"
         : "";
 
+    public string ScanSummaryDisplay => LastResult != null
+        ? $"{ResultFilesDisplay} · {ResultSizeDisplay} · {ResultDurationDisplay} · {ResultErrorsDisplay}"
+        : string.Empty;
+
+    public bool HasScanSummary => !string.IsNullOrEmpty(ScanSummaryDisplay);
+    public Microsoft.UI.Xaml.Visibility HasScanSummaryVisibility => HasScanSummary ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
     private ScanResult? ActiveResult => IsStreaming ? (_partialResult ?? _lastResult) : _lastResult;
     public string ResultFilesDisplay => ActiveResult != null ? $"{ActiveResult.TotalFiles:N0} files" : "";
     public string ResultSizeDisplay => ActiveResult != null ? $"{ActiveResult.TotalSizeMb:F1} MB" : "";
@@ -264,6 +316,18 @@ public partial class ScanViewModel : ViewModelBase, IDisposable
     public string ResultErrorsDisplay => ActiveResult != null && ActiveResult.Errors.Count > 0
         ? $"{ActiveResult.Errors.Count} error(s)"
         : "";
+
+    public enum ResultTab { Summary, Distribution, LargestFiles, LargestDirectories }
+    private ResultTab _activeResultTab = ResultTab.Summary;
+    public ResultTab ActiveResultTab
+    {
+        get => _activeResultTab;
+        set { _activeResultTab = value; OnPropertyChanged(); OnPropertyChanged(nameof(ShowSummaryTab)); OnPropertyChanged(nameof(ShowDistributionTab)); OnPropertyChanged(nameof(ShowLargestFilesTab)); OnPropertyChanged(nameof(ShowLargestDirectoriesTab)); }
+    }
+    public bool ShowSummaryTab => _activeResultTab == ResultTab.Summary;
+    public bool ShowDistributionTab => _activeResultTab == ResultTab.Distribution;
+    public bool ShowLargestFilesTab => _activeResultTab == ResultTab.LargestFiles;
+    public bool ShowLargestDirectoriesTab => _activeResultTab == ResultTab.LargestDirectories;
 
     public List<DirEntry> TopDirectories => ActiveResult?.TopDirectories ?? new();
 
@@ -397,6 +461,9 @@ public partial class ScanViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(FilteredLargestFiles));
             OnPropertyChanged(nameof(LiveFilesDisplay));
             OnPropertyChanged(nameof(LiveSizeDisplay));
+            OnPropertyChanged(nameof(ScanSummaryDisplay));
+            OnPropertyChanged(nameof(HasScanSummary));
+            OnPropertyChanged(nameof(HasScanSummaryVisibility));
         }
     }
 

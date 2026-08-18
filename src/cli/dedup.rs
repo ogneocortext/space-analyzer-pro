@@ -1,6 +1,6 @@
 use file_deduplicator::{DeduplicationConfig, FileDeduplicator};
-use serde::Serialize;
 use scan_engine::format_bytes;
+use serde::Serialize;
 use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::error::{AppError, AppResult};
 
@@ -122,15 +122,15 @@ pub fn run_clean_analysis(
             Ok(r) => r,
             Err(e) => {
                 if output_format.is_machine_readable() {
-                print_json(&DedupResult {
-                    duplicate_groups: vec![],
-                    total_duplicate_files: total_duplicates,
-                    potential_savings_bytes: 0,
-                    potential_savings_human: format_bytes(0),
-                    files_processed: None,
-                    space_saved_bytes: None,
-                    errors: Some(vec![e.to_string()]),
-                });
+                    print_json(&DedupResult {
+                        duplicate_groups: vec![],
+                        total_duplicate_files: total_duplicates,
+                        potential_savings_bytes: 0,
+                        potential_savings_human: format_bytes(0),
+                        files_processed: None,
+                        space_saved_bytes: None,
+                        errors: Some(vec![e.to_string()]),
+                    });
                 } else {
                     eprintln!("   ❌ Deduplication failed: {e}");
                 }
@@ -189,15 +189,15 @@ pub fn run_clean_analysis(
             })
             .collect();
 
-            print_json(&DedupResult {
-                duplicate_groups: groups,
-                total_duplicate_files: total_duplicates,
-                potential_savings_bytes: dup_savings,
-                potential_savings_human: format_bytes(dup_savings),
-                files_processed: None,
-                space_saved_bytes: None,
-                errors: None,
-            });
+        print_json(&DedupResult {
+            duplicate_groups: groups,
+            total_duplicate_files: total_duplicates,
+            potential_savings_bytes: dup_savings,
+            potential_savings_human: format_bytes(dup_savings),
+            files_processed: None,
+            space_saved_bytes: None,
+            errors: None,
+        });
     } else {
         hprintln!(
             "   Found {} duplicate groups ({} duplicate files)",

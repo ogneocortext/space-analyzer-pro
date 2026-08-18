@@ -80,7 +80,8 @@ impl FilePatternClassifier {
             "ai_models".to_string(),
             PatternRule {
                 name: "AI Model".to_string(),
-                description: "Local model weights — remove unused models to reclaim space".to_string(),
+                description: "Local model weights — remove unused models to reclaim space"
+                    .to_string(),
                 patterns: vec![],
                 size_threshold: None,
                 priority: 85,

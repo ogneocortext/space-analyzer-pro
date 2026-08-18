@@ -81,8 +81,8 @@ mod scans;
 mod settings;
 mod workflows;
 
-pub use settings::*;
 pub use scans::*;
+pub use settings::*;
 
 impl Database {
     /// Create or open database at the given path
@@ -403,9 +403,8 @@ impl Database {
                     )?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
 
                     if !columns.contains(&"model".to_string()) {
-                        self.conn.execute_batch(
-                            "ALTER TABLE file_embeddings ADD COLUMN model TEXT;",
-                        )?;
+                        self.conn
+                            .execute_batch("ALTER TABLE file_embeddings ADD COLUMN model TEXT;")?;
                     }
                     self.conn.execute("PRAGMA user_version = 7", [])?;
                     Ok(())

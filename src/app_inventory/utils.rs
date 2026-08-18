@@ -7,8 +7,18 @@ pub fn normalize_key(name: &str) -> String {
     let mut s = name.to_lowercase();
     // Strip trailing architecture / bitness markers.
     for suffix in [
-        " (x64)", "(x86)", "(64-bit)", "(32-bit)", "(arm64)", "(arm)", "(preview)",
-        "(stable)", "(insider)", "(beta)", "(portable)", " - " .trim_end_matches(' '),
+        " (x64)",
+        "(x86)",
+        "(64-bit)",
+        "(32-bit)",
+        "(arm64)",
+        "(arm)",
+        "(preview)",
+        "(stable)",
+        "(insider)",
+        "(beta)",
+        "(portable)",
+        " - ".trim_end_matches(' '),
     ] {
         if let Some(idx) = s.rfind(suffix.trim()) {
             // Only strip a trailing occurrence.
@@ -29,7 +39,10 @@ pub fn normalize_key(name: &str) -> String {
 
 pub fn is_version_like(s: &str) -> bool {
     let parts: Vec<&str> = s.split('.').collect();
-    parts.len() >= 2 && parts.iter().all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
+    parts.len() >= 2
+        && parts
+            .iter()
+            .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()))
 }
 
 /// Best-effort semantic-ish version comparison for sorting (newest first).
@@ -43,8 +56,14 @@ pub fn cmp_version(a: Option<&str>, b: Option<&str>) -> std::cmp::Ordering {
 }
 
 pub fn cmp_version_str(a: &str, b: &str) -> std::cmp::Ordering {
-    let pa: Vec<u64> = a.split(['.', '-']).filter_map(|p| p.parse::<u64>().ok()).collect();
-    let pb: Vec<u64> = b.split(['.', '-']).filter_map(|p| p.parse::<u64>().ok()).collect();
+    let pa: Vec<u64> = a
+        .split(['.', '-'])
+        .filter_map(|p| p.parse::<u64>().ok())
+        .collect();
+    let pb: Vec<u64> = b
+        .split(['.', '-'])
+        .filter_map(|p| p.parse::<u64>().ok())
+        .collect();
     let len = pa.len().max(pb.len());
     for i in 0..len {
         let x = pa.get(i).copied().unwrap_or(0);
@@ -386,9 +405,11 @@ pub fn collect_docker() -> Vec<AppInstance> {
     // Requires Docker Desktop running; guarded by a timeout so a stopped daemon
     // or slow start never blocks the inventory. Volumes live inside the data
     // VHDX above (already counted), this just makes the named volumes visible.
-    if let Some(vols) =
-        run_with_timeout("docker", &["volume", "ls", "--format", "{{.Name}}"], Duration::from_secs(5))
-    {
+    if let Some(vols) = run_with_timeout(
+        "docker",
+        &["volume", "ls", "--format", "{{.Name}}"],
+        Duration::from_secs(5),
+    ) {
         for v in vols.lines() {
             let name = v.trim().to_string();
             if name.is_empty() {

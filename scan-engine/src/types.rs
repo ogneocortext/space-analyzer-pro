@@ -1,7 +1,7 @@
 //! Data structures shared by the scanner engine.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// File information structure
 #[derive(Debug, Clone, Serialize, Deserialize)]

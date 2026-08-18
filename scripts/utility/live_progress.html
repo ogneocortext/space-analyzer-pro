@@ -251,6 +251,37 @@
   .nav-link:hover { background: rgba(74,163,255,.22); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(74,163,255,.18); }
   .refresh-link { color: var(--accent); }
   .refresh-link:active { transform: translateY(1px); }
+  /* Issue Tracker panel */
+  .iss-counts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .iss-count { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .iss-count b { color: var(--txt); }
+  .iss-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .iss-toolbar select, .iss-toolbar input { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 13px; }
+  .iss-toolbar select { appearance: none; padding-right: 28px; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+  .iss-toolbar input[type="search"] { flex: 1; min-width: 160px; }
+  .iss-list { list-style: none; margin: 0; padding: 0; max-height: 62vh; overflow: auto; }
+  .iss-item { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 8px 0; background: var(--panel2); }
+  .iss-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .iss-title { font-weight: 600; color: var(--txt); font-size: 13px; }
+  .iss-id { font-size: 11px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .iss-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+  .iss-sev-high { background: rgba(248,81,73,.16); color: #ff7b72; border-color: rgba(248,81,73,.45); }
+  .iss-sev-medium { background: rgba(210,153,34,.16); color: #e3b341; border-color: rgba(210,153,34,.45); }
+  .iss-sev-low { background: rgba(63,185,80,.16); color: #56d364; border-color: rgba(63,185,80,.45); }
+  .iss-sev-critical { background: rgba(248,81,73,.28); color: #ff9a93; border-color: rgba(248,81,73,.7); }
+  .iss-st-open { background: rgba(74,163,255,.14); color: var(--accent); }
+  .iss-st-in_progress { background: rgba(163,113,247,.16); color: var(--busy); }
+  .iss-st-done { background: rgba(63,185,80,.14); color: var(--ok); }
+  .iss-st-blocked { background: rgba(210,153,34,.16); color: #e3b341; }
+  .iss-st-wontfix { background: rgba(139,152,165,.14); color: var(--muted); }
+  .iss-st-pending { background: rgba(139,152,165,.14); color: var(--muted); }
+  .iss-notes { color: var(--muted); font-size: 12px; margin-top: 6px; white-space: pre-wrap; }
+  .iss-meta { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .iss-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .iss-actions select { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; font-size: 12px; }
+  .iss-actions input { flex: 1; min-width: 120px; background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+  .iss-actions button { margin-top: 0; padding: 5px 10px; font-size: 12px; }
+  .iss-empty { color: var(--muted); padding: 16px; text-align: center; }
 </style>
 </head>
 <body>
@@ -266,6 +297,8 @@
     <span class="nav-sep" aria-hidden="true"></span>
     <a class="nav-link" href="/gallery" title="View and de-duplicate screenshots">Screenshot Gallery</a>
     <a class="nav-link" href="/reports" title="Browse all stored analysis reports (database)">Reports</a>
+    <button class="nav-link" id="launch-gui" type="button" title="Open the latest built Space Analyzer GUI">Launch GUI</button>
+    <a class="nav-link" href="#issue-tracker" title="Triage the shared issue tracker (docs/issues.json)">Issue Tracker</a>
     <a class="nav-link" href="/report" title="Open the latest finished HTML report">View Report</a>
     <button class="nav-link refresh-link" id="refresh-dashboard" type="button" title="Refresh dashboard data">Refresh</button>
     <span id="status" class="badge idle">idle</span>
@@ -307,6 +340,41 @@
       <button class="secondary" id="run-log-btn" style="display:none" onclick="window.open('/api/run-log','_blank')">View run log</button>
     </div>
     <div id="run-status" class="current" style="display:none"></div>
+  </section>
+
+  <section class="card" id="loop-card" style="grid-column:1/-1">
+    <h2>Self-Improvement Loop</h2>
+    <div class="run-row">
+      <label>Max iterations
+        <input id="loop-max" type="number" min="1" max="20" value="3" style="min-width:90px" />
+      </label>
+      <label>Model
+        <input id="loop-model" placeholder="script default" style="min-width:160px" />
+      </label>
+      <button id="loop-run-btn" onclick="startLoop()">Run Loop</button>
+      <button class="danger" id="loop-stop-btn" onclick="stopLoop()" disabled>Stop Loop</button>
+    </div>
+    <div id="loop-status" class="current" style="display:none"></div>
+  </section>
+
+  <section class="card" id="issue-tracker" style="grid-column:1/-1">
+    <h2>Issue Tracker <span class="brand-tag" style="margin-left:8px">docs/issues.json — shared by analysis &amp; loop</span></h2>
+    <div class="iss-counts" id="iss-counts"></div>
+    <div class="iss-toolbar">
+      <select id="iss-status" title="Filter by status">
+        <option value="">All statuses</option>
+        <option value="open">Open</option>
+        <option value="in_progress">In progress</option>
+        <option value="blocked">Blocked</option>
+        <option value="pending">Pending</option>
+        <option value="done">Done</option>
+        <option value="wontfix">Wontfix</option>
+      </select>
+      <select id="iss-category" title="Filter by category"><option value="">All categories</option></select>
+      <input id="iss-q" type="search" placeholder="Search title, notes, id, file…" />
+      <button class="secondary" id="iss-refresh" type="button">Refresh</button>
+    </div>
+    <ul class="iss-list" id="iss-list"></ul>
   </section>
 
   <section class="card">
@@ -663,13 +731,30 @@ async function refreshDashboard() {
   btn.textContent = "Refreshing…";
   lastKey = null;
   try {
-    await Promise.all([poll(), loadRunSets(), refreshRunStatus()]);
+    await Promise.all([poll(), loadRunSets(), refreshRunStatus(), refreshLoopStatus(), loadIssues()]);
   } finally {
     btn.disabled = false;
     btn.textContent = "Refresh";
   }
 }
 
+async function launchGui() {
+  const btn = document.getElementById("launch-gui");
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Launching…";
+  try {
+    const res = await fetch("/api/launch-gui", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    const d = await res.json();
+    btn.title = d.path ? d.path : (d.message || "Open the latest built Space Analyzer GUI");
+    if (!d.ok) alert("Could not launch GUI:\n" + (d.message || "unknown error"));
+  } catch (e) {
+    btn.title = "Launch failed: " + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
 async function startRun() {
   const set = document.getElementById("run-set").value;
   const selectedModel = document.getElementById("run-model").value;
@@ -726,12 +811,199 @@ async function stopRun() {
   }
 }
 
+async function startLoop() {
+  const maxEl = document.getElementById("loop-max");
+  const modelEl = document.getElementById("loop-model");
+  const max = parseInt(maxEl.value, 10);
+  const model = modelEl.value.trim();
+  const st = document.getElementById("loop-status");
+  st.style.display = "block";
+  try {
+    const res = await fetch("/api/run-loop", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ max_iterations: isNaN(max) ? 3 : max, model }),
+    });
+    const d = await res.json();
+    if (d.ok) {
+      st.innerHTML = `<div class="run-summary"><span class="run-state running">Started improvement loop</span>`
+        + `<span class="run-chip">pid <b>${d.pid}</b></span></div>`;
+      document.getElementById("loop-run-btn").disabled = true;
+      document.getElementById("loop-run-btn").textContent = "Running…";
+      document.getElementById("loop-stop-btn").disabled = false;
+    } else if (d.status === "already_running") {
+      st.innerHTML = `<div class="run-summary"><span class="run-state running">Already running</span>`
+        + `<span class="run-chip">pid <b>${d.pid}</b></span></div>`;
+    } else {
+      st.textContent = "Failed to start: " + (d.error || "unknown error");
+    }
+  } catch (e) {
+    st.textContent = "Request failed: " + e.message;
+  }
+}
+
+async function stopLoop() {
+  const stop = document.getElementById("loop-stop-btn");
+  const st = document.getElementById("loop-status");
+  st.style.display = "block";
+  st.textContent = "Stopping loop…";
+  try {
+    const res = await fetch("/api/stop-loop", { method: "POST" });
+    const d = await res.json();
+    st.textContent = d.ok ? "Improvement loop stopped." : (d.error || "No loop is running.");
+    if (d.ok) {
+      document.getElementById("loop-run-btn").disabled = false;
+      document.getElementById("loop-run-btn").textContent = "Run Loop";
+    }
+  } catch (e) {
+    stop.disabled = false;
+    st.textContent = "Stop request failed: " + e.message;
+  }
+}
+
+async function refreshLoopStatus() {
+  const btn = document.getElementById("loop-run-btn");
+  const st = document.getElementById("loop-status");
+  try {
+    const res = await fetch("/api/loop-status", { cache: "no-store" });
+    const d = await res.json();
+    const running = d.running === true;
+    btn.disabled = running;
+    btn.textContent = running ? "Running…" : "Run Loop";
+    document.getElementById("loop-stop-btn").disabled = !running;
+    if (running || d.finished) {
+      st.style.display = "block";
+      const state = d.state || {};
+      const iter = state.iteration || 0;
+      const processed = (state.processed || []).length;
+      const failed = (state.failed || []).length;
+      const head = running
+        ? `<span class="run-state running">Loop running</span>`
+        : `<span class="run-state ${d.exit_code === 0 ? "done" : "error"}">Loop exited (code ${d.exit_code})</span>`;
+      let html = `<div class="run-summary">${head}`
+        + `<span class="run-chip">iteration <b>${iter}</b></span>`
+        + `<span class="run-chip">processed <b>${processed}</b></span>`
+        + `<span class="run-chip">failed <b>${failed}</b></span></div>`;
+      if (d.tail) html += `<div class="run-log">${renderLogLines(d.tail)}</div>`;
+      st.innerHTML = html;
+    } else {
+      st.style.display = "none";
+    }
+  } catch (e) { /* non-fatal */ }
+}
+
+// ---- Issue Tracker panel (shared docs/issues.json) ----
+let issCategoriesLoaded = false;
+
+function debounce(fn, ms) {
+  let t = null;
+  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+
+async function loadIssues() {
+  const status = document.getElementById("iss-status").value;
+  const category = document.getElementById("iss-category").value;
+  const q = document.getElementById("iss-q").value.trim();
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (category) params.set("category", category);
+  if (q) params.set("q", q);
+  try {
+    const res = await fetch("/api/issues?" + params.toString(), { cache: "no-store" });
+    const d = await res.json();
+    renderIssues(d);
+  } catch (e) { /* non-fatal */ }
+}
+
+function renderIssues(d) {
+  const counts = d.counts || {};
+  const order = ["open", "in_progress", "blocked", "pending", "done", "wontfix"];
+  const countsEl = document.getElementById("iss-counts");
+  countsEl.innerHTML = order.filter(s => counts[s]).map(s =>
+    `<span class="iss-count"><b>${counts[s]}</b> ${s.replace("_", " ")}</span>`).join("")
+    + `<span class="iss-count"><b>${d.total || 0}</b> total</span>`;
+  const catSel = document.getElementById("iss-category");
+  if (!issCategoriesLoaded && (d.categories || []).length) {
+    d.categories.forEach(c => {
+      const o = document.createElement("option");
+      o.value = c; o.textContent = c; catSel.appendChild(o);
+    });
+    issCategoriesLoaded = true;
+  }
+  const list = document.getElementById("iss-list");
+  const issues = d.issues || [];
+  if (!issues.length) {
+    list.innerHTML = `<li class="iss-empty">No issues match the current filter.</li>`;
+    return;
+  }
+  const statuses = ["open", "in_progress", "done", "wontfix", "blocked", "pending"];
+  list.innerHTML = issues.map(it => {
+    const id = escapeHtml(it.issue_id || "");
+    const title = escapeHtml(it.title || "(untitled)");
+    const cat = escapeHtml(it.category || "");
+    const sev = escapeHtml(it.severity || "low");
+    const st = escapeHtml(it.status || "open");
+    const notes = escapeHtml((it.notes || "").slice(0, 400));
+    const extra = it.extra || {};
+    const set = escapeHtml(extra.source_set || extra.shot_label || "");
+    const file = escapeHtml(extra.file || "");
+    const meta = [set ? `set: ${set}` : "", file ? `file: ${file}` : "",
+                  it.last_seen ? `updated ${fmtStarted(it.last_seen)}` : ""]
+      .filter(Boolean).join(" · ");
+    const cur = statuses.map(s =>
+      `<option value="${s}" ${s === st ? "selected" : ""}>${s.replace("_", " ")}</option>`).join("");
+    return `<li class="iss-item" data-id="${id}">
+      <div class="iss-top">
+        <span class="iss-title">${title}</span>
+        <span class="iss-badge iss-sev-${sev}">${sev}</span>
+        <span class="iss-badge iss-st-${st}">${st.replace("_", " ")}</span>
+        <span class="iss-id">${cat ? cat + " · " : ""}${id}</span>
+      </div>
+      ${notes ? `<div class="iss-notes">${notes}</div>` : ""}
+      ${meta ? `<div class="iss-meta">${meta}</div>` : ""}
+      <div class="iss-actions">
+        <select data-role="status" aria-label="status">${cur}</select>
+        <input data-role="resolution" placeholder="resolution note (optional)" />
+        <button type="button" onclick="updateIssue(this)">Save</button>
+      </div>
+    </li>`;
+  }).join("");
+}
+
+async function updateIssue(btn) {
+  const li = btn.closest(".iss-item");
+  const id = li.getAttribute("data-id");
+  const status = li.querySelector('[data-role="status"]').value;
+  const resolution = li.querySelector('[data-role="resolution"]').value.trim();
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const res = await fetch("/api/issues/update", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ issue_id: id, status, resolution }),
+    });
+    const d = await res.json();
+    if (d.status === "ok") {
+      btn.textContent = "Saved";
+      setTimeout(loadIssues, 300);
+    } else {
+      btn.textContent = d.message || "Error";
+      setTimeout(() => { btn.textContent = "Save"; btn.disabled = false; }, 1500);
+    }
+  } catch (e) {
+    btn.textContent = "Error"; btn.disabled = false;
+  }
+}
+
 document.getElementById("run-model").addEventListener("change", (event) => {
   const custom = document.getElementById("run-model-custom");
   custom.style.display = event.target.value === "__custom__" ? "inline-block" : "none";
   if (event.target.value === "__custom__") custom.focus();
 });
 document.getElementById("refresh-dashboard").addEventListener("click", refreshDashboard);
+document.getElementById("launch-gui").addEventListener("click", launchGui);
+document.getElementById("iss-refresh").addEventListener("click", loadIssues);
+document.getElementById("iss-status").addEventListener("change", loadIssues);
+document.getElementById("iss-category").addEventListener("change", loadIssues);
+document.getElementById("iss-q").addEventListener("input", debounce(loadIssues, 300));
 document.getElementById("clear-output").addEventListener("click", () => {
   outputCleared = true;
   document.getElementById("live-out").textContent = "Output cleared for this view. New streamed text will appear when the next update arrives.";
@@ -782,7 +1054,10 @@ async function refreshRunStatus() {
 }
 
 loadRunSets();
+loadIssues();
 setInterval(refreshRunStatus, 3000);
+setInterval(refreshLoopStatus, 3000);
+setInterval(loadIssues, 8000);
 
 poll();
 setInterval(poll, 1000);

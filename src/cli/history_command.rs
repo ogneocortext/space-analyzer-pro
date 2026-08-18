@@ -1,6 +1,10 @@
 use crate::cli::args::OutputFormat;
 use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::error::AppResult;
+use space_analyzer_pro_desktop::gui_common::LargestFileEntry;
+use space_analyzer_pro_desktop::ollama::client::OllamaClient;
+use space_analyzer_pro_desktop::ollama::models::{ScanSummaryInput, ScanSummaryOutput};
+use space_analyzer_pro_desktop::ollama::summary::summarize_scan;
 
 #[allow(clippy::too_many_arguments)]
 pub fn handle_history(
@@ -20,13 +24,21 @@ pub fn handle_history(
     trend: bool,
     category_totals: bool,
     duplicates: bool,
+    summarize: bool,
     output_format: OutputFormat,
 ) -> AppResult<()> {
+    if summarize {
+        return run_summarize(id, output_format);
+    }
+
     if let Ok(db) = Database::default_open() {
         if trend {
             match db.get_scan_history_trend() {
                 Ok(points) => {
-                    println!("{}", serde_json::to_string_pretty(&points).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&points).unwrap_or_default()
+                    );
                 }
                 Err(e) => {
                     if output_format == OutputFormat::Json {
@@ -43,7 +55,10 @@ pub fn handle_history(
         if category_totals {
             match db.get_category_totals() {
                 Ok(totals) => {
-                    println!("{}", serde_json::to_string_pretty(&totals).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&totals).unwrap_or_default()
+                    );
                 }
                 Err(e) => {
                     if output_format == OutputFormat::Json {
@@ -224,46 +239,52 @@ pub fn handle_history(
                     }
                     Err(e) => {
                         if output_format == OutputFormat::Json {
-                            println!(
-                                "{}",
-                                serde_json::json!({"error": e.to_string()})
-                            );
+                            println!("{}", serde_json::json!({"error": e.to_string()}));
                         } else {
                             return Err(space_analyzer_pro_desktop::error::AppError::Validation(
-                                format!("Failed to load duplicate analysis for scan {scan_id}: {e}"),
+                                format!(
+                                    "Failed to load duplicate analysis for scan {scan_id}: {e}"
+                                ),
                             ));
                         }
                     }
                 }
             } else {
-            match db.get_scan_by_id(scan_id) {
-                Ok(Some(record)) => {
-                    println!(
-                        "{}",
-                        serde_json::to_string_pretty(&record).unwrap_or_default()
-                    );
-                }
-                Ok(None) => {
-                    if output_format == OutputFormat::Json {
+                match db.get_scan_by_id(scan_id) {
+                    Ok(Some(record)) => {
                         println!(
                             "{}",
-                            serde_json::json!({"error": format!("No scan found with id {scan_id}")})
+                            serde_json::to_string_pretty(&record).unwrap_or_default()
                         );
-                    } else {
+                    }
+                    Ok(None) => {
+                        if output_format == OutputFormat::Json {
+                            println!(
+                                "{}",
+                                serde_json::json!({"error": format!("No scan found with id {scan_id}")})
+                            );
+                        } else {
+                            return Err(space_analyzer_pro_desktop::error::AppError::Validation(
+                                format!("No scan found with id {scan_id}"),
+                            ));
+                        }
+                    }
+                    Err(e) => {
                         return Err(space_analyzer_pro_desktop::error::AppError::Validation(
-                            format!("No scan found with id {scan_id}"),
+                            format!("Failed to load scan {scan_id}: {e}"),
                         ));
                     }
                 }
-                Err(e) => {
-                    return Err(space_analyzer_pro_desktop::error::AppError::Validation(
-                        format!("Failed to load scan {scan_id}: {e}"),
-                    ));
-                }
             }
-        }
         } else {
-            match db.get_scan_history_page(limit, offset, search.as_deref(), &sort_by, sort_asc, only_duplicates) {
+            match db.get_scan_history_page(
+                limit,
+                offset,
+                search.as_deref(),
+                &sort_by,
+                sort_asc,
+                only_duplicates,
+            ) {
                 Ok((records, total)) => {
                     let response = serde_json::json!({
                         "records": records,
@@ -286,5 +307,103 @@ pub fn handle_history(
     } else {
         eprintln!("Failed to open database");
     }
+    Ok(())
+}
+
+fn run_summarize(scan_id: Option<i64>, output_format: OutputFormat) -> AppResult<()> {
+    let db = Database::default_open().map_err(|e| {
+        space_analyzer_pro_desktop::error::AppError::Validation(format!(
+            "Failed to open database: {e}"
+        ))
+    })?;
+
+    let settings = db.load_settings();
+    let target_id = match scan_id {
+        Some(id) => id,
+        None => db
+            .get_latest_scan_id()
+            .map_err(|e| {
+                space_analyzer_pro_desktop::error::AppError::Validation(format!(
+                    "Failed to load latest scan: {e}"
+                ))
+            })?
+            .ok_or_else(|| {
+                space_analyzer_pro_desktop::error::AppError::Validation(
+                    "No scan history found. Run a scan first.".to_string(),
+                )
+            })?,
+    };
+
+    let record = db
+        .get_scan_by_id(target_id)
+        .map_err(|e| {
+            space_analyzer_pro_desktop::error::AppError::Validation(format!(
+                "Failed to load scan {target_id}: {e}"
+            ))
+        })?
+        .ok_or_else(|| {
+            space_analyzer_pro_desktop::error::AppError::Validation(format!(
+                "No scan found with id {target_id}"
+            ))
+        })?;
+
+    if output_format == OutputFormat::Json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "scan_id": target_id,
+                "path": record.path,
+                "summarize": "requested",
+            })
+        );
+        return Ok(());
+    }
+
+    eprintln!("Summarizing scan #{} ({})...", target_id, record.path);
+
+    let top_files: Vec<LargestFileEntry> =
+        serde_json::from_str(&record.largest_files_json).unwrap_or_default();
+    let file_types: Vec<(String, u64)> =
+        serde_json::from_str(&record.extension_sizes_json).unwrap_or_default();
+
+    let input = ScanSummaryInput {
+        total_files: record.total_files,
+        total_size_bytes: record.total_size_bytes,
+        potential_cleanup_bytes: Some(record.potential_cleanup_bytes),
+        path: Some(record.path.clone()),
+        top_files,
+        file_types,
+    };
+
+    let rt =
+        tokio::runtime::Runtime::new().expect("Failed to create tokio runtime for summarize_scan");
+
+    let client = OllamaClient::new(&settings.ollama_url, &settings.ollama_model).map_err(|e| {
+        space_analyzer_pro_desktop::error::AppError::Validation(format!(
+            "Failed to create Ollama client: {e}"
+        ))
+    })?;
+
+    let output: ScanSummaryOutput = rt
+        .block_on(summarize_scan(&client, &settings.ollama_model, input))
+        .map_err(|e| {
+            space_analyzer_pro_desktop::error::AppError::Validation(format!(
+                "summarize_scan failed: {e}"
+            ))
+        })?;
+
+    println!("\n=== Scan Summary ({}) ===", target_id);
+    println!("{}", output.summary);
+    if !output.key_insights.is_empty() {
+        println!("\nKey insights:");
+        for insight in &output.key_insights {
+            println!("  • {}", insight);
+        }
+    }
+    eprintln!(
+        "\nTokens: {} prompt + {} completion in {} ms",
+        output.prompt_tokens, output.completion_tokens, output.duration_ms
+    );
+
     Ok(())
 }

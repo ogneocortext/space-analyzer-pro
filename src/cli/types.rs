@@ -137,7 +137,8 @@ impl InstallerCategory {
 
         const DRIVER_MARKERS: [&str; 5] =
             ["driver", "realtek", "chipset", "mb_driver", "audio_driver"];
-        const GPU_MARKERS: [&str; 6] = ["cuda", "nvidia", "geforce", "radeon", "cudnn", "amd_ryzen"];
+        const GPU_MARKERS: [&str; 6] =
+            ["cuda", "nvidia", "geforce", "radeon", "cudnn", "amd_ryzen"];
         const APP_MARKERS: [&str; 6] = [
             "setup",
             "install",

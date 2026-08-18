@@ -59,12 +59,14 @@ mod tests {
     use crate::ollama::agentic::{agentic_question, ToolExecutor};
     use crate::ollama::helpers::{encode_image_for_ollama, split_thinking};
     use crate::ollama::models::{
-        AgenticStep, CleanupPlanInput, ScreenshotInput, ScanSummaryInput, SemanticSearchInput, StepKind,
+        AgenticStep, CleanupPlanInput, ScanSummaryInput, ScreenshotInput, SemanticSearchInput,
+        StepKind,
     };
     use crate::ollama::semantic::semantic_search;
     use crate::ollama::summary::summarize_scan;
     use crate::ollama::types::{
-        ChatMessage, ChatRequest, ChatResponse, ToolCall, ToolCallFunction, ToolDefinition, ToolParameters,
+        ChatMessage, ChatRequest, ChatResponse, ToolCall, ToolCallFunction, ToolDefinition,
+        ToolParameters,
     };
 
     /// Check if Ollama is reachable at the given URL.
@@ -75,7 +77,11 @@ mod tests {
         else {
             return false;
         };
-        let Ok(resp) = client.get(&format!("{}/api/tags", url.trim_end_matches('/'))).send().await else {
+        let Ok(resp) = client
+            .get(format!("{}/api/tags", url.trim_end_matches('/')))
+            .send()
+            .await
+        else {
             return false;
         };
         resp.status().is_success()
@@ -84,7 +90,10 @@ mod tests {
     /// Skip the test (pass with message) unless Ollama is reachable.
     async fn skip_unless_ollama(url: &str) {
         if !ollama_reachable(url).await {
-            eprintln!("  SKIP: Ollama not reachable at {} (start it to run this test)", url);
+            eprintln!(
+                "  SKIP: Ollama not reachable at {} (start it to run this test)",
+                url
+            );
         }
     }
 
@@ -413,8 +422,7 @@ mod tests {
         skip_unless_ollama("http://127.0.0.1:11434").await;
         use crate::ollama::OllamaClient;
 
-        let model =
-            std::env::var("OLLAMA_SUMMARIZE_MODEL").unwrap_or_else(|_| "qwen3.5:4b".into());
+        let model = std::env::var("OLLAMA_SUMMARIZE_MODEL").unwrap_or_else(|_| "qwen3.5:4b".into());
         let client =
             OllamaClient::new("http://127.0.0.1:11434", &model).expect("client builder failed");
         let input = ScanSummaryInput {

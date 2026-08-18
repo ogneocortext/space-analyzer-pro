@@ -1,5 +1,7 @@
 // Licensed under the MIT License.
 
+using SpaceAnalyzer.Models;
+
 namespace SpaceAnalyzer.ViewModels;
 
 public partial class DuplicatesViewModel

@@ -2,6 +2,7 @@
 
 using System.IO;
 using System.Linq;
+using Microsoft.UI.Xaml;
 using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Models;
 using SpaceAnalyzer.Services;
@@ -16,9 +17,10 @@ public partial class HistoryViewModel
     public bool IsLoading
     {
         get => _isLoading;
-        set { _isLoading = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotLoading)); }
+        set { _isLoading = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotLoading)); OnPropertyChanged(nameof(LoadingVisibility)); }
     }
     public bool IsNotLoading => !_isLoading;
+    public Visibility LoadingVisibility => _isLoading ? Visibility.Visible : Visibility.Collapsed;
 
     private string _statusMessage = "Ready";
     public string StatusMessage

@@ -1,10 +1,10 @@
+use crate::animation;
 use crate::cli::args::OutputFormat;
 use crate::cli::helpers;
 use crate::cli::output;
 use crate::cli::report;
 use crate::cli::scan;
 use crate::cli::sink;
-use crate::animation;
 use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::error::AppResult;
 use space_analyzer_pro_desktop::gui_common::ScanReport;
@@ -118,11 +118,7 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
             args.top_n,
             args.verbose,
             args.no_anim,
-            &depth_label(
-                effective_deep,
-                effective_shallow,
-                effective_max_depth,
-            ),
+            &depth_label(effective_deep, effective_shallow, effective_max_depth),
         )?;
     }
 

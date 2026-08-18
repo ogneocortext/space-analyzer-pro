@@ -172,7 +172,6 @@ impl GpuScanProcessor {
             device: "CPU (rayon)".to_string(),
         }
     }
-
 }
 
 impl Default for GpuScanProcessor {
@@ -227,9 +226,7 @@ fn size_bucket(size: u64) -> String {
 /// through unchanged.
 fn strip_verbatim(path: impl AsRef<std::path::Path>) -> String {
     let text = path.as_ref().to_string_lossy().to_string();
-    text.strip_prefix(r"\\?\")
-        .unwrap_or(&text)
-        .to_string()
+    text.strip_prefix(r"\\?\").unwrap_or(&text).to_string()
 }
 
 /// Count entries per parent directory from the filtered entry list.
@@ -291,19 +288,17 @@ fn compute_subdirectories(entries: &[RawFileEntry], scan_root: Option<&Path>) ->
                             root.to_string_lossy().to_string()
                         } else {
                             match rel_comps.first() {
-                                Some(first) => root
-                                    .join(first.as_os_str())
-                                    .to_string_lossy()
-                                    .to_string(),
+                                Some(first) => {
+                                    root.join(first.as_os_str()).to_string_lossy().to_string()
+                                }
                                 None => root.to_string_lossy().to_string(),
                             }
                         }
                     } else {
                         match rel_comps.first() {
-                            Some(first) => root
-                                .join(first.as_os_str())
-                                .to_string_lossy()
-                                .to_string(),
+                            Some(first) => {
+                                root.join(first.as_os_str()).to_string_lossy().to_string()
+                            }
                             None => root.to_string_lossy().to_string(),
                         }
                     }
@@ -459,13 +454,11 @@ mod tests {
     #[test]
     fn gpu_processor_uses_cpu_when_gpu_unavailable() {
         let processor = GpuScanProcessor::new().with_gpu(true);
-        let entries = vec![
-            RawFileEntry {
-                path: "test.txt".to_string(),
-                size: 1024,
-                is_dir: false,
-            },
-        ];
+        let entries = vec![RawFileEntry {
+            path: "test.txt".to_string(),
+            size: 1024,
+            is_dir: false,
+        }];
         let result = processor.process(&entries);
         assert_eq!(result.device, "CPU (rayon)");
         assert_eq!(result.total_files, 1);
@@ -475,9 +468,21 @@ mod tests {
     fn gpu_processor_aggregates_file_types() {
         let processor = GpuScanProcessor::new();
         let entries = vec![
-            RawFileEntry { path: "a.txt".to_string(), size: 100, is_dir: false },
-            RawFileEntry { path: "b.txt".to_string(), size: 200, is_dir: false },
-            RawFileEntry { path: "c.pdf".to_string(), size: 500, is_dir: false },
+            RawFileEntry {
+                path: "a.txt".to_string(),
+                size: 100,
+                is_dir: false,
+            },
+            RawFileEntry {
+                path: "b.txt".to_string(),
+                size: 200,
+                is_dir: false,
+            },
+            RawFileEntry {
+                path: "c.pdf".to_string(),
+                size: 500,
+                is_dir: false,
+            },
         ];
         let result = processor.process(&entries);
         assert_eq!(result.file_types.get("txt"), Some(&2));
@@ -489,9 +494,21 @@ mod tests {
     fn gpu_processor_sorts_largest_files() {
         let processor = GpuScanProcessor::new();
         let entries = vec![
-            RawFileEntry { path: "small.txt".to_string(), size: 100, is_dir: false },
-            RawFileEntry { path: "large.txt".to_string(), size: 10000, is_dir: false },
-            RawFileEntry { path: "medium.txt".to_string(), size: 1000, is_dir: false },
+            RawFileEntry {
+                path: "small.txt".to_string(),
+                size: 100,
+                is_dir: false,
+            },
+            RawFileEntry {
+                path: "large.txt".to_string(),
+                size: 10000,
+                is_dir: false,
+            },
+            RawFileEntry {
+                path: "medium.txt".to_string(),
+                size: 1000,
+                is_dir: false,
+            },
         ];
         let result = processor.process(&entries);
         assert_eq!(result.largest_files[0].path, "large.txt");
@@ -529,10 +546,7 @@ mod tests {
             !names.contains(&"a.txt"),
             "root-level file must not appear as a subdirectory"
         );
-        assert!(
-            names.contains(&"sub"),
-            "real subdirectory must be reported"
-        );
+        assert!(names.contains(&"sub"), "real subdirectory must be reported");
         let sub = dirs.iter().find(|d| d.name == "sub").unwrap();
         assert_eq!(sub.total_size, 4096);
         assert_eq!(sub.file_count, 1);

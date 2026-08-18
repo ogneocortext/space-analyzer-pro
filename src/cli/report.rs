@@ -301,7 +301,10 @@ mod tests {
         for line in &lines {
             let value: serde_json::Value =
                 serde_json::from_str(line).expect("every line must be standalone JSON");
-            assert!(value.get("record").is_some(), "each line needs a record tag");
+            assert!(
+                value.get("record").is_some(),
+                "each line needs a record tag"
+            );
         }
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(lines[0]).unwrap()["record"],
@@ -322,13 +325,8 @@ mod tests {
         let base = std::env::temp_dir().join("space-analyzer-export-test");
         let _ = std::fs::remove_dir_all(&base);
         let target = base.join("nested").join("deep").join("out.json");
-        export_results(
-            &sample(),
-            target.to_str().unwrap(),
-            OutputFormat::Json,
-            20,
-        )
-        .expect("export must create parent directories");
+        export_results(&sample(), target.to_str().unwrap(), OutputFormat::Json, 20)
+            .expect("export must create parent directories");
         assert!(target.exists(), "export file should exist at {target:?}");
         let _ = std::fs::remove_dir_all(&base);
     }
@@ -358,7 +356,9 @@ mod tests {
         );
 
         // Floats are rounded to two decimals, not dumped at full f64 precision.
-        let mb = obj["total_size_mb"].as_f64().expect("total_size_mb is a number");
+        let mb = obj["total_size_mb"]
+            .as_f64()
+            .expect("total_size_mb is a number");
         assert!(
             (mb * 100.0).fract().abs() < f64::EPSILON,
             "total_size_mb should have at most 2 decimal places"
@@ -368,8 +368,7 @@ mod tests {
     #[test]
     fn json_pretty_includes_scanned_files_when_populated() {
         let mut r = sample();
-        r.scanned_files
-            .insert("C:/tmp/a.rs".to_string(), (20, 0));
+        r.scanned_files.insert("C:/tmp/a.rs".to_string(), (20, 0));
         let json = generate_json_pretty(&r).unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(

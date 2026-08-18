@@ -29,7 +29,8 @@ Test categories:
 Output (all in macro_logs/<run_id>/):
   report.json        — consolidated test report (one file for analysis)
   console.log        — human-readable log with timestamps
-  screenshots/       — PNG captures at each test step
+   screenshots/       — PNG captures organized by phase (01_launch, 02_tabs,
+                       03_buttons/<tab>, 04_scan) and tab; see report.json for the index
   history.jsonl      — append-only run history for trend analysis
 """
 
@@ -319,86 +320,195 @@ def get_window_via_uia(hwnd) -> "auto.WindowControl | None":
         return None
 
 
-def invoke_button_by_name(window, button_label: str, search_depth: int = 20) -> bool:
-    """Find a ButtonControl by name and invoke it via UIA Invoke().
+def _get_pattern(ctrl, pattern_id):
+    try:
+        return ctrl.GetPattern(pattern_id)
+    except Exception:
+        return None
 
-    Uses UIA Invoke pattern — does NOT move the cursor or steal focus.
-    If the button is found, it will be invoked regardless of visual position.
 
-    Returns True if the button was found and invoked.
+def safe_invoke(ctrl) -> bool:
+    """Invoke a control cursor-free using the most appropriate UIA pattern.
+
+    Order: InvokePattern (Button) -> SelectionItemPattern (NavigationView tab /
+    ListItem) -> TogglePattern (CheckBox / RadioButton) -> Click (last resort,
+    may move the cursor). Returns True if a pattern was applied.
     """
-    if not HAS_UIA or not window:
+    if ctrl is None:
         return False
-
-    for depth in range(5, search_depth + 1, 5):
-        try:
-            btn = window.ButtonControl(searchDepth=depth, Name=button_label)
-            if btn and btn.Exists(1):
-                btn.Invoke()
+    # Button -> Invoke
+    try:
+        if hasattr(ctrl, "GetInvokePattern"):
+            p = ctrl.GetInvokePattern()
+            if p is not None:
+                p.Invoke()
                 return True
-        except Exception:
-            continue
-    return False
-
-
-def invoke_tab_by_name(window, tab_label: str) -> bool:
-    """Find a TabItemControl by name in the navigation bar and click it via UIA.
-
-    Searches the top navigation region for a matching tab name.
-    """
-    if not HAS_UIA or not window:
+    except Exception:
+        pass
+    # Tab / ListItem -> SelectionItem
+    try:
+        p = _get_pattern(ctrl, auto.PatternId.SelectionItemPattern)
+        if p is not None:
+            p.Select()
+            return True
+    except Exception:
+        pass
+    # Toggle (checkbox / radio)
+    try:
+        if hasattr(ctrl, "GetTogglePattern"):
+            p = ctrl.GetTogglePattern()
+            if p is not None:
+                p.Toggle()
+                return True
+    except Exception:
+        pass
+    # Last resort: click (may move cursor)
+    try:
+        ctrl.Click()
+        return True
+    except Exception:
         return False
 
-    for ctrl_cls in (auto.TabItemControl, auto.ButtonControl):
-        for depth in range(5, 25, 5):
+
+def find_control(window, name: str | None = None, automation_id: str | None = None,
+                 classes: tuple | None = None, search_depth: int = 16):
+    """Window-scoped UIA search for a control by Name and/or AutomationId.
+
+    Scoping to `window` (searchFromControl) avoids ambiguity when multiple
+    app instances are running and is much faster than a desktop-wide search.
+    """
+    if not HAS_UIA or not window:
+        return None
+    if classes is None:
+        classes = (auto.ButtonControl, auto.ListItemControl,
+                   auto.TabItemControl, auto.HyperlinkControl, auto.MenuItemControl)
+    for cls in classes:
+        searcher = getattr(window, cls.__name__, None)
+        if searcher is None:
+            continue
+        for key, val in (("Name", name), ("AutomationId", automation_id)):
+            if not val:
+                continue
             try:
-                item = ctrl_cls(searchDepth=depth, Name=tab_label)
-                if item and item.Exists(0.5):
-                    rect = item.BoundingRectangle
-                    if rect and rect.top < 200:
-                        item.Invoke()
-                        return True
+                ctrl = searcher(searchDepth=search_depth, **{key: val})
+                if ctrl and ctrl.Exists(0.3):
+                    return ctrl
             except Exception:
                 continue
+    return None
+
+
+def invoke_button_by_name(window, button_label: str, automation_id: str | None = None,
+                          search_depth: int = 16) -> bool:
+    """Find a control by Name (or AutomationId) and invoke it via UIA.
+
+    Uses the Invoke/SelectionItem/Toggle patterns — does NOT move the cursor.
+    Returns True if the control was found and invoked.
+    """
+    if not HAS_UIA or not window:
+        return False
+    classes = (auto.ButtonControl, auto.ListItemControl,
+               auto.HyperlinkControl, auto.MenuItemControl)
+    ctrl = find_control(window, name=button_label, automation_id=automation_id, classes=classes)
+    if ctrl and safe_invoke(ctrl):
+        return True
+    # Last-resort fallback: recursive walk keyed on Name / AutomationId.
+    try:
+        for child in window.GetChildren():
+            if _try_invoke_by_name(child, button_label, automation_id):
+                return True
+    except Exception:
+        pass
     return False
 
 
-def set_edit_text_via_uia(window, search_text: str, value: str) -> bool:
-    """Find an Edit control and set its text via UIA Value pattern."""
+def _try_invoke_by_name(ctrl, button_label: str, automation_id: str | None = None) -> bool:
+    try:
+        name = getattr(ctrl, "Name", "") or ""
+        aid = getattr(ctrl, "AutomationId", "") or ""
+        if (button_label and button_label.lower() == name.lower()) or \
+           (automation_id and automation_id == aid):
+            if safe_invoke(ctrl):
+                return True
+    except Exception:
+        pass
+    try:
+        for child in ctrl.GetChildren():
+            if _try_invoke_by_name(child, button_label, automation_id):
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def invoke_tab_by_name(window, tab_label: str, automation_id: str | None = None) -> bool:
+    """Navigate to a WinUI 3 NavigationView tab cursor-free.
+
+    NavigationView items are TabItemControl (or ListItemControl in compact
+    mode) and expose SelectionItemPattern, not InvokePattern — so we use
+    GetPattern(SelectionItemPattern).Select(). Falls back to a recursive
+    Name/AutomationId walk.
+    """
     if not HAS_UIA or not window:
         return False
 
-    for depth in range(5, 25, 5):
-        try:
-            edit = window.EditControl(searchDepth=depth, Name=search_text)
-            if edit and edit.Exists(0.5):
-                try:
-                    edit.SetValue(value)
-                    return True
-                except Exception:
-                    # Fallback: get HWND and use WM_SETTEXT
-                    try:
-                        hwnd_edit = edit.NativeWindowHandle
-                        if hwnd_edit and post_text_to_edit(hwnd_edit, value):
-                            return True
-                    except Exception:
-                        continue
-        except Exception:
-            continue
+    classes = (auto.TabItemControl, auto.ListItemControl)
+    ctrl = find_control(window, name=tab_label, automation_id=automation_id, classes=classes)
+    if ctrl and safe_invoke(ctrl):
+        return True
 
-    # Try finding by AutomationId or by control type
-    for depth in range(5, 25, 5):
+    try:
+        for child in window.GetChildren():
+            if _try_invoke_by_name(child, tab_label, automation_id):
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def set_edit_text_via_uia(window, search_text: str, value: str,
+                          automation_id: str | None = None) -> bool:
+    """Find an Edit control and set its text via UIA Value pattern (cursor-free)."""
+    if not HAS_UIA or not window:
+        return False
+
+    edit = None
+    # Prefer AutomationId, then Name, then first Edit control.
+    for key, val in (("AutomationId", automation_id), ("Name", search_text)):
+        if not val:
+            continue
         try:
-            edits = window.EditControl(searchDepth=depth)
-            if edits:
-                for edit in auto.FindControlList(edit, False):
-                    try:
-                        edit.SetValue(value)
-                        return True
-                    except Exception:
-                        pass
+            e = window.EditControl(searchDepth=16, **{key: val})
+            if e and e.Exists(0.3):
+                edit = e
+                break
         except Exception:
             continue
+    if edit is None:
+        try:
+            e = window.EditControl(searchDepth=16)
+            if e and e.Exists(0.3):
+                edit = e
+        except Exception:
+            pass
+    if edit is None:
+        return False
+
+    # ValuePattern (cursor-free) is the primary path for WinUI 3 TextBox.
+    try:
+        vp = _get_pattern(edit, auto.PatternId.ValuePattern)
+        if vp is not None:
+            vp.SetValue(value)
+            return True
+    except Exception:
+        pass
+    # Fallback: WM_SETTEXT to the native edit HWND.
+    try:
+        hwnd_edit = edit.NativeWindowHandle
+        if hwnd_edit and post_text_to_edit(hwnd_edit, value):
+            return True
+    except Exception:
+        pass
     return False
 
 
@@ -406,65 +516,68 @@ def set_edit_text_via_uia(window, search_text: str, value: str) -> bool:
 # UNIFIED TEST RUNNER
 # ═══════════════════════════════════════════════════════════════
 
-ACTUAL_TABS = ["Dashboard", "Scan", "History", "Smart Search", "Workflows",
-               "AI Assistant", "Duplicates", "System", "Cleanup", "Settings"]
+# Real tabs exposed by the WinUI 3 NavigationView (discovered via UIA on 2026-08-17).
+# NOTE: "Duplicates"/"System"/"Cleanup" are Dashboard quick-action BUTTONS, not tabs;
+# the search tab is named "Search" (not "Smart Search").
+ACTUAL_TABS = ["Dashboard", "Scan", "History", "Search", "Workflows",
+               "AI Assistant", "Settings", "About"]
 NUM_TABS = len(ACTUAL_TABS)
 
 _TAB_INDEX = {name: i for i, name in enumerate(ACTUAL_TABS)}
 
 
-# Button registry: maps tab name -> list of button labels (by accessible name).
-BUTTON_REGISTRY: dict[str, list[str]] = {
+# Button registry: maps tab name -> list of {"label", "name", "id"}.
+# `name` is the accessible Name (may be empty); `id` is the stable AutomationId
+# (preferred when the Name is empty, e.g. Dashboard quick actions).
+BUTTON_REGISTRY: dict[str, list[dict[str, str]]] = {
     "Dashboard": [
-        "New Scan",
-        "View History",
-        "Find Duplicates",
-        "AI Assistant",
-        "Cleanup",
-        "Refresh",
+        {"label": "New Scan", "name": "New Scan", "id": "BtnNewScan"},
+        {"label": "Refresh", "name": "Refresh", "id": ""},
+        {"label": "View History", "name": "View History", "id": "BtnViewHistory"},
+        {"label": "Find Duplicates", "name": "Find Duplicates", "id": "BtnFindDuplicates"},
+        {"label": "AI Assistant", "name": "AI Assistant", "id": "BtnAIAssistant"},
+        {"label": "Cleanup", "name": "", "id": "BtnCleanup"},
+        {"label": "Search Files", "name": "", "id": "BtnSmartSearch"},
+        {"label": "Workflows", "name": "", "id": "BtnWorkflows"},
+        {"label": "Scan Now", "name": "Quick scan now", "id": ""},
     ],
     "Scan": [
-        "Browse",
-        "Open Folder",
-        "Deep scan",
-        "Scan Now",
-        "Export",
-        "Stop",
+        {"label": "Browse", "name": "Browse", "id": "", "external": True},
+        {"label": "Start Scan", "name": "Start Scan", "id": ""},
+        {"label": "Stop Scan", "name": "Stop Scan", "id": ""},
+        {"label": "Export Results", "name": "Export Results", "id": ""},
+        {"label": "Hidden files", "name": "Hidden files", "id": ""},
     ],
     "History": [
-        "Refresh History",
-        "New Scan",
+        {"label": "Refresh history", "name": "Refresh history", "id": ""},
+        {"label": "New scan", "name": "New scan", "id": ""},
+        {"label": "Export trend as CSV", "name": "Export trend as CSV", "id": ""},
+        {"label": "Search history", "name": "Search history", "id": ""},
+        {"label": "Sort by date", "name": "Sort by date", "id": ""},
+        {"label": "Clear all history", "name": "Clear all history", "id": ""},
     ],
-    "Smart Search": [
-        "Browse",
-        "Open",
-        "Start Search",
+    "Search": [
+        {"label": "Browse", "name": "Browse", "id": "", "external": True},
+        {"label": "Start Search", "name": "Start Search", "id": ""},
     ],
     "Workflows": [
-        "Run Workflow",
+        {"label": "Browse", "name": "Browse", "id": "", "external": True},
+        {"label": "Start Search", "name": "Start Search", "id": ""},
     ],
     "AI Assistant": [
-        "Send",
-        "Clear chat",
-    ],
-    "Duplicates": [
-        "Browse",
-        "Open",
-        "Analyze Duplicates",
-    ],
-    "System": [
-        "Refresh",
-    ],
-    "Cleanup": [
-        "Browse",
-        "Analyze",
+        {"label": "Send message", "name": "Send message", "id": ""},
+        {"label": "Clear chat", "name": "Clear chat", "id": ""},
+        {"label": "Stop assistant", "name": "Stop assistant", "id": ""},
     ],
     "Settings": [
-        "Browse",
-        "Open Folder",
-        "Test Connection",
-        "Save Settings",
-        "Reset to Defaults",
+        {"label": "Browse", "name": "Browse", "id": "", "external": True},
+        {"label": "Test Connection", "name": "Test Connection", "id": ""},
+        {"label": "Save Settings", "name": "Save Settings", "id": ""},
+        {"label": "Reset to Defaults", "name": "Reset to Defaults", "id": ""},
+    ],
+    "About": [
+        {"label": "View License (MIT)", "name": "View License (MIT)", "id": "", "external": True},
+        {"label": "Open Project Folder", "name": "Open Project Folder", "id": "", "external": True},
     ],
 }
 
@@ -544,14 +657,22 @@ class TestRun:
         dur = f" in {elapsed_ms:.0f}ms" if elapsed_ms is not None else ""
         self._log(f"  [{status}] {name}{dur}" + (f" — {detail}" if detail else ""))
 
-    def screenshot(self, name: str, hwnd=None) -> str:
+    def screenshot(self, name: str, hwnd=None, subdir: str | None = None) -> str:
+        """Capture a window screenshot into screenshots/<subdir>/<label>.png.
+
+        `subdir` keeps captures organized by phase/tab (e.g. "02_tabs",
+        "03_buttons/scan"); passing None drops them directly in screenshots/.
+        """
         label = name or f"step_{self.step_counter:03d}"
-        path = self.screenshot_dir / f"{label}.png"
+        target_dir = self.screenshot_dir / subdir if subdir else self.screenshot_dir
+        target_dir.mkdir(parents=True, exist_ok=True)
+        path = target_dir / f"{label}.png"
         saved = False
         if hwnd:
             saved = save_printwindow_screenshot(hwnd, str(path))
         entry = {
             "name": label,
+            "subdir": subdir or "",
             "path": str(path.relative_to(self.run_dir)),
             "saved": saved,
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -652,10 +773,14 @@ class TestRun:
 # ═══════════════════════════════════════════════════════════════
 
 def find_window():
-    """Find the Space Analyzer window via pygetwindow + UIA by HWND."""
+    """Find the Space Analyzer window via pygetwindow + UIA by HWND.
+
+    Verifies the UIA tree actually exposes children (WinUI 3 XAML island)
+    before returning, so an empty-tree window is never selected.
+    """
     import pygetwindow as gw
 
-    for attempt in range(8):
+    for attempt in range(12):
         wins = gw.getAllWindows()
         space_wins = [w for w in wins if w.title and w.title.lower().startswith("space analyzer")]
         if space_wins:
@@ -664,17 +789,50 @@ def find_window():
                     hwnd = int(w._hWnd)
                     if HAS_UIA:
                         wc = auto.WindowControl(searchDepth=1, Handle=hwnd)
-                        if wc:
+                        if wc and _window_has_children(wc):
                             return wc, hwnd
-                    return None, hwnd
+                    else:
+                        return None, hwnd
                 except Exception:
                     continue
         time.sleep(0.5)
     return None, None
 
 
+def _window_has_children(wc) -> bool:
+    """Return True if the UIA window exposes at least one descendant control."""
+    try:
+        kids = wc.GetChildren()
+        if kids and len(kids) >= 1:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def kill_existing_instances() -> int:
+    """Kill any already-running SpaceAnalyzer.exe so the test owns exactly one
+    instance (multiple instances make UIA window/tab matching ambiguous)."""
+    try:
+        out = subprocess.run(
+            ["tasklist", "/FI", "IMAGENAME eq SpaceAnalyzer.exe", "/NH"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if "SpaceAnalyzer.exe" not in (out.stdout or ""):
+            return 0
+        subprocess.run(["taskkill", "/F", "/IM", "SpaceAnalyzer.exe"],
+                       capture_output=True, text=True, timeout=15)
+        time.sleep(1.5)
+        return 1
+    except Exception:
+        return 0
+
+
 def launch_app(exe_path: Path) -> tuple[subprocess.Popen | None, "auto.WindowControl | None", int | None]:
     """Launch the WinUI 3 app and return (process, UIA window, hwnd)."""
+    # Ensure a single, owned instance (avoids UIA ambiguity from leftovers).
+    kill_existing_instances()
+
     process = subprocess.Popen(
         [str(exe_path)],
         creationflags=subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0,
@@ -720,7 +878,12 @@ def test_launch(run: TestRun) -> tuple[subprocess.Popen | None, "auto.WindowCont
         run.record_test("window_title", "space analyzer" in title.lower(), f"Title: {title}")
         rect = get_window_rect(hwnd)
         run.record_test("window_size", rect[2] > 800 and rect[3] > 600, f"{rect[2]}x{rect[3]}")
-        run.screenshot("01_launched", hwnd=hwnd)
+        # The WinUI 3 XAML island must expose a UIA subtree or every control
+        # search will fail; surface this explicitly instead of failing 40 times.
+        if window and HAS_UIA:
+            run.record_test("uia_tree_populated", _window_has_children(window),
+                            "Window exposes UIA children")
+        run.screenshot("launched", hwnd=hwnd, subdir="01_launch")
 
     run.end_phase()
     return process, window, hwnd
@@ -745,34 +908,51 @@ def test_tab_navigation(run: TestRun, window, hwnd) -> None:
     run.begin_phase("tab_navigation")
 
     for idx, tab_name in enumerate(ACTUAL_TABS, 1):
-        shot_name = f"{idx:02d}_tab_{tab_name.lower().replace(' ', '_')}"
+        shot_name = f"{idx:02d}_{tab_name.lower().replace(' ', '_')}"
         print(f"  [{idx}] {tab_name}")
         ok = navigate_to_tab(window, tab_name, run)
         time.sleep(0.8)
-        run.screenshot(shot_name, hwnd=hwnd)
+        run.screenshot(shot_name, hwnd=hwnd, subdir="02_tabs")
         run.record_test(f"tab_{tab_name.lower().replace(' ', '_')}_visible", ok, f"Navigated to {tab_name}")
 
     run.end_phase()
 
 
-def test_single_button(run: TestRun, window, hwnd, tab_name: str, button_label: str) -> None:
-    """Test a single button: find it via UIA Invoke, verify no crash, screenshot."""
-    safe_label = button_label.replace(' ', '_').replace('.', '').replace('/', '_').replace('+', 'plus').replace('-', '_')
+def test_single_button(run: TestRun, window, hwnd, tab_name: str, spec: dict[str, str]) -> None:
+    """Test a single button: find it via UIA, invoke cursor-free, verify no crash."""
+    label = spec.get("label") or spec.get("name") or spec.get("id") or "?"
+    name = spec.get("name") or None
+    automation_id = spec.get("id") or None
+    safe_label = label.replace(' ', '_').replace('.', '').replace('/', '_').replace('+', 'plus').replace('-', '_')
     test_name = f"button_{tab_name.replace(' ', '_')}_{safe_label}"
 
-    run.log_event("BUTTON_TEST", f"Testing '{button_label}' on {tab_name}")
+    # Buttons that launch external processes (folder pickers, Explorer, file
+    # launchers) must NOT be invoked by the automated run — they spawn modal
+    # Explorer-style dialogs that hijack the desktop. Navigate to the tab, then
+    # verify the control is present without clicking it.
+    if spec.get("external"):
+        navigate_to_tab(window, tab_name, run)
+        time.sleep(0.5)
+        present = find_control(window, name=name, automation_id=automation_id) is not None
+        run.log_event("BUTTON_TEST_SKIP", f"Skipping external button '{label}' on {tab_name}")
+        run.record_test(test_name, present,
+                        f"External launch button present (not clicked): {label}")
+        return
+
+    run.log_event("BUTTON_TEST", f"Testing '{label}' on {tab_name}")
 
     # Re-navigate to the tab (in case a previous button click changed context)
     navigate_to_tab(window, tab_name, run)
     time.sleep(0.5)
 
-    pre_shot = f"pre_click_{tab_name.lower().replace(' ', '_')}_{safe_label.lower()}"
-    run.screenshot(pre_shot, hwnd=hwnd)
+    tab_slug = tab_name.lower().replace(' ', '_')
+    btn_dir = f"03_buttons/{tab_slug}"
+    run.screenshot(f"{safe_label}__pre", hwnd=hwnd, subdir=btn_dir)
 
     # Use UIA Invoke (no cursor movement, no focus steal)
-    invoked = invoke_button_by_name(window, button_label)
+    invoked = invoke_button_by_name(window, name or label, automation_id)
     if not invoked:
-        run.record_test(test_name, False, f"Button '{button_label}' not found via UIA Invoke()")
+        run.record_test(test_name, False, f"Button '{label}' not found via UIA")
         return
 
     # Brief wait for UI response
@@ -780,13 +960,12 @@ def test_single_button(run: TestRun, window, hwnd, tab_name: str, button_label: 
 
     # Verify the app is still alive
     alive = process_alive(hwnd)
-    run.record_test(test_name, alive, f"Button '{button_label}' invoked, process alive: {alive}")
+    run.record_test(test_name, alive, f"Button '{label}' invoked, process alive: {alive}")
 
     if not alive:
-        run.screenshot(f"crash_after_{safe_label.lower()}", hwnd=hwnd)
+        run.screenshot(f"{safe_label}__crash", hwnd=hwnd, subdir=btn_dir)
     else:
-        post_shot = f"post_click_{tab_name.lower().replace(' ', '_')}_{safe_label.lower()}"
-        run.screenshot(post_shot, hwnd=hwnd)
+        run.screenshot(f"{safe_label}__post", hwnd=hwnd, subdir=btn_dir)
 
 
 def test_all_buttons(run: TestRun, window, hwnd) -> None:
@@ -807,13 +986,14 @@ def test_all_buttons(run: TestRun, window, hwnd) -> None:
         navigate_to_tab(window, tab_name, run)
         time.sleep(0.5)
 
-        baseline = f"buttons_{tab_name.lower().replace(' ', '_')}_baseline"
-        run.screenshot(baseline, hwnd=hwnd)
+        tab_slug = tab_name.lower().replace(' ', '_')
+        btn_dir = f"03_buttons/{tab_slug}"
+        run.screenshot("00_baseline", hwnd=hwnd, subdir=btn_dir)
 
-        for button_label in buttons:
-            test_single_button(run, window, hwnd, tab_name, button_label)
+        for button_spec in buttons:
+            test_single_button(run, window, hwnd, tab_name, button_spec)
 
-        run.screenshot(f"buttons_{tab_name.lower().replace(' ', '_')}_after_all", hwnd=hwnd)
+        run.screenshot("99_after_all", hwnd=hwnd, subdir=btn_dir)
         run.end_phase()
 
     run.end_phase()
@@ -832,20 +1012,22 @@ def test_scan(run: TestRun, window, hwnd) -> None:
         navigate_to_tab(window, "Scan", run)
         time.sleep(0.5)
 
-        # Set the path in the text field via UIA Value pattern
+        # Set the path in the text field via UIA Value pattern (never click
+        # "Browse" — it opens a modal folder picker / Explorer dialog).
         path_set = False
         if window and HAS_UIA:
-            path_set = set_edit_text_via_uia(window, "", str(scan_dir))
+            path_set = set_edit_text_via_uia(window, "Scan directory path", str(scan_dir))
         if not path_set:
-            run.log_event("WARN", "Could not set path via UIA — attempting Browse button fallback")
-            invoke_button_by_name(window, "Browse")
-            time.sleep(1)
+            run.log_event("WARN", "Could not set path via UIA Value pattern — skipping scan")
+            run.record_test("scan_path_set", False, "Path field not settable via UIA")
+            return
+        run.record_test("scan_path_set", True, f"Path set to {scan_dir}")
 
-        run.screenshot("scan_01_path_entered", hwnd=hwnd)
+        run.screenshot("01_path_entered", hwnd=hwnd, subdir="04_scan")
 
-        # Click Scan Now via UIA Invoke (no cursor movement!)
-        invoked = invoke_button_by_name(window, "Scan Now")
-        run.log_event("CLICK", f"UIA Invoke Scan Now: {'OK' if invoked else 'FAIL'}")
+        # Click Start Scan via UIA Invoke (no cursor movement!)
+        invoked = invoke_button_by_name(window, "Start Scan")
+        run.log_event("CLICK", f"UIA Invoke Start Scan: {'OK' if invoked else 'FAIL'}")
         time.sleep(1)
 
         # Wait for scan to complete
@@ -855,7 +1037,7 @@ def test_scan(run: TestRun, window, hwnd) -> None:
             time.sleep(0.5)
             elapsed_s = time.time() - scan_start
             if tick % 6 == 0:
-                run.screenshot(f"scan_02_progress_{int(elapsed_s)}s", hwnd=hwnd)
+                run.screenshot(f"02_progress_{int(elapsed_s)}s", hwnd=hwnd, subdir="04_scan")
                 run.log_event("SCAN_PROGRESS", f"{elapsed_s:.1f}s elapsed")
             if not process_alive(hwnd):
                 run.record_test("scan_process_alive", False, "Process died during scan")
@@ -867,7 +1049,7 @@ def test_scan(run: TestRun, window, hwnd) -> None:
         time.sleep(1)
         scan_ms = (time.time() - scan_start) * 1000
 
-        run.screenshot("scan_03_results", hwnd=hwnd)
+        run.screenshot("03_results", hwnd=hwnd, subdir="04_scan")
         run.record_test("scan_completes", scan_completed, f"Scan finished in {scan_ms:.0f}ms", scan_ms)
         run.record_test("scan_no_crash", process_alive(hwnd), "Window survived scan", scan_ms)
 

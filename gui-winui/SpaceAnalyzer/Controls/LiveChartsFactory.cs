@@ -83,6 +83,9 @@ public static class LiveChartsFactory
                 MaxBarWidth = 20,
                 Rx = 4,
                 Ry = 4,
+                DataLabelsPaint = MakeLabelPaint(),
+                DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.Top,
+                DataLabelsSize = 10,
             };
             if (onIndexClick != null)
                 col.ChartPointPointerDown += (_, _) => onIndexClick(idx);
@@ -230,6 +233,8 @@ public static class LiveChartsFactory
             Width = 360,
             Height = 200,
             AnimationsSpeed = TimeSpan.Zero,
+            LegendPosition = LiveChartsCore.Measure.LegendPosition.Right,
+            LegendTextPaint = MakeLabelPaint(),
         };
 
         return chart;
@@ -271,9 +276,79 @@ public static class LiveChartsFactory
             Width = 360,
             Height = 200,
             AnimationsSpeed = TimeSpan.Zero,
+            LegendPosition = LiveChartsCore.Measure.LegendPosition.Right,
+            LegendTextPaint = MakeLabelPaint(),
         };
 
         return chart;
+    }
+
+    // ── Forecast Chart ──
+
+    /// <summary>
+    /// Simple bar chart comparing current vs predicted storage for the forecast panel.
+    /// </summary>
+    public static FrameworkElement CreateForecastChart(double currentGb, double predictedGb, int daysAhead)
+    {
+        var series = new ISeries[]
+        {
+            new ColumnSeries<double>
+            {
+                Values = [currentGb],
+                Name = $"Current",
+                Fill = new SolidColorPaint(new SKColor(0, 120, 212)),
+                MaxBarWidth = 48,
+                Rx = 4,
+                Ry = 4,
+                DataLabelsPaint = MakeLabelPaint(),
+                DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.Top,
+                DataLabelsSize = 10,
+            },
+            new ColumnSeries<double>
+            {
+                Values = [predictedGb],
+                Name = $"In {daysAhead}d",
+                Fill = new SolidColorPaint(predictedGb > currentGb
+                    ? new SKColor(196, 43, 28)
+                    : new SKColor(16, 124, 16)),
+                MaxBarWidth = 48,
+                Rx = 4,
+                Ry = 4,
+                DataLabelsPaint = MakeLabelPaint(),
+                DataLabelsPosition = LiveChartsCore.Measure.DataLabelsPosition.Top,
+                DataLabelsSize = 10,
+            }
+        };
+
+        return new CartesianChart
+        {
+            Series = series,
+            Height = 160,
+            Width = double.NaN,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            AnimationsSpeed = TimeSpan.Zero,
+            XAxes =
+            [
+                new Axis
+                {
+                    Labels = ["Current", $"In {daysAhead}d"],
+                    LabelsRotation = 0,
+                    TextSize = 11,
+                    LabelsPaint = MakeLabelPaint(),
+                    SeparatorsPaint = MakeSeparatorPaint(),
+                }
+            ],
+            YAxes =
+            [
+                new Axis
+                {
+                    TextSize = 11,
+                    LabelsPaint = MakeLabelPaint(),
+                    SeparatorsPaint = MakeSeparatorPaint(),
+                    Labeler = v => $"{v:F1} GB",
+                }
+            ],
+        };
     }
 
     // ── Sparkline ──
