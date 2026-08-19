@@ -1,5 +1,18 @@
 # [Unreleased]
 
+### Dependency Upgrades — NuGet, Roslyn & Test Stack (2026-08-18)
+
+- **WinUI 3 `SpaceAnalyzer.csproj` — bumped all 6 outdated packages to latest; WinUI 3 MSBuild build stays at 0 errors / 0 warnings:**
+  - `Microsoft.WindowsAppSDK` 2.3.1 → 2.4.0
+  - `Microsoft.Windows.SDK.BuildTools` 10.0.26100.4654 → 10.0.28000.2526
+  - `LiveChartsCore.SkiaSharpView.WinUI` 2.0.0-rc6 → 2.0.5 (first stable release of the 2.0 line)
+  - `Microsoft.Data.Sqlite` 9.0.0 → 10.0.11
+  - `SQLitePCLRaw.bundle_e_sqlite3` 2.1.13 → 3.0.5 (current maintained native bundle; still clears the GHSA-2m69-gcr7-jv3q advisory pinned previously)
+  - `System.Diagnostics.PerformanceCounter` 8.0.0 → 10.0.11
+- **`tools/csharp-analyzer` — `Microsoft.CodeAnalysis.CSharp` 4.9.2 → 5.9.0**; build clean (only stable Roslyn syntax-tree APIs used).
+- **`SpaceAnalyzer.Tests` — test stack brought current:** `xunit` 2.5.3 → 2.9.3, `xunit.runner.visualstudio` 2.5.3 → 4.0.0, `Microsoft.NET.Test.Sdk` 17.8.0 → 18.9.0, `coverlet.collector` 6.0.0 → 10.0.1. `dotnet test` passes 15/15.
+- **No source-code changes required** — the new versions are API-compatible with the existing code (WindowsAppSDK interop, LiveCharts 2.0, Microsoft.Data.Sqlite, and Roslyn syntax APIs all unchanged across the used surface). Rust (Cargo) was already current and `TestJson` had no updates.
+
 ### WinUI 3 — Structured App Logging & AppLog SQLite Sink (2026-08-18)
 
 - **Rewrote `Helpers/AppLog.cs`** with explicit severity levels (`Trace`/`Debug`/`Info`/`Warn`/`Error`/`Fatal`) and severity-aware console coloring. `App.xaml.cs` now routes the unhandled-exception, `TaskScheduler.UnobservedTaskException`, and UI `UnhandledException` handlers through `AppLog.Fatal` (previously all were logged as the generic "Exception" level), so fatal crashes are correctly classified.

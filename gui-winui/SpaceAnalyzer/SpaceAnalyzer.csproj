@@ -16,14 +16,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.3.1" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
-    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
-    <PackageReference Include="LiveChartsCore.SkiaSharpView.WinUI" Version="2.0.0-rc6" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
-    <!-- Pin the native SQLite bundle to a patched release (2.1.10 carries
-         GHSA-2m69-gcr7-jv3q, a high-severity SQLite advisory). -->
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.13" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2526" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.11" />
+    <PackageReference Include="LiveChartsCore.SkiaSharpView.WinUI" Version="2.0.5" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
+    <!-- Native SQLite bundle. 2.1.10 carried GHSA-2m69-gcr7-jv3q (high-severity
+         SQLite advisory); we stay on the current maintained 3.x bundle so the
+         Microsoft.Data.Sqlite engine rides a patched native layer. -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
   </ItemGroup>
 
   <!--
