@@ -1,5 +1,14 @@
 # [Unreleased]
 
+### Repository Cleanup — Remove Redundancy & Slim Tracked Tree (2026-08-19)
+
+- **Deleted orphaned `scripts/utility/live_monitor.py`** — zero references anywhere in the repo (superseded by the Macro Dashboard server + system monitor).
+- **Deleted superseded `scripts/utility/vision_check.ps1`** — overlapped `scripts/vision.mjs analyze` and hardcoded a now-stale screenshot path; the Node helper is the supported vision path.
+- **Removed duplicate Ollama module** — inlined `ollama_vision.py`'s `describe()` into `scripts/utility/analyze_single_screenshot.py` (now imports `OllamaClient` from the `_ollama_client` shim) and deleted `ollama_vision.py`. The two supported Ollama Python entry points are now the canonical `ux-pipeline` client and the `analyze_single_screenshot` shim.
+- **Consolidated capture logic** — `scripts/utility/capture.ps1` now exposes reusable `Save-WindowCapture` / `Save-HwndCapture` / `Save-ScreenCapture` functions and skips execution when dot-sourced; `verify_ui.ps1` dot-sources it and reuses `Save-HwndCapture` instead of duplicating P/Invoke + bitmap code.
+- **Relocated historical/analysis docs out of the tracked tree** — moved `docs/archive/` (175 files), `docs/IMPROVEMENTS.md`, and `docs/FEATURE_GAP_ANALYSIS.md` into `.gitignore` (kept on disk). `docs/generate_status_summary.py` `GAP_FILE` now points at `docs/archive/FEATURE_GAP_ANALYSIS.md`; cross-references in `docs/INDEX.md`, `docs/ARCHITECTURE_DECISIONS.md`, and `docs/ISSUES.md` were updated.
+- **Gitignored the derived `docs/ISSUES.md`** — it is regenerated from `docs/issues.json` via `docs/generate_status_summary.py --write`, so it no longer needs to be tracked.
+
 ### PowerShell 7 — Repository Script Modernization (2026-08-19)
 
 - **All six `scripts/utility/*.ps1` utilities now require PowerShell 7** — added `#Requires -Version 7` to `package_winui.ps1` and `dashboard_server.ps1` (the only two still unpinned; `capture.ps1`, `verify_ui.ps1`, `vision_check.ps1`, and `check_updates.ps1` already had it). The scripts now run on the modern runtime and fail fast on Windows PowerShell 5.1 instead of silently hitting 5.1-only gaps.
