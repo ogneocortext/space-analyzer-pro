@@ -1,5 +1,18 @@
 # [Unreleased]
 
+### PowerShell 7 — Repository Script Modernization (2026-08-19)
+
+- **All six `scripts/utility/*.ps1` utilities now require PowerShell 7** — added `#Requires -Version 7` to `package_winui.ps1` and `dashboard_server.ps1` (the only two still unpinned; `capture.ps1`, `verify_ui.ps1`, `vision_check.ps1`, and `check_updates.ps1` already had it). The scripts now run on the modern runtime and fail fast on Windows PowerShell 5.1 instead of silently hitting 5.1-only gaps.
+- **`ConvertFrom-Json -AsHashtable` for case-safe JSON** — adopted in `dashboard_server.ps1` (the `/api/update` and `/api/bulk-update` request bodies and the `/api/scan` parse) and `check_updates.ps1` (the npm `package.json` dependency parser). Hashtable indexing (`$req['cmd']`, `$pkg['dependencies']`) replaces `PSCustomObject` property access, eliminating the classic case-sensitivity parse trap.
+- **Removed a misplaced duplicate `#Requires`** after the `param()` block in `check_updates.ps1` (it would have been a parse error; the in-file directive already covers it).
+- **Verified under pwsh 7.6.5** — all six scripts parse cleanly; `check_updates.ps1 -SkipPortable -SkipWinget -SkipDependencies` loads and runs.
+
+### WinUI 3 — Window Now Adapts to the Monitor (2026-08-19)
+
+- **Fixed the window ignoring the user's actual display** — `MainWindow` hardcoded a fixed `1400x900` rectangle in its constructor (`MainWindow.xaml.cs`), so on smaller monitors the app overflowed the screen and on large monitors it never filled the available space. The window now sizes itself to the monitor's **work area** (taskbar excluded) on launch via `MonitorFromWindow` + `GetMonitorInfoW`, converting physical pixels to DIPs with the window's real DPI (`GetDpiForWindow`).
+- **Re-fits on monitor change** — subscribed to `AppWindow.Changed`; when the window moves to a *different* monitor (or the display's work area changes) it re-fits, while ordinary user resizes within the same display are left untouched (a plain `DisplayContentsInvalidated` subscription threw a COMException at ctor time, so it was replaced by the monitor-handle-compare approach on `AppWindow.Changed`).
+- Verified at runtime: launch log shows `FitToCurrentMonitor scale=1.00 -> 1920x1032 @(0,0)` (work area of a 1920x1080 display), MSBuild Debug/x64 build 0 errors.
+
 ### Macro Dashboard — Header Redesign, Bug Fixes & Architecture Cleanup (2026-08-19)
 
 - **Header nav redesign** — visual hierarchy between navigation links, action buttons, and status badge:
@@ -15,6 +28,21 @@
   - Removed dead duplicate `/api/agent/run` handler in `live_progress_server.py` (lines 690-713, unreachable since the async version at line 648 returns first)
   - Removed unused `import base64` in `ux_server_agent.py`
 - **Color palette drift fix** — synced `analyze_ux_screenshots.py` `:root` palette with `theme.css` (`--bg:#0f1419`, `--muted:#8b98a5`, `--panel:#161c23`); added missing `--warn`/`--err`/`--busy` variables so standalone report HTML matches the dashboard theme
+
+### Macro Dashboard Gallery — Dropdown UX (2026-08-19)
+
+- **Gallery set picker (gemma vision re-triage)** — recaptured the responsive states of `/`, `/gallery`, `/reports` at desktop / 1024 / tablet / mobile and ran `scripts/vision.mjs` (gemma4:e2b-it-qat) over the dashboard, gallery, and reports screenshots. The gallery dropdown review flagged verbose option labels, no search/filter, mobile truncation, and weak discoverability.
+- **Live filter box on the Gallery set picker** — added a `#rootfilter` search input beside the root `<select>` in `screenshot_gallery.html`; typing filters the capture sets live (matched against the short title, full label, raw folder name, and friendly label) and only the matching `<option>`s are rendered. Desktop and mobile dropdown screenshots were re-run through vision after the change to confirm the fix.
+- **Shorter dropdown labels** — options now show only the compact title (e.g. `Dashboard Ux · Debug`), with the full detail (date · image count, e.g. `Aug 19, 2026 · 24 images`) pushed to the option `title` tooltip instead of cluttering the visible label. Refactored `rootTitleParts()` / `formatRootLabel(item, full)` so the short form is used for the option text and the long form for the tooltip.
+- **Touch targets + grouping** — `#root` and `#rootfilter` now have `min-height: 40px` for comfortable mobile tapping; options are grouped under `optgroup`s (`Capture sets` / `Browse all`).
+- Implementation is `scripts/utility/screenshot_gallery.html`-only (HTML input + CSS + JS `renderRootOptions(query)` / `loadRoots` storing `STATE.allRoots` / filter `input` listener); no server-side changes.
+
+### Macro Dashboard Reports — Responsive UX (2026-08-19)
+
+- **Vision re-triage of the report view** — captured `/report` at desktop / 1024 / tablet / mobile and ran `scripts/vision.mjs` (gemma4:e2b-it-qat); findings: the filter/sort/search toolbar was cramped and not touch-friendly on phones, and the long "Consolidated recommendations" block pushed everything else down.
+- **Touch-friendly toolbar** — `.toolbar select/input/button` get `min-height: 40px`; a `@media (max-width:640px)` rule makes every toolbar control `flex: 1 1 100%` (full-width, stacked) with `gap: 12px` and hides the spacer, so the filter/search/sort controls are tappable and never overflow on a 390px screen.
+- **Collapsible "Consolidated recommendations"** — the summary section now carries `id="consolidated"` with a `Hide`/`Show` toggle button on its heading (`.collapsible-head` / `.sec-toggle`); on screens ≤640px it starts collapsed by default to cut page density, and remains expandable on desktop.
+- **Applied to both the source template and the served report** — the changes live in `analyze_ux_screenshots.py::_render_html_report` (so freshly generated reports are correct), and `_inject_report_enhancements` in `ux_server_render.py` injects the same responsive CSS + collapsible-toggle behavior (with a guard so it never double-adds) into every stored/served report, so the existing DB-backed report improves immediately without re-running the analyzer. Verified in-browser: mobile toolbar controls are full-width and the summary is collapsed by default; no JS console errors.
 
 ### WinUI 3 — UX Triage, Dashboard & Scan Fixes (2026-08-19)
 

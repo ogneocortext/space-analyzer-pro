@@ -1,3 +1,4 @@
+#Requires -Version 7
 param(
     [string]$Version = "4.0.0"
 )

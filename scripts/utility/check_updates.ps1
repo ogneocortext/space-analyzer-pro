@@ -1,3 +1,4 @@
+#Requires -Version 7
 <#
 .SYNOPSIS
     Comprehensive update checker: portable apps, winget, and code dependencies.
@@ -38,7 +39,6 @@ param(
     [switch]$Dashboard
 )
 
-#Requires -Version 7
 $ErrorActionPreference = 'Continue'
 
 # ── Version Comparison ────────────────────────────────────────
@@ -208,12 +208,12 @@ function Get-NpmDeps {
     param([string]$Path)
     $results = @()
     try {
-        $pkg = Get-Content $Path -Raw | ConvertFrom-Json
-        $name = $pkg.name
+        $pkg = Get-Content $Path -Raw | ConvertFrom-Json -AsHashtable
+        $name = $pkg['name']
         $dir = Split-Path $Path
         $deps = @{}
-        if ($pkg.dependencies) { $pkg.dependencies.PSObject.Properties | ForEach-Object { $deps[$_.Name] = $_.Value } }
-        if ($pkg.devDependencies) { $pkg.devDependencies.PSObject.Properties | ForEach-Object { $deps[$_.Name] = $_.Value } }
+        if ($pkg['dependencies']) { $pkg['dependencies'].GetEnumerator() | ForEach-Object { $deps[$_.Key] = $_.Value } }
+        if ($pkg['devDependencies']) { $pkg['devDependencies'].GetEnumerator() | ForEach-Object { $deps[$_.Key] = $_.Value } }
         $i = 0
         foreach ($d in $deps.GetEnumerator()) {
             $i++

@@ -1,3 +1,4 @@
+#Requires -Version 7
 <#
 .SYNOPSIS
     Local HTTP server for the update dashboard.
@@ -68,10 +69,10 @@ function Write-Sse {
 
 function Run-Update {
     param($Context, $Body)
-    $req = $Body | ConvertFrom-Json
-    $cmd = $req.cmd
-    $name = $req.name
-    $method = $req.method
+    $req = $Body | ConvertFrom-Json -AsHashtable
+    $cmd = $req['cmd']
+    $name = $req['name']
+    $method = $req['method']
 
     Send-SseHeaders $Context
     Write-Sse $Context 'start' @{ name = $name; cmd = $cmd; method = $method }
@@ -122,8 +123,8 @@ function Run-Update {
 
 function Run-BulkUpdate {
     param($Context, $Body)
-    $req = $Body | ConvertFrom-Json
-    $commands = $req.commands
+    $req = $Body | ConvertFrom-Json -AsHashtable
+    $commands = $req['commands']
 
     Send-SseHeaders $Context
     Write-Sse $Context 'bulk_start' @{ total = $commands.Count }
@@ -197,7 +198,7 @@ try {
             }
             '^/api/scan$' {
                 $out = & pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command "& 'E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer\scripts\utility\check_updates.ps1' -SkipPortable -SkipWinget -OutputFormat json" 2>$null
-                try { $json = $out | ConvertFrom-Json } catch { $json = @() }
+                try { $json = $out | ConvertFrom-Json -AsHashtable } catch { $json = @() }
                 Send-Json $Context @{ packages = $json; timestamp = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') }
             }
             default {
