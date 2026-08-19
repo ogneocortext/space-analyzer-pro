@@ -13,7 +13,10 @@ a { color: var(--accent); text-decoration: none; }
   align-items: center; padding: 10px 16px; background: #23232a; border-bottom: 1px solid #3a3a42; }
 .toolbar h1 { font-size: 15px; margin: 0 6px 0 0; }
 .root-picker { display: flex; align-items: center; gap: 6px; color: #9da8b5; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-.toolbar select { background: #2c2c34; color: #e6e6e6; border: 1px solid #444; border-radius: 6px; padding: 6px 8px; font-size: 13px; max-width: 440px; min-width: 280px; }
+.toolbar select { background: #2c2c34; color: #e6e6e6; border: 1px solid #444; border-radius: 6px; padding: 6px 8px; font-size: 13px; max-width: 360px; min-width: 280px; }
+#rootfilter { background: #2c2c34; color: #e6e6e6; border: 1px solid #444; border-radius: 6px; padding: 6px 10px; font-size: 13px; min-width: 150px; max-width: 260px; }
+#root, #rootfilter { min-height: 40px; }
+#rootfilter::placeholder { color: #8b98a5; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px 16px;
   background: #1c1d22; border-bottom: 1px solid #33333b; }
 button, a.ghost { background: #3a6df0; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
@@ -80,10 +83,11 @@ figcaption { padding: 7px 9px; }
 <div class="toolbar">
   <h1>Gallery &amp; Dedup</h1>
   <a class="nav-link" href="/">&#8592; Dashboard</a>
-  <label class="root-picker" for="root">Gallery
-    <select id="root" aria-label="Choose screenshot gallery"></select>
-  </label>
-  <button id="refresh" class="ghost" title="Re-scan selected root">Refresh</button>
+    <label class="root-picker" for="root">Gallery
+      <select id="root" aria-label="Choose screenshot gallery"></select>
+    </label>
+    <input id="rootfilter" type="search" placeholder="Filter sets…" aria-label="Filter gallery sets" autocomplete="off">
+    <button id="refresh" class="ghost" title="Re-scan selected root">Refresh</button>
   <span style="display:flex;gap:6px">
     <button class="ghost fbtn active" data-f="all">All</button>
     <button class="ghost fbtn" data-f="dups">Duplicates</button>
@@ -120,7 +124,7 @@ figcaption { padding: 7px 9px; }
 <script>
 const $ = id => document.getElementById(id);
 const grid = $('grid');
-let STATE = { images: [], root: null, viewList: [], viewIndex: -1, filter: 'all' };
+let STATE = { images: [], root: null, viewList: [], viewIndex: -1, filter: 'all', allRoots: [] };
 
 function fmtBytes(n) {
   if (n == null) return '?';
@@ -268,9 +272,9 @@ async function loadGallery(root) {
   render();
 }
 
-function formatRootLabel(item) {
+function rootTitleParts(item) {
   const countLabel = `${item.count} ${item.count === 1 ? 'image' : 'images'}`;
-  if (item.rel === '__all__') return `All screenshots · ${countLabel}`;
+  if (item.rel === '__all__') return { title: 'All screenshots', detail: countLabel };
   const title = s => s.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   // Pattern A: 2026-08-17__winui3-capture__ui-pages
@@ -278,8 +282,8 @@ function formatRootLabel(item) {
   if (mA) {
     const [, y, mo, d, cap, sub] = mA;
     const stamp = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
-    const when = stamp.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
-    return `${title(cap)} · ${title(sub)} · ${when} · ${countLabel}`;
+    const when = stamp.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+    return { title: `${title(cap)} · ${title(sub)}`, detail: `${when} · ${countLabel}` };
   }
   // Pattern B: 20260817_213432 (capture run ids are UTC)
   const mB = item.rel.match(/^(\d{8})_(\d{6})$/);
@@ -290,29 +294,49 @@ function formatRootLabel(item) {
       Number(time.slice(0, 2)), Number(time.slice(2, 4)), Number(time.slice(4, 6))
     ));
     const when = stamp.toLocaleString([], { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
-    return `Capture · ${when} MST · ${countLabel}`;
+    const whenDate = stamp.toLocaleDateString([], { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', year: 'numeric' });
+    return { title: `Capture · ${whenDate}`, detail: `${when} MST · ${countLabel}` };
   }
-  return `${item.label} · ${countLabel}`;
+  return { title: item.label, detail: countLabel };
 }
 
-async function loadRoots(selected = $('root').value) {
-  const r = await fetch('/api/roots', { cache: 'no-store' });
-  if (!r.ok) throw new Error(`Unable to load roots (${r.status})`);
-  const data = await r.json();
+function formatRootLabel(item, full) {
+  const p = rootTitleParts(item);
+  if (full === false) return p.title;
+  return p.detail ? `${p.title} · ${p.detail}` : p.title;
+}
+
+function renderRootOptions(query) {
+  const roots = STATE.allRoots || [];
+  const q = (query || '').trim().toLowerCase();
   const sel = $('root');
   sel.innerHTML = '';
   const captures = document.createElement('optgroup');
   captures.label = 'Capture sets';
   const all = document.createElement('optgroup');
   all.label = 'Browse all';
-  for (const x of data.roots) {
+  for (const x of roots) {
+    const short = formatRootLabel(x, false);
+    const full = formatRootLabel(x, true);
+    if (q && x.rel !== '__all__') {
+      const hay = `${short} ${full} ${x.rel} ${x.label}`.toLowerCase();
+      if (!hay.includes(q)) continue;
+    }
     const o = document.createElement('option');
-    o.value = x.rel; o.textContent = formatRootLabel(x); o.title = x.label;
+    o.value = x.rel; o.textContent = short; o.title = full;
     (x.rel === '__all__' ? all : captures).appendChild(o);
   }
   sel.append(captures, all);
-  if ([...sel.options].some(o => o.value === selected)) sel.value = selected;
-  return sel.value;
+}
+
+async function loadRoots(selected = $('root').value) {
+  const r = await fetch('/api/roots', { cache: 'no-store' });
+  if (!r.ok) throw new Error(`Unable to load roots (${r.status})`);
+  const data = await r.json();
+  STATE.allRoots = data.roots;
+  renderRootOptions($('rootfilter').value);
+  if ([...$('root').options].some(o => o.value === selected)) $('root').value = selected;
+  return $('root').value;
 }
 
 async function init() {
@@ -323,6 +347,7 @@ async function init() {
   await loadGallery(initialRoot);
 
   sel.addEventListener('change', () => loadGallery(sel.value));
+  $('rootfilter').addEventListener('input', () => renderRootOptions($('rootfilter').value));
   $('refresh').onclick = async () => {
     const root = await loadRoots(sel.value);
     await loadGallery(root);

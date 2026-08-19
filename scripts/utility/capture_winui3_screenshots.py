@@ -96,6 +96,14 @@ SWP_NOZORDER = 0x0004
 SWP_NOACTIVATE = 0x0010
 SWP_SHOWWINDOW = 0x0040
 SW_SHOWNOACTIVATE = 8
+LSFW_LOCK = 1  # LockSetForegroundWindow: stop any process stealing foreground
+
+user32.LockSetForegroundWindow.argtypes = [ctypes.c_uint]
+user32.LockSetForegroundWindow.restype = ctypes.c_int
+user32.GetMonitorInfoW.argtypes = [HWND, ctypes.c_void_p]
+user32.GetMonitorInfoW.restype = ctypes.c_int
+user32.IsWindow.argtypes = [HWND]
+user32.IsWindow.restype = ctypes.c_int
 
 MonitorEnumProc = ctypes.WINFUNCTYPE(
     ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p,
@@ -126,6 +134,15 @@ class BITMAPINFO(ctypes.Structure):
     ]
 
 
+class MONITORINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", ctypes.c_uint32),
+        ("rcMonitor", ctypes.wintypes.RECT),
+        ("rcWork", ctypes.wintypes.RECT),
+        ("dwFlags", ctypes.c_uint32),
+    ]
+
+
 REPO = Path(__file__).resolve().parents[2]
 MACRO_LOGS = REPO / "macro_logs"
 META_FILE = "_gallery_meta.json"
@@ -153,8 +170,10 @@ NAV_ITEMS = [
     ("Automation Workflows","workflows"),
     ("AI Assistant",        "ai-chat"),
     ("Duplicates",          "dedup"),
+    ("Installed Apps",      "installed-apps"),
     ("System",              "system"),
     ("Cleanup",             "cleanup"),
+    ("USN Journal",         "usn-journal"),
     ("Settings",            "settings"),  # footer item
 ]
 
@@ -215,56 +234,101 @@ auto.uiautomation.SetGlobalSearchTimeout(2)
 
 # ── Monitor helpers (keep the app off the user's working screen) ──
 
-def enum_monitors() -> list[tuple[int, int, int, int]]:
-    """Return list of (left, top, right, bottom) for each display."""
-    monitors: list[tuple[int, int, int, int]] = []
+def enum_monitors() -> list[tuple[int, int, int, int, int]]:
+    """Return list of (hmon, left, top, right, bottom) for each display.
 
-    def cb(_hmon, _hdc, lprect, _lparam):
+    The HMONITOR handle is captured so we can later query the per-monitor work
+    area (excluding the taskbar) via GetMonitorInfo.
+    """
+    monitors: list[tuple[int, int, int, int, int]] = []
+
+    def cb(hmon, _hdc, lprect, _lparam):
         r = lprect.contents
-        monitors.append((r.left, r.top, r.right, r.bottom))
+        monitors.append((int(hmon), r.left, r.top, r.right, r.bottom))
         return True
 
     user32.EnumDisplayMonitors(0, 0, MonitorEnumProc(cb), 0)
     return monitors
 
 
-def pin_window_to_monitor(hwnd, monitor_index: int = 1, margin: int = 40) -> bool:
-    """Move the window onto a specific monitor WITHOUT stealing focus, and size
-    it to fill the monitor so every top-bar nav tab is visible (avoids the
-    NavigationView 'More' overflow flyout that hides trailing tabs like
-    Duplicates/System/Cleanup from UI Automation).
+def get_monitor_work_area(monitor_index: int) -> tuple[int, int, int, int] | None:
+    """Return the (left, top, right, bottom) WORK area of a monitor — the
+    usable space excluding the taskbar/docked bars. Falls back to the full
+    monitor rect when GetMonitorInfo fails."""
+    monitors = enum_monitors()
+    if not monitors:
+        return None
+    idx = max(0, min(monitor_index, len(monitors) - 1))
+    hmon = monitors[idx][0]
+    mi = MONITORINFO()
+    mi.cbSize = ctypes.sizeof(MONITORINFO)
+    if user32.GetMonitorInfoW(hmon, ctypes.byref(mi)):
+        wa = mi.rcWork
+        return (wa.left, wa.top, wa.right, wa.bottom)
+    _, left, top, right, bottom = monitors[idx]
+    return (left, top, right, bottom)
 
-    SetWindowPos with SWP_NOACTIVATE keeps the user's foreground window focused,
-    so there is no cursor/focus disruption on other screens.
+
+def pin_window_to_monitor(hwnd, monitor_index: int = 1, margin: int = 40,
+                          width: int | None = None, height: int | None = None) -> bool:
+    """Move the window onto a specific monitor WITHOUT stealing focus, and size
+    it so every top-bar nav tab is visible (avoids the NavigationView 'More'
+    overflow flyout that hides trailing tabs like Duplicates/System/Cleanup
+    from UI Automation).
+
+    Pass an explicit ``width`` (wider than the monitor) on a narrow/portrait
+    display so the top bar never overflows: WinUI lays the nav out by the
+    window's client width, not by what is visible on screen, so a wide window
+    keeps all tabs in the UIA tree even when it extends past the monitor edge.
+
+    Position/size is applied with ``SetWindowPos(..., SWP_NOACTIVATE)`` which
+    never activates the window — the user's foreground window (on another
+    screen) stays focused and the app never pops over their work.
     """
     monitors = enum_monitors()
     if not monitors:
         return False
     idx = max(0, min(monitor_index, len(monitors) - 1))
-    left, top, right, bottom = monitors[idx]
-    x = left + margin
-    y = top + margin
-    w = max(800, (right - left) - 2 * margin)
-    h = max(600, (bottom - top) - 2 * margin)
+    left, top, right, bottom = monitors[idx][1:5]
+    if width and height:
+        # Explicit wide size (narrow/portrait displays): position at the monitor
+        # origin and extend past the edge — invisible to the user on a separate
+        # screen, but keeps every tab in the UIA tree.
+        x, y, w, h = left + margin, top + margin, width, height
+    else:
+        # Default: fill the monitor's WORK area (no taskbar). This is effectively
+        # "maximize" but applied with SWP_NOACTIVATE so it never takes focus.
+        wa = get_monitor_work_area(monitor_index) or (left, top, right, bottom)
+        x, y = wa[0], wa[1]
+        h = wa[3] - wa[1]
+        # Force a wide client width so all 12 top-bar tabs stay visible and NONE
+        # overflow into the NavigationView 'More' flyout (overflowing tabs become
+        # MenuItemControls that UIA tab-search misses). WinUI lays the nav out by
+        # client width, not visible width, so a window wider than the monitor is
+        # fine — it just extends off the (separate) screen edge and is captured in
+        # full by PrintWindow. 3200px comfortably fits the longest labels.
+        w = max(wa[2] - wa[0], 3200)
     res = user32.SetWindowPos(
         hwnd, 0, x, y, w, h,
-        SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+        SWP_NOZORDER | SWP_NOACTIVATE,
     )
     return bool(res)
 
 
-SW_MAXIMIZE = 3
+def keep_window_background() -> None:
+    """Best-effort: lock the foreground so the captured app cannot steal focus
+    and pop over the user's other screen while we drive its UI Automation.
 
-
-def maximize_window(hwnd) -> None:
-    """Maximize the app window so all top-bar nav tabs are visible (avoids the
-    NavigationView 'More' overflow that hides trailing tabs from UIA)."""
+    LockSetForegroundWindow(LSFW_LOCK) prevents any process (including the
+    target app) from changing the foreground window until the current foreground
+    process releases it. We re-call this before each navigation to keep the lock
+    fresh, so the app stays put in the background on its separate screen.
+    """
     try:
-        user32.ShowWindow.argtypes = [HWND, ctypes.c_int]
-        user32.ShowWindow.restype = ctypes.c_int
-        user32.ShowWindow(hwnd, SW_MAXIMIZE)
+        user32.LockSetForegroundWindow(LSFW_LOCK)
     except Exception:
         pass
+
 
 
 def capture_window_png(hwnd, path: str) -> bool:
@@ -368,11 +432,18 @@ def find_window() -> tuple[auto.WindowControl | None, int | None]:
 
     if _CACHED_HWND is not None:
         try:
-            wc = auto.WindowControl(searchDepth=1, Handle=_CACHED_HWND)
-            if wc:
-                return wc, _CACHED_HWND
+            # The WinUI window can be destroyed (app crash / close) mid-run, but
+            # a stale HWND still yields a truthy WindowControl. Guard with the
+            # real Win32 liveness check so we never drive or snapshot a dead
+            # window — instead we fall through to a fresh title search (or report
+            # the window lost).
+            if user32.IsWindow(_CACHED_HWND):
+                wc = auto.WindowControl(searchDepth=1, Handle=_CACHED_HWND)
+                if wc:
+                    return wc, _CACHED_HWND
         except Exception:
-            _CACHED_HWND = None
+            pass
+        _CACHED_HWND = None
 
     for attempt in range(5):
         wins = gw.getAllWindows()
@@ -392,6 +463,67 @@ def find_window() -> tuple[auto.WindowControl | None, int | None]:
     return None, None
 
 
+def _select_tab_via_more(name: str) -> bool:
+    """Last-resort selector for tabs that overflow the top NavigationView into
+    the 'More' flyout. In the flyout the items are ``MenuItemControl``s (not
+    ``TabItemControl``s) with the same UIA Name.
+
+    Invokes the 'More' button programmatically — NO ``SetFocus`` — so this does
+    not activate the window and pop it over the user's other screen. Then it
+    selects the overflow item by Name.
+    """
+    try:
+        more = None
+        for ctrl_cls in (auto.ButtonControl, auto.MenuItemControl, auto.TabItemControl):
+            try:
+                c = ctrl_cls(searchDepth=20, Name="More")
+                if c:
+                    more = c
+                    break
+            except Exception:
+                continue
+        if more is None:
+            return False
+        try:
+            pat = more.GetSelectionItemPattern()
+            if pat is not None:
+                pat.Select()
+            else:
+                more.Invoke()
+        except Exception:
+            try:
+                more.Invoke()
+            except Exception:
+                return False
+        time.sleep(1.0)  # flyout needs a beat to populate its items
+        target = None
+        for ctrl_cls in (auto.MenuItemControl, auto.ButtonControl, auto.ListItemControl):
+            try:
+                c = ctrl_cls(searchDepth=20, Name=name)
+                if c:
+                    target = c
+                    break
+            except Exception:
+                continue
+        if target is None:
+            return False
+        try:
+            pat = target.GetSelectionItemPattern()
+            if pat is not None:
+                pat.Select()
+                print(f"    [select] '{name}' via More flyout (SelectionItemPattern)")
+                return True
+        except Exception:
+            pass
+        if hasattr(target, "Invoke") and callable(getattr(target, "Invoke", None)):
+            target.Invoke()
+            print(f"    [select] '{name}' via More flyout (Invoke)")
+            return True
+    except Exception:
+        return False
+    return False
+
+
 def _select_tab(window: auto.Control, label: str) -> bool:
     """Select a nav tab via the UIA SelectionItemPattern.Select().
 
@@ -403,7 +535,6 @@ def _select_tab(window: auto.Control, label: str) -> bool:
     """
     name = AUTO_NAME.get(label, label)
     for attempt in range(3):
-        auto.uiautomation.SetGlobalSearchTimeout(6)
         time.sleep(1.2)  # let the previous navigation settle
         item = None
         for ctrl_cls in (auto.TabItemControl, auto.ButtonControl, auto.MenuItemControl):
@@ -418,10 +549,10 @@ def _select_tab(window: auto.Control, label: str) -> bool:
             print(f"    [select] attempt {attempt + 1}: could not find tab '{label}'")
             continue
         try:
-            try:
-                item.SetFocus()
-            except Exception:
-                pass
+            # IMPORTANT: never call item.SetFocus() here. SetFocus on a control in
+            # another window activates that window and pops it over the user's
+            # other screen. SelectionItemPattern.Select() performs the real tab
+            # switch programmatically and cursor-less, without taking focus.
             try:
                 pat = item.GetSelectionItemPattern()
                 if pat is not None:
@@ -436,6 +567,10 @@ def _select_tab(window: auto.Control, label: str) -> bool:
                 return True
         except Exception as exc:
             print(f"    [select] '{label}' attempt {attempt + 1} failed: {exc}")
+    # Last resort: the tab may have overflowed into the NavigationView 'More'
+    # flyout, where it is a MenuItemControl rather than a TabItemControl.
+    if _select_tab_via_more(name):
+        return True
     print(f"    [select] '{label}' failed after retries")
     return False
 
@@ -481,9 +616,20 @@ def main() -> int:
                     help=f"What produced the shots (default {DEFAULT_ORIGIN}); recorded in the bucket + notes.")
     ap.add_argument("--representation", type=str, default=DEFAULT_REPRESENTATION,
                     help=f"What the shots show (default {DEFAULT_REPRESENTATION}); recorded in the bucket + notes.")
+    ap.add_argument("--width", type=int, default=None,
+                    help="Explicit window width in px. On a narrow/portrait monitor, pass a wide value "
+                         "(e.g. 2800) so the top nav never overflows into the 'More' flyout and every "
+                         "tab stays reachable by UI Automation.")
+    ap.add_argument("--height", type=int, default=None,
+                    help="Explicit window height in px (paired with --width).")
     ap.add_argument("--keep", type=int, default=MAX_BUCKETS,
                     help=f"Retain only the most recent N capture buckets (default {MAX_BUCKETS}).")
     args = ap.parse_args()
+
+    # One global UIA search timeout for the whole run (the old code overrode it
+    # per-attempt inside _select_tab, which was fragile). 6s gives each tab
+    # lookup enough slack without stalling the loop.
+    auto.uiautomation.SetGlobalSearchTimeout(6)
 
     global BUCKET, ORIGIN, REPRESENTATION
     ORIGIN = args.origin
@@ -522,8 +668,11 @@ def main() -> int:
         return 1
 
     # Pin to the chosen monitor WITHOUT stealing focus from your other screen.
-    pin_window_to_monitor(hwnd, args.monitor)
-    maximize_window(hwnd)
+    # pin_window_to_monitor() sizes to the monitor work area with SWP_NOACTIVATE,
+    # so it never takes foreground. (Replaces the old ShowWindow(SW_MAXIMIZE)
+    # which activated the window and popped it over the user's work.)
+    pin_window_to_monitor(hwnd, args.monitor, width=args.width, height=args.height)
+    keep_window_background()
     time.sleep(0.5)
     snap("launched", hwnd, "App launch")
 
@@ -535,9 +684,10 @@ def main() -> int:
             if window is None or hwnd is None:
                 print(f"    FATAL: cannot find window for '{label}'")
                 break
-            # Keep the window pinned (no activate) so it never pops over your work.
-            pin_window_to_monitor(hwnd, args.monitor)
-            maximize_window(hwnd)
+            # Re-assert: keep the window on its monitor AND keep it in the
+            # background so it never pops over the user's other screen.
+            pin_window_to_monitor(hwnd, args.monitor, width=args.width, height=args.height)
+            keep_window_background()
             time.sleep(0.4)
 
             ok = _select_tab(window, label)
@@ -547,9 +697,12 @@ def main() -> int:
             # finished constructing its visual tree. Give it time to render
             # before PrintWindow snapshots the window surface.
             time.sleep(2.0)
+            # Re-lock in case the page switch tried to raise the window.
+            keep_window_background()
             snap(slug, hwnd, label)
         except Exception as exc:
             print(f"    select failed for '{label}': {exc}")
+            keep_window_background()
             snap(slug, hwnd, label)
 
     # Close

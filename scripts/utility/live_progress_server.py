@@ -333,15 +333,29 @@ def build_handler(root_base: Path):
                 self._send(404, b"not found", "text/plain")
                 return
             if route == "/api/shot-preview":
-                # Friendly, rendered view of one shot's live vision_preview JSON.
+                # Friendly, rendered view of one shot's live previews. Shows the
+                # structured analysis (accurate, curated) first and the raw vision
+                # model text collapsed below, so the panel surfaces useful findings
+                # instead of the model's verbose / occasionally hallucinated raw text.
                 q = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
                 key = (q.get("key") or [""])[0]
                 progress = _read_json(root_base / "analysis_progress.json") or {}
                 shots = progress.get("shots") or {}
                 shot = shots.get(key) or {}
+                ap = shot.get("analysis_preview") or ""
                 raw = shot.get("vision_preview") or ""
-                self._send(200, _render_vision_preview(raw, key).encode("utf-8"),
-                           "text/html; charset=utf-8")
+                parts = []
+                if ap:
+                    parts.append(_render_analysis_preview(ap))
+                if raw:
+                    parts.append(
+                        '<details class="vp-raw-wrap"><summary>Raw vision output</summary>'
+                        + _render_vision_preview(raw, key)
+                        + "</details>"
+                    )
+                if not parts:
+                    parts.append('<p class="vp-note">No preview available yet.</p>')
+                self._send(200, "".join(parts).encode("utf-8"), "text/html; charset=utf-8")
                 return
             if route == "/api/shot-previews":
                 # Batch-friendly render of every shot's vision + analysis previews,

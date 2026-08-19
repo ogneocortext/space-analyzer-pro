@@ -13,11 +13,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseXamlCompilerExecutable>false</UseXamlCompilerExecutable>
-    <!-- Opt into Windows App SDK 2.3.1+ XAML performance optimizations (present in the
-         2.4.0 runtime): optimized XamlControlsResources templates (incl. ScrollBar) and a
-         lighter FontIcon/BitmapIcon visual tree. Both preserve control appearance/behavior;
-         the XAML compiler injects the opt-in before Application.Start(). -->
+    <!-- Windows App SDK XAML perf optimizations (preserve appearance/behavior). -->
     <EnabledXamlOptionalChanges>DefaultStyleOptimizations,IconNoGridOptimization</EnabledXamlOptionalChanges>
+    <!-- Target Windows App SDK 2.4.0 — the latest COMPLETE runtime installed on this
+         machine (Framework + DDLM 2.4.0.0-x64 + Main.2 2.4.0.0 + Singleton 8002.4.0.0).
+         An unpackaged framework-dependent build bootstraps against that installed runtime.
+         NOTE: 2.3.1.0 is intentionally NOT used — it is missing Main/Singleton, so it
+         fails to bootstrap with "missing required components". -->
   </PropertyGroup>
 
   <ItemGroup>

@@ -9,6 +9,7 @@ using SpaceAnalyzer.Helpers;
 using SpaceAnalyzer.Services;
 using SpaceAnalyzer.ViewModels;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Windows.Graphics;
 
 namespace SpaceAnalyzer;
@@ -17,6 +18,8 @@ public sealed partial class MainWindow : Window
 {
     public static new MainWindow? Current { get; private set; }
     private bool _isNavigating;
+    private AppWindow? _appWindow;
+    private IntPtr _lastMonitor;
 
     /// <summary>
     /// Optional tab to open on first launch (set from the <c>--page</c> argument).
@@ -34,11 +37,96 @@ public sealed partial class MainWindow : Window
 
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
-        var appWindow = AppWindow.GetFromWindowId(windowId);
-        appWindow.Resize(new SizeInt32 { Width = 1400, Height = 900 });
+        _appWindow = AppWindow.GetFromWindowId(windowId);
+        _appWindow.Changed += OnAppWindowChanged;
+
+        FitToCurrentMonitor();
 
         Title = "Space Analyzer Pro v4.0.0";
         AppLog.Nav($"MainWindow ctor end, Title={Title}");
+    }
+
+    private void OnAppWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
+    {
+        // Re-fit only when the window moves to a DIFFERENT monitor — not on ordinary
+        // user resizes within the same display. That is detected by comparing the
+        // monitor the window is on before/after the change.
+        if (!args.DidPositionChange && !args.DidSizeChange)
+            return;
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        var mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        if (mon != IntPtr.Zero && mon != _lastMonitor)
+            FitToCurrentMonitor();
+    }
+
+    /// <summary>
+    /// Sizes the window to fill the work area (taskbar-excluded) of the monitor it
+    /// is currently on, so the UI adapts to any display/DPI instead of a hardcoded
+    /// 1400x900 rectangle that overflowed small screens and under-filled large ones.
+    /// </summary>
+    private void FitToCurrentMonitor()
+    {
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var hmon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            if (hmon == IntPtr.Zero) return;
+            _lastMonitor = hmon;
+
+            var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            if (!GetMonitorInfoW(hmon, ref mi)) return;
+
+            uint dpi = GetDpiForWindow(hwnd);
+            if (dpi == 0) dpi = 96;
+            double scale = (double)dpi / 96.0;
+
+            int workLeft = (int)(mi.rcWork.left / scale);
+            int workTop = (int)(mi.rcWork.top / scale);
+            int workWidth = (int)((mi.rcWork.right - mi.rcWork.left) / scale);
+            int workHeight = (int)((mi.rcWork.bottom - mi.rcWork.top) / scale);
+
+            // Keep a sane minimum so the layout never collapses on tiny displays.
+            workWidth = Math.Max(800, workWidth);
+            workHeight = Math.Max(600, workHeight);
+
+            _appWindow?.Move(new PointInt32 { X = workLeft, Y = workTop });
+            _appWindow?.Resize(new SizeInt32 { Width = workWidth, Height = workHeight });
+
+            AppLog.Nav($"FitToCurrentMonitor scale={scale:F2} -> {workWidth}x{workHeight} @({workLeft},{workTop})");
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("FitToCurrentMonitor failed", ex);
+        }
+    }
+
+    private const int MONITOR_DEFAULTTONEAREST = 2;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool GetMonitorInfoW(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int left;
+        public int top;
+        public int right;
+        public int bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
     }
 
     private void OnWindowClosed(object sender, WindowEventArgs args)

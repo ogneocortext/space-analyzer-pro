@@ -1,0 +1,590 @@
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; background: var(--bg); scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--txt);
+    font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    /* App shell: lock the page to the viewport and let only <main> scroll, so the
+       header + status bar stay put and the content always fits the window instead
+       of producing one giant page-level scroll on short / vertical windows. */
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+  }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: linear-gradient(180deg, rgba(22,28,35,.97), rgba(29,38,48,.95));
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line); padding: 10px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  header::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(74,163,255,.9), rgba(163,113,247,.7), transparent);
+    background-size: 45% 100%; background-repeat: no-repeat;
+    animation: headerSheen 6.5s ease-in-out infinite; pointer-events: none;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .brand-mark {
+    width: 34px; height: 34px; border-radius: 9px; flex: none; position: relative;
+    background: linear-gradient(135deg, var(--accent), var(--busy));
+    box-shadow: 0 0 0 1px rgba(74,163,255,.4), 0 4px 12px rgba(74,163,255,.25);
+  }
+  .brand-mark::after {
+    content: ""; position: absolute; inset: 9px; border-radius: 3px;
+    border: 2px solid rgba(255,255,255,.9);
+    border-right-color: transparent; border-bottom-color: transparent;
+  }
+  .brand-text { min-width: 0; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 700; letter-spacing: .2px; white-space: nowrap; }
+  .brand-sub { color: var(--muted); font-weight: 500; }
+  .brand-tag {
+    margin: 1px 0 0; font-size: 11.5px; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .nav { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-wrap: wrap; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; line-height: 1;
+    padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    border: 1px solid var(--line); white-space: nowrap; letter-spacing: .03em;
+    transition: all .3s ease;
+  }
+  .badge.running { background: rgba(74,163,255,.15); color: var(--accent); border-color: rgba(74,163,255,.5); }
+  .badge.running::before {
+    content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 0 0 rgba(74,163,255,.6); animation: badge-pulse 2s cubic-bezier(.66,0,0,1) infinite;
+  }
+  .badge.done { background: rgba(63,185,80,.15); color: var(--ok); border-color: rgba(63,185,80,.5); }
+  .badge.error { background: rgba(248,81,73,.15); color: var(--err); border-color: rgba(248,81,73,.5); }
+  .badge.idle { background: rgba(139,152,165,.10); color: var(--muted); border-color: rgba(139,152,165,.25); }
+  .badge.stopped { background: rgba(210,153,34,.15); color: var(--warn); border-color: rgba(210,153,34,.5); }
+  /* Status strip below the header — consolidated live run indicators */
+  .statusbar {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch;
+    padding: 8px 20px; background: var(--panel2); border-bottom: 1px solid var(--line);
+  }
+  .sttile {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 5px 11px; min-width: 84px; display: flex; flex-direction: column; gap: 1px;
+    transition: border-color .3s ease, box-shadow .3s ease;
+  }
+  .sttile.grow { flex: 1 1 240px; min-width: 200px; }
+  .stk { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .stv { font-size: 15px; font-weight: 700; color: var(--txt); line-height: 1.1; transition: color .3s ease; }
+  .sttile.running { border-color: rgba(74,163,255,.45); box-shadow: 0 0 0 1px rgba(74,163,255,.22); }
+  .sttile.running .stv { color: var(--accent); }
+  .sttile.done { border-color: rgba(63,185,80,.45); }
+  .sttile.done .stv { color: var(--ok); }
+  .sttile.error { border-color: rgba(248,81,73,.5); }
+  .sttile.error .stv { color: var(--err); }
+  .sttile #msg a { color: var(--accent); text-decoration: underline; font-weight: 600; }
+  .sttile #msg a:hover { color: #fff; }
+  .st-minibar { height: 4px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin-top: 4px; border: 1px solid var(--line); }
+  .st-minibar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,var(--accent),var(--busy)); transition: width .5s cubic-bezier(.2,.8,.2,1); }
+  .sttile.running .st-minibar > i { background-size: 200% 100%; background-image: linear-gradient(90deg, var(--accent), var(--busy), var(--accent)); animation: shimmer 2.4s ease-in-out infinite; }
+  main {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 20px;
+    align-items: start;
+    flex: 1 1 auto; min-height: 0; overflow: auto;
+  }
+  /* Allow grid/flex children to shrink below their content size — this is the
+     classic cause of horizontal overflow on a snapped (narrow) window. */
+  main > * { min-width: 0; }
+  .control-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .control-grid > * { min-width: 0; }
+  /* ── Windows Snap breakpoints ───────────────────────────────────────────
+      Snap widths at 1920×:  quarter≈480 · third≈640 · half≈960 · ⅔≈1280.
+      The dashboard reflows at those thresholds so every snap size stays usable
+      and never forces a horizontal scrollbar. */
+  @media (max-width: 900px) {                  /* third-snap: single reading column */
+    main { grid-template-columns: minmax(0, 1fr); }
+    #side { grid-column: auto; grid-row: auto; position: static; }
+  }
+  @media (max-width: 640px) {                  /* quarter-snap: compact, everything stacks */
+    main { padding: 12px; gap: 12px; }
+    .card { padding: 12px; }
+    header { padding: 10px 12px; gap: 10px; }
+    .statusbar { padding: 6px 12px; }
+    .sttile { flex: 1 1 100%; }                /* each status tile full-width when narrow */
+    .run-row { flex-direction: column; align-items: stretch; }
+    .run-row select, .run-row input { min-width: 0; width: 100%; }
+    .model-info { white-space: normal; }
+    #report-frame { height: min(420px, 55vh); }
+    .phase { flex: 1 1 100%; min-width: 0; }
+    .side-tabs { margin: 0 0 10px; }
+    .side-tab { font-size: 11px; padding: 7px 2px; }
+  }
+  @media (max-width: 420px) {
+    .brand h1 { font-size: 14px; }
+    .sttile { min-width: 0; }
+  }
+  /* Tabbed sidebar: only one live panel is visible at a time, so the tall
+      Preview / Output / Errors / Report cards no longer stack and overflow the
+      viewport — the sidebar stays compact at every Windows snap width. */
+  /* The sidebar is a full-height right rail: it spans every grid row in column 2
+      so the empty strip that used to sit to the right of the top cards disappears,
+      and it sticks to the top of the scroll area so it stays visible while the
+      (taller) left-hand content scrolls past. */
+  /* Keep the three stacked content cards in column 1 so the right rail (the
+      sidebar) fills column 2 for the full height of the page — no empty strip
+      beside the top cards. */
+  /* Left content column: on wide screens it caps to the main height and scrolls
+     internally so the (taller) controls + progress never push the page past the
+     viewport — the right rail (sidebar) stays full-height beside it. */
+  .left-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .control-grid, #progress-card { grid-column: 1; min-width: 0; }
+  @media (min-width: 901px) {
+    .left-col { grid-column: 1; max-height: 100%; min-height: 0; overflow: auto; }
+    /* Side rail only spans column 2 on the wide two-column layout. Scoping it
+       here (instead of at top level) is critical: a top-level `grid-column: 2`
+       would override the max-width:900px collapse and force an implicit second
+       column that squeezes the main content to zero width on narrow windows. */
+    #side { grid-column: 2; grid-row: 1 / -1; align-self: stretch; }
+  }
+  .side-card { display: flex; flex-direction: column; min-height: 100%; }
+  .side-tabs { display: flex; flex-wrap: wrap; gap: 2px; margin: 0 0 14px; border-bottom: 1px solid var(--line); }
+  .side-tab {
+    flex: 1 1 calc(33.333% - 4px); min-width: 0; margin: 0; padding: 7px 3px; background: transparent; color: var(--muted);
+    border: 0; border-bottom: 2px solid transparent; border-radius: 6px; font-weight: 600;
+    font-size: 11px; line-height: 1.15; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    transition: background-color .18s ease, color .18s ease, border-color .18s ease;
+  }
+  .side-tab:hover { background: rgba(74,163,255,.12); color: var(--txt); }
+  .side-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(74,163,255,.10); }
+  .side-panel { overflow: auto; }
+  .side-panel[hidden] { display: none; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+    transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+  }
+  .card:hover { border-color: rgba(74,163,255,.30); box-shadow: 0 8px 24px rgba(0,0,0,.35); transform: translateY(-2px); }
+  /* The sidebar rail is a container, not a control — suppress the whole-card lift on
+     hover so only its inner interactive items (tabs, issue cards, shot cards) react. */
+  .side-card:hover { transform: none; box-shadow: none; border-color: var(--line); }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; }
+  .bar { height: 10px; background: var(--panel2); border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+  .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,var(--accent),var(--busy)); transition: width .5s cubic-bezier(.2,.8,.2,1); }
+  .phases { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .phase { font-size: 11px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); min-width: 96px; display: flex; flex-direction: column; gap: 4px; transition: background .2s ease, border-color .2s ease, color .2s ease; }
+  .phase:hover { border-color: rgba(74,163,255,.4); color: var(--txt); }
+  .plabel { font-weight: 600; text-transform: capitalize; }
+  .ppct { font-size: 10px; color: var(--muted); }
+  .phase.active .ppct { color: var(--accent); }
+  .phase.past .ppct { color: var(--ok); }
+  .phasebar { height: 5px; background: var(--panel2); border-radius: 3px; overflow: hidden; border: 1px solid var(--line); }
+  .phasebar > i { display: block; height: 100%; width: 0; background: var(--muted); transition: width .6s cubic-bezier(.2,.8,.2,1); }
+  .phase.active .phasebar > i { background: linear-gradient(90deg, var(--accent), var(--busy)); }
+  .phase.past .phasebar > i { background: var(--ok); }
+  .phasebar > i.indet { width: 38% !important; animation: indet 1.4s ease-in-out infinite; }
+  .bar > i { position: relative; }
+  .bar.running > i { background-size: 200% 100%; background-image: linear-gradient(90deg, var(--accent), var(--busy), var(--accent)); animation: shimmer 2.4s ease-in-out infinite; }
+  .dot.pending { animation: blink 1.8s ease-in-out infinite; }
+  ul.shots li.active-row { background: rgba(74,163,255,.08); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; animation: pulse 1.8s ease-in-out infinite; }
+  .spinner { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); display: inline-block; vertical-align: -1px; animation: spin .8s linear infinite; margin-right: 6px; }
+  #live-img { transition: opacity .35s ease; }
+  #live-img.loading { opacity: 0; }
+  .stat-row { display: flex; gap: 18px; margin-top: 12px; flex-wrap: wrap; }
+  .stat { font-size: 12px; color: var(--muted); }
+  .stat b { display: block; font-size: 20px; color: var(--txt); font-weight: 700; }
+  .current {
+    margin-top: 14px; padding: 10px 12px; background: var(--panel2); border-radius: 8px;
+    border: 1px solid var(--line); font-size: 13px; color: var(--accent);
+  }
+  /* Bound the run/loop status blocks so an active run's log never pushes the
+     dashboard past the 1366×768 viewport — it scrolls internally instead. */
+  #run-status, #loop-status { max-height: 150px; overflow: auto; }
+  /* Structured run-status block (replaces the old wall-of-text log) */
+  .run-summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .run-state { font-weight: 700; font-size: 13px; }
+  .run-state.running { color: var(--accent); }
+  .run-state.done { color: var(--ok); }
+  .run-state.error { color: var(--err); }
+  .run-state.idle { color: var(--muted); }
+  .run-chip { font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; }
+  .run-chip b { color: var(--txt); font-weight: 600; }
+  .run-log {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace;
+    font-size: 11px; line-height: 1.5; color: var(--muted);
+    background: #0d1117; border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 10px; max-height: 210px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+  }
+  .run-line { padding: 1px 0; }
+  .run-line.info { color: #9fb3c8; }
+  .run-line.debug { color: #6e7b89; }
+  .run-line.warn { color: var(--warn); }
+  .run-line.err { color: var(--err); }
+  ul.shots { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 300px); overflow: auto; }
+  ul.shots li {
+    display: flex; align-items: flex-start; gap: 10px; padding: 12px 8px; border-bottom: 1px solid var(--line);
+  }
+  /* The inner content div must be allowed to shrink below its content size,
+     otherwise a long unbreakable preview line forces the whole row (and the
+     list) to a huge width and gets clipped by ul.shots' overflow:auto. */
+  ul.shots li > div { min-width: 0; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex: none; background: var(--muted); }
+  .dot.features { background: var(--warn); }
+  .dot.vision { background: var(--accent); }
+  .dot.analysis { background: var(--busy); }
+  .dot.done { background: var(--ok); }
+  .dot.error { background: var(--err); }
+  .persona-chip { display: inline-block; font-size: 13px; font-weight: 700; padding: 1px 9px; border-radius: 999px; border: 1px solid transparent; line-height: 1.3; }
+  .persona-features { color: var(--warn); border-color: rgba(232,178,51,.45); background: rgba(232,178,51,.14); }
+  .persona-vision { color: var(--accent); border-color: rgba(74,163,255,.45); background: rgba(74,163,255,.14); }
+  .persona-analysis { color: var(--busy); border-color: rgba(163,113,247,.45); background: rgba(163,113,247,.14); }
+  .persona-aggregate { color: var(--ok); border-color: rgba(63,185,80,.45); background: rgba(63,185,80,.14); }
+  .persona-code { color: #e8923a; border-color: rgba(232,146,58,.45); background: rgba(232,146,58,.14); }
+  .persona-chip.flash { animation: personaflash 1s cubic-bezier(.2,.8,.2,1) 1; }
+  .shot-name { font-weight: 600; }
+  .shot-sub { color: var(--muted); font-size: 12px; }
+  .preview { margin-top: 4px; font-size: 12px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+  #live-vis .vp-section { margin-bottom: 10px; }
+  #live-vis .vp-title { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+  #live-vis .vp-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  #live-vis .vp-chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; font-size: 12px; color: var(--txt); }
+  #live-vis .vp-list { margin: 0; padding-left: 18px; }
+  #live-vis .vp-list li { margin: 2px 0; color: var(--txt); font-size: 12px; }
+  #live-vis .vp-kv { font-size: 12px; color: var(--txt); }
+  #live-vis .vp-k { color: var(--muted); }
+  #live-vis .vp-text { font-size: 12px; color: var(--txt); margin: 0; }
+  #live-vis .vp-block { border-left: 2px solid var(--line); padding-left: 8px; margin: 4px 0; }
+  #live-vis .vp-note { color: var(--muted); font-size: 12px; font-style: italic; }
+  #live-vis .vp-warn { color: var(--warn); font-size: 12px; }
+  #live-vis .vp-err { color: var(--err); font-size: 12px; }
+  #live-vis .vp-raw { white-space: pre-wrap; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 8px; font-size: 11px; max-height: 160px; overflow: auto; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
+  /* Collapsed container for the raw vision model text in the Live Preview panel —
+     the structured analysis is shown above it, so the noisy raw dump is de-emphasized. */
+  .vp-raw-wrap { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); overflow: hidden; }
+  .vp-raw-wrap > summary { cursor: pointer; padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--muted); list-style: none; }
+  .vp-raw-wrap > summary::-webkit-details-marker { display: none; }
+  .vp-raw-wrap > summary::before { content: "▸ "; }
+  .vp-raw-wrap[open] > summary { border-bottom: 1px solid var(--line); }
+  .vp-raw-wrap[open] > summary::before { content: "▾ "; }
+  .vp-raw-wrap > .vp-note, .vp-raw-wrap > pre.vp-raw { margin: 10px 12px; }
+  .vp-tint { background: rgba(255,255,255,.025); border-radius: 6px; padding: 6px 8px; }
+  .shot-card .vp-section { margin: 8px 0; }
+  #live-vis .vp-warn { animation: vpwarn 1.4s ease-in-out infinite; border-radius: 4px; }
+  /* Per-shot preview cards (vision + analysis) in the screenshots list */
+  .shot-card { margin-top: 6px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease; }
+  .shot-card:hover { border-color: rgba(74,163,255,.40); background: var(--panel); box-shadow: 0 4px 14px rgba(0,0,0,.28); }
+  .shot-card.ap-card { margin-top: 6px; }
+  .ap-note, .ap-err, .ap-warn, .ap-text { font-size: 12px; color: var(--muted); }
+  .ap-err { color: var(--err); }
+  .ap-warn { color: var(--warn); font-style: italic; }
+  .ap-title { font-weight: 600; font-size: 13px; color: var(--txt); margin-bottom: 6px; }
+  .ap-sevbar { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .ap-sev { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+  .ap-high { background: rgba(248,81,73,.16); color: #ff7b72; border-color: rgba(248,81,73,.45); }
+  .ap-medium { background: rgba(210,153,34,.16); color: #e3b341; border-color: rgba(210,153,34,.45); }
+  .ap-low { background: rgba(63,185,80,.16); color: #56d364; border-color: rgba(63,185,80,.45); }
+  .ap-list { margin: 4px 0 0; padding-left: 0; list-style: none; }
+  .ap-issue { border-left: 3px solid var(--line); padding: 6px 8px; margin: 4px 0; background: var(--panel); border-radius: 0 6px 6px 0; }
+  .ap-issue.ap-high { border-left-color: #f85149; }
+  .ap-issue.ap-medium { border-left-color: #e3b341; }
+  .ap-issue.ap-low { border-left-color: #56d364; }
+  .ap-cat { display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-right: 6px; }
+  .ap-finding { font-size: 12px; color: var(--txt); margin-top: 2px; }
+  .ap-loc { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  /* Severity-aware card borders so a reviewer spots risky shots at a glance */
+  .shot-card.ap-card.sev-high { border-color: rgba(248,81,73,.6); box-shadow: 0 0 0 1px rgba(248,81,73,.3); }
+  .shot-card.ap-card.sev-medium { border-color: rgba(210,153,34,.6); box-shadow: 0 0 0 1px rgba(210,153,34,.3); }
+  .shot-card.ap-card.sev-low { border-color: rgba(63,185,80,.5); }
+  .shot-card.ap-card.sev-high::before { content: "⚠ high-severity findings"; display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #ff7b72; margin-bottom: 4px; }
+  .errlist { color: var(--err); font-size: 12px; }
+  .report-box { white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.55; color: var(--txt); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 12px; tab-size: 2; max-height: 50vh; overflow: auto; }
+  .output-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .output-head h2 { margin: 0; }
+  .output-state { margin-left: auto; color: var(--muted); font-size: 11px; }
+  .output-state.live { color: var(--accent); }
+  .output-tools { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+  .report-tools { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+  .output-tools button { padding: 5px 9px; font-size: 11px; margin: 0; }
+  .output-tools label { color: var(--muted); font-size: 11px; display: flex; align-items: center; gap: 4px; }
+  /* Let the live-output log fill the full sidebar height (no double-scroll, no
+     360px cap) so long model output is actually readable. */
+  .side-panel[data-panel="output"]:not([hidden]) { display: flex; flex-direction: column; min-height: 0; height: 100%; overflow: hidden; }
+  .side-panel[data-panel="output"] .output-head,
+  .side-panel[data-panel="output"] .output-tools { flex: 0 0 auto; }
+  #live-out { flex: 1 1 auto; min-height: 240px; max-height: none; margin: 0; background: #10151b; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  button, a.secondary {
+    margin-top: 12px; background: var(--accent); color: #03121f; border: 0; border-radius: 8px;
+    padding: 8px 14px; font-weight: 600; cursor: pointer;
+    transition: background .15s ease, transform .12s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  button.secondary, a.secondary { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); text-decoration: none; }
+  button:not(:disabled):active { transform: translateY(1px); box-shadow: none; }
+  a.secondary:hover { transform: translateY(-1px); border-color: var(--accent); background: rgba(74,163,255,.18); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  /* ── Inline SVG icon system ──────────────────────────────────────────────
+     Icons are defined once as <symbol>s in a hidden sprite near <body> and
+     referenced with <svg class="ic"><use href="#i-…"/></svg>. They inherit
+     currentColor, so they match each button's text color automatically. */
+  .ic { width: 15px; height: 15px; flex: none; }
+  button, a.secondary, .nav-link, .side-tab, .agent-quick button, .iss-actions button {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  }
+  .side-tab .ic { width: 14px; height: 14px; }
+  .agent-quick button .ic { width: 14px; height: 14px; }
+  /* Stop buttons were rendering as primary blue — give them a real danger style */
+  button.danger { background: rgba(248,81,73,.14); color: #ff7b72; border: 1px solid rgba(248,81,73,.45); }
+  button.danger:hover { background: rgba(248,81,73,.24); border-color: var(--err); box-shadow: 0 3px 10px rgba(248,81,73,.25); }
+  button.danger:disabled { opacity: .5; cursor: not-allowed; }
+  button.danger .ic { color: #ff7b72; }
+  .run-row { display: flex; gap: 16px 18px; align-items: flex-end; flex-wrap: wrap; }
+  .run-row label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
+  .run-row select, .run-row input {
+    background: var(--panel2); color: var(--txt); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 10px; font-size: 13px; min-width: 210px;
+  }
+  .run-row select {
+    appearance: none; padding-right: 32px; cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+  }
+  .run-row select:hover { border-color: var(--accent); }
+  .run-row select:focus, .run-row input:focus { outline: 2px solid rgba(74,163,255,.35); outline-offset: 1px; border-color: var(--accent); }
+  .run-row option { background: var(--panel2); color: var(--txt); }
+  .model-info { font-size: 11.5px; color: var(--muted); align-self: center; white-space: nowrap; }
+  .run-row button { margin-top: 0; }
+  .card-desc { margin: 0 0 14px; font-size: 13px; line-height: 1.5; color: var(--muted); max-width: 760px; }
+  .card-desc code { background: var(--panel2); padding: 1px 6px; border-radius: 5px; color: var(--txt); font-size: 12px; }
+  .run-row label.checkbox { flex-direction: row; align-items: center; gap: 6px; color: var(--txt); font-size: 13px; }
+  .run-row label.checkbox input { width: auto; margin: 0; }
+  .run-row .hint { color: var(--muted); font-weight: 400; font-size: 11px; }
+  /* Collapsible Self-Improvement Loop card: collapsed by default so the control
+     grid stays compact and the dashboard fits a 1366×768 window without scrolling. */
+  .collapsible > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; }
+  .collapsible > summary::-webkit-details-marker { display: none; }
+  .collapsible > summary .ch { font-size: 15px; font-weight: 700; color: var(--txt); }
+  .collapsible > summary .ch::before { content: "\25B8"; margin-right: 7px; color: var(--accent); font-size: 12px; }
+  .collapsible[open] > summary .ch::before { content: "\25BE"; }
+  .run-badge { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 9px; background: rgba(163,113,247,.18); color: #c9a8ff; border: 1px solid rgba(163,113,247,.4); }
+  .run-badge.dry { background: rgba(210,153,34,.16); color: #f0c674; border-color: rgba(210,153,34,.4); }
+  a { color: var(--accent); }
+  /* Issue Tracker panel */
+  .iss-counts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .iss-count { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .iss-count b { color: var(--txt); }
+  .iss-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .iss-toolbar select, .iss-toolbar input { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 13px; }
+  .iss-toolbar select { appearance: none; padding-right: 28px; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+  .iss-toolbar input[type="search"] { flex: 1; min-width: 160px; }
+  .iss-list { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 230px); overflow: auto; }
+  .iss-item { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 8px 0; background: var(--panel2); transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease; }
+  .iss-item:hover { border-color: rgba(74,163,255,.40); background: var(--panel); box-shadow: 0 4px 14px rgba(0,0,0,.28); }
+  .iss-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .iss-title { flex: 1 1 auto; min-width: 0; font-weight: 600; color: var(--txt); font-size: 13px; overflow-wrap: anywhere; }
+  .iss-id { flex: 0 1 auto; min-width: 0; font-size: 11px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+  .iss-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+  .iss-sev-high { background: rgba(248,81,73,.16); color: #ff7b72; border-color: rgba(248,81,73,.45); }
+  .iss-sev-medium { background: rgba(210,153,34,.16); color: #e3b341; border-color: rgba(210,153,34,.45); }
+  .iss-sev-low { background: rgba(63,185,80,.16); color: #56d364; border-color: rgba(63,185,80,.45); }
+  .iss-sev-critical { background: rgba(248,81,73,.28); color: #ff9a93; border-color: rgba(248,81,73,.7); }
+  .iss-st-open { background: rgba(74,163,255,.14); color: var(--accent); }
+  .iss-st-in_progress { background: rgba(163,113,247,.16); color: var(--busy); }
+  .iss-st-done { background: rgba(63,185,80,.14); color: var(--ok); }
+  .iss-st-blocked { background: rgba(210,153,34,.16); color: #e3b341; }
+  .iss-st-wontfix { background: rgba(139,152,165,.14); color: var(--muted); }
+  .iss-st-pending { background: rgba(139,152,165,.14); color: var(--muted); }
+  .iss-notes { color: var(--muted); font-size: 12px; margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+  .iss-meta { color: var(--muted); font-size: 11px; margin-top: 4px; overflow-wrap: anywhere; word-break: break-word; }
+  .iss-shotrow { margin-top: 8px; }
+  .iss-shot {
+    display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+    background: rgba(74,163,255,.12); color: var(--accent, #4aa3ff);
+    border: 1px solid rgba(74,163,255,.35); border-radius: 999px;
+    padding: 3px 10px; font-size: 11px; font-weight: 600;
+    transition: background-color .2s ease, border-color .2s ease;
+  }
+  .iss-shot:hover { background: rgba(74,163,255,.22); border-color: rgba(74,163,255,.6); }
+  #shots li.flash { animation: shotFlash 1.4s ease; }
+  @keyframes shotFlash {
+    0% { box-shadow: 0 0 0 2px rgba(74,163,255,.9); background: rgba(74,163,255,.14); }
+    100% { box-shadow: 0 0 0 0 transparent; background: transparent; }
+  }
+  .iss-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .iss-actions select { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; font-size: 12px; }
+  .iss-actions input { flex: 1; min-width: 120px; background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+  .iss-actions button { margin-top: 0; padding: 5px 10px; font-size: 12px; }
+  .iss-empty { color: var(--muted); padding: 16px; text-align: center; }
+
+  /* ── AI Assistant card ────────────────────────────────────────────────── */
+  #agent-card .collapsible > summary .ch { font-size: 15px; }
+  .agent-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
+  .agent-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .agent-row select, .agent-row input {
+    background: var(--panel2); color: var(--txt); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 10px; font-size: 13px; min-width: 180px;
+  }
+  .agent-row label.checkbox { flex-direction: row; align-items: center; gap: 6px; color: var(--txt); font-size: 13px; }
+  .agent-row label.checkbox input { width: auto; margin: 0; }
+  #agent-msg {
+    flex: 1 1 320px; min-width: 220px; resize: vertical; font-family: inherit;
+    background: var(--panel2); color: var(--txt); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 10px; font-size: 13px;
+  }
+  .agent-quick { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .agent-quick button { margin-top: 0; padding: 5px 10px; font-size: 12px; }
+  .agent-transcript {
+    margin-top: 10px; max-height: 380px; overflow: auto; display: flex; flex-direction: column;
+    gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: #0d1117;
+  }
+  .agent-step { border-left: 3px solid var(--line); padding: 6px 10px; background: var(--panel); border-radius: 0 6px 6px 0; }
+  .agent-step.assistant { border-left-color: var(--accent); }
+  .agent-step.tool { border-left-color: var(--busy); }
+  .agent-step.final { border-left-color: var(--ok); }
+  .agent-role { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 3px; font-weight: 700; }
+  .agent-msg { font-size: 13px; color: var(--txt); white-space: pre-wrap; }
+  .agent-toolcall { font-size: 12px; color: var(--warn); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+  .agent-result { margin: 4px 0 0; font-size: 11px; color: #9fb3c8; white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+  .agent-tools { display: flex; flex-direction: column; gap: 6px; }
+  .agent-tool { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; background: var(--panel2); }
+  .agent-tool b { color: var(--accent); font-size: 12px; }
+  .agent-tool-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* Entrance + tab transitions use the shared @keyframes (riseIn / panelFade)
+     defined in /theme.css. Live-updating lists (shots / phases / issues) are
+     replaced wholesale each poll, so they intentionally do NOT animate on
+     update — only genuinely new, user-driven changes (tabs, hover, status) do,
+     to avoid per-poll flicker. */
+  header, .statusbar, .card { animation: riseIn .5s cubic-bezier(.2,.8,.2,1) both; }
+  .side-panel:not([hidden]) { animation: panelFade .35s ease both; }
+
+  /* ── KPI summary strip (at-a-glance project status) ──────────────────── */
+  .kpi-strip {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; min-width: 0;
+  }
+  .kpi {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
+    transition: border-color .25s ease, box-shadow .25s ease;
+  }
+  .kpi:hover { border-color: rgba(74,163,255,.30); box-shadow: 0 6px 18px rgba(0,0,0,.30); }
+  .kpi-k { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .kpi-v { font-size: 28px; font-weight: 800; line-height: 1; color: var(--txt); transition: color .3s ease; }
+  .kpi.running { border-color: rgba(74,163,255,.45); }
+  .kpi.running .kpi-v { color: var(--accent); }
+  .kpi.done { border-color: rgba(63,185,80,.45); }
+  .kpi.done .kpi-v { color: var(--ok); }
+  .kpi.error { border-color: rgba(248,81,73,.5); }
+  .kpi.error .kpi-v { color: var(--err); }
+  .kpi.idle .kpi-v { color: var(--muted); }
+  .kpi.warn { border-color: rgba(210,153,34,.5); }
+  .kpi.warn .kpi-v { color: var(--warn); }
+  @media (max-width: 640px) { .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+  /* ── Issue Tracker hierarchy: severity top-accent + stronger title ───── */
+  .iss-item.iss-sev-critical { border-top: 2px solid rgba(248,81,73,.7); }
+  .iss-item.iss-sev-high { border-top: 2px solid rgba(248,81,73,.6); }
+  .iss-item.iss-sev-medium { border-top: 2px solid rgba(210,153,34,.6); }
+  .iss-item.iss-sev-low { border-top: 2px solid rgba(63,185,80,.5); }
+  .iss-title { font-size: 14px; line-height: 1.3; }
+  .iss-badge.iss-sev-critical { box-shadow: 0 0 0 1px rgba(248,81,73,.3); }
+
+  /* ── Persona chips: soften the saturated fills in the dark theme ────── */
+  .persona-features { background: rgba(232,178,51,.08); }
+  .persona-vision { background: rgba(74,163,255,.08); }
+  .persona-analysis { background: rgba(163,113,247,.08); }
+  .persona-aggregate { background: rgba(63,185,80,.08); }
+  .persona-code { background: rgba(232,146,58,.08); }
+
+  /* ── Gallery shot cards + report rhythm: more breathing room ────────── */
+  .shot-card { padding: 10px 12px; }
+  .phases { margin-top: 16px; }
+  .phase { margin-bottom: 8px; }
+
+  /* ── Primary action buttons: clearer, higher-contrast hover lift ───── */
+  button:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 5px 16px rgba(74,163,255,.35); }
+
+  /* ── Accessibility: honour OS "reduce motion" (kills all infinite loops) ── */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* ── Ollama Model Status card (live VRAM / running models) ───────────── */
+  .model-status-body { display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
+  .model-status-empty { color: var(--muted); font-size: 13px; }
+  .model-status-offline { color: var(--err); font-size: 13px; }
+  .model-summary { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .model-summary b { color: var(--txt); font-weight: 700; }
+  .model-row {
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--panel2);
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .model-row-top { display: flex; align-items: center; gap: 8px; }
+  .model-name { font-weight: 700; font-size: 13px; color: var(--txt); flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .model-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+  .model-badge.loading { background: rgba(74,163,255,.16); color: var(--accent); border-color: rgba(74,163,255,.45); }
+  .model-badge.idle { background: rgba(139,152,165,.14); color: var(--muted); }
+  .model-vram { font-size: 12px; color: var(--muted); }
+  .model-vram b { color: var(--txt); }
+  .model-bar { height: 6px; background: var(--panel); border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
+  .model-bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--busy)); transition: width .6s cubic-bezier(.2,.8,.2,1); }
+  .model-bar.hot > i { background: linear-gradient(90deg, var(--warn), var(--err)); }
+  .model-meta { font-size: 11px; color: var(--muted); }
+
+  /* ── Agent Execution Trace (live event timeline) ─────────────────────────── */
+  .agent-trace-wrap {
+    margin: 12px 0 4px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel2);
+    overflow: hidden;
+  }
+  .agent-trace-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-bottom: 1px solid var(--line);
+    background: rgba(74,163,255,.05);
+  }
+  .agent-trace-head .ch { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; }
+  #agent-trace-status { margin-left: auto; color: var(--muted); font-size: 11px; }
+  #agent-trace-status:empty { display: none; }
+  #agent-stop { padding: 5px 10px; font-size: 12px; }
+  .agent-trace {
+    max-height: 320px; overflow-y: auto;
+    padding: 8px 10px; display: flex; flex-direction: column; gap: 4px;
+    font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 12px;
+  }
+  .trace-ev {
+    display: grid;
+    grid-template-columns: 58px 64px 22px 1fr;
+    align-items: center; gap: 8px;
+    padding: 4px 6px; border-radius: 6px;
+    background: var(--panel); border: 1px solid transparent;
+  }
+  .trace-ev:hover { border-color: var(--line); }
+  .trace-t { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+  .trace-bar { height: 6px; background: var(--panel2); border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
+  .trace-bar > i { display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--accent), rgba(74,163,255,.35)); }
+  .trace-ic { text-align: center; font-size: 13px; }
+  .trace-body { min-width: 0; overflow-wrap: anywhere; color: var(--txt); }
+  .trace-body b { color: var(--txt); }
+  .trace-err { color: var(--err); }
+  .trace-run\.start .trace-ic, .trace-llm\.call .trace-ic { color: var(--accent); }
+  .trace-tool\.call .trace-ic { color: #a371f7; }
+  .trace-warn { background: rgba(210,153,34,.10); border-color: rgba(210,153,34,.4); }
+  .trace-warn .trace-ic { color: var(--warn); }
+  .trace-block { background: rgba(248,81,73,.08); border-color: rgba(248,81,73,.35); }
+  .trace-block .trace-ic { color: var(--err); }
+  .trace-run\.end { background: rgba(63,185,80,.08); }
+  .trace-run\.end .trace-ic { color: #3fb950; }
+  .trace-args { margin-top: 2px; grid-column: 4; }
+  .trace-args summary { cursor: pointer; color: var(--muted); font-size: 11px; }
+  .trace-args pre {
+    margin: 4px 0 0; padding: 6px 8px; max-height: 140px; overflow: auto;
+    background: var(--bg, #0d1117); border: 1px solid var(--line); border-radius: 6px;
+    color: var(--muted); white-space: pre-wrap; font-size: 11px;
+  }

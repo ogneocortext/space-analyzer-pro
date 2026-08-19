@@ -26,6 +26,23 @@ DEFAULT_TIMEOUT_S: float = 180.0
 DEFAULT_RETRIES: int = 2
 USER_AGENT: str = "ux-pipeline/0.1 (+https://github.com/ogneocortext/space-analyzer-pro)"
 
+# Policy: models may only be pulled on an explicit user request, and only when the
+# system (boot) disk has comfortable free space. This guards against accidental or
+# automatic pulls that would fill the C: drive. The pull() method refuses otherwise.
+MIN_C_FREE_GB_FOR_PULL: float = 40.0
+_PULL_SYSTEM_DISK: str = "C:\\"
+
+
+def _c_drive_free_gb() -> float:
+    """Return free space (GB) on the system disk, or inf if it cannot be queried."""
+    try:
+        import shutil
+
+        _, _, free = shutil.disk_usage(_PULL_SYSTEM_DISK)
+        return free / (1024 ** 3)
+    except Exception:  # pragma: no cover - defensive
+        return float("inf")
+
 
 class OllamaError(RuntimeError):
     """Raised when an Ollama HTTP call fails after all retries."""
@@ -366,11 +383,48 @@ class OllamaClient:
             raise OllamaError(f"chat_with_tools({model!r}) failed: {exc}") from exc
         msg = payload.get("message", {})
         if isinstance(msg, dict):
+            # Ollama reports token/timing telemetry at the *top level* of the
+            # /api/chat payload (siblings of ``message``), not inside it. Surface
+            # those as a ``usage`` block so agent loops can record GenAI-style
+            # signals (prompt/completion tokens, durations, finish reason) —
+            # the basis of the dashboard's live execution trace.
+            meta: dict[str, Any] = {}
+            for key in (
+                "prompt_eval_count", "eval_count", "total_duration",
+                "prompt_eval_duration", "eval_duration", "load_duration",
+                "done_reason",
+            ):
+                if key in payload:
+                    meta[key] = payload[key]
+            if meta:
+                msg = dict(msg)
+                msg["usage"] = meta
             return msg
         return {"role": "assistant", "content": str(payload.get("response", ""))}
 
-    def pull(self, model: str) -> bool:
-        """Trigger ``/api/pull`` for ``model``."""
+    def pull(self, model: str, *, allow_auto: bool = False) -> bool:
+        """Trigger ``/api/pull`` for ``model`` (explicit user request only).
+
+        Automatic pulls are disabled by policy. Callers must pass
+        ``allow_auto=True`` to acknowledge an explicit user request, and the
+        system (C:) disk must have at least ``MIN_C_FREE_GB_FOR_PULL`` GB free,
+        otherwise the pull is refused with an ``OllamaError``.
+
+        Raises:
+            OllamaError: If the pull is refused by policy or the disk is too full.
+        """
+        if not allow_auto:
+            raise OllamaError(
+                f"pull({model!r}) refused: automatic pulls are disabled by policy. "
+                f"Pull only on an explicit user request."
+            )
+        free_gb = _c_drive_free_gb()
+        if free_gb < MIN_C_FREE_GB_FOR_PULL:
+            raise OllamaError(
+                f"pull({model!r}) refused: C: drive has only {free_gb:.1f} GB free "
+                f"(< {MIN_C_FREE_GB_FOR_PULL:.0f} GB required). Free disk space "
+                f"before pulling models."
+            )
         try:
             self._request_json("POST", "/api/pull", json_body={"model": model, "stream": False})
         except OllamaError as exc:
@@ -386,6 +440,19 @@ class OllamaClient:
             logger.debug("delete(%s) failed: %s", model, exc)
             return False
         return True
+
+    def ps(self) -> dict[str, Any]:
+        """Return ``/api/ps`` payload: models currently loaded into VRAM.
+
+        The payload is ``{"models": [{"name", "size", "size_vram", "details",
+        "expires_at", ...}]}``. Returns ``{}`` on error (logged at debug level)
+        so callers can render an empty "no models running" state gracefully.
+        """
+        try:
+            return self._request_json("GET", "/api/ps")
+        except OllamaError as exc:
+            logger.debug("ps failed: %s", exc)
+            return {}
 
 
     # ------------------------------------------------------------------ #

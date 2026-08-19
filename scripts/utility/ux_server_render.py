@@ -121,17 +121,19 @@ h2{{margin:0 0 6px;color:#8ec7ff;font-size:18px}}h3{{color:#c9d5e3;margin:22px 0
  .sevchip{{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}}
  .sevchip.high{{background:#6b2525;color:#ffd0cc}}.sevchip.medium{{background:#634d1d;color:#ffe5a3}}.sevchip.low{{background:#253d58;color:#b9dcff}}
 .toolbar{{position:sticky;top:0;z-index:5;background:#1c1d22;border:1px solid #3a3f49;border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px}}
-.toolbar select,.toolbar button{{background:#30343c;color:#e6e6e6;border:1px solid #4b5360;border-radius:6px;padding:6px 9px}}
+.toolbar select,.toolbar button{{background:#30343c;color:#e6e6e6;border:1px solid #4b5360;border-radius:6px;padding:6px 10px;min-height:38px}}
 .toolbar select{{appearance:none;cursor:pointer;padding-right:28px;background-image:linear-gradient(45deg,transparent 50%,#9da8b5 50%),linear-gradient(135deg,#9da8b5 50%,transparent 50%);background-position:calc(100% - 13px) 50%,calc(100% - 8px) 50%;background-size:5px 5px;background-repeat:no-repeat}}
 .toolbar select:hover,.toolbar select:focus{{border-color:#4aa3ff;outline:2px solid #4aa3ff55;outline-offset:1px}}.toolbar option{{background:#30343c;color:#e6e6e6}}
 .toolbar button{{cursor:pointer}}.toolbar button.active{{background:#4aa3ff;color:#08131d}}
 .back{{color:#8ec7ff;text-decoration:none;font-weight:700;margin-left:auto}}.hidden{{display:none!important}}
+ .summary h2{{display:flex;align-items:center;justify-content:space-between;gap:10px}}.summary h2 button{{background:#30343c;color:#e6e6e6;border:1px solid #4b5360;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer;min-height:34px}}.summary.collapsed > *:not(h2){{display:none}}
+ @media (max-width:720px){{.toolbar{{gap:10px}}.toolbar select,.toolbar button{{flex:1 1 100%;width:100%;min-height:44px}}.toolbar #visible-count{{flex:1 1 100%}}main{{padding:16px}}.summary{{padding:12px;margin:14px 0}}.shot{{padding:16px;margin:18px 0}}h2{{font-size:16px}}h1{{font-size:20px}}header{{padding:18px 16px}}}}
 .shot.collapsed > *:not(h2):not(.muted){{display:none}}</style></head><body>
 <header><h1>UX Analysis Report</h1><span class='status'>{status}</span>
 <span class='meta'>Model: {model}</span><span class='meta'>Generated: {timestamp}</span>
 <span class='meta'>Source: {esc(source_name)}</span><a class='back' href='/'>← Back to dashboard</a></header><main>
 <div class='toolbar'><b>Filter findings</b><select id='category-filter'><option value='all'>All categories</option><option>layout</option><option>navigation</option><option>content</option><option>interaction</option><option>accessibility</option><option>visual polish</option><option>reliability</option></select><select id='severity-filter'><option value='all'>All severities</option><option>high</option><option>medium</option><option>low</option></select><button id='collapse'>Collapse all</button><span id='visible-count' class='muted'></span></div>
- <section class='summary'><h2>Consolidated recommendations</h2>{_render_summary_block(summary)}</section>
+ <section class='summary' id='summary'><h2>Consolidated recommendations<button id='summary-toggle' type='button'>Hide</button></h2>{_render_summary_block(summary)}</section>
 <h2>Per-screenshot findings</h2>{''.join(cards) or '<p class="muted">No per-screenshot findings completed.</p>'}
 <section class='shot'><h2>Implementation recommendations</h2><pre>{esc(code_text)}</pre></section>
 </main><script>
@@ -172,6 +174,14 @@ document.querySelectorAll('.severity,.category').forEach(el => {{
   }});
 }});
 applyFilters();
+const sumToggle = document.getElementById('summary-toggle');
+if (sumToggle) sumToggle.addEventListener('click', () => {{
+  const s = document.getElementById('summary');
+  const collapsed = s.classList.toggle('collapsed');
+  sumToggle.textContent = collapsed ? 'Show' : 'Hide';
+  sumToggle.setAttribute('aria-expanded', String(!collapsed));
+}});
+if (window.matchMedia('(max-width: 720px)').matches) document.getElementById('collapse').click();
 </script></body></html>"""
     return doc.encode("utf-8")
 
@@ -189,6 +199,11 @@ def _inject_report_enhancements(html_text):
         ".finding,.issue{margin:12px 0!important}"
         ".sev-badge,.cat-badge{cursor:pointer}"
         ".sev-badge:hover,.cat-badge:hover{outline:2px solid #4aa3ff55;outline-offset:1px}"
+        ".toolbar select,.toolbar input,.toolbar button{min-height:40px!important}"
+        ".collapsible-head{display:flex!important;align-items:center!important;gap:8px!important}"
+        ".sec-toggle{margin-left:auto!important;background:#30343c!important;color:#e6e6e6!important;border:1px solid #4b5360!important;border-radius:6px!important;padding:4px 12px!important;font-size:12px!important;cursor:pointer!important;min-height:34px!important}"
+        ".consolidated.collapsed{display:none!important}"
+        "@media (max-width:640px){.toolbar{gap:12px!important}.toolbar select,.toolbar input,.toolbar button{flex:1 1 100%!important}.toolbar input[type=search]{min-width:0!important}.toolbar .spacer{display:none!important}}"
         "</style>"
     )
     script = (
@@ -202,6 +217,12 @@ def _inject_report_enhancements(html_text):
         "var first=document.querySelector('.shot,.finding,.issue');"
         "if(first)first.scrollIntoView({behavior:'smooth',block:'start'});}"
         "});});"
+        "(function(){var cons=document.querySelector('.consolidated');"
+        "if(cons&&!document.getElementById('consolidated-toggle')){cons.id='consolidated';"
+        "var h=cons.previousElementSibling;if(h&&h.tagName==='H2'){h.classList.add('collapsible-head');"
+        "var btn=document.createElement('button');btn.id='consolidated-toggle';btn.type='button';btn.className='sec-toggle';btn.textContent='Hide';h.appendChild(btn);"
+        "btn.addEventListener('click',function(){var c=cons.classList.toggle('collapsed');btn.textContent=c?'Show':'Hide';btn.setAttribute('aria-expanded',String(!c));});}}"
+        "if(window.matchMedia('(max-width:640px)').matches){var b=document.getElementById('consolidated-toggle');if(b)b.click();}})();"
         "</script>"
     )
     if "</body>" in html_text:
@@ -434,118 +455,256 @@ REPORTS_PAGE_TEMPLATE = """<!doctype html>
   * { box-sizing: border-box; }
   body { margin:0; font-family: system-ui, "Segoe UI", sans-serif; color:#e7ecf3;
     background: radial-gradient(1200px 600px at 80% -10%, #1b2a4a 0%, #0c111b 55%) fixed, #0c111b; min-height:100vh; }
-  header { padding: 22px 28px; border-bottom:1px solid rgba(255,255,255,.08);
-    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,0));
-    backdrop-filter: blur(6px); display:flex; align-items:center; gap:14px; }
-  .brand { width:34px;height:34px;border-radius:9px;
-    background:linear-gradient(135deg,#4f8cff,#9b5cff); box-shadow:0 6px 18px rgba(79,140,255,.35); }
-  h1 { font-size:18px; margin:0; letter-spacing:.2px; }
-  .sub { color:#9fb0c7; font-size:12.5px; margin-top:2px; }
-  .wrap { padding:22px 28px 40px; max-width:1100px; margin:0 auto; }
-  .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  .bar { display:flex; gap:10px; align-items:center; margin-bottom:16px; }
-  .bar input { flex:1; padding:9px 12px; border-radius:9px; border:1px solid rgba(255,255,255,.12);
+  .wrap { padding:22px 28px 48px; max-width:1180px; margin:0 auto; }
+  .page-head h1 { font-size:22px; margin:0 0 4px; letter-spacing:.2px; }
+  .page-head .sub { color:#9fb0c7; font-size:13px; margin:0; }
+  .page-head .sub a { color:#9bbcff; text-decoration:none; }
+  .page-head .sub a:hover { text-decoration:underline; }
+  .stats { display:flex; gap:12px; flex-wrap:wrap; margin:18px 0 16px; }
+  .stat { background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px 16px; min-width:96px; }
+  .stat .n { font-size:22px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
+  .stat .l { color:#9fb0c7; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; margin-top:6px; }
+  .stat.high .n { color:#ff8a8a; } .stat.medium .n { color:#ffcf85; } .stat.low .n { color:#8fe0a4; }
+  .bar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+  .bar input { flex:1; min-width:220px; padding:9px 12px; border-radius:9px; border:1px solid rgba(255,255,255,.12);
     background:rgba(255,255,255,.05); color:#e7ecf3; font-size:13px; }
-  table.reports { width:100%; border-collapse:collapse; background:rgba(255,255,255,.03);
-    border:1px solid rgba(255,255,255,.08); border-radius:12px; overflow:hidden; table-layout:auto; }
-  .reports th, .reports td { text-align:left; padding:11px 14px; font-size:13px; border-bottom:1px solid rgba(255,255,255,.06); white-space:nowrap; }
-  .reports th { color:#9fb0c7; font-weight:600; background:rgba(255,255,255,.03); }
-  .reports tr:last-child td { border-bottom:none; }
-  .set { font-weight:600; white-space:nowrap; }
-  .ts { color:#9fb0c7; font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .sev span { display:inline-block; min-width:22px; text-align:center; padding:2px 6px; border-radius:6px; margin-right:4px; font-weight:700; }
-  .sev-h { background:rgba(255,86,86,.18); color:#ff8a8a; }
-  .sev-m { background:rgba(255,184,76,.18); color:#ffcf85; }
-  .sev-l { background:rgba(120,200,140,.18); color:#8fe0a4; }
+  .bar input:focus { outline:2px solid #4aa3ff55; border-color:#4aa3ff; }
+  #count { color:#9fb0c7; font-size:12.5px; white-space:nowrap; }
+  .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:rgba(255,255,255,.03); }
+  table.reports { width:100%; border-collapse:collapse; table-layout:fixed; }
+  .reports th, .reports td { text-align:left; padding:11px 14px; font-size:13px; border-bottom:1px solid rgba(255,255,255,.06); }
+  .reports td.sev, .reports td.ts, .reports td.num, .reports th { white-space:nowrap; }
+  .reports th:nth-child(1) { width:30%; }
+  .reports th:nth-child(2) { width:13%; }
+  .reports th:nth-child(3) { width:10%; }
+  .reports th:nth-child(4) { width:20%; }
+  .reports th:nth-child(5) { width:6%; }
+  .reports th:nth-child(6) { width:6%; }
+  .reports th:nth-child(7) { width:11%; }
+  .reports th:nth-child(8) { width:64px; }
+  .reports thead th { color:#9fb0c7; font-weight:600; background:rgba(255,255,255,.04); position:sticky; top:0; }
+  .reports th.sortable { cursor:pointer; user-select:none; }
+  .reports th.sortable:hover { color:#cfe0f5; }
+  .reports th.sortable::after { content:" \u21C5"; opacity:.35; font-size:11px; }
+  .reports th.sort-asc::after { content:" \u2191"; opacity:1; color:#4aa3ff; }
+  .reports th.sort-desc::after { content:" \u2193"; opacity:1; color:#4aa3ff; }
+  .reports tbody tr { transition:background .12s ease; }
+  .reports tbody tr:hover { background:rgba(79,140,255,.08); }
+  .reports tbody tr:last-child td { border-bottom:none; }
+  .reports tbody tr.has-high { box-shadow: inset 3px 0 0 #f85149; }
+  .reports tbody tr.is-new { background:rgba(79,140,255,.06); }
+  .set { font-weight:600; }
+  .ts { color:#9fb0c7; font-variant-numeric:tabular-nums; }
+  .sev { display:flex; align-items:center; gap:8px; }
+  .sevbar { display:inline-flex; width:84px; height:8px; border-radius:999px; overflow:hidden; background:rgba(255,255,255,.08); flex:none; }
+  .sevbar i { display:block; height:100%; }
+  .sevbar .sh { background:#f85149; } .sevbar .sm { background:#d29922; } .sevbar .sl { background:#3fb950; }
+  .sevnum { font-variant-numeric:tabular-nums; color:#9fb0c7; font-size:12px; }
+  .sevnum .h { color:#ff8a8a; } .sevnum .m { color:#ffcf85; } .sevnum .l { color:#8fe0a4; }
   .num { font-variant-numeric:tabular-nums; }
   .badge { padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:700; text-transform:capitalize; }
   .st-complete { background:rgba(120,200,140,.18); color:#8fe0a4; }
   .st-running { background:rgba(79,140,255,.18); color:#9bbcff; }
   .st-error { background:rgba(255,86,86,.18); color:#ff8a8a; }
-  a.view { color:#9bbcff; text-decoration:none; font-weight:600; }
-  a.view:hover { text-decoration:underline; }
+  .tag-new { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; background:#4aa3ff; color:#08131d; }
+  a.view { color:#9bbcff; text-decoration:none; font-weight:600; padding:5px 10px; border:1px solid rgba(155,188,255,.3); border-radius:8px; }
+  a.view:hover { background:rgba(155,188,255,.14); text-decoration:none; }
   .empty { color:#9fb0c7; padding:24px; text-align:center; }
-  .navlink { color:#9bbcff; text-decoration:none; font-size:13px; }
 </style></head>
 <body>
-<header>
-  <div class="brand"></div>
-  <div>
-    <h1>UX Analysis Reports</h1>
-    <div class="sub">Stored in SQLite &mdash; queryable by model, screenshot set, and severity. <a class="navlink" href="/">&larr; Dashboard</a></div>
-  </div>
-</header>
 <div class="wrap">
-  <div class="bar">
-    <input id="q" placeholder="Search reports (set, model, findings)…" oninput="search(this.value)">
+  <div class="page-head">
+    <h1>UX Analysis Reports</h1>
+    <p class="sub">Stored in SQLite &mdash; queryable by model, screenshot set, and severity. <a href="/">&larr; Dashboard</a></p>
   </div>
-  <div id="list"><div class="table-wrap">{BODY}</div></div>
+  <section class="stats" id="stats">{STATS}</section>
+  <div class="bar">
+    <input id="q" placeholder="Search reports (set, model, findings)…" autocomplete="off">
+    <span id="count"></span>
+  </div>
+  <div class="table-wrap">
+    <table class="reports"><thead><tr>
+      <th class="sortable" data-sort="set">Screenshot set</th>
+      <th class="sortable" data-sort="model">Model</th>
+      <th class="sortable" data-sort="status">Status</th>
+      <th class="sortable" data-sort="severity">Severity (H/M/L)</th>
+      <th class="sortable" data-sort="issues">Issues</th>
+      <th class="sortable" data-sort="recs">Recs</th>
+      <th class="sortable" data-sort="timestamp">Timestamp (MST)</th>
+      <th></th>
+    </tr></thead><tbody id="tbody">{TBODY}</tbody></table>
+  </div>
 </div>
 <script>
-async function search(q) {
-  const url = "/api/reports" + (q ? "?q=" + encodeURIComponent(q) : "");
-  try {
-    const r = await fetch(url); const j = await r.json();
-    document.getElementById("list").innerHTML = render(j.reports || []);
-  } catch(e) { document.getElementById("list").textContent = "search failed"; }
-}
-function esc(s) { return String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]); }
-function render(rows) {
-  if (!rows.length) return '<div class="empty">No reports match.</div>';
-  let h = '<table class="reports"><thead><tr><th>Screenshot set</th><th>Model</th><th>Status</th><th>Timestamp (UTC)</th><th>Severity (H/M/L)</th><th>Issues</th><th>Recs</th><th></th></tr></thead><tbody>';
-  for (const r of rows) {
-    const s = r.severity_counts || {};
-    h += '<tr><td class="set">'+esc(r.screenshot_set)+'</td><td>'+esc(r.model)+'</td>'
-       + '<td><span class="badge st-'+esc(r.status)+'">'+esc(r.status)+'</span></td>'
-       + '<td class="ts">'+esc(r.timestamp||r.created_at)+'</td>'
-       + '<td class="sev"><span class="sev-h" title="High severity">'+ (s.high||0) +'</span><span class="sev-m" title="Medium severity">'+ (s.medium||0) +'</span><span class="sev-l" title="Low severity">'+ (s.low||0) +'</span></td>'
-       + '<td class="num">'+ (r.num_issues||0) +'</td><td class="num">'+ (r.num_recommendations||0) +'</td>'
-       + '<td><a class="view" href="/report?id='+encodeURIComponent(r.report_key)+'">View &rarr;</a></td></tr>';
-  }
-  return '<div class="table-wrap">' + h + '</tbody></table></div>';
-}
+const SEED = {SEED};
+let ALL = Array.isArray(SEED) ? SEED.slice() : [];
+let sortKey = "timestamp", sortDir = -1, NEWEST = null;
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]); }
+function ago(t){ if(!t) return "—"; const d=Date.parse(t); if(!d) return esc(t); let s=(Date.now()-d)/1000; if(s<0) s=0;
+  if(s<60) return Math.floor(s)+"s ago"; if(s<3600) return Math.floor(s/60)+"m ago"; if(s<86400) return Math.floor(s/3600)+"h ago";
+  if(s<2592000) return Math.floor(s/86400)+"d ago"; return Math.floor(s/2592000)+"mo ago"; }
+function mstString(t){ const d=new Date(t); if(isNaN(d.getTime())) return esc(t);
+  const m=new Date(d.getTime()-7*3600*1000); const p=n=>String(n).padStart(2,"0");
+  return m.getUTCFullYear()+"-"+p(m.getUTCMonth()+1)+"-"+p(m.getUTCDate())+" "+p(m.getUTCHours())+":"+p(m.getUTCMinutes())+" MST"; }
+function stat(n,l,cls){ return '<div class="stat'+(cls?' '+cls:'')+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>'; }
+function updateStats(rows){ let H=0,M=0,L=0,I=0,R=0; rows.forEach(r=>{const s=r.severity_counts||{};H+=s.high||0;M+=s.medium||0;L+=s.low||0;I+=r.num_issues||0;R+=r.num_recommendations||0;});
+  document.getElementById("stats").innerHTML = stat(rows.length,"Reports")+stat(H,"High","high")+stat(M,"Medium","medium")+stat(L,"Low","low")+stat(I,"Findings")+stat(R,"Recs"); }
+function rowHtml(r){ const s=r.severity_counts||{}; const h=s.high||0,m=s.medium||0,l=s.low||0; const tot=Math.max(h+m+l,1);
+  const isNew = (r.timestamp||r.created_at)===NEWEST;
+  const cls=(h>0?"has-high ":"")+(isNew?"is-new":"");
+  return '<tr class="'+cls.trim()+'">'
+   +'<td class="set">'+esc(r.screenshot_set)+(isNew?' <span class="tag-new">new</span>':'')+'</td>'
+   +'<td>'+esc(r.model)+'</td>'
+   +'<td><span class="badge st-'+esc(r.status)+'">'+esc(r.status)+'</span></td>'
+   +'<td class="sev"><span class="sevbar"><i class="sh" style="width:'+(h/tot*100)+'%"></i><i class="sm" style="width:'+(m/tot*100)+'%"></i><i class="sl" style="width:'+(l/tot*100)+'%"></i></span>'
+     +'<span class="sevnum"><b class="h">'+h+'</b>/<b class="m">'+m+'</b>/<b class="l">'+l+'</b></span></td>'
+   +'<td class="num">'+ (r.num_issues||0) +'</td>'
+   +'<td class="num">'+ (r.num_recommendations||0) +'</td>'
+    +'<td class="ts" title="'+esc(ago(r.timestamp||r.created_at))+'">'+mstString(r.timestamp||r.created_at)+'</td>'
+   +'<td><a class="view" href="/report?id='+encodeURIComponent(r.report_key)+'">View →</a></td></tr>'; }
+const SORTERS = {
+  set: r => (r.screenshot_set||"").toLowerCase(),
+  model: r => (r.model||"").toLowerCase(),
+  status: r => (r.status||""),
+  severity: r => { const s=r.severity_counts||{}; return (s.high||0)*100000 + (s.medium||0)*1000 + (s.low||0); },
+  issues: r => r.num_issues||0,
+  recs: r => r.num_recommendations||0,
+  timestamp: r => Date.parse(r.timestamp||r.created_at||0)||0,
+};
+function computeNewest(){ let best=null,bt=-1; ALL.forEach(r=>{ const t=Date.parse(r.timestamp||r.created_at||0)||0; if(t>bt){bt=t;best=r.timestamp||r.created_at;} }); return best; }
+function draw(){ NEWEST=computeNewest(); const f=SORTERS[sortKey];
+  const rows=ALL.slice().sort((a,b)=>{ const va=f(a),vb=f(b); if(va<vb) return -1*sortDir; if(va>vb) return 1*sortDir; return 0; });
+  document.getElementById("tbody").innerHTML = rows.length ? rows.map(rowHtml).join("") : '<tr><td class="empty" colspan="8">No reports match.</td></tr>';
+  updateStats(ALL);
+  const c=document.getElementById("count"); if(c) c.textContent = ALL.length + " report" + (ALL.length===1?"":"s");
+  document.querySelectorAll("th.sortable").forEach(th=>{ th.classList.toggle("sort-asc", th.dataset.sort===sortKey && sortDir===1); th.classList.toggle("sort-desc", th.dataset.sort===sortKey && sortDir===-1); }); }
+function setSort(key){ if(sortKey===key){ sortDir*=-1; } else { sortKey=key; sortDir = (key==="timestamp"||key==="issues"||key==="recs"||key==="severity") ? -1 : 1; } draw(); }
+async function search(q){ const url="/api/reports"+(q?"?q="+encodeURIComponent(q):""); try{ const r=await fetch(url); const j=await r.json(); ALL=j.reports||[]; draw(); }
+  catch(e){ document.getElementById("tbody").innerHTML='<tr><td class="empty" colspan="8">Search failed.</td></tr>'; } }
+document.querySelectorAll("th.sortable").forEach(th=>th.addEventListener("click",()=>setSort(th.dataset.sort)));
+const qe=document.getElementById("q"); if(qe) qe.addEventListener("input",()=>search(qe.value));
+draw();
 </script>
 </body></html>"""
+
+
+def _rel_time(ts):
+    """Render an ISO timestamp as a compact relative label (e.g. '3h ago')."""
+    if not ts:
+        return "—"
+    try:
+        from datetime import datetime, timezone
+
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        secs = (datetime.now(timezone.utc) - dt).total_seconds()
+    except Exception:
+        return str(ts)
+    if secs < 0:
+        return "just now"
+    if secs < 60:
+        return f"{int(secs)}s ago"
+    if secs < 3600:
+        return f"{int(secs // 60)}m ago"
+    if secs < 86400:
+        return f"{int(secs // 3600)}h ago"
+    if secs < 2592000:
+        return f"{int(secs // 86400)}d ago"
+    return f"{int(secs // 2592000)}mo ago"
+
+
+def _mst_string(ts):
+    """Render an ISO timestamp in Mountain Standard Time (UTC-7, fixed)."""
+    if not ts:
+        return "—"
+    try:
+        from datetime import datetime, timedelta, timezone
+
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        mst = dt.astimezone(timezone(timedelta(hours=-7)))
+        return mst.strftime("%Y-%m-%d %H:%M MST")
+    except Exception:
+        return str(ts)
+
+
+def _reports_stats_html(rows: list[dict]) -> str:
+    """Aggregate counts shown in the summary strip at the top of the page."""
+    h = m = l = issues = recs = 0
+    for r in rows:
+        sev = r.get("severity_counts") or {}
+        h += sev.get("high", 0)
+        m += sev.get("medium", 0)
+        l += sev.get("low", 0)
+        issues += r.get("num_issues", 0) or 0
+        recs += r.get("num_recommendations", 0) or 0
+    n = len(rows)
+    return (
+        "<div class='stat'><div class='n'>" + str(n) + "</div><div class='l'>Reports</div></div>"
+        + "<div class='stat high'><div class='n'>" + str(h) + "</div><div class='l'>High</div></div>"
+        + "<div class='stat medium'><div class='n'>" + str(m) + "</div><div class='l'>Medium</div></div>"
+        + "<div class='stat low'><div class='n'>" + str(l) + "</div><div class='l'>Low</div></div>"
+        + "<div class='stat'><div class='n'>" + str(issues) + "</div><div class='l'>Findings</div></div>"
+        + "<div class='stat'><div class='n'>" + str(recs) + "</div><div class='l'>Recs</div></div>"
+    )
+
+
+def _reports_row_html(r: dict, is_new: bool) -> str:
+    """Render one report as a table row (mirrors the client-side ``rowHtml``)."""
+    esc = lambda v: html.escape(str(v if v is not None else ""))
+    sev = r.get("severity_counts") or {}
+    h = sev.get("high", 0)
+    m = sev.get("medium", 0)
+    l = sev.get("low", 0)
+    tot = max(h + m + l, 1)
+    sh = f"{(h / tot * 100):.1f}"
+    sm = f"{(m / tot * 100):.1f}"
+    sl = f"{(l / tot * 100):.1f}"
+    key = esc(r.get("report_key", ""))
+    new = ' <span class="tag-new">new</span>' if is_new else ""
+    cls = ("has-high " if h > 0 else "") + ("is-new" if is_new else "")
+    return (
+        "<tr class='" + cls.strip() + "'>"
+        "<td class='set'>" + esc(r.get("screenshot_set", "")) + new + "</td>"
+        "<td>" + esc(r.get("model", "")) + "</td>"
+        "<td><span class='badge st-" + esc(r.get("status", "")) + "'>" + esc(r.get("status", "")) + "</span></td>"
+        "<td class='sev'><span class='sevbar'>"
+        "<i class='sh' style='width:" + sh + "%'></i>"
+        "<i class='sm' style='width:" + sm + "%'></i>"
+        "<i class='sl' style='width:" + sl + "%'></i></span>"
+        "<span class='sevnum'><b class='h'>" + str(h) + "</b>/<b class='m'>" + str(m)
+        + "</b>/<b class='l'>" + str(l) + "</b></span></td>"
+        "<td class='num'>" + str(r.get("num_issues", 0) or 0) + "</td>"
+        "<td class='num'>" + str(r.get("num_recommendations", 0) or 0) + "</td>"
+        "<td class='ts' title='" + esc(_rel_time(r.get("timestamp") or r.get("created_at"))) + "'>"
+        + esc(_mst_string(r.get("timestamp") or r.get("created_at"))) + "</td>"
+        "<td><a class='view' href='/report?id=" + key + "'>View &rarr;</a></td>"
+        "</tr>"
+    )
 
 
 def _render_reports_list_page(rows: list[dict]) -> str:
     """Render a browsable list of stored reports for easy retrieval.
 
-    The page is built server-side for the initial load and re-queries the
-    database via ``/api/reports?q=`` as the user types.  Each row links to the
-    stored report at ``/report?id=<report_key>``.
+    The page is built server-side for the initial load (summary strip, table,
+    and a JSON seed) and re-queries the database via ``/api/reports?q=`` as the
+    user types or re-sorts.  Each row links to the stored report at
+    ``/report?id=<report_key>``.
     """
-    esc = lambda v: html.escape(str(v if v is not None else ""))
+    stats = _reports_stats_html(rows)
     if not rows:
-        body = '<div class="empty">No reports stored yet. Run an analysis to populate the database.</div>'
-    else:
-        cards = []
-        for r in rows:
-            sev = r.get("severity_counts") or {}
-            high = sev.get("high", 0)
-            med = sev.get("medium", 0)
-            low = sev.get("low", 0)
-            key = esc(r.get("report_key", ""))
-            cards.append(
-                "<tr>"
-                '<td class="set">' + esc(r.get("screenshot_set", "")) + "</td>"
-                "<td>" + esc(r.get("model", "")) + "</td>"
-                '<td><span class="badge st-' + esc(r.get("status", "")) + '">' + esc(r.get("status", "")) + "</span></td>"
-                '<td class="ts">' + esc(r.get("timestamp", "") or r.get("created_at", "")) + "</td>"
-                '<td class="sev"><span class="sev-h" title="High severity">' + str(high) + '</span>'
-                '<span class="sev-m" title="Medium severity">' + str(med) + '</span>'
-                '<span class="sev-l" title="Low severity">' + str(low) + "</span></td>"
-                '<td class="num">' + str(r.get("num_issues", 0) or 0) + "</td>"
-                '<td class="num">' + str(r.get("num_recommendations", 0) or 0) + "</td>"
-                '<td><a class="view" href="/report?id=' + key + '">View &rarr;</a></td>'
-                "</tr>"
-            )
-        body = (
-            '<table class="reports"><thead><tr>'
-            "<th>Screenshot set</th><th>Model</th><th>Status</th>"
-            "<th>Timestamp (UTC)</th><th>Severity (H/M/L)</th><th>Issues</th>"
-            "<th>Recs</th><th></th></tr></thead><tbody>"
-            + "".join(cards)
-            + "</tbody></table>"
+        tbody = (
+            '<tr><td class="empty" colspan="8">'
+            "No reports stored yet. Run an analysis to populate the database.</td></tr>"
         )
-    return REPORTS_PAGE_TEMPLATE.replace("{BODY}", body)
+    else:
+        newest = max((r.get("timestamp") or r.get("created_at") or "") for r in rows)
+        tbody = "".join(_reports_row_html(r, (r.get("timestamp") or r.get("created_at")) == newest) for r in rows)
+    seed = json.dumps(rows, ensure_ascii=False)
+    return (
+        REPORTS_PAGE_TEMPLATE.replace("{STATS}", stats)
+        .replace("{TBODY}", tbody)
+        .replace("{SEED}", seed)
+    )
