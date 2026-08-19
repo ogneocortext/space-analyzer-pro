@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/theme.css" />
+<title>Screenshot Gallery &amp; Dedup Manager</title>
+<style>
+* { box-sizing: border-box; }
+body { font: 14px/1.4 system-ui, Segoe UI, Roboto, sans-serif; margin: 0; color: #e6e6e6;
+  background: #15161a; }
+a { color: var(--accent); text-decoration: none; }
+.nav-link { font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--accent); background: rgba(74,163,255,.12); white-space: nowrap; }
+.nav-link:hover { background: rgba(74,163,255,.24); }
+.toolbar { position: sticky; top: 0; z-index: 10; display: flex; gap: 10px; flex-wrap: wrap;
+  align-items: center; padding: 10px 16px; background: #23232a; border-bottom: 1px solid #3a3a42; }
+.toolbar h1 { font-size: 15px; margin: 0 6px 0 0; }
+.root-picker { display: flex; align-items: center; gap: 6px; color: #9da8b5; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.toolbar select { background: #2c2c34; color: #e6e6e6; border: 1px solid #444; border-radius: 6px; padding: 6px 8px; font-size: 13px; max-width: 440px; min-width: 280px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px 16px;
+  background: #1c1d22; border-bottom: 1px solid #33333b; }
+button, a.ghost { background: #3a6df0; color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+button.ghost, a.ghost { background: #3a3a42; text-decoration: none; color: #fff; }
+button.danger { background: #c0392b; }
+button.mini { padding: 3px 9px; font-size: 11px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.fbtn.active { background: var(--accent); color: #03121f; border-color: var(--accent); }
+.summary { margin-left: auto; color: #aaa; font-size: 12px; text-align: right; }
+.summary b { color: #e6e6e6; }
+.summary .dup { color: #ff8a80; }
+.legend { display: flex; gap: 14px; align-items: center; padding: 6px 16px; font-size: 12px; color: #aaa;
+  background: #202028; border-bottom: 1px solid #33333b; flex-wrap: wrap; }
+.legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: middle; margin-right: 5px; }
+.sw.keep { background: #2ecc71; }
+.sw.dup { background: #c0392b; }
+main { padding: 16px; }
+.section-h { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #8b98a5;
+  margin: 18px 4px 10px; }
+.section-h .section-count { color: #66727f; font-weight: 400; margin-left: 6px; text-transform: none; letter-spacing: 0; }
+.gpanel { border: 1px solid #5a2a24; border-left: 4px solid #c0392b; border-radius: 10px;
+  background: #20242a; padding: 10px 12px 14px; margin-bottom: 18px; }
+.ghead { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.gtitle { font-weight: 600; color: #ff8a80; }
+.gtitle code { background: rgba(0,0,0,.35); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+.gsub { color: #aaa; font-size: 12px; }
+.ghead .mini { margin-left: auto; }
+.subgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.card { position: relative; border: 2px solid #33333b; border-radius: 8px; background: #181a1f; overflow: hidden;
+  transition: border-color .15s, transform .15s, box-shadow .15s; margin: 0; }
+.card.dup { border-color: #7a2b22; }
+.card.keep { border-color: #1f6b41; }
+.card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.45); }
+.card .thumb { height: 170px; background: linear-gradient(135deg,#0c0d10,#1a1c22); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.card img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; transition: transform .2s ease; }
+.card:hover img { transform: scale(1.05); }
+.card .badge { position: absolute; top: 6px; left: 6px; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+.card.dup .badge { background: #c0392b; color: #fff; }
+.card.keep .badge { background: #2ecc71; color: #062; }
+.card .chk { position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; cursor: pointer; }
+figcaption { padding: 7px 9px; }
+.name { display: block; font-size: 12px; color: #cfcfd6; word-break: break-all; }
+.meta { display: block; font-size: 11px; color: #888; margin-top: 2px; }
+.grp { display: block; font-size: 11px; color: #b9c4d6; margin-top: 3px; }
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 30;
+  background: #2c2c34; border: 1px solid #444; color: #e6e6e6; padding: 10px 16px; border-radius: 8px;
+  font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 80%; }
+.toast.show { opacity: 1; }
+.toast.err { border-color: #c0392b; }
+/* lightbox */
+.lb { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.88); display: none;
+  align-items: center; justify-content: center; flex-direction: column; padding: 24px; }
+.lb.show { display: flex; }
+.lb img { max-width: 92vw; max-height: 76vh; border-radius: 8px; background: #000; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+.lb .info { margin-top: 12px; font-size: 13px; color: #cfcfd6; text-align: center; max-width: 92vw; word-break: break-all; }
+.lb .nav { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.lb .close { position: absolute; top: 16px; right: 22px; font-size: 28px; color: #fff; cursor: pointer; }
+.lb .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 4px; margin-left: 8px; }
+.lb .tag.dup { background: #c0392b; color: #fff; }
+.lb .tag.keep { background: #2ecc71; color: #062; }
+.empty { color: #888; padding: 40px; text-align: center; }
+</style></head>
+<body>
+<div class="toolbar">
+  <h1>Gallery &amp; Dedup</h1>
+  <a class="nav-link" href="/">&#8592; Dashboard</a>
+  <label class="root-picker" for="root">Gallery
+    <select id="root" aria-label="Choose screenshot gallery"></select>
+  </label>
+  <button id="refresh" class="ghost" title="Re-scan selected root">Refresh</button>
+  <span style="display:flex;gap:6px">
+    <button class="ghost fbtn active" data-f="all">All</button>
+    <button class="ghost fbtn" data-f="dups">Duplicates</button>
+    <button class="ghost fbtn" data-f="unique">Unique</button>
+  </span>
+  <span class="summary" id="summary">loading&hellip;</span>
+</div>
+<div class="actions">
+  <button id="seldup">Select all duplicates</button>
+  <button id="clear" class="ghost">Clear</button>
+  <button id="delall" class="danger">Delete all duplicates</button>
+  <button id="del" class="danger" disabled>Delete selected (<span id="cnt">0</span>)</button>
+</div>
+<div class="legend">
+  <span><span class="sw keep"></span>kept (one per duplicate group)</span>
+  <span><span class="sw dup"></span>duplicate &mdash; safe to delete</span>
+  <span class="hint">click a thumbnail to view full size &middot; tick + Delete removes from disk</span>
+</div>
+<main><div class="grid" id="grid"><div class="empty">Loading&hellip;</div></main>
+
+<div class="lb" id="lb">
+  <span class="close" id="lbclose">&times;</span>
+  <img id="lbimg" alt="preview">
+  <div class="info" id="lbinfo"></div>
+  <div class="nav">
+    <button class="ghost" id="lbprev">&larr; Prev</button>
+    <a id="lbview" class="ghost" target="_blank" rel="noopener">Open original</a>
+    <button class="danger" id="lbdelete">Delete this</button>
+    <button class="ghost" id="lbnext">Next &rarr;</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const grid = $('grid');
+let STATE = { images: [], root: null, viewList: [], viewIndex: -1, filter: 'all' };
+
+function fmtBytes(n) {
+  if (n == null) return '?';
+  const u = ['B','KB','MB','GB']; let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (i ? n.toFixed(1) : n) + ' ' + u[i];
+}
+function esc(s) { return (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function basename(rel) { return rel.split('/').pop().split('\\').pop(); }
+
+function toast(msg, err) {
+  const t = $('toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : '');
+  clearTimeout(t._t); t._t = setTimeout(() => t.className = 'toast', 2600);
+}
+
+function selectedPaths() {
+  return [...grid.querySelectorAll('input.chk:checked')].map(b => b.dataset.path);
+}
+
+function buildGroups() {
+  const m = new Map();
+  for (const im of STATE.images) {
+    const key = im.dup_group || ('u:' + im.rel);
+    if (!m.has(key)) m.set(key, []);
+    m.get(key).push(im);
+  }
+  const groups = [...m.values()];
+  groups.forEach(g => g.sort((a, b) => (b.keeper ? 1 : 0) - (a.keeper ? 1 : 0) || a.rel.localeCompare(b.rel)));
+  return groups;
+}
+function visibleFlat() {
+  const groups = buildGroups();
+  const items = [];
+  if (STATE.filter !== 'unique') groups.filter(g => g.length > 1).forEach(g => items.push(...g));
+  if (STATE.filter !== 'dups') groups.filter(g => g.length === 1).forEach(g => items.push(...g));
+  return items;
+}
+
+function refreshSummary() {
+  const s = STATE.images.length;
+  const dups = STATE.images.filter(im => im.is_dup).length;
+  const uniq = STATE.images.filter(im => !im.is_dup).length;
+  const reclaim = STATE.images.filter(im => im.is_dup).reduce((a, im) => a + (im.size || 0), 0);
+  $('summary').innerHTML = `<b>${s}</b> files &middot; <b>${uniq}</b> unique &middot; ` +
+    `<span class="dup">${dups} duplicates &middot; ~${fmtBytes(reclaim)} reclaimable</span>`;
+  const sel = selectedPaths().length;
+  $('cnt').textContent = sel;
+  $('del').disabled = sel === 0;
+}
+
+function cardEl(im) {
+  const cls = im.is_dup ? 'dup' : (im.keeper ? 'keep' : '');
+  const badge = im.is_dup ? 'DUPLICATE' : (im.keeper ? 'KEPT' : '');
+  const fig = document.createElement('figure');
+  fig.className = 'card ' + cls;
+  fig.innerHTML =
+    `<div class="thumb"><img loading="lazy" src="/api/img?path=${encodeURIComponent(im.path)}&thumb=1" alt="${esc(basename(im.rel))}"></div>` +
+    (badge ? `<span class="badge">${badge}</span>` : '') +
+    `<input class="chk" type="checkbox" data-path="${esc(im.path)}" title="select for deletion">` +
+    `<figcaption><span class="name" title="${esc(im.rel)}">${esc(basename(im.rel))}</span>` +
+    `<span class="meta">${im.w || '?'}×${im.h || '?'} &middot; ${fmtBytes(im.size)}</span>` +
+    (im.dup_group ? `<span class="grp">group ${im.dup_group}</span>` : '') +
+    `</figcaption>`;
+  fig.querySelector('img').addEventListener('click', () => openLightbox(im.path));
+  fig.querySelector('.chk').addEventListener('change', refreshSummary);
+  return fig;
+}
+
+function renderDupPanel(g) {
+  const panel = document.createElement('div');
+  panel.className = 'gpanel';
+  const reclaim = g.filter(im => im.is_dup).reduce((a, im) => a + (im.size || 0), 0);
+  const head = document.createElement('div');
+  head.className = 'ghead';
+  head.innerHTML = `<span class="gtitle">Duplicate group <code>${g[0].dup_group}</code></span>` +
+    `<span class="gsub">${g.length} identical copies &mdash; keep 1, delete ${g.length - 1} &middot; ~${fmtBytes(reclaim)} reclaimable</span>` +
+    `<button class="ghost mini" data-g="${g[0].dup_group}">select extras</button>`;
+  panel.appendChild(head);
+  const sub = document.createElement('div'); sub.className = 'subgrid';
+  for (const im of g) sub.appendChild(cardEl(im));
+  panel.appendChild(sub);
+  grid.appendChild(panel);
+  head.querySelector('button').addEventListener('click', () => {
+    g.forEach(im => { if (im.is_dup) { const b = grid.querySelector(`input.chk[data-path="${cssEsc(im.path)}"]`); if (b) b.checked = true; } });
+    refreshSummary();
+  });
+}
+
+function collectionKey(im) {
+  const name = basename(im.rel);
+  return name.split('__', 1)[0] || 'Other';
+}
+
+function collectionLabel(key) {
+  const match = key.match(/^\d+_(.*)$/);
+  if (!match) return key;
+  return match[1].replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function renderCollectionSection(title, items) {
+  const h = document.createElement('div');
+  h.className = 'section-h';
+  h.innerHTML = `${esc(title)} <span class="section-count">(${items.length})</span>`;
+  grid.appendChild(h);
+  const sub = document.createElement('div');
+  sub.className = 'subgrid';
+  for (const im of items) sub.appendChild(cardEl(im));
+  grid.appendChild(sub);
+}
+
+function render() {
+  grid.innerHTML = '';
+  STATE.viewList = visibleFlat();
+  if (!STATE.images.length) { grid.innerHTML = '<div class="empty">No images found in this root.</div>'; refreshSummary(); return; }
+  if (!STATE.viewList.length) { grid.innerHTML = '<div class="empty">No images match this filter.</div>'; refreshSummary(); return; }
+  const groups = buildGroups();
+  const dupGroups = groups.filter(g => g.length > 1);
+  const uniqGroups = groups.filter(g => g.length === 1);
+  if (STATE.filter !== 'unique') {
+    for (const g of dupGroups) renderDupPanel(g);
+  }
+  if (STATE.filter !== 'dups' && uniqGroups.length) {
+    const collections = new Map();
+    for (const g of uniqGroups) {
+      const im = g[0];
+      const key = collectionKey(im);
+      if (!collections.has(key)) collections.set(key, []);
+      collections.get(key).push(im);
+    }
+    for (const [key, items] of [...collections.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      items.sort((a, b) => a.rel.localeCompare(b.rel));
+      renderCollectionSection(collectionLabel(key), items);
+    }
+  }
+  refreshSummary();
+}
+
+async function loadGallery(root) {
+  STATE.root = root;
+  const res = await fetch('/api/gallery?root=' + encodeURIComponent(root), { cache: 'no-store' });
+  const data = await res.json();
+  if (data.status === 'error') { toast(data.message, true); return; }
+  STATE.images = data.images || [];
+  STATE.viewList = visibleFlat();
+  render();
+}
+
+function formatRootLabel(item) {
+  const countLabel = `${item.count} ${item.count === 1 ? 'image' : 'images'}`;
+  if (item.rel === '__all__') return `All screenshots · ${countLabel}`;
+  const title = s => s.replace(/[_-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+  // Pattern A: 2026-08-17__winui3-capture__ui-pages
+  const mA = item.rel.match(/^(\d{4})-(\d{2})-(\d{2})__(.+?)__(.+)$/);
+  if (mA) {
+    const [, y, mo, d, cap, sub] = mA;
+    const stamp = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)));
+    const when = stamp.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+    return `${title(cap)} · ${title(sub)} · ${when} · ${countLabel}`;
+  }
+  // Pattern B: 20260817_213432 (capture run ids are UTC)
+  const mB = item.rel.match(/^(\d{8})_(\d{6})$/);
+  if (mB) {
+    const [, date, time] = mB;
+    const stamp = new Date(Date.UTC(
+      Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8)),
+      Number(time.slice(0, 2)), Number(time.slice(2, 4)), Number(time.slice(4, 6))
+    ));
+    const when = stamp.toLocaleString([], { timeZone: 'America/Phoenix', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    return `Capture · ${when} MST · ${countLabel}`;
+  }
+  return `${item.label} · ${countLabel}`;
+}
+
+async function loadRoots(selected = $('root').value) {
+  const r = await fetch('/api/roots', { cache: 'no-store' });
+  if (!r.ok) throw new Error(`Unable to load roots (${r.status})`);
+  const data = await r.json();
+  const sel = $('root');
+  sel.innerHTML = '';
+  const captures = document.createElement('optgroup');
+  captures.label = 'Capture sets';
+  const all = document.createElement('optgroup');
+  all.label = 'Browse all';
+  for (const x of data.roots) {
+    const o = document.createElement('option');
+    o.value = x.rel; o.textContent = formatRootLabel(x); o.title = x.label;
+    (x.rel === '__all__' ? all : captures).appendChild(o);
+  }
+  sel.append(captures, all);
+  if ([...sel.options].some(o => o.value === selected)) sel.value = selected;
+  return sel.value;
+}
+
+async function init() {
+  const sel = $('root');
+  await loadRoots();
+  const initialRoot = [...sel.options].find(o => o.value !== '__all__')?.value || sel.value;
+  sel.value = initialRoot;
+  await loadGallery(initialRoot);
+
+  sel.addEventListener('change', () => loadGallery(sel.value));
+  $('refresh').onclick = async () => {
+    const root = await loadRoots(sel.value);
+    await loadGallery(root);
+  };
+  document.querySelectorAll('.fbtn').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.fbtn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    STATE.filter = b.dataset.f;
+    STATE.viewList = visibleFlat();
+    render();
+  }));
+  $('clear').onclick = () => { grid.querySelectorAll('input.chk').forEach(b => b.checked = false); refreshSummary(); };
+  $('seldup').onclick = () => {
+    grid.querySelectorAll('input.chk').forEach(b => b.checked = false);
+    STATE.images.forEach(im => {
+      if (im.is_dup) { const box = grid.querySelector(`input.chk[data-path="${cssEsc(im.path)}"]`); if (box) box.checked = true; }
+    });
+    refreshSummary();
+  };
+  $('del').onclick = async () => {
+    const paths = selectedPaths();
+    if (!paths.length) return;
+    if (!confirm(`Delete ${paths.length} selected image(s)? This removes files from disk.`)) return;
+    const res = await fetch('/api/delete-many', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paths }) });
+    const out = await res.json();
+    if (!res.ok || !out.ok) { toast(out.message || 'Delete failed.', true); return; }
+    toast(`Deleted ${out.deleted} file(s), freed ${fmtBytes(out.freed)}`);
+    const root = await loadRoots(sel.value);
+    await loadGallery(root);
+  };
+  $('delall').onclick = async () => {
+    const dups = STATE.images.filter(im => im.is_dup).map(im => im.path);
+    if (!dups.length) { toast('No duplicates to delete.'); return; }
+    if (!confirm(`Delete all ${dups.length} duplicate(s), keeping one of each group?`)) return;
+    const res = await fetch('/api/delete-many', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paths: dups }) });
+    const out = await res.json();
+    if (!res.ok || !out.ok) { toast(out.message || 'Delete failed.', true); return; }
+    toast(`Deleted ${out.deleted} duplicate(s), freed ${fmtBytes(out.freed)}`);
+    const root = await loadRoots(sel.value);
+    await loadGallery(root);
+  };
+}
+
+function cssEsc(s) {
+  if (window.CSS && CSS.escape) return CSS.escape(s);
+  return s.replace(/["\\]/g, '\\$&');
+}
+
+/* lightbox */
+function openLightbox(path) {
+  STATE.viewIndex = STATE.viewList.findIndex(im => im.path === path);
+  if (STATE.viewIndex < 0) STATE.viewIndex = 0;
+  showLightbox();
+}
+function showLightbox() {
+  const im = STATE.viewList[STATE.viewIndex];
+  if (!im) return;
+  $('lbimg').src = '/api/img?path=' + encodeURIComponent(im.path) + '&thumb=0';
+  $('lbview').href = '/api/img?path=' + encodeURIComponent(im.path) + '&thumb=0';
+  const tag = im.is_dup ? '<span class="tag dup">DUPLICATE</span>' : (im.keeper ? '<span class="tag keep">KEPT</span>' : '');
+  $('lbinfo').innerHTML = `${esc(im.rel)}  ·  ${im.w || '?'}×${im.h || '?'}  ·  ${fmtBytes(im.size)} ${tag}`;
+  $('lb').classList.add('show');
+}
+$('lbclose').onclick = () => $('lb').classList.remove('show');
+$('lbprev').onclick = () => { if (STATE.viewIndex > 0) { STATE.viewIndex--; showLightbox(); } };
+$('lbnext').onclick = () => { if (STATE.viewIndex < STATE.viewList.length - 1) { STATE.viewIndex++; showLightbox(); } };
+$('lbdelete').onclick = async () => {
+  const im = STATE.viewList[STATE.viewIndex]; if (!im) return;
+  if (!confirm(`Delete ${im.rel}?`)) return;
+  const res = await fetch('/api/delete', { method: 'POST',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: im.path }) });
+  const out = await res.json();
+  if (out.ok) { toast(`Deleted, freed ${fmtBytes(out.freed)}`); $('lb').classList.remove('show'); await loadGallery($('root').value); }
+  else toast('Delete failed: ' + out.error, true);
+};
+$('lb').addEventListener('click', e => { if (e.target === $('lb')) $('lb').classList.remove('show'); });
+document.addEventListener('keydown', e => {
+  if (!$('lb').classList.contains('show')) return;
+  if (e.key === 'Escape') $('lb').classList.remove('show');
+  if (e.key === 'ArrowLeft') $('lbprev').onclick();
+  if (e.key === 'ArrowRight') $('lbnext').onclick();
+});
+
+init();
+</script>
+</body></html>

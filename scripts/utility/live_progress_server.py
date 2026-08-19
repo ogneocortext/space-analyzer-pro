@@ -35,6 +35,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -59,6 +60,7 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_SHOTS_ROOT = Path("macro_logs")
 HTML_PATH = HERE / "live_progress.html"
 GALLERY_HTML_PATH = HERE / "screenshot_gallery.html"
+THEME_CSS_PATH = HERE / "theme.css"
 LOOP_SCRIPT = HERE.parent / "improvement_loop.py"
 LOOP_STATE_FILE = HERE.parent.parent / "docs" / ".loop_state.json"
 
@@ -253,6 +255,52 @@ def _build_issues_payload(status=None, category=None, q=None, severity=None, lim
             "total": len(issues), "issues": out}
 
 
+
+
+def _render_summary_block(summary) -> str:
+    """Render the consolidated summary (same schema as a per-shot analysis) as
+    structured cards instead of a raw JSON dump."""
+    esc = lambda value: html.escape(str(value or ""))
+    if not isinstance(summary, dict):
+        return f"<pre>{esc(summary or 'Not completed')}</pre>"
+    sev_counts: dict[str, int] = {}
+    parts: list[str] = []
+    content = summary.get("main_content")
+    if content:
+        parts.append(f"<p>{esc(content)}</p>")
+    for it in (summary.get("issues") or []):
+        category = esc(str(it.get("category", "uncategorized")).replace("_", " "))
+        severity = esc(it.get("severity", "low"))
+        sev_counts[severity] = sev_counts.get(severity, 0) + 1
+        finding = esc(it.get("finding"))
+        location = esc(it.get("location"))
+        evidence = esc(it.get("evidence"))
+        recommendation = esc(it.get("recommendation"))
+        parts.append(
+            f"<li data-category='{category}' data-severity='{severity}'>"
+            f"<span class='category'>{category}</span> "
+            f"<span class='severity {severity}'>{severity}</span> <b>{finding}</b>"
+            f"<div class='muted'>{location}</div>"
+            f"<div><b>Evidence:</b> {evidence}</div>"
+            f"<div class='fix'><b>Recommended fix:</b> {recommendation}</div></li>"
+        )
+    chips = "".join(
+        f"<span class='sevchip {s}'>{sev_counts[s]} {s}</span>"
+        for s in ("high", "medium", "low") if sev_counts.get(s)
+    )
+    if chips:
+        parts.insert(0, f"<div class='sevchips'>{chips}</div>")
+    wins = summary.get("quick_wins") or []
+    if wins:
+        parts.append("<h3>Quick wins</h3><ul>" + "".join(f"<li>{esc(w)}</li>" for w in wins) + "</ul>")
+    conf = summary.get("evidence_confidence")
+    if conf:
+        parts.append(f"<p class='muted'>Confidence: {esc(conf)}</p>")
+    if not parts:
+        return "<p class='muted'>No consolidated recommendations yet.</p>"
+    return "\n".join(parts)
+
+
 def _render_report_html(report: dict, source_name: str) -> bytes:
     """Render a useful standalone HTML view for JSON-only/partial reports."""
     esc = lambda value: html.escape(str(value or ""))
@@ -297,7 +345,6 @@ def _render_report_html(report: dict, source_name: str) -> bytes:
             body += f"<p class='muted'>Confidence: {esc(data.get('evidence_confidence'))}</p>"
         cards.append(f"<section class='shot'><h2>{esc(shot.get('label', key))}</h2><p class='muted'>{esc(key)}</p>{body}</section>")
     summary = ux.get("summary")
-    summary_text = json.dumps(summary, indent=2) if isinstance(summary, (dict, list)) else str(summary or "Not completed")
     code = report.get("code_recommendations")
     code_text = json.dumps(code, indent=2) if isinstance(code, (dict, list)) else str(code or "Not completed")
     doc = f"""<!doctype html><html lang='en'><head><meta charset='utf-8'>
@@ -312,7 +359,10 @@ h2{{margin:0 0 6px;color:#8ec7ff;font-size:18px}}h3{{color:#c9d5e3;margin:22px 0
 .category:hover,.severity:hover{{outline:2px solid #4aa3ff55;outline-offset:1px}}
 .category{{background:#303946;color:#b9c8da}}.severity.high{{background:#6b2525;color:#ffd0cc}}.severity.medium{{background:#634d1d;color:#ffe5a3}}.severity.low{{background:#253d58;color:#b9dcff}}
 .muted{{color:#94a0ad;font-size:12px}}.fix{{color:#a9e2b2;margin-top:4px}}pre{{white-space:pre-wrap;background:#181a1f;padding:12px;border-radius:6px;overflow:auto}}
-.summary{{background:#1c2820;border-left:4px solid #3fb950;padding:14px;margin:18px 0}}
+ .summary{{background:#1c2820;border-left:4px solid #3fb950;padding:14px;margin:18px 0}}
+ .sevchips{{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}}
+ .sevchip{{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}}
+ .sevchip.high{{background:#6b2525;color:#ffd0cc}}.sevchip.medium{{background:#634d1d;color:#ffe5a3}}.sevchip.low{{background:#253d58;color:#b9dcff}}
 .toolbar{{position:sticky;top:0;z-index:5;background:#1c1d22;border:1px solid #3a3f49;border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:18px}}
 .toolbar select,.toolbar button{{background:#30343c;color:#e6e6e6;border:1px solid #4b5360;border-radius:6px;padding:6px 9px}}
 .toolbar select{{appearance:none;cursor:pointer;padding-right:28px;background-image:linear-gradient(45deg,transparent 50%,#9da8b5 50%),linear-gradient(135deg,#9da8b5 50%,transparent 50%);background-position:calc(100% - 13px) 50%,calc(100% - 8px) 50%;background-size:5px 5px;background-repeat:no-repeat}}
@@ -324,7 +374,7 @@ h2{{margin:0 0 6px;color:#8ec7ff;font-size:18px}}h3{{color:#c9d5e3;margin:22px 0
 <span class='meta'>Model: {model}</span><span class='meta'>Generated: {timestamp}</span>
 <span class='meta'>Source: {esc(source_name)}</span><a class='back' href='/'>← Back to dashboard</a></header><main>
 <div class='toolbar'><b>Filter findings</b><select id='category-filter'><option value='all'>All categories</option><option>layout</option><option>navigation</option><option>content</option><option>interaction</option><option>accessibility</option><option>visual polish</option><option>reliability</option></select><select id='severity-filter'><option value='all'>All severities</option><option>high</option><option>medium</option><option>low</option></select><button id='collapse'>Collapse all</button><span id='visible-count' class='muted'></span></div>
-<section class='summary'><h2>Consolidated recommendations</h2><pre>{esc(summary_text)}</pre></section>
+ <section class='summary'><h2>Consolidated recommendations</h2>{_render_summary_block(summary)}</section>
 <h2>Per-screenshot findings</h2>{''.join(cards) or '<p class="muted">No per-screenshot findings completed.</p>'}
 <section class='shot'><h2>Implementation recommendations</h2><pre>{esc(code_text)}</pre></section>
 </main><script>
@@ -549,18 +599,66 @@ def _safe_path(root_base: Path, raw: str) -> Path | None:
     return p
 
 
-def _discover_roots(root_base: Path) -> list[dict]:
+def _read_log_bytes(path: Path) -> bytes:
+    """Read a log file that may be actively held open by a child process.
+
+    On Windows the subprocess keeps the log file open for writing, so a
+    concurrent read can transiently raise PermissionError (sharing violation).
+    Retry briefly to tolerate that instead of 500-ing the endpoint.
+    """
+    for _ in range(6):
+        try:
+            return path.read_bytes()
+        except OSError:
+            time.sleep(0.05)
+    # Last attempt: surface a clear message rather than an opaque 500.
+    try:
+        return path.read_bytes()
+    except OSError as e:
+        return ("Log temporarily unavailable: " + str(e)).encode("utf-8", "replace")
+
+
+def _discover_capture_sets(root_base: Path, direct_only: bool = False) -> list[dict]:
+    """Enumerate capture-set directories under ``root_base``.
+
+    A capture set is any top-level subdirectory (excluding names that start
+    with ``_``) that contains at least one image file. ``direct_only=True``
+    restricts the count to images sitting directly inside the set — used by
+    the run picker, which points the analyzer at a directory of PNGs. The
+    default scans anywhere beneath the set, so capture sets whose images
+    live in a ``screenshots/`` subfolder (e.g. ``20260817_213432``) are still
+    browsable in the gallery.
+
+    This single source of truth keeps the dashboard run-set picker and the
+    gallery root picker consistent (previously they enumerated different
+    directory shapes, so a set browsable in one was invisible in the other).
+    """
     roots: list[dict] = []
-    for d in sorted(root_base.rglob("*")):
-        if d.is_dir() and d.name in ("screenshots", "screenshots_unique"):
-            rel = d.relative_to(root_base).as_posix()
-            try:
-                count = sum(1 for f in d.rglob("*")
-                            if f.is_file() and f.suffix.lower() in IMAGE_EXTS)
-            except Exception:
-                count = 0
-            roots.append({"rel": rel, "label": rel, "count": count, "mtime": d.stat().st_mtime})
+    for d in sorted(root_base.iterdir()):
+        if not d.is_dir() or d.name.startswith("_"):
+            continue
+        try:
+            if direct_only:
+                entries = [f for f in d.iterdir() if f.is_file()]
+                imgs = [f for f in entries if f.suffix.lower() in IMAGE_EXTS]
+            else:
+                imgs = [f for f in d.rglob("*")
+                        if f.is_file() and f.suffix.lower() in IMAGE_EXTS]
+        except OSError:
+            continue
+        if not imgs:
+            continue
+        rel = d.relative_to(root_base).as_posix()
+        roots.append({
+            "rel": rel, "label": rel, "count": len(imgs),
+            "mtime": d.stat().st_mtime,
+        })
     roots.sort(key=lambda r: r["mtime"], reverse=True)
+    return roots
+
+
+def _discover_roots(root_base: Path) -> list[dict]:
+    roots = _discover_capture_sets(root_base, direct_only=False)
     total = sum(1 for f in root_base.rglob("*")
                 if f.is_file() and f.suffix.lower() in IMAGE_EXTS)
     roots.append({"rel": "__all__", "label": "<entire macro_logs>", "count": total, "mtime": 0})
@@ -624,12 +722,14 @@ def _delete_one(root_base: Path, raw: str) -> dict:
 
 
 def _analysis_sets(root_base: Path) -> dict:
-    """List capture directories (screenshots_* / dated buckets) under root_base."""
-    sets = sorted(
-        (d.name for d in root_base.iterdir() if d.is_dir()
-         and (d.name.startswith("screenshots_") or "__" in d.name)),
-        reverse=True,
-    )
+    """List capture directories under root_base that hold screenshots directly.
+
+    Reuses ``_discover_capture_sets(direct_only=True)`` so the run picker and
+    the gallery agree on which directories are valid capture sets, and empty
+    buckets (e.g. a stale ``screenshots_*`` prefix dir with no PNGs) are
+    excluded instead of offering a run that would find nothing.
+    """
+    sets = [r["rel"] for r in _discover_capture_sets(root_base, direct_only=True)]
     return {"sets": sets}
 
 
@@ -754,7 +854,8 @@ def _stop_analysis(root_base: Path) -> dict:
                     check=False,
                 )
             else:
-                proc.terminate()
+                if proc is not None:
+                    proc.terminate()
             if _RUN_STATE is not None and proc is not None:
                 proc.wait(timeout=5)
         except (OSError, subprocess.TimeoutExpired) as exc:
@@ -1198,6 +1299,12 @@ def build_handler(root_base: Path):
                 )
                 self._send(200, wrapped.encode("utf-8"), "text/html; charset=utf-8")
                 return
+            if route == "/theme.css":
+                if not THEME_CSS_PATH.exists():
+                    self._send(404, b"theme.css not found", "text/plain")
+                    return
+                self._send(200, THEME_CSS_PATH.read_bytes(), "text/css; charset=utf-8")
+                return
             if route == "/api/progress":
                 progress = _read_json(root_base / "analysis_progress.json")
                 if progress is None:
@@ -1253,14 +1360,14 @@ def build_handler(root_base: Path):
                 if not log.exists():
                     self._send(404, b"No run log yet", "text/plain")
                     return
-                self._send(200, log.read_bytes(), "text/plain; charset=utf-8")
+                self._send(200, _read_log_bytes(log), "text/plain; charset=utf-8")
                 return
             if route == "/api/loop-log":
                 log = root_base / "loop_run.log"
                 if not log.exists():
                     self._send(404, b"No loop log yet", "text/plain")
                     return
-                self._send(200, log.read_bytes(), "text/plain; charset=utf-8")
+                self._send(200, _read_log_bytes(log), "text/plain; charset=utf-8")
                 return
             if route == "/api/shot":
                 q = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}

@@ -1,5 +1,24 @@
 # [Unreleased]
 
+### WinUI 3 — Structured App Logging & AppLog SQLite Sink (2026-08-18)
+
+- **Rewrote `Helpers/AppLog.cs`** with explicit severity levels (`Trace`/`Debug`/`Info`/`Warn`/`Error`/`Fatal`) and severity-aware console coloring. `App.xaml.cs` now routes the unhandled-exception, `TaskScheduler.UnobservedTaskException`, and UI `UnhandledException` handlers through `AppLog.Fatal` (previously all were logged as the generic "Exception" level), so fatal crashes are correctly classified.
+- **Added a `Microsoft.Data.Sqlite` sink** that persists log entries (timestamp, level, source, message, exception) to a local `app_logs.db` for post-mortem inspection. Added `Microsoft.Data.Sqlite` `9.0.0` and pinned `SQLitePCLRaw.bundle_e_sqlite3` `2.1.13` (patched GHSA-2m69-gcr7-jv3q, a high-severity SQLite advisory) in `SpaceAnalyzer.csproj`.
+- **Fixed a SQLite logging deadlock** — the synchronous write previously ran on the UI fault path; the flush now happens off the calling thread so a logging call can't re-enter the dispatcher and deadlock the app.
+- **Minor XAML polish** — added the `Thickness.Zero` resource to `App.xaml` (used by full-bleed cards); clearer quick-scan hint + bolded status on `DashboardPage.xaml`; delete-button tooltip on `HistoryPage.xaml`; `SecondaryButton` style for the Smart Search start button on `SmartSearchPage.xaml`. New `Models/ScanFolderGroup.cs` groups history records by folder (newest-first).
+
+### Macro Analysis Dashboard — Animation System & Shared Theme (2026-08-18)
+
+- **Extracted shared design tokens, all `@keyframes`, the `prefers-reduced-motion` block, and the `:focus-visible` ring into `scripts/utility/theme.css`**, linked by both `live_progress.html` and `screenshot_gallery.html`; the dashboards now strip their duplicated inline `:root` / keyframe / motion blocks.
+- **Served the stylesheet via a new `/theme.css` route** in `live_progress_server.py` (the server previously could not serve any static file).
+- **Polished motion** — refined keyframe easings (shimmer, badge-pulse, pulse, indet, personaflash, vpwarn), added hover lifts on cards/phases/buttons, one-time `riseIn` entrance + `panelFade` tab fade, smooth status-badge transitions, a header sheen, and `scroll-behavior: smooth`. Per-poll re-rendered lists intentionally do *not* animate, to avoid flicker.
+
+### Macro Analyzer — Persona-Aware Vision & Structured Data Model (2026-08-18)
+
+- **Added role-specific `system` prompts** (`VISION_SYSTEM` / `ANALYSIS_SYSTEM` / `AGGREGATE_SYSTEM` / `CODE_SYSTEM`) routed through Ollama's dedicated `system` field (added to `OllamaClient.generate` / `.stream` in `ux-pipeline/src/ux_pipeline/_ollama_client.py`), so each pass stays on-task — the vision pass now returns free text instead of fighting a "Return ONLY JSON" wrapper.
+- **Persona-aware progress** — `_emit_progress` now carries `persona` + `persona_label` (`FEATURES` / `VISION` / `ANALYSIS` / `AGGREGATE` / `CODE`) so the dashboard shows which stage is running.
+- **Structured vision schema enforced** — the per-shot prompt requires `category`, `severity`, `location`, `evidence`, `recommendation`, `quick_wins`, `evidence_confidence`. The consolidated-summary renderer (`analyze_ux_screenshots.py`) and the dashboard `/report` (`_render_summary_block` in `live_progress_server.py`) now show severity-tally chips, per-issue category/severity badges, evidence, recommended fix, quick wins, and confidence instead of a raw JSON dump.
+
 ### Settings Store & ViewModel Robustness
 
 - **Fixed `ResetToDefaults` missing `DefaultScanPaths` reset** — "Reset to Defaults" previously left the default scan paths populated; `SettingsViewModel.ResetToDefaults()` now also clears `DefaultScanPaths`.

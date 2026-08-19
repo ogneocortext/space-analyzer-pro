@@ -21,17 +21,17 @@ public partial class App : Application
 
         // Catch failures that escape the UI thread or unobserved async tasks.
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
-            AppLog.Exception(e.ExceptionObject as Exception ?? new Exception(e.ExceptionObject?.ToString()), "AppDomain.UnhandledException");
+            AppLog.Fatal(e.ExceptionObject as Exception ?? new Exception(e.ExceptionObject?.ToString()), "AppDomain.UnhandledException");
         TaskScheduler.UnobservedTaskException += (s, e) =>
         {
-            AppLog.Exception(e.Exception, "TaskScheduler.UnobservedTaskException");
+            AppLog.Fatal(e.Exception, "TaskScheduler.UnobservedTaskException");
             e.SetObserved();
         };
     }
 
     private static void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
     {
-        AppLog.Exception(e.Exception, "UnhandledException (UI thread)");
+        AppLog.Fatal(e.Exception, "UnhandledException (UI thread)");
         e.Handled = true;
     }
 

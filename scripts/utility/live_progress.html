@@ -3,17 +3,18 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="/theme.css" />
 <title>UX Analysis — Live Progress</title>
 <style>
-  :root {
-    --bg: #0f1419; --panel: #161c23; --panel2: #1d2630; --line: #2a3542;
-    --txt: #e6edf3; --muted: #8b98a5; --accent: #4aa3ff; --ok: #3fb950;
-    --warn: #d29922; --err: #f85149; --busy: #a371f7;
-  }
   * { box-sizing: border-box; }
+  html, body { height: 100%; background: var(--bg); scroll-behavior: smooth; }
   body {
     margin: 0; background: var(--bg); color: var(--txt);
     font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    /* App shell: lock the page to the viewport and let only <main> scroll, so the
+       header + status bar stay put and the content always fits the window instead
+       of producing one giant page-level scroll on short / vertical windows. */
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden;
   }
   header {
     position: sticky; top: 0; z-index: 5;
@@ -24,8 +25,9 @@
   }
   header::after {
     content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
-    background: linear-gradient(90deg, var(--accent), rgba(163,113,247,.5) 40%, transparent 75%);
-    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(74,163,255,.9), rgba(163,113,247,.7), transparent);
+    background-size: 45% 100%; background-repeat: no-repeat;
+    animation: headerSheen 6.5s ease-in-out infinite; pointer-events: none;
   }
   .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .brand-mark {
@@ -51,20 +53,17 @@
     display: inline-flex; align-items: center; gap: 6px; height: 30px; line-height: 1;
     padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
     border: 1px solid var(--line); white-space: nowrap;
+    transition: background-color .35s ease, color .35s ease, border-color .35s ease;
   }
   .badge.running { background: rgba(74,163,255,.15); color: var(--accent); border-color: var(--accent); }
   .badge.running::before {
     content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
-    box-shadow: 0 0 0 0 rgba(74,163,255,.6); animation: badge-pulse 1.6s infinite;
+    box-shadow: 0 0 0 0 rgba(74,163,255,.6); animation: badge-pulse 2s cubic-bezier(.66,0,0,1) infinite;
   }
   .badge.done { background: rgba(63,185,80,.15); color: var(--ok); border-color: var(--ok); }
   .badge.error { background: rgba(248,81,73,.15); color: var(--err); border-color: var(--err); }
   .badge.idle { background: rgba(139,152,165,.12); color: var(--muted); }
-  @keyframes badge-pulse {
-    0% { box-shadow: 0 0 0 0 rgba(74,163,255,.6); }
-    70% { box-shadow: 0 0 0 6px rgba(74,163,255,0); }
-    100% { box-shadow: 0 0 0 0 rgba(74,163,255,0); }
-  }
+  .badge.stopped { background: rgba(210,153,34,.15); color: var(--warn); border-color: var(--warn); }
   /* Status strip below the header — consolidated live run indicators */
   .statusbar {
     display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch;
@@ -77,7 +76,7 @@
   }
   .sttile.grow { flex: 1 1 240px; min-width: 200px; }
   .stk { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-  .stv { font-size: 15px; font-weight: 700; color: var(--txt); line-height: 1.1; }
+  .stv { font-size: 15px; font-weight: 700; color: var(--txt); line-height: 1.1; transition: color .3s ease; }
   .sttile.running { border-color: rgba(74,163,255,.45); box-shadow: 0 0 0 1px rgba(74,163,255,.22); }
   .sttile.running .stv { color: var(--accent); }
   .sttile.done { border-color: rgba(63,185,80,.45); }
@@ -87,43 +86,115 @@
   .sttile #msg a { color: var(--accent); text-decoration: underline; font-weight: 600; }
   .sttile #msg a:hover { color: #fff; }
   .st-minibar { height: 4px; background: var(--panel2); border-radius: 3px; overflow: hidden; margin-top: 4px; border: 1px solid var(--line); }
-  .st-minibar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,var(--accent),var(--busy)); transition: width .4s ease; }
-  .sttile.running .st-minibar > i { background-size: 200% 100%; background-image: linear-gradient(90deg, var(--accent), var(--busy), var(--accent)); animation: shimmer 1.6s linear infinite; }
-  main { padding: 20px; display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start; }
-  .control-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; grid-column: 1 / -1; align-items: start; }
-  @media (max-width: 1100px) { .control-grid { grid-template-columns: 1fr; } }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .st-minibar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,var(--accent),var(--busy)); transition: width .5s cubic-bezier(.2,.8,.2,1); }
+  .sttile.running .st-minibar > i { background-size: 200% 100%; background-image: linear-gradient(90deg, var(--accent), var(--busy), var(--accent)); animation: shimmer 2.4s ease-in-out infinite; }
+  main {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 20px;
+    align-items: start;
+    flex: 1 1 auto; min-height: 0; overflow: auto;
+  }
+  /* Allow grid/flex children to shrink below their content size — this is the
+     classic cause of horizontal overflow on a snapped (narrow) window. */
+  main > * { min-width: 0; }
+  .control-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+  .control-grid > * { min-width: 0; }
+  /* ── Windows Snap breakpoints ───────────────────────────────────────────
+     Snap widths at 1920×:  quarter≈480 · third≈640 · half≈960 · ⅔≈1280.
+     The dashboard reflows at those thresholds so every snap size stays usable
+     and never forces a horizontal scrollbar. */
+  @media (max-width: 1100px) {                 /* half-snap: stack the control cards */
+    .control-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 900px) {                  /* third-snap: single reading column */
+    main { grid-template-columns: minmax(0, 1fr); }
+    #side { grid-column: auto; grid-row: auto; position: static; }
+  }
+  @media (max-width: 640px) {                  /* quarter-snap: compact, everything stacks */
+    main { padding: 12px; gap: 12px; }
+    .card { padding: 12px; }
+    header { padding: 10px 12px; gap: 10px; }
+    .statusbar { padding: 6px 12px; }
+    .sttile { flex: 1 1 100%; }                /* each status tile full-width when narrow */
+    .run-row { flex-direction: column; align-items: stretch; }
+    .run-row select, .run-row input { min-width: 0; width: 100%; }
+    .model-info { white-space: normal; }
+    #report-frame { height: min(420px, 55vh); }
+    .phase { flex: 1 1 100%; min-width: 0; }
+    .side-tabs { margin: 0 0 10px; }
+    .side-tab { font-size: 11px; padding: 7px 2px; }
+  }
+  @media (max-width: 420px) {
+    .brand h1 { font-size: 14px; }
+    .sttile { min-width: 0; }
+  }
+  /* Tabbed sidebar: only one live panel is visible at a time, so the tall
+      Preview / Output / Errors / Report cards no longer stack and overflow the
+      viewport — the sidebar stays compact at every Windows snap width. */
+  .side-card { display: flex; flex-direction: column; }
+  /* The sidebar is a full-height right rail: it spans every grid row in column 2
+      so the empty strip that used to sit to the right of the top cards disappears,
+      and it sticks to the top of the scroll area so it stays visible while the
+      (taller) left-hand content scrolls past. */
+  /* Keep the three stacked content cards in column 1 so the right rail (the
+      sidebar) fills column 2 for the full height of the page — no empty strip
+      beside the top cards. */
+  /* Left content column: on wide screens it caps to the main height and scrolls
+     internally so the (taller) controls + progress never push the page past the
+     viewport — the right rail (sidebar) stays full-height beside it. */
+  .left-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .control-grid, #progress-card { grid-column: 1; min-width: 0; }
+  @media (min-width: 901px) {
+    .left-col { grid-column: 1; max-height: 100%; min-height: 0; overflow: auto; }
+  }
+  #side { grid-column: 2; grid-row: 1 / -1; align-self: stretch; }
+  .side-card { display: flex; flex-direction: column; min-height: 100%; }
+  .side-tabs { display: flex; gap: 2px; margin: 0 -4px 14px; border-bottom: 1px solid var(--line); }
+  .side-tab {
+    flex: 1 1 0; margin: 0; padding: 8px 4px; background: transparent; color: var(--muted);
+    border: 0; border-bottom: 2px solid transparent; border-radius: 0; font-weight: 600;
+    font-size: 12px; line-height: 1.1; cursor: pointer;
+  }
+  .side-tab:hover { background: transparent; color: var(--txt); transform: none; box-shadow: none; }
+  .side-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .side-panel { overflow: auto; }
+  .side-panel[hidden] { display: none; }
   .card {
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+    transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
   }
+  .card:hover { border-color: rgba(74,163,255,.30); box-shadow: 0 8px 24px rgba(0,0,0,.35); transform: translateY(-2px); }
   .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; }
   .bar { height: 10px; background: var(--panel2); border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
-  .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,var(--accent),var(--busy)); transition: width .4s ease; }
+  .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,var(--accent),var(--busy)); transition: width .5s cubic-bezier(.2,.8,.2,1); }
   .phases { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
   .phase { font-size: 11px; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); }
   .phase.active { color: #fff; border-color: var(--accent); background: rgba(74,163,255,.18); }
   .phase.past { color: var(--ok); border-color: rgba(63,185,80,.4); }
   .phases { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
-  .phase { font-size: 11px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); min-width: 96px; display: flex; flex-direction: column; gap: 4px; }
+  .phase { font-size: 11px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); min-width: 96px; display: flex; flex-direction: column; gap: 4px; transition: background .2s ease, border-color .2s ease, color .2s ease; }
+  .phase:hover { border-color: rgba(74,163,255,.4); color: var(--txt); }
   .plabel { font-weight: 600; text-transform: capitalize; }
   .ppct { font-size: 10px; color: var(--muted); }
   .phase.active .ppct { color: var(--accent); }
   .phase.past .ppct { color: var(--ok); }
   .phasebar { height: 5px; background: var(--panel2); border-radius: 3px; overflow: hidden; border: 1px solid var(--line); }
-  .phasebar > i { display: block; height: 100%; width: 0; background: var(--muted); transition: width .5s ease; }
+  .phasebar > i { display: block; height: 100%; width: 0; background: var(--muted); transition: width .6s cubic-bezier(.2,.8,.2,1); }
   .phase.active .phasebar > i { background: linear-gradient(90deg, var(--accent), var(--busy)); }
   .phase.past .phasebar > i { background: var(--ok); }
-  .phasebar > i.indet { width: 38% !important; animation: indet 1.2s ease-in-out infinite; }
-  @keyframes indet { 0% { margin-left: -38%; } 100% { margin-left: 100%; } }
+  .phasebar > i.indet { width: 38% !important; animation: indet 1.4s ease-in-out infinite; }
   .bar > i { position: relative; }
-  .bar.running > i { background-size: 200% 100%; background-image: linear-gradient(90deg, var(--accent), var(--busy), var(--accent)); animation: shimmer 1.6s linear infinite; }
-  @keyframes shimmer { 0% { background-position: 0 0; } 100% { background-position: 200% 0; } }
-  .dot.pending { animation: blink 1.6s ease-in-out infinite; }
-  @keyframes blink { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
-  ul.shots li.active-row { background: rgba(74,163,255,.08); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; animation: pulse 1.4s ease-in-out infinite; }
-  @keyframes pulse { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(74,163,255,0); } 50% { box-shadow: inset 0 0 0 1px rgba(74,163,255,.55); } }
+  .bar.running > i { background-size: 200% 100%; background-image: linear-gradient(90deg, var(--accent), var(--busy), var(--accent)); animation: shimmer 2.4s ease-in-out infinite; }
+  .dot.pending { animation: blink 1.8s ease-in-out infinite; }
+  ul.shots li.active-row { background: rgba(74,163,255,.08); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; animation: pulse 1.8s ease-in-out infinite; }
   .spinner { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); display: inline-block; vertical-align: -1px; animation: spin .8s linear infinite; margin-right: 6px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
   #live-img { transition: opacity .35s ease; }
   #live-img.loading { opacity: 0; }
   .stat-row { display: flex; gap: 18px; margin-top: 12px; flex-wrap: wrap; }
@@ -133,6 +204,9 @@
     margin-top: 14px; padding: 10px 12px; background: var(--panel2); border-radius: 8px;
     border: 1px solid var(--line); font-size: 13px; color: var(--accent);
   }
+  /* Bound the run/loop status blocks so an active run's log never pushes the
+     dashboard past the 1366×768 viewport — it scrolls internally instead. */
+  #run-status, #loop-status { max-height: 150px; overflow: auto; }
   /* Structured run-status block (replaces the old wall-of-text log) */
   .run-summary { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
   .run-state { font-weight: 700; font-size: 13px; }
@@ -153,19 +227,30 @@
   .run-line.debug { color: #6e7b89; }
   .run-line.warn { color: var(--warn); }
   .run-line.err { color: var(--err); }
-  ul.shots { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow: auto; }
+  ul.shots { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 300px); overflow: auto; }
   ul.shots li {
     display: flex; align-items: flex-start; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--line);
   }
+  /* The inner content div must be allowed to shrink below its content size,
+     otherwise a long unbreakable preview line forces the whole row (and the
+     list) to a huge width and gets clipped by ul.shots' overflow:auto. */
+  ul.shots li > div { min-width: 0; }
   .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex: none; background: var(--muted); }
   .dot.features { background: var(--warn); }
   .dot.vision { background: var(--accent); }
   .dot.analysis { background: var(--busy); }
   .dot.done { background: var(--ok); }
   .dot.error { background: var(--err); }
+  .persona-chip { display: inline-block; font-size: 13px; font-weight: 700; padding: 1px 9px; border-radius: 999px; border: 1px solid transparent; line-height: 1.3; }
+  .persona-features { color: var(--warn); border-color: rgba(232,178,51,.45); background: rgba(232,178,51,.14); }
+  .persona-vision { color: var(--accent); border-color: rgba(74,163,255,.45); background: rgba(74,163,255,.14); }
+  .persona-analysis { color: var(--busy); border-color: rgba(163,113,247,.45); background: rgba(163,113,247,.14); }
+  .persona-aggregate { color: var(--ok); border-color: rgba(63,185,80,.45); background: rgba(63,185,80,.14); }
+  .persona-code { color: #e8923a; border-color: rgba(232,146,58,.45); background: rgba(232,146,58,.14); }
+  .persona-chip.flash { animation: personaflash 1s cubic-bezier(.2,.8,.2,1) 1; }
   .shot-name { font-weight: 600; }
   .shot-sub { color: var(--muted); font-size: 12px; }
-  .preview { margin-top: 4px; font-size: 12px; color: var(--muted); white-space: pre-wrap; }
+  .preview { margin-top: 4px; font-size: 12px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
   #live-vis .vp-section { margin-bottom: 10px; }
   #live-vis .vp-title { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
   #live-vis .vp-chips { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -179,13 +264,12 @@
   #live-vis .vp-note { color: var(--muted); font-size: 12px; font-style: italic; }
   #live-vis .vp-warn { color: var(--warn); font-size: 12px; }
   #live-vis .vp-err { color: var(--err); font-size: 12px; }
-  #live-vis .vp-raw { white-space: pre-wrap; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 8px; font-size: 11px; max-height: 160px; overflow: auto; }
+  #live-vis .vp-raw { white-space: pre-wrap; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 8px; font-size: 11px; max-height: 160px; overflow: auto; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
   .vp-tint { background: rgba(255,255,255,.025); border-radius: 6px; padding: 6px 8px; }
   .shot-card .vp-section { margin: 8px 0; }
-  #live-vis .vp-warn { animation: vpwarn 1.1s ease-in-out infinite; border-radius: 4px; }
-  @keyframes vpwarn { 0%, 100% { background: transparent; } 50% { background: rgba(210,153,34,.20); } }
+  #live-vis .vp-warn { animation: vpwarn 1.4s ease-in-out infinite; border-radius: 4px; }
   /* Per-shot preview cards (vision + analysis) in the screenshots list */
-  .shot-card { margin-top: 6px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; }
+  .shot-card { margin-top: 6px; padding: 8px 10px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
   .shot-card.ap-card { margin-top: 6px; }
   .ap-note, .ap-err, .ap-warn, .ap-text { font-size: 12px; color: var(--muted); }
   .ap-err { color: var(--err); }
@@ -220,11 +304,15 @@
   .output-tools button { padding: 5px 9px; font-size: 11px; margin: 0; }
   .output-tools label { color: var(--muted); font-size: 11px; display: flex; align-items: center; gap: 4px; }
   #live-out { min-height: 120px; max-height: 360px; margin: 0; background: #10151b; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
-  button {
+  button, a.secondary {
     margin-top: 12px; background: var(--accent); color: #03121f; border: 0; border-radius: 8px;
     padding: 8px 14px; font-weight: 600; cursor: pointer;
+    transition: background .15s ease, transform .12s ease, box-shadow .15s ease, border-color .15s ease;
   }
-  button.secondary { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); }
+  button.secondary, a.secondary { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); text-decoration: none; }
+  button:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(74,163,255,.30); }
+  button:not(:disabled):active { transform: translateY(1px); box-shadow: none; }
+  a.secondary:hover { transform: translateY(-1px); border-color: var(--accent); background: rgba(74,163,255,.18); }
   button:disabled { opacity: .5; cursor: not-allowed; }
   .run-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
   .run-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
@@ -248,6 +336,13 @@
   .run-row label.checkbox { flex-direction: row; align-items: center; gap: 6px; color: var(--txt); font-size: 13px; }
   .run-row label.checkbox input { width: auto; margin: 0; }
   .run-row .hint { color: var(--muted); font-weight: 400; font-size: 11px; }
+  /* Collapsible Self-Improvement Loop card: collapsed by default so the control
+     grid stays compact and the dashboard fits a 1366×768 window without scrolling. */
+  .collapsible > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; }
+  .collapsible > summary::-webkit-details-marker { display: none; }
+  .collapsible > summary .ch { font-size: 15px; font-weight: 700; color: var(--txt); }
+  .collapsible > summary .ch::before { content: "\25B8"; margin-right: 7px; color: var(--accent); font-size: 12px; }
+  .collapsible[open] > summary .ch::before { content: "\25BE"; }
   .run-badge { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 9px; background: rgba(163,113,247,.18); color: #c9a8ff; border: 1px solid rgba(163,113,247,.4); }
   .run-badge.dry { background: rgba(210,153,34,.16); color: #f0c674; border-color: rgba(210,153,34,.4); }
   a { color: var(--accent); }
@@ -272,7 +367,7 @@
   .iss-toolbar select, .iss-toolbar input { background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 13px; }
   .iss-toolbar select { appearance: none; padding-right: 28px; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
   .iss-toolbar input[type="search"] { flex: 1; min-width: 160px; }
-  .iss-list { list-style: none; margin: 0; padding: 0; max-height: 62vh; overflow: auto; }
+  .iss-list { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 230px); overflow: auto; }
   .iss-item { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 8px 0; background: var(--panel2); }
   .iss-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .iss-title { font-weight: 600; color: var(--txt); font-size: 13px; }
@@ -295,6 +390,14 @@
   .iss-actions input { flex: 1; min-width: 120px; background: var(--panel2); color: var(--txt); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
   .iss-actions button { margin-top: 0; padding: 5px 10px; font-size: 12px; }
   .iss-empty { color: var(--muted); padding: 16px; text-align: center; }
+
+  /* Entrance + tab transitions use the shared @keyframes (riseIn / panelFade)
+     defined in /theme.css. Live-updating lists (shots / phases / issues) are
+     replaced wholesale each poll, so they intentionally do NOT animate on
+     update — only genuinely new, user-driven changes (tabs, hover, status) do,
+     to avoid per-poll flicker. */
+  header, .statusbar, .card { animation: riseIn .5s cubic-bezier(.2,.8,.2,1) both; }
+  .side-panel:not([hidden]) { animation: panelFade .35s ease both; }
 </style>
 </head>
 <body>
@@ -312,7 +415,7 @@
     <a class="nav-link" href="/gallery" title="View and de-duplicate screenshots">Screenshot Gallery</a>
     <a class="nav-link" href="/reports" title="Browse all stored analysis reports (database)">Reports</a>
     <a class="nav-link" href="/report" title="Open the latest finished HTML report">View Report</a>
-    <a class="nav-link" href="#issue-tracker" title="Triage the shared issue tracker (docs/issues.json)">Issue Tracker</a>
+    <a class="nav-link" href="#" onclick="switchSideTab('issues'); return false;" title="Triage the shared issue tracker (docs/issues.json)">Issue Tracker</a>
     <button class="nav-link" id="launch-gui" type="button" title="Open the latest built Space Analyzer GUI">Launch GUI</button>
     <button class="nav-link refresh-link" id="refresh-dashboard" type="button" title="Refresh dashboard data">Refresh</button>
     <span id="status" class="badge idle">idle</span>
@@ -322,6 +425,7 @@
 <div class="statusbar" id="statusbar">
   <div class="sttile" id="st-model"><span class="stk">Model</span><span class="stv" id="model">—</span></div>
   <div class="sttile" id="st-phase"><span class="stk">Phase</span><span class="stv" id="phase-tile">—</span></div>
+  <div class="sttile" id="st-persona" title="Each analysis stage uses a different specialized system prompt (persona) for the model — watch this change as the run progresses."><span class="stk">Persona</span><span class="persona-chip persona-idle" id="persona">—</span></div>
   <div class="sttile" id="st-prog"><span class="stk">Progress</span><span class="stv" id="pct-tile">0%</span><div class="st-minibar"><i id="st-bar"></i></div></div>
   <div class="sttile" id="st-time"><span class="stk">Elapsed · ETA</span><span class="stv" id="time">0s · —</span></div>
   <div class="sttile" id="st-rate" style="display:none"><span class="stk">Rate</span><span class="stv" id="s-rate">—</span></div>
@@ -329,6 +433,7 @@
 </div>
 
 <main>
+  <div class="left-col">
   <div class="control-grid">
   <section class="card" id="run-card">
     <h2>Run New Analysis</h2>
@@ -352,13 +457,14 @@
       <span id="run-model-info" class="model-info" aria-live="polite"></span>
       <button id="run-btn" onclick="startRun()">Start Analysis</button>
       <button class="danger" id="stop-btn" onclick="stopRun()" disabled>Stop Analysis</button>
-      <button class="secondary" id="run-log-btn" style="display:none" onclick="window.open('/api/run-log','_blank')">View run log</button>
+      <a class="secondary" id="run-log-btn" style="display:none" href="/api/run-log" target="_blank" rel="noopener">View run log</a>
     </div>
     <div id="run-status" class="current" style="display:none"></div>
   </section>
 
   <section class="card" id="loop-card" style="grid-column:1/-1">
-    <h2>Self-Improvement Loop</h2>
+    <details class="collapsible" id="loop-details">
+      <summary><span class="ch">Self-Improvement Loop</span> <span class="hint">expand to configure &amp; run</span></summary>
     <p class="card-desc">Automatically works through <code>docs/issues.json</code>: for each open issue it generates and applies a fix, verifies the change, then loops until issues are resolved or the iteration limit is hit. Use <b>Dry run</b> to preview the plan without editing any files.</p>
     <div class="run-row">
       <label>Max iterations
@@ -405,40 +511,14 @@
       <label class="checkbox"><input id="loop-dry-run" type="checkbox" /> Dry run <span class="hint">preview only</span></label>
       <button id="loop-run-btn" onclick="startLoop()">Run Loop</button>
       <button class="danger" id="loop-stop-btn" onclick="stopLoop()" disabled>Stop Loop</button>
-      <button class="secondary" id="loop-log-btn" style="display:none" onclick="window.open('/api/loop-log','_blank')">View loop log</button>
+      <a class="secondary" id="loop-log-btn" style="display:none" href="/api/loop-log" target="_blank" rel="noopener">View loop log</a>
     </div>
-    <div id="loop-status" class="current" style="display:none"></div>
+      <div id="loop-status" class="current" style="display:none"></div>
+    </details>
   </section>
   </div>
 
-  <section class="card" id="issue-tracker" style="grid-column:1/-1">
-    <h2>Issue Tracker <span class="brand-tag" style="margin-left:8px">docs/issues.json — shared by analysis &amp; loop</span></h2>
-    <div class="iss-counts" id="iss-counts"></div>
-    <div class="iss-toolbar">
-      <select id="iss-status" title="Filter by status">
-        <option value="">All statuses</option>
-        <option value="open">Open</option>
-        <option value="in_progress">In progress</option>
-        <option value="blocked">Blocked</option>
-        <option value="pending">Pending</option>
-        <option value="done">Done</option>
-        <option value="wontfix">Wontfix</option>
-      </select>
-      <select id="iss-category" title="Filter by category"><option value="">All categories</option></select>
-      <select id="iss-severity" title="Filter by severity">
-        <option value="">All severities</option>
-        <option value="critical">Critical</option>
-        <option value="high">High</option>
-        <option value="medium">Medium</option>
-        <option value="low">Low</option>
-      </select>
-      <input id="iss-q" type="search" placeholder="Search title, notes, id, file…" />
-      <button class="secondary" id="iss-refresh" type="button">Refresh</button>
-    </div>
-    <ul class="iss-list" id="iss-list"></ul>
-  </section>
-
-  <section class="card">
+  <section class="card" id="progress-card">
     <h2>Overall Progress</h2>
     <div class="bar"><i id="bar"></i></div>
     <div class="phases" id="phases"></div>
@@ -449,42 +529,86 @@
       <div class="stat">rate<b id="s-rate-card">—</b></div>
     </div>
     <div class="current" id="current">—</div>
-
-    <h2 style="margin-top:18px">Screenshots</h2>
-    <ul class="shots" id="shots"></ul>
   </section>
+  </div>
 
-  <aside>
-    <div class="card">
-      <h2>Live Vision Preview</h2>
-      <img id="live-img" alt="current screenshot"
-           style="display:none;max-width:100%;max-height:220px;border-radius:8px;border:1px solid var(--line);margin-bottom:10px" />
-      <div id="live-vis-cap" class="shot-sub" style="margin-bottom:6px"></div>
-      <div class="preview" id="live-vis" style="min-height:60px">No screenshot being analyzed yet.</div>
-    </div>
-    <div class="card" style="margin-top:16px">
-      <h2>Errors</h2>
-      <div class="errlist" id="errors">none</div>
-    </div>
-    <div class="card" style="margin-top:16px">
-      <div class="output-head"><h2>Live model output</h2><span class="output-state" id="output-state">waiting</span></div>
-      <div class="output-tools">
-        <button class="secondary" id="copy-output" type="button">Copy</button>
-        <button class="secondary" id="clear-output" type="button">Clear</button>
-        <label><input type="checkbox" id="pause-output"> Pause auto-scroll</label>
-        <span class="output-state" id="output-count">0 characters</span>
+  <aside id="side">
+    <div class="card side-card">
+      <div class="side-tabs" role="tablist">
+        <button type="button" class="side-tab active" data-tab="preview" aria-selected="true">Live Preview</button>
+        <button type="button" class="side-tab" data-tab="output" aria-selected="false">Output</button>
+        <button type="button" class="side-tab" data-tab="errors" aria-selected="false">Errors</button>
+        <button type="button" class="side-tab" data-tab="report" aria-selected="false">Report</button>
+        <button type="button" class="side-tab" data-tab="issues" aria-selected="false">Issues</button>
+        <button type="button" class="side-tab" data-tab="shots" aria-selected="false">Screenshots</button>
       </div>
-      <pre class="report-box" id="live-out">waiting for activity…</pre>
-    </div>
-    <div class="card" style="margin-top:16px">
-      <h2>Finished Report</h2>
-      <div id="report-state" class="shot-sub">Available when the run completes.</div>
-      <div class="report-tools">
-        <button class="secondary" id="load-report" style="display:none" onclick="loadReport()">Show report</button>
-        <a class="nav-link" id="open-report-tab" style="display:none" href="/report" target="_blank" rel="noopener" title="Open the full report in a new tab">Open in new tab &#8599;</a>
+
+      <div class="side-panel" data-panel="preview">
+        <h2>Live Vision Preview</h2>
+        <img id="live-img" alt="current screenshot"
+             style="display:none;max-width:100%;max-height:220px;border-radius:8px;border:1px solid var(--line);margin-bottom:10px" />
+        <div id="live-vis-cap" class="shot-sub" style="margin-bottom:6px"></div>
+        <div class="preview" id="live-vis" style="min-height:60px">No screenshot being analyzed yet.</div>
       </div>
-      <div id="report-body" style="display:none; margin-top:10px">
-        <iframe id="report-frame" title="UX analysis report" style="width:100%; height:640px; border:1px solid var(--line); border-radius:8px; background:#0d1117"></iframe>
+
+      <div class="side-panel" data-panel="output" hidden>
+        <div class="output-head"><h2>Live model output</h2><span class="output-state" id="output-state">waiting</span></div>
+        <div class="output-tools">
+          <button class="secondary" id="copy-output" type="button">Copy</button>
+          <button class="secondary" id="clear-output" type="button">Clear</button>
+          <label><input type="checkbox" id="pause-output"> Pause auto-scroll</label>
+          <span class="output-state" id="output-count">0 characters</span>
+        </div>
+        <pre class="report-box" id="live-out">waiting for activity…</pre>
+      </div>
+
+      <div class="side-panel" data-panel="errors" hidden>
+        <h2>Errors</h2>
+        <div class="errlist" id="errors">none</div>
+      </div>
+
+      <div class="side-panel" data-panel="report" hidden>
+        <h2>Finished Report</h2>
+        <div id="report-state" class="shot-sub">Available when the run completes.</div>
+        <div class="report-tools">
+          <button class="secondary" id="load-report" style="display:none" onclick="loadReport()">Show report</button>
+          <a class="nav-link" id="open-report-tab" style="display:none" href="/report" target="_blank" rel="noopener" title="Open the full report in a new tab">Open in new tab &#8599;</a>
+        </div>
+        <div id="report-body" style="display:none; margin-top:10px">
+          <iframe id="report-frame" title="UX analysis report" style="width:100%; height:min(640px, 60vh); border:1px solid var(--line); border-radius:8px; background:#0d1117"></iframe>
+        </div>
+      </div>
+
+      <div class="side-panel" data-panel="issues" hidden>
+        <h2>Issue Tracker <span class="brand-tag" style="margin-left:8px">docs/issues.json</span></h2>
+        <div class="iss-counts" id="iss-counts"></div>
+        <div class="iss-toolbar">
+          <select id="iss-status" title="Filter by status">
+            <option value="">All statuses</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In progress</option>
+            <option value="blocked">Blocked</option>
+            <option value="pending">Pending</option>
+            <option value="done">Done</option>
+            <option value="wontfix">Wontfix</option>
+          </select>
+          <select id="iss-category" title="Filter by category"><option value="">All categories</option></select>
+          <select id="iss-severity" title="Filter by severity">
+            <option value="">All severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <input id="iss-q" type="search" placeholder="Search title, notes, id…" />
+          <button class="secondary" id="iss-refresh" type="button">Refresh</button>
+        </div>
+        <ul class="iss-list" id="iss-list"></ul>
+      </div>
+
+      <div class="side-panel" data-panel="shots" hidden>
+        <h2>Screenshots</h2>
+        <ul class="shots" id="shots"></ul>
       </div>
     </div>
   </aside>
@@ -494,6 +618,7 @@
 const PHASE_ORDER = ["features", "vision", "analysis", "summary", "code", "done"];
 let startedAt = null;
 let lastKey = null;
+let lastPersona = null;
 let lastPreviewKey = null;
 let outputCleared = false;
 let ratePrev = null;
@@ -548,6 +673,10 @@ function renderRunMessage(d) {
     if (total3) parts.push(done + "/" + total3 + " steps");
     if (d.current) parts.push("on " + d.current);
     msgEl.textContent = parts.join(" · ");
+    return;
+  }
+  if (d.status === "stopped") {
+    msgEl.textContent = d.message || "Analysis stopped.";
     return;
   }
   msgEl.textContent = d.message || "";
@@ -661,11 +790,11 @@ async function poll() {
       document.getElementById("pct-tile").textContent = "0%";
       document.getElementById("st-bar").style.width = "0%";
       document.getElementById("msg").textContent = "Ready — pick a screenshot set and model, then Start Analysis.";
-      document.getElementById("bar").style.width = "0%";
-      document.getElementById("current").textContent = "—";
-      renderPhases("features");
-      renderShots({});
-      return;
+              document.getElementById("bar").style.width = "0%";
+              document.getElementById("current").textContent = "—";
+              renderPhases("features", {});
+              renderShots({});
+              return;
     }
     if (d.started_at) {
       const serverStarted = new Date(d.started_at).getTime();
@@ -689,6 +818,15 @@ async function poll() {
     document.getElementById("bar").style.width = pct + "%";
     document.querySelector(".bar").classList.toggle("running", d.status === "running");
     document.getElementById("phase-tile").textContent = d.phase || "—";
+    const pe = document.getElementById("persona");
+    if (d.persona && d.persona !== lastPersona) {
+      pe.classList.remove("persona-idle");
+      if (lastPersona) pe.classList.remove("persona-" + lastPersona);
+      pe.classList.add("persona-" + d.persona, "flash");
+      setTimeout(() => pe.classList.remove("flash"), 900);
+      lastPersona = d.persona;
+    }
+    pe.textContent = d.persona_label || "—";
     document.getElementById("pct-tile").textContent = pct + "%";
     document.getElementById("st-bar").style.width = pct + "%";
     document.getElementById("s-feat").textContent = (d.features_done || 0) + "/" + total;
@@ -782,6 +920,10 @@ async function poll() {
       rs.textContent = (d.status === "stopped" ? "Partial report preserved: " : "Report written: ") + (d.report_path || "ux_analysis_*.json");
       document.getElementById("load-report").style.display = "inline-block";
       document.getElementById("open-report-tab").style.display = "inline-block";
+      if (document.querySelector('.side-tab[data-tab="report"]').classList.contains("active")
+          && document.getElementById("report-body").style.display === "none") {
+        loadReport();
+      }
     }
     const now = Date.now();
     const el = fmtElapsed(startedAt ? now - startedAt : null);
@@ -1146,6 +1288,26 @@ document.getElementById("copy-output").addEventListener("click", async () => {
     document.getElementById("copy-output").textContent = "Copy unavailable";
   }
 });
+
+// ---- Tabbed sidebar ----
+// Only one live panel (Preview / Output / Errors / Report) is shown at a time,
+// so the four tall cards no longer stack and push the sidebar past the viewport.
+function switchSideTab(name) {
+  document.querySelectorAll(".side-tab").forEach(t => {
+    const on = t.dataset.tab === name;
+    t.classList.toggle("active", on);
+    t.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  document.querySelectorAll(".side-panel").forEach(p => { p.hidden = p.dataset.panel !== name; });
+  if (name === "report") {
+    const rb = document.getElementById("report-body");
+    if (rb && rb.style.display === "none" && document.getElementById("load-report").style.display !== "none") {
+      loadReport();
+    }
+  }
+}
+document.querySelectorAll(".side-tab").forEach(t =>
+  t.addEventListener("click", () => switchSideTab(t.dataset.tab)));
 
 async function refreshRunStatus() {
   const btn = document.getElementById("run-btn");

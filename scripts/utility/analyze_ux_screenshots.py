@@ -116,6 +116,47 @@ CODE_SCHEMA: dict[str, Any] = {
     "required": ["changes"],
 }
 
+# Role-specific system prompts. Ollama's /api/generate honors a dedicated
+# `system` field; routing each call through its own persona keeps the model
+# on-task (e.g. the vision pass returns free text, not JSON) instead of the
+# previous single generic "Return ONLY JSON" wrapper applied to every call.
+VISION_SYSTEM: str = (
+    "You are a precise UI inventory scribe for a WinUI 3 desktop app. "
+    "Describe ONLY what is literally visible in the image. Transcribe visible text "
+    "exactly: window title, headings, tab labels, button captions, input values, "
+    "placeholder text, stat numbers. Note layout, controls, and their states "
+    "(checked/unchecked, enabled/disabled, selected). Do not judge usability, do not "
+    "invent off-screen content, and do not wrap the answer in code fences. "
+    "One concise paragraph."
+)
+
+ANALYSIS_SYSTEM: str = (
+    "You are a meticulous UX auditor for Space Analyzer Pro, a WinUI 3 disk-space "
+    "analyzer. You receive one screenshot plus a vision inventory and computed image "
+    "features. Identify only real, visible usability problems — never infer hidden "
+    "behavior or off-screen content. For each issue give: category "
+    "(layout|navigation|content|interaction|accessibility|visual_polish|reliability), "
+    "severity (high = blocker, medium = friction, low = polish), a specific location, "
+    "visible evidence, and one concrete recommendation. Return only the requested JSON "
+    "object; no prose, no markdown."
+)
+
+AGGREGATE_SYSTEM: str = (
+    "You are a principal UX reviewer consolidating per-screen findings for Space "
+    "Analyzer Pro (WinUI 3 disk-space analyzer). Merge duplicates and keep only issues "
+    "grounded in the supplied per-screen data; do not introduce findings absent from "
+    "that data. Return only the requested JSON object; no prose, no markdown."
+)
+
+CODE_SYSTEM: str = (
+    "You are a senior WinUI 3 / .NET engineer. Propose exactly 3 concrete, file-level "
+    "UI improvements for Space Analyzer Pro (gui-winui) grounded strictly in the "
+    "supplied UX findings. Each change names a real file "
+    "(gui-winui/SpaceAnalyzer/Views/*.xaml or *.cs), the exact change, and the UX "
+    "reason. Do not invent APIs, controls, or files. Return only the requested JSON "
+    "object; no prose, no markdown."
+)
+
 logger = logging.getLogger("analyze_ux_screenshots")
 
 # Co-located with the run report; consumed by live_progress_server.py so the
@@ -171,6 +212,7 @@ def ask_ollama(
     json_schema: dict[str, Any] | None = None,
     on_token: "Callable[[str], None] | None" = None,
     options: dict[str, Any] | None = None,
+    system: str | None = None,
 ) -> str:
     """Analyze one prompt via Ollama.
 
@@ -185,37 +227,16 @@ def ask_ollama(
     effective_model = model
     image_b64 = encode_image_for_vision(image_path) if image_path else None
 
-    if image_b64:
-        model_prompt = (
-            "You are reviewing one screenshot as a strict UX auditor. "
-            "Return ONLY one JSON object matching the supplied schema. "
-            "Use only visible evidence from this image; never infer hidden behavior, "
-            "off-screen content, implementation details, or user intent. "
-            "If text is unreadable, say so and lower evidence_confidence. "
-            "Do not repeat the screenshot description as an issue. "
-            "Report only actionable problems or clear strengths.\n"
-            f"{prompt}"
-        )
-    else:
-        model_prompt = (
-            "You are a structured analysis API. Return ONLY a single JSON object. "
-            "No markdown, no prose, no explanations.\n"
-            "App context: WinUI 3 desktop disk space analyzer.\n"
-            f"Screenshot features:\n{prompt}\n"
-            '{"app_title":"","visible_navigation":[""],"main_content":"",'
-            '"issues":[{"category":"layout|navigation|content|interaction|accessibility|visual_polish|reliability","severity":"high|medium|low","finding":"","evidence":"","recommendation":""}],'
-            '"quick_wins":[""],"evidence_confidence":"high|medium|low"}'
-        )
-
     if on_token is not None:
         try:
             text = client.stream_generate(
                 model=effective_model,
-                prompt=model_prompt,
+                prompt=prompt,
                 think=False,
                 format=json_schema,
                 options=gen_opts,
                 images=[image_b64] if image_b64 else None,
+                system=system,
                 on_chunk=on_token,
             )
             return parse_model_text(text)
@@ -226,12 +247,13 @@ def ask_ollama(
         try:
             response = client.generate(
                 model=effective_model,
-                prompt=model_prompt,
+                prompt=prompt,
                 stream=False,
                 options=gen_opts,
                 images=[image_b64],
                 think=False,
                 format=json_schema,
+                system=system,
             )
             return parse_model_text(response)
         except Exception as exc:
@@ -241,11 +263,12 @@ def ask_ollama(
     try:
         response = client.generate(
             model=effective_model,
-            prompt=model_prompt,
+            prompt=prompt,
             stream=False,
             options=GENERATION_OPTIONS,
             think=False,
             format=json_schema,
+            system=system,
         )
         return parse_model_text(response)
     except Exception as exc:
@@ -253,7 +276,7 @@ def ask_ollama(
         return f"ERROR: {exc}"
 
 
-def _vision_with_retry(prompt: str, model: str, client: "OllamaClient", path: Path, max_tries: int = 3, on_token: "Callable[[str], None] | None" = None) -> str:
+def _vision_with_retry(prompt: str, model: str, client: "OllamaClient", path: Path, max_tries: int = 3, on_token: "Callable[[str], None] | None" = None, system: str | None = None) -> str:
     """Call the vision model, retrying on empty/garbled output.
 
     qwen3-vl occasionally returns an empty string for a frame (especially
@@ -265,7 +288,7 @@ def _vision_with_retry(prompt: str, model: str, client: "OllamaClient", path: Pa
     """
     last = ""
     for _ in range(max_tries):
-        res = ask_ollama(prompt, model=model, client=client, image_path=path, on_token=on_token, options=VISION_OPTIONS)
+        res = ask_ollama(prompt, model=model, client=client, image_path=path, on_token=on_token, options=VISION_OPTIONS, system=system or VISION_SYSTEM)
         if res and res.strip() and not res.startswith("ERROR"):
             return res
         last = res or ""
@@ -1018,6 +1041,27 @@ def _render_html_report(report: dict[str, Any]) -> str:
     else:
         summary_html = _render_findings(summary, dedupe=True) if summary else '<p class="muted">(none)</p>'
 
+    # Severity tally for the consolidated summary so the section header doubles
+    # as a triage signal instead of an opaque block of issues. The summary may be
+    # a parsed dict or a JSON string (depending on how it was persisted).
+    _sum = summary
+    if isinstance(_sum, str):
+        try:
+            _sum = json.loads(_sum)
+        except (ValueError, json.JSONDecodeError):
+            _sum = None
+    _sum_issues = ((_sum or {}).get("issues") or []) if isinstance(_sum, dict) else []
+    _sum_sev = {"high": 0, "medium": 0, "low": 0}
+    for _it in _sum_issues:
+        _s = str(_it.get("severity", "")).lower()
+        if _s in _sum_sev:
+            _sum_sev[_s] += 1
+    _sum_chips = "".join(
+        f'<span class="sev-badge sev-{s}">{_sum_sev[s]} {s}</span>'
+        for s in ("high", "medium", "low") if _sum_sev[s]
+    )
+    summary_meta = f'<div class="consolidated-meta">{_sum_chips}</div>' if _sum_chips else ""
+
     # Header health badges from the deduped counts.
     truncated = counts.get("truncated", 0)
     unparseable = counts.get("unparseable", 0)
@@ -1102,8 +1146,11 @@ def _render_html_report(report: dict[str, Any]) -> str:
     .code-why { color:var(--muted); font-size:12px; margin-top:6px; }
     .raw { background:#0b0f14; border-radius:8px; padding:10px; overflow:auto; font-size:12px; white-space:pre-wrap; }
     .muted { color:var(--muted); font-size:13px; }
-    .consolidated { background:linear-gradient(180deg,#101b14,#0f141b); border:1px solid #1f3a2a;
-                    border-left:4px solid var(--ok); border-radius:12px; padding:16px 18px; }
+     .consolidated { background:linear-gradient(180deg,#101b14,#0f141b); border:1px solid #1f3a2a;
+                     border-left:4px solid var(--ok); border-radius:12px; padding:16px 18px; }
+     .consolidated-meta { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; padding-bottom:10px;
+                          border-bottom:1px dashed #244b35; }
+     .consolidated-meta .sev-badge { font-size:12px; }
     .err { color:#ff7b72; font-size:13px; }
     .comp { list-style:none; padding:0; }
     .comp li { padding:3px 0; font-size:13px; }
@@ -1174,9 +1221,12 @@ def _render_html_report(report: dict[str, Any]) -> str:
     <div class="qgrid">{_quality_cards_html(screens)}</div>
   </section>
    <section>
-     <h2>Consolidated recommendations</h2>
-     <div class="consolidated">{summary_html}</div>
-   </section>
+      <h2>Consolidated recommendations <span class="muted" style="font-weight:400;font-size:12px">(aggregated across all tabs — deduped)</span></h2>
+      <div class="consolidated">
+        {summary_meta}
+        {summary_html}
+      </div>
+    </section>
   <section>
     <h2>Per-tab findings <span class="muted" style="font-weight:400;font-size:12px">(duplicate captures merged, findings deduped)</span></h2>
     {shots_html}
@@ -1289,6 +1339,8 @@ def run_analysis(
         "model": picked_model,
         "started_at": datetime.now(timezone.utc).isoformat(),
         "phase": "features",
+        "persona": "features",
+        "persona_label": "FEATURES — PIL image analysis (no model)",
         "total": len(screenshots),
         "features_done": 0,
         "vision_done": 0,
@@ -1376,7 +1428,9 @@ def run_analysis(
     per_shot_data: dict[str, dict | None] = {}
     per_shot_status: dict[str, str] = {}
 
-    _emit_progress(phase="vision", message="Running per-screenshot vision analysis")
+    _emit_progress(phase="vision", persona="vision",
+                   persona_label="VISION — UI inventory scribe",
+                   message="Running per-screenshot vision analysis")
     logger.info("Starting vision loop over %d screenshots.", len(screenshots))
     for key, path in screenshots.items():
         if key not in extracted:
@@ -1433,7 +1487,9 @@ def run_analysis(
     if not representative:
         representative = list(extracted)[:MAX_REPRESENTATIVE_SHOTS]
     prog["analysis_total"] = len(representative)
-    _emit_progress(phase="analysis", message=f"Per-screenshot UX analysis ({len(representative)} screens)", analysis_total=len(representative))
+    _emit_progress(phase="analysis", persona="analysis",
+                   persona_label="ANALYSIS — UX auditor (per-shot)",
+                   message=f"Per-screenshot UX analysis ({len(representative)} screens)", analysis_total=len(representative))
     logger.info(
         "Vision pass complete (%d done). Starting per-screenshot analysis of %d representatives.",
         prog["vision_done"], len(representative),
@@ -1454,7 +1510,7 @@ def run_analysis(
         raw = ask_ollama(
             shot_prompt, model=picked_model, client=client,
             json_schema=ANALYSIS_SCHEMA, image_path=shot_img, on_token=reporter,
-            options=VISION_OPTIONS,
+            options=VISION_OPTIONS, system=ANALYSIS_SYSTEM,
         )
         data, status = _parse_shot(raw)
         # Truncated output is still useful if repaired, but ask once more with
@@ -1476,7 +1532,7 @@ def run_analysis(
             raw = ask_ollama(
                 repair_prompt, model=picked_model, client=client,
                 json_schema=ANALYSIS_SCHEMA, image_path=shot_img, on_token=reporter,
-                options=VISION_OPTIONS,
+                options=VISION_OPTIONS, system=ANALYSIS_SYSTEM,
             )
             data, status = _parse_shot(raw)
         per_shot_analysis[k] = raw
@@ -1507,13 +1563,15 @@ def run_analysis(
               if "scan" in k.lower() and not k.endswith("_pre")), None)
         or next(iter(screenshots.values()), None)
     )
-    _emit_progress(phase="summary",
+    _emit_progress(phase="summary", persona="aggregate",
+                   persona_label="AGGREGATE — principal UX reviewer",
                    message=f"Aggregating findings from {len(summary_keys)} representative screenshots into a consolidated report")
     logger.info("Per-shot analysis complete (%d). Aggregating summary.", prog["analysis_done"])
     print("\nAnalyzing with LLM (JSON schema)...", end=" ", flush=True)
     analysis = ask_ollama(
         summary_prompt, model=picked_model, client=client,
         json_schema=ANALYSIS_SCHEMA, image_path=scan_image, on_token=reporter,
+        system=AGGREGATE_SYSTEM,
     )
     prog["live_output"] = ""
     _emit_progress()
@@ -1530,11 +1588,13 @@ def run_analysis(
         code_feedback = analysis
         analysis_note = None
 
-    _emit_progress(phase="code", message="Generating WinUI 3 code recommendations")
+    _emit_progress(phase="code", persona="code",
+                   persona_label="CODE — WinUI 3 engineer",
+                   message="Generating WinUI 3 code recommendations")
     logger.info("Summary done. Generating code recommendations.")
     code_prompt = _build_code_prompt(code_feedback)
     print("\nGenerating code recommendations...", end=" ", flush=True)
-    code_recs = ask_ollama(code_prompt, model=picked_model, client=client, json_schema=CODE_SCHEMA, on_token=reporter)
+    code_recs = ask_ollama(code_prompt, model=picked_model, client=client, json_schema=CODE_SCHEMA, on_token=reporter, system=CODE_SYSTEM)
     prog["live_output"] = ""
     _emit_progress()
     print("OK")

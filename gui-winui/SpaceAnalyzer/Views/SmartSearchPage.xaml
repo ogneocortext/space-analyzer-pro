@@ -249,8 +249,8 @@
                 <!-- Search Button -->
                 <Button Content="Start Search" Click="Search_Click"
                         AutomationProperties.Name="Start Search"
-                        HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButton}"
-                        Height="40" VerticalContentAlignment="Center"
+                        HorizontalAlignment="Stretch" Style="{StaticResource SecondaryButton}"
+                        VerticalContentAlignment="Center"
                         IsEnabled="{x:Bind VM.IsNotSearching, Mode=OneWay}"/>
 
                 <!-- Status -->

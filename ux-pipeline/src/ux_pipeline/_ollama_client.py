@@ -89,6 +89,7 @@ class OllamaClient:
         format: str | None = None,
         options: dict[str, Any] | None = None,
         images: Iterable[bytes] | None = None,
+        system: str | None = None,
     ) -> str:
         """Call ``/api/generate`` and return the concatenated response text.
 
@@ -123,6 +124,8 @@ class OllamaClient:
             body["format"] = format
         if options:
             body["options"] = dict(options)
+        if system:
+            body["system"] = system
         if images:
             import base64
 
@@ -146,6 +149,7 @@ class OllamaClient:
         format: str | dict[str, Any] | None = None,
         options: dict[str, Any] | None = None,
         images: Iterable[bytes] | None = None,
+        system: str | None = None,
         on_chunk: "Callable[[str], None] | None" = None,
     ) -> str:
         """Stream ``/api/generate`` NDJSON, invoking ``on_chunk`` per text piece.
@@ -167,6 +171,8 @@ class OllamaClient:
             body["format"] = format
         if options:
             body["options"] = dict(options)
+        if system:
+            body["system"] = system
         if images:
             body["images"] = [base64.b64encode(img).decode("ascii") for img in images]
 

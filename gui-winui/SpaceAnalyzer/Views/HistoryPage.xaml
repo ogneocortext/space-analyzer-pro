@@ -237,7 +237,7 @@
                                                         <Button Content="Open" Click="OpenFolder_Click" Tag="{x:Bind Path}" Style="{StaticResource SmallButton}" AutomationProperties.Name="Open folder"/>
                                                         <Button Content="View Details" Click="ViewDetails_Click" Tag="{x:Bind Id}" Style="{StaticResource SmallButton}"/>
                                                         <Button Content="Re-scan" Click="Rescan_Click" Tag="{x:Bind Path}" Style="{StaticResource SmallButton}"/>
-                                                        <Button Content="Delete" Click="Delete_Click" Tag="{x:Bind Id}" Style="{StaticResource DangerButton}"/>
+                                                        <Button Content="Delete" Click="Delete_Click" Tag="{x:Bind Id}" Style="{StaticResource DangerButton}" ToolTipService.ToolTip="Delete this scan permanently"/>
                                                     </StackPanel>
                                                 </StackPanel>
                                             </Expander>
