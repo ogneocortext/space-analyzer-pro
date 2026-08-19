@@ -308,15 +308,20 @@ public partial class DashboardViewModel : ViewModelBase, IDisposable
     public string QuickScanPath
     {
         get => _quickScanPath;
-        set { _quickScanPath = value; OnPropertyChanged(); }
+        set { _quickScanPath = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanQuickScan)); }
     }
 
     private bool _isQuickScanning;
     public bool IsQuickScanning
     {
         get => _isQuickScanning;
-        set { _isQuickScanning = value; OnPropertyChanged(); }
+        set { _isQuickScanning = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanQuickScan)); }
     }
+
+    /// <summary>True when a Quick Scan can be started: not already scanning and the
+    /// path is non-empty and exists on disk.</summary>
+    public bool CanQuickScan =>
+        !IsQuickScanning && !string.IsNullOrWhiteSpace(QuickScanPath) && Directory.Exists(QuickScanPath);
 
     private string _quickScanStatus = "Ready";
     public string QuickScanStatus
@@ -400,6 +405,13 @@ public partial class DashboardViewModel : ViewModelBase, IDisposable
         try
         {
             DiskVolumes = await _scanner.GetDiskVolumesAsync();
+            // Seed the System Resources "Storage" gauge from the volumes we just
+            // loaded so it never shows a misleading 0% at launch (the live timer
+            // refreshes it a few seconds later). Keeps it consistent with the
+            // per-volume Disk Usage breakdown shown above.
+            double volTotal = DiskVolumes.Sum(v => (double)v.TotalBytes);
+            double volUsed = DiskVolumes.Sum(v => (double)v.UsedBytes);
+            DiskUsage = volTotal > 0 ? Math.Min(100, volUsed / volTotal * 100.0) : 0;
             var history = await _scanner.GetScanHistoryAsync(50);
             LoadHeroStatsAsync(history);
             await LoadAnalysisPanelsAsync(history);

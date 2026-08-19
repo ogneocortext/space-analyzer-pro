@@ -13,6 +13,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseXamlCompilerExecutable>false</UseXamlCompilerExecutable>
+    <!-- Opt into Windows App SDK 2.3.1+ XAML performance optimizations (present in the
+         2.4.0 runtime): optimized XamlControlsResources templates (incl. ScrollBar) and a
+         lighter FontIcon/BitmapIcon visual tree. Both preserve control appearance/behavior;
+         the XAML compiler injects the opt-in before Application.Start(). -->
+    <EnabledXamlOptionalChanges>DefaultStyleOptimizations,IconNoGridOptimization</EnabledXamlOptionalChanges>
   </PropertyGroup>
 
   <ItemGroup>

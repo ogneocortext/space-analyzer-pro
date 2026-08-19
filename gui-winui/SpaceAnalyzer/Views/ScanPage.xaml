@@ -82,7 +82,8 @@
                             </Grid.ColumnDefinitions>
                             <Button Grid.Column="0" Content="{x:Bind VM.IsScanning, Mode=OneWay, Converter={StaticResource BoolToScanButtonText}}"
                                     Click="Scan_Click" AutomationProperties.Name="Start Scan"
-                                    Style="{StaticResource PrimaryButton}"/>
+                                    Style="{StaticResource PrimaryButton}"
+                                    IsEnabled="{x:Bind VM.CanScan, Mode=OneWay}"/>
                             <Button Grid.Column="1" Content="Stop" Click="Scan_Click"
                                     AutomationProperties.Name="Stop Scan"
                                     Style="{StaticResource DangerButton}"

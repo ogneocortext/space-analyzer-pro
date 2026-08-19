@@ -76,6 +76,7 @@ public partial class ScanViewModel : ViewModelBase, IDisposable
             OnPropertyChanged();
             OnPropertyChanged(nameof(PathExists));
             OnPropertyChanged(nameof(PathValidationMessage));
+            OnPropertyChanged(nameof(CanScan));
         }
     }
 
@@ -188,10 +189,11 @@ public partial class ScanViewModel : ViewModelBase, IDisposable
     public bool IsScanning
     {
         get => _isScanning;
-        set { _isScanning = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotScanning)); OnPropertyChanged(nameof(CanStopScan)); OnPropertyChanged(nameof(IsScanningVisibility)); OnPropertyChanged(nameof(IsNotScanningVisibility)); }
+        set { _isScanning = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotScanning)); OnPropertyChanged(nameof(CanStopScan)); OnPropertyChanged(nameof(CanScan)); OnPropertyChanged(nameof(IsScanningVisibility)); OnPropertyChanged(nameof(IsNotScanningVisibility)); }
     }
     public bool IsNotScanning => !_isScanning;
     public bool CanStopScan => _isScanning;
+    public bool CanScan => !_isScanning && !string.IsNullOrWhiteSpace(_scanPath);
     public Microsoft.UI.Xaml.Visibility IsScanningVisibility => _isScanning ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
     public Microsoft.UI.Xaml.Visibility IsNotScanningVisibility => _isScanning ? Microsoft.UI.Xaml.Visibility.Collapsed : Microsoft.UI.Xaml.Visibility.Visible;
 

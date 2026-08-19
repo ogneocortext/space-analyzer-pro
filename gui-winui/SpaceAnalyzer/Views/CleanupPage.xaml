@@ -104,7 +104,7 @@
                 <!-- Action Buttons (mode-specific) -->
                 <Button Content="Find cleanable node_modules" Click="Analyze_Click"
                         HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButton}"
-                        IsEnabled="{x:Bind VM.IsNotAnalyzing, Mode=OneWay}"
+                        IsEnabled="{x:Bind VM.CanAnalyze, Mode=OneWay}"
                         Visibility="{x:Bind VM.IsNodeModulesMode, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
                 <Button Content="Scan Temp Folder" Click="AnalyzeTemp_Click"
                         HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButton}"

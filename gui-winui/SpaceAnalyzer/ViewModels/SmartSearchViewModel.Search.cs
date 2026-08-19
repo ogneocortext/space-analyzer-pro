@@ -28,6 +28,7 @@ public partial class SmartSearchViewModel
 
         var ct = _cts.Token;
         IsSearching = true;
+        HasSearched = true;
         StatusMessage = "Searching...";
         _results.Clear();
         DisplayResults.Clear();

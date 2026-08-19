@@ -43,7 +43,7 @@
                 <!-- Analyze Button -->
                 <Button Content="Analyze Duplicates" Click="Analyze_Click"
                         HorizontalAlignment="Stretch" Style="{StaticResource PrimaryButton}"
-                        IsEnabled="{x:Bind VM.IsNotScanning, Mode=OneWay}"/>
+                        IsEnabled="{x:Bind VM.CanAnalyze, Mode=OneWay}"/>
 
                 <!-- Hardlink Duplicates (reclaim space without deleting data) -->
                 <Button Content="Hardlink Duplicates" Click="Hardlink_Click"

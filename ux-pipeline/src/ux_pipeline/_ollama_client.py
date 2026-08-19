@@ -307,6 +307,68 @@ class OllamaClient:
                 return str(text)
         return str(payload.get("response", ""))
 
+    def chat_with_tools(
+        self,
+        model: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        *,
+        think: bool | None = False,
+        format: str | dict[str, Any] | None = None,
+        options: dict[str, Any] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Call ``/api/chat`` with a tool schema and return the assistant message.
+
+        Unlike :meth:`chat` (which flattens the reply to text), this returns the
+        raw ``message`` object so callers can inspect ``tool_calls`` and feed the
+        results back as ``role: "tool"`` messages for a multi-turn agent loop.
+
+        Args:
+            model: Ollama model name.
+            messages: Chat history (``role``/``content``; tool results carry a
+                ``name`` and ``role == "tool"``).
+            tools: OpenAI-style tool list, each
+                ``{"type": "function", "function": {name, description, parameters}}``.
+            think: Disable reasoning mode (recommended for agents so the reply
+                stays terse and the tool calls are easy to parse).
+            format: Optional JSON-schema / format constraint.
+            options: Generation options.
+            tool_choice: ``"auto"`` (default), ``"none"``, or a forced function.
+
+        Returns:
+            The assistant ``message`` dict, e.g.
+            ``{"role": "assistant", "content": "...", "tool_calls": [...]}``.
+            ``tool_calls`` is present (and non-empty) only when the model decided
+            to invoke one or more tools.
+
+        Raises:
+            OllamaError: If the request fails after all retries.
+        """
+        body: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "stream": False,
+            "tools": tools,
+        }
+        if think is not None:
+            body["think"] = bool(think)
+        if format is not None:
+            body["format"] = format
+        if options:
+            body["options"] = dict(options)
+        if tool_choice is not None:
+            body["tool_choice"] = tool_choice
+
+        try:
+            payload = self._request_json("POST", "/api/chat", json_body=body)
+        except OllamaError as exc:
+            raise OllamaError(f"chat_with_tools({model!r}) failed: {exc}") from exc
+        msg = payload.get("message", {})
+        if isinstance(msg, dict):
+            return msg
+        return {"role": "assistant", "content": str(payload.get("response", ""))}
+
     def pull(self, model: str) -> bool:
         """Trigger ``/api/pull`` for ``model``."""
         try:

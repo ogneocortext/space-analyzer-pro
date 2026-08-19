@@ -44,9 +44,9 @@
                         <StackPanel Spacing="{StaticResource Space.SM}" Margin="0,8,0,0">
                             <TextBlock Text="Search Query" Style="{StaticResource Type.SubTitle}"/>
                              <TextBox Text="{x:Bind VM.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                       PlaceholderText="Enter file/folder name to search for..."
-                                       AutomationProperties.Name="Search query"
-                                       Style="{StaticResource FieldTextBox}"/>
+                                        PlaceholderText="Enter a name or pattern, e.g. *log or report_*.pdf"
+                                        AutomationProperties.Name="Search query"
+                                        Style="{StaticResource FieldTextBox}"/>
                         </StackPanel>
 
                         <Grid Margin="0,8,0,0" ColumnSpacing="{StaticResource Space.XXL}">
@@ -208,7 +208,7 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
                                 <TextBlock Text="Semantic search" Style="{StaticResource Type.SubTitle}"/>
-                                <TextBlock Text="Use AI embeddings to find files by meaning, not just filename." Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
+                                <TextBlock Text="Find files by meaning, not just their name (uses AI embeddings)." Style="{StaticResource Type.Hint}" TextWrapping="Wrap"/>
                             </StackPanel>
                             <ToggleSwitch Grid.Column="1" IsOn="{x:Bind VM.IsSemantic, Mode=TwoWay}" VerticalAlignment="Center"/>
                         </Grid>
@@ -251,7 +251,8 @@
                         AutomationProperties.Name="Start Search"
                         HorizontalAlignment="Stretch" Style="{StaticResource SecondaryButton}"
                         VerticalContentAlignment="Center"
-                        IsEnabled="{x:Bind VM.IsNotSearching, Mode=OneWay}"/>
+                        IsEnabled="{x:Bind VM.CanStartSearch, Mode=OneWay}"
+                        ToolTipService.ToolTip="Enter a search path and query, then start the search."/>
 
                 <!-- Status -->
                 <TextBlock Text="{x:Bind VM.StatusMessage, Mode=OneWay}"
@@ -434,7 +435,7 @@
                     <StackPanel Spacing="{StaticResource Space.MD}" HorizontalAlignment="Center">
                         <FontIcon Glyph="&#xE721;" FontSize="{StaticResource Icon.EmptyState}" Opacity="{StaticResource Icon.EmptyStateOpacity}" HorizontalAlignment="Center"/>
                         <TextBlock Text="No results yet" Style="{StaticResource Type.CardTitle}" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Enter a search query and click Start Search." Style="{StaticResource Type.Body}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind VM.SearchEmptyHint, Mode=OneWay}" Style="{StaticResource Type.Body}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
 

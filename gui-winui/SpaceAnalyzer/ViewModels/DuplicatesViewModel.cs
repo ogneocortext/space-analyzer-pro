@@ -19,16 +19,17 @@ public partial class DuplicatesViewModel : ViewModelBase, IDisposable
     public string ScanPath
     {
         get => _scanPath;
-        set { _scanPath = value; OnPropertyChanged(); }
+        set { _scanPath = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanAnalyze)); }
     }
 
     private bool _isScanning;
     public bool IsScanning
     {
         get => _isScanning;
-        set { _isScanning = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotScanning)); }
+        set { _isScanning = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotScanning)); OnPropertyChanged(nameof(CanAnalyze)); }
     }
     public bool IsNotScanning => !_isScanning;
+    public bool CanAnalyze => !_isScanning && !string.IsNullOrWhiteSpace(_scanPath);
 
     private string _statusMessage = "Ready to analyze";
     public string StatusMessage

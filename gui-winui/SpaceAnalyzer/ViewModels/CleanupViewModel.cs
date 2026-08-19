@@ -22,16 +22,17 @@ public partial class CleanupViewModel : ViewModelBase, IDisposable
     public string TargetPath
     {
         get => _targetPath;
-        set { _targetPath = value; OnPropertyChanged(); }
+        set { _targetPath = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanAnalyze)); }
     }
 
     private bool _isAnalyzing;
     public bool IsAnalyzing
     {
         get => _isAnalyzing;
-        set { _isAnalyzing = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotAnalyzing)); }
+        set { _isAnalyzing = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotAnalyzing)); OnPropertyChanged(nameof(CanAnalyze)); }
     }
     public bool IsNotAnalyzing => !_isAnalyzing;
+    public bool CanAnalyze => !_isAnalyzing && !string.IsNullOrWhiteSpace(_targetPath);
 
     private string _statusMessage = "Ready to analyze node_modules.";
     public string StatusMessage

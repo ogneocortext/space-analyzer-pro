@@ -28,16 +28,43 @@ public partial class SmartSearchViewModel : ViewModelBase, IDisposable
     public string SearchPath
     {
         get => _searchPath;
-        set { _searchPath = value; OnPropertyChanged(); }
+        set { _searchPath = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsInputValid)); OnPropertyChanged(nameof(CanStartSearch)); OnPropertyChanged(nameof(SearchEmptyHint)); }
     }
 
     private string _searchQuery = string.Empty;
     public string SearchQuery
     {
         get => _searchQuery;
-        set { _searchQuery = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsInputValid)); }
+        set { _searchQuery = value; _hasSearched = false; OnPropertyChanged(); OnPropertyChanged(nameof(IsInputValid)); OnPropertyChanged(nameof(CanStartSearch)); OnPropertyChanged(nameof(SearchEmptyHint)); }
     }
     public bool IsInputValid => !string.IsNullOrWhiteSpace(SearchQuery);
+
+    public bool CanStartSearch =>
+        !_isSearching && !string.IsNullOrWhiteSpace(_searchPath) && !string.IsNullOrWhiteSpace(_searchQuery);
+
+    private bool _hasSearched;
+    public bool HasSearched
+    {
+        get => _hasSearched;
+        set { _hasSearched = value; OnPropertyChanged(); OnPropertyChanged(nameof(SearchEmptyHint)); }
+    }
+
+    public string SearchEmptyHint
+    {
+        get
+        {
+            if (!IsInputValid)
+                return "Enter a file or folder name to search for, then click Start Search.";
+            if (_hasSearched)
+            {
+                var hint = "No matches found. Try a broader name or adjust the size filters.";
+                if (_isSemantic && !_indexedScanId.HasValue)
+                    hint += " Semantic search also needs an indexed folder \u2014 click \u2018Index with embeddings\u2019 first.";
+                return hint;
+            }
+            return "Click Start Search to find files and folders by name and size.";
+        }
+    }
 
     private bool _matchExact;
     public bool MatchExact
@@ -81,6 +108,7 @@ public partial class SmartSearchViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(ShowSemanticResults));
             OnPropertyChanged(nameof(ShowFlatResults));
             OnPropertyChanged(nameof(ShowGroupedResults));
+            OnPropertyChanged(nameof(SearchEmptyHint));
         }
     }
 
@@ -146,7 +174,7 @@ public partial class SmartSearchViewModel : ViewModelBase, IDisposable
     public bool IsSearching
     {
         get => _isSearching;
-        set { _isSearching = value; _isSearchingFlag = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotSearching)); }
+        set { _isSearching = value; _isSearchingFlag = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsNotSearching)); OnPropertyChanged(nameof(CanStartSearch)); }
     }
     public bool IsNotSearching => !_isSearching;
 

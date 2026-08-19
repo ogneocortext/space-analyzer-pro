@@ -1,5 +1,16 @@
 # [Unreleased]
 
+### WinUI 3 — UX Triage, Dashboard & Scan Fixes (2026-08-19)
+
+- **Fresh screenshot capture + vision re-triage** — recaptured all 11 WinUI 3 tabs via `scripts/utility/capture_winui3_screenshots.py` (PrintWindow + UIA `SelectionItemPattern.Select` tab navigation) into `macro_logs/2026-08-19__winui3-capture__ui-pages`; re-ran `scripts/utility/analyze_ux_screenshots.py` to regenerate 23 fresh UX findings, then re-triaged the full `docs/issues.json` (96 issues total: 94 done, 1 blocked backend feature, 1 open visual-polish).
+- **Dashboard fixes (verified, WinUI MSBuild 0 errors / 0 warnings):** `DiskUsage` now seeds from `DiskVolumes` in `DashboardViewModel.LoadDashboardAsync` so the hero capacity card shows real numbers at launch instead of 0; hero cards carry "from most recent scan" tooltips; Quick Scan "Scan Now" is gated by `CanQuickScan`; Storage Breakdown / Scanner Impact sections render placeholders when empty.
+- **Scan / History / SmartSearch / Settings fixes:** Scan `Start` gated by `CanScan`, `Stop` by `CanStopScan`, with live progress + status during a run; History delete confirmation `ContentDialog` present; SmartSearch query placeholder demonstrates wildcard syntax; Settings scan-depth Slider shows a bound numeric value.
+- **WS1 enable/disable guards** verified in code and built: `CanStartSearch`/`HasSearched`/`SearchEmptyHint` (SmartSearch), `CanScan`/`CanStopScan` (Scan), `CanAnalyze` (Duplicates/Cleanup).
+
+### Macro Dashboard Server — Modular Refactor (2026-08-19)
+
+- **Split `live_progress_server.py` into importable, unit-testable modules** — HTML rendering in `ux_server_render.py`, data/IO/issue/gallery helpers in `ux_server_lib.py`, stateful run/loop control in `ux_server_core.py`, and the agent-tool surface in `ux_server_agent.py`. `live_progress.html` gained a Reports nav link and standalone-HTML report views served alongside the shared `/theme.css` route.
+
 ### Dependency Upgrades — NuGet, Roslyn & Test Stack (2026-08-18)
 
 - **WinUI 3 `SpaceAnalyzer.csproj` — bumped all 6 outdated packages to latest; WinUI 3 MSBuild build stays at 0 errors / 0 warnings:**

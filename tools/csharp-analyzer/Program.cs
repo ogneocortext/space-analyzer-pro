@@ -273,7 +273,10 @@ class Program
             try
             {
                 var source = await File.ReadAllTextAsync(csFile);
-                var tree = CSharpSyntaxTree.ParseText(source);
+                // Parse with the latest language version so the analyzer understands modern
+                // C# (collection expressions, primary constructors, params collections, ref
+                // fields, etc.) enabled by the Roslyn 5.9.0 compiler bump.
+                var tree = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest), csFile);
                 var root = await tree.GetRootAsync();
                 var relPath = Path.GetRelativePath(rootDir, csFile).Replace('\\', '/');
 
@@ -739,6 +742,27 @@ class Program
                     break;
                 }
             }
+        }
+
+        // 21. Synchronous blocking on tasks (.Result / .Wait())
+        foreach (var memberAccess in root.DescendantNodes().OfType<MemberAccessExpressionSyntax>())
+        {
+            var name = memberAccess.Name.Identifier.Text;
+            if (name is not ("Result" or "Wait"))
+                continue;
+
+            var recvName = memberAccess.Expression.SimpleName();
+            if (!recvName.Contains("Task"))
+                continue;
+
+            var containingMethod = memberAccess.ContainingMethod();
+            if (containingMethod != null && containingMethod.Modifiers.Any(m => m.Text == "async"))
+                continue;
+
+            findings.Add(new("high", "async",
+                $"Blocking on a task with .{name} on the UI thread can deadlock and freeze the app.",
+                filePath, memberAccess.Line(),
+                "Use await instead of .Result/.Wait() and make the caller async."));
         }
     }
 
