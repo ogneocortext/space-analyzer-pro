@@ -48,7 +48,7 @@ except Exception:
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
-GAP_FILE = DOCS / "FEATURE_GAP_ANALYSIS.md"
+GAP_FILE = DOCS / "archive" / "FEATURE_GAP_ANALYSIS.md"
 ISSUES_MD = DOCS / "ISSUES.md"
 ISSUES_JSON = DOCS / "issues.json"
 

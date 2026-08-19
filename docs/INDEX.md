@@ -18,7 +18,7 @@
   `DATA_FLOW.md` for how data moves between these and the GUI.
 - **Feature status:** The WinUI app is feature-complete except one item. Scan, dedup,
   AI assistant, settings, semantic Smart Search, USN Journal, bloat/forecast, and export
-  formats are all implemented and build clean. See `FEATURE_GAP_ANALYSIS.md`.
+  formats are all implemented and build clean. See `docs/archive/FEATURE_GAP_ANALYSIS.md`.
 - **ON HOLD (important):** Workflow triggers/scheduler (LowDiskSpace, FileSystemChange,
   OnStartup). Only the **Manual** trigger exists. Deliberately blocked until every other
   system is proven stable, because misconfiguration could cause **destructive changes**
@@ -34,13 +34,13 @@
   an integration boundary.
 - `CHANGELOG.md` — version history; `[Unreleased]` holds the latest fixes (e.g. Settings
   Store/ViewModel hardening, 2026-08-11).
-- `FEATURE_GAP_ANALYSIS.md` — WinUI features vs README promises. Most rows ✅; the only
+- `docs/archive/FEATURE_GAP_ANALYSIS.md` — WinUI features vs README promises. Most rows ✅; the only
   ❌ is workflow triggers/scheduler (on hold, see above).
 - `ARCHITECTURE_DECISIONS.md` — key decisions + on-hold rules (GPU toggle placeholder,
   workflow triggers). **Read this before any automation/cleanup change.**
-- `ISSUES.md` + `issues.json` — open-issue tracker (29 open, almost all UI/UX/layout
-  polish). `issues.json` is the authoritative structured source.
-- `IMPROVEMENTS.md` — Ollama module improvement log (historical; items mostly applied).
+- `ISSUES.md` (generated from `issues.json` via `python docs/generate_status_summary.py --write`; gitignored) + `issues.json` — open-issue tracker (29 open, almost all UI/UX/layout
+   polish). `issues.json` is the authoritative structured source.
+- `docs/archive/IMPROVEMENTS.md` — Ollama module improvement log (historical; items mostly applied).
 - `../assets/diagrams/architecture.md`, `../assets/diagrams/workflow.md` — current
   architecture and data-flow diagrams.
 - `gui-winui/README.md` — WinUI 3 build & architecture (active GUI).
@@ -63,12 +63,13 @@
 - `archive/guides/`, `archive/trackers/` — old build instructions and issue CSVs.
 - `archive/scripts/` — legacy Python helper scripts (some superseded by the Rust CLI).
 - `archive/ux-pipeline/` — one-off UX analysis artifacts (report, screenshots, links).
+- `archive/IMPROVEMENTS.md`, `archive/FEATURE_GAP_ANALYSIS.md` — relocated one-off analysis docs (kept on disk, gitignored).
 - `ai/`, `architecture/`, `guides/`, `implementations/` — supplementary/reference docs.
 
 ## How to verify status quickly
 
 1. This file + `CHANGELOG.md` → `[Unreleased]` for the latest state.
-2. Feature completeness → `FEATURE_GAP_ANALYSIS.md` (detailed rows are authoritative;
+2. Feature completeness → `docs/archive/FEATURE_GAP_ANALYSIS.md` (detailed rows are authoritative;
    the summary table is derived — regenerate it with `python docs/generate_status_summary.py --write`).
 3. Open work → `issues.json` (filter `status:"open"`; mostly UI/UX polish). The `ISSUES.md`
    counts table is also derived from `issues.json` by the same script.

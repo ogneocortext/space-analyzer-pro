@@ -26,7 +26,7 @@
 <summary>For AI agents / automation working in this repo</summary>
 
 > Primary issue tracker is **`docs/issues.json`** (schema v1, local-only / gitignored).
-> Quick reference: **`docs/ISSUES.md`** (~80 lines, token-efficient). Do not use `docs/CONSOLIDATED_ISSUE_TRACKER.csv` as source of truth.
+> Derived quick reference: **`docs/ISSUES.md`** (regenerate with `python docs/generate_status_summary.py --write`; gitignored). Do not use `docs/CONSOLIDATED_ISSUE_TRACKER.csv` as source of truth.
 > Update workflow: find by `id:MAIN-XXX` tag in `tags[]` → fix code → update status in `issues.json` → `python docs/export_issues_to_csv.py`
 
 </details>

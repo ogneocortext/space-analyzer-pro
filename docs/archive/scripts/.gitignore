@@ -1,5 +1,0 @@
-# Ignore caches and runtime artifacts inside this subtree
-__pycache__/
-*.pyc
-*.pyo
-*.tmp

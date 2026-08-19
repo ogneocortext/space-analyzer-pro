@@ -22,13 +22,35 @@ import argparse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import technical_screenshot_analysis as tech
-import ollama_vision as ollama
+from _ollama_client import OllamaClient
 
 
 DEFAULT_PROMPT = (
     "Describe this UI screenshot: app name, screen, main panels, "
     "controls, and any readable text. Note anything that looks broken."
 )
+
+DEFAULT_MODEL = "gemma4:e2b-it-qat"
+DEFAULT_HOST = "http://localhost:11434"
+DEFAULT_TIMEOUT = 180
+
+
+class OllamaVisionError(Exception):
+    """Raised when the Ollama vision call fails."""
+
+
+def describe(image_path, prompt, model=DEFAULT_MODEL, host=DEFAULT_HOST, timeout=DEFAULT_TIMEOUT):
+    """Thin wrapper over the shared OllamaClient (re-exported from _ollama_client)."""
+    client = OllamaClient(host=host, timeout=timeout, retries=2)
+    try:
+        with open(image_path, "rb") as f:
+            data = f.read()
+    except OSError as e:
+        raise OllamaVisionError(f"cannot read image {image_path!r}: {e}") from e
+    try:
+        return client.generate(model, prompt, stream=False, images=[data])
+    except Exception as exc:  # noqa: BLE001 - surface a clear, typed error
+        raise OllamaVisionError(str(exc)) from exc
 
 
 def build_verdict(report):
@@ -70,11 +92,11 @@ def main():
     report = {"technical": tech.analyze(args.image, args.palette, args.min_panel)}
     if args.semantic:
         try:
-            report["semantic"] = ollama.describe(
+            report["semantic"] = describe(
                 args.image, args.prompt or DEFAULT_PROMPT, args.model,
                 host=args.host, timeout=args.timeout,
             )
-        except ollama.OllamaVisionError as e:
+        except OllamaVisionError as e:
             report["semantic"] = {"error": str(e)}
         except Exception as e:  # never let semantic kill the technical report
             report["semantic"] = {"error": f"{type(e).__name__}: {e}"}

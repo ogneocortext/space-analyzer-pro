@@ -51,7 +51,8 @@ function Save-Bitmap {
     Write-Host "Saved $Path (${W}x${H})"
 }
 
-if ($WindowTitle) {
+function Save-WindowCapture {
+    param([string]$WindowTitle, [string]$OutputPath)
     $proc = Get-Process -ErrorAction SilentlyContinue |
         Where-Object { $_.MainWindowTitle -and $_.MainWindowTitle.Contains($WindowTitle) } |
         Select-Object -First 1
@@ -62,8 +63,31 @@ if ($WindowTitle) {
     $h = $r.Bottom - $r.Top
     if ($w -le 0 -or $h -le 0) { throw "Window '" + $proc.MainWindowTitle + "' reported a non-positive size (${w}x${h})." }
     Save-Bitmap $r.Left $r.Top $w $h $OutputPath
-} else {
+}
+
+function Save-HwndCapture {
+    param([IntPtr]$Hwnd, [string]$OutputPath)
+    $r = New-Object CaptureApi+RECT
+    [CaptureApi]::GetWindowRect($Hwnd, [ref]$r) | Out-Null
+    $w = $r.Right - $r.Left
+    $h = $r.Bottom - $r.Top
+    if ($w -le 0 -or $h -le 0) { Write-Host "BAD_SIZE ${w}x${h}"; return }
+    Save-Bitmap $r.Left $r.Top $w $h $OutputPath
+}
+
+function Save-ScreenCapture {
+    param([string]$OutputPath)
     $w = [CaptureApi]::GetSystemMetrics(0)
     $h = [CaptureApi]::GetSystemMetrics(1)
     Save-Bitmap 0 0 $w $h $OutputPath
+}
+
+# Only act when invoked directly; dot-sourcing this file just defines the helpers
+# above so other scripts (e.g. verify_ui.ps1) can reuse them without recapturing.
+if ($MyInvocation.InvocationName -ne '.') {
+    if ($WindowTitle) {
+        Save-WindowCapture -WindowTitle $WindowTitle -OutputPath $OutputPath
+    } else {
+        Save-ScreenCapture -OutputPath $OutputPath
+    }
 }

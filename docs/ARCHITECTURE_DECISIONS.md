@@ -107,7 +107,7 @@ Historical web-era docs are archived to `docs/archive/web-era/`.
 - `README.md` — project entry point (root)
 - `AGENTS.md` — AI agent reference (commands, interop, conventions)
 - `CHANGELOG.md` — version history (in `docs/`)
-- `FEATURE_GAP_ANALYSIS.md` — WinUI feature parity tracker
+- `docs/archive/FEATURE_GAP_ANALYSIS.md` — WinUI feature parity tracker
 - `gui-winui/README.md` — WinUI 3 build & architecture
 
 **Rule:** Do not create documentation describing the old web/Tauri architecture outside

@@ -142,6 +142,7 @@ docs/issues.db*
 docs/issues.json
 docs/.loop_state.json
 docs/*.csv
+docs/ISSUES.md
 
 # Agent config (OpenClaw, etc.)
 .openclaw/
@@ -166,10 +167,11 @@ opencode.json
 # Node.js dependencies
 node_modules/
 
+# Archived docs (historical; kept on disk, out of the tracked tree)
+docs/archive/
+
 # Archived web assets
 archive/**/node_modules/
-docs/archive/state/
-docs/archive/ux-pipeline/
 
 # Stray root scratch file
 /test_json.cs

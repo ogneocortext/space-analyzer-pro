@@ -19,22 +19,11 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
-# Load System.Drawing.Common from the .NET Windows Desktop runtime.
-$sdCommon = @(
-    "C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\10.0.11\System.Drawing.Common.dll",
-    "C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\8.0.30\System.Drawing.Common.dll"
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $sdCommon) { Write-Host 'System.Drawing.Common not found.'; exit 1 }
-Add-Type -Path $sdCommon
-
-Add-Type @'
-using System;
-using System.Runtime.InteropServices;
-public static class CaptureApi {
-    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
-    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
-}
-'@
+# Reuse the shared capture helpers (loads System.Drawing.Common + CaptureApi, then
+# exposes Save-Bitmap / Save-HwndCapture / Save-WindowCapture / Save-ScreenCapture).
+$CaptureScript = Join-Path $PSScriptRoot 'capture.ps1'
+if (-not (Test-Path $CaptureScript)) { Write-Host 'capture.ps1 not found.'; exit 1 }
+. $CaptureScript
 
 # Reuse the already-running instance. Never launch, never kill.
 $proc = Get-Process -Name SpaceAnalyzer -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -42,28 +31,9 @@ if (-not $proc) { Write-Host 'NO_RUNNING_INSTANCE'; exit 1 }
 $hwnd = $proc.MainWindowHandle
 Write-Host "ATTACHED pid=$($proc.Id) hwnd=$hwnd title='$($proc.MainWindowTitle)'"
 
-function Capture {
-    param([string]$Path)
-    $r = New-Object CaptureApi+RECT
-    [CaptureApi]::GetWindowRect($hwnd, [ref]$r) | Out-Null
-    $w = $r.Right - $r.Left
-    $h = $r.Bottom - $r.Top
-    if ($w -le 0 -or $h -le 0) { Write-Host "BAD_SIZE ${w}x${h}"; return }
-    $bmp = New-Object System.Drawing.Bitmap($w, $h)
-    $g = [System.Drawing.Graphics]::FromImage($bmp)
-    try {
-        $g.CopyFromScreen($r.Left, $r.Top, 0, 0, $bmp.Size)
-        $bmp.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
-    } finally {
-        $g.Dispose()
-        $bmp.Dispose()
-    }
-    Write-Host "SAVED $Path (${w}x${h})"
-}
-
 if (-not (Test-Path $TempDir)) { New-Item -ItemType Directory -Path $TempDir | Out-Null }
 
-Capture "$TempDir\view_before.png"
+Save-HwndCapture -Hwnd $hwnd -OutputPath "$TempDir\view_before.png"
 
 # Bring to front so the window is on-screen.
 [System.Windows.Automation.AutomationElement]::FromHandle($hwnd).SetFocus() 2>$null
@@ -99,5 +69,5 @@ if (-not $clicked) {
 }
 
 Start-Sleep -Seconds 4
-Capture "$TempDir\view_after.png"
+Save-HwndCapture -Hwnd $hwnd -OutputPath "$TempDir\view_after.png"
 Write-Host 'DONE'
