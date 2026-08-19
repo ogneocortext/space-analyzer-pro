@@ -90,7 +90,7 @@ docs/issues.json  (authoritative structured tracker)  →  ISSUES.md (derived)
 docs/issues.json            ← authoritative structured open-issue tracker (hand-edit or via migrate script)
 docs/ISSUES.md              ← derived counts table (regenerate: python docs/generate_status_summary.py --write)
 ux_issues.json             ← runtime vision output (regenerated; gitignored)
-docs/changelog/unreleased.md ← latest fixes; CHANGELOG.md has the released history
+docs/changelog/unreleased.md ← latest fixes; docs/CHANGELOG.md has the released history
 docs/INDEX.md              ← doc-status hub; ARCHITECTURE_DECISIONS.md ← key decisions + on-hold rules
 ```
 
