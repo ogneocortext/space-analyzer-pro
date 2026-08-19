@@ -185,3 +185,28 @@ gallery_page.png
 
 # Archived egui GUI (not part of the public WinUI 3 release)
 gui-egui/
+
+# --------------------------------------------------------------------------
+# Runtime / scratch artifacts (generated output, NOT source)
+# Kept out of the tree so the working dir stays clean and AI agents don't
+# mistake generated output for source. Canonical map: docs/DATA_FLOW.md
+# --------------------------------------------------------------------------
+.playwright-cli/
+ux_issues/
+report_snap.yml
+scripts/utility/analysis_history/
+scripts/utility/ux_analysis/
+scripts/utility/docs/
+scripts/utility/*.log
+scripts/utility/_verify_scope.mjs
+
+# Stray capture screenshots dropped at the repo root.
+# Convention (see AGENTS.md): save captures under docs/screenshots/ux-audit-<YYYY-MM-DD>/.
+/dash-*.png
+/dashboard-*.png
+/nav-*.png
+/report_*.png
+/full_dash.png
+/header-check.png
+*_bak*
+*.bak*

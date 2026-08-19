@@ -4,12 +4,18 @@
 > build commands. This file tells you **what each doc is and whether it reflects current
 > status**, so you don't waste time on stale material.
 
-## Project Status (as of 2026-08-16)
+## Project Status (as of 2026-08-19)
 
 - **What this is:** Space Analyzer Pro — a disk-space analysis tool. Core is Rust
   (`src/`); the active desktop app is **WinUI 3 (C#)** in `gui-winui/`.
 - **Second GUI — do not touch unless asked:** `gui-egui/` is an eframe/egui Rust GUI
   kept side-by-side for comparison only. Per `AGENTS.md`, exclude egui from any work.
+- **Active subsystems beyond the GUI:** the **Macro Dashboard server**
+  (`scripts/utility/live_progress_server.py` + `ux_server_*.py`, served at
+  `http://localhost:8777`), the **Vision / UX analysis pipeline**
+  (`scripts/utility/analyze_ux_screenshots.py` + `ux-pipeline/src/ux_pipeline/`), and the
+  **agent execution trace** (`/api/agent/*` → `macro_logs/agent_traces.jsonl`). See
+  `DATA_FLOW.md` for how data moves between these and the GUI.
 - **Feature status:** The WinUI app is feature-complete except one item. Scan, dedup,
   AI assistant, settings, semantic Smart Search, USN Journal, bloat/forecast, and export
   formats are all implemented and build clean. See `FEATURE_GAP_ANALYSIS.md`.
@@ -22,6 +28,10 @@
 
 ## Active documentation (read these for current status)
 
+- `DATA_FLOW.md` — **agent-oriented map**: the five subsystems, how data flows between
+  them (Rust CLI ↔ C# models, dashboard server, vision pipeline), and a "I need X →
+  go to `<path>`" file locator. Start here when you need to find a file or understand
+  an integration boundary.
 - `CHANGELOG.md` — version history; `[Unreleased]` holds the latest fixes (e.g. Settings
   Store/ViewModel hardening, 2026-08-11).
 - `FEATURE_GAP_ANALYSIS.md` — WinUI features vs README promises. Most rows ✅; the only
@@ -39,6 +49,12 @@
 
 - `archive/state/issues.db*` and `archive/state/.loop_state.json` — produced by tooling;
   ignore when assessing status.
+- **Runtime artifacts (gitignored — never source, never commit):** `.playwright-cli/`,
+  `ux_issues/`, `report_snap.yml`, `scripts/utility/analysis_history/`,
+  `scripts/utility/ux_analysis/`, `scripts/utility/docs/`, `scripts/utility/*.log`,
+  `macro_logs/`, and stray root screenshots (`dash-*.png`, `nav-*.png`, …). These are
+  outputs of the dashboard server, vision pipeline, and Playwright captures — see
+  `DATA_FLOW.md` §4 for the full list.
 
 ## Archive (historical — do NOT rely on for current status)
 
