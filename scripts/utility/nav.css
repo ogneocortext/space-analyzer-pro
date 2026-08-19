@@ -1,0 +1,67 @@
+/* Shared navigation bar styles for all dashboard pages.
+   Linked by live_progress.html, screenshot_gallery.html, and injected by
+   _inject_shared_nav() in ux_server_render.py. Keeps a single source of
+   truth for nav layout, button styles, and breadcrumb styling. */
+
+/* ── Header / nav bar ───────────────────────────────────────────────────── */
+header.snav {
+  position: sticky; top: 0; z-index: 30;
+  background: linear-gradient(180deg, rgba(22,28,35,.97), rgba(29,38,48,.97));
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line); padding: 10px 20px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.snav .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.snav .brand-mark {
+  width: 30px; height: 30px; border-radius: 9px; flex: none;
+  background: linear-gradient(135deg, var(--accent), var(--busy));
+  box-shadow: 0 0 0 1px rgba(74,163,255,.4), 0 4px 12px rgba(74,163,255,.25);
+}
+.snav h1 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: .2px; white-space: nowrap; }
+.snav .brand-sub { color: var(--muted); font-weight: 500; }
+.snav .nav { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+.snav .nav-sep { width: 1px; height: 24px; background: var(--line); opacity: .6; }
+
+/* ── Nav pill links ─────────────────────────────────────────────────────── */
+.nav-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 32px; padding: 0 13px; line-height: 1;
+  font-size: 13px; font-weight: 600; text-decoration: none;
+  border-radius: 999px; border: 1px solid var(--line);
+  background: var(--panel2); color: var(--muted);
+  white-space: nowrap; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  transition: all .18s ease; font-family: inherit;
+}
+.nav-link:hover {
+  background: rgba(74,163,255,.12); color: var(--accent);
+  border-color: rgba(74,163,255,.35);
+  transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.3);
+}
+.nav-link:active { transform: translateY(0); box-shadow: none; }
+.nav-link.active {
+  background: linear-gradient(135deg, rgba(74,163,255,.25), rgba(163,113,247,.15));
+  border-color: var(--accent); color: #fff;
+  box-shadow: 0 0 0 1px rgba(74,163,255,.2), 0 2px 8px rgba(74,163,255,.15);
+}
+/* Action buttons (Launch GUI, Refresh) — elevated, solid feel */
+.nav-link.action {
+  background: rgba(74,163,255,.18); border-color: rgba(74,163,255,.4);
+  color: var(--accent);
+}
+.nav-link.action:hover {
+  background: rgba(74,163,255,.30); border-color: var(--accent); color: #fff;
+  box-shadow: 0 4px 14px rgba(74,163,255,.25);
+}
+.refresh-link:active { transform: translateY(1px) scale(.97); }
+
+/* ── Breadcrumb trail ───────────────────────────────────────────────────── */
+.breadcrumb {
+  display: flex; gap: 8px; align-items: center;
+  padding: 8px 20px; background: var(--panel2);
+  border-bottom: 1px solid var(--line);
+  font-size: 12px; color: var(--muted);
+}
+.breadcrumb a { color: var(--accent); text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+.breadcrumb .sep { opacity: .6; }

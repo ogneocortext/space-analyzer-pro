@@ -1,5 +1,21 @@
 # [Unreleased]
 
+### Macro Dashboard — Header Redesign, Bug Fixes & Architecture Cleanup (2026-08-19)
+
+- **Header nav redesign** — visual hierarchy between navigation links, action buttons, and status badge:
+  - Nav links (Dashboard, Gallery, Reports, View Report, Issue Tracker) use muted borders/backgrounds; active page gets a gradient glow with accent border
+  - Action buttons (Launch GUI, Refresh) use elevated blue-tinted style with distinct hover states
+  - Status badge uses softer border colors and consistent 700 font weight
+  - Header backdrop blur increased from 8px to 12px for better contrast
+- **KPI card breathing room** — padding 12→14px, gap 4→6px, value font 26→28px, label font 10→10.5px
+- **Reports table fix** — `white-space: nowrap` on table cells + horizontal scroll wrapper (`.table-wrap`) prevents timestamp column wrapping; severity badges now have `title` tooltips ("High/Medium/Low severity")
+- **Consolidated nav CSS** — extracted shared `.nav-link` / `.snav` / `.breadcrumb` styles into a single `nav.css` file, served via `/nav.css` route. Removed duplicate definitions from `dashboard.css`, `screenshot_gallery.html` inline, and `_SHARED_NAV_CSS` string literal in `ux_server_render.py`
+- **Dead CSS cleanup** — removed 4 blocks in `dashboard.css` that were immediately overwritten by later identical selectors (`.nav-sep` at line 44, `.side-card` at line 134, `.phases`/`.phase` at lines 178-181, `button:hover` at line 315)
+- **Python bug fixes:**
+  - Removed dead duplicate `/api/agent/run` handler in `live_progress_server.py` (lines 690-713, unreachable since the async version at line 648 returns first)
+  - Removed unused `import base64` in `ux_server_agent.py`
+- **Color palette drift fix** — synced `analyze_ux_screenshots.py` `:root` palette with `theme.css` (`--bg:#0f1419`, `--muted:#8b98a5`, `--panel:#161c23`); added missing `--warn`/`--err`/`--busy` variables so standalone report HTML matches the dashboard theme
+
 ### WinUI 3 — UX Triage, Dashboard & Scan Fixes (2026-08-19)
 
 - **Fresh screenshot capture + vision re-triage** — recaptured all 11 WinUI 3 tabs via `scripts/utility/capture_winui3_screenshots.py` (PrintWindow + UIA `SelectionItemPattern.Select` tab navigation) into `macro_logs/2026-08-19__winui3-capture__ui-pages`; re-ran `scripts/utility/analyze_ux_screenshots.py` to regenerate 23 fresh UX findings, then re-triaged the full `docs/issues.json` (96 issues total: 94 done, 1 blocked backend feature, 1 open visual-polish).
@@ -10,6 +26,15 @@
 ### Macro Dashboard Server — Modular Refactor (2026-08-19)
 
 - **Split `live_progress_server.py` into importable, unit-testable modules** — HTML rendering in `ux_server_render.py`, data/IO/issue/gallery helpers in `ux_server_lib.py`, stateful run/loop control in `ux_server_core.py`, and the agent-tool surface in `ux_server_agent.py`. `live_progress.html` gained a Reports nav link and standalone-HTML report views served alongside the shared `/theme.css` route.
+
+### Agent Execution Trace — 2026 Agentic Observability (2026-08-19)
+
+- **Live, fine-grained event stream for the dashboard's tool-calling agent**, aligned with 2026 agentic-engineering standards (OTel GenAI semantic conventions + ATSC span shapes, AOS instrumentable/traceable, CNCF MELT, C.A.S.E. evidence model). Every run emits a structured timeline rendered in a new **Agent Execution Trace** panel: `run.start` → `iteration` → `llm.call` (model, prompt/completion tokens, duration, `finish_reason`) → `tool.call` (name, input hash, ok/err, result size, latency) → `run.end` (stop reason, cumulative tokens, total duration).
+- **`/api/agent/chat_with_tools` now surfaces Ollama token/timing telemetry** (`prompt_eval_count`/`eval_count`/durations) as a `usage` block so each LLM call is measurable.
+- **Streaming + human-in-the-loop control:** `/api/agent/run` returns a `run_id` and runs in a background thread; the dashboard polls `/api/agent/trace` every 500 ms and renders events as the model works; **Stop Agent** POSTs `/api/agent/stop-run` to cancel mid-step (`stop_reason=user_cancelled`).
+- **Loop / runaway detection:** repeated identical tool calls (input hash) raise a `warning` event (the classic OTel duplicate-tool-call signal). **Enforcement events** record every blocked `apply_edit` (edits-disabled session or missing `confirm=true`) for audit.
+- **Replay/audit:** each run's full event stream is appended to `macro_logs/agent_traces.jsonl` (agent-replay style) for post-mortem inspection.
+- Verified end-to-end in-browser: a 2-iteration `qwen3.5:9b` run streamed 7 trace events (tokens, latencies, finish reasons) with the final answer; HITL stop produced `stop_reason=user_cancelled`.
 
 ### Dependency Upgrades — NuGet, Roslyn & Test Stack (2026-08-18)
 

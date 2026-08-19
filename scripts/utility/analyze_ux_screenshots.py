@@ -1076,8 +1076,9 @@ def _render_html_report(report: dict[str, Any]) -> str:
     health_html = " ".join(health)
 
     css = """
-    :root { --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2b3440;
-            --txt:#e6edf3; --muted:#8b949e; --accent:#4aa3ff; --ok:#3fb950; }
+    :root { --bg:#0f1419; --panel:#161c23; --panel2:#1d2630; --line:#2a3542;
+            --txt:#e6edf3; --muted:#8b98a5; --accent:#4aa3ff; --ok:#3fb950;
+            --warn:#d29922; --err:#f85149; --busy:#a371f7; }
     * { box-sizing:border-box; }
     body { margin:0; background:var(--bg); color:var(--txt);
            font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;

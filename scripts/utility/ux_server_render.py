@@ -348,21 +348,8 @@ _SHARED_NAV_CSS = """
 <style id="snav-style">
 :root{--bg:#0f1419;--panel:#161c23;--panel2:#1d2630;--line:#2a3542;--txt:#e6edf3;--muted:#8b98a5;--accent:#4aa3ff;--ok:#3fb950;--warn:#d29922;--err:#f85149;--busy:#a371f7;}
 *{box-sizing:border-box;}
-header.snav{position:sticky;top:0;z-index:30;background:linear-gradient(180deg,rgba(22,28,35,.97),rgba(29,38,48,.97));backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
-.snav .brand{display:flex;align-items:center;gap:12px;min-width:0;}
-.snav .brand-mark{width:30px;height:30px;border-radius:9px;flex:none;background:linear-gradient(135deg,var(--accent),var(--busy));box-shadow:0 0 0 1px rgba(74,163,255,.4),0 4px 12px rgba(74,163,255,.25);}
-.snav h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.2px;white-space:nowrap;}
-.snav .brand-sub{color:var(--muted);font-weight:500;}
-.snav .nav{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap;}
-.snav .nav-sep{width:1px;height:22px;background:var(--line);}
-.nav-link{display:inline-flex;align-items:center;justify-content:center;height:30px;padding:0 12px;line-height:1;font-size:13px;font-weight:600;text-decoration:none;border-radius:999px;border:1px solid var(--accent);background:rgba(74,163,255,.12);color:var(--accent);white-space:nowrap;cursor:pointer;appearance:none;-webkit-appearance:none;transition:background .15s ease,transform .12s ease,box-shadow .15s ease;font-family:inherit;}
-.nav-link:hover{background:rgba(74,163,255,.22);transform:translateY(-1px);box-shadow:0 2px 8px rgba(74,163,255,.18);}
-.nav-link.active{background:rgba(74,163,255,.30);border-color:#fff;color:#fff;}
-.breadcrumb{display:flex;gap:8px;align-items:center;padding:8px 20px;background:var(--panel2);border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);}
-.breadcrumb a{color:var(--accent);text-decoration:none;}
-.breadcrumb a:hover{text-decoration:underline;}
-.breadcrumb .sep{opacity:.6;}
 </style>
+<link rel="stylesheet" href="/nav.css">
 """
 
 
@@ -381,8 +368,8 @@ def _render_shared_nav(active):
         '<a class="' + cls("reports").strip() + '" href="/reports">Reports</a>'
         '<a class="' + cls("report").strip() + '" href="/report">View Report</a>'
         '<a class="nav-link" href="/#issue-tracker">Issue Tracker</a>'
-        '<button class="nav-link" id="launch-gui" type="button" title="Open the latest built Space Analyzer GUI">Launch GUI</button>'
-        '<button class="nav-link refresh-link" id="refresh-sub" type="button" title="Reload this page">Refresh</button>'
+        '<button class="nav-link action" id="launch-gui" type="button" title="Open the latest built Space Analyzer GUI">Launch GUI</button>'
+        '<button class="nav-link action refresh-link" id="refresh-sub" type="button" title="Reload this page">Refresh</button>'
         '</nav></header>'
     )
 
@@ -455,16 +442,17 @@ REPORTS_PAGE_TEMPLATE = """<!doctype html>
   h1 { font-size:18px; margin:0; letter-spacing:.2px; }
   .sub { color:#9fb0c7; font-size:12.5px; margin-top:2px; }
   .wrap { padding:22px 28px 40px; max-width:1100px; margin:0 auto; }
+  .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
   .bar { display:flex; gap:10px; align-items:center; margin-bottom:16px; }
   .bar input { flex:1; padding:9px 12px; border-radius:9px; border:1px solid rgba(255,255,255,.12);
     background:rgba(255,255,255,.05); color:#e7ecf3; font-size:13px; }
   table.reports { width:100%; border-collapse:collapse; background:rgba(255,255,255,.03);
-    border:1px solid rgba(255,255,255,.08); border-radius:12px; overflow:hidden; }
-  .reports th, .reports td { text-align:left; padding:11px 14px; font-size:13px; border-bottom:1px solid rgba(255,255,255,.06); }
+    border:1px solid rgba(255,255,255,.08); border-radius:12px; overflow:hidden; table-layout:auto; }
+  .reports th, .reports td { text-align:left; padding:11px 14px; font-size:13px; border-bottom:1px solid rgba(255,255,255,.06); white-space:nowrap; }
   .reports th { color:#9fb0c7; font-weight:600; background:rgba(255,255,255,.03); }
   .reports tr:last-child td { border-bottom:none; }
-  .set { font-weight:600; }
-  .ts { color:#9fb0c7; font-variant-numeric:tabular-nums; }
+  .set { font-weight:600; white-space:nowrap; }
+  .ts { color:#9fb0c7; font-variant-numeric:tabular-nums; white-space:nowrap; }
   .sev span { display:inline-block; min-width:22px; text-align:center; padding:2px 6px; border-radius:6px; margin-right:4px; font-weight:700; }
   .sev-h { background:rgba(255,86,86,.18); color:#ff8a8a; }
   .sev-m { background:rgba(255,184,76,.18); color:#ffcf85; }
@@ -491,7 +479,7 @@ REPORTS_PAGE_TEMPLATE = """<!doctype html>
   <div class="bar">
     <input id="q" placeholder="Search reports (set, model, findings)…" oninput="search(this.value)">
   </div>
-  <div id="list">{BODY}</div>
+  <div id="list"><div class="table-wrap">{BODY}</div></div>
 </div>
 <script>
 async function search(q) {
@@ -510,11 +498,11 @@ function render(rows) {
     h += '<tr><td class="set">'+esc(r.screenshot_set)+'</td><td>'+esc(r.model)+'</td>'
        + '<td><span class="badge st-'+esc(r.status)+'">'+esc(r.status)+'</span></td>'
        + '<td class="ts">'+esc(r.timestamp||r.created_at)+'</td>'
-       + '<td class="sev"><span class="sev-h">'+ (s.high||0) +'</span><span class="sev-m">'+ (s.medium||0) +'</span><span class="sev-l">'+ (s.low||0) +'</span></td>'
+       + '<td class="sev"><span class="sev-h" title="High severity">'+ (s.high||0) +'</span><span class="sev-m" title="Medium severity">'+ (s.medium||0) +'</span><span class="sev-l" title="Low severity">'+ (s.low||0) +'</span></td>'
        + '<td class="num">'+ (r.num_issues||0) +'</td><td class="num">'+ (r.num_recommendations||0) +'</td>'
        + '<td><a class="view" href="/report?id='+encodeURIComponent(r.report_key)+'">View &rarr;</a></td></tr>';
   }
-  return h + '</tbody></table>';
+  return '<div class="table-wrap">' + h + '</tbody></table></div>';
 }
 </script>
 </body></html>"""
@@ -544,9 +532,9 @@ def _render_reports_list_page(rows: list[dict]) -> str:
                 "<td>" + esc(r.get("model", "")) + "</td>"
                 '<td><span class="badge st-' + esc(r.get("status", "")) + '">' + esc(r.get("status", "")) + "</span></td>"
                 '<td class="ts">' + esc(r.get("timestamp", "") or r.get("created_at", "")) + "</td>"
-                '<td class="sev"><span class="sev-h">' + str(high) + '</span>'
-                '<span class="sev-m">' + str(med) + '</span>'
-                '<span class="sev-l">' + str(low) + "</span></td>"
+                '<td class="sev"><span class="sev-h" title="High severity">' + str(high) + '</span>'
+                '<span class="sev-m" title="Medium severity">' + str(med) + '</span>'
+                '<span class="sev-l" title="Low severity">' + str(low) + "</span></td>"
                 '<td class="num">' + str(r.get("num_issues", 0) or 0) + "</td>"
                 '<td class="num">' + str(r.get("num_recommendations", 0) or 0) + "</td>"
                 '<td><a class="view" href="/report?id=' + key + '">View &rarr;</a></td>'

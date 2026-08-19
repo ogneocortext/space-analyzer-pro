@@ -29,13 +29,15 @@ if the Ollama client is unavailable.
 
 from __future__ import annotations
 
-import base64
+import hashlib
 import io
 import json
 import os
 import re
 import sys
 import threading
+import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -459,6 +461,33 @@ def list_ollama_models() -> list[str]:
     return out
 
 
+def model_status() -> dict[str, Any]:
+    """Return live Ollama model status (models loaded into VRAM right now).
+
+    Powers the dashboard's "Ollama Model Status" card so the user can see, in
+    real time, which models are resident while an analysis / agent / loop runs.
+    """
+    try:
+        data = _client().ps()
+    except Exception as exc:  # Ollama down or unreachable
+        return {"ok": False, "error": str(exc), "running": [], "count": 0}
+    models = data.get("models", []) if isinstance(data, dict) else []
+    running: list[dict[str, Any]] = []
+    for m in models:
+        if not isinstance(m, dict):
+            continue
+        details = m.get("details") or {}
+        running.append({
+            "name": m.get("name") or m.get("model") or "?",
+            "size_bytes": m.get("size") or 0,
+            "size_vram_bytes": m.get("size_vram") or 0,
+            "expires_at": m.get("expires_at"),
+            "family": details.get("family") if isinstance(details, dict) else None,
+            "parameter_size": details.get("parameter_size") if isinstance(details, dict) else None,
+        })
+    return {"ok": True, "running": running, "count": len(running)}
+
+
 def _model_supports_tools(name: str) -> bool:
     """Heuristic: does this model family do Ollama native tool calling?"""
     n = (name or "").lower()
@@ -490,8 +519,10 @@ def _model_is_vision(name: str) -> bool:
 # installed one wins; this keeps the "Default" model button useful without the
 # user having to know which coding models are pulled.
 _CHAT_MODEL_PREFS = [
-    "qwen3:8b", "qwen3:4b", "qwen3:latest", "qwen3", "qwen3-vl:4b",
-    "qwen3-vl:2b", "deepseek-r1:7b", "llama3.2:3b",
+    "qwen3.5:9b", "qwen3.5:4b", "qwen3.5:latest", "qwen3.5",
+    "qwen3:8b", "qwen3:4b", "qwen3:latest", "qwen3",
+    "deepseek-r1:8b", "deepseek-r1:7b", "llama3.3:70b",
+    "qwen3-vl:4b", "qwen3-vl:2b", "llama3.2:3b",
 ]
 # Vision models for read_screenshot / analyzer runs, most-capable first.
 _VISION_MODEL_PREFS = [
@@ -514,9 +545,14 @@ def select_chat_model(requested: str | None = None) -> str:
     for p in _CHAT_MODEL_PREFS:
         if p in installed:
             return p
-    tool_models = [m for m in models if _model_supports_tools(m)]
+    # Prefer a non-vision, tool-capable model for the agent's reasoning so it is
+    # not forced onto a vision model for plain text tool-calling.
+    tool_models = [m for m in models if _model_supports_tools(m) and not _model_is_vision(m)]
     if tool_models:
         return tool_models[0]
+    vision_tools = [m for m in models if _model_supports_tools(m)]
+    if vision_tools:
+        return vision_tools[0]
     if models:
         return models[0]
     return "qwen3:latest"
@@ -839,6 +875,7 @@ def _tool_search_code(args: dict, ctx: dict) -> dict:
 
 def _tool_apply_edit(args: dict, ctx: dict, auto_apply: bool = False) -> dict:
     if not auto_apply:
+        _trace_enforcement("edits disabled for this session", args.get("path", ""))
         return {
             "ok": False,
             "error": "Edits are disabled for this session. Enable 'Allow code "
@@ -848,6 +885,7 @@ def _tool_apply_edit(args: dict, ctx: dict, auto_apply: bool = False) -> dict:
     if isinstance(confirm, str):
         confirm = confirm.strip().lower() in ("1", "true", "yes", "on")
     if not confirm:
+        _trace_enforcement("confirm=true required to apply edit", args.get("path", ""))
         return {"ok": False, "error": "confirm=true is required to apply an edit"}
     path = (args.get("path") or "").strip()
     old = args.get("old_string")
@@ -944,6 +982,151 @@ def run_tool(name: str, args: dict | None, ctx: dict,
 
 
 # --------------------------------------------------------------------------- #
+# Agent execution tracing (2026 agentic-engineering observability)
+# --------------------------------------------------------------------------- #
+# Every agent run emits a structured, timestamped event stream (OTel-GenAI /
+# ATSC-flavoured) covering the full invoke_agent -> chat -> execute_tool span
+# tree. The dashboard polls /api/agent/trace to render it live, each run is
+# persisted to macro_logs/agent_traces.jsonl for replay/audit (agent-replay
+# style), and a human-in-the-loop stop flag lets the user cancel a run mid-step.
+CURRENT_RUN_TRACER = None
+AGENT_RUNS: dict[str, dict] = {}
+AGENT_RUNS_LOCK = threading.Lock()
+CURRENT_RUN_ID = {"id": None}
+
+
+class AgentTracer:
+    """Thread-safe, ordered event log for one agent run.
+
+    Each event has a ``kind`` (run.start, iteration, llm.call, tool.call,
+    warning, enforcement, note, run.end), a relative timestamp (ms since run
+    start), and a ``data`` payload. A ``parent`` id lets the UI reconstruct the
+    invoke_agent -> chat -> execute_tool tree.
+    """
+
+    def __init__(self, run_id: str, root_base: Path | None = None):
+        self.run_id = run_id
+        self.root_base = root_base
+        self.events: list[dict[str, Any]] = []
+        self._lock = threading.Lock()
+        self._seq = 0
+        self._start = time.time()
+        self.stop_requested = False
+        self.model = ""
+        self.total_in = 0
+        self.total_out = 0
+
+    def event(self, kind: str, data: dict | None = None, *, parent: str | None = None,
+              id: str | None = None) -> dict:
+        with self._lock:
+            self._seq += 1
+            ev = {
+                "seq": self._seq,
+                "id": id or f"e{self._seq}",
+                "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+                "t_ms": round((time.time() - self._start) * 1000, 1),
+                "kind": kind,
+                "data": data or {},
+            }
+            if parent:
+                ev["parent"] = parent
+            self.events.append(ev)
+        return ev
+
+    def request_stop(self) -> None:
+        self.stop_requested = True
+
+
+def _input_hash(args: Any) -> str:
+    """Short, stable fingerprint of a tool call's arguments (loop detection)."""
+    try:
+        s = json.dumps(args, sort_keys=True, default=str)
+    except Exception:
+        s = str(args)
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()[:12]
+
+
+def _clean_tool_calls(raw_tool_calls: list) -> tuple[list[tuple[str, dict]], list[dict]]:
+    """Drop malformed/empty tool calls; return (name,args) pairs + valid calls."""
+    cleaned: list[tuple[str, dict]] = []
+    valid: list[dict] = []
+    for tc in raw_tool_calls:
+        fn = tc.get("function", {}) if isinstance(tc, dict) else {}
+        name = (fn.get("name") or "").strip()
+        if not name:
+            continue
+        args = _coerce_tool_args(fn.get("arguments"))
+        cleaned.append((name, args))
+        valid.append(tc)
+    return cleaned, valid
+
+
+def _trace_enforcement(reason: str, path: str) -> None:
+    """Record an edit-control enforcement event on the active run (if any)."""
+    if CURRENT_RUN_TRACER is not None:
+        CURRENT_RUN_TRACER.event("enforcement", {
+            "type": "edit_blocked", "reason": reason, "path": path,
+        })
+
+
+def request_stop_agent(run_id: str | None = None) -> bool:
+    """Set the stop flag for a running agent (human-in-the-loop cancel)."""
+    rid = run_id or CURRENT_RUN_ID.get("id")
+    if not rid:
+        return False
+    with AGENT_RUNS_LOCK:
+        rec = AGENT_RUNS.get(rid)
+        if rec is None:
+            return False
+        rec["tracer"].request_stop()
+    return True
+
+
+def get_agent_trace(run_id: str | None = None) -> dict[str, Any]:
+    """Return the live state of an agent run for the dashboard to poll."""
+    with AGENT_RUNS_LOCK:
+        rid = run_id or CURRENT_RUN_ID.get("id")
+        rec = AGENT_RUNS.get(rid) if rid else None
+        if rec is None:
+            return {"found": False, "running": False, "run_id": rid,
+                    "events": [], "result": None}
+        tracer = rec["tracer"]
+        events = list(tracer.events)
+        status = rec["status"]
+    return {
+        "found": True,
+        "running": status == "running",
+        "status": status,
+        "run_id": rid,
+        "model": tracer.model,
+        "total_tokens_in": tracer.total_in,
+        "total_tokens_out": tracer.total_out,
+        "events": events,
+        "result": rec.get("result"),
+    }
+
+
+def _persist_trace(tracer: AgentTracer, result: dict | None) -> None:
+    """Append a run's event stream to macro_logs/agent_traces.jsonl (replay/audit)."""
+    if tracer.root_base is None:
+        return
+    try:
+        path = tracer.root_base / "agent_traces.jsonl"
+        rec = {
+            "run_id": tracer.run_id,
+            "model": tracer.model,
+            "total_tokens_in": tracer.total_in,
+            "total_tokens_out": tracer.total_out,
+            "events": tracer.events,
+            "result": {k: v for k, v in (result or {}).items() if k != "transcript"},
+        }
+        with path.open("a", encoding="utf-8") as lf:
+            lf.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+    except Exception:  # pragma: no cover - best-effort audit log
+        pass
+
+
+# --------------------------------------------------------------------------- #
 # Agent loop
 # --------------------------------------------------------------------------- #
 AGENT_SYSTEM = (
@@ -1005,19 +1188,37 @@ def _extract_assistant_text(msg: Any) -> str:
 
 
 def run_agent(user_message: str, model: str, ctx: dict, *,
-              history: list[dict] | None = None,
-              max_iterations: int = 6, auto_apply: bool = False) -> dict:
+               history: list[dict] | None = None,
+               max_iterations: int = 6, auto_apply: bool = False,
+               run_id: str | None = None, tracer: "AgentTracer | None" = None) -> dict:
     """Run a tool-calling agent loop against Ollama and return the transcript.
 
     Returns ``{"answer", "transcript", "iterations", "model", "error?"}``.
     ``transcript`` is a list of steps: assistant turns (with optional tool_calls)
     and tool-result turns (name/args/result) for the UI to render.
+
+    Observability: every run records a structured event stream into an
+    :class:`AgentTracer` (registered in ``AGENT_RUNS`` so the dashboard can poll
+    ``/api/agent/trace`` for a live view, and persisted to
+    ``macro_logs/agent_traces.jsonl`` for replay). Events follow an
+    OTel-GenAI / ATSC span shape: run.start -> iteration -> llm.call ->
+    tool.call (+ warning/enforcement) -> run.end.
     """
-    tools_schema = list_tool_schemas()
-    client = _client()
     # Route the chat model: an explicit, non-empty model is honored as-is; an
     # empty one ("Default") is sent to the best installed tool-capable model.
     model = select_chat_model(model)
+    created = False
+    if tracer is None:
+        run_id = run_id or ("run_" + uuid.uuid4().hex[:12])
+        tracer = AgentTracer(run_id, ctx.get("root_base"))
+        created = True
+        with AGENT_RUNS_LOCK:
+            AGENT_RUNS[run_id] = {"status": "running", "tracer": tracer, "result": None}
+        CURRENT_RUN_ID["id"] = run_id
+    tracer.model = model
+
+    tools_schema = list_tool_schemas()
+    client = _client()
     messages: list[dict[str, Any]] = [{"role": "system", "content": AGENT_SYSTEM}]
     for h in (history or []):
         if isinstance(h, dict) and h.get("role") in ("user", "assistant"):
@@ -1027,37 +1228,142 @@ def run_agent(user_message: str, model: str, ctx: dict, *,
             })
     messages.append({"role": "user", "content": user_message})
 
+    tracer.event("run.start", {
+        "model": model,
+        "max_iterations": max(1, int(max_iterations)),
+        "user_message": user_message,
+        "auto_apply": bool(auto_apply),
+        "tools": [t["name"] for t in tools_schema],
+    })
+
     transcript: list[dict[str, Any]] = []
     last_answer = ""
     iterations = 0
+    stop_reason = "ok"
+    seen: dict[tuple[str, str], int] = {}
+
+    global CURRENT_RUN_TRACER
+    prev_tracer = CURRENT_RUN_TRACER
+    CURRENT_RUN_TRACER = tracer
     try:
         for i in range(max(1, int(max_iterations))):
+            if tracer.stop_requested:
+                stop_reason = "user_cancelled"
+                break
             iterations = i + 1
-            msg = client.chat_with_tools(
-                model, messages, tools_schema, think=False,
-                options={"num_ctx": 8192},
-            )
+            iter_id = f"iter_{iterations}"
+            tracer.event("iteration.start", {
+                "iteration": iterations, "message_count": len(messages),
+            }, id=iter_id)
+
+            t0 = time.time()
+            try:
+                msg = client.chat_with_tools(
+                    model, messages, tools_schema, think=False,
+                    options={"num_ctx": 8192},
+                )
+            except Exception as exc:
+                tracer.event("llm.call", {
+                    "iteration": iterations, "model": model,
+                    "error": f"{type(exc).__name__}: {exc}",
+                    "duration_ms": round((time.time() - t0) * 1000, 1),
+                }, parent=iter_id)
+                raise
+
+            dt = round((time.time() - t0) * 1000, 1)
+            usage = msg.get("usage") or {} if isinstance(msg, dict) else {}
+            tok_in = usage.get("prompt_eval_count")
+            tok_out = usage.get("eval_count")
+            if isinstance(tok_in, int):
+                tracer.total_in += tok_in
+            if isinstance(tok_out, int):
+                tracer.total_out += tok_out
+
             content = _extract_assistant_text(msg)
-            tool_calls = msg.get("tool_calls") or []
+            raw_tool_calls = msg.get("tool_calls") or [] if isinstance(msg, dict) else []
+            # Clean tool calls: weak/vision models sometimes emit empty or
+            # malformed tool_calls. Drop those so we never hand Ollama a tool
+            # result with no matching call. Named-but-unknown tools get a clear
+            # error result so the model can self-correct on the next turn.
+            cleaned, valid_tcs = _clean_tool_calls(raw_tool_calls)
+            finish_reason = "tool_calls" if valid_tcs else "stop"
+            tracer.event("llm.call", {
+                "iteration": iterations,
+                "model": model,
+                "duration_ms": dt,
+                "prompt_tokens": tok_in,
+                "completion_tokens": tok_out,
+                "content_len": len(content),
+                "tool_calls": len(valid_tcs),
+                "finish_reason": finish_reason,
+            }, parent=iter_id)
+
             assistant_step: dict[str, Any] = {
                 "role": "assistant",
                 "content": content,
-                "tool_calls": tool_calls,
+                "tool_calls": valid_tcs,
             }
             messages.append({
                 "role": "assistant",
                 "content": content,
-                **({"tool_calls": tool_calls} if tool_calls else {}),
+                **({"tool_calls": valid_tcs} if valid_tcs else {}),
             })
             transcript.append(assistant_step)
-            if not tool_calls:
-                last_answer = content
-                break
-            for tc in tool_calls:
-                fn = tc.get("function", {}) if isinstance(tc, dict) else {}
-                name = fn.get("name", "")
-                args = _coerce_tool_args(fn.get("arguments"))
-                result = run_tool(name, args, ctx, auto_apply=auto_apply)
+
+            if not cleaned:
+                if content:
+                    last_answer = content
+                    break
+                # Neither text nor a valid tool call — let the model retry.
+                tracer.event("note", {
+                    "iteration": iterations,
+                    "message": "model returned neither text nor a valid tool call; retrying.",
+                }, parent=iter_id)
+                continue
+
+            for name, args in cleaned:
+                ihash = _input_hash(args)
+                key = (name, ihash)
+                cnt = seen.get(key, 0) + 1
+                seen[key] = cnt
+                tt0 = time.time()
+                if name in _DISPATCH:
+                    result = run_tool(name, args, ctx, auto_apply=auto_apply)
+                else:
+                    result = {
+                        "ok": False,
+                        "error": (
+                            f"unknown tool: {name}. Available tools: "
+                            + ", ".join(sorted(_DISPATCH))
+                        ),
+                    }
+                tdt = round((time.time() - tt0) * 1000, 1)
+                ok = (bool(result.get("ok")) if "ok" in result
+                      else (not bool(result.get("error")))) if isinstance(result, dict) else False
+                res_size = len(json.dumps(result, default=str)) if isinstance(result, dict) else 0
+                tracer.event("tool.call", {
+                    "iteration": iterations,
+                    "name": name,
+                    "input_hash": ihash,
+                    "args": args,
+                    "ok": ok,
+                    "error": (result.get("error") if isinstance(result, dict) else None),
+                    "result_size": res_size,
+                    "latency_ms": tdt,
+                }, parent=iter_id)
+                if cnt > 1:
+                    # ATSC/OTel "duplicate tool call" loop signal: same tool with
+                    # identical args appearing repeatedly is the classic runaway.
+                    tracer.event("warning", {
+                        "type": "duplicate_tool_call",
+                        "name": name,
+                        "input_hash": ihash,
+                        "count": cnt,
+                        "message": (
+                            f"tool '{name}' called {cnt}x with identical args this run "
+                            f"— possible runaway loop."
+                        ),
+                    }, parent=iter_id)
                 transcript.append({
                     "role": "tool",
                     "name": name,
@@ -1070,17 +1376,55 @@ def run_agent(user_message: str, model: str, ctx: dict, *,
                     "name": name,
                 })
             last_answer = content
+        else:
+            # Loop exhausted without an early break -> hit the iteration cap.
+            stop_reason = "max_iterations"
+        if stop_reason == "ok":
+            stop_reason = "final_answer"
     except Exception as exc:
-        return {
+        stop_reason = "error"
+        err = f"{type(exc).__name__}: {exc}"
+        tracer.event("run.end", {
+            "stop_reason": stop_reason,
+            "error": err,
+            "iterations": iterations,
+            "model": model,
+            "total_tokens_in": tracer.total_in,
+            "total_tokens_out": tracer.total_out,
+            "duration_ms": round((time.time() - tracer._start) * 1000, 1),
+        }, id="run_end")
+        result = {
             "answer": last_answer,
             "transcript": transcript,
             "iterations": iterations,
             "model": model,
-            "error": f"{type(exc).__name__}: {exc}",
+            "error": err,
         }
-    return {
+        with AGENT_RUNS_LOCK:
+            AGENT_RUNS[run_id]["status"] = "done"
+            AGENT_RUNS[run_id]["result"] = result
+        CURRENT_RUN_TRACER = prev_tracer
+        _persist_trace(tracer, result)
+        return result
+
+    tracer.event("run.end", {
+        "stop_reason": stop_reason,
+        "iterations": iterations,
+        "model": model,
+        "answer_len": len(last_answer),
+        "total_tokens_in": tracer.total_in,
+        "total_tokens_out": tracer.total_out,
+        "duration_ms": round((time.time() - tracer._start) * 1000, 1),
+    }, id="run_end")
+    result = {
         "answer": last_answer,
         "transcript": transcript,
         "iterations": iterations,
         "model": model,
     }
+    with AGENT_RUNS_LOCK:
+        AGENT_RUNS[run_id]["status"] = "done"
+        AGENT_RUNS[run_id]["result"] = result
+    CURRENT_RUN_TRACER = prev_tracer
+    _persist_trace(tracer, result)
+    return result

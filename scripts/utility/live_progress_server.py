@@ -39,6 +39,8 @@ import io
 import json
 import os
 import sys
+import threading
+import uuid
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -91,6 +93,10 @@ DEFAULT_SHOTS_ROOT = Path("macro_logs")
 HTML_PATH = HERE / "live_progress.html"
 GALLERY_HTML_PATH = HERE / "screenshot_gallery.html"
 THEME_CSS_PATH = HERE / "theme.css"
+NAV_CSS_PATH = HERE / "nav.css"
+DASHBOARD_CSS_PATH = HERE / "dashboard.css"
+DASHBOARD_JS_PATH = HERE / "dashboard.js"
+AGENT_JS_PATH = HERE / "agent.js"
 MAX_POST_BYTES = 1 * 1024 * 1024
 
 # Parity: when a run produced JSON without a companion .html, render it with the
@@ -226,6 +232,30 @@ def build_handler(root_base: Path):
                     self._send(404, b"theme.css not found", "text/plain")
                     return
                 self._send(200, THEME_CSS_PATH.read_bytes(), "text/css; charset=utf-8")
+                return
+            if route == "/nav.css":
+                if not NAV_CSS_PATH.exists():
+                    self._send(404, b"nav.css not found", "text/plain")
+                    return
+                self._send(200, NAV_CSS_PATH.read_bytes(), "text/css; charset=utf-8")
+                return
+            if route == "/dashboard.css":
+                if not DASHBOARD_CSS_PATH.exists():
+                    self._send(404, b"dashboard.css not found", "text/plain")
+                    return
+                self._send(200, DASHBOARD_CSS_PATH.read_bytes(), "text/css; charset=utf-8")
+                return
+            if route == "/dashboard.js":
+                if not DASHBOARD_JS_PATH.exists():
+                    self._send(404, b"dashboard.js not found", "text/plain")
+                    return
+                self._send(200, DASHBOARD_JS_PATH.read_bytes(), "application/javascript; charset=utf-8")
+                return
+            if route == "/agent.js":
+                if not AGENT_JS_PATH.exists():
+                    self._send(404, b"agent.js not found", "text/plain")
+                    return
+                self._send(200, AGENT_JS_PATH.read_bytes(), "application/javascript; charset=utf-8")
                 return
             if route == "/api/progress":
                 progress = _read_json(root_base / "analysis_progress.json")
@@ -445,6 +475,27 @@ def build_handler(root_base: Path):
                 except Exception as _e:  # pragma: no cover
                     self._json({"tools": [], "error": str(_e)})
                 return
+            if route == "/api/agent/trace":
+                # Live, pollable execution trace for a run (defaults to the most
+                # recent run). Drives the dashboard's "Agent Execution Trace" panel.
+                q = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
+                rid = (q.get("run") or [None])[0]
+                try:
+                    from ux_server_agent import get_agent_trace
+                    self._json(get_agent_trace(rid))
+                except Exception as _e:  # pragma: no cover
+                    self._json({"found": False, "running": False, "events": [],
+                                "error": str(_e)})
+                return
+            if route == "/api/model_status":
+                # Live Ollama load state: which models are resident in VRAM right
+                # now. Lazy import so the dashboard still boots if Ollama is away.
+                try:
+                    from ux_server_agent import model_status
+                    self._json(model_status())
+                except Exception as _e:  # pragma: no cover
+                    self._json({"ok": False, "error": str(_e), "running": []}, code=500)
+                return
             if route == "/api/agent/models":
                 try:
                     from ux_server_agent import (
@@ -602,7 +653,9 @@ def build_handler(root_base: Path):
                 self._json(res)
                 return
             if route == "/api/agent/run":
-                # Full tool-calling agent loop against Ollama.
+                # Full tool-calling agent loop against Ollama, run in a background
+                # thread so the dashboard can stream the live execution trace via
+                # /api/agent/trace (it returns a run_id immediately).
                 from ux_server_agent import run_agent
                 msg = (body.get("message") or "").strip()
                 if not msg:
@@ -615,15 +668,31 @@ def build_handler(root_base: Path):
                         mi = int(mi)
                     except (TypeError, ValueError):
                         mi = None
+                run_id = "run_" + uuid.uuid4().hex[:12]
+                auto = _coerce_bool(body.get("auto_apply"))
+
+                def _agent_worker() -> None:  # background, never blocks the request
+                    try:
+                        run_agent(
+                            msg, model, _agent_ctx(root_base),
+                            max_iterations=mi or 6, auto_apply=auto, run_id=run_id,
+                        )
+                    except Exception:  # traced + persisted inside run_agent
+                        pass
+
+                threading.Thread(target=_agent_worker, daemon=True).start()
+                self._json({"run_id": run_id, "accepted": True})
+                return
+            if route == "/api/agent/stop-run":
+                # Human-in-the-loop cancel: sets the stop flag so the run halts
+                # after the current model/tool step.
+                q = parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
+                rid = (q.get("run") or [None])[0]
                 try:
-                    res = run_agent(
-                        msg, model, _agent_ctx(root_base),
-                        max_iterations=mi or 6,
-                        auto_apply=_coerce_bool(body.get("auto_apply")),
-                    )
-                    self._json(res)
-                except Exception as _e:
-                    self._json({"status": "error", "message": str(_e)}, code=500)
+                    from ux_server_agent import request_stop_agent
+                    self._json({"ok": request_stop_agent(rid)})
+                except Exception as _e:  # pragma: no cover
+                    self._json({"ok": False, "error": str(_e)})
                 return
             if route == "/api/delete-many":
                 paths = body.get("paths", []) or []
