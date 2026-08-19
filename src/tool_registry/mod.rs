@@ -112,17 +112,18 @@ mod tests {
 
     #[test]
     fn test_get_definitions_count_no_scan() {
-        // 6 original always-available + 3 new destructive-preview tools
-        // (preview_impact, move_to_trash, hardlink_duplicates)
+        // 6 original always-available + classify_file + 3 destructive-preview
+        // tools (preview_impact, move_to_trash, hardlink_duplicates)
         let registry = ToolRegistry::new(None);
-        assert_eq!(registry.definitions.len(), 9);
+        assert_eq!(registry.definitions.len(), 10);
     }
 
     #[test]
     fn test_get_definitions_count_with_scan() {
-        // 11 with scan + 3 new destructive-preview tools
+        // 10 always-available (incl. classify_file) + 7 scan-dependent
+        // (incl. get_bloat_findings, get_recommendations) = 17
         let registry = ToolRegistry::new(Some(sample_scan()));
-        assert_eq!(registry.definitions.len(), 14);
+        assert_eq!(registry.definitions.len(), 17);
     }
 
     #[test]
@@ -139,12 +140,15 @@ mod tests {
         assert!(names.contains(&"get_storage_trend"));
         assert!(names.contains(&"list_workflows"));
         assert!(names.contains(&"predict_storage"));
+        assert!(names.contains(&"classify_file"));
         // Scan-dependent tools should NOT be present
         assert!(!names.contains(&"get_scan_summary"));
         assert!(!names.contains(&"get_file_type_breakdown"));
         assert!(!names.contains(&"analyze_file_patterns"));
         assert!(!names.contains(&"search_files"));
         assert!(!names.contains(&"get_largest_files"));
+        assert!(!names.contains(&"get_bloat_findings"));
+        assert!(!names.contains(&"get_recommendations"));
     }
 
     #[test]
@@ -161,12 +165,15 @@ mod tests {
         assert!(names.contains(&"get_storage_trend"));
         assert!(names.contains(&"list_workflows"));
         assert!(names.contains(&"predict_storage"));
+        assert!(names.contains(&"classify_file"));
         // Scan-dependent tools should be present
         assert!(names.contains(&"get_scan_summary"));
         assert!(names.contains(&"get_file_type_breakdown"));
         assert!(names.contains(&"analyze_file_patterns"));
         assert!(names.contains(&"search_files"));
         assert!(names.contains(&"get_largest_files"));
+        assert!(names.contains(&"get_bloat_findings"));
+        assert!(names.contains(&"get_recommendations"));
     }
 
     fn parse_result(result: &str) -> serde_json::Value {
@@ -415,6 +422,68 @@ mod tests {
         let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         let v = parse_result(&result);
         assert_eq!(v["count"], 5);
+    }
+
+    #[test]
+    fn test_classify_file_requires_path() {
+        let registry = ToolRegistry::new(None);
+        let call = make_tool_call("classify_file", serde_json::json!({}));
+        let result = registry.execute_tool(&call, None, None).unwrap();
+        let v = parse_result(&result);
+        assert_eq!(v["error"], "'path' parameter is required.");
+    }
+
+    #[test]
+    fn test_classify_file_returns_assessment() {
+        let registry = ToolRegistry::new(None);
+        let call = make_tool_call(
+            "classify_file",
+            serde_json::json!({"path": "C:\\Users\\test\\Downloads\\setup.exe", "size_bytes": 5_000_000}),
+        );
+        let result = registry.execute_tool(&call, None, None).unwrap();
+        let v = parse_result(&result);
+        assert!(v["path"].as_str().unwrap().contains("setup.exe"));
+        assert!(v["safety"].is_string());
+        assert!(v["category"].is_string());
+    }
+
+    #[test]
+    fn test_get_bloat_findings_with_scan() {
+        let registry = ToolRegistry::new(None);
+        let scan = sample_scan();
+        let call = make_tool_call("get_bloat_findings", serde_json::json!({}));
+        let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
+        let v = parse_result(&result);
+        assert!(v["path"].is_string());
+        assert!(v["findings"].as_array().is_some());
+    }
+
+    #[test]
+    fn test_get_bloat_findings_without_scan() {
+        let registry = ToolRegistry::new(None);
+        let call = make_tool_call("get_bloat_findings", serde_json::json!({}));
+        let result = registry.execute_tool(&call, None, None).unwrap();
+        let v = parse_result(&result);
+        assert_eq!(v["error"], "No scan results available.");
+    }
+
+    #[test]
+    fn test_get_recommendations_with_scan() {
+        let registry = ToolRegistry::new(None);
+        let scan = sample_scan();
+        let call = make_tool_call("get_recommendations", serde_json::json!({}));
+        let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
+        let v = parse_result(&result);
+        assert!(v["recommendations"].as_array().is_some());
+    }
+
+    #[test]
+    fn test_get_recommendations_without_scan() {
+        let registry = ToolRegistry::new(None);
+        let call = make_tool_call("get_recommendations", serde_json::json!({}));
+        let result = registry.execute_tool(&call, None, None).unwrap();
+        let v = parse_result(&result);
+        assert_eq!(v["error"], "No scan results available.");
     }
 
     #[test]

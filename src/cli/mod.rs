@@ -216,5 +216,6 @@ pub fn main() -> AppResult<()> {
         Commands::Recommend { scan_id, top } => {
             recommend::run(recommend::RecommendArgs { scan_id, top }, output_format)
         }
+        Commands::Ask { question, scan_id } => ai_command::run_ask(&question, scan_id),
     }
 }

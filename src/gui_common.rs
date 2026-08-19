@@ -2,6 +2,7 @@
 //!
 //! Uses the scan-engine crate for all scanning operations.
 
+use crate::database::ScanHistoryRecord;
 use clap::Parser;
 use scan_engine::{FileScanner, ScanOptions};
 use serde::{Deserialize, Serialize};
@@ -124,10 +125,33 @@ impl ScanReport {
         scan_result
     }
 
+    /// Reconstruct a `ScanReport` from a persisted scan-history record so
+    /// downstream consumers (recommendation engine, agentic tools) can run
+    /// against real saved data without re-scanning the filesystem.
+    pub fn from_history_record(record: &ScanHistoryRecord) -> Self {
+        let mut report = Self::new();
+        report.total_files = record.total_files;
+        report.total_size_bytes = record.total_size_bytes;
+        report.total_size_mb = record.total_size_mb;
+        report.duration_secs = record.duration_secs;
+        report.path = record.path.clone();
+        report.potential_cleanup_bytes = record.potential_cleanup_bytes;
+        report.timestamp = record.timestamp.clone();
+        report.extension_sizes =
+            serde_json::from_str(&record.extension_sizes_json).unwrap_or_default();
+        report.file_types = serde_json::from_str(&record.file_types_json).unwrap_or_default();
+        report.top_directories =
+            serde_json::from_str(&record.top_directories_json).unwrap_or_default();
+        report.largest_files =
+            serde_json::from_str(&record.largest_files_json).unwrap_or_default();
+        report.category_sizes =
+            serde_json::from_str(&record.category_sizes_json).unwrap_or_default();
+        report
+    }
+
     /// Estimate how many bytes could be reclaimed by cleaning caches,
     /// temp files, and setup/installer archives found in the largest-files list.
-    pub fn calculate_potential_cleanup(&self) -> u64 {
-        let mut total: u64 = 0;
+    pub fn calculate_potential_cleanup(&self) -> u64 {        let mut total: u64 = 0;
 
         for (ext, size) in &self.extension_sizes {
             let lower = ext.to_lowercase();

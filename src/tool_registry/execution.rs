@@ -28,6 +28,9 @@ impl ToolRegistry {
             "preview_impact" => Ok(self.preview_impact(args)),
             "move_to_trash" => Ok(self.move_to_trash_preview(args)),
             "hardlink_duplicates" => Ok(self.hardlink_duplicates_preview(args)),
+            "classify_file" => Ok(self.classify_file(args)),
+            "get_bloat_findings" => Ok(self.get_bloat_findings(scan_result)),
+            "get_recommendations" => Ok(self.get_recommendations(scan_result)),
             _ => Ok(
                 serde_json::json!({"error": format!("Unknown tool: {}", function_name)})
                     .to_string(),
@@ -77,6 +80,78 @@ impl ToolRegistry {
             ],
             "note": "The AI agent cannot perform destructive actions without explicit user approval. Use preview_impact on a specific file to assess the impact of any individual file deletion or move."
         }).to_string()
+    }
+
+    fn classify_file(&self, args: &serde_json::Value) -> String {
+        let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
+        if path.is_empty() {
+            return serde_json::json!({"error": "'path' parameter is required."}).to_string();
+        }
+        let size = args.get("size_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
+        let assessment = crate::origin_tracer::tracer::assess_file(path, size);
+        serde_json::to_string_pretty(&assessment)
+            .unwrap_or_else(|_| format!("{:#?}", assessment))
+    }
+
+    fn get_bloat_findings(&self, scan_result: Option<&ScanReport>) -> String {
+        if let Some(report) = scan_result {
+            let classifier = crate::offline_ai::FilePatternClassifier::new();
+            let mut findings: Vec<serde_json::Value> = Vec::new();
+
+            for dir in &report.top_directories {
+                if let Some(rule) = classifier.classify_path(&dir.path, dir.total_size) {
+                    findings.push(serde_json::json!({
+                        "category": rule.name,
+                        "description": rule.description,
+                        "path": dir.path,
+                        "size_bytes": dir.total_size,
+                        "priority": rule.priority,
+                    }));
+                }
+            }
+
+            for file in &report.largest_files {
+                if let Some(rule) = classifier.classify_path(&file.path, file.size) {
+                    findings.push(serde_json::json!({
+                        "category": rule.name,
+                        "description": rule.description,
+                        "path": file.path,
+                        "size_bytes": file.size,
+                        "priority": rule.priority,
+                    }));
+                }
+            }
+
+            findings.sort_by(|a, b| {
+                b["size_bytes"]
+                    .as_u64()
+                    .unwrap_or(0)
+                    .cmp(&a["size_bytes"].as_u64().unwrap_or(0))
+            });
+
+            serde_json::json!({
+                "path": report.path,
+                "findings": findings,
+                "count": findings.len(),
+            })
+            .to_string()
+        } else {
+            serde_json::json!({"error": "No scan results available."}).to_string()
+        }
+    }
+
+    fn get_recommendations(&self, scan_result: Option<&ScanReport>) -> String {
+        if let Some(report) = scan_result {
+            let recs = crate::recommendations::build_recommendations(report);
+            serde_json::json!({
+                "path": report.path,
+                "recommendations": recs,
+                "count": recs.len(),
+            })
+            .to_string()
+        } else {
+            serde_json::json!({"error": "No scan results available."}).to_string()
+        }
     }
 
     fn get_scan_summary(&self, scan_result: Option<&ScanReport>) -> String {

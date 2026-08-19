@@ -7,7 +7,7 @@ See [CHANGELOG.md](docs/CHANGELOG.md) for the current version.
 
 | Version | Supported |
 |---------|-----------|
-| Latest release (WinUI 3 frontend `v4.0.0` / Rust core `v3.7.0`) | ✅ |
+| Latest release (WinUI 3 frontend `v4.0.0` / Rust core `v4.1.0`) | ✅ |
 | Older releases | ❌ |
 
 ## Reporting a Vulnerability

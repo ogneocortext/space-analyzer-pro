@@ -76,11 +76,7 @@ pub struct DiskInfo {
     pub available_human: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
-pub struct Recommendation {
-    pub priority: u32,
-    pub message: String,
-}
+pub use space_analyzer_pro_desktop::recommendations::Recommendation;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum InstallerCategory {

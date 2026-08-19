@@ -10,6 +10,7 @@ Active development log — edit [`changelog/unreleased.md`](changelog/unreleased
 
 | Version | Date |
 |---------|------|
+| [`4.1.0`](changelog/4.1.0.md) | 2026-08-19 |
 | [`4.0.0`](changelog/4.0.0.md) | 2026-08-02 |
 | [`3.7.0`](changelog/3.7.0.md) | 2026-07-28 |
 | [`3.6.0`](changelog/3.6.0.md) | 2026-06-13 |

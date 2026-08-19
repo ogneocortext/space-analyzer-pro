@@ -1,14 +1,61 @@
 use crate::cli::helpers;
 use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::error::AppResult;
+use space_analyzer_pro_desktop::gui_common::ScanReport;
 use space_analyzer_pro_desktop::ollama::agentic::{agentic_question, ToolExecutor};
 use space_analyzer_pro_desktop::ollama::client::OllamaClient;
 use space_analyzer_pro_desktop::tool_registry::ToolRegistry;
 
-pub fn run_ai_question(
-    question: &str,
-    result: space_analyzer_pro_desktop::gui_common::ScanReport,
-) -> AppResult<()> {
+pub fn run_ai_question(question: &str, result: ScanReport) -> AppResult<()> {
+    ask_with_report(question, result)
+}
+
+/// Ask the local Ollama model a free-form question about a previously saved
+/// scan, using read-only tool-calling (scan history, disk volumes, system
+/// resources, storage trend, bloat findings, recommendations, file
+/// classification). Reconstructs the scan report from the embedded database so
+/// the agent can reason over real data without re-scanning the filesystem.
+pub fn run_ask(question: &str, scan_id: Option<i64>) -> AppResult<()> {
+    let db = Database::default_open().ok();
+    let record = match &db {
+        Some(db) => {
+            let id_opt = match scan_id {
+                Some(id) => Some(id),
+                None => db.get_latest_scan_id().ok().flatten(),
+            };
+            match id_opt {
+                Some(id) => db
+                    .get_scan_by_id(id)
+                    .map_err(|e| {
+                        space_analyzer_pro_desktop::error::AppError::Validation(format!(
+                            "Failed to load scan {id}: {e}"
+                        ))
+                    })?,
+                None => None,
+            }
+        }
+        None => None,
+    };
+
+    let record = record.ok_or_else(|| {
+        space_analyzer_pro_desktop::error::AppError::Validation(
+            scan_id
+                .map(|id| format!("No scan found with id {id}"))
+                .unwrap_or_else(|| "No scan history found. Run a scan first.".to_string()),
+        )
+    })?;
+
+    let report = ScanReport::from_history_record(&record);
+
+    eprintln!(
+        "Asking about saved scan #{} ({})...",
+        record.id, record.path
+    );
+
+    ask_with_report(question, report)
+}
+
+fn ask_with_report(question: &str, result: ScanReport) -> AppResult<()> {
     let settings = Database::default_open()
         .ok()
         .as_ref()

@@ -44,25 +44,7 @@ pub fn run(args: RecommendArgs, output_format: OutputFormat) -> AppResult<()> {
                 // Reconstruct a ScanReport from the persisted scan so the
                 // recommendation rules (which read path / extension sizes /
                 // top directories / largest files) run against real data.
-                let mut report = ScanReport::new();
-                report.total_files = record.total_files;
-                report.total_size_bytes = record.total_size_bytes;
-                report.total_size_mb = record.total_size_mb;
-                report.duration_secs = record.duration_secs;
-                report.path = record.path.clone();
-                report.potential_cleanup_bytes = record.potential_cleanup_bytes;
-                report.timestamp = record.timestamp.clone();
-                report.extension_sizes =
-                    serde_json::from_str(&record.extension_sizes_json).unwrap_or_default();
-                report.file_types =
-                    serde_json::from_str(&record.file_types_json).unwrap_or_default();
-                report.top_directories =
-                    serde_json::from_str(&record.top_directories_json).unwrap_or_default();
-                report.largest_files =
-                    serde_json::from_str(&record.largest_files_json).unwrap_or_default();
-                report.category_sizes =
-                    serde_json::from_str(&record.category_sizes_json).unwrap_or_default();
-
+                let report = ScanReport::from_history_record(&record);
                 recommendations = render::build_recommendations(&report);
             }
         }

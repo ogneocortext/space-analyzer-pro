@@ -55,6 +55,25 @@ impl ToolRegistry {
             ToolParameters::empty(),
         ));
 
+        // Tool: classify_file (origin-trace/classify — read-only)
+        self.definitions.push(ToolDefinition::new(
+            "classify_file",
+            "Classify a single file or directory by origin and assess how safe it is to delete. Returns the origin category, a deletion-safety verdict (SAFE / REVIEW / KEEP / DO NOT DELETE), whether an owning app is installed, and related files (hardlinks, symlinks, same-stem files). READ-ONLY — does not modify the filesystem.",
+            ToolParameters::new(
+                serde_json::json!({
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path to the file or directory to classify"
+                    },
+                    "size_bytes": {
+                        "type": "integer",
+                        "description": "Known size of the file in bytes (optional; improves the assessment)"
+                    }
+                }),
+                vec!["path".to_string()],
+            ),
+        ));
+
         // Tool: predict_storage
         self.definitions.push(ToolDefinition::new(
             "predict_storage",
@@ -186,6 +205,20 @@ impl ToolRegistry {
                     }),
                     vec![],
                 ),
+            ));
+
+            // Tool: get_bloat_findings
+            self.definitions.push(ToolDefinition::new(
+                "get_bloat_findings",
+                "Detect bloat candidates in the current scan using the offline classifier. Returns installer caches, temp/build artifacts, VM images, and other reclaimable categories found in the scan's top directories and largest files, each with a size and priority score.",
+                ToolParameters::empty(),
+            ));
+
+            // Tool: get_recommendations
+            self.definitions.push(ToolDefinition::new(
+                "get_recommendations",
+                "Surface prioritized cleanup recommendations for the current scan (drive-full warnings, Ollama model bloat, node_modules, caches, VM images, and more). Each recommendation carries a numeric priority (higher = more urgent).",
+                ToolParameters::empty(),
             ));
         }
     }

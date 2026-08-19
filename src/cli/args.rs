@@ -511,6 +511,22 @@ pub enum Commands {
         top: usize,
     },
 
+    /// Ask the local Ollama model a free-form question about a saved scan,
+    /// answered with read-only tool-calling (scan history, disk volumes,
+    /// system resources, storage trend, bloat findings, cleanup
+    /// recommendations, and per-file origin classification). Reconstructs the
+    /// scan report from the embedded database so it never re-scans the disk.
+    /// Requires Ollama running.
+    Ask {
+        /// The question to ask (wrap in quotes, e.g. "what is using the most space?")
+        #[arg(value_name = "QUESTION")]
+        question: String,
+
+        /// Analyze a specific saved scan record by id (defaults to the most recent scan)
+        #[arg(long)]
+        scan_id: Option<i64>,
+    },
+
     /// Enumerate installed applications and dev tools, then flag installs that are
     /// duplicated across drives/paths or present in multiple versions
     AppInventory,

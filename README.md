@@ -346,7 +346,12 @@ config/                    # Tool configuration (non-secret)
 
 ## Versioning
 
-The Rust core (`src/`, root `Cargo.toml`) and the WinUI 3 frontend (`gui-winui/`) are versioned **independently**. The Rust core has the longer development history (currently `3.7.0`); the WinUI 3 frontend is `4.0.0`. They are designed to work as a combined system, but each can also be used on its own — the Rust core as a library/CLI, and the WinUI 3 app via subprocess calls to that CLI.
+The Rust core (`src/`, root `Cargo.toml`) and the WinUI 3 frontend (`gui-winui/`) are versioned **independently**. The Rust core has the longer development history (currently `4.1.0`); the WinUI 3 frontend is `4.0.0`. They are designed to work as a combined system, but each can also be used on its own — the Rust core as a library/CLI, and the WinUI 3 app via subprocess calls to that CLI.
+
+**v4.1.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
+- `ask` subcommand + 3 non-destructive agentic tools (`classify_file`, `get_bloat_findings`, `get_recommendations`); recommendation engine moved into the core crate.
+- Agent Execution Trace dashboard for agentic-loop observability (OTel-style event stream, token/timing telemetry, human-in-the-loop stop, replay).
+- Macro Dashboard server modularized; Gallery/Reports responsive UX + vision re-triage.
 
 **v4.0.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
 - Token-based WinUI 3 design system (App.xaml resource dictionary).

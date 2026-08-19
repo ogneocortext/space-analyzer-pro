@@ -1,7 +1,7 @@
 use crate::animation::{display_width, SECTION_WIDTH};
-use crate::cli::helpers;
-use crate::cli::types::{InstallerCategory, InstallerGroup, Recommendation, ScanReport};
+use crate::cli::types::{InstallerCategory, InstallerGroup, ScanReport};
 use crate::hprintln;
+use space_analyzer_pro_desktop::recommendations::{is_installer, Recommendation};
 use scan_engine::format_bytes;
 
 pub fn pct_of(part: u64, total: u64) -> f64 {
@@ -10,18 +10,6 @@ pub fn pct_of(part: u64, total: u64) -> f64 {
     } else {
         0.0
     }
-}
-
-pub fn is_installer(path: &str) -> bool {
-    let lower = path.to_lowercase();
-    lower.ends_with(".exe")
-        || lower.ends_with(".msi")
-        || lower.ends_with(".rar")
-        || lower.ends_with(".zip")
-        || lower.ends_with(".dmg")
-        || lower.ends_with(".deb")
-        || lower.ends_with(".rpm")
-        || lower.ends_with(".pkg")
 }
 
 /// Render an extension for display. Empty extensions become `(no ext)`
@@ -122,258 +110,8 @@ pub fn categorize_installers(result: &ScanReport) -> Vec<InstallerGroup> {
     ordered
 }
 
-/// Total bytes held by `node_modules` directories.
-///
-/// Shared by the recommendations block and the `--cleanup-recommendations`
-/// block so the two never report different numbers for the same thing.
-pub fn node_modules_bytes(result: &ScanReport) -> u64 {
-    let from_dirs: u64 = result
-        .top_directories
-        .iter()
-        .filter(|d| d.path.to_lowercase().contains("node_modules"))
-        .map(|d| d.total_size)
-        .sum();
-    if from_dirs > 0 {
-        return from_dirs;
-    }
-    result
-        .largest_files
-        .iter()
-        .filter(|f| f.path.to_lowercase().contains("node_modules"))
-        .map(|f| f.size)
-        .sum()
-}
-
 pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
-    let mut recs = Vec::new();
-
-    if let Some(disk) = helpers::get_disk_info(&result.path) {
-        if disk.usage_percent > 90.0 {
-            recs.push((
-                3,
-                format!(
-                    "CRITICAL: Drive {} is {:.0}% full! Only {} free. Immediate cleanup recommended.",
-                    disk.mount_point, disk.usage_percent, format_bytes(disk.available_bytes)
-                ),
-            ));
-        } else if disk.usage_percent > 80.0 {
-            recs.push((
-                2,
-                format!(
-                    "WARNING: Drive {} is {:.0}% full. {} free. Consider cleanup soon.",
-                    disk.mount_point,
-                    disk.usage_percent,
-                    format_bytes(disk.available_bytes)
-                ),
-            ));
-        }
-    }
-
-    let ollama_size: u64 = result
-        .largest_files
-        .iter()
-        .filter(|file| file.path.to_lowercase().contains("ollama"))
-        .map(|file| file.size)
-        .sum();
-    if ollama_size > 1024 * 1024 * 1024 {
-        recs.push((
-            2,
-            format!(
-                "Ollama models are using {}. Run `ollama rm <model>` to free space.",
-                format_bytes(ollama_size)
-            ),
-        ));
-    }
-
-    let log_size: u64 = result.extension_sizes.get("log").copied().unwrap_or(0);
-    if log_size > 100 * 1024 * 1024 {
-        recs.push((
-            1,
-            format!(
-                "Log files are using {}. Consider clearing old logs.",
-                format_bytes(log_size)
-            ),
-        ));
-    }
-
-    let exe_size: u64 = result.extension_sizes.get("exe").copied().unwrap_or(0);
-    if exe_size > 500 * 1024 * 1024 {
-        recs.push((
-            1,
-            format!(
-                "Installer/executable files are using {}. Check Downloads for old installers.",
-                format_bytes(exe_size)
-            ),
-        ));
-    }
-
-    // Collapse VM/WSL disk images into a single line instead of one line per
-    // matching file, which used to flood the recommendations block.
-    let vm_images: Vec<&space_analyzer_pro_desktop::gui_common::LargestFileEntry> = result
-        .largest_files
-        .iter()
-        .filter(|file| {
-            let lower = file.path.to_lowercase();
-            (lower.ends_with(".vhdx") || lower.ends_with(".vhd") || lower.contains("\\wsl"))
-                && file.size > 1024 * 1024 * 1024
-        })
-        .collect();
-    if !vm_images.is_empty() {
-        let total: u64 = vm_images.iter().map(|f| f.size).sum();
-        let names: Vec<String> = vm_images
-            .iter()
-            .take(3)
-            .map(|f| {
-                std::path::Path::new(&f.path)
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string()
-            })
-            .collect();
-        let suffix = if vm_images.len() > 3 {
-            format!(" and {} more", vm_images.len() - 3)
-        } else {
-            String::new()
-        };
-        recs.push((
-            2,
-            format!(
-                "WSL/VM disk images are using {} ({}{}) — consider compacting or removing unused distributions.",
-                format_bytes(total),
-                names.join(", "),
-                suffix
-            ),
-        ));
-    }
-
-    let node_modules_size = node_modules_bytes(result);
-    if node_modules_size > 0 {
-        recs.push((1, format!(
-            "node_modules directories are using {}. Run `npm prune` or delete unused project dependencies.",
-            format_bytes(node_modules_size)
-        )));
-    }
-
-    let cache_size: u64 = result
-        .top_directories
-        .iter()
-        .filter(|d| {
-            let l = d.path.to_lowercase();
-            l.contains("cache")
-                || l.contains("temp")
-                || l.contains("tmp")
-                || l.contains("dxcache")
-                || l.contains("code cache")
-                || l.contains("cachedata")
-                || l.contains("cachedextensionvsixs")
-        })
-        .map(|d| d.total_size)
-        .sum();
-    if cache_size > 500 * 1024 * 1024 {
-        recs.push((
-            1,
-            format!(
-                "Cache/temp directories are using {}. Consider clearing application caches.",
-                format_bytes(cache_size)
-            ),
-        ));
-    }
-
-    let recycle_bin_size: u64 = result
-        .top_directories
-        .iter()
-        .filter(|d| d.path.to_lowercase().contains("$recycle.bin"))
-        .map(|d| d.total_size)
-        .sum();
-    if recycle_bin_size > 0 {
-        recs.push((
-            2,
-            format!(
-                "Recycle Bin contains {} of deleted files. Empty it to reclaim space.",
-                format_bytes(recycle_bin_size)
-            ),
-        ));
-    }
-
-    let downloads_size: u64 = result
-        .top_directories
-        .iter()
-        .filter(|d| {
-            let l = d.path.to_lowercase();
-            l.contains("\\downloads") || l.contains("/downloads")
-        })
-        .map(|d| d.total_size)
-        .sum();
-    if downloads_size > 1024 * 1024 * 1024 {
-        recs.push((1, format!(
-            "Downloads folder is using {}. Look for old installers (CUDA, drivers, apps) you can delete.",
-            format_bytes(downloads_size)
-        )));
-    }
-
-    let installer_cache: u64 = result
-        .top_directories
-        .iter()
-        .filter(|d| d.path.to_lowercase().contains("windows\\installer"))
-        .map(|d| d.total_size)
-        .sum();
-    if installer_cache > 500 * 1024 * 1024 {
-        recs.push((1, format!(
-            "Windows Installer cache is using {}. Use Disk Cleanup (cleanmgr) or PatchCleaner to remove orphaned .msi/.msp files.",
-            format_bytes(installer_cache)
-        )));
-    }
-
-    let browser_cache: u64 = result
-        .top_directories
-        .iter()
-        .filter(|d| {
-            let l = d.path.to_lowercase();
-            l.contains("googleupdater") || l.contains("crx_cache") || l.contains("edgecore")
-        })
-        .map(|d| d.total_size)
-        .sum();
-    if browser_cache > 100 * 1024 * 1024 {
-        recs.push((1, format!(
-            "Browser updater cache (Google, Edge) is using {}. Safe to clear — browsers will re-download on update.",
-            format_bytes(browser_cache)
-        )));
-    }
-
-    let user_debug: u64 = result
-        .top_directories
-        .iter()
-        .filter(|d| {
-            let l = d.path.to_lowercase();
-            (l.contains("users") && (l.contains(".cache") || l.contains("mypy_cache")))
-                || (l.contains("documents") && l.ends_with(".csv"))
-        })
-        .map(|d| d.total_size)
-        .sum();
-    if user_debug > 50 * 1024 * 1024 {
-        recs.push((1, format!(
-            "User debug/cache files are using {}. Check Downloads, Documents, and AppData for old logs and artifacts.",
-            format_bytes(user_debug)
-        )));
-    }
-
-    if result.total_files > 1000 {
-        recs.push((
-            0,
-            "Run with `--clean` to find duplicate files that can be deduplicated using hard links."
-                .to_string(),
-        ));
-    }
-
-    let mut recs: Vec<Recommendation> = recs
-        .into_iter()
-        .map(|(priority, message)| Recommendation { priority, message })
-        .collect();
-    // Sort once, here, so the text and markdown renderers can never disagree
-    // about the order of the same advice.
-    recs.sort_by_key(|r| std::cmp::Reverse(r.priority));
-    recs
+    space_analyzer_pro_desktop::recommendations::build_recommendations(result)
 }
 
 pub fn render_recommendations_text(recs: &[Recommendation]) {
@@ -542,6 +280,6 @@ mod tests {
             });
         // Directory totals win; the file list is only a fallback, so the two
         // renderers can never disagree.
-        assert_eq!(node_modules_bytes(&result), 500);
+        assert_eq!(space_analyzer_pro_desktop::recommendations::node_modules_bytes(&result), 500);
     }
 }

@@ -14,6 +14,7 @@ pub mod file_relations;
 pub mod gui_common;
 pub mod offline_ai;
 pub mod ollama;
+pub mod recommendations;
 pub mod origin_tracer;
 pub mod session_logger;
 pub mod system_monitor;
