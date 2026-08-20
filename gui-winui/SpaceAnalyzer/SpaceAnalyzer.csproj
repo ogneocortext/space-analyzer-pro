@@ -22,6 +22,16 @@
          fails to bootstrap with "missing required components". -->
   </PropertyGroup>
 
+  <!-- Branded executable icon (shared asset at repo-root assets/icon). -->
+  <PropertyGroup>
+    <ApplicationIcon>..\..\assets\icon\app-icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- Copy the logo into the build output so the About page can display it. -->
+  <ItemGroup>
+    <Content Include="..\..\assets\icon\icon-256.png" Link="Assets\app-icon-256.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2526" />

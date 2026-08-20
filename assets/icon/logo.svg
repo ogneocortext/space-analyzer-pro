@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Space Analyzer Pro logo">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0A0E27"/>
+      <stop offset="1" stop-color="#16213E"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- App tile (matches the product's dark theme) -->
+  <rect x="16" y="16" width="480" height="480" rx="104" fill="url(#tile)"/>
+  <rect x="17.5" y="17.5" width="477" height="477" rx="103" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="3"/>
+
+  <!-- Disk-usage ring: faint full ring + bright highlighted segment (~40%) -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#0078D4" stroke-opacity="0.28" stroke-width="60"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="url(#ring)" stroke-width="60" stroke-linecap="round"
+          stroke-dasharray="377 566" transform="rotate(-90 256 256)"/>
+
+  <!-- Focal center dot -->
+  <circle cx="256" cy="256" r="16" fill="#22D3EE"/>
+</svg>
