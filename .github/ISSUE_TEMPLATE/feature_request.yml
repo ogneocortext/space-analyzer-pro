@@ -1,0 +1,34 @@
+name: Feature request
+description: Suggest an enhancement for Space Analyzer Pro
+title: "[FEATURE] <short summary>"
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem would this feature solve? What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the feature and how it should behave.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints
+      options:
+        - label: This does not require background workflow triggers or schedulers (those are on hold per ARCHITECTURE_DECISIONS.md section 8).
+          required: false
+        - label: I understand destructive actions such as cleanup, dedup, and deletion must stay user-confirmed.
+          required: false
