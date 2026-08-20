@@ -45,6 +45,7 @@ public partial class ScannerService
         string sortBy = "timestamp",
         bool sortAsc = false,
         bool onlyDuplicates = false,
+        bool includeIndexOnly = false,
         CancellationToken ct = default)
     {
         if (!IsAvailable)
@@ -68,6 +69,7 @@ public partial class ScannerService
         }
         if (caps.HistorySearch && !string.IsNullOrWhiteSpace(search)) { argList.Add("--search"); argList.Add(search); }
         if (caps.HistoryOnlyDuplicates && onlyDuplicates) argList.Add("--only-duplicates");
+        if (includeIndexOnly) argList.Add("--include-index-only");
 
         var output = await RunScannerAsync(argList, ct);
         if (string.IsNullOrWhiteSpace(output))

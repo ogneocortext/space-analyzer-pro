@@ -25,6 +25,7 @@ pub fn handle_history(
     category_totals: bool,
     duplicates: bool,
     summarize: bool,
+    include_index_only: bool,
     output_format: OutputFormat,
 ) -> AppResult<()> {
     if summarize {
@@ -277,13 +278,14 @@ pub fn handle_history(
                 }
             }
         } else {
-            match db.get_scan_history_page(
+            match                 db.get_scan_history_page(
                 limit,
                 offset,
                 search.as_deref(),
                 &sort_by,
                 sort_asc,
                 only_duplicates,
+                include_index_only,
             ) {
                 Ok((records, total)) => {
                     let response = serde_json::json!({

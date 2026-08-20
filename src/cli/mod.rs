@@ -109,6 +109,7 @@ pub fn main() -> AppResult<()> {
             category_totals,
             duplicates,
             summarize,
+            include_index_only,
         } => history_command::handle_history(
             limit,
             offset,
@@ -127,6 +128,7 @@ pub fn main() -> AppResult<()> {
             category_totals,
             duplicates,
             summarize,
+            include_index_only,
             output_format,
         ),
         Commands::Dedup {

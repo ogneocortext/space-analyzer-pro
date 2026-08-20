@@ -296,7 +296,7 @@ public partial class ToolExecutor
 
         var target = NormalizePath(path);
         var (records, _) = await _scanner.GetScanHistoryPageAsync(
-            limit: 50, search: path, sortBy: "timestamp", sortAsc: false, ct: ct);
+            limit: 50, search: path, sortBy: "timestamp", sortAsc: false, includeIndexOnly: true, ct: ct);
 
         return records.FirstOrDefault(r => NormalizePath(r.Path) == target);
     }

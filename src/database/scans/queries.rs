@@ -150,7 +150,7 @@ impl Database {
     pub fn get_scan_history(&self, limit: usize) -> rusqlite::Result<Vec<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only
-             FROM scan_history ORDER BY timestamp DESC LIMIT ?1",
+             FROM scan_history WHERE (is_index_only = 0 OR is_index_only IS NULL) ORDER BY timestamp DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], |row| {
             Ok(ScanHistoryRecord {
@@ -190,6 +190,7 @@ impl Database {
         sort_by: &str,
         sort_asc: bool,
         only_duplicates: bool,
+        include_index_only: bool,
     ) -> rusqlite::Result<(Vec<ScanHistoryRecord>, i64)> {
         let order = match sort_by {
             "path" => "path",
@@ -200,19 +201,40 @@ impl Database {
         };
         let direction = if sort_asc { "ASC" } else { "DESC" };
 
+        // Index-only rows (created by `embed` with no real scan) are semantic
+        // embedding anchors, not user scans. They are hidden from the
+        // user-facing history list/trend/donut by default; the agentic
+        // assistant passes `include_index_only` to locate an existing index.
+        let idx_pred = if include_index_only {
+            String::new()
+        } else {
+            "(is_index_only = 0 OR is_index_only IS NULL)".to_string()
+        };
+        let where_idx = if idx_pred.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {idx_pred}")
+        };
+        let and_idx = if idx_pred.is_empty() {
+            String::new()
+        } else {
+            format!("AND {idx_pred}")
+        };
+
         let columns = "id, path, total_files, total_size_bytes, total_size_mb, duration_secs, \
                      file_types_json, extension_sizes_json, top_directories_json, largest_files_json, \
                      category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only";
 
-        let dup_clause =
-            "path IN (SELECT path FROM scan_history GROUP BY path HAVING COUNT(*) > 1)";
+        let dup_clause = format!(
+            "path IN (SELECT path FROM scan_history {where_idx} GROUP BY path HAVING COUNT(*) > 1)"
+        );
         let (count_sql, query_sql, bound) = match (search, only_duplicates) {
             (Some(s), true) => {
                 let pattern = format!("%{}%", s.replace('\'', "''"));
                 (
-                    format!("SELECT COUNT(*) FROM scan_history WHERE path LIKE ?1 AND {dup_clause}"),
+                    format!("SELECT COUNT(*) FROM scan_history WHERE path LIKE ?1 {and_idx} AND {dup_clause}"),
                     format!(
-                        "SELECT {columns} FROM scan_history WHERE path LIKE ?1 AND {dup_clause} ORDER BY {order} {direction} LIMIT ?2 OFFSET ?3"
+                        "SELECT {columns} FROM scan_history WHERE path LIKE ?1 {and_idx} AND {dup_clause} ORDER BY {order} {direction} LIMIT ?2 OFFSET ?3"
                     ),
                     vec![
                         Box::new(pattern) as Box<dyn rusqlite::ToSql>,
@@ -224,9 +246,9 @@ impl Database {
             (Some(s), false) => {
                 let pattern = format!("%{}%", s.replace('\'', "''"));
                 (
-                    "SELECT COUNT(*) FROM scan_history WHERE path LIKE ?1".to_string(),
+                    format!("SELECT COUNT(*) FROM scan_history WHERE path LIKE ?1 {and_idx}"),
                     format!(
-                        "SELECT {columns} FROM scan_history WHERE path LIKE ?1 ORDER BY {order} {direction} LIMIT ?2 OFFSET ?3"
+                        "SELECT {columns} FROM scan_history WHERE path LIKE ?1 {and_idx} ORDER BY {order} {direction} LIMIT ?2 OFFSET ?3"
                     ),
                     vec![
                         Box::new(pattern) as Box<dyn rusqlite::ToSql>,
@@ -236,9 +258,9 @@ impl Database {
                 )
             }
             (None, true) => (
-                format!("SELECT COUNT(*) FROM scan_history WHERE {dup_clause}"),
+                format!("SELECT COUNT(*) FROM scan_history WHERE {idx_pred} AND {dup_clause}"),
                 format!(
-                    "SELECT {columns} FROM scan_history WHERE {dup_clause} ORDER BY {order} {direction} LIMIT ?1 OFFSET ?2"
+                    "SELECT {columns} FROM scan_history WHERE {idx_pred} AND {dup_clause} ORDER BY {order} {direction} LIMIT ?1 OFFSET ?2"
                 ),
                 vec![
                     Box::new(limit as i64) as Box<dyn rusqlite::ToSql>,
@@ -246,9 +268,9 @@ impl Database {
                 ],
             ),
             (None, false) => (
-                "SELECT COUNT(*) FROM scan_history".to_string(),
+                format!("SELECT COUNT(*) FROM scan_history {where_idx}"),
                 format!(
-                    "SELECT {columns} FROM scan_history ORDER BY {order} {direction} LIMIT ?1 OFFSET ?2"
+                    "SELECT {columns} FROM scan_history {where_idx} ORDER BY {order} {direction} LIMIT ?1 OFFSET ?2"
                 ),
                 vec![
                     Box::new(limit as i64) as Box<dyn rusqlite::ToSql>,
@@ -294,7 +316,7 @@ impl Database {
     /// even for thousands of records.
     pub fn get_scan_history_trend(&self) -> rusqlite::Result<Vec<HistoryTrendPoint>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, timestamp, total_size_bytes FROM scan_history ORDER BY timestamp ASC",
+            "SELECT id, path, timestamp, total_size_bytes FROM scan_history WHERE (is_index_only = 0 OR is_index_only IS NULL) ORDER BY timestamp ASC",
         )?;
         let rows = stmt.query_map([], |row| {
             Ok(HistoryTrendPoint {
@@ -315,7 +337,7 @@ impl Database {
     pub fn get_category_totals(&self) -> rusqlite::Result<HashMap<String, u64>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT category_sizes_json FROM scan_history")?;
+            .prepare("SELECT category_sizes_json FROM scan_history WHERE (is_index_only = 0 OR is_index_only IS NULL)")?;
         let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
 
         let mut totals: HashMap<String, u64> = HashMap::new();
@@ -680,16 +702,42 @@ mod tests {
         insert_scan(&db, "C:\\unique", 300, 7);
 
         let (all, total_all) = db
-            .get_scan_history_page(50, 0, None, "timestamp", false, false)
+            .get_scan_history_page(50, 0, None, "timestamp", false, false, false)
             .unwrap();
         assert_eq!(total_all, 3);
         assert_eq!(all.len(), 3);
 
         let (dupes, total_dupes) = db
-            .get_scan_history_page(50, 0, None, "timestamp", false, true)
+            .get_scan_history_page(50, 0, None, "timestamp", false, true, false)
             .unwrap();
         assert_eq!(total_dupes, 2, "both re-scans of C:\\dup must be returned");
         assert!(dupes.iter().all(|r| r.path.eq_ignore_ascii_case("C:\\dup")));
+    }
+
+    #[test]
+    fn get_scan_history_page_excludes_index_only_by_default() {
+        let db = test_db();
+        insert_scan(&db, "C:\\real", 100, 5);
+        // Index-only anchor created by `embed` with no real scan.
+        db.conn
+            .execute(
+                "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only)
+                 VALUES ('C:\\idx', 5, 100, 0.0, 0.0, '{}', '{}', '[]', '[]', 0, 0, 5, 0, '2026-08-03T00:00:09Z', 1)",
+                [],
+            )
+            .unwrap();
+
+        let (all, total) = db
+            .get_scan_history_page(50, 0, None, "timestamp", false, false, false)
+            .unwrap();
+        assert_eq!(total, 1, "index-only anchor must be excluded by default");
+        assert!(all.iter().all(|r| !r.is_index_only));
+
+        let (inc, total_inc) = db
+            .get_scan_history_page(50, 0, None, "timestamp", false, false, true)
+            .unwrap();
+        assert_eq!(total_inc, 2, "--include-index-only must surface the anchor");
+        assert!(inc.iter().any(|r| r.is_index_only));
     }
 
     #[test]

@@ -330,6 +330,13 @@ pub enum Commands {
         /// the most recent (or --id) scan. Requires Ollama running.
         #[arg(long)]
         summarize: bool,
+
+        /// Include semantic-index-only scan records (created by `embed` with no
+        /// real scan) in the results. These are normally hidden from the history
+        /// list; the agentic assistant passes this flag to locate an existing
+        /// embedding index for reuse.
+        #[arg(long)]
+        include_index_only: bool,
     },
 
     /// Run duplicate-file analysis on a directory and output JSON

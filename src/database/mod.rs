@@ -577,7 +577,7 @@ impl Database {
     pub fn get_latest_scan_id(&self) -> rusqlite::Result<Option<i64>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id FROM scan_history ORDER BY timestamp DESC LIMIT 1")?;
+            .prepare("SELECT id FROM scan_history WHERE (is_index_only = 0 OR is_index_only IS NULL) ORDER BY timestamp DESC LIMIT 1")?;
         let mut rows = stmt.query([])?;
         if let Some(row) = rows.next()? {
             Ok(Some(row.get(0)?))
