@@ -374,6 +374,103 @@ impl Database {
         Ok(totals)
     }
 
+    /// Return the deduplicated union of every file recorded in the per-scan
+    /// `file_cache`, grouped by `file_path`. Each row carries the newest size
+    /// and mtime seen across scans, how many distinct scans observed it, and a
+    /// comma-joined list of the source scan roots. This is the "centralized
+    /// file inventory" the History page searches and analyzes. The heavy per-
+    /// scan JSON is avoided; only the lightweight cache columns are read.
+    pub fn get_merged_files(
+        &self,
+        search: Option<&str>,
+        limit: usize,
+        offset: usize,
+    ) -> rusqlite::Result<(Vec<MergedFileEntry>, i64)> {
+        let like = match search {
+            Some(s) if !s.is_empty() => format!("%{}%", s.replace('\'', "''")),
+            _ => String::new(),
+        };
+
+        let (count_sql, query_sql, count_params, query_params): (
+            String,
+            String,
+            Vec<Box<dyn rusqlite::ToSql>>,
+            Vec<Box<dyn rusqlite::ToSql>>,
+        ) = if like.is_empty() {
+            (
+                "SELECT COUNT(DISTINCT file_path) FROM file_cache".to_string(),
+                "SELECT file_path, MAX(size_bytes) AS size_bytes, MAX(mtime_unix) AS mtime_unix, \
+                        MAX(extension) AS extension, COUNT(DISTINCT scan_path) AS scan_count, \
+                        GROUP_CONCAT(DISTINCT scan_path) AS source_paths \
+                 FROM file_cache \
+                 GROUP BY file_path ORDER BY size_bytes DESC LIMIT ?1 OFFSET ?2"
+                    .to_string(),
+                vec![],
+                vec![
+                    Box::new(limit as i64) as Box<dyn rusqlite::ToSql>,
+                    Box::new(offset as i64) as Box<dyn rusqlite::ToSql>,
+                ],
+            )
+        } else {
+            (
+                "SELECT COUNT(DISTINCT file_path) FROM file_cache WHERE file_path LIKE ?1".to_string(),
+                "SELECT file_path, MAX(size_bytes) AS size_bytes, MAX(mtime_unix) AS mtime_unix, \
+                        MAX(extension) AS extension, COUNT(DISTINCT scan_path) AS scan_count, \
+                        GROUP_CONCAT(DISTINCT scan_path) AS source_paths \
+                 FROM file_cache WHERE file_path LIKE ?1 \
+                 GROUP BY file_path ORDER BY size_bytes DESC LIMIT ?2 OFFSET ?3"
+                    .to_string(),
+                vec![Box::new(like.clone()) as Box<dyn rusqlite::ToSql>],
+                vec![
+                    Box::new(like) as Box<dyn rusqlite::ToSql>,
+                    Box::new(limit as i64) as Box<dyn rusqlite::ToSql>,
+                    Box::new(offset as i64) as Box<dyn rusqlite::ToSql>,
+                ],
+            )
+        };
+
+        let total: i64 = if count_params.is_empty() {
+            self.conn.query_row(&count_sql, [], |row| row.get(0))?
+        } else {
+            self.conn
+                .query_row(&count_sql, rusqlite::params_from_iter(count_params.iter().map(|b| &**b)), |row| {
+                    row.get(0)
+                })?
+        };
+
+        let mut stmt = self.conn.prepare(&query_sql)?;
+        let rows = stmt
+            .query_map(rusqlite::params_from_iter(query_params.iter().map(|b| &**b)), |row| {
+                Ok(MergedFileEntry {
+                    file_path: row.get(0)?,
+                    size_bytes: row.get::<_, i64>(1)? as u64,
+                    mtime_unix: row.get::<_, i64>(2)?,
+                    extension: row.get(3)?,
+                    scan_count: row.get::<_, i64>(4)? as usize,
+                    source_paths: row.get(5)?,
+                })
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        Ok((rows, total))
+    }
+
+    /// Return `(date, scan_count)` for every calendar day that has at least one
+    /// scan-history record (index-only anchors excluded). `date` is `YYYY-MM-DD`
+    /// (UTC). Powers the History page calendar heatmap so days with scans can be
+    /// highlighted, and selecting a day can filter the scan list.
+    pub fn get_scan_day_counts(&self) -> rusqlite::Result<Vec<(String, i64)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT date(timestamp) AS day, COUNT(*) AS cnt \
+             FROM scan_history WHERE (is_index_only = 0 OR is_index_only IS NULL) \
+             GROUP BY day ORDER BY day ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })?;
+        rows.collect()
+    }
+
     /// Return every stored duplicate-file analysis for a scan, newest first.
     ///
     /// A scan may have several analyses saved over time (re-runs of `dedup`).
@@ -878,5 +975,62 @@ mod tests {
         assert_eq!(points.len(), 2);
         assert!(points[0].path.eq_ignore_ascii_case("C:\\a"));
         assert_eq!(points[1].total_size_bytes, 200);
+    }
+
+    #[test]
+    fn get_merged_files_dedups_across_scans() {
+        let db = test_db();
+        insert_scan(&db, "C:\\a", 1000, 10);
+        // Same file seen under two different scan roots; a second distinct file.
+        db.save_file_cache(
+            "C:\\a",
+            &[
+                ("C:\\a\\x.txt".to_string(), 100u64, 111i64, "txt".to_string()),
+                ("C:\\a\\y.txt".to_string(), 200u64, 222i64, "txt".to_string()),
+            ],
+        )
+        .unwrap();
+        db.save_file_cache(
+            "D:\\backup",
+            &[("C:\\a\\x.txt".to_string(), 150u64, 333i64, "txt".to_string())],
+        )
+        .unwrap();
+
+        let (rows, total) = db.get_merged_files(None, 100, 0).unwrap();
+        assert_eq!(total, 2);
+        let x = rows.iter().find(|r| r.file_path == "C:\\a\\x.txt").unwrap();
+        assert_eq!(x.scan_count, 2);
+        assert_eq!(x.size_bytes, 150); // MAX across scans
+        let y = rows.iter().find(|r| r.file_path == "C:\\a\\y.txt").unwrap();
+        assert_eq!(y.scan_count, 1);
+
+        // Search narrows the result.
+        let (found, found_total) = db.get_merged_files(Some("y.txt"), 100, 0).unwrap();
+        assert_eq!(found_total, 1);
+        assert_eq!(found[0].file_path, "C:\\a\\y.txt");
+    }
+
+    #[test]
+    fn get_scan_day_counts_groups_by_day() {
+        let db = test_db();
+        for (path, day) in [
+            ("C:\\a", "2026-08-03T01:00:00Z"),
+            ("C:\\b", "2026-08-03T02:00:00Z"),
+            ("C:\\c", "2026-08-04T01:00:00Z"),
+        ] {
+            db.conn
+                .execute(
+                    "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp) VALUES (?1, 1, 1, 0.0, 0.0, '{}', '{}', '[]', '[]', 0, 0, 5, 0, ?2)",
+                    params![path, day],
+                )
+                .unwrap();
+        }
+
+        let days = db.get_scan_day_counts().unwrap();
+        assert_eq!(days.len(), 2);
+        let day0 = days.iter().find(|(d, _)| d == "2026-08-03").unwrap();
+        assert_eq!(day0.1, 2);
+        let day1 = days.iter().find(|(d, _)| d == "2026-08-04").unwrap();
+        assert_eq!(day1.1, 1);
     }
 }

@@ -110,6 +110,8 @@ pub fn main() -> AppResult<()> {
             duplicates,
             summarize,
             include_index_only,
+            files,
+            calendar,
             yes,
         } => history_command::handle_history(
             limit,
@@ -130,6 +132,8 @@ pub fn main() -> AppResult<()> {
             duplicates,
             summarize,
             include_index_only,
+            files,
+            calendar,
             yes,
             output_format,
         ),

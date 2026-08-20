@@ -19,19 +19,20 @@ CAPTURE POLICY (self-improvement loop — see analyze_design_feedback.py):
   images and accumulates a categorized backlog. Re-capture only after an
   implemented change is visible.
 
-The WinUI 3 NavigationView uses PaneDisplayMode="Top" (horizontal top bar, NOT a
-left sidebar). Keyboard navigation (Right+Enter) failed intermittently: focus
-shifted to Quick Action buttons and opened browser tabs.
+DETERMINISTIC CAPTURE (no flaky UI Automation tab switching):
+  Each page is captured by launching a FRESH SpaceAnalyzer.exe with the app's
+  stable ``--page <token>`` launch argument (see App.xaml.cs s_pageAliases), so
+  the app opens directly on the target tab. This is robust and self-diagnosing:
+  a page that fails to load only loses its own screenshot, and the run writes a
+  capture_manifest.json recording per-page success / process return code.
 
-Key findings from UIA tree inspection:
+  The earlier approach drove tab navigation through the UI Automation
+  SelectionItemPattern, which intermittently left the History tab unreachable and
+  made the process appear dead. That code (_select_tab / snap) is retained as a
+  fallback library but is no longer used by main().
+
+Legacy UIA findings (retained for reference / fallback use):
   - Window title includes a version suffix: "Space Analyzer Pro v4.0.0"
-  - Nav items are TabItemControl (class=NavigationViewItem) with a UIA Name that
-    usually equals the visible label — EXCEPT "Advanced Search" (UIA Name "Search")
-    and "Automation Workflows" (UIA Name "Workflows").
-  - At a normal window width all tabs are visible TabItemControls; when the window
-    is narrow some overflow into a "More" flyout (exposed as MenuItemControl).
-  - UIA Invoke() throws HRESULT after the first navigation, but
-    SelectionItemPattern.Select() switches tabs reliably and cursor-less.
   - Window must be found by process PID/HWND, not title (other apps may match).
   - WindowControl must be re-created from HWND each iteration (elements go stale).
 """
@@ -104,6 +105,12 @@ user32.GetMonitorInfoW.argtypes = [HWND, ctypes.c_void_p]
 user32.GetMonitorInfoW.restype = ctypes.c_int
 user32.IsWindow.argtypes = [HWND]
 user32.IsWindow.restype = ctypes.c_int
+user32.IsWindowVisible.argtypes = [HWND]
+user32.IsWindowVisible.restype = ctypes.c_int
+user32.GetClassNameW.argtypes = [HWND, ctypes.c_wchar_p, ctypes.c_int]
+user32.GetClassNameW.restype = ctypes.c_int
+user32.GetWindowTextW.argtypes = [HWND, ctypes.c_wchar_p, ctypes.c_int]
+user32.GetWindowTextW.restype = ctypes.c_int
 
 MonitorEnumProc = ctypes.WINFUNCTYPE(
     ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p,
@@ -195,6 +202,28 @@ TAB_NOTES = {
 AUTO_NAME = {
     "Advanced Search": "Search",
     "Automation Workflows": "Workflows",
+}
+
+# The app exposes a stable, automation-friendly launch entry point:
+#   SpaceAnalyzer.exe --page <token>
+# where <token> matches a key in App.xaml.cs s_pageAliases (case-insensitive).
+# Driving capture through this (one fresh process per page) is DETERMINISTIC and
+# immune to the flaky UIA tab-selection that used to leave the History tab
+# unreachable / the process to appear dead. Each slug maps to the token passed to
+# --page; the visible label is still used for the gallery note.
+SLUG_PAGE_TOKEN = {
+    "dashboard":      "dashboard",
+    "scan":           "scan",
+    "history":        "history",
+    "smart-search":   "advancedsearch",
+    "workflows":      "automationworkflows",
+    "ai-chat":        "aichat",
+    "dedup":          "dedup",
+    "installed-apps": "installedapps",
+    "system":         "system",
+    "cleanup":        "cleanup",
+    "usn-journal":    "usnjournal",
+    "settings":       "settings",
 }
 
 # Set at runtime (main): the active bucket and its origin/representation.
@@ -420,6 +449,58 @@ def snap(slug: str, hwnd, label: str) -> bool:
 _CACHED_HWND = None
 
 
+WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, HWND, ctypes.wintypes.LPARAM)
+user32.EnumWindows.argtypes = [WNDENUMPROC, ctypes.wintypes.LPARAM]
+user32.EnumWindows.restype = ctypes.c_bool
+user32.GetWindowThreadProcessId.argtypes = [HWND, ctypes.POINTER(ctypes.wintypes.DWORD)]
+user32.GetWindowThreadProcessId.restype = ctypes.wintypes.DWORD
+
+
+def find_window_by_pid(pid: int) -> tuple[auto.WindowControl | None, int | None]:
+    """Locate the main window belonging to a specific launched process by PID.
+
+    This is deterministic and immune to title-based search matching a STALE window
+    from a previous still-terminating process during rapid sequential launches.
+
+    IMPORTANT: we must NOT use ``auto.WindowControl(Handle=...)`` here. In practice
+    that constructor does not wrap the passed HWND — it returns a stale/foreground
+    control (e.g. an unrelated OpenCode window), so every window would mis-report
+    as 'Chrome_WidgetWin_1' / 'OpenCode' and the class check would fail. Instead we
+    identify the real window via raw Win32 ``GetClassNameW`` / ``GetWindowTextW`` /
+    ``IsWindowVisible``. Only the HWND is needed downstream (pin + PrintWindow), so a
+    ``WindowControl`` is intentionally not returned.
+    """
+    found: list[tuple[int, str, str, bool]] = []
+    name_buf = ctypes.create_unicode_buffer(512)
+
+    def cb(hwnd, _lparam):
+        dwpid = ctypes.wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(dwpid))
+        if dwpid.value == pid:
+            try:
+                user32.GetClassNameW(hwnd, name_buf, 512)
+                cls = name_buf.value
+                user32.GetWindowTextW(hwnd, name_buf, 512)
+                title = name_buf.value
+                vis = bool(user32.IsWindowVisible(hwnd))
+                found.append((int(hwnd), cls, title, vis))
+            except Exception:
+                pass
+        return True
+
+    user32.EnumWindows(WNDENUMPROC(cb), 0)
+
+    # Prefer the visible WinUI top-level window (the class is stable across versions).
+    for hwnd, cls, title, vis in found:
+        if vis and cls == "WinUIDesktopWin32WindowClass":
+            return None, hwnd
+    # Fallback: any visible window whose title carries the app prefix.
+    for hwnd, cls, title, vis in found:
+        if vis and title.lower().startswith("space analyzer"):
+            return None, hwnd
+    return None, None
+
+
 def find_window() -> tuple[auto.WindowControl | None, int | None]:
     """Find the Space Analyzer window via pygetwindow + UIA by HWND.
 
@@ -607,8 +688,75 @@ def prune_old_buckets(root: Path, keep: int = MAX_BUCKETS) -> int:
     return removed
 
 
+def capture_one_page(page_token: str, label: str, slug: str,
+                     monitor: int, width, height, delay: float) -> dict:
+    """Launch a FRESH SpaceAnalyzer process directly on <page_token> via the app's
+    stable ``--page`` entry point, capture it, then terminate. Using one process
+    per page is deterministic: a page that fails to load (or crashes) only loses
+    its own screenshot and is recorded as a failure in the manifest, instead of
+    cascading through UIA tab-selection that used to leave later tabs unreachable.
+
+    Returns a manifest entry dict describing success/failure for self-diagnosis.
+    """
+    global _CACHED_HWND
+    _CACHED_HWND = None  # previous process is gone; never reuse its HWND
+
+    EXE = find_binary()
+    result = {"slug": slug, "label": label, "page": page_token, "ok": False}
+
+    proc = subprocess.Popen([str(EXE), "--page", page_token], cwd=str(EXE.parent))
+    print(f"  launched pid={proc.pid} (--page {page_token})")
+
+    window, hwnd = None, None
+    for _ in range(60):  # poll up to ~30s for cold start + navigation
+        window, hwnd = find_window_by_pid(proc.pid)
+        if hwnd is not None:
+            break
+        # Bail early if the process already exited (a crash surfaces here).
+        if proc.poll() is not None:
+            break
+        time.sleep(0.5)
+
+    if hwnd is None:
+        result["error"] = "window not found"
+        rc = proc.poll()
+        if rc is not None:
+            result["returncode"] = rc
+            result["error"] = f"process exited early (code {rc})"
+        proc.terminate()
+        return result
+
+    # Pin WITHOUT stealing focus; size so all top-bar tabs stay visible.
+    pin_window_to_monitor(hwnd, monitor, width=width, height=height)
+    keep_window_background()
+    time.sleep(delay)           # let the destination page build its visual tree
+    keep_window_background()    # re-lock in case the page raised the window
+
+    path = friendly_name(BUCKET, slug, "png")
+    saved = capture_window_png(hwnd, str(path))
+    if saved:
+        note = (f"WinUI3 automated capture (--page {page_token}) — {label} page. "
+                f"{TAB_NOTES.get(slug, '')} Captured {BUCKET.name.split('__')[0]} "
+                f"(origin: {ORIGIN}, representation: {REPRESENTATION}).")
+        write_note(path, note)
+        result["ok"] = True
+        result["file"] = path.name
+        print(f"    saved {path.name}")
+    else:
+        result["error"] = "PrintWindow capture failed"
+
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+    result["returncode"] = proc.returncode
+    return result
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Headed screenshot capture (non-intrusive, cursor-less).")
+    ap = argparse.ArgumentParser(
+        description="Headed, deterministic screenshot capture via the app's --page launch entry point.")
     ap.add_argument("--monitor", type=int, default=1,
                     help="Monitor index to pin the app to (0=primary, 1=secondary...). Default 1.")
     ap.add_argument("--exe", type=str, default=None, help="Explicit path to SpaceAnalyzer.exe")
@@ -618,17 +766,17 @@ def main() -> int:
                     help=f"What the shots show (default {DEFAULT_REPRESENTATION}); recorded in the bucket + notes.")
     ap.add_argument("--width", type=int, default=None,
                     help="Explicit window width in px. On a narrow/portrait monitor, pass a wide value "
-                         "(e.g. 2800) so the top nav never overflows into the 'More' flyout and every "
-                         "tab stays reachable by UI Automation.")
+                         "(e.g. 2800) so the top nav never overflows and every tab stays visible.")
     ap.add_argument("--height", type=int, default=None,
                     help="Explicit window height in px (paired with --width).")
+    ap.add_argument("--delay", type=float, default=2.5,
+                    help="Seconds to wait after launch before capturing each page (default 2.5).")
+    ap.add_argument("--tags", type=str, default=None,
+                    help="Comma-separated slugs to capture (e.g. 'history,scan'). Default: all pages.")
     ap.add_argument("--keep", type=int, default=MAX_BUCKETS,
                     help=f"Retain only the most recent N capture buckets (default {MAX_BUCKETS}).")
     args = ap.parse_args()
 
-    # One global UIA search timeout for the whole run (the old code overrode it
-    # per-attempt inside _select_tab, which was fragile). 6s gives each tab
-    # lookup enough slack without stalling the loop.
     auto.uiautomation.SetGlobalSearchTimeout(6)
 
     global BUCKET, ORIGIN, REPRESENTATION
@@ -636,8 +784,6 @@ def main() -> int:
     REPRESENTATION = args.representation
     date = time.strftime("%Y-%m-%d")
     BUCKET = MACRO_LOGS / f"{date}__{ORIGIN}__{REPRESENTATION}"
-    # Reuse an existing bucket of the same day/origin/representation so repeated
-    # runs accumulate instead of spawning a new per-run folder.
     BUCKET.mkdir(parents=True, exist_ok=True)
 
     EXE = Path(args.exe) if args.exe else find_binary()
@@ -651,72 +797,40 @@ def main() -> int:
     if len(monitors) <= args.monitor:
         print(f"  (only {len(monitors)} monitor(s) available; using index {len(monitors)-1})")
 
-    # Launch
-    proc = subprocess.Popen([str(EXE)], cwd=str(EXE.parent))
-    print(f"launched pid={proc.pid}")
+    wanted = None
+    if args.tags:
+        wanted = {t.strip().lower() for t in args.tags.split(",") if t.strip()}
 
-    window, hwnd = None, None
-    for _ in range(50):  # poll up to ~25s for the (slow) cold start
-        window, hwnd = find_window()
-        if window is not None and hwnd is not None:
-            break
-        time.sleep(0.5)
-
-    if window is None or hwnd is None:
-        print("Could not find Space Analyzer window via UI Automation")
-        proc.terminate()
-        return 1
-
-    # Pin to the chosen monitor WITHOUT stealing focus from your other screen.
-    # pin_window_to_monitor() sizes to the monitor work area with SWP_NOACTIVATE,
-    # so it never takes foreground. (Replaces the old ShowWindow(SW_MAXIMIZE)
-    # which activated the window and popped it over the user's work.)
-    pin_window_to_monitor(hwnd, args.monitor, width=args.width, height=args.height)
-    keep_window_background()
-    time.sleep(0.5)
-    snap("launched", hwnd, "App launch")
-
-    print(f"  found window: title={window.Name!r}")
+    manifest: list[dict] = []
     for label, slug in NAV_ITEMS:
-        print(f"  navigating to '{label}'...")
-        try:
-            window, hwnd = find_window()
-            if window is None or hwnd is None:
-                print(f"    FATAL: cannot find window for '{label}'")
-                break
-            # Re-assert: keep the window on its monitor AND keep it in the
-            # background so it never pops over the user's other screen.
-            pin_window_to_monitor(hwnd, args.monitor, width=args.width, height=args.height)
-            keep_window_background()
-            time.sleep(0.4)
+        if wanted is not None and slug not in wanted:
+            continue
+        token = SLUG_PAGE_TOKEN.get(slug, slug)
+        print(f"capturing '{label}' (--page {token})...")
+        res = capture_one_page(token, label, slug, args.monitor, args.width, args.height, args.delay)
+        manifest.append(res)
+        status = "OK" if res.get("ok") else f"FAIL ({res.get('error', 'unknown')})"
+        print(f"    -> {status}")
 
-            ok = _select_tab(window, label)
-            if not ok:
-                print(f"    WARNING: could not select '{label}'")
-            # WinUI can report the selection before the destination page has
-            # finished constructing its visual tree. Give it time to render
-            # before PrintWindow snapshots the window surface.
-            time.sleep(2.0)
-            # Re-lock in case the page switch tried to raise the window.
-            keep_window_background()
-            snap(slug, hwnd, label)
-        except Exception as exc:
-            print(f"    select failed for '{label}': {exc}")
-            keep_window_background()
-            snap(slug, hwnd, label)
+    # Self-diagnosing manifest: no need to manually inspect logs to learn which
+    # pages rendered. A non-zero returncode / missing file flags an app crash.
+    (BUCKET / "capture_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
-    # Close
-    proc.terminate()
-    try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-
+    ok = sum(1 for r in manifest if r.get("ok"))
     print(f"screenshots saved to {BUCKET}")
+    print(f"manifest -> {BUCKET / 'capture_manifest.json'}")
+    print(f"captured {ok}/{len(manifest)} pages")
+    if ok != len(manifest):
+        print("FAILURES:")
+        for r in manifest:
+            if not r.get("ok"):
+                print(f"  - {r['label']} ({r['slug']}): {r.get('error', 'unknown')} "
+                      f"returncode={r.get('returncode')}")
+
     removed = prune_old_buckets(MACRO_LOGS, args.keep)
     if removed:
         print(f"retention: removed {removed} old bucket(s), keeping latest {args.keep}")
-    return 0
+    return 0 if ok == len(manifest) else 2
 
 
 if __name__ == "__main__":

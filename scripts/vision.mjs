@@ -93,7 +93,12 @@ function parseArgs(argv) {
     else if (a === '--raw') opts.raw = true;
     else if (a === '--json') opts.json = true;
     else if (IMAGE_EXT.test(a)) images.push(a);
-    else if (CODE_EXT.test(a) || !a.startsWith('--')) codeFiles.push(a);
+    else if (CODE_EXT.test(a)) codeFiles.push(a);
+    else if (!a.startsWith('--')) {
+      // Positional prompt string (documented usage: analyze shot.png [code.js...] "prompt").
+      // Only the first such positional wins; --prompt takes precedence if both are given.
+      if (!opts.prompt) opts.prompt = a;
+    }
   }
   return { opts, images, codeFiles };
 }

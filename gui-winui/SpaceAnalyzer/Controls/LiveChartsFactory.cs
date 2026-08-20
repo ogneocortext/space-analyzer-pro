@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using LiveChartsCore;
 using LiveChartsCore.Defaults;
+using LiveChartsCore.Drawing;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using LiveChartsCore.SkiaSharpView.WinUI;
@@ -51,6 +52,23 @@ public static class LiveChartsFactory
     private static SolidColorPaint MakeSeparatorPaint() =>
         new(ThemeColor("CardStrokeColorDefaultBrush", new SKColor(128, 128, 128, 60)));
 
+    /// <summary>Vertical gradient for a column/bar so it reads with depth instead
+    /// of a flat fill — part of the shared 2026 Fluent chart language.</summary>
+    private static LinearGradientPaint MakeBarGradient(SKColor baseColor)
+    {
+        var top = new SKColor(baseColor.Red, baseColor.Green, baseColor.Blue, 220);
+        var bottom = new SKColor(baseColor.Red, baseColor.Green, baseColor.Blue, 70);
+        return new LinearGradientPaint([top, bottom], new SKPoint(0, 0), new SKPoint(0, 1));
+    }
+
+    /// <summary>Card background colour used to ring data points / separate donut
+    /// slices so they stay legible in both light and dark themes.</summary>
+    private static SKColor CardBackground() =>
+        ThemeColor("CardBackgroundFillColorDefaultBrush", new SKColor(245, 245, 245));
+
+    private static readonly TimeSpan s_anim = TimeSpan.FromMilliseconds(550);
+    private static Func<float, float> s_ease => LiveChartsCore.EasingFunctions.CubicOut;
+
     // ── Bar Chart ─
 
     /// <summary>
@@ -79,7 +97,7 @@ public static class LiveChartsFactory
             {
                 Values = [list[i].Value],
                 Name = name,
-                Fill = new SolidColorPaint(s_palette[i % s_palette.Length]),
+                Fill = MakeBarGradient(s_palette[i % s_palette.Length]),
                 MaxBarWidth = 20,
                 Rx = 4,
                 Ry = 4,
@@ -100,7 +118,8 @@ public static class LiveChartsFactory
             Height = Math.Max(140, list.Count * 32 + 40),
             Width = double.NaN,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            AnimationsSpeed = TimeSpan.Zero,
+            AnimationsSpeed = s_anim,
+            EasingFunction = s_ease,
             XAxes =
             [
                 new Axis
@@ -157,7 +176,7 @@ public static class LiveChartsFactory
         {
             Values = top.Select(x => x.Value).ToArray(),
             Name = "Files",
-            Fill = new SolidColorPaint(new SKColor(0, 120, 212)),
+            Fill = MakeBarGradient(new SKColor(0, 120, 212)),
             MaxBarWidth = 34,
             Rx = 3,
             Ry = 3,
@@ -181,7 +200,8 @@ public static class LiveChartsFactory
             Height = 200,
             Width = double.NaN,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            AnimationsSpeed = TimeSpan.Zero,
+            AnimationsSpeed = s_anim,
+            EasingFunction = s_ease,
             XAxes =
             [
                 new Axis
@@ -224,6 +244,8 @@ public static class LiveChartsFactory
                 Name = $"{list[i].Label} — {FormatBytes(list[i].Value)}",
                 Fill = new SolidColorPaint(s_palette[i % s_palette.Length]),
                 InnerRadius = 50,
+                CornerRadius = 6,
+                Stroke = new SolidColorPaint(CardBackground()) { StrokeThickness = 1.5f },
             };
         }
 
@@ -232,7 +254,8 @@ public static class LiveChartsFactory
             Series = series,
             Width = 360,
             Height = 200,
-            AnimationsSpeed = TimeSpan.Zero,
+            AnimationsSpeed = s_anim,
+            EasingFunction = s_ease,
             LegendPosition = LiveChartsCore.Measure.LegendPosition.Right,
             LegendTextPaint = MakeLabelPaint(),
         };
@@ -262,6 +285,8 @@ public static class LiveChartsFactory
                 Name = $"{list[i].Label} — {FormatBytes(list[i].Value)}",
                 Fill = new SolidColorPaint(s_palette[i % s_palette.Length]),
                 InnerRadius = 50,
+                CornerRadius = 6,
+                Stroke = new SolidColorPaint(CardBackground()) { StrokeThickness = 1.5f },
             };
             if (onDrillKeyClick != null)
             {
@@ -275,7 +300,8 @@ public static class LiveChartsFactory
             Series = series,
             Width = 360,
             Height = 200,
-            AnimationsSpeed = TimeSpan.Zero,
+            AnimationsSpeed = s_anim,
+            EasingFunction = s_ease,
             LegendPosition = LiveChartsCore.Measure.LegendPosition.Right,
             LegendTextPaint = MakeLabelPaint(),
         };
@@ -296,7 +322,7 @@ public static class LiveChartsFactory
             {
                 Values = [currentGb],
                 Name = $"Current",
-                Fill = new SolidColorPaint(new SKColor(0, 120, 212)),
+                Fill = MakeBarGradient(new SKColor(0, 120, 212)),
                 MaxBarWidth = 48,
                 Rx = 4,
                 Ry = 4,
@@ -308,7 +334,7 @@ public static class LiveChartsFactory
             {
                 Values = [predictedGb],
                 Name = $"In {daysAhead}d",
-                Fill = new SolidColorPaint(predictedGb > currentGb
+                Fill = MakeBarGradient(predictedGb > currentGb
                     ? new SKColor(196, 43, 28)
                     : new SKColor(16, 124, 16)),
                 MaxBarWidth = 48,
@@ -326,7 +352,8 @@ public static class LiveChartsFactory
             Height = 160,
             Width = double.NaN,
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            AnimationsSpeed = TimeSpan.Zero,
+            AnimationsSpeed = s_anim,
+            EasingFunction = s_ease,
             XAxes =
             [
                 new Axis
@@ -410,6 +437,92 @@ public static class LiveChartsFactory
         return chart;
     }
 
+    // ── Trend Chart (professional, 2026 Fluent look) ──
+
+    /// <summary>
+    /// Dashboard-grade area line chart for the disk-space trend. Renders a smooth,
+    /// theme-aware accent line with a vertical gradient fill, rounded data points,
+    /// a formatted byte Y-axis, a de-cluttered date X-axis (~7 ticks), hover
+    /// tooltips, and a soft entrance animation — replacing the bare sparkline.
+    /// </summary>
+    public static FrameworkElement CreateTrendChart(IEnumerable<(string Label, double Value)> items)
+    {
+        var list = items.ToList();
+        if (list.Count < 2)
+        {
+            return new TextBlock
+            {
+                Text = "Need at least 2 scan days to chart the trend",
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 12,
+                Opacity = 0.6,
+            };
+        }
+
+        var accent = ThemeColor("AccentFillColorDefaultBrush", new SKColor(0, 120, 212));
+        var fillTop = new SKColor(accent.Red, accent.Green, accent.Blue, 95);
+        var fillBottom = new SKColor(accent.Red, accent.Green, accent.Blue, 8);
+        var pointRing = ThemeColor("CardBackgroundFillColorDefaultBrush", new SKColor(255, 255, 255));
+
+        var labels = list.Select(x => x.Label).ToArray();
+        var points = list.Select((x, i) => new ObservablePoint(i, x.Value)).ToArray();
+
+        var series = new LineSeries<ObservablePoint>
+        {
+            Values = points,
+            Name = "Disk usage",
+            Fill = new LinearGradientPaint([fillTop, fillBottom], new SKPoint(0, 0), new SKPoint(0, 1)),
+            Stroke = new SolidColorPaint(accent) { StrokeThickness = 2.5f },
+            GeometrySize = 5,
+            GeometryFill = new SolidColorPaint(accent),
+            GeometryStroke = new SolidColorPaint(pointRing) { StrokeThickness = 1.5f },
+            LineSmoothness = 0.65,
+            DataPadding = new LvcPoint(0.6, 1),
+            IsHoverable = true,
+        };
+
+        // Show roughly one date tick per week of points so the X axis stays legible.
+        var tickStep = Math.Max(1, (int)Math.Ceiling(list.Count / 7.0));
+
+        var chart = new CartesianChart
+        {
+            Series = new ISeries[] { series },
+            Height = 220,
+            Width = double.NaN,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            AnimationsSpeed = TimeSpan.FromMilliseconds(700),
+            EasingFunction = LiveChartsCore.EasingFunctions.CubicOut,
+            TooltipPosition = LiveChartsCore.Measure.TooltipPosition.Top,
+            XAxes =
+            [
+                new Axis
+                {
+                    Labeler = v => labels[Math.Clamp((int)Math.Round(v), 0, labels.Length - 1)],
+                    MinStep = tickStep,
+                    LabelsRotation = 0,
+                    TextSize = 11,
+                    Padding = new Padding(0, 0, 0, 6),
+                    LabelsPaint = MakeLabelPaint(),
+                    SeparatorsPaint = MakeSeparatorPaint(),
+                }
+            ],
+            YAxes =
+            [
+                new Axis
+                {
+                    TextSize = 11,
+                    Padding = new Padding(6, 0, 0, 0),
+                    LabelsPaint = MakeLabelPaint(),
+                    SeparatorsPaint = MakeSeparatorPaint(),
+                    Labeler = FormatBytes,
+                }
+            ],
+        };
+
+        return chart;
+    }
+
     // ── Real-time sparkline (for CPU/memory/disk history) ──
 
     /// <summary>
@@ -461,12 +574,16 @@ public static class LiveChartsFactory
                 Values = [percent],
                 Fill = new SolidColorPaint(usedColor),
                 InnerRadius = 55,
+                CornerRadius = 4,
+                Stroke = new SolidColorPaint(CardBackground()) { StrokeThickness = 1.5f },
             },
             new PieSeries<double>
             {
                 Values = [100 - percent],
                 Fill = new SolidColorPaint(new SKColor(230, 230, 230)),
                 InnerRadius = 55,
+                CornerRadius = 4,
+                Stroke = new SolidColorPaint(CardBackground()) { StrokeThickness = 1.5f },
             },
         };
 
@@ -476,7 +593,8 @@ public static class LiveChartsFactory
             Width = 140,
             Height = 80,
             MaxAngle = 180,
-            AnimationsSpeed = TimeSpan.Zero,
+            AnimationsSpeed = s_anim,
+            EasingFunction = s_ease,
         };
 
         var grid = new Grid { Width = 140, Height = 80 };

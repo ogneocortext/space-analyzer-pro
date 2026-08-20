@@ -32,17 +32,24 @@ public sealed partial class HistoryPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        AppLog.Page("HistoryPage OnNavigatedTo");
-        VM.PropertyChanged += OnVmPropertyChanged;
-        if (e.Parameter is long id)
+        try
         {
-            _ = VM.SelectRecordByIdAsync(id);
+            AppLog.Page("HistoryPage OnNavigatedTo");
+            VM.PropertyChanged += OnVmPropertyChanged;
+            if (e.Parameter is long id)
+            {
+                _ = VM.SelectRecordByIdAsync(id);
+            }
+            else
+            {
+                VM.BackToList();
+            }
+            _ = ReloadCurrentPageAsync();
         }
-        else
+        catch (Exception ex)
         {
-            VM.BackToList();
+            AppLog.Exception(ex, "HistoryPage.OnNavigatedTo faulted");
         }
-        _ = ReloadCurrentPageAsync();
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -63,63 +70,185 @@ public sealed partial class HistoryPage : Page
     /// </summary>
     private async Task ReloadCurrentPageAsync()
     {
-        if (VM.IsLoading) return;
-        if (!VM.HasHistory)
+        try
         {
-            AppLog.Page("HistoryPage ReloadCurrentPageAsync loading");
-            await VM.LoadHistoryAsync();
+            if (VM.IsLoading) return;
+            if (!VM.HasHistory)
+            {
+                AppLog.Page("HistoryPage ReloadCurrentPageAsync loading");
+                await VM.LoadHistoryAsync();
+            }
+            else
+            {
+                await VM.LoadPageAsync();
+                await VM.LoadTrendAsync();
+                await VM.LoadCategoryHistoryAsync();
+                VM.ClearComparison();
+            }
+            await VM.LoadDatabaseInfoAsync();
         }
-        else
+        catch (Exception ex)
         {
-            await VM.LoadPageAsync();
-            await VM.LoadTrendAsync();
-            await VM.LoadCategoryHistoryAsync();
-            VM.ClearComparison();
+            AppLog.Exception(ex, "HistoryPage.ReloadCurrentPageAsync faulted");
         }
-        await VM.LoadDatabaseInfoAsync();
     }
 
     private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(HistoryViewModel.History)
-            or nameof(HistoryViewModel.TrendRecords))
+        // Contain any fault in a redraw so a chart error can never propagate out of
+        // the property-change handler and take down the whole page/process.
+        try
         {
-            DrawTrendChart();
+            if (e.PropertyName is nameof(HistoryViewModel.History)
+                or nameof(HistoryViewModel.TrendRecords)
+                or nameof(HistoryViewModel.SizeTrendItems))
+            {
+                DrawTrendChart();
+            }
+            if (e.PropertyName is nameof(HistoryViewModel.CategoryHistory))
+            {
+                DrawCategoryDonut();
+            }
+            if (e.PropertyName is nameof(HistoryViewModel.Comparisons)
+                or nameof(HistoryViewModel.ShowComparison)
+                or nameof(HistoryViewModel.HasComparisonVisibility))
+            {
+                DrawComparisonChart();
+            }
+            if (e.PropertyName is nameof(HistoryViewModel.ScanDayCounts))
+            {
+                RefreshCalendarHighlighting();
+            }
         }
-        if (e.PropertyName is nameof(HistoryViewModel.CategoryHistory))
+        catch (Exception ex)
         {
-            DrawCategoryDonut();
-        }
-        if (e.PropertyName is nameof(HistoryViewModel.Comparisons)
-            or nameof(HistoryViewModel.ShowComparison)
-            or nameof(HistoryViewModel.HasComparisonVisibility))
-        {
-            DrawComparisonChart();
+            AppLog.Exception(ex, "HistoryPage.OnVmPropertyChanged redraw faulted");
         }
     }
+
+    private static TextBlock FallbackText(string message) => new()
+    {
+        Text = message,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+        FontSize = 11,
+        Opacity = 0.5,
+    };
 
     private void DrawTrendChart()
     {
-        TrendChartGrid.Children.Clear();
-        var trend = VM.TrendRecords;
-        if (trend == null || trend.Count < 2)
+        try
         {
-            TrendChartGrid.Children.Add(new TextBlock
+            TrendChartGrid.Children.Clear();
+            var items = VM.SizeTrendItems;
+            if (items == null || items.Count < 2)
             {
-                Text = "Need at least 2 scans to show trend",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                FontSize = 11,
-                Opacity = 0.5
-            });
-            return;
-        }
+                // Fall back to the full chronological series when the selected window
+                // has fewer than two scan days.
+                var trend = VM.TrendRecords;
+                if (trend == null || trend.Count < 2)
+                {
+                    TrendChartGrid.Children.Add(new TextBlock
+                    {
+                        Text = "Need at least 2 scans to show trend",
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        FontSize = 11,
+                        Opacity = 0.5
+                    });
+                    return;
+                }
+                items = trend.OrderBy(t => t.Timestamp)
+                             .Select(t => (FormatTrendLabel(t.Timestamp), (double)t.TotalSizeBytes))
+                             .ToList();
+            }
 
-        var sorted = trend.OrderBy(t => t.Timestamp).ToList();
-        var items = sorted.Select(t => (FormatTrendLabel(t.Timestamp), (double)t.TotalSizeBytes)).ToList();
-        var chart = LiveChartsFactory.CreateSparkline(items);
-        TrendChartGrid.Children.Add(chart);
+            var chart = LiveChartsFactory.CreateTrendChart(items);
+            TrendChartGrid.Children.Add(chart);
+        }
+        catch (Exception ex)
+        {
+            AppLog.Exception(ex, "HistoryPage.DrawTrendChart failed; showing fallback");
+            TrendChartGrid.Children.Clear();
+            TrendChartGrid.Children.Add(FallbackText("Trend chart unavailable"));
+        }
     }
+
+    private void TrendWindow_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string tag } || !int.TryParse(tag, out var window))
+            return;
+        AppLog.Action($"HistoryPage TrendWindow_Click window={window}");
+        VM.TrendWindow = window;
+    }
+
+    // ── Scan calendar ──
+
+    private void ScanCalendar_DayItemChanging(CalendarView sender, CalendarViewDayItemChangingEventArgs e)
+    {
+        try
+        {
+            var item = e.Item;
+            var set = VM.ScanDaySet;
+            item.Background = set != null && set.Contains(item.Date.Date)
+                ? (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"]
+                : null;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Exception(ex, "HistoryPage.ScanCalendar_DayItemChanging faulted");
+        }
+    }
+
+    private void ScanCalendar_SelectedDatesChanged(CalendarView sender, CalendarViewSelectedDatesChangedEventArgs e)
+    {
+        if (e.AddedDates.Count > 0)
+        {
+            var d = e.AddedDates[0].DateTime.Date;
+            var match = VM.ScanDayCounts.FirstOrDefault(x =>
+            {
+                if (DateTime.TryParse(x.Date + "T00:00:00Z", out var dt))
+                    return dt.ToLocalTime().Date == d;
+                return false;
+            });
+            VM.SelectedScanDayText = match == null
+                ? "No scans on this day"
+                : $"{match.Count} scan{(match.Count == 1 ? "" : "s")} on {d:yyyy-MM-dd}";
+        }
+        else
+        {
+            VM.SelectedScanDayText = "Select a day to see scan counts";
+        }
+    }
+
+    /// <summary>
+    /// Force the CalendarView to re-realize its day items so the scan-day
+    /// highlight (computed in <see cref="ScanCalendar_DayItemChanging"/> from the
+    /// now-populated <see cref="HistoryViewModel.ScanDaySet"/>) is applied even
+    /// though the initial realization happened before the calendar data loaded.
+    /// </summary>
+    private void RefreshCalendarHighlighting()
+    {
+        if (ScanCalendar == null) return;
+        var mode = ScanCalendar.DisplayMode;
+        ScanCalendar.DisplayMode = CalendarViewDisplayMode.Decade;
+        ScanCalendar.DisplayMode = mode;
+    }
+
+    // ── File inventory ──
+
+    private void InventorySearchBox_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            e.Handled = true;
+            VM.SearchInventory();
+        }
+    }
+
+    private void InventorySearch_Click(object sender, RoutedEventArgs e) => VM.SearchInventory();
+
+    private void InventoryClear_Click(object sender, RoutedEventArgs e) => VM.ClearInventorySearch();
 
     private static string FormatTrendLabel(string timestamp)
     {
@@ -130,23 +259,32 @@ public sealed partial class HistoryPage : Page
 
     private void DrawCategoryDonut()
     {
-        CategoryDonutGrid.Children.Clear();
-        var cats = VM.CategoryHistory;
-        if (cats == null || cats.Count == 0)
+        try
         {
-            CategoryDonutGrid.Children.Add(new TextBlock
+            CategoryDonutGrid.Children.Clear();
+            var cats = VM.CategoryHistory;
+            if (cats == null || cats.Count == 0)
             {
-                Text = "No category data yet",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                FontSize = 11,
-                Opacity = 0.5
-            });
-            return;
-        }
+                CategoryDonutGrid.Children.Add(new TextBlock
+                {
+                    Text = "No category data yet",
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    FontSize = 11,
+                    Opacity = 0.5
+                });
+                return;
+            }
 
-        var items = cats.Select(c => (c.Category, (double)c.Size, c.Category)).ToList();
-        CategoryDonutGrid.Children.Add(LiveChartsFactory.CreateDonutChart(items, onDrillKeyClick: OnCategoryDrill));
+            var items = cats.Select(c => (c.Category, (double)c.Size, c.Category)).ToList();
+            CategoryDonutGrid.Children.Add(LiveChartsFactory.CreateDonutChart(items, onDrillKeyClick: OnCategoryDrill));
+        }
+        catch (Exception ex)
+        {
+            AppLog.Exception(ex, "HistoryPage.DrawCategoryDonut failed; showing fallback");
+            CategoryDonutGrid.Children.Clear();
+            CategoryDonutGrid.Children.Add(FallbackText("Category chart unavailable"));
+        }
     }
 
     private void OnCategoryDrill(string category)
@@ -298,57 +436,66 @@ public sealed partial class HistoryPage : Page
 
     private void DrawComparisonChart()
     {
-        ComparisonChartGrid.Children.Clear();
-        var cards = VM.Comparisons;
-        if (cards == null || cards.Count < 1)
+        try
         {
-            ComparisonChartGrid.Children.Add(new TextBlock
+            ComparisonChartGrid.Children.Clear();
+            var cards = VM.Comparisons;
+            if (cards == null || cards.Count < 1)
             {
-                Text = "Select at least two scans to compare",
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                FontSize = 11,
-                Opacity = 0.5
-            });
-            return;
+                ComparisonChartGrid.Children.Add(new TextBlock
+                {
+                    Text = "Select at least two scans to compare",
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    FontSize = 11,
+                    Opacity = 0.5
+                });
+                return;
+            }
+
+            Func<double, string> yLabeler;
+            switch (_comparisonMetric)
+            {
+                case ComparisonMetric.Files:
+                    yLabeler = v => v.ToString("N0");
+                    break;
+                case ComparisonMetric.Duration:
+                    yLabeler = v => v.ToString("F1") + "s";
+                    break;
+                default:
+                    yLabeler = v => ByteFormatter.FormatBytes((ulong)v);
+                    break;
+            }
+
+            var items = cards.Select((c, i) =>
+            {
+                double value = _comparisonMetric switch
+                {
+                    ComparisonMetric.Files => c.Record.TotalFiles,
+                    ComparisonMetric.Duration => c.Record.DurationSecs,
+                    _ => (double)c.Record.TotalSizeBytes
+                };
+                string display = _comparisonMetric switch
+                {
+                    ComparisonMetric.Files => $"{c.Record.TotalFiles:N0} files",
+                    ComparisonMetric.Duration => $"{c.Record.DurationSecs:F1}s",
+                    _ => ByteFormatter.FormatBytes(c.Record.TotalSizeBytes)
+                };
+                return ((i + 1).ToString(), value, (string?)display);
+            }).ToList();
+
+            ComparisonChartGrid.Children.Add(LiveChartsFactory.CreateBarChart(items, yLabeler: yLabeler, onIndexClick: idx =>
+            {
+                if (idx >= 0 && idx < cards.Count)
+                    _ = VM.LoadDetailsAsync(cards[idx].Record);
+            }));
         }
-
-        Func<double, string> yLabeler;
-        switch (_comparisonMetric)
+        catch (Exception ex)
         {
-            case ComparisonMetric.Files:
-                yLabeler = v => v.ToString("N0");
-                break;
-            case ComparisonMetric.Duration:
-                yLabeler = v => v.ToString("F1") + "s";
-                break;
-            default:
-                yLabeler = v => ByteFormatter.FormatBytes((ulong)v);
-                break;
+            AppLog.Exception(ex, "HistoryPage.DrawComparisonChart failed; showing fallback");
+            ComparisonChartGrid.Children.Clear();
+            ComparisonChartGrid.Children.Add(FallbackText("Comparison chart unavailable"));
         }
-
-        var items = cards.Select((c, i) =>
-        {
-            double value = _comparisonMetric switch
-            {
-                ComparisonMetric.Files => c.Record.TotalFiles,
-                ComparisonMetric.Duration => c.Record.DurationSecs,
-                _ => (double)c.Record.TotalSizeBytes
-            };
-            string display = _comparisonMetric switch
-            {
-                ComparisonMetric.Files => $"{c.Record.TotalFiles:N0} files",
-                ComparisonMetric.Duration => $"{c.Record.DurationSecs:F1}s",
-                _ => ByteFormatter.FormatBytes(c.Record.TotalSizeBytes)
-            };
-            return ((i + 1).ToString(), value, (string?)display);
-        }).ToList();
-
-        ComparisonChartGrid.Children.Add(LiveChartsFactory.CreateBarChart(items, yLabeler: yLabeler, onIndexClick: idx =>
-        {
-            if (idx >= 0 && idx < cards.Count)
-                _ = VM.LoadDetailsAsync(cards[idx].Record);
-        }));
     }
 
     private void Refresh_Click(object sender, RoutedEventArgs e)

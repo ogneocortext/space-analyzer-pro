@@ -67,7 +67,27 @@
                     </Grid>
                 </StackPanel>
 
-                <!-- Trend Chart (visible when there are records) -->
+                <!-- Scan calendar: highlights days that have at least one scan -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
+                        <Grid ColumnSpacing="{StaticResource Space.SM}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Scan Calendar" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{x:Bind VM.SelectedScanDayText, Mode=OneWay}" Style="{StaticResource Type.Tiny}" VerticalAlignment="Center" Opacity="0.8" />
+                        </Grid>
+                        <CalendarView x:Name="ScanCalendar"
+                                      SelectionMode="Single"
+                                      CalendarViewDayItemChanging="ScanCalendar_DayItemChanging"
+                                      SelectedDatesChanged="ScanCalendar_SelectedDatesChanged"
+                                      HorizontalAlignment="Stretch" />
+                        <TextBlock Text="Highlighted days have scans. Select a day to see how many scans were recorded." Style="{StaticResource Type.Caption}" Opacity="0.8" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Trend Chart (7 / 14 / 30 day window) -->
                 <Border Style="{StaticResource AnimatedCard}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.SM}">
                         <Grid ColumnSpacing="{StaticResource Space.SM}">
@@ -75,11 +95,23 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Size Trend" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="0" Text="Disk Space Trend" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center" />
                             <Button Grid.Column="1" Content="Export CSV" Click="ExportTrend_Click" Style="{StaticResource SmallButton}" AutomationProperties.Name="Export trend as CSV" ToolTipService.ToolTip="Export the size-trend history as a CSV file" />
                         </Grid>
-                        <Grid x:Name="TrendChartGrid" Height="140" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-                        <TextBlock Text="Total scanned size over time (GB). Hover a point for the exact value." Style="{StaticResource Type.Caption}" Opacity="0.8" />
+                        <Grid ColumnSpacing="{StaticResource Space.SM}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center">
+                                <Button Content="7d" Tag="7" Click="TrendWindow_Click" Style="{StaticResource SmallButton}" Background="{x:Bind VM.TrendWindow7Active, Mode=OneWay, Converter={StaticResource BoolToAccentBackground}}" Foreground="{x:Bind VM.TrendWindow7Active, Mode=OneWay, Converter={StaticResource BoolToAccentForeground}}" AutomationProperties.Name="Show 7 day trend" />
+                                <Button Content="14d" Tag="14" Click="TrendWindow_Click" Style="{StaticResource SmallButton}" Background="{x:Bind VM.TrendWindow14Active, Mode=OneWay, Converter={StaticResource BoolToAccentBackground}}" Foreground="{x:Bind VM.TrendWindow14Active, Mode=OneWay, Converter={StaticResource BoolToAccentForeground}}" AutomationProperties.Name="Show 14 day trend" />
+                                <Button Content="30d" Tag="30" Click="TrendWindow_Click" Style="{StaticResource SmallButton}" Background="{x:Bind VM.TrendWindow30Active, Mode=OneWay, Converter={StaticResource BoolToAccentBackground}}" Foreground="{x:Bind VM.TrendWindow30Active, Mode=OneWay, Converter={StaticResource BoolToAccentForeground}}" AutomationProperties.Name="Show 30 day trend" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Text="{x:Bind VM.TrendDeltaDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" VerticalAlignment="Center" HorizontalAlignment="Right" TextWrapping="Wrap" />
+                        </Grid>
+                        <Grid x:Name="TrendChartGrid" Height="220" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                        <TextBlock Text="Total disk space per scan day (sum of the newest scan of each path), over the selected window. Hover a point for the exact value." Style="{StaticResource Type.Caption}" Opacity="0.8" />
                     </StackPanel>
                 </Border>
 
@@ -147,6 +179,59 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Centralized file inventory (union of per-scan file caches) -->
+                <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasHistoryVisibility, Mode=OneWay}">
+                    <StackPanel Spacing="{StaticResource Space.SM}">
+                        <Grid ColumnSpacing="{StaticResource Space.SM}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="File Inventory" Style="{StaticResource Type.SubTitle}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{x:Bind VM.InventoryCountDisplay, Mode=OneWay}" Style="{StaticResource Type.Tiny}" VerticalAlignment="Center" Opacity="0.6" />
+                        </Grid>
+                        <Grid ColumnSpacing="{StaticResource Space.SM}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{x:Bind VM.InventorySearchText, Mode=TwoWay}" PlaceholderText="Search files by name or path..." Style="{StaticResource Type.Caption.TextBox}" KeyDown="InventorySearchBox_KeyDown" />
+                            <Button Grid.Column="1" Content="Search" Click="InventorySearch_Click" Style="{StaticResource SmallButton}" AutomationProperties.Name="Search file inventory" />
+                            <Button Grid.Column="2" Content="Clear" Click="InventoryClear_Click" Style="{StaticResource SmallButton}" Visibility="{x:Bind VM.HasInventorySearchText, Mode=OneWay, Converter={StaticResource BoolToVisibility}}" />
+                        </Grid>
+                        <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto">
+                            <ItemsRepeater ItemsSource="{x:Bind VM.Inventory, Mode=OneWay}">
+                                <ItemsRepeater.Layout>
+                                    <StackLayout Orientation="Vertical" Spacing="{StaticResource Space.XS}" />
+                                </ItemsRepeater.Layout>
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="models:MergedFileEntry">
+                                        <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" CornerRadius="6" Padding="{StaticResource Thickness.SM}">
+                                            <Grid ColumnSpacing="{StaticResource Space.MD}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center">
+                                                    <TextBlock Text="{x:Bind LeafName, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind FilePath, Mode=OneTime}" />
+                                                    <TextBlock Text="{x:Bind FilePath, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.6" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{x:Bind SourcePaths, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.5" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{x:Bind ScanCountDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.7" HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{x:Bind MtimeDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.7" HorizontalAlignment="Right" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+
                 <!-- Status -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}" Visibility="{x:Bind VM.HistoryListVisibility, Mode=OneWay}">
                     <Grid ColumnSpacing="{StaticResource Space.SM}">
@@ -176,8 +261,8 @@
                             </ItemsRepeater.Layout>
                             <ItemsRepeater.ItemTemplate>
                                 <DataTemplate x:DataType="models:ScanHistoryRecord">
-                                    <Border Background="{x:Bind IsCompareSelected, Mode=TwoWay, Converter={StaticResource SelectedFlagBrush}}"
-                                            BorderBrush="{x:Bind IsCompareSelected, Mode=TwoWay, Converter={StaticResource SelectedFlagBorder}}"
+                                    <Border Background="{x:Bind IsCompareSelected, Mode=OneWay, Converter={StaticResource SelectedFlagBrush}}"
+                                            BorderBrush="{x:Bind IsCompareSelected, Mode=OneWay, Converter={StaticResource SelectedFlagBorder}}"
                                             BorderThickness="1" CornerRadius="6" Padding="{StaticResource Thickness.MD}">
                                         <StackPanel Spacing="{StaticResource Space.SM}">
                                             <!-- Collapsed: essential info -->

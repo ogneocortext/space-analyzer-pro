@@ -353,7 +353,7 @@ public partial class ScannerService : IDisposable
 
     /// <summary>When true, the scanner reuses its incremental file cache (--cache)
     /// to skip files unchanged since the previous scan of the same path.</summary>
-    public bool UseFileCache { get; set; } = false;
+    public bool UseFileCache { get; set; } = true;
     // -- Internal helpers --
 
     /// <summary>

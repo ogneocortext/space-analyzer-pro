@@ -67,6 +67,10 @@ public static class AppLog
                 Directory.CreateDirectory(LogDir);
             s_writer = new StreamWriter(LogPath, append: true) { AutoFlush = true };
             try { _currentBytes = new FileInfo(LogPath).Length; } catch { _currentBytes = 0; }
+            // Emit a session-start marker (bypassing the ring) so every process
+            // start is visible in the durable file even when the app crashes before
+            // App.Boot() runs on the UI thread.
+            try { EmitLocked($"{NowStamp()} [0] [BOOT] session start pid={Environment.ProcessId}"); } catch { }
         }
         catch { s_writer = null; }
     }
@@ -101,6 +105,26 @@ public static class AppLog
     public static void Page(string message) => Write(Level.Info, "PAGE", message);
     public static void Action(string message) => Write(Level.Info, "ACTION", message);
     public static void Warn(string category, string message) => Write(Level.Warn, category, message);
+
+    /// <summary>Marks the start of a process in the log (once per launch).</summary>
+    public static void Boot(string message) => Write(Level.Info, "BOOT", message);
+
+    /// <summary>Flushes the file sink so the most recent line is durable before the
+    /// process exits or immediately after a FATAL (managed handlers run, but a
+    /// native crash still would not flush — hence the session-start marker below).</summary>
+    public static void Flush()
+    {
+        try { lock (s_fileLock) { s_writer?.Flush(); } } catch { /* swallow */ }
+    }
+
+    /// <summary>Logs a final line and releases the file handle. Called on process
+    /// exit / window close. Its ABSENCE (paired with a last NAV line) is the signal
+    /// that the process died abnormally (native crash) rather than shutting down.</summary>
+    public static void Shutdown(string? reason = null)
+    {
+        try { Write(Level.Info, "EXIT", reason ?? "application shutting down"); } catch { /* swallow */ }
+        try { lock (s_fileLock) { s_writer?.Flush(); s_writer?.Dispose(); s_writer = null; } } catch { /* swallow */ }
+    }
 
     public static void Error(string message) => Write(Level.Error, "ERROR", message);
 
@@ -275,9 +299,17 @@ public static class AppLog
         }
     }
 
+    // Re-entrancy guard: the DB sink is invoked from the FirstChanceException handler
+    // (via AppLog.Write). If a write itself throws, that first-chance would re-enter
+    // this method and flood the log with the logging path's own failure. Skip re-entry
+    // on the same thread so a DB failure is recorded at most once per call site.
+    [ThreadStatic]
+    private static bool _inDbSink;
+
     private static void AppendToDb(Level level, string category, string message, string? exceptionText)
     {
-        if (!s_dbEnabled) return;
+        if (!s_dbEnabled || _inDbSink) return;
+        _inDbSink = true;
         try
         {
             lock (s_dbLock)
@@ -297,6 +329,7 @@ public static class AppLog
             }
         }
         catch { s_dbEnabled = false; }
+        finally { _inDbSink = false; }
     }
     #endregion
 }

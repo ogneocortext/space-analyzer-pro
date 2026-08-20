@@ -232,4 +232,73 @@ public partial class ScannerService
             return false;
         }
     }
+
+    /// <summary>
+    /// Return the deduplicated union of every file recorded in the per-scan file
+    /// cache — the "centralized file inventory". Each entry is one file path with
+    /// its newest size/mtime, how many scans saw it, and the comma-joined source
+    /// scan roots. The Rust CLI emits a paginated JSON object
+    /// <c>{ files, total, limit, offset }</c>.
+    /// </summary>
+    public async Task<(List<MergedFileEntry> Files, long Total)> GetMergedFilesAsync(
+        string? search = null,
+        int limit = 500,
+        CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return (new(), 0);
+
+        var argList = new List<string> { "history", "--files", "--limit", limit.ToString(), "--format", "json" };
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            argList.Add("--search");
+            argList.Add(search);
+        }
+
+        var output = await RunScannerAsync(argList, ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return (new(), 0);
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            if (doc.RootElement.TryGetProperty("files", out var filesProp)
+                && doc.RootElement.TryGetProperty("total", out var totalProp))
+            {
+                var files = filesProp.Deserialize<List<MergedFileEntry>>(s_jsonOptions) ?? new();
+                return (files, totalProp.GetInt64());
+            }
+            var fallback = JsonSerializer.Deserialize<List<MergedFileEntry>>(output, s_jsonOptions) ?? new();
+            return (fallback, fallback.Count);
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse merged file inventory: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
+
+    /// <summary>
+    /// Return a (date, count) series for every calendar day that has at least one
+    /// scan record, powering the History page calendar heatmap. The Rust CLI emits
+    /// <c>{ days: [ { date, count }, … ] }</c> with <c>date</c> as YYYY-MM-DD (UTC).
+    /// </summary>
+    public async Task<List<ScanDayCount>> GetScanCalendarAsync(CancellationToken ct = default)
+    {
+        if (!IsAvailable)
+            return new();
+
+        var output = await RunScannerAsync(new[] { "history", "--calendar", "--format", "json" }, ct);
+        if (string.IsNullOrWhiteSpace(output))
+            return new();
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            if (doc.RootElement.TryGetProperty("days", out var daysProp))
+                return daysProp.Deserialize<List<ScanDayCount>>(s_jsonOptions) ?? new();
+            return new();
+        }
+        catch (JsonException jex)
+        {
+            throw new Exception($"Failed to parse scan calendar: {jex.Message}. Output: {Truncate(output)}", jex);
+        }
+    }
 }

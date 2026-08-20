@@ -346,6 +346,36 @@ pub enum Commands {
         /// embedding index for reuse.
         #[arg(long)]
         include_index_only: bool,
+
+        /// Return the deduplicated union of every file recorded in the per-scan
+        /// file cache — the "centralized file inventory". Each row is one file
+        /// path with its newest size/mtime, how many scans saw it, and the
+        /// comma-joined source scan roots. Combine with --search to filter and
+        /// --limit/--offset to page. Read-only.
+        #[arg(
+            long,
+            conflicts_with = "prune",
+            conflicts_with = "prune_empty",
+            conflicts_with = "clear",
+            conflicts_with = "backfill_categories",
+            conflicts_with = "trend",
+            conflicts_with = "category_totals"
+        )]
+        files: bool,
+
+        /// Return a (date, count) series for every calendar day that has at least
+        /// one scan record, powering the History page calendar heatmap. `date` is
+        /// YYYY-MM-DD (UTC). Read-only.
+        #[arg(
+            long,
+            conflicts_with = "prune",
+            conflicts_with = "prune_empty",
+            conflicts_with = "clear",
+            conflicts_with = "backfill_categories",
+            conflicts_with = "trend",
+            conflicts_with = "category_totals"
+        )]
+        calendar: bool,
     },
 
     /// Run duplicate-file analysis on a directory and output JSON

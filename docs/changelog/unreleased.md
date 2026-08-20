@@ -1,5 +1,48 @@
 # [Unreleased]
 
+## WinUI — Scan crash fix, self-diagnosing logging & automated capture
+
+### Fixed
+- **Scan page native crash (StackOverflowException, process exit `0xC00000FD`)** — a
+  TwoWay binding feedback loop between `DepthValue.set` (which raised
+  `PropertyChanged(nameof(SelectedDepthMode))`) and `SelectedDepthMode.set` (which
+  unconditionally assigned `DepthValue = _customMaxDepth`) recursed infinitely on page
+  load and overflowed the stack. `SelectedDepthMode.set` now only assigns `DepthValue`
+  when the value actually changes (`ViewModels/ScanViewModel.cs`), so the notification
+  loop terminates. Verified: the Scan page now loads and is captured cleanly — the
+  automated capture previously recorded `returncode 3221225725` for it.
+- **Unpackaged persistence guard** (`ViewModels/ScanViewModel.Persistence.cs`) — removed
+  an `Windows.ApplicationModel.AppInstance.IsPackaged` check that is not present in the
+  pinned Windows App SDK; `Load`/`Save` already wrap `ApplicationData.Current` in
+  try/catch, so `LocalSettings` access is safely skipped in unpackaged builds.
+
+### Changed
+- **Self-diagnosing logging hardening** (`Helpers/AppLog.cs`) — the SQLite sink
+  (`AppendToDb`) now uses a `[ThreadStatic]` re-entrancy guard so a write failure cannot
+  feed back into the `FirstChanceException` handler and flood `ui-actions.log` with the
+  logging path's own exception. The BOOT / Flush / Shutdown / FirstChance breadcrumbs in
+  `App.xaml.cs` remain the primary crash-triage record.
+- **History page UX hardening** (`Views/HistoryPage.xaml(.cs)`,
+  `Controls/LiveChartsFactory.cs`, `ViewModels/HistoryViewModel*.cs`,
+  `Services/ScannerService.History.cs`) — chart and calendar wrappers are now resilient
+  with text fallbacks, and the compare-state background/border binding is `OneWay` (no
+  longer re-templates the control on selection). Trend + duplicate badges are wired
+  through. Backend `is_index_only` / `duplicate_count` refinements are included in this
+  pass (see the embedded-pipeline / history-review work).
+- **Automated capture & verification harness**
+  (`scripts/utility/capture_winui3_screenshots.py`) — per-page capture now locates the
+  real `WinUIDesktopWin32WindowClass` window via raw Win32 (`EnumWindows` +
+  `GetWindowThreadProcessId` + class/text probes) instead of the broken
+  `auto.WindowControl(Handle=...)` wrapper, and writes a `capture_manifest.json` with
+  per-page success / `returncode`.
+
+### Verified
+- WinUI GUI MSBuild (Release): 0 errors / 0 warnings (2 benign `WMC1506` OneWay-binding
+  warnings on `HistoryPage.xaml`).
+- Full 12-page capture suite now returns `ok: true` for every page (previously Scan
+  crashed). History + Scan pages reviewed via the local `gemma4` vision model
+  (`scripts/vision.mjs analyze`) — both render correctly with no crash / blank state.
+
 ## Agentic Assistant — search tool, loop guard, streaming
 
 ### Added

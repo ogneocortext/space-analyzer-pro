@@ -12,57 +12,57 @@
                     Loaded="NavView_Loaded">
 
         <NavigationView.MenuItems>
-            <NavigationViewItem Content="Dashboard" Tag="Dashboard">
+            <NavigationViewItem Content="Dashboard" Tag="Dashboard" AutomationProperties.AutomationId="nav-Dashboard">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE80F;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="Scan" Tag="Scan">
+            <NavigationViewItem Content="Scan" Tag="Scan" AutomationProperties.AutomationId="nav-Scan">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE9D9;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="History" Tag="History">
+            <NavigationViewItem Content="History" Tag="History" AutomationProperties.AutomationId="nav-History">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE8F5;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="Search" Tag="AdvancedSearch">
+            <NavigationViewItem Content="Search" Tag="AdvancedSearch" AutomationProperties.AutomationId="nav-AdvancedSearch">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE721;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="Workflows" Tag="AutomationWorkflows">
+            <NavigationViewItem Content="Workflows" Tag="AutomationWorkflows" AutomationProperties.AutomationId="nav-AutomationWorkflows">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE74C;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="AI Assistant" Tag="AIChat">
+            <NavigationViewItem Content="AI Assistant" Tag="AIChat" AutomationProperties.AutomationId="nav-AIChat">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE99A;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="Duplicates" Tag="Dedup">
+            <NavigationViewItem Content="Duplicates" Tag="Dedup" AutomationProperties.AutomationId="nav-Dedup">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE8ED;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="Installed Apps" Tag="InstalledApps">
+            <NavigationViewItem Content="Installed Apps" Tag="InstalledApps" AutomationProperties.AutomationId="nav-InstalledApps">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE7B8;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="System" Tag="System">
+            <NavigationViewItem Content="System" Tag="System" AutomationProperties.AutomationId="nav-System">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE770;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="Cleanup" Tag="Cleanup">
+            <NavigationViewItem Content="Cleanup" Tag="Cleanup" AutomationProperties.AutomationId="nav-Cleanup">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE73D;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="USN Journal" Tag="UsnJournal">
+            <NavigationViewItem Content="USN Journal" Tag="UsnJournal" AutomationProperties.AutomationId="nav-UsnJournal">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE8B7;"/>
                 </NavigationViewItem.Icon>
@@ -70,12 +70,12 @@
         </NavigationView.MenuItems>
 
         <NavigationView.FooterMenuItems>
-            <NavigationViewItem Content="Settings" Tag="Settings">
+            <NavigationViewItem Content="Settings" Tag="Settings" AutomationProperties.AutomationId="nav-Settings">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE713;"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="About" Tag="About">
+            <NavigationViewItem Content="About" Tag="About" AutomationProperties.AutomationId="nav-About">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE946;"/>
                 </NavigationViewItem.Icon>

@@ -31,7 +31,7 @@ public static class AppSettings
         public const double ScanDepth = 5;
         public const bool IncludeHidden = false;
         public const bool GpuAcceleration = true;
-        public const bool UseFileCache = false;
+        public const bool UseFileCache = true;
         public const string DefaultScanPaths = "";
         public const string OllamaUrl = "http://localhost:11434";
         // Empty string = "auto": when unset, the AI Assistant picks the best available

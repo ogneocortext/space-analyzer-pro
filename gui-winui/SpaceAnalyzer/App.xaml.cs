@@ -21,22 +21,57 @@ public partial class App : Application
 
         // Catch failures that escape the UI thread or unobserved async tasks.
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+        {
             AppLog.Fatal(e.ExceptionObject as Exception ?? new Exception(e.ExceptionObject?.ToString()), "AppDomain.UnhandledException");
+            AppLog.Flush();
+        };
         TaskScheduler.UnobservedTaskException += (s, e) =>
         {
             AppLog.Fatal(e.Exception, "TaskScheduler.UnobservedTaskException");
+            AppLog.Flush();
             e.SetObserved();
         };
+        // Breadcrumb: WinUI sometimes rethrows faults with a NULL Exception, which
+        // drops the stack. Capture the stack of the first few null-deref style
+        // exceptions so the real fault site is diagnosable from the log alone.
+        AppDomain.CurrentDomain.FirstChanceException += (s, e) =>
+        {
+            if (_firstChanceCount >= 5) return;
+            if (e.Exception is NullReferenceException or InvalidOperationException or ArgumentNullException)
+            {
+                Interlocked.Increment(ref _firstChanceCount);
+                // Use Environment.StackTrace: the handler runs synchronously at the
+                // throw site, so this captures the real fault location even when
+                // WinUI later rethrows with a null Exception.StackTrace.
+                AppLog.Write(AppLog.Level.Error, "FIRSTCHANCE",
+                    $"{e.Exception.GetType().Name}: {e.Exception.Message}\n{Environment.StackTrace}");
+            }
+        };
+        // Log process exit so a clean shutdown is always recorded. Its absence
+        // (paired with a last NAV/BOOT line) signals an abnormal native crash.
+        AppDomain.CurrentDomain.ProcessExit += (s, e) => AppLog.Shutdown("process exit");
     }
+
+    private static int _firstChanceCount;
 
     private static void OnUnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
     {
-        AppLog.Fatal(e.Exception, "UnhandledException (UI thread)");
+        // WinUI sometimes delivers a null Exception (e.g. XAML parse / layout
+        // faults during measure/arrange). Capture e.Message so the failure is
+        // never silent in the log.
+        var ctx = $"UnhandledException (UI thread): {e.Message}";
+        if (e.Exception is { } ex)
+            AppLog.Fatal(ex, ctx);
+        else
+            AppLog.Write(AppLog.Level.Fatal, "FATAL", ctx);
+        AppLog.Flush();
         e.Handled = true;
     }
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
+        AppLog.Boot($"app launched pid={Environment.ProcessId}");
+
         LiveCharts.Configure(config => config
             .AddSkiaSharp()
             .AddDefaultMappers()

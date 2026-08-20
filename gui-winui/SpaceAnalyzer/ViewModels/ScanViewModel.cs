@@ -166,7 +166,13 @@ public partial class ScanViewModel : ViewModelBase, IDisposable
                 ScannerService.DepthMode.Custom => _customMaxDepth > 1 && _customMaxDepth < 20 ? _customMaxDepth : 5,
                 _ => 5
             };
-            DepthValue = _customMaxDepth;
+            // Guard the reverse edge: DepthValue.set raises PropertyChanged(SelectedDepthMode),
+            // whose TwoWay-bound ComboBox re-enters this setter. Without this guard the
+            // DepthValue <-> SelectedDepthMode cycle recurses infinitely and overflows the
+            // stack (STATUS_STACK_OVERFLOW) on page load. Only assign when the value truly
+            // changes so the notification loop terminates.
+            if (_depthValue != _customMaxDepth)
+                DepthValue = _customMaxDepth;
             OnPropertyChanged(nameof(CustomScan));
             OnPropertyChanged(nameof(ShowCustomDepthSlider));
         }

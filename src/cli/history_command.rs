@@ -26,6 +26,8 @@ pub fn handle_history(
     duplicates: bool,
     summarize: bool,
     include_index_only: bool,
+    files: bool,
+    calendar: bool,
     yes: bool,
     output_format: OutputFormat,
 ) -> AppResult<()> {
@@ -48,6 +50,52 @@ pub fn handle_history(
                     } else {
                         return Err(space_analyzer_pro_desktop::error::AppError::Validation(
                             format!("Failed to load trend: {e}"),
+                        ));
+                    }
+                }
+            }
+            return Ok(());
+        }
+        if files {
+            match db.get_merged_files(search.as_deref(), limit, offset) {
+                Ok((entries, total)) => {
+                    let response = serde_json::json!({
+                        "files": entries,
+                        "total": total,
+                        "limit": limit,
+                        "offset": offset,
+                    });
+                    println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+                }
+                Err(e) => {
+                    if output_format == OutputFormat::Json {
+                        println!("{}", serde_json::json!({"error": e.to_string()}));
+                    } else {
+                        return Err(space_analyzer_pro_desktop::error::AppError::Validation(
+                            format!("Failed to load file inventory: {e}"),
+                        ));
+                    }
+                }
+            }
+            return Ok(());
+        }
+        if calendar {
+            match db.get_scan_day_counts() {
+                Ok(days) => {
+                    let response = serde_json::json!({
+                        "days": days
+                            .into_iter()
+                            .map(|(day, count)| serde_json::json!({ "date": day, "count": count }))
+                            .collect::<Vec<_>>(),
+                    });
+                    println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+                }
+                Err(e) => {
+                    if output_format == OutputFormat::Json {
+                        println!("{}", serde_json::json!({"error": e.to_string()}));
+                    } else {
+                        return Err(space_analyzer_pro_desktop::error::AppError::Validation(
+                            format!("Failed to load calendar: {e}"),
                         ));
                     }
                 }

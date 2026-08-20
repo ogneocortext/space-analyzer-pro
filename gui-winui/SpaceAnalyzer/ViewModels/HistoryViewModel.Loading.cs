@@ -75,6 +75,8 @@ public partial class HistoryViewModel
         await LoadPageAsync();
         await LoadTrendAsync();
         await LoadCategoryHistoryAsync();
+        await LoadInventoryAsync();
+        await LoadCalendarAsync();
     }
 
     public async Task LoadTrendAsync()

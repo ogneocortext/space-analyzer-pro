@@ -15,6 +15,9 @@ public partial class ScanViewModel
     {
         try
         {
+            // ApplicationData.LocalSettings is only available in packaged apps. In an
+            // unpackaged build it throws InvalidOperationException, which is caught below
+            // (and surfaced only as a benign first-chance entry) so persistence is skipped.
             var container = ApplicationData.Current.LocalSettings
                 .CreateContainer(LocalSettingsKey, ApplicationDataCreateDisposition.Always);
 

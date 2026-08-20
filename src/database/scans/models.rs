@@ -15,6 +15,22 @@ pub struct HistoryTrendPoint {
     pub total_size_bytes: u64,
 }
 
+/// A single file projected from the union of every per-scan `file_cache`,
+/// deduplicated by `file_path`. The same file may appear in several scans (under
+/// different `scan_path` roots), so this is the "centralized" view: the newest
+/// size and mtime seen across scans, how many distinct scans observed it, and a
+/// comma-joined list of the source scan roots. Powers the History page
+/// "File Inventory" search/list.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MergedFileEntry {
+    pub file_path: String,
+    pub size_bytes: u64,
+    pub mtime_unix: i64,
+    pub extension: String,
+    pub scan_count: usize,
+    pub source_paths: String,
+}
+
 /// A stored duplicate-file analysis result, linked to the scan that produced it.
 ///
 /// `duplicate_groups_json` holds the serialized `Vec<DuplicateGroup>` (the same

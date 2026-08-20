@@ -86,7 +86,184 @@ public partial class HistoryViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(DuplicateSummaryDisplay));
             OnPropertyChanged(nameof(HasDuplicatesInView));
             OnPropertyChanged(nameof(RedundantInView));
+            RefreshSizeTrend();
         }
+    }
+
+    // ── Size trend (7 / 14 / 30 day windows) ──
+
+    private int _trendWindow = 30;
+    public int TrendWindow
+    {
+        get => _trendWindow;
+        set { _trendWindow = value; OnPropertyChanged(); OnPropertyChanged(nameof(TrendWindow7Active)); OnPropertyChanged(nameof(TrendWindow14Active)); OnPropertyChanged(nameof(TrendWindow30Active)); RefreshSizeTrend(); }
+    }
+    public bool TrendWindow7Active => _trendWindow == 7;
+    public bool TrendWindow14Active => _trendWindow == 14;
+    public bool TrendWindow30Active => _trendWindow == 30;
+
+    /// <summary>Daily aggregated disk-usage series for the selected window, one
+    /// point per calendar day that has at least one scan. Each day's value is the
+    /// sum of the newest scan per path observed that day. Fed straight to the
+    /// trend chart.</summary>
+    private List<(string Label, double Value)> _sizeTrendItems = new();
+    public List<(string Label, double Value)> SizeTrendItems
+    {
+        get => _sizeTrendItems;
+        private set { _sizeTrendItems = value; OnPropertyChanged(); OnPropertyChanged(nameof(TrendDeltaDisplay)); }
+    }
+
+    public string TrendDeltaDisplay
+    {
+        get
+        {
+            if (_sizeTrendItems.Count < 2) return "Need at least 2 scan days in this window";
+            var first = _sizeTrendItems[0].Value;
+            var last = _sizeTrendItems[^1].Value;
+            var delta = (long)(last - first);
+            var sign = delta >= 0 ? "+" : "-";
+            var pct = first > 0 ? Math.Abs(delta) / first * 100.0 : 0;
+            return $"{sign}{ByteFormatter.FormatBytes((ulong)Math.Abs(delta))} ({sign}{pct:F1}%) over {_trendWindow} days";
+        }
+    }
+
+    /// <summary>Recompute the windowed daily size-trend series from the full
+    /// chronological <see cref="TrendRecords"/>. The window is anchored on the most
+    /// recent scan so it always shows the latest N days of available data.</summary>
+    public void RefreshSizeTrend()
+    {
+        var points = _trendRecords;
+        if (points == null || points.Count == 0)
+        {
+            SizeTrendItems = new();
+            return;
+        }
+
+        DateTime reference;
+        if (DateTime.TryParse(points.MaxBy(p => p.Timestamp)?.Timestamp, out var maxDt))
+            reference = maxDt;
+        else
+        {
+            SizeTrendItems = new();
+            return;
+        }
+        var cutoff = reference.AddDays(-_trendWindow);
+
+        var inWindow = points
+            .Where(p => DateTime.TryParse(p.Timestamp, out var dt) && dt >= cutoff)
+            .ToList();
+
+        var byDay = inWindow
+            .GroupBy(p => DateTime.Parse(p.Timestamp).Date)
+            .Select(g =>
+            {
+                // For each day, take the newest scan per path and sum their sizes so
+                // re-scans of the same folder on the same day don't double-count.
+                var latestPerPath = g
+                    .GroupBy(x => NormalizePath(x.Path), StringComparer.OrdinalIgnoreCase)
+                    .Select(pg => pg.OrderByDescending(x => DateTime.Parse(x.Timestamp)).First());
+                var size = latestPerPath.Sum(x => (double)x.TotalSizeBytes);
+                return (Day: g.Key, Size: size);
+            })
+            .OrderBy(x => x.Day)
+            .ToList();
+
+        SizeTrendItems = byDay
+            .Select(x => (x.Day.ToString("MMM d"), x.Size))
+            .ToList();
+    }
+
+    // ── Centralized file inventory (union of per-scan file caches) ──
+
+    private ObservableCollection<MergedFileEntry> _inventory = new();
+    public ObservableCollection<MergedFileEntry> Inventory
+    {
+        get => _inventory;
+        private set { _inventory = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasInventory)); OnPropertyChanged(nameof(InventoryCountDisplay)); }
+    }
+
+    private long _inventoryTotal;
+    public long InventoryTotal
+    {
+        get => _inventoryTotal;
+        private set { _inventoryTotal = value; OnPropertyChanged(); OnPropertyChanged(nameof(InventoryCountDisplay)); }
+    }
+
+    public bool HasInventory => _inventory.Count > 0;
+    public string InventoryCountDisplay => InventoryTotal == 0 ? "No cached files yet" : $"{InventoryTotal:N0} files indexed";
+
+    private string _inventorySearchText = string.Empty;
+    public string InventorySearchText
+    {
+        get => _inventorySearchText;
+        set { _inventorySearchText = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasInventorySearchText)); }
+    }
+    public bool HasInventorySearchText => !string.IsNullOrWhiteSpace(_inventorySearchText);
+
+    public async Task LoadInventoryAsync(string? search = null)
+    {
+        try
+        {
+            var (files, total) = await _scanner.GetMergedFilesAsync(search, 500);
+            Inventory = new ObservableCollection<MergedFileEntry>(files);
+            InventoryTotal = total;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] LoadInventory failed: {ex}");
+            Inventory = new ObservableCollection<MergedFileEntry>();
+            InventoryTotal = 0;
+        }
+    }
+
+    public void SearchInventory() => _ = LoadInventoryAsync(string.IsNullOrWhiteSpace(InventorySearchText) ? null : InventorySearchText);
+    public void ClearInventorySearch()
+    {
+        InventorySearchText = string.Empty;
+        SearchInventory();
+    }
+
+    // ── Calendar (days with scans) ──
+
+    private List<ScanDayCount> _scanDayCounts = new();
+    public List<ScanDayCount> ScanDayCounts
+    {
+        get => _scanDayCounts;
+        private set
+        {
+            _scanDayCounts = value;
+            _scanDaySet = new HashSet<DateTime>(
+                value.Select(d => DateTime.TryParse(d.Date + "T00:00:00Z", out var dt) ? dt.ToLocalTime().Date : DateTime.MinValue)
+                     .Where(d => d != DateTime.MinValue));
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasScanDays));
+        }
+    }
+
+    private HashSet<DateTime> _scanDaySet = new();
+    /// <summary>Set of local calendar dates that have at least one scan record.
+    /// Used by the History page calendar to highlight scan days.</summary>
+    public HashSet<DateTime> ScanDaySet => _scanDaySet;
+    public bool HasScanDays => _scanDaySet.Count > 0;
+
+    public async Task LoadCalendarAsync()
+    {
+        try
+        {
+            ScanDayCounts = await _scanner.GetScanCalendarAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[HistoryViewModel] LoadCalendar failed: {ex}");
+            ScanDayCounts = new List<ScanDayCount>();
+        }
+    }
+
+    private string _selectedScanDayText = "Select a day to see scan counts";
+    public string SelectedScanDayText
+    {
+        get => _selectedScanDayText;
+        set { _selectedScanDayText = value; OnPropertyChanged(); }
     }
 
     public bool HasDuplicatesAny => _duplicateRecords > 0;
