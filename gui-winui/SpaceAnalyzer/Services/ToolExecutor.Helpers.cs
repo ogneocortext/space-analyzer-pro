@@ -232,6 +232,26 @@ public partial class ToolExecutor
         return int.TryParse(v.ToString(), out var parsed) ? parsed : defaultValue;
     }
 
+    private static bool GetBool(Dictionary<string, object> args, string key)
+    {
+        if (!args.TryGetValue(key, out var v))
+            return false;
+        if (v is JsonElement je)
+        {
+            if (je.ValueKind == JsonValueKind.True) return true;
+            if (je.ValueKind == JsonValueKind.False) return false;
+            if (je.ValueKind == JsonValueKind.String)
+                return bool.TryParse(je.GetString(), out var sb) && sb;
+            if (je.ValueKind == JsonValueKind.Number)
+                return je.TryGetInt64(out var n) && n != 0;
+            return false;
+        }
+        if (v is bool b) return b;
+        if (v is int i) return i != 0;
+        if (v is long l) return l != 0;
+        return bool.TryParse(v?.ToString(), out var parsed) && parsed;
+    }
+
     public void Dispose()
     {
         if (_disposed) return;

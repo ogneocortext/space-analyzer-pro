@@ -75,8 +75,38 @@ public partial class ToolExecutor
 
         var extension = GetOptionalString(args, "extension");
         var keyword = GetOptionalString(args, "keyword");
-        var limit = GetInt(args, "limit", 20);
+        var limit = Math.Max(1, GetInt(args, "limit", 50));
+        var sizeMinMb = GetInt(args, "size_min_mb", 0);
+        var sizeMaxMb = GetInt(args, "size_max_mb", 0);
+        var includeHidden = GetBool(args, "include_hidden");
 
+        // Real, bounded filesystem search: the scanner walks the whole subtree and
+        // returns every path matching the filters (capped at --limit). This replaces
+        // the old behaviour of only filtering the handful of largest files cached in
+        // a scan result, which silently missed the vast majority of matches.
+        var cliArgs = new List<string> { "search", "--path", path, "--format", "json", "--limit", limit.ToString() };
+        if (!string.IsNullOrEmpty(extension))
+            cliArgs.AddRange(new[] { "--extension", extension });
+        if (!string.IsNullOrEmpty(keyword))
+            cliArgs.AddRange(new[] { "--keyword", keyword });
+        if (sizeMinMb > 0)
+            cliArgs.AddRange(new[] { "--min-size", $"{sizeMinMb}M" });
+        if (sizeMaxMb > 0)
+            cliArgs.AddRange(new[] { "--max-size", $"{sizeMaxMb}M" });
+        if (includeHidden)
+            cliArgs.Add("--include-hidden");
+
+        var output = await RunCliAsync(cliArgs, ct);
+        if (!string.IsNullOrWhiteSpace(output)
+            && !output.TrimStart().StartsWith("Error", StringComparison.OrdinalIgnoreCase)
+            && TryParseSearchMatches(output, limit, out var json))
+        {
+            return json;
+        }
+
+        // Degraded fallback: filter the cached largest-files list if the bundled
+        // scanner predates the `search` subcommand. (Only covers the top-N files,
+        // so it may under-report — but keeps the tool working on older binaries.)
         var files = await GetLargestFileEntriesAsync(path, ScannerService.DepthMode.Default, progress, ct);
         if (files == null || files.Count == 0)
             return "No files match the current filters in the target directory.";
@@ -94,6 +124,47 @@ public partial class ToolExecutor
         }).ToList();
 
         return JsonSerializer.Serialize(formatted, s_json);
+    }
+
+    /// <summary>
+    /// Parse the scanner `search --format json` output into the slim
+    /// <c>{ path, size_mb }</c> shape the AI assistant expects. Returns false (so
+    /// the caller can fall back to the cached search) when the payload is not the
+    /// expected search result, which also guards against older scanner binaries
+    /// that don't implement the <c>search</c> subcommand.
+    /// </summary>
+    private static bool TryParseSearchMatches(string output, int limit, out string json)
+    {
+        json = string.Empty;
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            if (!doc.RootElement.TryGetProperty("matches", out var matches)
+                || matches.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+
+            var items = matches.EnumerateArray()
+                .Take(limit)
+                .Select(m => new
+                {
+                    path = m.TryGetProperty("path", out var p) ? p.GetString() : null,
+                    size_mb = m.TryGetProperty("size", out var s) && s.ValueKind == JsonValueKind.Number
+                        ? Math.Round(s.GetInt64() / (1024.0 * 1024), 2)
+                        : 0.0,
+                })
+                .Where(x => x.path != null)
+                .Select(x => new { path = x.path, size_mb = x.size_mb })
+                .ToList();
+
+            json = JsonSerializer.Serialize(items, s_json);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private async Task<string> GetLargestFilesAsync(

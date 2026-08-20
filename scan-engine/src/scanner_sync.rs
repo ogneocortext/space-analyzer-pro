@@ -229,6 +229,153 @@ impl FileScanner {
         Ok(result)
     }
 
+    /// Walk `path` and collect every file that satisfies `query`, capped at
+    /// `query.limit` matches. Unlike `scan_directory_sync` this performs a
+    /// lightweight traversal that returns the actual matching paths rather than a
+    /// whole-tree aggregate, so it powers the AI assistant's `search_files` tool
+    /// and the `search` CLI subcommand with a real, bounded filesystem search.
+    pub fn search_files_sync(
+        &self,
+        path: &str,
+        query: SearchQuery,
+    ) -> anyhow::Result<SearchResult> {
+        let mut matches: Vec<FileInfo> = Vec::new();
+        let mut files_scanned: u64 = 0;
+        let mut errors: Vec<String> = Vec::new();
+        let mut over_limit = false;
+
+        let ext_filter = query.extension.as_ref().and_then(|e| {
+            let trimmed = e.trim_start_matches('.').to_lowercase();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed)
+            }
+        });
+
+        let keyword = query.keyword.as_ref().map(|k| k.to_lowercase());
+
+        let mut walker = WalkDir::new(path);
+        if let Some(depth) = query.max_depth {
+            walker = walker.max_depth(depth);
+        }
+        walker = walker.follow_links(false);
+
+        for entry in walker.into_iter().filter_entry(|e| {
+            if query.include_hidden || e.depth() == 0 {
+                return true;
+            }
+            if !e.file_type().is_dir() {
+                return true;
+            }
+            !Self::dir_entry_is_hidden(e)
+        }) {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(error) => {
+                    errors.push(format!("Traversal error: {error}"));
+                    continue;
+                }
+            };
+
+            if entry.file_type().is_dir() {
+                continue;
+            }
+
+            let entry_path = entry.path();
+            let metadata = match entry.metadata() {
+                Ok(m) => m,
+                Err(e) => {
+                    let path_str = entry_path.to_string_lossy().to_string();
+                    let error_msg = if e
+                        .io_error()
+                        .map(|io_err| io_err.kind())
+                        == Some(std::io::ErrorKind::PermissionDenied)
+                    {
+                        format!("Permission denied: {path_str}")
+                    } else {
+                        format!("Metadata error: {path_str}: {e}")
+                    };
+                    errors.push(error_msg);
+                    continue;
+                }
+            };
+
+            files_scanned += 1;
+
+            if !query.include_hidden && Self::is_hidden(entry_path, &metadata) {
+                continue;
+            }
+
+            let size = allocated_size(&metadata, entry_path);
+
+            if let Some(min) = query.min_size {
+                if size < min {
+                    continue;
+                }
+            }
+            if let Some(max) = query.max_size {
+                if size > max {
+                    continue;
+                }
+            }
+
+            if let Some(ext) = &ext_filter {
+                let file_ext = entry_path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|e| e.to_lowercase())
+                    .unwrap_or_default();
+                if &file_ext != ext {
+                    continue;
+                }
+            }
+
+            if let Some(kw) = &keyword {
+                if !entry_path.to_string_lossy().to_lowercase().contains(kw) {
+                    continue;
+                }
+            }
+
+            if matches.len() >= query.limit {
+                over_limit = true;
+                continue;
+            }
+
+            let path_str = entry_path.to_string_lossy().to_string();
+            let name = entry_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+            let extension = entry_path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            let modified = Self::format_timestamp(
+                metadata.modified().unwrap_or(std::time::UNIX_EPOCH),
+            );
+
+            matches.push(FileInfo {
+                path: path_str,
+                name,
+                size,
+                modified,
+                file_type: "file".to_string(),
+                extension,
+            });
+        }
+
+        Ok(SearchResult {
+            total_matches: matches.len(),
+            files_scanned,
+            truncated: over_limit,
+            matches,
+            errors,
+        })
+    }
+
     fn apply_gpu_result(
         result: &mut ScanResult,
         gpu_result: gpu_compute::scan::GpuScanResult,

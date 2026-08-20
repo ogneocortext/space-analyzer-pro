@@ -46,6 +46,40 @@ pub struct ScanResult {
     pub category_sizes: HashMap<String, u64>,
 }
 
+/// Filters for a live filesystem search (`FileScanner::search_files_sync`).
+#[derive(Debug, Clone, Default)]
+pub struct SearchQuery {
+    /// Match files whose extension equals this (case-insensitive; leading `.` optional).
+    pub extension: Option<String>,
+    /// Case-insensitive substring match against the full path.
+    pub keyword: Option<String>,
+    /// Minimum file size in bytes (inclusive).
+    pub min_size: Option<u64>,
+    /// Maximum file size in bytes (inclusive).
+    pub max_size: Option<u64>,
+    /// Include hidden files and directories (default: exclude, mirroring a scan).
+    pub include_hidden: bool,
+    /// Maximum traversal depth (default: unlimited so the whole subtree is searched).
+    pub max_depth: Option<usize>,
+    /// Maximum number of matches to return.
+    pub limit: usize,
+}
+
+/// Result of a live filesystem search.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResult {
+    /// Matching files actually returned (capped at `limit`).
+    pub matches: Vec<FileInfo>,
+    /// Number of matches returned (equals `matches.len()`; capped at `limit`).
+    pub total_matches: usize,
+    /// Number of files inspected while walking the tree.
+    pub files_scanned: u64,
+    /// True when more matches existed but were dropped because `limit` was reached.
+    pub truncated: bool,
+    /// Non-fatal traversal/metadata errors encountered while walking.
+    pub errors: Vec<String>,
+}
+
 /// Per-directory aggregate information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirInfo {

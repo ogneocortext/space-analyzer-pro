@@ -12,7 +12,10 @@ pub use categories::{category_for_extension, extension_to_category};
 pub use formatting::{format_bytes, format_duration, size_bucket};
 pub use scanner::get_system_info;
 pub use scanner::FileScanner;
-pub use types::{DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SystemInfo};
+pub use types::{
+    DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SearchQuery, SearchResult,
+    SystemInfo,
+};
 
 #[cfg(test)]
 mod tests {
@@ -271,5 +274,119 @@ mod tests {
             extension_to_category("js", "C:\\proj\\node_modules\\x\\lib.js"),
             "Development"
         );
+    }
+
+    fn write_search_file(dir: &std::path::Path, rel: &str, content: &[u8]) {
+        let p = dir.join(rel);
+        if let Some(parent) = p.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(p, content).unwrap();
+    }
+
+    #[test]
+    fn search_files_sync_filters_by_extension_and_keyword() {
+        let dir = temp_scan_dir("search");
+        write_search_file(&dir, "a.log", b"x");
+        write_search_file(&dir, "b.log", b"yy");
+        write_search_file(&dir, "c.txt", b"zzz");
+        write_search_file(&dir, "sub/d.log", b"wwww");
+        write_search_file(&dir, "sub/secret.log", b"vvvvv");
+
+        let scanner = FileScanner::new();
+
+        // Extension filter only.
+        let by_ext = scanner
+            .search_files_sync(
+                dir.to_str().unwrap(),
+                SearchQuery {
+                    extension: Some("log".into()),
+                    keyword: None,
+                    min_size: None,
+                    max_size: None,
+                    include_hidden: false,
+                    max_depth: None,
+                    limit: 100,
+                },
+            )
+            .unwrap();
+        assert_eq!(by_ext.total_matches, 4);
+        assert!(!by_ext.truncated);
+
+        // Extension + keyword (substring of path) prunes further.
+        let by_kw = scanner
+            .search_files_sync(
+                dir.to_str().unwrap(),
+                SearchQuery {
+                    extension: Some("log".into()),
+                    keyword: Some("secret".into()),
+                    min_size: None,
+                    max_size: None,
+                    include_hidden: false,
+                    max_depth: None,
+                    limit: 100,
+                },
+            )
+            .unwrap();
+        assert_eq!(by_kw.total_matches, 1);
+        assert!(by_kw.matches[0].path.ends_with("secret.log"));
+
+        // Limit caps the returned matches and flags truncation.
+        let limited = scanner
+            .search_files_sync(
+                dir.to_str().unwrap(),
+                SearchQuery {
+                    extension: Some("log".into()),
+                    keyword: None,
+                    min_size: None,
+                    max_size: None,
+                    include_hidden: false,
+                    max_depth: None,
+                    limit: 2,
+                },
+            )
+            .unwrap();
+        assert_eq!(limited.matches.len(), 2);
+        assert!(limited.truncated);
+    }
+
+    #[test]
+    fn search_files_sync_excludes_hidden_by_default() {
+        let dir = temp_scan_dir("search_hidden");
+        write_search_file(&dir, "visible.log", b"x");
+        write_search_file(&dir, ".hidden.log", b"y");
+
+        let scanner = FileScanner::new();
+        let excluded = scanner
+            .search_files_sync(
+                dir.to_str().unwrap(),
+                SearchQuery {
+                    extension: Some("log".into()),
+                    keyword: None,
+                    min_size: None,
+                    max_size: None,
+                    include_hidden: false,
+                    max_depth: None,
+                    limit: 100,
+                },
+            )
+            .unwrap();
+        assert_eq!(excluded.total_matches, 1);
+
+        let included = scanner
+            .search_files_sync(
+                dir.to_str().unwrap(),
+                SearchQuery {
+                    extension: Some("log".into()),
+                    keyword: None,
+                    min_size: None,
+                    max_size: None,
+                    include_hidden: true,
+                    max_depth: None,
+                    limit: 100,
+                },
+            )
+            .unwrap();
+        assert_eq!(included.total_matches, 2);
     }
 }

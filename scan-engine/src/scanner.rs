@@ -8,7 +8,8 @@ use walkdir::WalkDir;
 use crate::categories::extension_to_category;
 use crate::formatting::{allocated_size, size_bucket};
 use crate::types::{
-    DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SystemInfo,
+    DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SearchQuery, SearchResult,
+    SystemInfo,
 };
 
 /// File scanner implementation

@@ -2,8 +2,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -107,25 +109,7 @@ public class OllamaClient : IDisposable
         bool? think,
         CancellationToken ct)
     {
-        var request = new ChatRequest
-        {
-            Model = model,
-            Messages = messages,
-            Stream = false,
-            Options = new Dictionary<string, object>
-            {
-                ["temperature"] = 0.3,
-                ["num_ctx"] = 8192,
-                ["num_gpu"] = -1,
-                ["num_predict"] = -1
-            },
-            KeepAlive = "5m",
-            Tools = tools,
-            ToolChoice = toolChoice
-        };
-        if (think.HasValue)
-            request.Think = think.Value;
-
+        var request = BuildChatRequest(model, messages, tools, toolChoice, think, stream: false);
         var json = JsonSerializer.Serialize(request, JsonOptions);
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -152,6 +136,181 @@ public class OllamaClient : IDisposable
         var chatResponse = JsonSerializer.Deserialize<ChatResponse>(responseJson, JsonOptions);
 
         return chatResponse ?? throw new InvalidOperationException("Null response from Ollama");
+    }
+
+    /// <summary>
+    /// Build the <see cref="ChatRequest"/> body shared by the non-streaming and
+    /// streaming chat paths.
+    /// </summary>
+    private static ChatRequest BuildChatRequest(
+        string model,
+        List<ChatMessage> messages,
+        List<ToolDefinition>? tools,
+        string? toolChoice,
+        bool? think,
+        bool stream)
+    {
+        var request = new ChatRequest
+        {
+            Model = model,
+            Messages = messages,
+            Stream = stream,
+            Options = new Dictionary<string, object>
+            {
+                ["temperature"] = 0.3,
+                ["num_ctx"] = 8192,
+                ["num_gpu"] = -1,
+                ["num_predict"] = -1
+            },
+            KeepAlive = "5m",
+            Tools = tools,
+            ToolChoice = toolChoice
+        };
+        if (think.HasValue)
+            request.Think = think.Value;
+        return request;
+    }
+
+    /// <summary>
+    /// Send a chat request and stream the response back as newline-delimited JSON
+    /// chunks (Ollama <c>/api/chat</c> with <c>stream: true</c>). Each yielded
+    /// <see cref="ChatStreamChunk"/> carries an incremental <see cref="ChatMessage.Content"/>
+    /// fragment, and possibly <see cref="ChatMessage.ToolCalls"/>; the final chunk has
+    /// <see cref="ChatStreamChunk.Done"/> set. Candidate/fallback and transient-retry
+    /// behavior mirrors <see cref="SendChatMessageAsync"/>, but without mid-stream
+    /// fallback (the first candidate that returns a success stream is consumed to
+    /// completion).
+    /// </summary>
+    public async IAsyncEnumerable<ChatStreamChunk> SendChatMessageStreamAsync(
+        string model,
+        List<ChatMessage> messages,
+        List<ToolDefinition>? tools = null,
+        string? toolChoice = null,
+        [EnumeratorCancellation] CancellationToken ct = default,
+        bool? think = null)
+    {
+        if (string.IsNullOrWhiteSpace(model))
+            throw new ArgumentException("Model name cannot be empty", nameof(model));
+        if (messages == null || messages.Count == 0)
+            throw new ArgumentException("Messages list cannot be null or empty", nameof(messages));
+
+        // Resolve the first candidate that returns a success stream (candidate/fallback
+        // + transient-retry live in GetStreamingResponseAsync, which has no yield and so
+        // can use try/catch). The iterator itself only yields once a stream is obtained.
+        var response = await GetStreamingResponseAsync(model, messages, tools, toolChoice, think, ct)
+            .ConfigureAwait(false);
+        await foreach (var chunk in ReadStreamChunksAsync(response, ct).ConfigureAwait(false))
+            yield return chunk;
+    }
+
+    /// <summary>
+    /// Returns the first <see cref="HttpResponseMessage"/> with a success status across
+    /// the configured model candidates (primary + fallbacks). Transient network/timeout
+    /// errors are retried; non-transient errors (e.g. unknown model) fail fast to the
+    /// next candidate. Throws when every candidate fails.
+    /// </summary>
+    private async Task<HttpResponseMessage> GetStreamingResponseAsync(
+        string model,
+        List<ChatMessage> messages,
+        List<ToolDefinition>? tools,
+        string? toolChoice,
+        bool? think,
+        CancellationToken ct)
+    {
+        var candidates = new List<string> { model };
+        if (_fallback.Enabled)
+            candidates.AddRange(_fallback.FallbackModels);
+
+        string? lastError = null;
+        foreach (var candidate in candidates)
+        {
+            for (int attempt = 0; attempt <= MaxRetries; attempt++)
+            {
+                try
+                {
+                    return await SendChatStreamRequestAsync(candidate, messages, tools, toolChoice, think, ct)
+                        .ConfigureAwait(false);
+                }
+                catch (OllamaApiException ex)
+                {
+                    lastError = ex.Message;
+                    break;
+                }
+                catch (Exception ex) when (IsTransientError(ex) && attempt < MaxRetries)
+                {
+                    lastError = ex.Message;
+                    await Task.Delay(TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt)), ct)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex.Message;
+                    break;
+                }
+            }
+        }
+
+        throw new InvalidOperationException($"Chat (stream) failed for all candidates. Last error: {lastError}");
+    }
+
+    private async Task<HttpResponseMessage> SendChatStreamRequestAsync(
+        string model,
+        List<ChatMessage> messages,
+        List<ToolDefinition>? tools,
+        string? toolChoice,
+        bool? think,
+        CancellationToken ct)
+    {
+        var request = BuildChatRequest(model, messages, tools, toolChoice, think, stream: true);
+        var json = JsonSerializer.Serialize(request, JsonOptions);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _http.PostAsync("api/chat", content, ct).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            var status = (int)response.StatusCode;
+            var errBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            string detail = errBody;
+            try
+            {
+                using var doc = JsonDocument.Parse(errBody);
+                if (doc.RootElement.TryGetProperty("error", out var errEl))
+                    detail = errEl.GetString() ?? errBody;
+            }
+            catch { }
+            throw new OllamaApiException($"Ollama returned {status}: {detail}");
+        }
+
+        return response;
+    }
+
+    private static async IAsyncEnumerable<ChatStreamChunk> ReadStreamChunksAsync(
+        HttpResponseMessage response,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        using var reader = new StreamReader(stream);
+        string? line;
+        while ((line = await reader.ReadLineAsync().ConfigureAwait(false)) != null)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+            ChatStreamChunk? chunk = null;
+            try
+            {
+                chunk = JsonSerializer.Deserialize<ChatStreamChunk>(line, JsonOptions);
+            }
+            catch
+            {
+                continue;
+            }
+            if (chunk is null)
+                continue;
+            yield return chunk;
+            if (chunk.Done)
+                yield break;
+        }
     }
 
     /// <summary>
@@ -378,6 +537,26 @@ public class ChatResponse
     public bool Done { get; set; }
     public int? PromptEvalCount { get; set; }
     public int? EvalCount { get; set; }
+}
+
+/// <summary>
+/// A single newline-delimited JSON chunk from <c>/api/chat</c> in streaming mode
+/// (<c>stream: true</c>). <see cref="Message.Content"/> is an incremental fragment of
+/// the generated text; <see cref="Message.ToolCalls"/> carries tool calls when the model
+/// requests them (typically on a later chunk). The terminal chunk sets <see cref="Done"/>.
+/// </summary>
+public class ChatStreamChunk
+{
+    public string? Model { get; set; }
+
+    [JsonPropertyName("message")]
+    public ChatMessage? Message { get; set; }
+
+    [JsonPropertyName("done")]
+    public bool Done { get; set; }
+
+    [JsonPropertyName("done_reason")]
+    public string? DoneReason { get; set; }
 }
 
 /// <summary>

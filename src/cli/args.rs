@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::fmt;
 
 const EXAMPLES: &str = "\
@@ -71,7 +71,7 @@ impl fmt::Display for OutputFormat {
 
 /// Parse a count that must be at least 1, so `--top 0` / `--max-depth 0`
 /// are rejected by clap instead of silently producing an empty report.
-fn parse_at_least_one(raw: &str) -> Result<usize, String> {
+pub(crate) fn parse_at_least_one(raw: &str) -> Result<usize, String> {
     let value: usize = raw
         .parse()
         .map_err(|_| format!("`{raw}` is not a whole number"))?;
@@ -530,6 +530,55 @@ pub enum Commands {
     /// Enumerate installed applications and dev tools, then flag installs that are
     /// duplicated across drives/paths or present in multiple versions
     AppInventory,
+
+    /// Real, bounded filesystem search: walk a directory tree and return every
+    /// file matching the extension/keyword/size filters (capped at --limit).
+    Search(SearchArgs),
+}
+
+/// Arguments for the `search` subcommand.
+#[derive(Debug, Args)]
+pub struct SearchArgs {
+    /// Directory to search (defaults to the current directory)
+    #[arg(value_name = "PATH")]
+    pub path: Option<String>,
+
+    /// Directory to search; flag form of the positional PATH argument
+    #[arg(
+        short = 'p',
+        long = "path",
+        value_name = "PATH",
+        conflicts_with = "path"
+    )]
+    pub path_flag: Option<String>,
+
+    /// Match only files with this extension (case-insensitive; leading `.` optional)
+    #[arg(long)]
+    pub extension: Option<String>,
+
+    /// Case-insensitive substring match against the full file path
+    #[arg(long)]
+    pub keyword: Option<String>,
+
+    /// Minimum file size to include (e.g. 1M, 500K, 1GB)
+    #[arg(long)]
+    pub min_size: Option<String>,
+
+    /// Maximum file size to include (e.g. 100M, 1GB)
+    #[arg(long)]
+    pub max_size: Option<String>,
+
+    /// Include hidden files and directories
+    #[arg(long)]
+    pub include_hidden: bool,
+
+    /// Maximum traversal depth (minimum 1; whole subtree by default)
+    #[arg(long, value_parser = parse_at_least_one)]
+    pub max_depth: Option<usize>,
+
+    /// Maximum number of matches to return (minimum 1)
+    #[arg(long, default_value = "100", value_parser = parse_at_least_one)]
+    pub limit: usize,
 }
 
 /// Sub-commands for inspecting NTFS USN change journals.

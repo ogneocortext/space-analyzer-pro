@@ -17,6 +17,7 @@ pub mod render;
 pub mod report;
 pub mod scan;
 pub mod scan_command;
+pub mod search;
 pub mod semantic;
 pub mod settings_command;
 pub mod sink;
@@ -217,5 +218,6 @@ pub fn main() -> AppResult<()> {
             recommend::run(recommend::RecommendArgs { scan_id, top }, output_format)
         }
         Commands::Ask { question, scan_id } => ai_command::run_ask(&question, scan_id),
+        Commands::Search(args) => search::run(args, output_format),
     }
 }

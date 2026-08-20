@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -66,6 +67,10 @@ public partial class AIAssistantViewModel
             }
 
             bool gotFinalAnswer = false;
+            // Tracks the exact (tool name + serialized arguments) signature of every
+            // tool call executed this turn. Used to break runaway loops where a model
+            // re-issues an identical call and never converges on a final answer.
+            var executedToolSignatures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (int iteration = 0; iteration < MaxToolIterations; iteration++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -89,16 +94,66 @@ public partial class AIAssistantViewModel
                     iteration == 0 || effectiveToolChoice == "auto",
                     "tool_choice must be 'auto' after the first iteration; only turn 0 may force a tool.");
 
-                var response = await _client.SendChatMessageAsync(
-                    selectedModel, apiMessages, tools, effectiveToolChoice, ct, think: OllamaThink);
+                // Stream the model response token-by-token. `liveAssistant` is the
+                // on-screen bubble that grows as text arrives; `finalMessage` is the
+                // assembled message used for tool-execution / final-answer logic.
+                StringBuilder? streamedContent = null;
+                AIChatMessage? liveAssistant = null;
+                List<ToolCallResponse>? accumulatedToolCalls = null;
+                ChatMessage? finalMessage = null;
 
-                var message = response.Message;
-                if (message == null)
+                await foreach (var chunk in _client.SendChatMessageStreamAsync(
+                    selectedModel, apiMessages, tools, effectiveToolChoice, ct, think: OllamaThink))
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    var cm = chunk.Message;
+                    if (cm != null)
+                    {
+                        if (!string.IsNullOrEmpty(cm.Content))
+                        {
+                            streamedContent ??= new StringBuilder();
+                            if (liveAssistant is null)
+                            {
+                                liveAssistant = new AIChatMessage(ChatRole.Assistant, string.Empty);
+                                _messages.Add(liveAssistant);
+                                OnPropertyChanged(nameof(ShowSuggestions));
+                                ThinkingStatus = string.Empty;
+                            }
+                            streamedContent.Append(cm.Content);
+                            liveAssistant.Content = streamedContent.ToString();
+                        }
+                        if (cm.ToolCalls is { Count: > 0 })
+                        {
+                            accumulatedToolCalls = cm.ToolCalls;
+                            // A tool turn must not leave a partial text bubble behind.
+                            if (liveAssistant is not null)
+                            {
+                                _messages.Remove(liveAssistant);
+                                liveAssistant = null;
+                            }
+                        }
+                    }
+
+                    if (chunk.Done)
+                    {
+                        finalMessage = new ChatMessage
+                        {
+                            Role = ChatRole.Assistant,
+                            Content = streamedContent?.ToString() ?? cm?.Content ?? string.Empty,
+                            ToolCalls = accumulatedToolCalls
+                        };
+                    }
+                }
+
+                if (finalMessage is null)
                 {
                     AddMessage(ChatRole.Assistant, "Received empty response from model.");
                     gotFinalAnswer = true;
                     break;
                 }
+
+                var message = finalMessage;
 
                 // Check for tool calls
                 if (message.ToolCalls is { Count: > 0 })
@@ -125,6 +180,8 @@ public partial class AIAssistantViewModel
 
                         var fnName = toolCall.Function.Name;
                         var args = ParseToolArguments(toolCall.Function.Arguments);
+                        var toolSig = fnName + "|" + JsonSerializer.Serialize(args, s_toolArgJson);
+                        bool isRepeatCall = !executedToolSignatures.Add(toolSig);
 
                         ThinkingStatus = $"Running {fnName}...";
                         System.Diagnostics.Debug.WriteLine($"[AI] Tool call: {fnName}");
@@ -160,10 +217,15 @@ public partial class AIAssistantViewModel
                         // large tool payload (e.g. a full scan JSON) cannot blow
                         // up the prompt over a long agentic conversation. The
                         // display message keeps the shorter 500-char preview.
+                        // When the same tool+arguments repeats, append a nudge so
+                        // the model converges on an answer instead of looping.
+                        var modelContext = isRepeatCall
+                            ? result + SelfCorrectionNudge
+                            : result;
                         apiMessages.Add(new ChatMessage
                         {
                             Role = ChatRole.Tool,
-                            Content = TruncateResult(result, ToolResultApiMaxChars),
+                            Content = TruncateResult(modelContext, ToolResultApiMaxChars),
                             ToolCallId = toolCallId,
                         });
 
@@ -176,8 +238,13 @@ public partial class AIAssistantViewModel
                     continue;
                 }
 
-                // No tool calls — this is the final text response
-                AddMessage(ChatRole.Assistant, message.Content ?? "(no response)");
+                // No tool calls — this is the final text response. The live assistant
+                // bubble already shows the streamed text; only add a message when the
+                // model produced no streamed text at all (e.g. an empty "(no response)").
+                if (liveAssistant is null)
+                    AddMessage(ChatRole.Assistant, message.Content ?? "(no response)");
+                else
+                    liveAssistant.Content = message.Content ?? liveAssistant.Content;
                 StatusText = "Ready.";
                 gotFinalAnswer = true;
                 break;
@@ -318,5 +385,15 @@ public partial class AIAssistantViewModel
     /// shorter 500-char <see cref="TruncateResult"/> default.
     /// </summary>
     private const int ToolResultApiMaxChars = 12000;
+
+    /// <summary>
+    /// Appended to a tool result when the model repeats an identical tool call
+    /// (same name and arguments) it already executed this turn. Encourages the
+    /// model to synthesize a final answer or try different arguments instead of
+    /// looping until the iteration cap, without cluttering the on-screen message.
+    /// </summary>
+    private const string SelfCorrectionNudge =
+        "\n\n[System note: you already called this exact tool with these exact arguments earlier and got the same result. " +
+        "Do not call it again. Either answer the user's question now or call a different tool with different arguments.]";
 
 }
