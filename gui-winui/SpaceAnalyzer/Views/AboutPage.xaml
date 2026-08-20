@@ -14,9 +14,10 @@
 
                 <!-- Header -->
                 <StackPanel Spacing="{StaticResource Space.SM}">
-                    <TextBlock Text="About" Style="{StaticResource Type.PageTitle}"/>
-                    <TextBlock Text="Space Analyzer Pro" Style="{StaticResource Type.CardTitle}" Opacity="0.8"/>
-                    <TextBlock Text="Version 4.2.0" Style="{StaticResource StatusBarText}"/>
+                    <Image Source="ms-appx:///Assets/app-icon-256.png" Width="88" Height="88" Margin="0,0,0,4" HorizontalAlignment="Center"/>
+                    <TextBlock Text="About" Style="{StaticResource Type.PageTitle}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Space Analyzer Pro" Style="{StaticResource Type.CardTitle}" Opacity="0.8" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="VersionText" Style="{StaticResource StatusBarText}" HorizontalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Description -->

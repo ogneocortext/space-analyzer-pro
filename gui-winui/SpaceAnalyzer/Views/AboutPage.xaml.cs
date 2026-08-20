@@ -12,6 +12,7 @@ public sealed partial class AboutPage : Page
     public AboutPage()
     {
         this.InitializeComponent();
+        VersionText.Text = AppInfo.VersionDisplay;
         AppLog.Page("AboutPage ctor end");
     }
 

@@ -314,6 +314,7 @@ build-winui-debug:
     & "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
 
 # Full WinUI 3 release package: Rust CLI + cleaner + WinUI exe, no egui build.
-# VERSION defaults to the planned release; override with: just package-winui 4.2.0
-package-winui VERSION="4.2.0": build-release-cli build-winui
-    pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/package_winui.ps1 {{VERSION}}
+# The version is read from Cargo.toml automatically; override the packaged
+# filename with: just package-winui 4.3.0
+package-winui VERSION="": build-release-cli build-winui
+    pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/package_winui.ps1 "{{VERSION}}"
