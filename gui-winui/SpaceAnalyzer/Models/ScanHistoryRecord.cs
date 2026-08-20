@@ -37,6 +37,14 @@ public class ScanHistoryRecord
     /// </summary>
     public bool IsIndexOnly { get; set; }
 
+    /// <summary>
+    /// Number of scan-history records that share this record's <see cref="Path"/>
+    /// (including this one). Provided by the Rust backend via a window function
+    /// so it is accurate across the entire history, not just the current page.
+    /// A value greater than 1 means the folder has been scanned more than once.
+    /// </summary>
+    public int DuplicateCount { get; set; }
+
     private Dictionary<string, long>? _fileTypes;
     public Dictionary<string, long> FileTypes => _fileTypes ??= JsonSerializer.Deserialize<Dictionary<string, long>>(FileTypesJson, ScannerJsonOptions) ?? new();
 
@@ -162,11 +170,18 @@ public class ScanHistoryRecord
 
     /// <summary>
     /// Transient UI flag: true when this record's directory also appears
-    /// elsewhere in the currently loaded history view (i.e. it is a redundant
-    /// scan). Not serialized.
+    /// elsewhere in history (i.e. it is a redundant scan). Derived from the
+    /// server-provided <see cref="DuplicateCount"/>, so it is correct across
+    /// all pages rather than only the currently loaded one. Not serialized.
     /// </summary>
     [JsonIgnore]
-    public bool IsDuplicateView { get; set; }
+    public bool IsDuplicateView => DuplicateCount > 1;
+
+    /// <summary>
+    /// Badge text for the duplicate indicator, e.g. "Duplicate ×3". Empty when
+    /// the folder has only been scanned once.
+    /// </summary>
+    public string DuplicateBadgeText => DuplicateCount > 1 ? $"Duplicate ×{DuplicateCount}" : string.Empty;
 
     /// <summary>
     /// Transient UI flag: true when this record is ticked for multi-select

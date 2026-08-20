@@ -149,7 +149,8 @@ impl Database {
     /// Get scan history, most recent first
     pub fn get_scan_history(&self, limit: usize) -> rusqlite::Result<Vec<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only
+            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, \
+                     COUNT(*) OVER (PARTITION BY path) AS duplicate_count
              FROM scan_history WHERE (is_index_only = 0 OR is_index_only IS NULL) ORDER BY timestamp DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], |row| {
@@ -171,6 +172,7 @@ impl Database {
                 potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
                 timestamp: row.get(15)?,
                 is_index_only: row.get::<_, i64>(16)? != 0,
+                duplicate_count: row.get::<_, i64>(17)? as usize,
             })
         })?;
         rows.collect()
@@ -236,7 +238,8 @@ impl Database {
 
         let columns = "id, path, total_files, total_size_bytes, total_size_mb, duration_secs, \
                      file_types_json, extension_sizes_json, top_directories_json, largest_files_json, \
-                     category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only";
+                     category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, \
+                     COUNT(*) OVER (PARTITION BY path) AS duplicate_count";
 
         let dup_clause = format!(
             "path IN (SELECT path FROM scan_history {where_idx} GROUP BY path HAVING COUNT(*) > 1)"
@@ -316,6 +319,7 @@ impl Database {
                     potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
                     timestamp: row.get(15)?,
                     is_index_only: row.get::<_, i64>(16)? != 0,
+                    duplicate_count: row.get::<_, i64>(17)? as usize,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
@@ -399,7 +403,8 @@ impl Database {
     /// Get a specific scan by ID
     pub fn get_scan_by_id(&self, id: i64) -> rusqlite::Result<Option<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only
+            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, \
+                     (SELECT COUNT(*) FROM scan_history s2 WHERE s2.path = scan_history.path AND (s2.is_index_only = 0 OR s2.is_index_only IS NULL)) AS duplicate_count
              FROM scan_history WHERE id = ?1",
         )?;
         let row = stmt.query_row(params![id], |row| {
@@ -421,6 +426,7 @@ impl Database {
                 potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
                 timestamp: row.get(15)?,
                 is_index_only: row.get::<_, i64>(16)? != 0,
+                duplicate_count: row.get::<_, i64>(17)? as usize,
             })
         });
         match row {
@@ -778,6 +784,37 @@ mod tests {
             .get_scan_history_page(50, 0, None, "duplicates", true, false, false)
             .unwrap();
         assert_eq!(asc[0].path, "C:\\once");
+    }
+
+    #[test]
+    fn get_scan_history_page_duplicate_count_spans_pages() {
+        let db = test_db();
+        // "C:\\busy" re-scanned three times; "C:\\once" a single time.
+        insert_scan(&db, "C:\\busy", 11, 1);
+        insert_scan(&db, "C:\\busy", 12, 1);
+        insert_scan(&db, "C:\\busy", 13, 1);
+        insert_scan(&db, "C:\\once", 14, 1);
+
+        // Page size 2 → only the two newest "C:\\busy" scans land on page 0.
+        let (page0, total) = db
+            .get_scan_history_page(2, 0, None, "timestamp", false, false, false)
+            .unwrap();
+        assert_eq!(total, 4);
+        assert_eq!(page0.len(), 2);
+        // Even though only 2 of the 3 "C:\\busy" scans are on this page, every
+        // row must report the true count across all history (3), not 2.
+        assert!(page0.iter().all(|r| r.path.eq_ignore_ascii_case("C:\\busy")));
+        assert!(page0.iter().all(|r| r.duplicate_count == 3));
+
+        // A single full page must also report 3 for each "C:\\busy" row and 1
+        // for the unique folder.
+        let (all, _) = db
+            .get_scan_history_page(50, 0, None, "timestamp", false, false, false)
+            .unwrap();
+        let busy = all.iter().find(|r| r.path.eq_ignore_ascii_case("C:\\busy")).unwrap();
+        assert_eq!(busy.duplicate_count, 3);
+        let once = all.iter().find(|r| r.path.eq_ignore_ascii_case("C:\\once")).unwrap();
+        assert_eq!(once.duplicate_count, 1);
     }
 
     #[test]

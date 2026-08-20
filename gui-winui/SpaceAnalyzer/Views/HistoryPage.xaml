@@ -187,6 +187,7 @@
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <FontIcon Grid.Column="0" Glyph="&#xEB39;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
                                                 <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center">
@@ -196,6 +197,10 @@
                                                 <TextBlock Grid.Column="2" Style="{StaticResource Type.StatValue}" Text="{x:Bind TotalSizeDisplay, Mode=OneTime}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
                                                 <Border Grid.Column="3" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
                                                     <TextBlock Text="{x:Bind ScanTypeShort, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Foreground="{x:Bind ScanTypeShort, Mode=OneTime, Converter={StaticResource ScanTypeToBrush}}"/>
+                                                </Border>
+                                                <Border Grid.Column="4" Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                                                        Visibility="{x:Bind IsDuplicateView, Mode=OneTime, Converter={StaticResource BoolToVisibility}}">
+                                                    <TextBlock Text="{x:Bind DuplicateBadgeText, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold"/>
                                                 </Border>
                                             </Grid>
 

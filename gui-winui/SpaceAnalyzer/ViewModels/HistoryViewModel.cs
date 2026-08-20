@@ -136,15 +136,9 @@ public partial class HistoryViewModel : ViewModelBase, IDisposable
             // The agentic assistant still reaches them via the raw
             // GetScanHistoryPageAsync service call, so reuse is unaffected.
             _history = (value ?? new List<ScanHistoryRecord>()).Where(r => !r.IsIndexOnly).ToList();
-            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            foreach (var r in _history)
-            {
-                var key = NormalizePath(r.Path);
-                counts.TryGetValue(key, out var c);
-                counts[key] = c + 1;
-            }
-            foreach (var r in _history)
-                r.IsDuplicateView = counts.TryGetValue(NormalizePath(r.Path), out var c) && c > 1;
+            // `IsDuplicateView` is now derived from the server-provided
+            // `DuplicateCount` (computed across all history), so no per-page
+            // recomputation is needed here.
             foreach (var r in _history)
                 r.IsCompareSelected = false;
             BuildGroupedHistory();

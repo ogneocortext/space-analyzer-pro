@@ -50,6 +50,13 @@ pub struct ScanHistoryRecord {
     /// the History UI and excluded from per-path prune accounting so they
     /// neither pollute history nor lose their index to overflow pruning.
     pub is_index_only: bool,
+    /// Number of scan-history records that share this record's `path`
+    /// (including this one). Computed server-side via a window function so it
+    /// is accurate across the entire history, not just the current page — a
+    /// folder scanned N times reports `duplicate_count == N` on every row,
+    /// even when its scans are split across multiple pages.
+    #[serde(default)]
+    pub duplicate_count: usize,
 }
 
 impl ScanHistoryRecord {
