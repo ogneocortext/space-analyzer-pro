@@ -105,6 +105,8 @@ mod tests {
             empty_dirs: Vec::new(),
             scanned_files: std::collections::HashMap::new(),
             category_sizes: std::collections::HashMap::new(),
+            reclaim_tier_sizes: std::collections::HashMap::new(),
+            category_reclaimable: std::collections::HashMap::new(),
             potential_cleanup_bytes: 0,
             timestamp: String::new(),
             is_index_only: false,

@@ -1,4 +1,32 @@
 use std::path::Path;
+use serde::{Deserialize, Serialize};
+
+/// Reclaimability tier used to surface *actionable* storage — what the user can
+/// actually delete to reclaim space — instead of only a storage taxonomy.
+///
+/// - `Safe`: deletable without meaningful consequence (caches, build artifacts,
+///   temp files, dependency trees like `node_modules`).
+/// - `Caution`: large or re-downloadable but the user may want to keep (AI model
+///   weights, virtual-machine disks, archives, downloads, logs).
+/// - `Keep`: OS files, installed applications, or user data — never suggested for
+///   deletion by the cleanup guidance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ReclaimTier {
+    Safe,
+    Caution,
+    Keep,
+}
+
+impl ReclaimTier {
+    /// Stable snake-free label used as a JSON / DB key.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ReclaimTier::Safe => "Safe",
+            ReclaimTier::Caution => "Caution",
+            ReclaimTier::Keep => "Keep",
+        }
+    }
+}
 
 /// Return the lowercased directory-component names of a path (excluding the
 /// root/prefix and the file name itself). Used so path-based category overrides
@@ -118,4 +146,49 @@ pub fn extension_to_category(ext: &str, path: &str) -> &'static str {
     }
 
     category_for_extension(ext)
+}
+
+/// Classify a file's reclaimability from its extension, full (lowercased) path,
+/// and the high-level `category` already assigned by [`extension_to_category`].
+///
+/// Path-based signals dominate (caches, build dirs, dependency trees, downloads)
+/// so a `node_modules` file is `Safe` even though its extension maps to `Code` /
+/// `Development`. Category-driven tiers then handle the rest (AI models, VM
+/// disks, archives, logs). Everything else — OS, installed apps, user data — is
+/// `Keep`.
+pub fn classify_reclaimability(ext: &str, path_lower: &str, category: &str) -> ReclaimTier {
+    let ext_l = ext.to_lowercase();
+
+    // Safe: temp files + caches + build/deps + junk directories.
+    if ext_l == "tmp" {
+        return ReclaimTier::Safe;
+    }
+    if path_lower.contains("node_modules")
+        || path_lower.contains(".cache")
+        || path_lower.contains("thumbnails")
+        || path_lower.contains("__pycache__")
+        || path_lower.contains("\\target\\")
+        || path_lower.contains("/target/")
+        || path_lower.contains("\\obj\\")
+        || path_lower.contains("\\bin\\")
+        || path_lower.contains("appdata\\local\\temp")
+        || path_lower.contains("windows\\temp")
+        || path_lower.contains("inetcache")
+        || path_lower.contains("thumbcache")
+    {
+        return ReclaimTier::Safe;
+    }
+
+    // Caution: large / re-downloadable but the user may want to keep.
+    if category == "AI Models" || category == "Virtual" || category == "Archives" {
+        return ReclaimTier::Caution;
+    }
+    if ext_l == "log" || ext_l == "evtx" {
+        return ReclaimTier::Caution;
+    }
+    if path_lower.contains("downloads") {
+        return ReclaimTier::Caution;
+    }
+
+    ReclaimTier::Keep
 }

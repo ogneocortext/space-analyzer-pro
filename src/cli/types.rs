@@ -50,6 +50,10 @@ pub enum StreamEvent {
         empty_dirs: Vec<String>,
         /// Storage usage by high-level category (name -> total bytes)
         category_sizes: std::collections::HashMap<String, u64>,
+        /// Reclaimable bytes by tier (Safe / Caution / Keep)
+        reclaim_tier_sizes: std::collections::HashMap<String, u64>,
+        /// Per-category reclaimable bytes (Safe + Caution files only)
+        category_reclaimable: std::collections::HashMap<String, u64>,
         /// Estimated reclaimable bytes (caches, temp, setup archives)
         potential_cleanup_bytes: u64,
         /// ISO-8601 timestamp of when the scan completed

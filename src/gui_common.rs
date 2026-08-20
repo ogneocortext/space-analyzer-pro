@@ -50,6 +50,10 @@ pub struct ScanReport {
     #[serde(default)]
     pub category_sizes: HashMap<String, u64>,
     #[serde(default)]
+    pub reclaim_tier_sizes: HashMap<String, u64>,
+    #[serde(default)]
+    pub category_reclaimable: HashMap<String, u64>,
+    #[serde(default)]
     pub potential_cleanup_bytes: u64,
     #[serde(default)]
     pub timestamp: String,
@@ -93,6 +97,8 @@ impl ScanReport {
             empty_dirs: Vec::new(),
             scanned_files: HashMap::new(),
             category_sizes: HashMap::new(),
+            reclaim_tier_sizes: HashMap::new(),
+            category_reclaimable: HashMap::new(),
             potential_cleanup_bytes: 0,
             timestamp: String::new(),
             is_index_only: false,
@@ -127,6 +133,8 @@ impl ScanReport {
         scan_result.empty_dirs = result.empty_directories.clone();
         scan_result.scanned_files = result.scanned_files.clone();
         scan_result.category_sizes = result.category_sizes.clone();
+        scan_result.reclaim_tier_sizes = result.reclaim_tier_sizes.clone();
+        scan_result.category_reclaimable = result.category_reclaimable.clone();
 
         scan_result
     }
@@ -143,6 +151,7 @@ impl ScanReport {
         report.path = record.path.clone();
         report.potential_cleanup_bytes = record.potential_cleanup_bytes;
         report.timestamp = record.timestamp.clone();
+        report.total_dirs = record.total_dirs;
         report.extension_sizes =
             serde_json::from_str(&record.extension_sizes_json).unwrap_or_default();
         report.file_types = serde_json::from_str(&record.file_types_json).unwrap_or_default();
@@ -152,12 +161,29 @@ impl ScanReport {
             serde_json::from_str(&record.largest_files_json).unwrap_or_default();
         report.category_sizes =
             serde_json::from_str(&record.category_sizes_json).unwrap_or_default();
+        report.reclaim_tier_sizes =
+            serde_json::from_str(&record.reclaim_tier_sizes_json).unwrap_or_default();
+        report.category_reclaimable =
+            serde_json::from_str(&record.category_reclaimable_json).unwrap_or_default();
         report
     }
 
     /// Estimate how many bytes could be reclaimed by cleaning caches,
     /// temp files, and setup/installer archives found in the largest-files list.
-    pub fn calculate_potential_cleanup(&self) -> u64 {        let mut total: u64 = 0;
+    ///
+    /// Prefers the scanner-computed reclaim tiers (`Safe` + `Caution`) when they
+    /// are populated — these reflect real path-aware classification
+    /// (`node_modules`, build dirs, downloads, model weights) rather than a lossy
+    /// extension heuristic. Falls back to the extension/installer heuristic for
+    /// reports reconstructed before tiers existed.
+    pub fn calculate_potential_cleanup(&self) -> u64 {
+        let safe = self.reclaim_tier_sizes.get("Safe").copied().unwrap_or(0);
+        let caution = self.reclaim_tier_sizes.get("Caution").copied().unwrap_or(0);
+        if safe + caution > 0 {
+            return safe + caution;
+        }
+
+        let mut total: u64 = 0;
 
         for (ext, size) in &self.extension_sizes {
             let lower = ext.to_lowercase();

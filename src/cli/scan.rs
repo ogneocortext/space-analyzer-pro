@@ -14,6 +14,13 @@ use super::live_scan::LiveProgress;
 use super::types::{DirEntry, FileInfoStreaming, ScanReport, StreamEvent};
 use crate::animation;
 
+/// How many of the largest files / top directories to persist in a saved scan
+/// history record. Mirrors the GUI, which always scans with `--top 250`. The
+/// display `--top` default is 20, but history-based tooling (e.g. the agentic
+/// `ask` loop and its `get_largest_files` tool) needs a much larger slice than
+/// the on-screen report would otherwise store.
+const SAVE_HISTORY_TOP_N: usize = 250;
+
 #[allow(clippy::too_many_arguments)]
 pub fn scan_directory(
     path: &Path,
@@ -32,6 +39,7 @@ pub fn scan_directory(
     include_files: bool,
     top_n: usize,
     save_history: bool,
+    log_path: Option<String>,
     no_animation: bool,
 ) -> AppResult<ScanReport> {
     // A `Path` that cannot be represented as UTF-8 cannot be handed to the
@@ -116,9 +124,19 @@ pub fn scan_directory(
         gpu_acceleration: !no_gpu,
         ..depth_mode
     };
-
     let cancel_flag = AtomicBool::new(false);
     let live_for_cb = Arc::clone(&live);
+
+    // Open the optional JSON-lines step log. Failures to open are non-fatal: we
+    // warn and continue scanning without a step log rather than aborting the run.
+    let mut log_writer: Option<Box<dyn std::io::Write>> = None;
+    if let Some(log_path) = &log_path {
+        match std::fs::File::create(log_path) {
+            Ok(file) => log_writer = Some(Box::new(file)),
+            Err(e) => eprintln!("⚠️ Could not open scan step-log file '{}': {}", log_path, e),
+        }
+    }
+
     let shared_result = scanner.scan_with_progress_sync(
         path_str,
         options,
@@ -159,6 +177,7 @@ pub fn scan_directory(
             }
         },
         &cancel_flag,
+        log_writer,
     )?;
 
     if cache {
@@ -209,6 +228,8 @@ pub fn scan_directory(
 
     result.extension_sizes = shared_result.extension_sizes;
     result.category_sizes = shared_result.category_sizes.clone();
+    result.reclaim_tier_sizes = shared_result.reclaim_tier_sizes.clone();
+    result.category_reclaimable = shared_result.category_reclaimable.clone();
 
     // The subdirectory paths stored by the scanner have already had the Windows
     // `\\?\` verbatim prefix stripped, so compare against a likewise-stripped
@@ -234,17 +255,26 @@ pub fn scan_directory(
     // Bound the directory-heavy list to `--top` so whole-drive JSON stays small
     // (the text/MD renderers already slice by `top`, this keeps the machine output
     // consistent with it instead of serializing every subdirectory).
-    result.top_directories = top_dirs.into_iter().take(top_n).collect();
+    result.top_directories = top_dirs.iter().take(top_n).cloned().collect();
 
-    for file in shared_result.largest_files.into_iter().take(top_n) {
-        result.largest_files.push(LargestFileEntry {
-            path: file.path,
+    // Display slice of the largest files is also bounded by `--top`.
+    result.largest_files = shared_result
+        .largest_files
+        .iter()
+        .take(top_n)
+        .map(|file| LargestFileEntry {
+            path: file.path.clone(),
             size: file.size,
-        });
-    }
+        })
+        .collect();
 
     result.empty_dirs = shared_result.empty_directories;
-    result.potential_cleanup_bytes = result.calculate_potential_cleanup();
+    // Improved reclaim estimate: sum the Safe + Caution tiers (actionable space),
+    // which the scanner now computes directly instead of the old lossy heuristic
+    // that only counted .tmp/.cache/.log extensions and installer archives.
+    let safe = result.reclaim_tier_sizes.get("Safe").copied().unwrap_or(0);
+    let caution = result.reclaim_tier_sizes.get("Caution").copied().unwrap_or(0);
+    result.potential_cleanup_bytes = safe + caution;
     result.timestamp = chrono::Utc::now().to_rfc3339();
 
     if stream {
@@ -266,6 +296,8 @@ pub fn scan_directory(
             top_directories: result.top_directories.clone(),
             empty_dirs: result.empty_dirs.clone(),
             category_sizes: result.category_sizes.clone(),
+            reclaim_tier_sizes: result.reclaim_tier_sizes.clone(),
+            category_reclaimable: result.category_reclaimable.clone(),
             potential_cleanup_bytes: result.potential_cleanup_bytes,
             timestamp: result.timestamp.clone(),
         };
@@ -277,7 +309,33 @@ pub fn scan_directory(
     if save_history {
         if let Ok(db) = Database::default_open() {
             let max_scan_depth = max_depth.unwrap_or(5) as u32;
-            if let Ok(id) = db.save_scan(&result, deep, shallow, max_scan_depth) {
+            // Persist a generous slice (matching the GUI's `--top 250`) so
+            // history-based tooling — the agentic `ask` loop and its
+            // `get_largest_files` tool — can analyze far more than the on-screen
+            // `--top` (default 20) would otherwise store. The display `result`
+            // stays bounded by `--top`; only the saved record gets the larger
+            // cap, so machine-readable output is unaffected.
+            let mut history_report = result.clone();
+            if history_report.largest_files.len() < SAVE_HISTORY_TOP_N
+                && !shared_result.largest_files.is_empty()
+            {
+                history_report.largest_files = shared_result
+                    .largest_files
+                    .iter()
+                    .take(SAVE_HISTORY_TOP_N)
+                    .map(|file| LargestFileEntry {
+                        path: file.path.clone(),
+                        size: file.size,
+                    })
+                    .collect();
+            }
+            if history_report.top_directories.len() < SAVE_HISTORY_TOP_N
+                && !top_dirs.is_empty()
+            {
+                history_report.top_directories =
+                    top_dirs.iter().take(SAVE_HISTORY_TOP_N).cloned().collect();
+            }
+            if let Ok(id) = db.save_scan(&history_report, deep, shallow, max_scan_depth) {
                 if stream {
                     let saved = serde_json::json!({ "type": "saved", "id": id });
                     if let Ok(line) = serde_json::to_string(&saved) {

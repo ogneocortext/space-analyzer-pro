@@ -58,7 +58,8 @@ pub fn main() -> AppResult<()> {
             stream,
             progress_json,
             files,
-            save_history,
+            save_history: _,
+            log,
             shallow,
         } => {
             let args = scan_command::ScanArgs {
@@ -83,7 +84,7 @@ pub fn main() -> AppResult<()> {
                 stream,
                 progress_json,
                 files,
-                save_history,
+                log: log.clone(),
                 output_format,
                 top_n,
                 no_anim,

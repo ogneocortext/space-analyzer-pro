@@ -70,6 +70,8 @@ pub fn generate_json_pretty(result: &ScanReport) -> AppResult<String> {
         "file_types": result.file_types,
         "extension_sizes": result.extension_sizes,
         "category_sizes": result.category_sizes,
+        "reclaim_tier_sizes": result.reclaim_tier_sizes,
+        "category_reclaimable": result.category_reclaimable,
         "top_directories": result.top_directories,
         "largest_files": result.largest_files,
         "timestamp": result.timestamp,

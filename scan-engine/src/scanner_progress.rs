@@ -5,6 +5,7 @@ impl FileScanner {
         options: ScanOptions,
         progress_callback: F,
         cancel_flag: &AtomicBool,
+        mut log: Option<Box<dyn std::io::Write>>,
     ) -> anyhow::Result<ScanResult>
     where
         F: Fn(ScanProgress) + Send + 'static + Clone,
@@ -22,6 +23,8 @@ impl FileScanner {
             subdirectories: Vec::new(),
             scanned_files: HashMap::new(),
             category_sizes: HashMap::new(),
+            reclaim_tier_sizes: HashMap::new(),
+            category_reclaimable: HashMap::new(),
         };
 
         let mut raw_entries: Vec<gpu_compute::scan::RawFileEntry> = Vec::new();
@@ -34,6 +37,19 @@ impl FileScanner {
         let mut extension_sizes_acc: HashMap<String, u64> = HashMap::new();
         let mut category_sizes_acc: HashMap<String, u64> = HashMap::new();
         let mut entries_processed: u64 = 0;
+
+        if let Some(log) = log.as_mut() {
+            let _ = std::writeln!(
+                log,
+                "{}",
+                serde_json::json!({
+                    "step": "start",
+                    "path": path,
+                    "max_depth": options.max_depth,
+                    "include_hidden": options.include_hidden,
+                })
+            );
+        }
 
         if options.num_threads > 0 {
             let _ = rayon::ThreadPoolBuilder::new()
@@ -49,7 +65,8 @@ impl FileScanner {
             walker = walker.follow_links(false);
         }
 
-        let walk_entries: Vec<walkdir::DirEntry> = walker
+        let mut walk_entries: Vec<walkdir::DirEntry> = Vec::new();
+        for entry in walker
             .into_iter()
             .filter_entry(|e| {
                 if options.include_hidden || e.depth() == 0 {
@@ -60,8 +77,31 @@ impl FileScanner {
                 }
                 !Self::dir_entry_is_hidden(e)
             })
-            .filter_map(|e| e.ok())
-            .collect();
+        {
+            match entry {
+                Ok(e) => walk_entries.push(e),
+                Err(error) => {
+                    // Previously this was `.filter_map(|e| e.ok())`, which silently
+                    // dropped traversal errors (permission-denied directories,
+                    // broken junctions, etc.) so they never reached `result.errors`
+                    // and coverage gaps were invisible. Record them now so a run can
+                    // account for every path it failed to read.
+                    let msg = format!("Traversal error: {error}");
+                    result.errors.push(msg.clone());
+                    if let Some(log) = log.as_mut() {
+                        let _ = std::writeln!(
+                            log,
+                            "{}",
+                            serde_json::json!({
+                                "step": "error",
+                                "kind": "traversal",
+                                "message": msg,
+                            })
+                        );
+                    }
+                }
+            }
+        }
         let total_estimate = (walk_entries.len() as u64).max(1);
         let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
 
@@ -150,13 +190,39 @@ impl FileScanner {
                     } else {
                         format!("Metadata error: {}: {}", path_str, e)
                     };
-                    result.errors.push(error_msg);
+                    result.errors.push(error_msg.clone());
+                    if let Some(log) = log.as_mut() {
+                        let kind = if error_msg.starts_with("Permission denied") {
+                            "permission_denied"
+                        } else {
+                            "metadata"
+                        };
+                        let _ = std::writeln!(
+                            log,
+                            "{}",
+                            serde_json::json!({
+                                "step": "error",
+                                "kind": kind,
+                                "path": path_str,
+                                "message": error_msg,
+                            })
+                        );
+                    }
                     entries_processed += 1;
                     continue;
                 }
             };
 
             let is_dir = metadata.is_dir();
+            if entry_result.depth() == 1 && is_dir {
+                if let Some(log) = log.as_mut() {
+                    let _ = std::writeln!(
+                        log,
+                        "{}",
+                        serde_json::json!({ "step": "enter_dir", "path": path_str })
+                    );
+                }
+            }
             let size = allocated_size(&metadata, entry_path);
             let mtime = Self::get_mtime_unix(&metadata);
 
@@ -303,6 +369,22 @@ impl FileScanner {
 
             entries_processed += 1;
 
+            if entries_processed.is_multiple_of(100_000) {
+                if let Some(log) = log.as_mut() {
+                    let _ = std::writeln!(
+                        log,
+                        "{}",
+                        serde_json::json!({
+                            "step": "progress",
+                            "entries_processed": entries_processed,
+                            "files_scanned": files_scanned,
+                            "dirs_scanned": dirs_scanned,
+                            "total_size": current_size,
+                        })
+                    );
+                }
+            }
+
             if entries_processed.is_multiple_of(200) {
                 let pct = if total_estimate > 0 {
                     ((entries_processed as f32 / total_estimate as f32) * 100.0).min(99.0)
@@ -343,6 +425,20 @@ impl FileScanner {
         );
 
         result.category_sizes = category_sizes_acc.clone();
+
+        if let Some(log) = log.as_mut() {
+            let _ = std::writeln!(
+                log,
+                "{}",
+                serde_json::json!({
+                    "step": "complete",
+                    "total_files": result.total_files,
+                    "total_directories": result.total_directories,
+                    "total_size": result.total_size,
+                    "error_count": result.errors.len(),
+                })
+            );
+        }
 
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             progress_callback(ScanProgress {
@@ -388,6 +484,8 @@ impl FileScanner {
             subdirectories: Vec::new(),
             scanned_files: HashMap::new(),
             category_sizes: HashMap::new(),
+            reclaim_tier_sizes: HashMap::new(),
+            category_reclaimable: HashMap::new(),
         };
 
         let callback = progress_callback.clone();
@@ -417,8 +515,15 @@ impl FileScanner {
             walker = walker.follow_links(false);
         }
 
-        let walk_entries: Vec<walkdir::DirEntry> =
-            walker.into_iter().filter_map(|e| e.ok()).collect();
+        let mut walk_entries: Vec<walkdir::DirEntry> = Vec::new();
+        for entry in walker.into_iter() {
+            match entry {
+                Ok(e) => walk_entries.push(e),
+                // Record traversal errors instead of silently discarding them
+                // (mirrors the fix in `scan_with_progress_sync`).
+                Err(error) => result.errors.push(format!("Traversal error: {error}")),
+            }
+        }
         let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
 
         for entry_result in walk_entries {

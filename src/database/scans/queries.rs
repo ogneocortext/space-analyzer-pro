@@ -29,20 +29,27 @@ impl Database {
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
         let category_sizes_json = serde_json::to_string(&result.category_sizes)
             .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+        let reclaim_tier_sizes_json = serde_json::to_string(&result.reclaim_tier_sizes)
+            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+        let category_reclaimable_json = serde_json::to_string(&result.category_reclaimable)
+            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
 
         let potential_cleanup = result.calculate_potential_cleanup();
 
         let timestamp = chrono::Utc::now().to_rfc3339();
         self.conn.execute(
-            "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, is_index_only, timestamp)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+            "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, is_index_only, total_dirs, error_count, reclaim_tier_sizes_json, category_reclaimable_json, timestamp)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
             params![
                 result.path, result.total_files as i64, result.total_size_bytes as i64,
                 result.total_size_mb, result.duration_secs,
                 file_types_json, extension_sizes_json, top_directories_json, largest_files_json,
                 category_sizes_json,
                 deep_scan, shallow_scan, max_scan_depth as i64,
-                potential_cleanup as i64, result.is_index_only as i64, timestamp,
+                potential_cleanup as i64, result.is_index_only as i64,
+                result.total_dirs as i64, result.errors.len() as i64,
+                reclaim_tier_sizes_json, category_reclaimable_json,
+                timestamp,
             ],
         )?;
         let id = self.conn.last_insert_rowid();
@@ -149,9 +156,9 @@ impl Database {
     /// Get scan history, most recent first
     pub fn get_scan_history(&self, limit: usize) -> rusqlite::Result<Vec<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, \
+            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, total_dirs, error_count, reclaim_tier_sizes_json, category_reclaimable_json, \
                      COUNT(*) OVER (PARTITION BY path) AS duplicate_count
-             FROM scan_history WHERE (is_index_only = 0 OR is_index_only IS NULL) ORDER BY timestamp DESC LIMIT ?1",
+              FROM scan_history WHERE (is_index_only = 0 OR is_index_only IS NULL) ORDER BY timestamp DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], |row| {
             Ok(ScanHistoryRecord {
@@ -172,7 +179,11 @@ impl Database {
                 potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
                 timestamp: row.get(15)?,
                 is_index_only: row.get::<_, i64>(16)? != 0,
-                duplicate_count: row.get::<_, i64>(17)? as usize,
+                total_dirs: row.get::<_, i64>(17)? as u64,
+                error_count: row.get::<_, i64>(18)? as u64,
+                reclaim_tier_sizes_json: row.get(19)?,
+                category_reclaimable_json: row.get(20)?,
+                duplicate_count: row.get::<_, i64>(21)? as usize,
             })
         })?;
         rows.collect()
@@ -238,7 +249,7 @@ impl Database {
 
         let columns = "id, path, total_files, total_size_bytes, total_size_mb, duration_secs, \
                      file_types_json, extension_sizes_json, top_directories_json, largest_files_json, \
-                     category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, \
+                     category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, total_dirs, error_count, reclaim_tier_sizes_json, category_reclaimable_json, \
                      COUNT(*) OVER (PARTITION BY path) AS duplicate_count";
 
         let dup_clause = format!(
@@ -319,7 +330,11 @@ impl Database {
                     potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
                     timestamp: row.get(15)?,
                     is_index_only: row.get::<_, i64>(16)? != 0,
-                    duplicate_count: row.get::<_, i64>(17)? as usize,
+                    total_dirs: row.get::<_, i64>(17)? as u64,
+                    error_count: row.get::<_, i64>(18)? as u64,
+                    reclaim_tier_sizes_json: row.get(19)?,
+                    category_reclaimable_json: row.get(20)?,
+                    duplicate_count: row.get::<_, i64>(21)? as usize,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
@@ -500,9 +515,9 @@ impl Database {
     /// Get a specific scan by ID
     pub fn get_scan_by_id(&self, id: i64) -> rusqlite::Result<Option<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, \
+            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, total_dirs, error_count, reclaim_tier_sizes_json, category_reclaimable_json, \
                      (SELECT COUNT(*) FROM scan_history s2 WHERE s2.path = scan_history.path AND (s2.is_index_only = 0 OR s2.is_index_only IS NULL)) AS duplicate_count
-             FROM scan_history WHERE id = ?1",
+              FROM scan_history WHERE id = ?1",
         )?;
         let row = stmt.query_row(params![id], |row| {
             Ok(ScanHistoryRecord {
@@ -523,7 +538,11 @@ impl Database {
                 potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
                 timestamp: row.get(15)?,
                 is_index_only: row.get::<_, i64>(16)? != 0,
-                duplicate_count: row.get::<_, i64>(17)? as usize,
+                total_dirs: row.get::<_, i64>(17)? as u64,
+                error_count: row.get::<_, i64>(18)? as u64,
+                reclaim_tier_sizes_json: row.get(19)?,
+                category_reclaimable_json: row.get(20)?,
+                duplicate_count: row.get::<_, i64>(21)? as usize,
             })
         });
         match row {
@@ -657,6 +676,8 @@ impl Database {
 #[cfg(test)]
 mod tests {
     use super::super::super::*;
+    use crate::gui_common::ScanReport;
+    use std::collections::HashMap;
 
     fn test_db() -> Database {
         Database::open(PathBuf::from(":memory:")).expect("in-memory db")
@@ -963,6 +984,35 @@ mod tests {
         assert_eq!(r.potential_cleanup_bytes, 0);
         assert_eq!(r.category_sizes_json, "{}");
         assert!(r.timestamp.starts_with("2026-08-03"));
+    }
+
+    #[test]
+    fn save_and_get_scan_roundtrips_reclaim_columns() {
+        let db = test_db();
+        let mut report = ScanReport::new();
+        report.path = "C:\\reclaim".to_string();
+        report.total_files = 10;
+        report.total_size_bytes = 1000;
+        report.reclaim_tier_sizes = HashMap::from([
+            ("Safe".to_string(), 200),
+            ("Caution".to_string(), 300),
+            ("Keep".to_string(), 500),
+        ]);
+        report.category_reclaimable =
+            HashMap::from([("Development".to_string(), 150)]);
+
+        let id = db.save_scan(&report, false, false, 5).unwrap();
+        let got = db.get_scan_by_id(id).unwrap().expect("row");
+
+        let tiers: HashMap<String, u64> =
+            serde_json::from_str(&got.reclaim_tier_sizes_json).unwrap();
+        assert_eq!(tiers.get("Safe").copied(), Some(200));
+        assert_eq!(tiers.get("Caution").copied(), Some(300));
+        assert_eq!(tiers.get("Keep").copied(), Some(500));
+
+        let cat: HashMap<String, u64> =
+            serde_json::from_str(&got.category_reclaimable_json).unwrap();
+        assert_eq!(cat.get("Development").copied(), Some(150));
     }
 
     #[test]

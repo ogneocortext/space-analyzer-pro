@@ -94,8 +94,8 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
 
-    /// Output format. Only `scan` renders every format; `history`, `disk-info`
-    /// and `db --info` always emit JSON.
+    /// Output format. `scan` renders every format; `history` renders a console
+    /// table in `text` (default) and JSON for `json`/`csv`/`jsonl`/`md`.
     #[arg(short, long, global = true, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
 
@@ -214,6 +214,14 @@ pub enum Commands {
         /// on only when you need every individual path.
         #[arg(long)]
         files: bool,
+
+        /// Write a JSON-lines step log of the scan to this file. Each line records a
+        /// step (`start`, `enter_dir`, `error`, `progress`, `complete`) so that every
+        /// skipped or unreadable path — and the scanner's progress through the tree —
+        /// can be sourced after the run. Independent of stdout/stderr, so it never
+        /// pollutes machine-readable output.
+        #[arg(long, value_name = "FILE")]
+        log: Option<String>,
 
         /// Persist the scan result to the embedded scan-history database. When set,
         /// a final `{"type":"saved","id":<id>}` JSON line is emitted on stdout (in

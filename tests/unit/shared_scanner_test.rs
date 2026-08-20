@@ -363,6 +363,7 @@ fn plain_progress_scan_populates_scanned_files() {
             ScanOptions::default(),
             |_p: ScanProgress| {},
             &cancel,
+            None,
         )
         .expect("scan must succeed");
 

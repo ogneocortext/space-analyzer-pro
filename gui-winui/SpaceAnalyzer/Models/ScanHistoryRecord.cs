@@ -24,6 +24,8 @@ public class ScanHistoryRecord
     public string TopDirectoriesJson { get; set; } = string.Empty;
     public string LargestFilesJson { get; set; } = string.Empty;
     public string CategorySizesJson { get; set; } = string.Empty;
+    public string ReclaimTierSizesJson { get; set; } = string.Empty;
+    public string CategoryReclaimableJson { get; set; } = string.Empty;
     public bool DeepScan { get; set; }
     public bool ShallowScan { get; set; }
     public int MaxScanDepth { get; set; } = 5;
@@ -38,7 +40,21 @@ public class ScanHistoryRecord
     public bool IsIndexOnly { get; set; }
 
     /// <summary>
-    /// Number of scan-history records that share this record's <see cref="Path"/>
+    /// Total number of directories traversed during the scan (including those
+    /// that produced traversal errors). Surfaces full coverage (files + dirs)
+    /// in the History view.
+    /// </summary>
+    public ulong TotalDirs { get; set; }
+
+    /// <summary>
+    /// Number of traversal errors encountered (e.g. permission-denied
+    /// directories) during the scan. Greater than zero means some folders were
+    /// not scanned, i.e. a coverage gap.
+    /// </summary>
+    public int ErrorCount { get; set; }
+
+    /// <summary>
+    /// Number of scan-history records that share this record in history
     /// (including this one). Provided by the Rust backend via a window function
     /// so it is accurate across the entire history, not just the current page.
     /// A value greater than 1 means the folder has been scanned more than once.
@@ -59,6 +75,75 @@ public class ScanHistoryRecord
 
     private Dictionary<string, ulong>? _categorySizes;
     public Dictionary<string, ulong> CategorySizes => _categorySizes ??= JsonSerializer.Deserialize<Dictionary<string, ulong>>(CategorySizesJson, ScannerJsonOptions) ?? new();
+
+    private Dictionary<string, ulong>? _reclaimTierSizes;
+    public Dictionary<string, ulong> ReclaimTierSizes => _reclaimTierSizes ??= JsonSerializer.Deserialize<Dictionary<string, ulong>>(ReclaimTierSizesJson, ScannerJsonOptions) ?? new();
+
+    private Dictionary<string, ulong>? _categoryReclaimable;
+    public Dictionary<string, ulong> CategoryReclaimable => _categoryReclaimable ??= JsonSerializer.Deserialize<Dictionary<string, ulong>>(CategoryReclaimableJson, ScannerJsonOptions) ?? new();
+
+    /// <summary>Bytes the scanner classified as <c>Safe</c> to delete (caches, build dirs, temp).</summary>
+    public ulong SafeBytes => ReclaimTierSizes.TryGetValue("Safe", out var v) ? v : 0;
+    /// <summary>Bytes the scanner classified as <c>Caution</c> (large/re-downloadable: model weights, VM disks, downloads).</summary>
+    public ulong CautionBytes => ReclaimTierSizes.TryGetValue("Caution", out var v) ? v : 0;
+    /// <summary>Bytes the scanner classified as <c>Keep</c> (OS, installed apps, user data).</summary>
+    public ulong KeepBytes => ReclaimTierSizes.TryGetValue("Keep", out var v) ? v : 0;
+    /// <summary>Actionable space = <see cref="SafeBytes"/> + <see cref="CautionBytes"/>; equals <see cref="PotentialCleanupBytes"/>.</summary>
+    public ulong ActionableBytes => SafeBytes + CautionBytes;
+    public string SafeDisplay => ByteFormatter.FormatBytes(SafeBytes);
+    public string CautionDisplay => ByteFormatter.FormatBytes(CautionBytes);
+    public string KeepDisplay => ByteFormatter.FormatBytes(KeepBytes);
+    public string ActionableDisplay => ByteFormatter.FormatBytes(ActionableBytes);
+    public bool HasReclaimData => ReclaimTierSizes.Count > 0;
+    public string ReclaimPctDisplay => TotalSizeBytes > 0 ? $"{(ActionableBytes * 100.0 / TotalSizeBytes):F0}%" : "0%";
+
+    /// <summary>
+    /// Top extensions that fall into the catch-all "Other" category, computed
+    /// client-side from <see cref="ExtensionSizes"/> so the UI can crack open the
+    /// black-box bucket without re-scanning. Sorted largest-first.
+    /// </summary>
+    public List<ExtensionStat> OtherTopExtensions
+    {
+        get
+        {
+            var pairs = new List<(string ext, ulong size)>();
+            ulong otherTotal = 0;
+            foreach (var kv in ExtensionSizes)
+            {
+                if (FileCategoryCore.CategoryForExtension(kv.Key) == "Other")
+                {
+                    otherTotal += kv.Value;
+                    pairs.Add((kv.Key, kv.Value));
+                }
+            }
+            var list = new List<ExtensionStat>();
+            foreach (var (ext, size) in pairs.OrderByDescending(p => p.size))
+            {
+                double pct = otherTotal > 0 ? size * 100.0 / otherTotal : 0;
+                list.Add(new ExtensionStat(ext, size, pct));
+            }
+            return list;
+        }
+    }
+
+    /// <summary>Total bytes classified into the catch-all "Other" category.</summary>
+    public ulong OtherBytes
+    {
+        get
+        {
+            ulong total = 0;
+            foreach (var kv in ExtensionSizes)
+            {
+                if (FileCategoryCore.CategoryForExtension(kv.Key) == "Other")
+                {
+                    total += kv.Value;
+                }
+            }
+            return total;
+        }
+    }
+    public string OtherDisplay => ByteFormatter.FormatBytes(OtherBytes);
+    public bool HasOtherData => OtherBytes > 0;
 
     private static readonly JsonSerializerOptions ScannerJsonOptions = new()
     {
@@ -165,8 +250,13 @@ public class ScanHistoryRecord
     public string TotalSizeDisplay => ByteFormatter.FormatBytes(TotalSizeBytes);
     public string DurationDisplay => $"{(int)DurationSecs / 60}m {(int)DurationSecs % 60}s";
     public string FilesDisplay => $"{TotalFiles:N0} files";
+    public string DirsDisplay => $"{TotalDirs:N0} dirs";
     public string PotentialCleanupDisplay => ByteFormatter.FormatBytes(PotentialCleanupBytes);
     public bool HasPotentialCleanup => PotentialCleanupBytes > 0;
+
+    /// <summary>True when the scan encountered traversal errors (coverage gap).</summary>
+    public bool HasErrors => ErrorCount > 0;
+    public string ErrorsDisplay => HasErrors ? $"{ErrorCount:N0} errors" : "No errors";
 
     /// <summary>
     /// Transient UI flag: true when this record's directory also appears

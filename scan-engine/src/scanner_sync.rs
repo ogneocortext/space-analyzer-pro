@@ -130,6 +130,8 @@ impl FileScanner {
             subdirectories: Vec::new(),
             scanned_files: HashMap::new(),
             category_sizes: HashMap::new(),
+            reclaim_tier_sizes: HashMap::new(),
+            category_reclaimable: HashMap::new(),
         };
 
         let mut raw_entries = Vec::new();
@@ -432,6 +434,8 @@ impl FileScanner {
         result.scanned_files = scanned_files;
 
         let mut category_sizes_acc: HashMap<String, u64> = HashMap::new();
+        let mut reclaim_tier_sizes_acc: HashMap<String, u64> = HashMap::new();
+        let mut category_reclaimable_acc: HashMap<String, u64> = HashMap::new();
         for entry in raw_entries {
             if entry.is_dir {
                 continue;
@@ -443,7 +447,14 @@ impl FileScanner {
                 .to_lowercase();
             let cat = extension_to_category(&ext, &entry.path);
             *category_sizes_acc.entry(cat.to_string()).or_insert(0) += entry.size;
+            let tier = classify_reclaimability(&ext, &entry.path.to_lowercase(), cat);
+            *reclaim_tier_sizes_acc.entry(tier.as_str().to_string()).or_insert(0) += entry.size;
+            if tier != ReclaimTier::Keep {
+                *category_reclaimable_acc.entry(cat.to_string()).or_insert(0) += entry.size;
+            }
         }
         result.category_sizes = category_sizes_acc;
+        result.reclaim_tier_sizes = reclaim_tier_sizes_acc;
+        result.category_reclaimable = category_reclaimable_acc;
     }
 }

@@ -8,7 +8,9 @@ pub mod formatting;
 pub mod scanner;
 pub mod types;
 
-pub use categories::{category_for_extension, extension_to_category};
+pub use categories::{
+    category_for_extension, classify_reclaimability, extension_to_category, ReclaimTier,
+};
 pub use formatting::{format_bytes, format_duration, size_bucket};
 pub use scanner::get_system_info;
 pub use scanner::FileScanner;

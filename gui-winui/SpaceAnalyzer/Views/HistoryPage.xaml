@@ -273,6 +273,8 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <FontIcon Grid.Column="0" Glyph="&#xEB39;" FontSize="{StaticResource Icon.Card}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
                                                 <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center">
@@ -287,6 +289,14 @@
                                                         Visibility="{x:Bind IsDuplicateView, Mode=OneTime, Converter={StaticResource BoolToVisibility}}">
                                                     <TextBlock Text="{x:Bind DuplicateBadgeText, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold"/>
                                                 </Border>
+                                                <Border Grid.Column="5" Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                                                        Visibility="{x:Bind HasErrors, Mode=OneTime, Converter={StaticResource BoolToVisibility}}">
+                                                    <TextBlock Text="{x:Bind ErrorsDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold"/>
+                                                </Border>
+                                                <Border Grid.Column="6" Background="{ThemeResource SystemFillColorSuccessBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center"
+                                                        Visibility="{x:Bind HasReclaimData, Mode=OneTime, Converter={StaticResource BoolToVisibility}}">
+                                                    <TextBlock Text="{x:Bind ActionableDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                                </Border>
                                             </Grid>
 
                                             <!-- Expanded: full stats + actions -->
@@ -298,6 +308,7 @@
                                                     <!-- Stats row: Files · Size · Duration · Depth -->
                                                     <Grid ColumnSpacing="{StaticResource Space.XXL}">
                                                         <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="*"/>
@@ -319,7 +330,17 @@
                                                             <TextBlock Text="{x:Bind DepthDisplay, Mode=OneTime}" Style="{StaticResource Type.StatValue}"/>
                                                             <TextBlock Text="Depth" Style="{StaticResource Type.Tiny}"/>
                                                         </StackPanel>
+                                                        <StackPanel Grid.Column="4" Spacing="{StaticResource Space.XS}">
+                                                            <TextBlock Text="{x:Bind DirsDisplay, Mode=OneTime}" Style="{StaticResource Type.StatValue}"/>
+                                                            <TextBlock Text="Dirs" Style="{StaticResource Type.Tiny}"/>
+                                                        </StackPanel>
                                                     </Grid>
+
+                                                    <!-- Coverage gap warning -->
+                                                    <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="8,4"
+                                                            Visibility="{x:Bind HasErrors, Mode=OneTime, Converter={StaticResource BoolToVisibility}}">
+                                                        <TextBlock Text="{x:Bind ErrorsDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold"/>
+                                                    </Border>
 
                                                     <!-- Actions -->
                                                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">

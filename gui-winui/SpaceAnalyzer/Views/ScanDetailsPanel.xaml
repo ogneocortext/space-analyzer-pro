@@ -28,16 +28,25 @@
                                 <TextBlock Style="{StaticResource Type.Caption}" Text="{x:Bind VM.SelectedRecord.DurationDisplay, Mode=OneWay}"/>
                                 <TextBlock Style="{StaticResource Type.Caption}" Text="{x:Bind VM.SelectedRecord.DateDisplay, Mode=OneWay}"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}">
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.MD}" VerticalAlignment="Center">
                                 <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
                                     <TextBlock Text="{x:Bind VM.SelectedRecord.DepthDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.8"/>
                                 </Border>
                                 <Border Background="{ThemeResource SystemFillColorSuccessBrush}" CornerRadius="4" Padding="6,2"
-                                        Visibility="{x:Bind VM.SelectedRecord.HasPotentialCleanup, Mode=OneTime, Converter={StaticResource BoolToVisibility}}">
-                                    <TextBlock Text="{x:Bind VM.SelectedRecord.PotentialCleanupDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                        Visibility="{x:Bind VM.SelectedRecord.HasReclaimData, Mode=OneTime, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="{x:Bind VM.SelectedRecord.ActionableDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                 </Border>
-                                <TextBlock Text="reclaimable" Style="{StaticResource Type.Tiny}" Opacity="0.6"
-                                        Visibility="{x:Bind VM.SelectedRecord.HasPotentialCleanup, Mode=OneTime, Converter={StaticResource BoolToVisibility}}"/>
+                                <Border Background="{ThemeResource SystemFillColorCautionBrush}" CornerRadius="4" Padding="6,2"
+                                        Visibility="{x:Bind VM.SelectedRecord.HasErrors, Mode=OneTime, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="{x:Bind VM.SelectedRecord.ErrorsDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                </Border>
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                            Visibility="{x:Bind VM.SelectedRecord.HasReclaimData, Mode=OneTime, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.75"><Run Text="Safe"/><Run Text="{x:Bind VM.SelectedRecord.SafeDisplay, Mode=OneTime}" FontWeight="SemiBold"/></TextBlock>
+                                    <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.75"><Run Text="Caution"/><Run Text="{x:Bind VM.SelectedRecord.CautionDisplay, Mode=OneTime}" FontWeight="SemiBold"/></TextBlock>
+                                    <TextBlock Style="{StaticResource Type.Tiny}" Opacity="0.75"><Run Text="Keep"/><Run Text="{x:Bind VM.SelectedRecord.KeepDisplay, Mode=OneTime}" FontWeight="SemiBold"/></TextBlock>
+                                    <TextBlock Text="{x:Bind VM.SelectedRecord.ReclaimPctDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" Opacity="0.6"/>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
 
@@ -109,6 +118,28 @@
                                             <TextBlock Text="No type data" Style="{StaticResource Type.Caption}" Opacity="0.5" Visibility="{x:Bind VM.HasExtensionBreakdownVisibility, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
                                         </StackPanel>
                                     </Grid>
+
+                                    <!-- Other (catch-all) decomposition: crack open the black-box bucket client-side -->
+                                    <StackPanel Spacing="{StaticResource Space.SM}" Visibility="{x:Bind VM.SelectedRecord.HasOtherData, Mode=OneWay, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="Other (uncategorized) — top extensions" Style="{StaticResource Type.SubTitle}"/>
+                                        <breakdown:BreakdownListControl ItemsSource="{x:Bind VM.SelectedRecord.OtherTopExtensions, Mode=OneWay}">
+                                            <breakdown:BreakdownListControl.RowTemplate>
+                                                <DataTemplate x:DataType="models:ExtensionStat">
+                                                    <Grid ColumnSpacing="{StaticResource Space.SM}" Margin="0,4" VerticalAlignment="Center">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="70"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontFamily="Consolas" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                        <ProgressBar Grid.Column="1" Value="{x:Bind Percent, Mode=OneTime}" Maximum="100" Height="8" VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="2" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </breakdown:BreakdownListControl.RowTemplate>
+                                        </breakdown:BreakdownListControl>
+                                        <TextBlock Text="{x:Bind VM.SelectedRecord.OtherDisplay, Mode=OneWay}" Style="{StaticResource Type.Tiny}" Opacity="0.7"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </PivotItem>
 

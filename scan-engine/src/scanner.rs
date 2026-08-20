@@ -1,11 +1,12 @@
 use chrono::DateTime;
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use walkdir::WalkDir;
 
-use crate::categories::extension_to_category;
+use crate::categories::{classify_reclaimability, extension_to_category, ReclaimTier};
 use crate::formatting::{allocated_size, size_bucket};
 use crate::types::{
     DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SearchQuery, SearchResult,

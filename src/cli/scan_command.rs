@@ -36,7 +36,7 @@ pub struct ScanArgs {
     pub stream: bool,
     pub progress_json: bool,
     pub files: bool,
-    pub save_history: bool,
+    pub log: Option<String>,
     pub output_format: OutputFormat,
     pub top_n: usize,
     pub no_anim: bool,
@@ -102,7 +102,13 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
         args.progress_json,
         args.files,
         args.top_n,
-        args.save_history,
+        true,
+        args.log.clone(),
+        // Always persist to history so the agentic `ask` loop and History view
+        // have data to analyze. The saved record uses a generous
+        // largest-files/top-directories cap (see `scan_directory`), matching the
+        // GUI. `--save-history` remains accepted (the GUI passes it) but saving
+        // is now unconditional for CLI scans, as it was before this refactor.
         args.no_anim,
     )?;
 
@@ -164,14 +170,12 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
         eprintln!("✅ Report written to: {}", report_path.display());
     }
 
-    if let Ok(db) = Database::default_open() {
-        let _ = db.save_scan(
-            &result,
-            effective_deep,
-            effective_shallow,
-            effective_max_depth.unwrap_or(5) as u32,
-        );
-    }
+    // NOTE: saving to history is handled inside `scan_directory` (when
+    // `--save-history` is set) with a generous largest-files/top-directories
+    // cap. Do NOT re-save `result` here: `result` is display-bounded by
+    // `--top` (default 20), so a second save would overwrite the generous
+    // record with a 20-item one and defeat history-based tooling (e.g. the
+    // agentic `ask` loop).
 
     if args.clean {
         crate::cli::dedup::run_clean_analysis(

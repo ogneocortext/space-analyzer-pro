@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
-using Microsoft.UI.Xaml;
 using SpaceAnalyzer.Models;
 
 namespace SpaceAnalyzer.Helpers;

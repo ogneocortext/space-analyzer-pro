@@ -120,8 +120,12 @@ cargo run --bin space-analyzer-cli -- disk-info --format json
 # Example: [{"mount_point":"C:\\","label":"SSD","file_system":"NTFS",
 #   "total_bytes":...,"used_bytes":...,"available_bytes":...,"usage_percent":64.6}]
 
-# Show scan history
+# Show scan history as an aligned headless table (default), with Safe/Caution/Keep
+# reclaim tiers, duplicate badges (×N), and a pagination footer
 cargo run --bin space-analyzer-cli -- history --limit 10
+
+# Machine-readable history for the GUI / scripts (json, jsonl, csv, md also supported)
+cargo run --bin space-analyzer-cli -- history --limit 10 --format json
 
 # Run duplicate-file analysis
 cargo run --bin space-analyzer-cli -- dedup --path .
@@ -174,6 +178,7 @@ cargo run --bin space-analyzer-cli -- usn --drive C
 ### Analysis
 - **File categorization** into 12 human-readable groups (Documents, Images, Videos, Audio, Archives, Code, Development, Config, Logs, Backups, Database, Other) — [`src/category.rs`](src/category.rs)
 - **Bloat detection** via heuristic pattern classifier (large videos, cache files, build artifacts, dev dependencies) — [`src/offline_ai.rs`](src/offline_ai.rs)
+- **Reclaimability lens** — every scanned file is classified into **Safe** (cache, temp, downloads, recycle-bin, build artifacts, logs), **Caution** (archives, backups, installers, old large media), or **Keep** (documents, photos, videos, code, user data); the History views show a per-tier reclaimable breakdown with a reclaimable %, and the "Other" bucket is decomposed into its top extensions
 - **Storage trend prediction** based on historical scan data
 - **AI recommendations** for cleanup, organization, and optimization
 - **Largest files & directories** ranking

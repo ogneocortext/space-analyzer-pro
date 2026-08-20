@@ -44,6 +44,12 @@ pub struct ScanResult {
     pub subdirectories: Vec<DirInfo>,
     pub scanned_files: HashMap<String, (u64, i64)>,
     pub category_sizes: HashMap<String, u64>,
+    /// Reclaimable bytes by tier (`Safe`, `Caution`, `Keep`). `Safe` + `Caution`
+    /// together equal the actionable space surfaced to the user.
+    pub reclaim_tier_sizes: HashMap<String, u64>,
+    /// Per-category reclaimable bytes (only non-zero for `Safe`/`Caution` files).
+    /// Lets the UI show e.g. "of 24 GB Development, 18 GB is reclaimable deps".
+    pub category_reclaimable: HashMap<String, u64>,
 }
 
 /// Filters for a live filesystem search (`FileScanner::search_files_sync`).

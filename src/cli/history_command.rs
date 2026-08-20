@@ -1,5 +1,8 @@
 use crate::cli::args::OutputFormat;
+use scan_engine::format_bytes;
 use space_analyzer_pro_desktop::database::Database;
+use std::io::IsTerminal;
+use space_analyzer_pro_desktop::database::ScanHistoryRecord;
 use space_analyzer_pro_desktop::error::AppResult;
 use space_analyzer_pro_desktop::gui_common::LargestFileEntry;
 use space_analyzer_pro_desktop::ollama::client::OllamaClient;
@@ -339,7 +342,7 @@ pub fn handle_history(
                 }
             }
         } else {
-            match                 db.get_scan_history_page(
+            match db.get_scan_history_page(
                 limit,
                 offset,
                 search.as_deref(),
@@ -349,16 +352,20 @@ pub fn handle_history(
                 include_index_only,
             ) {
                 Ok((records, total)) => {
-                    let response = serde_json::json!({
-                        "records": records,
-                        "total": total,
-                        "limit": limit,
-                        "offset": offset,
-                    });
-                    println!(
-                        "{}",
-                        serde_json::to_string_pretty(&response).unwrap_or_default()
-                    );
+                    if output_format == OutputFormat::Text {
+                        render_history_page_text(&records, total, limit, offset);
+                    } else {
+                        let response = serde_json::json!({
+                            "records": records,
+                            "total": total,
+                            "limit": limit,
+                            "offset": offset,
+                        });
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&response).unwrap_or_default()
+                        );
+                    }
                 }
                 Err(e) => {
                     return Err(space_analyzer_pro_desktop::error::AppError::Validation(
@@ -371,6 +378,185 @@ pub fn handle_history(
         eprintln!("Failed to open database");
     }
     Ok(())
+}
+
+/// Parse the `reclaim_tier_sizes_json` blob into (Safe, Caution, Keep) bytes.
+fn parse_reclaim_tiers(json: &str) -> (u64, u64, u64) {
+    let v: serde_json::Value = serde_json::from_str(json).unwrap_or(serde_json::Value::Null);
+    let get = |k: &str| v.get(k).and_then(|x| x.as_u64()).unwrap_or(0);
+    (get("Safe"), get("Caution"), get("Keep"))
+}
+
+/// Thousands-group a non-negative integer for readable file counts.
+fn grouped(n: u64) -> String {
+    let s = n.to_string();
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let mut out = String::with_capacity(len + len / 3);
+    for (i, b) in bytes.iter().enumerate() {
+        if i > 0 && (len - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(*b as char);
+    }
+    out
+}
+
+/// Human-readable console table for the scan-history list — the `--format text`
+/// default. Mirrors the HistoryPage cards: id, when, path, file/size totals, the
+/// Safe/Caution/Keep reclaim tiers, and duplicate / embeddings-only markers.
+fn render_history_page_text(records: &[ScanHistoryRecord], total: i64, limit: usize, offset: usize) {
+    if records.is_empty() {
+        println!("No scan history found.");
+        return;
+    }
+
+    let tty = std::io::stdout().is_terminal();
+    let dim = |s: &str| if tty { format!("\x1b[2m{s}\x1b[0m") } else { s.to_string() };
+    let green = |s: &str| if tty { format!("\x1b[32m{s}\x1b[0m") } else { s.to_string() };
+    let yellow = |s: &str| if tty { format!("\x1b[33m{s}\x1b[0m") } else { s.to_string() };
+    let red = |s: &str| if tty { format!("\x1b[31m{s}\x1b[0m") } else { s.to_string() };
+
+    // Pad a possibly-colored cell using its *visible* (ANSI-stripped) length so
+    // colors never break column alignment.
+    let pad_vis = |colored: &str, visible: usize, width: usize| -> String {
+        if visible >= width {
+            colored.to_string()
+        } else {
+            format!("{colored}{:<width$}", "", width = width - visible)
+        }
+    };
+
+    // Truncate to `w` chars, appending an ellipsis when cut.
+    let trunc = |s: &str, w: usize| -> String {
+        let chars: Vec<char> = s.chars().collect();
+        if chars.len() <= w {
+            format!("{s:<width$}", width = w)
+        } else if w <= 1 {
+            chars[..w].iter().collect()
+        } else {
+            let mut t: String = chars[..w - 1].iter().collect();
+            t.push('\u{2026}');
+            t
+        }
+    };
+
+    let id_w = 6;
+    let date_w = 16;
+    let path_w = 46;
+    let files_w = 10;
+    let size_w = 10;
+    let reclaim_w = 34;
+    let dup_w = 7;
+    let gap = "  ";
+    let sep_len = id_w + date_w + path_w + files_w + size_w + reclaim_w + dup_w + gap.len() * 6;
+
+    let header = format!(
+        "{:<id_w$}{gap}{:<date_w$}{gap}{:<path_w$}{gap}{:>files_w$}{gap}{:>size_w$}{gap}{:<reclaim_w$}{gap}{:>dup_w$}",
+        "ID",
+        "DATE",
+        "PATH",
+        "FILES",
+        "SIZE",
+        "RECLAIM (safe / caution / keep)",
+        "DUP",
+        id_w = id_w,
+        date_w = date_w,
+        path_w = path_w,
+        files_w = files_w,
+        size_w = size_w,
+        reclaim_w = reclaim_w,
+        dup_w = dup_w,
+        gap = gap,
+    );
+
+    println!(
+        "{}",
+        dim(&format!(
+            "SCAN HISTORY  —  showing {}–{} of {}",
+            offset + 1,
+            offset + records.len(),
+            total
+        ))
+    );
+    println!("{header}");
+    println!("{}", dim(&"\u{2500}".repeat(sep_len)));
+
+    for rec in records {
+        let id_p = format!("{:<id_w$}", rec.id, id_w = id_w);
+        let date = rec
+            .timestamp
+            .get(..16)
+            .map(|s| s.replace('T', " "))
+            .unwrap_or_else(|| rec.timestamp.clone());
+        let date_p = format!("{date:<date_w$}", date_w = date_w);
+
+        // Path, with an [idx] marker for embeddings-only anchors.
+        let (path_cell, path_vis) = if rec.is_index_only {
+            let t = trunc(&format!("{} [idx]", rec.path), path_w);
+            let vis = t.chars().count();
+            (dim(&t), vis)
+        } else {
+            let t = trunc(&rec.path, path_w);
+            let vis = t.chars().count();
+            (t, vis)
+        };
+        let path_p = pad_vis(&path_cell, path_vis, path_w);
+
+        let files_p = format!("{:>width$}", grouped(rec.total_files as u64), width = files_w);
+        let size_p = format!("{:>width$}", format_bytes(rec.total_size_bytes), width = size_w);
+
+        // Reclaim tiers (Safe / Caution / Keep).
+        let (safe, caution, keep) = parse_reclaim_tiers(&rec.reclaim_tier_sizes_json);
+        let has = safe > 0 || caution > 0 || keep > 0;
+        let plain = if has {
+            format!(
+                "{} / {} / {}",
+                format_bytes(safe),
+                format_bytes(caution),
+                format_bytes(keep)
+            )
+        } else {
+            "\u{2014}".to_string()
+        };
+        let cell = if has {
+            format!(
+                "{} / {} / {}",
+                green(&format_bytes(safe)),
+                yellow(&format_bytes(caution)),
+                red(&format_bytes(keep))
+            )
+        } else {
+            dim("\u{2014}")
+        };
+        let reclaim_p = pad_vis(&cell, plain.chars().count(), reclaim_w);
+
+        let dup = if rec.duplicate_count > 1 {
+            format!("\u{00d7}{}", rec.duplicate_count)
+        } else {
+            String::new()
+        };
+        let dup_p = format!("{dup:>width$}", width = dup_w);
+
+        println!(
+            "{id_p}{gap}{date_p}{gap}{path_p}{gap}{files_p}{gap}{size_p}{gap}{reclaim_p}{gap}{dup_p}"
+        );
+    }
+
+    println!("{}", dim(&"\u{2500}".repeat(sep_len)));
+    let limit_i = limit.max(1) as i64;
+    let pages = (total + limit_i - 1) / limit_i;
+    let page = (offset as i64) / limit_i + 1;
+    println!(
+        "{}",
+        dim(&format!(
+            "Page {page} of {pages}  ·  --offset/--limit to page  ·  --format json for machine output"
+        ))
+    );
+    println!(
+        "{}",
+        dim("Safe = safe to delete · Caution = review · Keep = leave · [idx] = embeddings-only anchor")
+    );
 }
 
 /// Returns true (and emits a refusal message) when a destructive history

@@ -1,5 +1,61 @@
 # [Unreleased]
 
+## Reclaimability lens, "Other" decomposition & headless history table
+
+### Added
+- **Reclaimability lens (Safe / Caution / Keep tiers)** — every scanned file is now
+  classified by `classify_reclaimability` (`scan-engine/src/categories.rs`) into
+  `Safe` (cache, temp, downloads, recycle-bin, build artifacts, logs, thumbnails,
+  precompiled/obj), `Caution` (largely-disposable user data: archives, backups,
+  installers, old large media), or `Keep` (documents, photos, videos, code, mail,
+  user data). Tier byte totals (`reclaim_tier_sizes`) and a per-category reclaimable
+  breakdown (`category_reclaimable`) are accumulated during the scan
+  (`scan-engine/src/scanner_progress.rs`, `scanner_sync.rs`) and surfaced on
+  `ScanResult` / `ScanReport` / `StreamEvent::Complete` / CLI JSON
+  (`src/cli/report.rs`) and `gui_common.rs`.
+- **Persistent reclaim columns** — DB migration v10 adds `reclaim_tier_sizes_json`
+  and `category_reclaimable_json` to `scan_history`; `ScanHistoryRecord`, `save_scan`,
+  and the history SELECTs (`src/database/scans/queries.rs`) are wired, with a
+  round-trip regression test `save_and_get_scan_roundtrips_reclaim_columns`.
+- **WinUI reclaim UI** (`gui-winui/.../Models/ScanHistoryRecord.cs`,
+  `Views/HistoryPage.xaml`, `Views/ScanDetailsPanel.xaml`) — the collapsed history
+  card shows a reclaim badge; the scan-details summary shows Safe / Caution / Keep
+  bytes plus the reclaimable %; the Overview PivotItem shows the "Other
+  (uncategorized) — top extensions" decomposition.
+- **"Other" bucket decomposition** — computed client-side in a new WinUI-free
+  `Helpers/FileCategoryCore.cs` (extension → category), so no DB change and the
+  headless test project stays green; `FileCategory.cs` is now a thin facade that
+  delegates to the core. `ScanHistoryRecord` exposes `OtherTopExtensions` /
+  `OtherBytes` / `HasOtherData`.
+- **Headless scan-history table** (`src/cli/history_command.rs`) — `history` now
+  renders a human-readable aligned table by default (`--format text`), with
+  ANSI-colored Safe/Caution/Keep tier breakdown (TTY-guarded), duplicate badges
+  (`×N`), embeddings-only markers (`[idx]`), a pagination footer, and a legend.
+  Machine-readable formats (`json` / `json` / `csv` / `md`) are unchanged, so the
+  GUI JSON parser is unaffected.
+- **History file-inventory & calendar model classes** (`gui-winui/.../Models/
+  MergedFileEntry.cs`, `ScanDayCount.cs`) backing the Rust `history --files` and
+  `history --calendar` subcommands.
+
+### Changed
+- **`potential_cleanup_bytes`** (`src/gui_common.rs`) now returns Safe + Caution when
+  tier data is present (falling back to the old heuristic for pre-migration scans), so
+  the headline "reclaimable" number reflects reviewable space rather than only
+  fully-safe deletions.
+- **History page test project** (`SpaceAnalyzer.Tests.csproj`) now links
+  `FileCategoryCore.cs` + `ProcessRunner.cs`; `ProcessRunner.cs` dropped an unused
+  WinUI `using`.
+
+### Verified
+- `cargo build --release --bin space-analyzer-cli` clean; `cargo test --lib` (DB
+  queries) and `cargo test --bin space-analyzer-cli` (34 passed) green. Live rerun of
+  `C:\` (id 3877) persists tiers (Safe 2.75 GB / Caution 6.59 GB / Keep 42.77 GB;
+  `potential_cleanup_bytes` = 9.34 GB). Older scans (pre-migration) read 0 tiers.
+- WinUI GUI MSBuild (Debug): 0 errors / 2 benign `WMC1506` OneWay-binding warnings.
+  `dotnet test` (SpaceAnalyzer.Tests): 17 passed.
+- Headless `history --limit 10 --format text` renders the aligned reclaim table;
+  `history --calendar` / `history --files` subcommands run clean.
+
 ## WinUI — Scan crash fix, self-diagnosing logging & automated capture
 
 ### Fixed

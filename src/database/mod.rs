@@ -50,6 +50,16 @@ pub struct ScanHistoryRecord {
     /// the History UI and excluded from per-path prune accounting so they
     /// neither pollute history nor lose their index to overflow pruning.
     pub is_index_only: bool,
+    /// Total number of directories traversed during the scan (including those
+    /// that produced traversal errors). Persisted so the History view can show
+    /// full coverage (files + dirs) and surface skipped directories.
+    #[serde(default)]
+    pub total_dirs: u64,
+    /// Number of traversal errors encountered (e.g. permission-denied
+    /// directories) during the scan. Persisted so the History view can flag
+    /// coverage gaps even after the scan process has exited.
+    #[serde(default)]
+    pub error_count: u64,
     /// Number of scan-history records that share this record's `path`
     /// (including this one). Computed server-side via a window function so it
     /// is accurate across the entire history, not just the current page — a
@@ -57,6 +67,16 @@ pub struct ScanHistoryRecord {
     /// even when its scans are split across multiple pages.
     #[serde(default)]
     pub duplicate_count: usize,
+    /// Reclaimable bytes by tier (`Safe` / `Caution` / `Keep`), serialized as
+    /// JSON. `Safe` + `Caution` together equal the actionable space surfaced to
+    /// the user via `potential_cleanup_bytes`.
+    #[serde(default)]
+    pub reclaim_tier_sizes_json: String,
+    /// Per-category reclaimable bytes (only non-zero for `Safe`/`Caution`
+    /// files), serialized as JSON. Lets the UI show e.g. "of 24 GB Development,
+    /// 18 GB is reclaimable deps".
+    #[serde(default)]
+    pub category_reclaimable_json: String,
 }
 
 impl ScanHistoryRecord {
@@ -466,6 +486,86 @@ impl Database {
                 self.conn.execute("PRAGMA user_version = 8", [])?;
             }
         }
+        if user_version < 9 {
+            let table_exists: bool = self
+                .conn
+                .query_row(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='scan_history'",
+                    [],
+                    |_| Ok(true),
+                )
+                .unwrap_or(false);
+
+            if table_exists {
+                self.conn.execute_batch("BEGIN IMMEDIATE")?;
+                let migration_result = (|| -> rusqlite::Result<()> {
+                    let columns: Vec<String> = self.conn.prepare(
+                        "SELECT name FROM pragma_table_info('scan_history') WHERE name IN ('total_dirs', 'error_count')"
+                    )?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+
+                    if !columns.contains(&"total_dirs".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN total_dirs INTEGER NOT NULL DEFAULT 0;",
+                        )?;
+                    }
+                    if !columns.contains(&"error_count".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN error_count INTEGER NOT NULL DEFAULT 0;",
+                        )?;
+                    }
+                    self.conn.execute("PRAGMA user_version = 9", [])?;
+                    Ok(())
+                })();
+                if migration_result.is_err() {
+                    let _ = self.conn.execute_batch("ROLLBACK");
+                    migration_result?;
+                } else {
+                    self.conn.execute_batch("COMMIT")?;
+                }
+            } else {
+                self.conn.execute("PRAGMA user_version = 9", [])?;
+            }
+        }
+        if user_version < 10 {
+            let table_exists: bool = self
+                .conn
+                .query_row(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='scan_history'",
+                    [],
+                    |_| Ok(true),
+                )
+                .unwrap_or(false);
+
+            if table_exists {
+                self.conn.execute_batch("BEGIN IMMEDIATE")?;
+                let migration_result = (|| -> rusqlite::Result<()> {
+                    let columns: Vec<String> = self.conn.prepare(
+                        "SELECT name FROM pragma_table_info('scan_history') WHERE name IN ('reclaim_tier_sizes_json', 'category_reclaimable_json')"
+                    )?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+
+                    if !columns.contains(&"reclaim_tier_sizes_json".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN reclaim_tier_sizes_json TEXT NOT NULL DEFAULT '{}';",
+                        )?;
+                    }
+                    if !columns.contains(&"category_reclaimable_json".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN category_reclaimable_json TEXT NOT NULL DEFAULT '{}';",
+                        )?;
+                    }
+                    self.conn.execute("PRAGMA user_version = 10", [])?;
+                    Ok(())
+                })();
+                if migration_result.is_err() {
+                    let _ = self.conn.execute_batch("ROLLBACK");
+                    migration_result?;
+                } else {
+                    self.conn.execute_batch("COMMIT")?;
+                }
+            } else {
+                self.conn.execute("PRAGMA user_version = 10", [])?;
+            }
+        }
         Ok(())
     }
 
@@ -495,6 +595,10 @@ impl Database {
                 max_scan_depth INTEGER NOT NULL DEFAULT 5,
                 potential_cleanup_bytes INTEGER NOT NULL DEFAULT 0,
                 is_index_only INTEGER NOT NULL DEFAULT 0,
+                total_dirs INTEGER NOT NULL DEFAULT 0,
+                error_count INTEGER NOT NULL DEFAULT 0,
+                reclaim_tier_sizes_json TEXT NOT NULL DEFAULT '{}',
+                category_reclaimable_json TEXT NOT NULL DEFAULT '{}',
                 timestamp TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS duplicate_analysis (
