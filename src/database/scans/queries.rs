@@ -192,14 +192,27 @@ impl Database {
         only_duplicates: bool,
         include_index_only: bool,
     ) -> rusqlite::Result<(Vec<ScanHistoryRecord>, i64)> {
-        let order = match sort_by {
-            "path" => "path",
-            "total_files" => "total_files",
-            "total_size_bytes" => "total_size_bytes",
-            "duration_secs" => "duration_secs",
-            _ => "timestamp",
-        };
         let direction = if sort_asc { "ASC" } else { "DESC" };
+        // "duplicates" ranks folders by how many times they have been scanned
+        // (re-scans of the same path surface first). The window function only
+        // sees the filtered rows, so index-only anchors are excluded from the
+        // count automatically.
+        let order_clause = if sort_by == "duplicates" {
+            if sort_asc {
+                "COUNT(*) OVER (PARTITION BY path) ASC, timestamp ASC".to_string()
+            } else {
+                "COUNT(*) OVER (PARTITION BY path) DESC, timestamp DESC".to_string()
+            }
+        } else {
+            let order = match sort_by {
+                "path" => "path",
+                "total_files" => "total_files",
+                "total_size_bytes" => "total_size_bytes",
+                "duration_secs" => "duration_secs",
+                _ => "timestamp",
+            };
+            format!("{order} {direction}")
+        };
 
         // Index-only rows (created by `embed` with no real scan) are semantic
         // embedding anchors, not user scans. They are hidden from the
@@ -234,7 +247,7 @@ impl Database {
                 (
                     format!("SELECT COUNT(*) FROM scan_history WHERE path LIKE ?1 {and_idx} AND {dup_clause}"),
                     format!(
-                        "SELECT {columns} FROM scan_history WHERE path LIKE ?1 {and_idx} AND {dup_clause} ORDER BY {order} {direction} LIMIT ?2 OFFSET ?3"
+                        "SELECT {columns} FROM scan_history WHERE path LIKE ?1 {and_idx} AND {dup_clause} ORDER BY {order_clause} LIMIT ?2 OFFSET ?3"
                     ),
                     vec![
                         Box::new(pattern) as Box<dyn rusqlite::ToSql>,
@@ -248,7 +261,7 @@ impl Database {
                 (
                     format!("SELECT COUNT(*) FROM scan_history WHERE path LIKE ?1 {and_idx}"),
                     format!(
-                        "SELECT {columns} FROM scan_history WHERE path LIKE ?1 {and_idx} ORDER BY {order} {direction} LIMIT ?2 OFFSET ?3"
+                        "SELECT {columns} FROM scan_history WHERE path LIKE ?1 {and_idx} ORDER BY {order_clause} LIMIT ?2 OFFSET ?3"
                     ),
                     vec![
                         Box::new(pattern) as Box<dyn rusqlite::ToSql>,
@@ -260,7 +273,7 @@ impl Database {
             (None, true) => (
                 format!("SELECT COUNT(*) FROM scan_history WHERE {idx_pred} AND {dup_clause}"),
                 format!(
-                    "SELECT {columns} FROM scan_history WHERE {idx_pred} AND {dup_clause} ORDER BY {order} {direction} LIMIT ?1 OFFSET ?2"
+                    "SELECT {columns} FROM scan_history WHERE {idx_pred} AND {dup_clause} ORDER BY {order_clause} LIMIT ?1 OFFSET ?2"
                 ),
                 vec![
                     Box::new(limit as i64) as Box<dyn rusqlite::ToSql>,
@@ -270,7 +283,7 @@ impl Database {
             (None, false) => (
                 format!("SELECT COUNT(*) FROM scan_history {where_idx}"),
                 format!(
-                    "SELECT {columns} FROM scan_history {where_idx} ORDER BY {order} {direction} LIMIT ?1 OFFSET ?2"
+                    "SELECT {columns} FROM scan_history {where_idx} ORDER BY {order_clause} LIMIT ?1 OFFSET ?2"
                 ),
                 vec![
                     Box::new(limit as i64) as Box<dyn rusqlite::ToSql>,
@@ -738,6 +751,33 @@ mod tests {
             .unwrap();
         assert_eq!(total_inc, 2, "--include-index-only must surface the anchor");
         assert!(inc.iter().any(|r| r.is_index_only));
+    }
+
+    #[test]
+    fn get_scan_history_page_sorts_by_duplicate_count() {
+        let db = test_db();
+        // "C:\\once" scanned a single time.
+        insert_scan(&db, "C:\\once", 10, 1);
+        // "C:\\busy" re-scanned three times.
+        insert_scan(&db, "C:\\busy", 11, 1);
+        insert_scan(&db, "C:\\busy", 12, 1);
+        insert_scan(&db, "C:\\busy", 13, 1);
+
+        let (rows, total) = db
+            .get_scan_history_page(50, 0, None, "duplicates", false, false, false)
+            .unwrap();
+        assert_eq!(total, 4);
+        // Most-re-scanned folder must come first when sorted by duplicates DESC.
+        assert_eq!(rows[0].path, "C:\\busy");
+        // All three "C:\\busy" rows precede the single "C:\\once" row.
+        assert!(rows[0..3].iter().all(|r| r.path == "C:\\busy"));
+        assert_eq!(rows[3].path, "C:\\once");
+
+        // Ascending puts the single-scan folder first.
+        let (asc, _) = db
+            .get_scan_history_page(50, 0, None, "duplicates", true, false, false)
+            .unwrap();
+        assert_eq!(asc[0].path, "C:\\once");
     }
 
     #[test]

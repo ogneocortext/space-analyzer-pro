@@ -313,7 +313,7 @@ public partial class HistoryViewModel : ViewModelBase, IDisposable
         set { _sortAsc = value; OnPropertyChanged(); OnPropertyChanged(nameof(DateSortIndicator)); OnPropertyChanged(nameof(PathSortIndicator)); OnPropertyChanged(nameof(SizeSortIndicator)); OnPropertyChanged(nameof(FilesSortIndicator)); OnPropertyChanged(nameof(DuplicateSortIndicator)); OnPropertyChanged(nameof(DateSortActive)); OnPropertyChanged(nameof(SizeSortActive)); OnPropertyChanged(nameof(FilesSortActive)); OnPropertyChanged(nameof(DuplicateSortActive)); }
     }
 
-    public string ServerSortBy => _sortBy == "duplicate" ? "path" : _sortBy;
+        public string ServerSortBy => _sortBy == "duplicate" ? "duplicates" : _sortBy;
 
     private string SortIndicatorFor(string column) => SortBy == column ? (SortAsc ? " \u25B2" : " \u25BC") : "";
     public string DateSortIndicator => SortIndicatorFor("timestamp");

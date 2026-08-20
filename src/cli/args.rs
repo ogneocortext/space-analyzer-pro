@@ -243,7 +243,9 @@ pub enum Commands {
         #[arg(long)]
         search: Option<String>,
 
-        /// Sort by: timestamp (default), path, total_files, total_size_bytes, duration_secs
+        /// Sort by: timestamp (default), path, total_files, total_size_bytes,
+        /// duration_secs, or duplicates (rank folders by how many times they have
+        /// been re-scanned, most-re-scanned first)
         #[arg(long, default_value = "timestamp")]
         sort_by: String,
 

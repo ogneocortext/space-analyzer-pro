@@ -105,6 +105,23 @@ fn collect_files(
     out
 }
 
+/// Create an index-only placeholder scan record for an embedding job that has
+/// no associated real scan. Returns the new scan id.
+fn create_index_only_anchor(
+    db: &Database,
+    path: &str,
+    total_files: usize,
+    total_size_bytes: u64,
+) -> Result<i64, AppError> {
+    let mut result = ScanReport::new();
+    result.path = path.to_string();
+    result.total_files = total_files;
+    result.total_size_bytes = total_size_bytes;
+    result.is_index_only = true;
+    db.save_scan(&result, false, false, 5)
+        .map_err(|e| AppError::Validation(format!("Failed to create scan record: {e}")))
+}
+
 /// Run the `embed` subcommand: scan a directory, embed every file via Ollama,
 /// and persist the vectors under a scan id.
 pub fn run_embed(
@@ -198,21 +215,37 @@ pub fn run_embed(
         .with_model(&settings.embedding_model)
         .map_err(|e| AppError::Validation(format!("Ollama client error: {e}")))?;
 
-    // Resolve the scan id, creating an index-only placeholder record when none
-    // is supplied. The placeholder is tagged so the History UI hides it and
-    // overflow pruning leaves it alone.
-    let scan_id = match scan_id {
-        Some(id) => id,
-        None => {
-            let mut result = ScanReport::new();
-            result.path = display.clone();
-            result.total_files = files.len();
-            result.total_size_bytes = files.iter().map(|(_, s, _)| *s).sum();
-            result.is_index_only = true;
-            db.save_scan(&result, false, false, 5)
-                .map_err(|e| AppError::Validation(format!("Failed to create scan record: {e}")))?
-        }
-    };
+    // Resolve the scan id. When none is supplied, create an index-only
+    // placeholder record (tagged so the History UI hides it and overflow pruning
+    // leaves it alone). When --if-not-indexed is set, reuse an existing scan for
+    // this path instead of creating a fresh anchor — this keeps the number of
+    // index-only anchors bounded to one per embedded path across sessions.
+    let total_size: u64 = files.iter().map(|(_, s, _)| *s).sum();
+    let scan_id = if let Some(id) = scan_id {
+        id
+        } else if if_not_indexed {
+            match db.get_latest_scan_id_for_path(&display) {
+                Ok(Some(existing)) => {
+                    let model_ok = db
+                        .get_embedding_model(existing)
+                        .map_err(|e| AppError::Validation(format!("Failed to read embedding model: {e}")))?
+                        .map(|m| m == settings.embedding_model)
+                        .unwrap_or(false);
+                    let has_vectors = db
+                        .count_embeddings_for_scan(existing)
+                        .map_err(|e| AppError::Validation(format!("Failed to count embeddings: {e}")))?
+                        > 0;
+                    if model_ok && has_vectors {
+                        existing
+                    } else {
+                        create_index_only_anchor(&db, &display, files.len(), total_size)?
+                    }
+                }
+                _ => create_index_only_anchor(&db, &display, files.len(), total_size)?,
+            }
+        } else {
+            create_index_only_anchor(&db, &display, files.len(), total_size)?
+        };
 
     // Issue #1: reuse a fresh existing index instead of rebuilding it. A rebuild
     // re-runs the whole Ollama job and clobbers any index already built for this
