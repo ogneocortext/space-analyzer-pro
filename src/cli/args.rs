@@ -287,6 +287,13 @@ pub enum Commands {
         #[arg(long)]
         clear: bool,
 
+        /// Skip the confirmation gate for destructive history operations
+        /// (delete, prune, prune-empty, clear). The CLI refuses these unless
+        /// this flag is passed. The GUI passes it because it already confirms
+        /// the action via its own dialog. Alias: --assume-yes.
+        #[arg(long, aliases = ["assume-yes"])]
+        yes: bool,
+
         /// Only return scans whose folder has been scanned more than once
         /// (re-scans of the same directory). Combines with --search, --sort-by,
         /// --limit and --offset so the result stays paginated.

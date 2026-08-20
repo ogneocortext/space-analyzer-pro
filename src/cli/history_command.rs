@@ -26,6 +26,7 @@ pub fn handle_history(
     duplicates: bool,
     summarize: bool,
     include_index_only: bool,
+    yes: bool,
     output_format: OutputFormat,
 ) -> AppResult<()> {
     if summarize {
@@ -101,6 +102,9 @@ pub fn handle_history(
             return Ok(());
         }
         if prune {
+            if confirmation_required(yes, output_format) {
+                return Ok(());
+            }
             match db.prune_duplicate_scans() {
                 Ok(duplicates_removed) => {
                     let relative_removed = if drop_relative {
@@ -144,6 +148,9 @@ pub fn handle_history(
                 }
             }
         } else if prune_empty {
+            if confirmation_required(yes, output_format) {
+                return Ok(());
+            }
             match db.prune_empty_scans() {
                 Ok(removed) => {
                     let _ = db.vacuum();
@@ -168,6 +175,9 @@ pub fn handle_history(
                 }
             }
         } else if clear {
+            if confirmation_required(yes, output_format) {
+                return Ok(());
+            }
             match db.clear_history() {
                 Ok(removed) => {
                     if output_format == OutputFormat::Json {
@@ -193,6 +203,9 @@ pub fn handle_history(
                 }
             }
         } else if let Some(scan_id) = delete {
+            if confirmation_required(yes, output_format) {
+                return Ok(());
+            }
             match db.delete_scan(scan_id) {
                 Ok(count) if count > 0 => {
                     if output_format == OutputFormat::Json {
@@ -310,6 +323,25 @@ pub fn handle_history(
         eprintln!("Failed to open database");
     }
     Ok(())
+}
+
+/// Returns true (and emits a refusal message) when a destructive history
+/// operation is requested without the confirming `--yes` flag.
+fn confirmation_required(yes: bool, output_format: OutputFormat) -> bool {
+    if yes {
+        return false;
+    }
+    if output_format == OutputFormat::Json {
+        println!(
+            "{}",
+            serde_json::json!({"error": "confirmation required", "requires_confirmation": true})
+        );
+    } else {
+        eprintln!(
+            "Refused: this operation is destructive. Pass --yes (or --assume-yes) to confirm."
+        );
+    }
+    true
 }
 
 fn run_summarize(scan_id: Option<i64>, output_format: OutputFormat) -> AppResult<()> {

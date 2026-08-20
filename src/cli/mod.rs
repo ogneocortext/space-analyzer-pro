@@ -110,6 +110,7 @@ pub fn main() -> AppResult<()> {
             duplicates,
             summarize,
             include_index_only,
+            yes,
         } => history_command::handle_history(
             limit,
             offset,
@@ -129,6 +130,7 @@ pub fn main() -> AppResult<()> {
             duplicates,
             summarize,
             include_index_only,
+            yes,
             output_format,
         ),
         Commands::Dedup {

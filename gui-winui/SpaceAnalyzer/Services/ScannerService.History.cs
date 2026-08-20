@@ -219,7 +219,7 @@ public partial class ScannerService
 
         try
         {
-            var output = await RunScannerAsync(new[] { "history", "--delete", id.ToString(), "--format", "json" }, ct);
+            var output = await RunScannerAsync(new[] { "history", "--delete", id.ToString(), "--yes", "--format", "json" }, ct);
             if (string.IsNullOrWhiteSpace(output))
                 return false;
             using var doc = JsonDocument.Parse(output);

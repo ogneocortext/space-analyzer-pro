@@ -15,7 +15,7 @@ public partial class ScannerService
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
-        var output = await RunScannerAsync(new[] { "history", "--prune-empty", "--format", "json" }, ct);
+        var output = await RunScannerAsync(new[] { "history", "--prune-empty", "--yes", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
 
@@ -50,7 +50,7 @@ public partial class ScannerService
         var caps = await GetCapabilitiesAsync(ct);
         if (!caps.HistoryDropRelative)
             return (false, 0, "Scanner does not support --drop-relative");
-        var output = await RunScannerAsync(new[] { "history", "--prune", "--drop-relative", "--format", "json" }, ct);
+        var output = await RunScannerAsync(new[] { "history", "--prune", "--drop-relative", "--yes", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
 
@@ -272,7 +272,7 @@ public partial class ScannerService
         if (!IsAvailable)
             return (false, 0, "Scanner unavailable");
 
-        var output = await RunScannerAsync(new[] { "history", "--clear", "--format", "json" }, ct);
+        var output = await RunScannerAsync(new[] { "history", "--clear", "--yes", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, "Empty response from scanner");
 
@@ -304,7 +304,7 @@ public partial class ScannerService
         if (!IsAvailable)
             return (false, 0, 0, "Scanner unavailable");
 
-        var output = await RunScannerAsync(new[] { "history", "--prune", "--format", "json" }, ct);
+        var output = await RunScannerAsync(new[] { "history", "--prune", "--yes", "--format", "json" }, ct);
         if (string.IsNullOrWhiteSpace(output))
             return (false, 0, 0, "Empty response from scanner");
 
